@@ -1335,6 +1335,12 @@ impl GpuProcessor {
         };
 
         let adjustments = request.adjustments;
+
+        // Skip blur passes that nothing consumes: when a flag is false, run_blur is
+        // skipped and the dummy view is bound below, which the shader's per-effect
+        // zero-guards never read. Computed once per image, before the tile loop.
+        let blur_needs = compute_blur_needs(&adjustments);
+
         if adjustments.global.flare_amount > 0.0 {
             let mut encoder = device.create_command_encoder(&Default::default());
 
@@ -1558,10 +1564,14 @@ impl GpuProcessor {
                     true
                 };
 
-                let did_create_sharpness_blur = run_blur(1.0, &self.sharpness_blur_view);
-                let did_create_tonal_blur = run_blur(3.5, &self.tonal_blur_view);
-                let did_create_clarity_blur = run_blur(8.0, &self.clarity_blur_view);
-                let did_create_structure_blur = run_blur(40.0, &self.structure_blur_view);
+                let did_create_sharpness_blur =
+                    blur_needs.sharpness && run_blur(1.0, &self.sharpness_blur_view);
+                let did_create_tonal_blur =
+                    blur_needs.tonal && run_blur(3.5, &self.tonal_blur_view);
+                let did_create_clarity_blur =
+                    blur_needs.clarity && run_blur(8.0, &self.clarity_blur_view);
+                let did_create_structure_blur =
+                    blur_needs.structure && run_blur(40.0, &self.structure_blur_view);
 
                 let mut main_encoder = device.create_command_encoder(&Default::default());
 
@@ -1826,6 +1836,39 @@ pub fn process_and_get_dynamic_image_with_analytics(
         output_to_display,
         analytics_config,
     )
+}
+
+/// Which of the four export blur passes have at least one active consumer. Each
+/// blur output feeds several shader effects, so a flag is the UNION of all its
+/// consumers — the namesake slider is necessary but not sufficient: the
+/// structure blur also feeds glow and dehaze; clarity feeds centre and
+/// halation; tonal feeds highlights/shadows/blacks. Consumers live both
+/// globally and per active mask, so a value that is 0 globally but non-zero
+/// inside a mask still needs the blur. `centré` is global-only
+/// (MaskAdjustments has no such field).
+struct BlurNeeds {
+    sharpness: bool,
+    tonal: bool,
+    clarity: bool,
+    structure: bool,
+}
+
+fn compute_blur_needs(adjustments: &AllAdjustments) -> BlurNeeds {
+    let g = &adjustments.global;
+    let mut n = BlurNeeds {
+        sharpness: g.sharpness != 0.0,
+        tonal: g.highlights != 0.0 || g.shadows != 0.0 || g.blacks != 0.0,
+        clarity: g.clarity != 0.0 || g.halation_amount != 0.0 || g.centré != 0.0,
+        structure: g.structure != 0.0 || g.glow_amount != 0.0 || g.dehaze != 0.0,
+    };
+    let mask_count = (adjustments.mask_count as usize).min(adjustments.mask_adjustments.len());
+    for m in &adjustments.mask_adjustments[..mask_count] {
+        n.sharpness |= m.sharpness != 0.0;
+        n.tonal |= m.highlights != 0.0 || m.shadows != 0.0 || m.blacks != 0.0;
+        n.clarity |= m.clarity != 0.0 || m.halation_amount != 0.0;
+        n.structure |= m.structure != 0.0 || m.glow_amount != 0.0 || m.dehaze != 0.0;
+    }
+    n
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2217,5 +2260,47 @@ fn process_and_get_dynamic_image_inner(
                 .ok_or("Failed to create 16-bit image buffer from GPU data")?;
             Ok(DynamicImage::ImageRgba16(img_buf))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::compute_blur_needs;
+    use crate::image_processing::AllAdjustments;
+
+    #[test]
+    fn blur_needs_is_union_of_all_consumers() {
+        // Nothing active → every blur is skipped.
+        let base = AllAdjustments::default();
+        let n = compute_blur_needs(&base);
+        assert!(!n.sharpness && !n.tonal && !n.clarity && !n.structure);
+
+        // Non-namesake global consumers each trigger the right blur.
+        let mut a = base;
+        a.global.dehaze = 5.0;
+        assert!(compute_blur_needs(&a).structure);
+        let mut a = base;
+        a.global.glow_amount = 5.0;
+        assert!(compute_blur_needs(&a).structure);
+        let mut a = base;
+        a.global.halation_amount = 5.0;
+        assert!(compute_blur_needs(&a).clarity);
+        let mut a = base; // centré is global-only
+        a.global.centré = 30.0;
+        assert!(compute_blur_needs(&a).clarity);
+
+        // A value set only inside an active mask must still trigger its blur.
+        let mut a = base;
+        a.mask_count = 1;
+        a.mask_adjustments[0].structure = 10.0;
+        let n = compute_blur_needs(&a);
+        assert!(n.structure);
+        assert!(!n.tonal && !n.clarity && !n.sharpness);
+
+        // A masked value beyond mask_count must be ignored (not read by the shader).
+        let mut a = base;
+        a.mask_count = 0;
+        a.mask_adjustments[0].sharpness = 10.0;
+        assert!(!compute_blur_needs(&a).sharpness);
     }
 }
