@@ -944,6 +944,16 @@ pub async fn load_image(
             ));
         }
 
+        // Serialise full-resolution decodes and skip superseded waiters.
+        let _decode_permit = state
+            .decode_permit
+            .acquire()
+            .await
+            .map_err(|e| e.to_string())?;
+        if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+            return Err("Load cancelled".to_string());
+        }
+
         let (pristine_img, exif_data_loaded) = tokio::task::spawn_blocking(move || {
             if generation_tracker.load(Ordering::SeqCst) != my_generation {
                 return Err("Load cancelled".to_string());
