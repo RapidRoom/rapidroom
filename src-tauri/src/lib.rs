@@ -377,6 +377,7 @@ async fn update_wgpu_transform(
     tokio::task::spawn_blocking(move || {
         let mut display_lock = context.display.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(display) = display_lock.as_mut() {
+            display.apply_pending_size(&context);
             display.latest_transform.rect = [payload.x, payload.y, payload.width, payload.height];
             display.latest_transform.clip = [
                 payload.clip_x,
@@ -1814,16 +1815,29 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(PinchZoomDisablePlugin)
-        .on_window_event(|window, event| if let tauri::WindowEvent::Resized(size) = event {
+        .on_window_event(|window, event| {
+            // ScaleFactorChanged too: dragging the window to a display with a
+            // different backing scale changes the physical size without ever
+            // emitting Resized.
+            let size = match event {
+                tauri::WindowEvent::Resized(size) => *size,
+                tauri::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => *new_inner_size,
+                _ => return,
+            };
             let state = window.state::<AppState>();
-            if let Some(ctx) = state.gpu_context.lock().unwrap().as_ref()
-                && let Ok(mut display_lock) = ctx.display.try_lock()
+            if let Some(ctx) = state.gpu_context.lock().unwrap().as_ref() {
+                // Record before trying the display lock. try_lock keeps the UI
+                // thread off the render path, but on its own it drops any resize
+                // that races a render — and a dropped final resize leaves the
+                // swapchain undersized for good.
+                *ctx.pending_surface_size.lock().unwrap() =
+                    Some((size.width.max(1), size.height.max(1)));
+                if let Ok(mut display_lock) = ctx.display.try_lock()
                     && let Some(display) = display_lock.as_mut() {
-                        display.config.width = size.width.max(1);
-                        display.config.height = size.height.max(1);
-                        display.surface.configure(&ctx.device, &display.config);
+                        display.apply_pending_size(ctx);
                         display.render(&ctx.device, &ctx.queue);
                     }
+            }
         })
         .setup(move |app| {
             #[cfg(feature = "tethering")]
