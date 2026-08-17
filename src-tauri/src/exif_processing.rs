@@ -437,15 +437,12 @@ fn parse_xmp_rating(raw: &str) -> Option<u8> {
     }
 }
 
-/// Rating (0..=5) written by a camera or another tool.
-///
-/// Reads from embedded XMP `xmp:Rating` (the interoperable carrier used by
-/// Lightroom / digikam / many cameras) and, as a fallback, the private EXIF
-/// `Rating` tag (0x4746). Returns `None` when no rating is present so callers
-/// can fall back to 0.
+static XMP_RATING_ATTR: std::sync::OnceLock<regex::bytes::Regex> = std::sync::OnceLock::new();
+static XMP_RATING_ELEM: std::sync::OnceLock<regex::bytes::Regex> = std::sync::OnceLock::new();
+
 pub fn read_image_rating(file_bytes: &[u8]) -> Option<u8> {
-    // Embedded XMP `xmp:Rating`, attribute or element form.
-    let attr = regex::bytes::Regex::new(r#"xmp:Rating\s*=\s*["'](-?[0-9]+)["']"#).ok()?;
+    let attr = XMP_RATING_ATTR
+        .get_or_init(|| regex::bytes::Regex::new(r#"xmp:Rating\s*=\s*["'](-?[0-9]+)["']"#).unwrap());
     if let Some(caps) = attr.captures(file_bytes) {
         if let Some(m) = caps.get(1) {
             if let Ok(s) = std::str::from_utf8(m.as_bytes())
@@ -455,7 +452,8 @@ pub fn read_image_rating(file_bytes: &[u8]) -> Option<u8> {
             }
         }
     }
-    let elem = regex::bytes::Regex::new(r#"<xmp:Rating>(-?[0-9]+)</xmp:Rating>"#).ok()?;
+    let elem = XMP_RATING_ELEM
+        .get_or_init(|| regex::bytes::Regex::new(r#"<xmp:Rating>(-?[0-9]+)</xmp:Rating>"#).unwrap());
     if let Some(caps) = elem.captures(file_bytes) {
         if let Some(m) = caps.get(1) {
             if let Ok(s) = std::str::from_utf8(m.as_bytes())

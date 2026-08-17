@@ -103,16 +103,6 @@ fn resolve_image_metadata(
         let _ = write_file_atomically(sidecar_path, json);
     }
 
-    // Read a camera/software rating the user never edited in RapidRAW
-    // (no rated `.rrdata`). In-memory only — we do not grow `.rrdata` here.
-    if metadata.rating == 0 {
-        if let Ok(mm) = read_file_mapped(image_path)
-            && let Some(rating) = crate::exif_processing::read_image_rating(mm.as_ref())
-        {
-            metadata.rating = rating;
-        }
-    }
-
     let is_raw = crate::formats::is_raw_file(image_path);
     let tm_override = crate::image_processing::resolve_tonemapper_override(settings, is_raw);
     let is_edited =
@@ -448,7 +438,13 @@ pub async fn read_exif_for_paths(
             } else if is_cloud_placeholder(&source_path) {
                 HashMap::new()
             } else if let Ok(mmap) = read_file_mapped(&source_path) {
-                crate::exif_processing::read_exif_data(&source_path_str, &mmap)
+                let mut map = crate::exif_processing::read_exif_data(&source_path_str, &mmap);
+                if !map.contains_key("Rating")
+                    && let Some(r) = crate::exif_processing::read_image_rating(mmap.as_ref())
+                {
+                    map.insert("Rating".to_string(), r.to_string());
+                }
+                map
             } else if let Ok(bytes) = fs::read(&source_path) {
                 crate::exif_processing::read_exif_data(&source_path_str, &bytes)
             } else {
