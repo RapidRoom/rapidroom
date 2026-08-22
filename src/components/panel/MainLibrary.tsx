@@ -16,6 +16,7 @@ import {
   Columns,
   SlidersHorizontal,
   Rows3,
+  MemoryStick,
 } from 'lucide-react';
 import CullingView from './library/CullingView';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -62,6 +63,7 @@ interface MainLibraryProps {
   aiModelDownloadStatus: string | null;
   appSettings: AppSettings | null;
   currentFolderPath: string | null;
+  cardBrowseRoot: string | null;
   groupBadgeInfo: Map<GroupId, GroupBadgeInfo> | null;
   imageList: Array<ImageFile>;
   imageRatings: Record<string, number>;
@@ -83,6 +85,7 @@ interface MainLibraryProps {
   onImportClick(): void;
   onLibraryRefresh(): void;
   onOpenFolder(): void;
+  onBrowseCard(): void;
   onSettingsChange(settings: AppSettings): Promise<void>;
   onThumbnailAspectRatioChange(aspectRatio: ThumbnailAspectRatio): void;
   onThumbnailSizeChange(size: ThumbnailSize): void;
@@ -423,6 +426,15 @@ export default function MainLibrary(props: MainLibraryProps) {
                           <Settings size={20} />
                         </Button>
                       </div>
+                      {!props.isAndroid && (
+                        <Button
+                          className="rounded-md h-11 w-full flex justify-center items-center bg-surface text-text-primary shadow-md transition-transform duration-200 hover:scale-[1.01] active:scale-[.98]"
+                          onClick={props.onBrowseCard}
+                          size="lg"
+                        >
+                          <MemoryStick size={20} className="mr-2" /> Browse SD card safely
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -533,6 +545,11 @@ export default function MainLibrary(props: MainLibraryProps) {
       >
         <div className="min-w-0">
           <Text variant={TextVariants.headline}>{t('library.header.title')}</Text>
+          {props.cardBrowseRoot && (
+            <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-emerald-400">
+              <MemoryStick size={14} /> Card mode · read-only
+            </div>
+          )}
           {!props.isAndroid && (
             <div className="flex items-center gap-2">
               {props.currentFolderPath ? (
@@ -609,6 +626,15 @@ export default function MainLibrary(props: MainLibraryProps) {
               editedStatusOptions={translatedEditedStatusOptions}
               sortOptions={translatedSortOptions}
             />
+            {!props.isAndroid && !props.cardBrowseRoot && (
+              <Button
+                className="h-12 w-12 bg-transparent text-text-primary shadow-none p-0 flex items-center justify-center"
+                onClick={props.onBrowseCard}
+                data-tooltip="Browse SD card safely"
+              >
+                <MemoryStick className="w-5 h-5" />
+              </Button>
+            )}
             {!props.isAndroid && (
               <Button
                 className="h-12 w-12 bg-transparent text-text-primary shadow-none p-0 flex items-center justify-center"

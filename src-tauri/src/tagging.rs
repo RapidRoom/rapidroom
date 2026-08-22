@@ -265,6 +265,7 @@ pub async fn start_background_indexing(
     app_handle: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    file_management::ensure_card_writable(Path::new(&folder_path))?;
     if let Some(handle) = state.indexing_task_handle.lock().unwrap().take() {
         println!("Cancelling previous indexing task.");
         handle.abort();
@@ -433,6 +434,7 @@ fn modify_tags_for_path(
     modify_fn: impl Fn(&mut Vec<String>),
 ) -> Result<(), String> {
     let (source_path, sidecar_path) = parse_virtual_path(path_str);
+    file_management::ensure_card_writable(&source_path)?;
 
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
@@ -532,6 +534,7 @@ fn sync_xmp_for_rrdata(
 
 #[tauri::command]
 pub fn clear_ai_tags(root_path: String, app_handle: AppHandle) -> Result<usize, String> {
+    file_management::ensure_card_writable(Path::new(&root_path))?;
     if !Path::new(&root_path).exists() {
         return Err(format!("Root path does not exist: {}", root_path));
     }
@@ -575,6 +578,7 @@ pub fn clear_ai_tags(root_path: String, app_handle: AppHandle) -> Result<usize, 
 
 #[tauri::command]
 pub fn clear_all_tags(root_path: String, app_handle: AppHandle) -> Result<usize, String> {
+    file_management::ensure_card_writable(Path::new(&root_path))?;
     if !Path::new(&root_path).exists() {
         return Err(format!("Root path does not exist: {}", root_path));
     }
