@@ -23,6 +23,14 @@ export const debouncedSetHistory = debounce((newAdj: Adjustments) => {
 }, 500);
 
 export const debouncedSave = debounce((path: string, adjustmentsToSave: Adjustments) => {
+  const cardRoot = useLibraryStore.getState().cardBrowseRoot;
+  if (cardRoot) {
+    const normalizedRoot = cardRoot.replace(/[\\/]+$/, '');
+    const isCardPath =
+      path === normalizedRoot || path.startsWith(`${normalizedRoot}/`) || path.startsWith(`${normalizedRoot}\\`);
+    if (isCardPath) return;
+  }
+
   invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave }).catch((err) => {
     console.error('Auto-save failed:', err);
     toast.error(`Failed to save changes: ${err}`);
