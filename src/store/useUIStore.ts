@@ -155,8 +155,8 @@ export function reconcileWorkspace(
   };
 
   (['leftTop', 'leftBottom', 'rightTop', 'rightBottom'] as PanelRegion[]).forEach((region) => {
-    const list = savedWorkspace.panelLayout[region] || [];
-    list.forEach((panel) => {
+    const list = savedWorkspace.panelLayout[region];
+    (Array.isArray(list) ? list : []).forEach((panel) => {
       if (allowedPanels.has(panel) && !seenPanels.has(panel)) {
         sanitizedLayout[region].push(panel);
         seenPanels.add(panel);
