@@ -358,7 +358,9 @@ fn apply_curve(val: f32, points: array<Point, 16>, count: u32) -> f32 {
         let p1 = local_points[i];
         let p2 = local_points[i + 1u];
         if (x <= p2.x) {
-            let p0 = local_points[max(0u, i - 1u)];
+            // max(i, 1u) - 1u, not max(0u, i - 1u): i is unsigned, so at
+            // i = 0 the subtraction wraps to 4294967295 and the max keeps it.
+            let p0 = local_points[max(i, 1u) - 1u];
             let p3 = local_points[min(count - 1u, i + 2u)];
             let delta_before = (p1.y - p0.y) / max(0.001, p1.x - p0.x);
             let delta_current = (p2.y - p1.y) / max(0.001, p2.x - p1.x);
