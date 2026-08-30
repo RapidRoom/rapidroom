@@ -1699,11 +1699,8 @@ pub fn generate_thumbnail_data(
         let (preview_w, preview_h) = cropped_preview.dimensions();
         let unscaled_crop_offset = crop_data.map_or((0.0, 0.0), |c| (c.x as f32, c.y as f32));
 
-        let mask_definitions: Vec<MaskDefinition> = meta
-            .adjustments
-            .get("masks")
-            .and_then(|m| serde_json::from_value(m.clone()).ok())
-            .unwrap_or_else(Vec::new);
+        let mask_definitions: Vec<MaskDefinition> =
+            crate::mask_generation::parse_mask_definitions(&meta.adjustments);
 
         let mask_bitmaps: Vec<ImageBuffer<Luma<u8>, Vec<u8>>> = mask_definitions
             .iter()

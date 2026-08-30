@@ -645,14 +645,26 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
     return INITIAL_ADJUSTMENTS;
   }
 
+  const VALID_SUB_MASK_MODES: Array<SubMaskMode> = Object.values(SubMaskMode);
+
   const normalizeSubMasks = (subMasks: any[]) => {
-    return (subMasks || []).map((subMask: Partial<SubMask>) => ({
-      visible: true,
-      mode: SubMaskMode.Additive,
-      invert: false,
-      opacity: 100,
-      ...subMask,
-    }));
+    return (subMasks || []).map((subMask: Partial<SubMask>) => {
+      const normalized = {
+        visible: true,
+        mode: SubMaskMode.Additive,
+        invert: false,
+        opacity: 100,
+        ...subMask,
+      };
+      // Dropping a mask onto an existing sub-mask used to write the drop index
+      // here instead of a mode. Spreading the stored sub-mask over the defaults
+      // means such a value survives, so it is corrected on the way in rather
+      // than written back out on the next save.
+      if (!VALID_SUB_MASK_MODES.includes(normalized.mode)) {
+        normalized.mode = SubMaskMode.Additive;
+      }
+      return normalized;
+    });
   };
 
   const normalizedMasks = (loadedAdjustments.masks || []).map((maskContainer: MaskContainer) => {
