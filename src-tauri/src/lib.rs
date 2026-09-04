@@ -49,6 +49,7 @@ mod inpainting;
 mod launch_request;
 mod lens_blur;
 mod lens_correction;
+mod lightroom_import;
 mod lut_processing;
 mod mask_generation;
 mod multi_exposure;
@@ -2328,6 +2329,8 @@ pub fn run() {
             file_management::save_albums,
             file_management::add_to_album,
             file_management::get_album_images,
+            lightroom_import::inspect_lightroom_catalog,
+            lightroom_import::import_lightroom_collections,
             tagging::start_background_indexing,
             tagging::clear_ai_tags,
             tagging::clear_all_tags,
