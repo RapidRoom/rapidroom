@@ -116,6 +116,13 @@ pub fn calculate_visual_hash(path: &str, adjustments: &serde_json::Value) -> u64
     hasher.finish()
 }
 
+pub fn calculate_image_cache_hash(image_path: &str, adjustment_hash: u64) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    image_path.hash(&mut hasher);
+    adjustment_hash.hash(&mut hasher);
+    hasher.finish()
+}
+
 pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
 
@@ -322,5 +329,21 @@ pub fn clear_session_caches(state: tauri::State<AppState>) {
     }
     if let Ok(mut geometry_cache) = state.geometry_cache.lock() {
         geometry_cache.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::calculate_image_cache_hash;
+
+    #[test]
+    fn virtual_copies_have_distinct_renderer_cache_identity() {
+        let transform_hash = 42;
+        let first_copy =
+            calculate_image_cache_hash("/synthetic/image.jpg?vc=123abc", transform_hash);
+        let second_copy =
+            calculate_image_cache_hash("/synthetic/image.jpg?vc=abcdef", transform_hash);
+
+        assert_ne!(first_copy, second_copy);
     }
 }
