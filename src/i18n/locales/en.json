@@ -744,6 +744,7 @@
         "presetFile": "Preset File",
         "rapidRawPreset": "RapidRAW Preset"
       },
+      "favorites": "Favorites",
       "menu": {
         "configurePreset": "Configure Preset",
         "deleteFolder": "Delete Folder",
@@ -771,8 +772,10 @@
       "tooltips": {
         "explore": "Explore Community Presets",
         "export": "Export all presets to .rrpreset file",
+        "favorite": "Add to favorites",
         "import": "Import presets from .rrpreset file",
-        "saveNew": "Save as new preset"
+        "saveNew": "Save as new preset",
+        "unfavorite": "Remove from favorites"
       },
       "types": {
         "folder": "Folder",

@@ -187,6 +187,17 @@ export function usePresets(currentAdjustments: Adjustments) {
     savePresetsToBackend(updatedPresets);
   };
 
+  const toggleFavorite = (id: string) => {
+    const toggle = (p: Preset) => (p.id === id ? { ...p, favorite: !p.favorite } : p);
+    const updatedPresets = presets.map((item: UserPreset) => {
+      if (item.preset) return { preset: toggle(item.preset) };
+      if (item.folder) return { folder: { ...item.folder, children: item.folder.children.map(toggle) } };
+      return item;
+    });
+    setPresets(updatedPresets);
+    savePresetsToBackend(updatedPresets);
+  };
+
   const configurePreset = (
     id: string | null,
     name: string,
@@ -655,5 +666,6 @@ export function usePresets(currentAdjustments: Adjustments) {
     renameItem,
     reorderItems,
     sortAllPresetsAlphabetically,
+    toggleFavorite,
   };
 }
