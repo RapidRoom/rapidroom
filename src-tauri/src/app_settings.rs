@@ -379,6 +379,9 @@ pub struct WorkspaceState {
     pub panel_layout: HashMap<String, Vec<String>>,
     pub active_panels: HashMap<String, Option<String>>,
     pub panel_switcher_placement: HashMap<String, String>,
+    /// Missing in older settings (0); the frontend migrates those layouts once.
+    #[serde(default)]
+    pub layout_version: u32,
 }
 
 impl Default for WorkspaceState {
@@ -388,6 +391,7 @@ impl Default for WorkspaceState {
         let mut left_top = vec![
             "metadata".to_string(),
             "folderTree".to_string(),
+            "presets".to_string(),
             "export".to_string(),
         ];
 
@@ -404,7 +408,6 @@ impl Default for WorkspaceState {
                 "crop".to_string(),
                 "masks".to_string(),
                 "ai".to_string(),
-                "presets".to_string(),
             ],
         );
         panel_layout.insert("rightBottom".to_string(), vec![]);
@@ -429,6 +432,7 @@ impl Default for WorkspaceState {
             panel_layout,
             active_panels,
             panel_switcher_placement,
+            layout_version: 1,
         }
     }
 }

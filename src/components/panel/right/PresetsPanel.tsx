@@ -65,6 +65,7 @@ interface DraggablePresetItemProps {
   intensity?: number;
   onIntensityChange?: (val: number) => void;
   onDragStateChange?: (isDragging: boolean) => void;
+  onHoverChange?: (preset: Preset | null) => void;
 }
 
 interface FolderProps {
@@ -267,6 +268,7 @@ function PresetItemDisplay({
   onDragStateChange,
 }: PresetItemDisplayProps) {
   const { t } = useTranslation();
+  const hasImage = useEditorStore((s) => !!s.selectedImage?.isReady);
   const geometryKeys = ADJUSTMENT_GROUPS.geometry.flatMap((g) => g.keys);
 
   const supportsMasks = preset.includeMasks ?? (preset.adjustments?.masks && preset.adjustments.masks.length > 0);
@@ -292,7 +294,7 @@ function PresetItemDisplay({
           {previewUrl ? (
             <PreviewImage src={previewUrl} alt={`${preset.name} preview`} />
           ) : (
-            <Loader2 size={20} className="animate-spin text-text-secondary" />
+            hasImage && <Loader2 size={20} className="animate-spin text-text-secondary" />
           )}
 
           {(supportsMasks || supportsGeometry) && (
@@ -384,6 +386,7 @@ function DraggablePresetItem({
   intensity,
   onIntensityChange,
   onDragStateChange,
+  onHoverChange,
 }: DraggablePresetItemProps) {
   const {
     attributes,
@@ -420,6 +423,8 @@ function DraggablePresetItem({
     <div
       onClick={() => onApply(preset)}
       onContextMenu={(e: any) => onContextMenu(e, { preset })}
+      onMouseEnter={() => onHoverChange?.(preset)}
+      onMouseLeave={() => onHoverChange?.(null)}
       ref={setCombinedRef}
       style={style}
     >
@@ -582,7 +587,31 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
 
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [presetIntensity, setPresetIntensity] = useState<number>(100);
-  const [baseAdjustments, setBaseAdjustments] = useState<Adjustments | null>(null);
+  const [isActivePresetExpanded, setIsActivePresetExpanded] = useState(true);
+
+  const activeView = useUIStore((s) => s.activeView);
+  const isHoverPreviewingRef = useRef(false);
+
+  // Hovering a preset renders it on the editor image via previewOverride, leaving adjustments untouched.
+  const setHoverPreview = useCallback(
+    (preset: Preset | null) => {
+      const shouldPreview =
+        !!preset && preset.id !== activePresetId && activeView === 'editor' && !!selectedImage?.isReady;
+      if (!shouldPreview && !isHoverPreviewingRef.current) return;
+      isHoverPreviewingRef.current = shouldPreview;
+      setEditor((state) => ({
+        previewOverride: shouldPreview && preset ? { ...state.adjustments, ...preset.adjustments } : null,
+      }));
+    },
+    [activePresetId, activeView, selectedImage?.isReady, setEditor],
+  );
+
+  useEffect(
+    () => () => {
+      if (isHoverPreviewingRef.current) setEditor({ previewOverride: null });
+    },
+    [setEditor],
+  );
 
   const previewsRef = useRef(previews);
   previewsRef.current = previews;
@@ -863,7 +892,6 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
       setFolderPreviewsGenerated(new Set<string>());
 
       setActivePresetId(null);
-      setBaseAdjustments(null);
 
       if (isPathChanged && selectedImage?.path) {
         currentImagePathRef.current = selectedImage.path;
@@ -886,17 +914,15 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
   ]);
 
   const handleApplyPreset = (preset: Preset) => {
+    if (!selectedImage) return;
+    setHoverPreview(null);
     if (activePresetId === preset.id) {
-      setActivePresetId(null);
-      if (baseAdjustments) {
-        setAdjustments(baseAdjustments);
-      }
-      setBaseAdjustments(null);
+      setIsActivePresetExpanded((expanded) => !expanded);
       return;
     }
 
-    setBaseAdjustments(adjustments);
     setActivePresetId(preset.id);
+    setIsActivePresetExpanded(true);
     setPresetIntensity(100);
 
     setAdjustments((prevAdjustments: Adjustments) => ({
@@ -979,6 +1005,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
   };
 
   const handleDragStart = (event: any) => {
+    setHoverPreview(null);
     setActiveItem(allItemsMap.get(event.active.id) ?? null);
   };
 
@@ -1251,18 +1278,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
         </div>
 
         <RootDroppableArea onContextMenu={handleBackgroundContextMenu}>
-          {!selectedImage ? (
-            <div className="flex items-center justify-center h-full">
-              <Text
-                variant={TextVariants.heading}
-                color={TextColors.secondary}
-                weight={TextWeights.normal}
-                className="text-center"
-              >
-                {t('editor.ai.noImageSelected')}
-              </Text>
-            </div>
-          ) : isLoading && presets.length === 0 ? (
+          {isLoading && presets.length === 0 ? (
             <Text
               as="div"
               variant={TextVariants.heading}
@@ -1316,10 +1332,11 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
                                   onContextMenu={(e: any) => handleContextMenu(e, { preset })}
                                   preset={preset}
                                   previewUrl={previews[preset.id] || ''}
-                                  isActive={preset.id === activePresetId}
+                                  isActive={preset.id === activePresetId && isActivePresetExpanded}
                                   intensity={preset.id === activePresetId ? presetIntensity : 100}
                                   onIntensityChange={(val) => handleIntensityChange(preset, val)}
                                   onDragStateChange={handleDragStateChange}
+                                  onHoverChange={setHoverPreview}
                                 />
                               </motion.div>
                             ))}
@@ -1347,9 +1364,10 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
                         onContextMenu={(e: any) => handleContextMenu(e, item)}
                         preset={item.preset}
                         previewUrl={(item.preset?.id ? previews[item.preset.id] : '') || ''}
-                        isActive={item.preset?.id === activePresetId}
+                        isActive={item.preset?.id === activePresetId && isActivePresetExpanded}
                         intensity={item.preset?.id === activePresetId ? presetIntensity : 100}
                         onIntensityChange={(val) => handleIntensityChange(item.preset as Preset, val)}
+                        onHoverChange={setHoverPreview}
                       />
                     </motion.div>
                   ))}

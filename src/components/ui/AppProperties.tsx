@@ -186,6 +186,7 @@ export interface WorkspaceState {
   panelLayout: Record<PanelRegion, Panel[]>;
   activePanels: Record<PanelRegion, Panel | null>;
   panelSwitcherPlacement: Record<PanelRegion, 'left' | 'right' | 'top' | 'bottom'>;
+  layoutVersion?: number;
 }
 
 export interface CustomAspectRatio {
