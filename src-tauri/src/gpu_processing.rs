@@ -531,27 +531,33 @@ fn read_texture_data_roi(
     }
 }
 
-fn to_rgba_f16(img: &DynamicImage) -> Vec<f16> {
+fn to_rgba_f16(img: &DynamicImage) -> Vec<[f16; 4]> {
+    use rayon::prelude::*;
+    let pixel = |r: f32, g: f32, b: f32, a: f32| {
+        [
+            f16::from_f32(r),
+            f16::from_f32(g),
+            f16::from_f32(b),
+            f16::from_f32(a),
+        ]
+    };
     match img {
-        DynamicImage::ImageRgb32F(buffer) => {
-            let mut output = Vec::with_capacity(buffer.as_raw().len() / 3 * 4);
-            for pixel in buffer.pixels() {
-                output.extend([
-                    f16::from_f32(pixel[0]),
-                    f16::from_f32(pixel[1]),
-                    f16::from_f32(pixel[2]),
-                    f16::ONE,
-                ]);
-            }
-            output
-        }
-        DynamicImage::ImageRgba32F(buffer) => {
-            buffer.as_raw().iter().copied().map(f16::from_f32).collect()
-        }
-        _ => {
-            let rgba_f32 = img.to_rgba32f();
-            rgba_f32.into_raw().into_iter().map(f16::from_f32).collect()
-        }
+        DynamicImage::ImageRgba32F(rgba) => rgba
+            .as_raw()
+            .par_chunks_exact(4)
+            .map(|p| pixel(p[0], p[1], p[2], p[3]))
+            .collect(),
+        DynamicImage::ImageRgb32F(rgb) => rgb
+            .as_raw()
+            .par_chunks_exact(3)
+            .map(|p| pixel(p[0], p[1], p[2], 1.0))
+            .collect(),
+        other => other
+            .to_rgba32f()
+            .as_raw()
+            .par_chunks_exact(4)
+            .map(|p| pixel(p[0], p[1], p[2], p[3]))
+            .collect(),
     }
 }
 
@@ -2325,8 +2331,61 @@ fn process_and_get_dynamic_image_inner(
 
 #[cfg(test)]
 mod tests {
-    use super::compute_blur_needs;
+    use super::*;
     use crate::image_processing::AllAdjustments;
+    use crate::test_support::sample_values;
+    use image::{ImageBuffer, Luma, Rgb};
+
+    const W: u32 = 29;
+    const H: u32 = 31;
+
+    fn serial_reference(img: &DynamicImage) -> Vec<f16> {
+        img.to_rgba32f()
+            .into_raw()
+            .into_iter()
+            .map(f16::from_f32)
+            .collect()
+    }
+
+    fn assert_same_bits(img: &DynamicImage) {
+        let expected: Vec<u16> = serial_reference(img).iter().map(|v| v.to_bits()).collect();
+        let actual: Vec<u16> = to_rgba_f16(img)
+            .iter()
+            .flatten()
+            .map(|v| v.to_bits())
+            .collect();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn to_rgba_f16_matches_serial_conversion_for_rgba_f32() {
+        let values = sample_values((W * H * 4) as usize);
+        assert_same_bits(&DynamicImage::ImageRgba32F(
+            ImageBuffer::from_raw(W, H, values).unwrap(),
+        ));
+    }
+
+    #[test]
+    fn to_rgba_f16_matches_serial_conversion_for_rgb_f32() {
+        let values = sample_values((W * H * 3) as usize);
+        assert_same_bits(&DynamicImage::ImageRgb32F(
+            ImageBuffer::from_raw(W, H, values).unwrap(),
+        ));
+    }
+
+    #[test]
+    fn to_rgba_f16_matches_serial_conversion_for_integer_formats() {
+        assert_same_bits(&DynamicImage::ImageRgb8(ImageBuffer::from_fn(
+            W,
+            H,
+            |x, y| Rgb([(x * 5) as u8, (y * 9) as u8, 200]),
+        )));
+        assert_same_bits(&DynamicImage::ImageLuma16(ImageBuffer::from_fn(
+            W,
+            H,
+            |x, y| Luma([(x * y * 71) as u16]),
+        )));
+    }
 
     // [sharpness, tonal, clarity, structure]
     type Needs = [bool; 4];
