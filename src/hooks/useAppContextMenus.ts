@@ -48,6 +48,7 @@ import {
   Album as AlbumIcon,
   PencilSparkles,
   Database,
+  FolderSearch,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -1350,6 +1351,30 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         }
         const importedTree = await invoke<AlbumItem[]>(Invokes.GetAlbums);
         setLibrary({ albumTree: importedTree });
+
+        const libraryStore = useLibraryStore.getState();
+        const rootsToAdd = (preview.resolvedRoots as string[]).filter((root) => !libraryStore.rootPaths.includes(root));
+        if (rootsToAdd.length > 0) {
+          const addRoots = await confirm(
+            `Die folgenden Lightroom-Stammordner auch unter „Ordner“ hinzufügen?\n\n${rootsToAdd.join('\n')}`,
+            { title: 'Lightroom-Ordner übernehmen', kind: 'info' },
+          );
+          if (addRoots) {
+            const rootPaths = [...libraryStore.rootPaths, ...rootsToAdd];
+            libraryStore.setLibrary({
+              rootPaths,
+              expandedFolders: new Set([...libraryStore.expandedFolders, ...rootsToAdd]),
+            });
+            const currentSettings = useSettingsStore.getState();
+            if (currentSettings.appSettings) {
+              await currentSettings.handleSettingsChange({
+                ...currentSettings.appSettings,
+                rootFolders: rootPaths,
+              });
+            }
+            await props.refreshAllFolderTrees();
+          }
+        }
         toast.success('Lightroom-Sammlungen importiert.');
       };
 
@@ -1464,6 +1489,16 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       const isMoveDisabled = moveOptions.length === 0 && isAtRoot;
 
       const options: Option[] = [
+        ...(item?.id.startsWith('lightroom-import:')
+          ? [
+              {
+                label: 'Lightroom-Ordner neu zuordnen…',
+                icon: FolderSearch,
+                onClick: () => void importLightroomCollections().catch((error) => toast.error(String(error))),
+              },
+              { type: OPTION_SEPARATOR } as Option,
+            ]
+          : []),
         ...(!item
           ? [
               {

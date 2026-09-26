@@ -458,6 +458,12 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       try {
         const files: ImageFile[] = await invoke(Invokes.GetAlbumImages, { paths: imagePaths });
 
+        if (imagePaths.length > 0 && files.length === 0) {
+          toast.warning(
+            'Keine Dateien dieser Sammlung sind erreichbar. Bitte den Datenträger verbinden oder die Lightroom-Ordner neu zuordnen.',
+          );
+        }
+
         const initialRatings: Record<string, number> = {};
         files.forEach((f) => {
           if (f.rating !== undefined) initialRatings[f.path] = f.rating;

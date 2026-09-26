@@ -17,6 +17,7 @@ pub struct LightroomImportPreview {
     missing_image_count: usize,
     smart_collection_count: usize,
     missing_roots: Vec<String>,
+    resolved_roots: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -56,6 +57,7 @@ fn parse_catalog(
 
     let mut roots = HashMap::new();
     let mut missing_roots = Vec::new();
+    let mut resolved_roots = Vec::new();
     let mut statement = connection
         .prepare("SELECT id_local, absolutePath FROM AgLibraryRootFolder")
         .map_err(|error| format!("Unsupported Lightroom catalog schema: {error}"))?;
@@ -72,6 +74,8 @@ fn parse_catalog(
             .unwrap_or_else(|| original.clone());
         if !Path::new(&resolved).exists() && !missing_roots.contains(&original) {
             missing_roots.push(original.clone());
+        } else if !resolved_roots.contains(&resolved) {
+            resolved_roots.push(resolved.clone());
         }
         roots.insert(id, resolved);
     }
@@ -199,6 +203,7 @@ fn parse_catalog(
             missing_image_count: missing.len(),
             smart_collection_count: smart_ids.len(),
             missing_roots,
+            resolved_roots,
         },
         tree,
     })
