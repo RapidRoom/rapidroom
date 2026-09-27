@@ -36,8 +36,8 @@ use crate::gpu_processing;
 use crate::image_loader;
 use crate::image_processing::GpuContext;
 use crate::image_processing::{
-    Crop, ImageMetadata, apply_coarse_rotation, apply_cpu_default_raw_processing, apply_crop,
-    apply_flip, apply_geometry_warp, apply_rotation, auto_results_to_json,
+    Crop, ImageFlag, ImageMetadata, apply_coarse_rotation, apply_cpu_default_raw_processing,
+    apply_crop, apply_flip, apply_geometry_warp, apply_rotation, auto_results_to_json,
     get_all_adjustments_from_json, perform_auto_analysis,
 };
 
@@ -184,6 +184,7 @@ struct ImageFileMetadata {
     is_edited: bool,
     tags: Option<Vec<String>>,
     rating: u8,
+    flag: Option<ImageFlag>,
     is_raw: bool,
 }
 
@@ -210,6 +211,7 @@ fn resolve_image_metadata(
         is_edited,
         rating: crate::exif_processing::resolve_rating(image_path, &metadata),
         tags: metadata.tags,
+        flag: metadata.flag,
         is_raw,
     }
 }
@@ -218,12 +220,13 @@ fn emit_image_metadata_loaded(
     app_handle: &AppHandle,
     path: &str,
     rating: u8,
+    flag: Option<ImageFlag>,
     is_edited: bool,
     tags: &Option<Vec<String>>,
 ) {
     let _ = app_handle.emit(
         "image-metadata-loaded",
-        serde_json::json!({ "path": path, "rating": rating, "is_edited": is_edited, "tags": tags }),
+        serde_json::json!({ "path": path, "rating": rating, "flag": flag, "is_edited": is_edited, "tags": tags }),
     );
 }
 
@@ -287,6 +290,7 @@ pub fn start_metadata_workers(app_handle: tauri::AppHandle) {
                     &app_clone,
                     &item.virtual_path,
                     metadata.rating,
+                    metadata.flag,
                     metadata.is_edited,
                     &metadata.tags,
                 );
@@ -383,6 +387,7 @@ pub struct ImageFile {
     modified: u64,
     is_edited: bool,
     rating: u8,
+    flag: Option<ImageFlag>,
     tags: Option<Vec<String>>,
     exif: Option<HashMap<String, String>>,
     is_virtual_copy: bool,
@@ -780,6 +785,7 @@ pub fn list_images_in_dir(path: String, app_handle: AppHandle) -> Result<Vec<Ima
                         is_edited: false,
                         tags: None,
                         rating: 0,
+                        flag: None,
                         is_raw: crate::formats::is_raw_file(&path_buf),
                     }
                 } else {
@@ -796,6 +802,7 @@ pub fn list_images_in_dir(path: String, app_handle: AppHandle) -> Result<Vec<Ima
                     is_raw: metadata.is_raw,
                     group_id: None,
                     rating: metadata.rating,
+                    flag: metadata.flag,
                     is_cloud_placeholder,
                 });
             }
@@ -913,6 +920,7 @@ pub fn list_images_recursive(
                         is_edited: false,
                         tags: None,
                         rating: 0,
+                        flag: None,
                         is_raw: crate::formats::is_raw_file(&path_buf),
                     }
                 } else {
@@ -929,6 +937,7 @@ pub fn list_images_recursive(
                     is_raw: metadata.is_raw,
                     group_id: None,
                     rating: metadata.rating,
+                    flag: metadata.flag,
                     is_cloud_placeholder,
                 });
             }
@@ -1184,6 +1193,7 @@ pub fn get_album_images(
                     is_edited: false,
                     tags: None,
                     rating: 0,
+                    flag: None,
                     is_raw: crate::formats::is_raw_file(&source_path),
                 }
             } else {
@@ -1200,6 +1210,7 @@ pub fn get_album_images(
                 is_raw: metadata.is_raw,
                 group_id: None,
                 rating: metadata.rating,
+                flag: metadata.flag,
                 is_cloud_placeholder,
             })
         })
@@ -3456,23 +3467,46 @@ pub async fn apply_auto_adjustments_to_paths(
     Ok(())
 }
 
+fn update_sidecar(sidecar_path: &Path, update: impl Fn(&mut ImageMetadata)) -> ImageMetadata {
+    let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
+    update(&mut metadata);
+    if let Ok(json_string) = serde_json::to_string_pretty(&metadata) {
+        let _ = write_file_atomically(sidecar_path, json_string);
+    }
+    metadata
+}
+
+fn update_metadata_for_paths(
+    paths: &[String],
+    app_handle: &AppHandle,
+    update: impl Fn(&mut ImageMetadata) + Sync,
+) -> Result<(), String> {
+    ensure_card_writable_for_paths(paths)?;
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
+    let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
+
+    paths.par_iter().for_each(|path| {
+        let (source_path, sidecar_path) = parse_virtual_path(path);
+
+        let metadata = update_sidecar(&sidecar_path, &update);
+
+        if enable_xmp_sync {
+            sync_metadata_to_xmp(&source_path, &metadata, create_xmp_if_missing);
+        }
+    });
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn set_color_label_for_paths(
     paths: Vec<String>,
     color: Option<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    ensure_card_writable_for_paths(&paths)?;
-    let settings = load_settings(app_handle.clone()).unwrap_or_default();
-    let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-    let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
-
-    paths.par_iter().for_each(|path| {
-        let (_, sidecar_path) = parse_virtual_path(path);
-
-        let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-
-        let mut tags = metadata.tags.unwrap_or_default();
+    update_metadata_for_paths(&paths, &app_handle, |metadata| {
+        let mut tags = metadata.tags.take().unwrap_or_default();
         tags.retain(|tag| !tag.starts_with(COLOR_TAG_PREFIX));
 
         if let Some(c) = &color
@@ -3481,33 +3515,23 @@ pub fn set_color_label_for_paths(
             tags.push(format!("{}{}", COLOR_TAG_PREFIX, c));
         }
 
-        if tags.is_empty() {
-            metadata.tags = None;
-        } else {
+        if !tags.is_empty() {
             metadata.tags = Some(tags);
         }
-
-        if let Ok(json_string) = serde_json::to_string_pretty(&metadata) {
-            let _ = write_file_atomically(&sidecar_path, json_string);
-        }
-
-        if enable_xmp_sync {
-            let source_path = parse_virtual_path(path).0;
-            sync_metadata_to_xmp(&source_path, &metadata, create_xmp_if_missing);
-        }
-    });
-
-    Ok(())
+    })
 }
 
-fn store_user_rating(sidecar_path: &Path, rating: u8) -> ImageMetadata {
-    let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
+fn apply_user_rating(metadata: &mut ImageMetadata, rating: u8) {
     metadata.rating = rating;
     metadata.rating_is_explicit = true;
-    if let Ok(json_string) = serde_json::to_string_pretty(&metadata) {
-        let _ = write_file_atomically(sidecar_path, json_string);
+    if rating > 0 && metadata.flag == Some(ImageFlag::Reject) {
+        metadata.flag = None;
     }
-    metadata
+}
+
+#[cfg(test)]
+fn store_user_rating(sidecar_path: &Path, rating: u8) -> ImageMetadata {
+    update_sidecar(sidecar_path, |metadata| apply_user_rating(metadata, rating))
 }
 
 #[tauri::command]
@@ -3516,23 +3540,20 @@ pub fn set_rating_for_paths(
     rating: u8,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    ensure_card_writable_for_paths(&paths)?;
-    let settings = load_settings(app_handle.clone()).unwrap_or_default();
-    let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-    let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
+    update_metadata_for_paths(&paths, &app_handle, |metadata| {
+        apply_user_rating(metadata, rating)
+    })
+}
 
-    paths.par_iter().for_each(|path| {
-        let (_, sidecar_path) = parse_virtual_path(path);
-
-        let metadata = store_user_rating(&sidecar_path, rating);
-
-        if enable_xmp_sync {
-            let source_path = parse_virtual_path(path).0;
-            sync_metadata_to_xmp(&source_path, &metadata, create_xmp_if_missing);
-        }
-    });
-
-    Ok(())
+#[tauri::command]
+pub fn set_flag_for_paths(
+    paths: Vec<String>,
+    flag: Option<ImageFlag>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    update_metadata_for_paths(&paths, &app_handle, |metadata| {
+        metadata.flag = flag;
+    })
 }
 
 #[tauri::command]
@@ -4598,7 +4619,7 @@ fn create_virtual_copy_on_disk(source_virtual_path: &str) -> Result<String, Stri
     Ok(new_virtual_path)
 }
 
-pub fn extract_xmp_rating(content: &str) -> Option<u8> {
+pub fn extract_xmp_rating(content: &str) -> Option<i8> {
     if let Some(idx) = content.find("xmp:Rating=\"") {
         let start = idx + 12;
         let end = content[start..].find('"').map(|i| start + i)?;
@@ -4611,6 +4632,8 @@ pub fn extract_xmp_rating(content: &str) -> Option<u8> {
     }
     None
 }
+
+const XMP_REJECTED_RATING: i8 = -1;
 
 pub fn extract_xmp_label(content: &str) -> Option<String> {
     if let Some(idx) = content.find("xmp:Label=\"") {
@@ -4666,7 +4689,7 @@ pub fn resolve_xmp_path(image_path: &Path) -> Option<PathBuf> {
 }
 
 fn merge_xmp_metadata_fields(content: &str, metadata: &mut ImageMetadata) {
-    if let Some(rating) = extract_xmp_rating(content) {
+    if let Some(rating) = extract_xmp_rating(content).and_then(|r| u8::try_from(r).ok()) {
         metadata.rating = rating;
         metadata.rating_is_explicit = true;
         if let Some(adjustments) = metadata.adjustments.as_object_mut() {
@@ -4710,9 +4733,16 @@ pub fn sync_metadata_from_xmp(source_path: &Path, metadata: &mut ImageMetadata) 
     if let Some(xmp_file) = actual_xmp
         && let Ok(content) = fs::read_to_string(&xmp_file)
     {
+        let xmp_rating = extract_xmp_rating(&content);
+
+        if xmp_rating == Some(XMP_REJECTED_RATING) && metadata.flag.is_none() {
+            metadata.flag = Some(ImageFlag::Reject);
+            changed = true;
+        }
+
         if metadata.rating == 0
             && !metadata.rating_is_explicit
-            && let Some(rating) = extract_xmp_rating(&content)
+            && let Some(rating) = xmp_rating.and_then(|r| u8::try_from(r).ok())
             && rating != 0
         {
             metadata.rating = rating;
@@ -4788,7 +4818,11 @@ pub fn sync_metadata_to_xmp(source_path: &Path, metadata: &ImageMetadata, create
     if let Some(xmp_file) = actual_xmp
         && let Ok(mut content) = fs::read_to_string(&xmp_file)
     {
-        let rating_str = metadata.rating.to_string();
+        let rating_str = if metadata.flag == Some(ImageFlag::Reject) {
+            XMP_REJECTED_RATING.to_string()
+        } else {
+            metadata.rating.to_string()
+        };
         let re_rating_attr = regex!(r#"xmp:Rating\s*=\s*"[^"]*""#);
         let re_rating_tag = regex!(r#"<xmp:Rating\s*>[^<]*</xmp:Rating>"#);
 
