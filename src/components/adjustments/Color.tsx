@@ -467,6 +467,7 @@ export default function ColorPanel({
   const setUI = useUIStore((state) => state.setUI);
   const [mixerTab, setMixerTab] = useState<HslMixerProperty>('hue');
   const mixerPickerProperty = useEditorStore((state) => (isForMask ? null : state.mixerPickerProperty));
+  const isMixerPickerDragging = useEditorStore((state) => mixerPickerProperty !== null && state.isSliderDragging);
   const setEditor = useEditorStore((state) => state.setEditor);
 
   const mixerTabs = useMemo<Array<{ id: HslMixerProperty; label: string }>>(
@@ -511,6 +512,7 @@ export default function ColorPanel({
 
   const renderMixerSlider = (color: string, property: HslMixerProperty, label: string) => (
     <Slider
+      animateValueChanges={!isMixerPickerDragging}
       key={`${color}-${property}`}
       label={label}
       max={100}

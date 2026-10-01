@@ -22,7 +22,6 @@ interface PickerDrag {
   lastY: number;
   offset: number;
   appliedKey: string | null;
-  frame: number | null;
   base: Record<string, HueSatLum>;
   presence: HslPresence | null;
   offsetRange: [number, number];
@@ -114,16 +113,11 @@ export function useHslMixerPicker({
   const end = useCallback(() => {
     detachRef.current?.();
     detachRef.current = null;
-    const drag = dragRef.current;
-    if (!drag) return;
-    if (drag.frame !== null) {
-      cancelAnimationFrame(drag.frame);
-      applyDrag(drag);
-    }
+    if (!dragRef.current) return;
     dragRef.current = null;
     setIsDragging(false);
     setEditor({ isSliderDragging: false });
-  }, [applyDrag, setEditor]);
+  }, [setEditor]);
 
   const start = useCallback(
     (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
@@ -139,7 +133,6 @@ export function useHslMixerPicker({
         lastY: clientY,
         offset: 0,
         appliedKey: null,
-        frame: null,
         base: { ...INITIAL_ADJUSTMENTS.hsl, ...useEditorStore.getState().adjustments.hsl },
         presence: null,
         offsetRange: [-Infinity, Infinity],
@@ -155,12 +148,7 @@ export function useHslMixerPicker({
         const multiplier = ev.altKey ? FINE_ADJUSTMENT_MULTIPLIER : 1;
         drag.offset = clampOffset(drag, drag.offset + (drag.lastY - y) * DRAG_GAIN * multiplier);
         drag.lastY = y;
-        if (drag.frame === null) {
-          drag.frame = requestAnimationFrame(() => {
-            drag.frame = null;
-            applyDrag(drag);
-          });
-        }
+        applyDrag(drag);
       };
       window.addEventListener('mousemove', onMove);
       window.addEventListener('touchmove', onMove, { passive: false });
