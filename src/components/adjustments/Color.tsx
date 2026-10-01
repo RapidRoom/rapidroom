@@ -467,7 +467,6 @@ export default function ColorPanel({
   const setUI = useUIStore((state) => state.setUI);
   const [mixerTab, setMixerTab] = useState<HslMixerProperty>('hue');
   const mixerPickerProperty = useEditorStore((state) => (isForMask ? null : state.mixerPickerProperty));
-  const mixerPickerPresence = useEditorStore((state) => (isForMask ? null : state.mixerPickerPresence));
   const setEditor = useEditorStore((state) => state.setEditor);
 
   const mixerTabs = useMemo<Array<{ id: HslMixerProperty; label: string }>>(
@@ -671,16 +670,7 @@ export default function ColorPanel({
                     </button>
                   ))}
                 </div>
-                {HSL_COLORS.map(({ name, label }) => (
-                  <div
-                    key={name}
-                    className={`rounded-md transition-shadow ${
-                      mixerPickerPresence?.[name as HslMixerBand] ? 'ring-1 ring-accent' : ''
-                    }`}
-                  >
-                    {renderMixerSlider(name, mixerTab, label)}
-                  </div>
-                ))}
+                {HSL_COLORS.map(({ name, label }) => renderMixerSlider(name, mixerTab, label))}
               </>
             ) : (
               <>

@@ -122,7 +122,7 @@ export function useHslMixerPicker({
     }
     dragRef.current = null;
     setIsDragging(false);
-    setEditor({ isSliderDragging: false, mixerPickerPresence: null });
+    setEditor({ isSliderDragging: false });
   }, [applyDrag, setEditor]);
 
   const start = useCallback(
@@ -186,7 +186,6 @@ export function useHslMixerPicker({
             drag.offsetRange = [-100 - value, 100 - value];
             drag.offset = clampOffset(drag, drag.offset);
           }
-          setEditor({ mixerPickerPresence: drag.presence });
           applyDrag(drag);
         })
         .catch((err) => console.error('Failed to sample preview for color mixer picker:', err));
