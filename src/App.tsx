@@ -515,6 +515,7 @@ function App() {
   useEffect(() => {
     setEditor({
       isWbPickerActive: false,
+      mixerPickerProperty: null,
       isStraightenActive: false,
       isGuidedPerspectiveActive: false,
       activeMaskId: null,

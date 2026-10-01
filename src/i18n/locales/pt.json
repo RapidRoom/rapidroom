@@ -55,10 +55,12 @@
         "reds": "Vermelhos",
         "yellows": "Amarelos"
       },
+      "mixerPickerTooltip": "Seletor do Misturador de Cores: clique e arraste para cima ou para baixo na foto",
       "presence": "Presença",
       "saturation": "Saturação",
       "temperature": "Temperatura",
       "tint": "Tonalidade",
+      "toggleMixerExpanded": "Misturador de Cores expandido",
       "toggleSliders": "Alternar Controles",
       "vibrance": "Vibração",
       "wbPickerTooltip": "Seletor de Balanço de Branco",
