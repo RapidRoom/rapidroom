@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use image::codecs::jpeg::JpegEncoder;
 use image::codecs::png::PngEncoder;
+use image::codecs::tiff::TiffEncoder;
 use image::{
     DynamicImage, GenericImageView, GrayImage, ImageBuffer, ImageEncoder, ImageFormat, Luma,
     imageops,
@@ -1242,8 +1243,12 @@ fn encode_image_to_bytes(
                 TiffBitDepth::Eight => DynamicImage::ImageRgb8(image.to_rgb8()),
                 TiffBitDepth::Sixteen => DynamicImage::ImageRgb16(image.to_rgb16()),
             };
+            let mut encoder = TiffEncoder::new(&mut cursor);
+            encoder
+                .set_icc_profile(SRGB_ICC_PROFILE.to_vec())
+                .map_err(|e| e.to_string())?;
             image_to_encode
-                .write_to(&mut cursor, image::ImageFormat::Tiff)
+                .write_with_encoder(encoder)
                 .map_err(|e| e.to_string())?;
         }
         "avif" => {
