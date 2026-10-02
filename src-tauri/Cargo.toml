@@ -131,3 +131,9 @@ strip = true
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-clippy"))'] }
+
+# Sony lossless M/S (and Canon mRAW/sRAW) default-crop fix, from
+# CyberTimon/RapidRAW-DngLab#7 by Kheil-Z (fixes RapidRAW#850, #1300).
+# Drop this once that PR is merged and rawler is bumped.
+[patch."https://github.com/CyberTimon/RapidRAW-DngLab.git"]
+rawler = { git = "https://github.com/Kheil-Z/RapidRAW-DngLab.git", rev = "c619191ed2e1e0fce8a867b858c68da9dbbbcf61" }
