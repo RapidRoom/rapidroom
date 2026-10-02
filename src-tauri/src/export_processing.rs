@@ -7,7 +7,11 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use image::codecs::jpeg::JpegEncoder;
-use image::{DynamicImage, GenericImageView, GrayImage, ImageBuffer, ImageFormat, Luma, imageops};
+use image::codecs::png::PngEncoder;
+use image::{
+    DynamicImage, GenericImageView, GrayImage, ImageBuffer, ImageEncoder, ImageFormat, Luma,
+    imageops,
+};
 use jxl_encoder::{
     LosslessConfig, LossyConfig, PixelLayout,
     api::{calibrated_jxl_quality, quality_to_distance},
@@ -1154,6 +1158,9 @@ fn encode_grayscale_to_png(bitmap: &GrayImage) -> Result<Vec<u8>, String> {
     Ok(buf)
 }
 
+/// Exports are sRGB-encoded; tagging them lets color-managed apps read them correctly.
+const SRGB_ICC_PROFILE: &[u8] = include_bytes!("../icc/sRGB-v2-magic.icc");
+
 fn encode_image_to_bytes(
     image: &DynamicImage,
     output_format: &str,
@@ -1207,7 +1214,10 @@ fn encode_image_to_bytes(
         }
         "jpg" | "jpeg" => {
             let rgb_image = image.to_rgb8();
-            let encoder = JpegEncoder::new_with_quality(&mut cursor, jpeg_quality);
+            let mut encoder = JpegEncoder::new_with_quality(&mut cursor, jpeg_quality);
+            encoder
+                .set_icc_profile(SRGB_ICC_PROFILE.to_vec())
+                .map_err(|e| e.to_string())?;
             rgb_image
                 .write_with_encoder(encoder)
                 .map_err(|e| e.to_string())?;
@@ -1219,8 +1229,12 @@ fn encode_image_to_bytes(
                 image.clone()
             };
 
+            let mut encoder = PngEncoder::new(&mut cursor);
+            encoder
+                .set_icc_profile(SRGB_ICC_PROFILE.to_vec())
+                .map_err(|e| e.to_string())?;
             image_to_encode
-                .write_to(&mut cursor, image::ImageFormat::Png)
+                .write_with_encoder(encoder)
                 .map_err(|e| e.to_string())?;
         }
         "tif" | "tiff" => {
