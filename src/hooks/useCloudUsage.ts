@@ -1,12 +1,10 @@
 import { useEffect, useCallback } from 'react';
-import { useUser, useAuth } from '@clerk/react';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useCloudStore } from '../store/useCloudStore';
+import { useCloudAuth } from '../context/CloudAuthContext';
 
 export function useCloudUsage() {
-  const { user, isSignedIn } = useUser();
-  const { getToken } = useAuth();
-  const isPro = user?.publicMetadata?.plan === 'pro';
+  const { isSignedIn, isPro, getToken } = useCloudAuth();
 
   const aiProvider = useSettingsStore((s) => s.appSettings?.aiProvider || 'cpu');
   const cloudUsage = useCloudStore((s) => s.cloudUsage);
@@ -27,8 +25,8 @@ export function useCloudUsage() {
     cloudUsage,
     isLoading,
     refreshUsage,
-    isSignedIn: !!isSignedIn,
-    isPro: !!isPro,
+    isSignedIn,
+    isPro,
     aiProvider,
   };
 }
