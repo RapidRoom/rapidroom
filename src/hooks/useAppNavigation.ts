@@ -170,7 +170,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       const cachedMedium = useProcessStore.getState().mediumThumbnails[path] || cachedThumb;
 
       const cached = globalImageCache.get(path);
-      const isFrontendCached = Boolean(cached && cached.selectedImage?.isReady);
+      const isFrontendCached = cached !== undefined && Boolean(cached.selectedImage?.isReady);
       const isCachedInBackend = isFrontendCached
         ? await invoke<boolean>('is_image_cached', { path }).catch(() => false)
         : false;
