@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**33 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**34 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                               |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -44,6 +44,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Import Lightroom and Camera Raw XMP sidecars: Basic, HSL, colour grading, curves, vignette, crop and straighten, rating, label and keywords, for one photo or a whole folder tree  | feature     | [@dimafa](https://github.com/dimafa), [@StephenMasseur](https://github.com/StephenMasseur)                               | PR [#1465](https://github.com/CyberTimon/RapidRAW/issues/1465)                                                                                                                                                                                         |
 | Window and DPI changes keep the latest preview size even when a render holds the display lock                                                                                      | fix         | [@subbajeu](https://github.com/subbajeu), [@yojen7](https://github.com/yojen7)                                           | not yet offered                                                                                                                                                                                                                                        |
 | Editor render caches include virtual image identity so a late preview cannot reuse another photo                                                                                   | fix         | [@mlauziertr](https://github.com/mlauziertr), [@yojen7](https://github.com/yojen7)                                       | not yet offered                                                                                                                                                                                                                                        |
+| Linux large allocations no longer request transparent huge pages from mimalloc, avoiding compaction stalls on fragmented memory                                                    | performance | [@elhigu](https://github.com/elhigu)                                                                                     | PR [#1790](https://github.com/CyberTimon/RapidRAW/issues/1790)                                                                                                                                                                                         |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
@@ -336,3 +337,12 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** not yet offered
 - **Commits:** [8ec31d4](https://github.com/mlauziertr/picportal-editor/commit/8ec31d4f4fcddc50b6217d9d6419d7278d2937ec)
 - **Notes:** Transformed, patched/warped and small-preview cache keys include the full virtual image path. The existing path guard and mask-image snapshot from the batch-export fix are retained; its already image-keyed cache uses the equivalent shared helper. No image-processing math changes.
+
+### Linux large allocations no longer request transparent huge pages from mimalloc, avoiding compaction stalls on fragmented memory
+
+- **Type:** performance
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@elhigu](https://github.com/elhigu), from CyberTimon/RapidRAW
+- **Upstream:** PR [#1790](https://github.com/CyberTimon/RapidRAW/issues/1790)
+- **Commits:** [a742450](https://github.com/CyberTimon/RapidRAW/commit/a7424509bba7ed44154fa283b1c3d41abf982c5a)
+- **Notes:** Allocation-only change: enable mimalloc no_thp and retain the Linux smaps regression test. The allocator version and image-processing math are unchanged. The remaining GPU logging, benchmark and parallel conversion work is tracked in RapidRoom issue #66.
