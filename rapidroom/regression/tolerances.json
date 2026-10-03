@@ -1,0 +1,26 @@
+{
+  "_comment": "Tolerances for `baseline.py compare`. Set from measured data on 2026-10-01; see README.md 'Tolerances'. Changing a tolerance is like re-baselining: it needs a maintainer's explicit approval, and agents must not loosen it to make a compare pass.",
+  "pixel_threshold_codes": 257,
+  "de00_downsample_long_side": 1024,
+  "default_profile": "exact",
+  "profiles": {
+    "exact": {
+      "_why": "Same machine, same GPU driver. Measured: 60/60 renders bit-identical run to run, and 60/60 bit-identical between the daily build and stock 1.6.4. Any difference here is a real change.",
+      "max_abs": 0,
+      "mean_abs": 0,
+      "psnr_db_min": 1000,
+      "pct_over_threshold": 0,
+      "de00_mean": 0,
+      "de00_p99": 0
+    },
+    "cross-environment": {
+      "_why": "PROVISIONAL, not yet measured: for a different GPU, driver or machine, where float rounding may legitimately differ. Chosen to fail every one of the 20 smallest-intended-change probes (exposure +0.02, temperature +1, contrast +1, sharpness +5 on 5 raws; smallest signals: mean_abs 24, PSNR 60.4 dB, dE00 mean 0.017) on at least two criteria each, while allowing sparse rounding differences. Re-derive from data the first time a second environment is rendered.",
+      "max_abs": 2048,
+      "mean_abs": 8,
+      "psnr_db_min": 65,
+      "pct_over_threshold": 0.05,
+      "de00_mean": 0.01,
+      "de00_p99": 0.1
+    }
+  }
+}
