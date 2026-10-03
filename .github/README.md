@@ -12,6 +12,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 
 <!-- rapidroom-changes:start -->
 
+- **A white balance picker you can trust.** It reads the untouched raw data, averages a square or a dragged area, and shows a live preview before you click, which helps with mixed-light night shots.
 - **At home on Linux tiling desktops.** The native title bar works with Wayland compositors like Hyprland instead of fighting them.
 - **Colour-managed exports.** JPEG, PNG and TIFF files carry an sRGB profile, so browsers, other apps and print labs show your colours as intended.
 - **Sony lossless M/S and Canon mRAW/sRAW raws open correctly**, without the green borders upstream still shows.
@@ -21,8 +22,11 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Reliable batch exports.** Large exports no longer slip another photo into some images, and colour and luminance masks now apply correctly when exporting.
 - **Your keywords travel with your exports.** Tags you add show up as keywords in Lightroom, digiKam, photo sites and stock agencies.
 - **Browse memory cards safely:** read-only Card mode never writes to the card
+- **Star ratings you set in the camera show up in the library.**
+- **Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars.
+- **Bring your Lightroom edits along:** import XMP sidecars
 
-26 improvements on top of RapidRAW so far, including fixes for 8 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+32 improvements on top of RapidRAW so far, including fixes for 8 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Why RapidRoom
@@ -47,7 +51,7 @@ For the full feature tour, tethering, the CLI and system requirements, see the [
 
 ## Get involved
 
-Bug reports, fixes and features from your own fork are all welcome. Start with [CONTRIBUTING](CONTRIBUTING.md). If you maintain a RapidRAW fork and want to help run RapidRoom, open an issue. See [GOVERNANCE](GOVERNANCE.md) for how decisions are made.
+Bug reports, fixes and features from your own fork are all welcome. Start with [CONTRIBUTING](CONTRIBUTING.md). What's planned is on the [roadmap](https://github.com/orgs/RapidRoom/projects/1); questions and ideas go to [Discussions](https://github.com/RapidRoom/rapidroom/discussions). If you maintain a RapidRAW fork and want to help run RapidRoom, open an issue. See [GOVERNANCE](GOVERNANCE.md) for how decisions are made.
 
 ## Support upstream
 

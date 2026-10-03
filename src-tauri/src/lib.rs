@@ -33,6 +33,7 @@ mod apple_raw;
 mod cache_utils;
 mod camera_tethering;
 mod culling;
+mod dcp;
 mod denoising;
 mod exif_processing;
 mod export_processing;
@@ -2253,6 +2254,7 @@ pub fn run() {
             export_processing::cancel_export,
             export_processing::estimate_export_sizes,
             image_processing::calculate_auto_adjustments,
+            image_processing::sample_white_balance,
             mask_generation::generate_mask_overlay,
             file_management::update_exif_fields,
             file_management::set_card_browse_root,
@@ -2275,6 +2277,8 @@ pub fn run() {
             file_management::delete_files_from_disk,
             file_management::delete_files_with_associated,
             file_management::save_metadata_and_update_thumbnail,
+            file_management::import_xmp_adjustments_for_image,
+            file_management::import_matching_xmp_sidecars_in_folder,
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
             file_management::load_presets,
