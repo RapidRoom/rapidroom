@@ -500,7 +500,7 @@ pub async fn update_exif_fields(
 
             final_metadata.exif = Some(exif_data);
             if let Ok(json) = serde_json::to_string_pretty(&final_metadata) {
-                let _ = std::fs::write(&primary_path, json);
+                let _ = write_file_atomically(&primary_path, json);
             }
         });
         Ok(())

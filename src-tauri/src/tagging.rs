@@ -551,7 +551,7 @@ pub fn clear_ai_tags(root_path: String, app_handle: AppHandle) -> Result<usize, 
                     metadata.tags = None;
                 }
                 if let Ok(json_string) = serde_json::to_string_pretty(&metadata)
-                    && fs::write(path, json_string).is_ok()
+                    && crate::file_management::write_file_atomically(path, json_string).is_ok()
                 {
                     updated_count += 1;
                     sync_xmp_for_rrdata(path, &metadata, enable_xmp_sync, create_xmp_if_missing);
@@ -592,7 +592,7 @@ pub fn clear_all_tags(root_path: String, app_handle: AppHandle) -> Result<usize,
                     metadata.tags = None;
                 }
                 if let Ok(json_string) = serde_json::to_string_pretty(&metadata)
-                    && fs::write(path, json_string).is_ok()
+                    && crate::file_management::write_file_atomically(path, json_string).is_ok()
                 {
                     updated_count += 1;
                     sync_xmp_for_rrdata(path, &metadata, enable_xmp_sync, create_xmp_if_missing);
