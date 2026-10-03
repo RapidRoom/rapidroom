@@ -117,7 +117,11 @@ jobs:
 
       - name: Setup Android signing
         if: inputs.mobile == 'android' && github.event_name != 'pull_request'
+        env:
+          HAS_ANDROID_KEY: ${{ secrets.ANDROID_KEY_BASE64 != '' }}
         run: |
+          # Without a signing key (e.g. in forks), skip this so Gradle builds an unsigned APK as it does for PRs.
+          if [ "$HAS_ANDROID_KEY" != "true" ]; then echo "No Android signing key; building unsigned."; exit 0; fi
           cd src-tauri/gen/android
           echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > keystore.properties
           echo "password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> keystore.properties
