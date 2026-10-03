@@ -258,6 +258,9 @@ export interface UIState {
   hdrModalState: HdrModalState;
   negativeModalState: NegativeConversionModalState;
   denoiseModalState: DenoiseModalState;
+  pendingDenoiseJob: 'single' | 'batch' | null;
+  openDenoiseModal: (paths: string[], isRaw: boolean) => void;
+  closeDenoiseModal: () => void;
   cullingModalState: CullingModalState;
   collageModalState: CollageModalState;
 
@@ -369,6 +372,35 @@ export const useUIStore = create<UIState>((set, get) => ({
     progressMessage: null,
     isRaw: false,
   },
+  pendingDenoiseJob: null,
+  openDenoiseModal: (paths, isRaw) =>
+    set((state) => {
+      if (state.pendingDenoiseJob || state.denoiseModalState.isProcessing) return state;
+      return {
+        denoiseModalState: {
+          isOpen: true,
+          isProcessing: false,
+          previewBase64: null,
+          originalBase64: null,
+          error: null,
+          targetPaths: paths,
+          progressMessage: null,
+          isRaw,
+        },
+      };
+    }),
+  closeDenoiseModal: () =>
+    set((state) => ({
+      denoiseModalState: {
+        ...state.denoiseModalState,
+        isOpen: false,
+        isProcessing: false,
+        previewBase64: null,
+        originalBase64: null,
+        error: null,
+        progressMessage: null,
+      },
+    })),
   cullingModalState: { isOpen: false, suggestions: null, progress: null, error: null, pathsToCull: [] },
   collageModalState: { isOpen: false, sourceImages: [] },
 
