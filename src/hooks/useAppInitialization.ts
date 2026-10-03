@@ -376,6 +376,8 @@ export const useAppInitialization = ({
   useEffect(() => {
     if (isInitialMount.current || !appSettings) return;
     if (!currentFolderPath && !activeAlbumId) return;
+    // A card is never restored as the last session: it would reopen without Card mode.
+    if (useLibraryStore.getState().cardBrowseRoot) return;
 
     const currentExpanded = Array.from(expandedFolders);
     const currentExpandedAlbums = Array.from(expandedAlbumGroups);

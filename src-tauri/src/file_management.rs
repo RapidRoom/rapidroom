@@ -8,8 +8,8 @@ use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::{Arc, LazyLock, RwLock};
 use std::thread;
 
 use anyhow::Result;
@@ -40,9 +40,108 @@ use crate::image_processing::{
     apply_flip, apply_geometry_warp, apply_rotation, auto_results_to_json,
     get_all_adjustments_from_json, perform_auto_analysis,
 };
+
 use crate::mask_generation::MaskDefinition;
 use crate::preset_converter;
 use crate::tagging::COLOR_TAG_PREFIX;
+
+pub const CARD_READ_ONLY_ERROR: &str =
+    "Card mode is read-only: RapidRoom never writes to the card. Import the photos to keep edits.";
+
+struct CardBrowseRoot {
+    path: PathBuf,
+    canonical: Option<PathBuf>,
+}
+
+static CARD_BROWSE_ROOT: LazyLock<RwLock<Option<CardBrowseRoot>>> =
+    LazyLock::new(|| RwLock::new(None));
+
+/// Resolves symlinks and `..` through the deepest ancestor that exists, so a
+/// file that hasn't been created yet still maps onto its real folder.
+fn resolve_existing_ancestor(path: &Path) -> Option<PathBuf> {
+    let mut missing = Vec::new();
+    let mut current = path;
+    loop {
+        if let Ok(canonical) = fs::canonicalize(current) {
+            return Some(
+                missing
+                    .iter()
+                    .rev()
+                    .fold(canonical, |acc, part| acc.join(part)),
+            );
+        }
+        missing.push(current.file_name()?.to_os_string());
+        current = current.parent()?;
+    }
+}
+
+fn with_card_root<T>(f: impl FnOnce(&CardBrowseRoot) -> T) -> Option<T> {
+    CARD_BROWSE_ROOT.read().ok()?.as_ref().map(f)
+}
+
+pub fn is_card_read_only_path(path: &Path) -> bool {
+    with_card_root(|root| {
+        path.starts_with(&root.path)
+            || root.canonical.as_ref().is_some_and(|canonical_root| {
+                resolve_existing_ancestor(path).is_some_and(|p| p.starts_with(canonical_root))
+            })
+    })
+    .unwrap_or(false)
+}
+
+/// True if `path` is on the card or contains it, e.g. deleting a parent folder.
+pub fn touches_card_tree(path: &Path) -> bool {
+    is_card_read_only_path(path)
+        || with_card_root(|root| {
+            root.path.starts_with(path)
+                || root.canonical.as_ref().is_some_and(|canonical_root| {
+                    resolve_existing_ancestor(path).is_some_and(|p| canonical_root.starts_with(p))
+                })
+        })
+        .unwrap_or(false)
+}
+
+pub fn ensure_card_writable(path: &Path) -> Result<(), String> {
+    if is_card_read_only_path(path) {
+        Err(CARD_READ_ONLY_ERROR.to_string())
+    } else {
+        Ok(())
+    }
+}
+
+/// Checks image paths (virtual copies included) and so the folders next to them.
+pub fn ensure_card_writable_for_paths<S: AsRef<str>>(paths: &[S]) -> Result<(), String> {
+    for path in paths {
+        ensure_card_writable(&parse_virtual_path(path.as_ref()).0)?;
+    }
+    Ok(())
+}
+
+pub fn ensure_card_tree_writable(path: &Path) -> Result<(), String> {
+    if touches_card_tree(path) {
+        Err(CARD_READ_ONLY_ERROR.to_string())
+    } else {
+        Ok(())
+    }
+}
+
+fn card_read_only_io_error() -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::PermissionDenied, CARD_READ_ONLY_ERROR)
+}
+
+#[tauri::command]
+pub fn set_card_browse_root(path: Option<String>) -> Result<(), String> {
+    let root = path.filter(|p| !p.is_empty()).map(|p| {
+        let path = PathBuf::from(p);
+        let canonical = fs::canonicalize(&path).ok();
+        CardBrowseRoot { path, canonical }
+    });
+    let mut guard = CARD_BROWSE_ROOT
+        .write()
+        .map_err(|_| "Failed to update Card mode".to_string())?;
+    *guard = root;
+    Ok(())
+}
 
 fn resolve_thumbnail_cache_dir(app_handle: &AppHandle) -> std::result::Result<PathBuf, String> {
     let cache_dir = app_handle
@@ -109,8 +208,8 @@ fn resolve_image_metadata(
         crate::image_processing::is_image_edited(&metadata.adjustments, is_raw, tm_override);
     ImageFileMetadata {
         is_edited,
+        rating: crate::exif_processing::resolve_rating(image_path, &metadata),
         tags: metadata.tags,
-        rating: metadata.rating,
         is_raw,
     }
 }
@@ -469,6 +568,7 @@ pub async fn update_exif_fields(
     paths: Vec<String>,
     updates: HashMap<String, String>,
 ) -> Result<(), String> {
+    ensure_card_writable_for_paths(&paths)?;
     tauri::async_runtime::spawn_blocking(move || {
         paths.par_iter().for_each(|path| {
             let original_path = Path::new(&path);
@@ -1379,6 +1479,7 @@ pub fn is_cloud_placeholder(_path: &Path) -> bool {
 /// Replaces `path` so that a crash, power loss, or full disk leaves either the
 /// previous file or the new one, never a truncated edit. The replacement keeps
 /// the existing file's permissions, and a symlink is written through.
+/// Refuses any path on a card opened in Card mode.
 pub fn write_file_atomically(
     path: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
@@ -1386,10 +1487,16 @@ pub fn write_file_atomically(
     use std::io::Write;
 
     let path = path.as_ref();
+    if is_card_read_only_path(path) {
+        return Err(card_read_only_io_error());
+    }
     let target = match fs::symlink_metadata(path) {
         Ok(meta) if meta.file_type().is_symlink() => fs::canonicalize(path)?,
         _ => path.to_path_buf(),
     };
+    if is_card_read_only_path(&target) {
+        return Err(card_read_only_io_error());
+    }
     let parent = target
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -1833,20 +1940,23 @@ fn generate_single_thumbnail_and_cache(
             sidecar_path.clone(),
         );
         (0, false, Vec::new())
-    } else if let Ok(content) = fs::read_to_string(&sidecar_path) {
-        if let Ok(meta) = serde_json::from_str::<ImageMetadata>(&content) {
-            let is_raw = crate::formats::is_raw_file(path_str);
-            let tm = crate::image_processing::resolve_tonemapper_override(settings, is_raw);
-            (
-                meta.rating,
-                crate::image_processing::is_image_edited(&meta.adjustments, is_raw, tm),
-                serde_json::to_vec(&meta.adjustments).unwrap_or_default(),
-            )
-        } else {
-            (0, false, Vec::new())
-        }
+    } else if let Some(meta) = fs::read_to_string(&sidecar_path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<ImageMetadata>(&content).ok())
+    {
+        let is_raw = crate::formats::is_raw_file(path_str);
+        let tm = crate::image_processing::resolve_tonemapper_override(settings, is_raw);
+        (
+            crate::exif_processing::resolve_rating(&source_path, &meta),
+            crate::image_processing::is_image_edited(&meta.adjustments, is_raw, tm),
+            serde_json::to_vec(&meta.adjustments).unwrap_or_default(),
+        )
     } else {
-        (0, false, Vec::new())
+        (
+            crate::exif_processing::resolve_rating(&source_path, &ImageMetadata::default()),
+            false,
+            Vec::new(),
+        )
     };
 
     let cache_hash = compute_thumbnail_cache_hash(path_str, &adjustments_bytes)?;
@@ -2217,6 +2327,7 @@ pub fn get_supported_file_types() -> Result<serde_json::Value, String> {
 #[tauri::command]
 pub fn create_folder(path: String) -> Result<(), String> {
     let path_obj = Path::new(&path);
+    ensure_card_writable(path_obj)?;
     if let (Some(parent), Some(new_folder_name_os)) = (path_obj.parent(), path_obj.file_name())
         && let Some(new_folder_name) = new_folder_name_os.to_str()
         && parent.exists()
@@ -2235,7 +2346,14 @@ pub fn create_folder(path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn rename_folder(path: String, new_name: String, app_handle: AppHandle) -> Result<(), String> {
-    let p = Path::new(&path);
+    let new_folder_str = rename_folder_on_disk(&path, &new_name)?;
+    sync_album_path_changes(&app_handle, None, None, Some((&path, &new_folder_str)));
+    Ok(())
+}
+
+fn rename_folder_on_disk(path: &str, new_name: &str) -> Result<String, String> {
+    let p = Path::new(path);
+    ensure_card_tree_writable(p)?;
     if !p.is_dir() {
         return Err("Path is not a directory.".to_string());
     }
@@ -2248,13 +2366,9 @@ pub fn rename_folder(path: String, new_name: String, app_handle: AppHandle) -> R
                 return Err("A folder with that name already exists.".to_string());
             }
         }
-        let new_path = parent.join(&new_name);
+        let new_path = parent.join(new_name);
         fs::rename(p, &new_path).map_err(|e| e.to_string())?;
-
-        let new_folder_str = new_path.to_string_lossy().into_owned();
-        sync_album_path_changes(&app_handle, None, None, Some((&path, &new_folder_str)));
-
-        Ok(())
+        Ok(new_path.to_string_lossy().into_owned())
     } else {
         Err("Could not determine parent directory.".to_string())
     }
@@ -2262,25 +2376,32 @@ pub fn rename_folder(path: String, new_name: String, app_handle: AppHandle) -> R
 
 #[tauri::command]
 pub fn delete_folder(path: String, app_handle: AppHandle) -> Result<(), String> {
+    delete_folder_on_disk(&path)?;
+
+    let mut deletions = HashSet::new();
+    deletions.insert(path);
+    sync_album_path_changes(&app_handle, None, Some(&deletions), None);
+
+    Ok(())
+}
+
+fn delete_folder_on_disk(path: &str) -> Result<(), String> {
+    ensure_card_tree_writable(Path::new(path))?;
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
     {
-        if let Err(trash_error) = trash::delete(&path) {
+        if let Err(trash_error) = trash::delete(path) {
             log::warn!(
                 "Failed to move folder to trash: {}. Falling back to permanent delete.",
                 trash_error
             );
-            fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
+            fs::remove_dir_all(path).map_err(|e| e.to_string())?;
         }
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
-        fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
+        fs::remove_dir_all(path).map_err(|e| e.to_string())?;
     }
-
-    let mut deletions = HashSet::new();
-    deletions.insert(path);
-    sync_album_path_changes(&app_handle, None, Some(&deletions), None);
 
     Ok(())
 }
@@ -2291,7 +2412,18 @@ pub fn duplicate_file(
     target_album_id: Option<String>,
     app_handle: AppHandle,
 ) -> Result<String, String> {
-    let (source_path, source_sidecar_path) = parse_virtual_path(&path);
+    let dest_path_str = duplicate_file_on_disk(&path)?;
+
+    if let Some(album_id) = target_album_id {
+        let _ = add_to_album(album_id, vec![dest_path_str.clone()], app_handle);
+    }
+
+    Ok(dest_path_str)
+}
+
+fn duplicate_file_on_disk(path: &str) -> Result<String, String> {
+    let (source_path, source_sidecar_path) = parse_virtual_path(path);
+    ensure_card_writable(&source_path)?;
     if !source_path.is_file() {
         return Err("Source path is not a file.".to_string());
     }
@@ -2343,13 +2475,7 @@ pub fn duplicate_file(
         let _ = fs::copy(&source_rrexif, &dest_rrexif);
     }
 
-    let dest_path_str = dest_path.to_string_lossy().into_owned();
-
-    if let Some(album_id) = target_album_id {
-        let _ = add_to_album(album_id, vec![dest_path_str.clone()], app_handle);
-    }
-
-    Ok(dest_path_str)
+    Ok(dest_path.to_string_lossy().into_owned())
 }
 
 fn find_all_associated_files(source_image_path: &Path) -> Result<Vec<PathBuf>, String> {
@@ -2402,6 +2528,7 @@ fn find_all_associated_files(source_image_path: &Path) -> Result<Vec<PathBuf>, S
 #[tauri::command]
 pub fn copy_files(source_paths: Vec<String>, destination_folder: String) -> Result<(), String> {
     let dest_path = Path::new(&destination_folder);
+    ensure_card_writable(dest_path)?;
     if !dest_path.is_dir() {
         return Err(format!(
             "Destination is not a folder: {}",
@@ -2485,7 +2612,20 @@ pub fn move_files(
     destination_folder: String,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    let dest_path = Path::new(&destination_folder);
+    let renames = move_files_on_disk(&source_paths, &destination_folder)?;
+    sync_album_path_changes(&app_handle, Some(&renames), None, None);
+    Ok(())
+}
+
+fn move_files_on_disk(
+    source_paths: &[String],
+    destination_folder: &str,
+) -> Result<HashMap<String, String>, String> {
+    let dest_path = Path::new(destination_folder);
+    ensure_card_writable(dest_path)?;
+    for path in source_paths {
+        ensure_card_tree_writable(&parse_virtual_path(path).0)?;
+    }
     if !dest_path.is_dir() {
         return Err(format!(
             "Destination is not a folder: {}",
@@ -2549,9 +2689,7 @@ pub fn move_files(
         }
     }
 
-    sync_album_path_changes(&app_handle, Some(&renames), None, None);
-
-    Ok(())
+    Ok(renames)
 }
 
 #[tauri::command]
@@ -2562,6 +2700,7 @@ pub fn save_metadata_and_update_thumbnail(
     state: tauri::State<AppState>,
 ) -> Result<(), String> {
     let (source_path, sidecar_path) = parse_virtual_path(&path);
+    ensure_card_writable(&source_path)?;
 
     let mut metadata = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
 
@@ -2656,6 +2795,7 @@ pub async fn apply_adjustments_to_paths(
     adjustments: Value,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    ensure_card_writable_for_paths(&paths)?;
     let state = app_handle.state::<AppState>();
     add_to_thumbnail_queue(&state, paths.len(), &app_handle);
 
@@ -2759,6 +2899,7 @@ pub async fn reset_adjustments_for_paths(
     paths: Vec<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    ensure_card_writable_for_paths(&paths)?;
     let state = app_handle.state::<AppState>();
     add_to_thumbnail_queue(&state, paths.len(), &app_handle);
 
@@ -2835,6 +2976,7 @@ pub async fn apply_auto_lens_correction_to_paths(
     paths: Vec<String>,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
+    ensure_card_writable_for_paths(&paths)?;
     let state = app_handle.state::<crate::AppState>();
     add_to_thumbnail_queue(&state, paths.len(), &app_handle);
 
@@ -2921,6 +3063,7 @@ pub async fn apply_auto_adjustments_to_paths(
     paths: Vec<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    ensure_card_writable_for_paths(&paths)?;
     let state = app_handle.state::<AppState>();
     add_to_thumbnail_queue(&state, paths.len(), &app_handle);
 
@@ -3039,6 +3182,7 @@ pub fn set_color_label_for_paths(
     color: Option<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    ensure_card_writable_for_paths(&paths)?;
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
     let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
     let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
@@ -3076,12 +3220,23 @@ pub fn set_color_label_for_paths(
     Ok(())
 }
 
+fn store_user_rating(sidecar_path: &Path, rating: u8) -> ImageMetadata {
+    let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
+    metadata.rating = rating;
+    metadata.rating_is_explicit = true;
+    if let Ok(json_string) = serde_json::to_string_pretty(&metadata) {
+        let _ = write_file_atomically(sidecar_path, json_string);
+    }
+    metadata
+}
+
 #[tauri::command]
 pub fn set_rating_for_paths(
     paths: Vec<String>,
     rating: u8,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    ensure_card_writable_for_paths(&paths)?;
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
     let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
     let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
@@ -3089,13 +3244,7 @@ pub fn set_rating_for_paths(
     paths.par_iter().for_each(|path| {
         let (_, sidecar_path) = parse_virtual_path(path);
 
-        let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-
-        metadata.rating = rating;
-
-        if let Ok(json_string) = serde_json::to_string_pretty(&metadata) {
-            let _ = write_file_atomically(&sidecar_path, json_string);
-        }
+        let metadata = store_user_rating(&sidecar_path, rating);
 
         if enable_xmp_sync {
             let source_path = parse_virtual_path(path).0;
@@ -3336,6 +3485,7 @@ pub fn handle_export_presets_to_file(
     presets_to_export: Vec<PresetItem>,
     file_path: String,
 ) -> Result<(), String> {
+    ensure_card_writable(Path::new(&file_path))?;
     let preset_file = ExportPresetFile {
         creator: "Anonymous",
         presets: &presets_to_export,
@@ -3403,6 +3553,7 @@ pub fn save_community_preset(
 
 #[tauri::command]
 pub fn clear_all_sidecars(root_path: String) -> Result<usize, String> {
+    ensure_card_writable(Path::new(&root_path))?;
     if !Path::new(&root_path).exists() {
         return Err(format!("Root path does not exist: {}", root_path));
     }
@@ -3415,6 +3566,7 @@ pub fn clear_all_sidecars(root_path: String) -> Result<usize, String> {
         if path.is_file()
             && let Some(extension) = path.extension()
             && (extension == "rrdata" || extension == "rrexif")
+            && !is_card_read_only_path(path)
         {
             if fs::remove_file(path).is_ok() {
                 deleted_count += 1;
@@ -3495,42 +3647,10 @@ pub fn show_in_finder(path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn delete_files_from_disk(paths: Vec<String>, app_handle: AppHandle) -> Result<(), String> {
-    let mut files_to_trash = HashSet::new();
-    let mut deletions = HashSet::new();
-
-    for path_str in paths {
-        let (source_path, sidecar_path) = parse_virtual_path(&path_str);
-        deletions.insert(path_str.clone());
-
-        if path_str.contains("?vc=") {
-            if sidecar_path.exists() {
-                files_to_trash.insert(sidecar_path);
-            }
-        } else {
-            if source_path.exists() {
-                match find_all_associated_files(&source_path) {
-                    Ok(associated_files) => {
-                        for file in associated_files {
-                            files_to_trash.insert(file);
-                        }
-                    }
-                    Err(e) => {
-                        log::warn!(
-                            "Could not find associated files for {}: {}",
-                            source_path.display(),
-                            e
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    if files_to_trash.is_empty() {
+    let (final_paths_to_delete, deletions) = plan_file_deletions(paths)?;
+    if final_paths_to_delete.is_empty() {
         return Ok(());
     }
-
-    let final_paths_to_delete: Vec<PathBuf> = files_to_trash.into_iter().collect();
 
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
     if let Err(trash_error) = trash::delete_all(&final_paths_to_delete) {
@@ -3569,6 +3689,44 @@ pub fn delete_files_from_disk(paths: Vec<String>, app_handle: AppHandle) -> Resu
     Ok(())
 }
 
+type DeletionPlan = (Vec<PathBuf>, HashSet<String>);
+
+fn plan_file_deletions(paths: Vec<String>) -> Result<DeletionPlan, String> {
+    ensure_card_writable_for_paths(&paths)?;
+    let mut files_to_trash = HashSet::new();
+    let mut deletions = HashSet::new();
+
+    for path_str in paths {
+        let (source_path, sidecar_path) = parse_virtual_path(&path_str);
+        deletions.insert(path_str.clone());
+
+        if path_str.contains("?vc=") {
+            if sidecar_path.exists() {
+                files_to_trash.insert(sidecar_path);
+            }
+        } else {
+            if source_path.exists() {
+                match find_all_associated_files(&source_path) {
+                    Ok(associated_files) => {
+                        for file in associated_files {
+                            files_to_trash.insert(file);
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!(
+                            "Could not find associated files for {}: {}",
+                            source_path.display(),
+                            e
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    Ok((files_to_trash.into_iter().collect(), deletions))
+}
+
 fn deletion_stem_for(filename: &str) -> Option<&str> {
     let image_filename = if filename.ends_with(".rrdata") {
         let without_rrdata = filename.trim_end_matches(".rrdata");
@@ -3599,56 +3757,10 @@ pub fn delete_files_with_associated(
     paths: Vec<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    if paths.is_empty() {
+    let (final_paths_to_delete, deletions) = plan_associated_deletions(&paths)?;
+    if final_paths_to_delete.is_empty() {
         return Ok(());
     }
-
-    let mut stems_to_delete = HashSet::new();
-    let mut parent_dirs = HashSet::new();
-    let mut deletions = HashSet::new();
-
-    for path_str in &paths {
-        deletions.insert(path_str.clone());
-        let (source_path, _) = parse_virtual_path(path_str);
-        if let Some(stem) = source_path.file_stem().and_then(|s| s.to_str()) {
-            stems_to_delete.insert(stem.to_string());
-        }
-        if let Some(parent) = source_path.parent() {
-            parent_dirs.insert(parent.to_path_buf());
-        }
-    }
-
-    if stems_to_delete.is_empty() {
-        return Ok(());
-    }
-
-    let mut files_to_trash = HashSet::new();
-
-    for parent_dir in parent_dirs {
-        if let Ok(entries) = fs::read_dir(parent_dir) {
-            for entry in entries.filter_map(Result::ok) {
-                let entry_path = entry.path();
-                if !entry_path.is_file() {
-                    continue;
-                }
-
-                let entry_filename = entry.file_name();
-                let entry_filename_str = entry_filename.to_string_lossy();
-
-                if let Some(stem) = deletion_stem_for(&entry_filename_str)
-                    && stems_to_delete.contains(stem)
-                {
-                    files_to_trash.insert(entry_path);
-                }
-            }
-        }
-    }
-
-    if files_to_trash.is_empty() {
-        return Ok(());
-    }
-
-    let final_paths_to_delete: Vec<PathBuf> = files_to_trash.into_iter().collect();
 
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
     if let Err(trash_error) = trash::delete_all(&final_paths_to_delete) {
@@ -3677,6 +3789,53 @@ pub fn delete_files_with_associated(
     sync_album_path_changes(&app_handle, None, Some(&deletions), None);
 
     Ok(())
+}
+
+fn plan_associated_deletions(paths: &[String]) -> Result<DeletionPlan, String> {
+    ensure_card_writable_for_paths(paths)?;
+
+    let mut stems_to_delete = HashSet::new();
+    let mut parent_dirs = HashSet::new();
+    let mut deletions = HashSet::new();
+
+    for path_str in paths {
+        deletions.insert(path_str.clone());
+        let (source_path, _) = parse_virtual_path(path_str);
+        if let Some(stem) = source_path.file_stem().and_then(|s| s.to_str()) {
+            stems_to_delete.insert(stem.to_string());
+        }
+        if let Some(parent) = source_path.parent() {
+            parent_dirs.insert(parent.to_path_buf());
+        }
+    }
+
+    if stems_to_delete.is_empty() {
+        return Ok((Vec::new(), deletions));
+    }
+
+    let mut files_to_trash = HashSet::new();
+
+    for parent_dir in parent_dirs {
+        if let Ok(entries) = fs::read_dir(parent_dir) {
+            for entry in entries.filter_map(Result::ok) {
+                let entry_path = entry.path();
+                if !entry_path.is_file() {
+                    continue;
+                }
+
+                let entry_filename = entry.file_name();
+                let entry_filename_str = entry_filename.to_string_lossy();
+
+                if let Some(stem) = deletion_stem_for(&entry_filename_str)
+                    && stems_to_delete.contains(stem)
+                {
+                    files_to_trash.insert(entry_path);
+                }
+            }
+        }
+    }
+
+    Ok((files_to_trash.into_iter().collect(), deletions))
 }
 
 pub fn get_thumb_cache_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
@@ -3751,6 +3910,18 @@ pub fn get_cached_or_generate_thumbnail_image(
     }
 }
 
+fn ensure_import_writable(
+    source_paths: &[String],
+    destination_folder: &str,
+    delete_after_import: bool,
+) -> Result<(), String> {
+    ensure_card_writable(Path::new(destination_folder))?;
+    if delete_after_import {
+        ensure_card_writable_for_paths(source_paths)?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn import_files(
     source_paths: Vec<String>,
@@ -3758,6 +3929,11 @@ pub async fn import_files(
     settings: ImportSettings,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    ensure_import_writable(
+        &source_paths,
+        &destination_folder,
+        settings.delete_after_import,
+    )?;
     let total_files = source_paths.len();
     let _ = app_handle.emit("import-start", serde_json::json!({ "total": total_files }));
 
@@ -3982,8 +4158,20 @@ pub fn rename_files(
     name_template: String,
     app_handle: AppHandle,
 ) -> Result<Vec<String>, String> {
+    let (final_new_paths, renames) = rename_files_on_disk(&paths, &name_template)?;
+    if !paths.is_empty() {
+        sync_album_path_changes(&app_handle, Some(&renames), None, None);
+    }
+    Ok(final_new_paths)
+}
+
+fn rename_files_on_disk(
+    paths: &[String],
+    name_template: &str,
+) -> Result<(Vec<String>, HashMap<String, String>), String> {
+    ensure_card_writable_for_paths(paths)?;
     if paths.is_empty() {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), HashMap::new()));
     }
 
     let mut operations: Vec<(PathBuf, PathBuf)> = Vec::new();
@@ -4007,7 +4195,7 @@ pub fn rename_files(
         let file_date = exif_processing::get_creation_date_from_path(&original_path);
 
         let new_stem = generate_filename_from_template(
-            &name_template,
+            name_template,
             &original_path,
             i + 1,
             paths.len(),
@@ -4091,9 +4279,7 @@ pub fn rename_files(
         }
     }
 
-    sync_album_path_changes(&app_handle, Some(&renames), None, None);
-
-    Ok(final_new_paths)
+    Ok((final_new_paths, renames))
 }
 
 #[tauri::command]
@@ -4102,7 +4288,18 @@ pub fn create_virtual_copy(
     target_album_id: Option<String>,
     app_handle: AppHandle,
 ) -> Result<String, String> {
-    let (source_path, source_sidecar_path) = parse_virtual_path(&source_virtual_path);
+    let new_virtual_path = create_virtual_copy_on_disk(&source_virtual_path)?;
+
+    if let Some(album_id) = target_album_id {
+        let _ = add_to_album(album_id, vec![new_virtual_path.clone()], app_handle);
+    }
+
+    Ok(new_virtual_path)
+}
+
+fn create_virtual_copy_on_disk(source_virtual_path: &str) -> Result<String, String> {
+    let (source_path, source_sidecar_path) = parse_virtual_path(source_virtual_path);
+    ensure_card_writable(&source_path)?;
 
     let new_copy_id = Uuid::new_v4().to_string()[..6].to_string();
     let new_virtual_path = format!("{}?vc={}", source_path.to_string_lossy(), new_copy_id);
@@ -4116,10 +4313,6 @@ pub fn create_virtual_copy(
         let json_string =
             serde_json::to_string_pretty(&default_metadata).map_err(|e| e.to_string())?;
         write_file_atomically(&new_sidecar_path, json_string).map_err(|e| e.to_string())?;
-    }
-
-    if let Some(album_id) = target_album_id {
-        let _ = add_to_album(album_id, vec![new_virtual_path.clone()], app_handle);
     }
 
     Ok(new_virtual_path)
@@ -4194,6 +4387,7 @@ pub fn sync_metadata_from_xmp(source_path: &Path, metadata: &mut ImageMetadata) 
         && let Ok(content) = fs::read_to_string(&xmp_file)
     {
         if metadata.rating == 0
+            && !metadata.rating_is_explicit
             && let Some(rating) = extract_xmp_rating(&content)
             && rating != 0
         {
@@ -4260,7 +4454,7 @@ pub fn sync_metadata_to_xmp(source_path: &Path, metadata: &ImageMetadata, create
   </rdf:Description>
  </rdf:RDF>
 </x:xmpmeta>"#;
-        if let Err(e) = fs::write(&xmp_path, skeleton) {
+        if let Err(e) = write_file_atomically(&xmp_path, skeleton) {
             log::error!("Failed to create skeleton XMP: {}", e);
             return;
         }
@@ -4427,5 +4621,561 @@ mod atomic_write_tests {
         assert!(write_file_atomically(&occupied, "new").is_err());
         assert_eq!(fs::read_to_string(occupied.join("keep")).unwrap(), "kept");
         assert_eq!(leftover_temp_files(dir.path()), 0);
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod card_mode_test_support {
+    use std::collections::BTreeMap;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::sync::{Mutex, MutexGuard};
+
+    use super::set_card_browse_root;
+
+    static CARD_MODE_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Holds the global Card mode root for one test and clears it on drop.
+    pub struct CardMode {
+        _lock: MutexGuard<'static, ()>,
+    }
+
+    impl CardMode {
+        pub fn on(root: &Path) -> Self {
+            let lock = CARD_MODE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            set_card_browse_root(Some(root.to_string_lossy().into_owned())).unwrap();
+            CardMode { _lock: lock }
+        }
+
+        pub fn off() -> Self {
+            let lock = CARD_MODE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            set_card_browse_root(None).unwrap();
+            CardMode { _lock: lock }
+        }
+    }
+
+    impl Drop for CardMode {
+        fn drop(&mut self) {
+            let _ = set_card_browse_root(None);
+        }
+    }
+
+    /// A temp folder with a `card` (DCIM layout) and a `library` next to it.
+    pub struct Folders {
+        _dir: tempfile::TempDir,
+        pub card: PathBuf,
+        pub dcim: PathBuf,
+        pub library: PathBuf,
+    }
+
+    pub fn folders() -> Folders {
+        let dir = tempfile::tempdir().unwrap();
+        let card = dir.path().join("card");
+        let dcim = card.join("DCIM").join("100CANON");
+        let library = dir.path().join("library");
+        fs::create_dir_all(&dcim).unwrap();
+        fs::create_dir_all(&library).unwrap();
+        for folder in [&dcim, &library] {
+            fs::write(folder.join("IMG_0001.jpg"), b"jpeg bytes").unwrap();
+            fs::write(
+                folder.join("IMG_0001.jpg.rrdata"),
+                r#"{"version":1,"rating":2,"adjustments":{},"tags":["ai:dog","user:keep","color:red"]}"#,
+            )
+            .unwrap();
+            fs::write(
+                folder.join("IMG_0001.xmp"),
+                r#"<x:xmpmeta><rdf:RDF><rdf:Description xmp:Rating="2"></rdf:Description></rdf:RDF></x:xmpmeta>"#,
+            )
+            .unwrap();
+        }
+        Folders {
+            _dir: dir,
+            card,
+            dcim,
+            library,
+        }
+    }
+
+    /// Every file and folder under `root` with its contents, to prove nothing changed.
+    pub fn snapshot(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
+        walkdir::WalkDir::new(root)
+            .into_iter()
+            .filter_map(Result::ok)
+            .map(|entry| {
+                let contents = entry
+                    .file_type()
+                    .is_file()
+                    .then(|| fs::read(entry.path()).unwrap());
+                (entry.path().to_path_buf(), contents)
+            })
+            .collect()
+    }
+
+    pub fn path_str(path: &Path) -> String {
+        path.to_string_lossy().into_owned()
+    }
+}
+
+#[cfg(test)]
+mod card_mode_tests {
+    use super::card_mode_test_support::{CardMode, folders, path_str, snapshot};
+    use super::*;
+
+    fn assert_read_only<T: std::fmt::Debug>(result: Result<T, String>) {
+        assert_eq!(result.unwrap_err(), CARD_READ_ONLY_ERROR);
+    }
+
+    #[test]
+    fn guard_covers_the_card_and_nothing_else() {
+        let f = folders();
+        let _mode = CardMode::on(&f.card);
+
+        assert!(is_card_read_only_path(&f.card));
+        assert!(is_card_read_only_path(&f.dcim.join("IMG_0001.jpg")));
+        assert!(is_card_read_only_path(&f.dcim.join("new.jpg.rrdata")));
+        assert!(is_card_read_only_path(
+            &f.library.join("..").join("card").join("x.jpg")
+        ));
+        assert!(!is_card_read_only_path(&f.library.join("IMG_0001.jpg")));
+        let sibling = f.card.with_file_name("card2");
+        fs::create_dir_all(&sibling).unwrap();
+        assert!(!is_card_read_only_path(&sibling.join("x.jpg")));
+
+        let virtual_copy = format!("{}?vc=abc123", path_str(&f.dcim.join("IMG_0001.jpg")));
+        assert_read_only(ensure_card_writable_for_paths(&[virtual_copy]));
+        assert!(
+            ensure_card_writable_for_paths(&[path_str(&f.library.join("IMG_0001.jpg"))]).is_ok()
+        );
+
+        let parent = f.card.parent().unwrap();
+        assert!(touches_card_tree(parent));
+        assert!(!is_card_read_only_path(parent));
+        assert!(!touches_card_tree(&f.library));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn guard_follows_symlinks_into_the_card() {
+        let f = folders();
+        let link = f.library.join("card-link");
+        std::os::unix::fs::symlink(&f.dcim, &link).unwrap();
+        let _mode = CardMode::on(&f.card);
+        let before = snapshot(&f.card);
+
+        assert!(is_card_read_only_path(&link.join("IMG_0001.jpg.rrdata")));
+        assert!(write_file_atomically(link.join("IMG_0001.jpg.rrdata"), "{}").is_err());
+        assert!(write_file_atomically(link.join("new.jpg.rrdata"), "{}").is_err());
+        assert_eq!(snapshot(&f.card), before);
+    }
+
+    #[test]
+    fn clearing_card_mode_makes_the_card_writable_again() {
+        let f = folders();
+        {
+            let _mode = CardMode::on(&f.card);
+            assert!(is_card_read_only_path(&f.dcim));
+        }
+        let _mode = CardMode::off();
+        assert!(!is_card_read_only_path(&f.dcim));
+    }
+
+    #[test]
+    fn sidecar_writes_refuse_the_card() {
+        let f = folders();
+        let _mode = CardMode::on(&f.card);
+        let before = snapshot(&f.card);
+
+        let existing = write_file_atomically(f.dcim.join("IMG_0001.jpg.rrdata"), "{}");
+        assert_eq!(
+            existing.unwrap_err().kind(),
+            std::io::ErrorKind::PermissionDenied
+        );
+        assert!(write_file_atomically(f.dcim.join("IMG_0002.jpg.rrdata"), "{}").is_err());
+        assert_eq!(snapshot(&f.card), before);
+
+        write_file_atomically(f.library.join("IMG_0001.jpg.rrdata"), "{}").unwrap();
+        assert_eq!(
+            fs::read_to_string(f.library.join("IMG_0001.jpg.rrdata")).unwrap(),
+            "{}"
+        );
+    }
+
+    fn rated(rating: u8) -> ImageMetadata {
+        ImageMetadata {
+            rating,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn xmp_write_back_refuses_the_card() {
+        let f = folders();
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            sync_metadata_to_xmp(&f.dcim.join("IMG_0001.jpg"), &rated(5), true);
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        sync_metadata_to_xmp(&f.library.join("IMG_0001.jpg"), &rated(5), true);
+        let xmp = fs::read_to_string(f.library.join("IMG_0001.xmp")).unwrap();
+        assert!(xmp.contains("xmp:Rating=\"5\""));
+    }
+
+    #[test]
+    fn creating_a_missing_xmp_refuses_the_card() {
+        let f = folders();
+        fs::remove_file(f.dcim.join("IMG_0001.xmp")).unwrap();
+        fs::remove_file(f.library.join("IMG_0001.xmp")).unwrap();
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            sync_metadata_to_xmp(&f.dcim.join("IMG_0001.jpg"), &rated(4), true);
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        sync_metadata_to_xmp(&f.library.join("IMG_0001.jpg"), &rated(4), true);
+        assert!(
+            fs::read_to_string(f.library.join("IMG_0001.xmp"))
+                .unwrap()
+                .contains("<xmp:Rating>4</xmp:Rating>")
+        );
+    }
+
+    #[test]
+    fn exif_refresh_refuses_the_card() {
+        let f = folders();
+        let updates = HashMap::from([("Artist".to_string(), "Tomas".to_string())]);
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            let result = tauri::async_runtime::block_on(update_exif_fields(
+                vec![path_str(&f.dcim.join("IMG_0001.jpg"))],
+                updates.clone(),
+            ));
+            assert_read_only(result);
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        tauri::async_runtime::block_on(update_exif_fields(
+            vec![path_str(&f.library.join("IMG_0001.jpg"))],
+            updates,
+        ))
+        .unwrap();
+        let sidecar = fs::read_to_string(f.library.join("IMG_0001.jpg.rrdata")).unwrap();
+        assert!(sidecar.contains("\"Artist\": \"Tomas\""));
+    }
+
+    #[test]
+    fn create_folder_refuses_the_card() {
+        let f = folders();
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            assert_read_only(create_folder(path_str(&f.dcim.join("Picks"))));
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        create_folder(path_str(&f.library.join("Picks"))).unwrap();
+        assert!(f.library.join("Picks").is_dir());
+    }
+
+    #[test]
+    fn rename_folder_refuses_the_card_and_its_parents() {
+        let f = folders();
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            assert_read_only(rename_folder_on_disk(&path_str(&f.dcim), "renamed"));
+            let parent = f.card.parent().unwrap();
+            assert_read_only(rename_folder_on_disk(&path_str(parent), "renamed"));
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        let renamed = rename_folder_on_disk(&path_str(&f.library), "renamed").unwrap();
+        assert!(Path::new(&renamed).join("IMG_0001.jpg").is_file());
+    }
+
+    #[test]
+    fn delete_folder_refuses_the_card_and_its_parents() {
+        let f = folders();
+        let _mode = CardMode::on(&f.card);
+        let before = snapshot(&f.card);
+        assert_read_only(delete_folder_on_disk(&path_str(&f.dcim)));
+        assert_read_only(delete_folder_on_disk(&path_str(&f.card)));
+        assert_read_only(delete_folder_on_disk(&path_str(f.card.parent().unwrap())));
+        assert_eq!(snapshot(&f.card), before);
+    }
+
+    #[test]
+    fn copy_into_the_card_is_refused_and_copy_out_works() {
+        let f = folders();
+        let _mode = CardMode::on(&f.card);
+        let before = snapshot(&f.card);
+
+        assert_read_only(copy_files(
+            vec![path_str(&f.library.join("IMG_0001.jpg"))],
+            path_str(&f.dcim),
+        ));
+        assert_eq!(snapshot(&f.card), before);
+
+        let out = f.library.join("from-card");
+        fs::create_dir(&out).unwrap();
+        copy_files(vec![path_str(&f.dcim.join("IMG_0001.jpg"))], path_str(&out)).unwrap();
+        assert!(out.join("IMG_0001.jpg").is_file());
+        assert!(out.join("IMG_0001.jpg.rrdata").is_file());
+        assert_eq!(snapshot(&f.card), before);
+    }
+
+    #[test]
+    fn move_refuses_the_card_both_ways() {
+        let f = folders();
+        let elsewhere = f.library.join("elsewhere");
+        fs::create_dir(&elsewhere).unwrap();
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            assert_read_only(move_files_on_disk(
+                &[path_str(&f.dcim.join("IMG_0001.jpg"))],
+                &path_str(&elsewhere),
+            ));
+            assert_read_only(move_files_on_disk(
+                &[path_str(&f.library.join("IMG_0001.jpg"))],
+                &path_str(&f.dcim),
+            ));
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        let renames = move_files_on_disk(
+            &[path_str(&f.library.join("IMG_0001.jpg"))],
+            &path_str(&elsewhere),
+        )
+        .unwrap();
+        assert_eq!(renames.len(), 1);
+        assert!(elsewhere.join("IMG_0001.jpg").is_file());
+        assert!(elsewhere.join("IMG_0001.jpg.rrdata").is_file());
+    }
+
+    #[test]
+    fn duplicate_and_virtual_copy_refuse_the_card() {
+        let f = folders();
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            let photo = path_str(&f.dcim.join("IMG_0001.jpg"));
+            assert_read_only(duplicate_file_on_disk(&photo));
+            assert_read_only(create_virtual_copy_on_disk(&photo));
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        let photo = path_str(&f.library.join("IMG_0001.jpg"));
+        assert!(Path::new(&duplicate_file_on_disk(&photo).unwrap()).is_file());
+        let copy = create_virtual_copy_on_disk(&photo).unwrap();
+        assert!(parse_virtual_path(&copy).1.is_file());
+    }
+
+    #[test]
+    fn rename_files_refuses_the_card() {
+        let f = folders();
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            assert_read_only(rename_files_on_disk(
+                &[path_str(&f.dcim.join("IMG_0001.jpg"))],
+                "trip_{sequence}",
+            ));
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        let (new_paths, _) =
+            rename_files_on_disk(&[path_str(&f.library.join("IMG_0001.jpg"))], "trip").unwrap();
+        assert_eq!(new_paths, vec![path_str(&f.library.join("trip.jpg"))]);
+        assert!(f.library.join("trip.jpg.rrdata").is_file());
+    }
+
+    #[test]
+    fn deleting_files_refuses_the_card() {
+        let f = folders();
+        {
+            let _mode = CardMode::on(&f.card);
+            let photo = path_str(&f.dcim.join("IMG_0001.jpg"));
+            assert_read_only(plan_file_deletions(vec![photo.clone()]));
+            assert_read_only(plan_associated_deletions(&[photo]));
+        }
+        let _mode = CardMode::off();
+        let photo = path_str(&f.library.join("IMG_0001.jpg"));
+        let (files, _) = plan_file_deletions(vec![photo.clone()]).unwrap();
+        assert!(files.contains(&f.library.join("IMG_0001.jpg.rrdata")));
+        let (files, _) = plan_associated_deletions(&[photo]).unwrap();
+        assert!(files.contains(&f.library.join("IMG_0001.jpg")));
+    }
+
+    #[test]
+    fn clearing_sidecars_never_touches_the_card() {
+        let f = folders();
+        let _mode = CardMode::on(&f.card);
+        let before = snapshot(&f.card);
+
+        assert_read_only(clear_all_sidecars(path_str(&f.dcim)));
+        let parent = f.card.parent().unwrap();
+        assert_eq!(clear_all_sidecars(path_str(parent)).unwrap(), 1);
+        assert!(!f.library.join("IMG_0001.jpg.rrdata").exists());
+        assert_eq!(snapshot(&f.card), before);
+    }
+
+    #[test]
+    fn import_refuses_writing_to_or_deleting_from_the_card() {
+        let f = folders();
+        let _mode = CardMode::on(&f.card);
+        let from_card = vec![path_str(&f.dcim.join("IMG_0001.jpg"))];
+        let from_library = vec![path_str(&f.library.join("IMG_0001.jpg"))];
+
+        assert_read_only(ensure_import_writable(
+            &from_library,
+            &path_str(&f.dcim),
+            false,
+        ));
+        assert_read_only(ensure_import_writable(
+            &from_card,
+            &path_str(&f.library),
+            true,
+        ));
+        assert!(ensure_import_writable(&from_card, &path_str(&f.library), false).is_ok());
+    }
+
+    #[test]
+    fn preset_export_refuses_the_card() {
+        let f = folders();
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            assert_read_only(handle_export_presets_to_file(
+                Vec::new(),
+                path_str(&f.dcim.join("presets.rrpreset")),
+            ));
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        let target = f.library.join("presets.rrpreset");
+        handle_export_presets_to_file(Vec::new(), path_str(&target)).unwrap();
+        assert!(target.is_file());
+    }
+}
+
+#[cfg(test)]
+mod embedded_rating_tests {
+    use super::{resolve_image_metadata, store_user_rating};
+    use crate::app_settings::AppSettings;
+    use crate::exif_processing::rating_samples::{sony_arw, xmp_packet};
+    use std::fs;
+    use std::path::PathBuf;
+
+    struct Shot {
+        _dir: tempfile::TempDir,
+        raw: PathBuf,
+        sidecar: PathBuf,
+        xmp: PathBuf,
+    }
+
+    fn camera_rated(stars: &str) -> Shot {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("DSC00001.ARW");
+        fs::write(&raw, sony_arw(true, Some(stars), None)).unwrap();
+        Shot {
+            sidecar: dir.path().join("DSC00001.ARW.rrdata"),
+            xmp: dir.path().join("DSC00001.xmp"),
+            raw,
+            _dir: dir,
+        }
+    }
+
+    fn shown_rating(shot: &Shot, xmp_sync: bool) -> u8 {
+        resolve_image_metadata(&shot.raw, &shot.sidecar, xmp_sync, &AppSettings::default()).rating
+    }
+
+    #[test]
+    fn embedded_rating_without_sidecar() {
+        let shot = camera_rated("4");
+        assert_eq!(shown_rating(&shot, false), 4);
+        assert_eq!(shown_rating(&shot, true), 4);
+        assert!(
+            !shot.sidecar.exists(),
+            "reading a camera rating must not create a sidecar"
+        );
+    }
+
+    #[test]
+    fn sidecar_rating_overrides_embedded() {
+        let shot = camera_rated("4");
+        fs::write(
+            &shot.sidecar,
+            r#"{"version":1,"rating":2,"adjustments":{}}"#,
+        )
+        .unwrap();
+        assert_eq!(shown_rating(&shot, false), 2);
+
+        let shot = camera_rated("4");
+        fs::write(&shot.xmp, xmp_packet("5")).unwrap();
+        assert_eq!(shown_rating(&shot, true), 5);
+
+        let shot = camera_rated("4");
+        store_user_rating(&shot.sidecar, 1);
+        fs::write(&shot.xmp, xmp_packet("5")).unwrap();
+        assert_eq!(shown_rating(&shot, true), 1);
+    }
+
+    #[test]
+    fn skeleton_xmp_sidecar_does_not_hide_embedded_rating() {
+        let shot = camera_rated("4");
+        fs::write(&shot.xmp, xmp_packet("0")).unwrap();
+        assert_eq!(shown_rating(&shot, true), 4);
+    }
+
+    #[test]
+    fn user_cleared_rating_stays_cleared() {
+        let shot = camera_rated("4");
+        assert_eq!(shown_rating(&shot, false), 4);
+        store_user_rating(&shot.sidecar, 0);
+        assert_eq!(shown_rating(&shot, false), 0);
+
+        fs::write(&shot.xmp, xmp_packet("5")).unwrap();
+        assert_eq!(shown_rating(&shot, true), 0);
+
+        // Other sidecar writes (edits, tags) keep the flag.
+        let mut metadata = crate::exif_processing::load_sidecar(&shot.sidecar);
+        metadata.tags = Some(vec!["portrait".into()]);
+        fs::write(&shot.sidecar, serde_json::to_string(&metadata).unwrap()).unwrap();
+        assert_eq!(shown_rating(&shot, true), 0);
+    }
+
+    #[test]
+    fn unflagged_zero_rating_falls_back_to_embedded() {
+        // Sidecars written by edits (or before this flag existed) say nothing about the rating.
+        let shot = camera_rated("3");
+        fs::write(
+            &shot.sidecar,
+            r#"{"version":1,"rating":0,"adjustments":{"exposure":0.5}}"#,
+        )
+        .unwrap();
+        assert_eq!(shown_rating(&shot, false), 3);
+        assert!(
+            !fs::read_to_string(&shot.sidecar)
+                .unwrap()
+                .contains("rating_is_explicit")
+        );
+    }
+
+    #[test]
+    fn malformed_files_show_no_rating() {
+        let shot = camera_rated("4");
+        fs::write(&shot.raw, b"II*\0\xff\xff\xff\xff garbage").unwrap();
+        assert_eq!(shown_rating(&shot, true), 0);
+
+        fs::write(&shot.sidecar, "{ not json").unwrap();
+        fs::write(&shot.xmp, "<xmp:Rating>banana</xmp:Rating>").unwrap();
+        assert_eq!(shown_rating(&shot, true), 0);
+
+        fs::remove_file(&shot.raw).unwrap();
+        assert_eq!(shown_rating(&shot, false), 0);
     }
 }

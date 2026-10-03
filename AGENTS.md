@@ -9,6 +9,16 @@ RapidRoom is a community build of [RapidRAW](https://github.com/CyberTimon/Rapid
 - One issue per branch and per PR. Branch names: `codex/<issue>-<slug>` or `claude/<issue>-<slug>`. Cloud sessions that are assigned a branch name may keep it. Either way, put the issue number in the PR title and write `Closes #<issue>` in the body.
 - PRs go to `RapidRoom/rapidroom` `main`. A maintainer reviews and merges them. Never push to `main` directly.
 
+## Cloud sessions: picking the next issue
+
+When a session is started with "take the next cloud issue":
+
+1. List open issues labelled `agent:claude-cloud`, oldest first: `gh issue list -R RapidRoom/rapidroom -l agent:claude-cloud --state open`, or the GitHub web UI.
+2. Skip an issue if it has a "working on this" comment from another session in the last 24 hours, or an open PR that closes it. Also skip it if its body or an **Agent brief** comment says to wait for another issue that's still open.
+3. Comment "Claude Code cloud session: working on this", then follow the issue body and any **Agent brief** comment. The brief wins if they disagree.
+4. One issue per session. Open a PR into `main` titled `#<issue> <summary>` that closes the issue. Then stop.
+5. **Keep your PR mergeable.** Other sessions merge into `main` while yours is open. When your PR conflicts, merge `main` into your branch (don't force-push over reviewed commits). Resolve `rapidroom/changes.json` by keeping every entry, and `CREDITS.md` by keeping every row. Regenerate `CHANGES.md` and the README with `node rapidroom/status.mjs`, rerun the checks, and push. Code conflicts with another PR: keep both behaviours, and say in a PR comment what you did.
+
 ## Harvesting from forks
 
 - **Keep authorship:** `git cherry-pick -x <sha>`. If you have to adapt a change, keep the original author on the commit (`--author`), or add a `Co-authored-by:` trailer plus a `(from <fork>@<sha>)` line.
