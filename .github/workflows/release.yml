@@ -6,6 +6,8 @@ on:
 
 jobs:
   release:
+    # RapidRoom builds its releases from a tag (rapidroom-release-linux.yml); this one stays upstream's.
+    if: github.repository == 'CyberTimon/RapidRAW'
     strategy:
       fail-fast: false
       matrix:

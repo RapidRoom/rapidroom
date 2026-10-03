@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**36 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**38 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                               |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -45,6 +45,8 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Window and DPI changes keep the latest preview size even when a render holds the display lock                                                                                      | fix         | [@subbajeu](https://github.com/subbajeu), [@yojen7](https://github.com/yojen7)                                           | not yet offered                                                                                                                                                                                                                                        |
 | Editor render caches include virtual image identity so a late preview cannot reuse another photo                                                                                   | fix         | [@mlauziertr](https://github.com/mlauziertr), [@yojen7](https://github.com/yojen7)                                       | not yet offered                                                                                                                                                                                                                                        |
 | Linux large allocations no longer request transparent huge pages from mimalloc, avoiding compaction stalls on fragmented memory                                                    | performance | [@elhigu](https://github.com/elhigu)                                                                                     | PR [#1790](https://github.com/CyberTimon/RapidRAW/issues/1790)                                                                                                                                                                                         |
+| Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)                                                                                         | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                        |
+| Linux release packaging: a .deb and an AppImage named RapidRoom that install side by side with RapidRAW                                                                            | platform    | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                        |
 | Denoise dialogs stay open on busy backdrop clicks; Cancel stops waiting and discards the eventual UI result                                                                        | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1697](https://github.com/CyberTimon/RapidRAW/issues/1697)                                                                                                                                                                                            |
 | DxO compressed DNG highlights no longer wrap to black dots when lookup-table dithering exceeds 16 bits ⚑                                                                           | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1119](https://github.com/CyberTimon/RapidRAW/issues/1119)                                                                                                                                                                                            |
 
@@ -348,6 +350,22 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** PR [#1790](https://github.com/CyberTimon/RapidRAW/issues/1790)
 - **Commits:** [a742450](https://github.com/CyberTimon/RapidRAW/commit/a7424509bba7ed44154fa283b1c3d41abf982c5a)
 - **Notes:** Allocation-only change: enable mimalloc no_thp and retain the Linux smaps regression test. The allocator version and image-processing math are unchanged. The remaining GPU logging, benchmark and parallel conversion work is tracked in RapidRoom issue #66.
+
+### Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** not yet offered
+- **Notes:** The run-loop exit handler ignored the requested exit code and always called exit(0). A CI job runs the binary under xvfb for a missing input and an unwritable output. Written with Claude Code.
+
+### Linux release packaging: a .deb and an AppImage named RapidRoom that install side by side with RapidRAW
+
+- **Type:** platform
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** not yet offered
+- **Notes:** Binary `rapidroom`, resources in /usr/lib/RapidRoom, RapidRoom.desktop, window class RapidRoom, and its own single-instance D-Bus name. The app identifier (and so the settings folder) is still shared with RapidRAW. A `v*` tag builds a draft release; see rapidroom/RELEASING.md. Written with Claude Code.
 
 ### Denoise dialogs stay open on busy backdrop clicks; Cancel stops waiting and discards the eventual UI result
 

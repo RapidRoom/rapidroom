@@ -1,0 +1,139 @@
+name: 'RapidRoom release: Linux'
+
+# Builds the Linux packages for a `v*` tag and attaches them to a draft release.
+# A maintainer reviews and publishes the draft. See rapidroom/RELEASING.md.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: rapidroom-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    if: github.repository == 'RapidRoom/rapidroom'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check the tag against RAPIDROOM_VERSION
+        id: version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          rr="$(sed -nE "s/^export const RAPIDROOM_VERSION = '([^']+)';$/\1/p" src/utils/rapidroom.ts)"
+          if [[ -z "$rr" ]]; then
+            echo "::error::Could not read RAPIDROOM_VERSION from src/utils/rapidroom.ts"
+            exit 1
+          fi
+          if [[ ! "$rr" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::RAPIDROOM_VERSION '$rr' is not MAJOR.MINOR.PATCH; the update check only compares numbers."
+            exit 1
+          fi
+          if [[ "$tag" != "v$rr" ]]; then
+            echo "::error::Tag '$tag' does not match RAPIDROOM_VERSION '$rr' (expected 'v$rr')."
+            exit 1
+          fi
+          upstream="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          echo "rapidroom=$rr" >> "$GITHUB_OUTPUT"
+          echo "bundle=${upstream}+rr.${rr}" >> "$GITHUB_OUTPUT"
+          echo "RapidRoom $rr on RapidRAW $upstream; package version ${upstream}+rr.${rr}"
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ''
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: rapidroom-release-ubuntu-22.04
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            pkg-config
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build .deb and AppImage
+        env:
+          NO_STRIP: 'true'
+          BUNDLE_VERSION: ${{ steps.version.outputs.bundle }}
+        run: npx tauri build --verbose --bundles deb,appimage --config "{\"version\":\"${BUNDLE_VERSION}\"}"
+
+      - name: Collect release assets
+        env:
+          RR_VERSION: ${{ steps.version.outputs.rapidroom }}
+        run: |
+          set -euo pipefail
+          bundle=src-tauri/target/release/bundle
+          mkdir -p release-assets
+          debs=("$bundle"/deb/*.deb)
+          appimages=("$bundle"/appimage/*.AppImage)
+          if [[ ${#debs[@]} -ne 1 || ${#appimages[@]} -ne 1 || ! -f "${debs[0]}" || ! -f "${appimages[0]}" ]]; then
+            echo "::error::Expected exactly one .deb and one .AppImage"
+            ls -R "$bundle"
+            exit 1
+          fi
+          cp "${debs[0]}" "release-assets/RapidRoom_v${RR_VERSION}_amd64.deb"
+          cp "${appimages[0]}" "release-assets/RapidRoom_v${RR_VERSION}_amd64.AppImage"
+          dpkg-deb --field "release-assets/RapidRoom_v${RR_VERSION}_amd64.deb" Package Version
+          contents="$(dpkg-deb --contents "release-assets/RapidRoom_v${RR_VERSION}_amd64.deb")"
+          for path in usr/bin/rapidroom usr/share/applications/RapidRoom.desktop usr/lib/RapidRoom/resources/libonnxruntime.so usr/lib/RapidRoom/lensfun_db; do
+            if ! grep -qE " (\./)?${path}/?$" <<< "$contents"; then
+              echo "::error::The .deb has no ${path}"
+              exit 1
+            fi
+          done
+          if grep -q 'RapidRAW' <<< "$contents"; then
+            echo "::error::The .deb installs files under a RapidRAW name; it would clash with a RapidRAW install."
+            exit 1
+          fi
+          (cd release-assets && sha256sum * > SHA256SUMS)
+          cat release-assets/SHA256SUMS
+
+      - name: Attach to a draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RR_VERSION: ${{ steps.version.outputs.rapidroom }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            if [[ "$is_draft" != "true" ]]; then
+              echo "::error::Release $tag is already published; not touching it."
+              exit 1
+            fi
+            gh release upload "$tag" release-assets/* --clobber
+          else
+            gh release create "$tag" release-assets/* \
+              --draft \
+              --verify-tag \
+              --title "RapidRoom ${RR_VERSION}" \
+              --notes "Linux builds of RapidRoom ${RR_VERSION}. What changed: see CHANGES.md. Windows and macOS builds are not available yet."
+          fi

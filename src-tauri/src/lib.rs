@@ -118,7 +118,7 @@ use tagging_utils::{candidates, hierarchy};
 #[cfg(target_os = "macos")]
 extern "C" fn force_exit(_signal: libc::c_int) {
     unsafe {
-        libc::_exit(0);
+        libc::_exit(process_exit_code());
     }
 }
 
@@ -1786,6 +1786,8 @@ pub fn run() {
 
     #[cfg(target_os = "linux")]
     {
+        // Window class and Wayland app ID, so desktops match RapidRoom.desktop, not RapidRAW's.
+        gtk::glib::set_prgname(Some("RapidRoom"));
         if !is_headless {
             builder = builder.plugin(tauri_plugin_wayland_nvidia_quirk::init());
         }
@@ -1794,7 +1796,7 @@ pub fn run() {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
         if !is_headless {
-            builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            let focus_main = |app: &tauri::AppHandle, argv: Vec<String>, _cwd: String| {
                 log::info!(
                     "New instance launched with args: {:?}. Focusing main window.",
                     argv
@@ -1810,7 +1812,14 @@ pub fn run() {
 
                 let forwarded_args = argv.get(1..).unwrap_or(&[]);
                 emit_launch_request(app, parse_launch_args(forwarded_args));
-            }));
+            };
+            // The default D-Bus name comes from the identifier, which RapidRoom still shares with RapidRAW.
+            builder = builder.plugin(
+                tauri_plugin_single_instance::Builder::new()
+                    .dbus_id("io.github.RapidRoom.RapidRoom")
+                    .callback(focus_main)
+                    .build(),
+            );
         }
     }
 
@@ -1983,14 +1992,21 @@ pub fn run() {
             match launch_req {
                 LaunchRequest::HeadlessExport(session) => {
                     let app_handle_clone = app_handle.clone();
+                    let export = tauri::async_runtime::spawn(
+                        crate::export_processing::run_headless_export(session, app_handle.clone()),
+                    );
                     tauri::async_runtime::spawn(async move {
-                        match crate::export_processing::run_headless_export(session, app_handle_clone.clone()).await {
+                        let result = export
+                            .await
+                            .unwrap_or_else(|e| Err(format!("Export task panicked: {}", e)));
+                        match result {
                             Ok(_) => {
                                 cli_println!("Headless export completed successfully.");
                                 app_handle_clone.exit(0);
                             }
                             Err(e) => {
                                 cli_eprintln!("Headless export failed: {}", e);
+                                set_process_exit_code(1);
                                 app_handle_clone.exit(1);
                             }
                         }
@@ -2372,21 +2388,24 @@ pub fn run() {
 				        }
 				    }
 				}
-                tauri::RunEvent::ExitRequested { api, .. } => {
+                tauri::RunEvent::ExitRequested { api, code, .. } => {
                     api.prevent_exit();
+                    let code = resolve_exit_code(code, process_exit_code());
 
                     #[cfg(target_os = "macos")]
-                    unsafe { libc::_exit(0); }
+                    unsafe { libc::_exit(code); }
 
                     #[cfg(not(target_os = "macos"))]
-                    std::process::exit(0);
+                    std::process::exit(code);
                 }
                 tauri::RunEvent::Exit => {
+                    let code = process_exit_code();
+
                     #[cfg(target_os = "macos")]
-                    unsafe { libc::_exit(0); }
+                    unsafe { libc::_exit(code); }
 
                     #[cfg(not(target_os = "macos"))]
-                    std::process::exit(0);
+                    std::process::exit(code);
                 }
                 _ => {}
             }
