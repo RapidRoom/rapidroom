@@ -485,6 +485,22 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Another denoise cannot start while a command is pending. Cancellation does not interrupt the backend: single processing may continue and batch work may still write files. Real interruption and job IDs are tracked in RapidRoom #68."
+    },
+    {
+      "id": "dxo-dng-highlight-dither",
+      "title": "DxO compressed DNG highlights no longer wrap to black dots when lookup-table dithering exceeds 16 bits",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "yojen7/RapidRAW-DngLab",
+      "commits": [
+        "https://github.com/yojen7/RapidRAW-DngLab/commit/5a44585da25c7ff783c83a4bff25281f0cf28159",
+        "https://github.com/yojen7/RapidRAW-DngLab/commit/4c960626978287ab8e4aabe70a6cfa60b4582273"
+      ],
+      "upstream_issues": ["CyberTimon/RapidRAW#1119"],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only."
     }
   ]
 }
