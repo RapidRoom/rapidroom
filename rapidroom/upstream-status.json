@@ -81,6 +81,14 @@
       "created": "2026-07-18",
       "closed": null
     },
+    "CyberTimon/RapidRAW#1834": {
+      "kind": "pr",
+      "title": "Persist TIFF bit depth and file timestamp option in export presets (fixes #1397)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1834",
+      "state": "open",
+      "created": "2026-10-03",
+      "closed": null
+    },
     "CyberTimon/RapidRAW#1161": {
       "kind": "issue",
       "title": "BUG: Invalid charset error in Comments EXIF data",
@@ -103,6 +111,14 @@
       "url": "https://github.com/CyberTimon/RapidRAW/issues/1454",
       "state": "open",
       "created": "2026-07-31",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1835": {
+      "kind": "pr",
+      "title": "Apply library filters before RAW+JPEG grouping (fixes #1454)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1835",
+      "state": "open",
+      "created": "2026-10-03",
       "closed": null
     },
     "CyberTimon/RapidRAW#1674": {
