@@ -1,0 +1,162 @@
+# Pixel-exact regression check on a software Vulkan renderer (Mesa lavapipe).
+# See rapidroom/regression/README.md ("CI"). Not a required check yet.
+name: Regression check
+
+on:
+  pull_request:
+    paths:
+      - 'src-tauri/**'
+      - 'rapidroom/regression/**'
+      - '.github/workflows/regression.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      record:
+        description: 'Record a new ci-reference.json and upload it as an artifact (never committed automatically; a maintainer reviews and commits it)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: regression-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # 6 of the smaller raws x all 3 adjustment sets = 18 renders per run.
+  # Sony lossless M/S, Sony compressed, Canon C-RAW, Nikon lossless, Fuji X-Trans, phone DNG.
+  CI_SUBSET: sony-a7cr-18mp-lossless-s,sony-a7c2-15mp-compressed,canon-r50-24mp-craw,nikon-zfc-21mp-lossless,fuji-xt4-26mp-lossless,google-pixel7pro-dng
+  RAPIDROOM_CORPUS: ${{ github.workspace }}/.corpus
+  WORK: /mnt/regression
+  ENGINE: src-tauri/target/release/RapidRAW
+  REFERENCE: rapidroom/regression/ci-reference.json
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies (Tauri, lavapipe, xvfb)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl file libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf pkg-config \
+            mesa-vulkan-drivers vulkan-tools xvfb python3-numpy
+
+      - name: Vulkan device
+        run: |
+          vulkaninfo --summary | grep -E 'deviceName|driverName|driverInfo|apiVersion'
+          vulkaninfo --summary | grep -q 'driverName *= *llvmpipe' || { echo "::error::lavapipe (llvmpipe) is not the Vulkan device"; exit 1; }
+          dpkg-query -W mesa-vulkan-drivers libvulkan1
+          nproc; free -g; df -h / /mnt
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ''
+          cache: false
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: regression-ubuntu-24.04
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Build the Linux binary
+        run: |
+          npm ci
+          start=$(date +%s)
+          npm run tauri build -- --no-bundle
+          echo "build took $(( $(date +%s) - start )) s"
+          ls -l "$ENGINE"
+
+      - name: Corpus cache key
+        id: corpus
+        run: |
+          echo "key=regression-corpus-${{ hashFiles('rapidroom/regression/corpus.json') }}-$(echo "$CI_SUBSET" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the corpus
+        uses: actions/cache@v4
+        with:
+          path: .corpus
+          key: ${{ steps.corpus.outputs.key }}
+
+      - name: Fetch the corpus subset
+        run: python3 rapidroom/regression/baseline.py fetch --only "$CI_SUBSET"
+
+      - name: Prepare work dir
+        run: |
+          sudo mkdir -p "$WORK"
+          sudo chown "$(id -u):$(id -g)" "$WORK"
+
+      # Lavapipe has to be deterministic, or a hash reference is meaningless:
+      # render everything twice in this job and require identical pixels.
+      - name: Render (run 1)
+        run: |
+          start=$(date +%s)
+          xvfb-run -a python3 rapidroom/regression/baseline.py render --engine "$ENGINE" --out "$WORK/run1" --only "$CI_SUBSET" --no-warmup
+          echo "run 1 took $(( $(date +%s) - start )) s"
+
+      - name: Render (run 2)
+        run: |
+          start=$(date +%s)
+          xvfb-run -a python3 rapidroom/regression/baseline.py render --engine "$ENGINE" --out "$WORK/run2" --only "$CI_SUBSET" --no-warmup --skip-hash
+          echo "run 2 took $(( $(date +%s) - start )) s"
+
+      - name: Determinism (run 1 vs run 2)
+        id: determinism
+        run: |
+          mkdir -p "$WORK/report"
+          if ! python3 rapidroom/regression/baseline.py check "$WORK/run1" "$WORK/run2" \
+              --json "$WORK/report/determinism.json" --copy-differing "$WORK/report/nondeterministic"; then
+            echo "::error::lavapipe renders differ between two runs in the same job; a hash reference can't work. See the determinism artifact."
+            # What varies, pixel by pixel (reads tolerances.json, never changes it).
+            python3 rapidroom/regression/baseline.py compare "$WORK/run1" "$WORK/run2" \
+              --json "$WORK/report/determinism-compare.json" || true
+            exit 1
+          fi
+
+      - name: Record ci-reference.json
+        if: inputs.record || hashFiles('rapidroom/regression/ci-reference.json') == ''
+        run: |
+          python3 rapidroom/regression/baseline.py hashes "$WORK/run1" --out "$WORK/ci-reference.json" \
+            --by "GitHub Actions (${{ github.event_name }}${{ inputs.record && ', record' || '' }})" \
+            --source "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} at ${{ github.sha }}"
+          if [ ! -f "$REFERENCE" ]; then
+            echo "::warning::No $REFERENCE yet, so nothing was compared. A candidate is uploaded as the ci-reference artifact; a maintainer reviews and commits it."
+          fi
+
+      - name: Upload the recorded reference
+        if: inputs.record || hashFiles('rapidroom/regression/ci-reference.json') == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-reference
+          path: ${{ env.WORK }}/ci-reference.json
+
+      - name: Compare with ci-reference.json
+        if: ${{ !inputs.record && hashFiles('rapidroom/regression/ci-reference.json') != '' }}
+        run: |
+          python3 rapidroom/regression/baseline.py check "$REFERENCE" "$WORK/run1" \
+            --json "$WORK/report/diff-summary.json" --copy-differing "$WORK/report/differing"
+
+      - name: Upload the differing renders and diff summary
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-diff
+          path: |
+            ${{ env.WORK }}/report
+            ${{ env.WORK }}/run1/manifest.json
+            ${{ env.WORK }}/run1/*/*.log
+          retention-days: 14
+          if-no-files-found: ignore

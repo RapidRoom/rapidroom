@@ -5,6 +5,8 @@ Subcommands
   fetch     download / verify the corpus raws ($RAPIDROOM_CORPUS, default ~/.cache/rapidroom-corpus)
   render    render corpus x adjustment sets with one engine into a directory
   compare   compare two render directories; nonzero exit on failure
+  hashes    write the per-image pixel hashes of a render directory (the CI reference format)
+  check     compare pixel hashes and dimensions only (render dirs or hash files); nonzero exit on failure
   init      record the FIRST reference manifest (only if none exists yet)
   bless     replace the reference (maintainers only: --i-am-a-maintainer, interactive TTY)
 
@@ -33,6 +35,7 @@ CORPUS_JSON = os.path.join(HERE, "corpus.json")
 ADJ_DIR = os.path.join(HERE, "adjustments")
 TOL_JSON = os.path.join(HERE, "tolerances.json")
 REF_MANIFEST = os.path.join(HERE, "reference-manifest.json")
+CI_REFERENCE = os.path.join(HERE, "ci-reference.json")
 BLESS_LOG = os.path.join(HERE, "BLESS-LOG.md")
 DEFAULT_RAW_DIR = os.environ.get("RAPIDROOM_CORPUS", os.path.join(os.path.expanduser("~"), ".cache", "rapidroom-corpus"))
 NEUTRAL = "neutral"  # adjustment set name for "no --adjustments" (engine defaults)
@@ -337,7 +340,7 @@ def engine_info(engine):
 
 def environment_info():
     gpus = []
-    for card in sorted(os.listdir("/sys/class/drm")):
+    for card in sorted(os.listdir("/sys/class/drm")) if os.path.isdir("/sys/class/drm") else []:
         ue = f"/sys/class/drm/{card}/device/uevent"
         if re.fullmatch(r"card\d+", card) and os.path.isfile(ue):
             kv = dict(l.split("=", 1) for l in open(ue).read().split() if "=" in l)
@@ -352,6 +355,9 @@ def environment_info():
         "python": platform.python_version(),
         "numpy": np.__version__,
     }
+    if shutil.which("dpkg-query"):  # Debian/Ubuntu, e.g. the CI runner
+        env["debian_packages"] = run_quiet(["dpkg-query", "-W", "-f", "${Package} ${Version}\\n",
+                                            "mesa-vulkan-drivers", "libvulkan1", "libwebkit2gtk-4.1-0"]).splitlines()
     vk = run_quiet(["vulkaninfo", "--summary"])
     if vk and not vk.startswith("<unavailable"):
         env["vulkan"] = sorted({l.strip() for l in vk.splitlines()
@@ -728,6 +734,121 @@ def cmd_compare(args):
     sys.exit(0 if failed == 0 else 1)
 
 
+# --------------------------------------------------------------------------- hashes / check
+
+def _hash_side(path):
+    """Load pixel hashes from a render dir (its manifest.json) or a hash file
+    written by `hashes`. Returns (images {(set, id): rec}, failed [keys], meta)."""
+    if os.path.isdir(path):
+        m = load_json(os.path.join(path, "manifest.json"))
+        images, failed = {}, []
+        for r in m["renders"]:
+            key = (r["set"], r["id"])
+            if r.get("ok"):
+                images[key] = {"width": r["width"], "height": r["height"], "pixel_sha256": r["pixel_sha256"],
+                               "output": os.path.join(path, r["output"])}
+            else:
+                failed.append(key)
+        return images, failed, {"vulkan": m.get("environment", {}).get("vulkan"),
+                                "corpus_sha256": m.get("corpus_sha256")}
+    h = load_json(path)
+    if h.get("kind") != "rapidraw-ci-reference":
+        sys.exit(f"{path} is neither a render directory nor a hash file from `baseline.py hashes`")
+    images = {(x["set"], x["id"]): x for x in h["images"]}
+    return images, [], {"vulkan": h.get("environment", {}).get("vulkan"), "corpus_sha256": h.get("corpus_sha256")}
+
+
+def cmd_hashes(args):
+    m = load_json(os.path.join(args.renderdir, "manifest.json"))
+    bad = [f"{r['set']}/{r['id']}" for r in m["renders"] if not r.get("ok")]
+    if bad:
+        sys.exit(f"refusing: {len(bad)} renders failed in {args.renderdir}: {bad[:5]}")
+    env = m.get("environment", {})
+    out = {
+        "_comment": "Per-image pixel hashes for the CI regression check (.github/workflows/regression.yml), "
+                    "recorded on a GitHub Actions runner with Mesa lavapipe. pixel_sha256 is the SHA-256 of the "
+                    "decoded 16-bit RGB pixels (little-endian), so TIFF container changes don't matter. Updating "
+                    "this file is a rendering decision that needs a maintainer's sign-off (see GOVERNANCE).",
+        "kind": "rapidraw-ci-reference",
+        "created": now_iso(),
+        "recorded_by": args.by,
+        "source": args.source,
+        "environment": {k: env.get(k) for k in ("kernel", "cpu_count", "vulkan", "debian_packages")},
+        "engine_sha256": m["engine"]["sha256"],
+        "corpus_sha256": m.get("corpus_sha256"),
+        "adjustment_sets": {k: v.get("sha256") for k, v in sorted(m["adjustment_sets"].items())},
+        "lut_sha256": m.get("lut_sha256"),
+        "images": [{"set": r["set"], "id": r["id"], "width": r["width"], "height": r["height"],
+                    "pixel_sha256": r["pixel_sha256"]}
+                   for r in sorted(m["renders"], key=lambda r: (r["set"], r["id"]))],
+    }
+    save_json(args.out, out)
+    print(f"wrote {len(out['images'])} hashes -> {args.out}")
+
+
+def cmd_check(args):
+    ref, ref_failed, ref_meta = _hash_side(args.ref)
+    test, test_failed, test_meta = _hash_side(args.test)
+    rows = []
+    for key in sorted(set(ref) | set(test) | set(ref_failed) | set(test_failed)):
+        r, t = ref.get(key), test.get(key)
+        row = {"set": key[0], "id": key[1]}
+        if key in ref_failed:
+            row["problem"] = "render failed in ref"
+        elif key in test_failed:
+            row["problem"] = "render failed in test"
+        elif t is None:
+            row["problem"] = "missing in test"
+        elif r is None:
+            row["problem"] = "not in ref"
+        else:
+            row.update(ref_size=[r["width"], r["height"]], test_size=[t["width"], t["height"]],
+                       ref_pixel_sha256=r["pixel_sha256"], test_pixel_sha256=t["pixel_sha256"])
+            if row["ref_size"] != row["test_size"]:
+                row["problem"] = f"size {r['width']}x{r['height']} -> {t['width']}x{t['height']}"
+            elif r["pixel_sha256"] != t["pixel_sha256"]:
+                row["problem"] = "pixels differ"
+        for side, recs in (("ref_output", ref), ("test_output", test)):
+            if key in recs and recs[key].get("output"):
+                row[side] = recs[key]["output"]
+        rows.append(row)
+    bad = [x for x in rows if "problem" in x]
+    notes = []
+    if ref_meta["vulkan"] and test_meta["vulkan"] and ref_meta["vulkan"] != test_meta["vulkan"]:
+        notes.append(f"Vulkan driver differs: ref {ref_meta['vulkan']} vs test {test_meta['vulkan']}")
+    if ref_meta["corpus_sha256"] and test_meta["corpus_sha256"] and ref_meta["corpus_sha256"] != test_meta["corpus_sha256"]:
+        notes.append("corpus.json differs between ref and test")
+    summary = {"kind": "rapidraw-baseline-check", "created": now_iso(),
+               "ref": os.path.abspath(args.ref), "test": os.path.abspath(args.test),
+               "n_images": len(rows), "n_identical": len(rows) - len(bad), "n_failed": len(bad),
+               "notes": notes, "pass": not bad, "images": rows}
+    if args.json:
+        save_json(args.json, summary)
+    if args.copy_differing and bad:
+        os.makedirs(args.copy_differing, exist_ok=True)
+        for x in bad:
+            for side in ("ref_output", "test_output"):
+                src = x.get(side)
+                if not src:
+                    continue
+                stem = f"{x['set']}__{x['id']}__{side.split('_')[0]}"
+                if os.path.isfile(src):
+                    shutil.copy2(src, os.path.join(args.copy_differing, stem + ".tiff"))
+                log = os.path.splitext(src)[0] + ".log"
+                if os.path.isfile(log):
+                    shutil.copy2(log, os.path.join(args.copy_differing, stem + ".log"))
+
+    print(f"\nRapidRAW pixel-hash check\n  ref : {args.ref}\n  test: {args.test}")
+    for n in notes:
+        print(f"  NOTE: {n}")
+    print()
+    for x in rows:
+        print(f"  {x['set']:24s} {x['id']:30s} {x.get('problem', 'identical')}")
+    print(f"\n  {len(rows)} images: {len(rows) - len(bad)} identical, {len(bad)} FAILED")
+    print(f"  overall: {'PASS' if not bad else 'FAIL'}")
+    sys.exit(0 if not bad else 1)
+
+
 # --------------------------------------------------------------------------- init / bless
 
 def _reference_from(refdir):
@@ -833,6 +954,20 @@ def main():
     c.add_argument("--only")
     c.add_argument("--jobs", type=int, default=4)
     c.set_defaults(fn=cmd_compare)
+
+    hs = sub.add_parser("hashes", help="write per-image pixel hashes of a render dir (CI reference format)")
+    hs.add_argument("renderdir")
+    hs.add_argument("--out", required=True, help=f"output JSON (the committed one is {os.path.relpath(CI_REFERENCE, PROJECT)})")
+    hs.add_argument("--by", required=True, help="who recorded it (e.g. 'GitHub Actions, workflow_dispatch record')")
+    hs.add_argument("--source", help="where it was recorded (e.g. a workflow run URL and commit)")
+    hs.set_defaults(fn=cmd_hashes)
+
+    ck = sub.add_parser("check", help="compare pixel hashes and dimensions only")
+    ck.add_argument("ref", help="render dir or hash file (e.g. ci-reference.json)")
+    ck.add_argument("test", help="render dir or hash file")
+    ck.add_argument("--json", help="write the per-image results here")
+    ck.add_argument("--copy-differing", metavar="DIR", help="copy the TIFFs and logs of differing renders here")
+    ck.set_defaults(fn=cmd_check)
 
     i = sub.add_parser("init", help="record the first reference manifest (fails if one exists)")
     i.add_argument("refdir")
