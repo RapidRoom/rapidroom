@@ -335,6 +335,19 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Adapted to RapidRoom's shader with Claude Code: sharpening also reads the tonal blur, highlights doesn't, and RapidRoom has no skin smoothing. Output should be pixel-identical; speed-up not measured yet."
+    },
+    {
+      "id": "pending-preview-resize",
+      "title": "Window and DPI changes keep the latest preview size even when a render holds the display lock",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["subbajeu", "yojen7"],
+      "source": "SandeepSubba/RapidRAW",
+      "commits": ["https://github.com/SandeepSubba/RapidRAW/commit/1084ca96fbad8ea1c64dd58d6a26df06fdf3df60"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The latest physical surface size is queued outside the display lock and applied on the next transform, resize, or native preview render. Export processing is unchanged."
     }
   ]
 }

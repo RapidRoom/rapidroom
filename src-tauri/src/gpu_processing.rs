@@ -2217,6 +2217,7 @@ fn process_and_get_dynamic_image_inner(
             .unwrap_or_else(|e| e.into_inner())
             .as_mut()
     {
+        display.apply_pending_size(context);
         display.latest_transform.image_size = [width as f32, height as f32];
         display.latest_transform.texture_size =
             [processor_state.width as f32, processor_state.height as f32];
