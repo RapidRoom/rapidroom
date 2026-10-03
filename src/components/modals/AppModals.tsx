@@ -74,6 +74,8 @@ export default function AppModals(props: AppModalsProps) {
     focusStackModalState,
     negativeModalState,
     denoiseModalState,
+    pendingDenoiseJob,
+    closeDenoiseModal,
     cullingModalState,
     collageModalState,
     setUI,
@@ -97,6 +99,8 @@ export default function AppModals(props: AppModalsProps) {
       focusStackModalState: state.focusStackModalState,
       negativeModalState: state.negativeModalState,
       denoiseModalState: state.denoiseModalState,
+      pendingDenoiseJob: state.pendingDenoiseJob,
+      closeDenoiseModal: state.closeDenoiseModal,
       cullingModalState: state.cullingModalState,
       collageModalState: state.collageModalState,
       setUI: state.setUI,
@@ -255,14 +259,14 @@ export default function AppModals(props: AppModalsProps) {
       />
       <DenoiseModal
         isOpen={denoiseModalState.isOpen}
-        onClose={() => setUI((state) => ({ denoiseModalState: { ...state.denoiseModalState, isOpen: false } }))}
+        onClose={closeDenoiseModal}
         onDenoise={props.handleApplyDenoise}
         onBatchDenoise={props.handleBatchDenoise}
         onSave={props.handleSaveDenoisedImage}
         onOpenFile={props.handleImageSelect}
         previewBase64={denoiseModalState.previewBase64}
         originalBase64={denoiseModalState.originalBase64 || null}
-        isProcessing={denoiseModalState.isProcessing}
+        isProcessing={denoiseModalState.isProcessing || pendingDenoiseJob !== null}
         error={denoiseModalState.error}
         progressMessage={denoiseModalState.progressMessage}
         aiModelDownloadStatus={aiModelDownloadStatus}

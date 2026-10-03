@@ -460,18 +460,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             {
               label: t('contextMenus.editor.denoise'),
               icon: Grip,
+              disabled:
+                useUIStore.getState().pendingDenoiseJob !== null ||
+                useUIStore.getState().denoiseModalState.isProcessing,
               onClick: () => {
-                setUI({
-                  denoiseModalState: {
-                    isOpen: true,
-                    isProcessing: false,
-                    previewBase64: null,
-                    error: null,
-                    targetPaths: [selectedImage.path],
-                    progressMessage: null,
-                    isRaw: selectedImage?.isRaw || false,
-                  },
-                });
+                useUIStore.getState().openDenoiseModal([selectedImage.path], selectedImage?.isRaw || false);
               },
             },
             {
@@ -825,19 +818,12 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             {
               label: denoiseLabel,
               icon: Grip,
-              disabled: finalSelection.length === 0,
+              disabled:
+                finalSelection.length === 0 ||
+                useUIStore.getState().pendingDenoiseJob !== null ||
+                useUIStore.getState().denoiseModalState.isProcessing,
               onClick: () => {
-                setUI({
-                  denoiseModalState: {
-                    isOpen: true,
-                    isProcessing: false,
-                    previewBase64: null,
-                    error: null,
-                    targetPaths: finalSelection,
-                    progressMessage: null,
-                    isRaw: selectedImage?.isRaw || false,
-                  },
-                });
+                useUIStore.getState().openDenoiseModal(finalSelection, selectedImage?.isRaw || false);
               },
             },
             {

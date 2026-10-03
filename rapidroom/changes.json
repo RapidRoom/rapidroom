@@ -497,6 +497,18 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Binary `rapidroom`, resources in /usr/lib/RapidRoom, RapidRoom.desktop, window class RapidRoom, and its own single-instance D-Bus name. The app identifier (and so the settings folder) is still shared with RapidRAW. A `v*` tag builds a draft release; see rapidroom/RELEASING.md. Written with Claude Code."
+    },
+    {
+      "id": "denoise-dialog-cancel",
+      "title": "Denoise dialogs stay open on busy backdrop clicks; Cancel stops waiting and discards the eventual UI result",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1697"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Another denoise cannot start while a command is pending. Cancellation does not interrupt the backend: single processing may continue and batch work may still write files. Real interruption and job IDs are tracked in RapidRoom #68."
     }
   ]
 }

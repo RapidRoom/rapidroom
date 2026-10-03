@@ -126,14 +126,23 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
 
   const handleApplyDenoise = useCallback(
     async (intensity: number, method: DenoiseMethod) => {
-      const { denoiseModalState } = useUIStore.getState();
-      if (denoiseModalState.targetPaths.length === 0) return;
+      const { denoiseModalState, pendingDenoiseJob } = useUIStore.getState();
+      if (
+        !denoiseModalState.isOpen ||
+        pendingDenoiseJob ||
+        denoiseModalState.isProcessing ||
+        denoiseModalState.targetPaths.length === 0
+      )
+        return;
 
       setUI((state) => ({
+        pendingDenoiseJob: 'single',
         denoiseModalState: {
           ...state.denoiseModalState,
           isProcessing: true,
           error: null,
+          previewBase64: null,
+          originalBase64: null,
           progressMessage: 'Starting engine...',
         },
       }));
@@ -145,9 +154,15 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
           method: method,
         });
       } catch (err) {
-        setUI((state) => ({
-          denoiseModalState: { ...state.denoiseModalState, isProcessing: false, error: String(err) },
-        }));
+        setUI((state) =>
+          state.denoiseModalState.isOpen && state.denoiseModalState.isProcessing
+            ? {
+                denoiseModalState: { ...state.denoiseModalState, isProcessing: false, error: String(err) },
+              }
+            : {},
+        );
+      } finally {
+        setUI({ pendingDenoiseJob: null });
       }
     },
     [setUI],
@@ -155,13 +170,29 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
 
   const handleBatchDenoise = useCallback(
     async (intensity: number, method: DenoiseMethod, paths: string[]) => {
+      const { denoiseModalState, pendingDenoiseJob } = useUIStore.getState();
+      if (!denoiseModalState.isOpen || pendingDenoiseJob || denoiseModalState.isProcessing || paths.length === 0)
+        return [];
+      setUI((state) => ({
+        pendingDenoiseJob: 'batch',
+        denoiseModalState: { ...state.denoiseModalState, isProcessing: true, error: null },
+      }));
       try {
         const savedPaths: string[] = await invoke('batch_denoise_images', { paths, intensity, method });
         await refreshImageList();
         return savedPaths;
       } catch (err) {
-        setUI((state) => ({ denoiseModalState: { ...state.denoiseModalState, error: String(err) } }));
+        setUI((state) =>
+          state.denoiseModalState.isOpen && state.denoiseModalState.isProcessing
+            ? { denoiseModalState: { ...state.denoiseModalState, error: String(err) } }
+            : {},
+        );
         throw err;
+      } finally {
+        setUI((state) => ({
+          pendingDenoiseJob: null,
+          denoiseModalState: { ...state.denoiseModalState, isProcessing: false },
+        }));
       }
     },
     [refreshImageList, setUI],

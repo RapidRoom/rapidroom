@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**36 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**37 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                               |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -47,6 +47,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Linux large allocations no longer request transparent huge pages from mimalloc, avoiding compaction stalls on fragmented memory                                                    | performance | [@elhigu](https://github.com/elhigu)                                                                                     | PR [#1790](https://github.com/CyberTimon/RapidRAW/issues/1790)                                                                                                                                                                                         |
 | Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)                                                                                         | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                        |
 | Linux release packaging: a .deb and an AppImage named RapidRoom that install side by side with RapidRAW                                                                            | platform    | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                        |
+| Denoise dialogs stay open on busy backdrop clicks; Cancel stops waiting and discards the eventual UI result                                                                        | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1697](https://github.com/CyberTimon/RapidRAW/issues/1697)                                                                                                                                                                                            |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
@@ -364,3 +365,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@yojen7](https://github.com/yojen7)
 - **Upstream:** not yet offered
 - **Notes:** Binary `rapidroom`, resources in /usr/lib/RapidRoom, RapidRoom.desktop, window class RapidRoom, and its own single-instance D-Bus name. The app identifier (and so the settings folder) is still shared with RapidRAW. A `v*` tag builds a draft release; see rapidroom/RELEASING.md. Written with Claude Code.
+
+### Denoise dialogs stay open on busy backdrop clicks; Cancel stops waiting and discards the eventual UI result
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** [#1697](https://github.com/CyberTimon/RapidRAW/issues/1697)
+- **Notes:** Another denoise cannot start while a command is pending. Cancellation does not interrupt the backend: single processing may continue and batch work may still write files. Real interruption and job IDs are tracked in RapidRoom #68.
