@@ -1389,13 +1389,11 @@ async fn generate_preview_for_path(
     // holding the source image plus its f16 RGBA upload buffer (~190 MB for a
     // 24MP frame) before it ever reaches the GPU mutex. Enough of them in
     // flight exhausts system memory.
-    let decode_permit = {
-        let sem = app_handle.state::<AppState>().decode_permit.clone();
-        sem
-    }
-    .acquire_owned()
-    .await
-    .map_err(|e| e.to_string())?;
+    let decode_permit = app_handle.state::<AppState>().decode_permit.clone();
+    let decode_permit = decode_permit
+        .acquire_owned()
+        .await
+        .map_err(|e| e.to_string())?;
 
     tokio::task::spawn_blocking(move || {
         let _decode_permit = decode_permit;

@@ -945,9 +945,10 @@ pub async fn load_image(
         }
 
         // Serialise full-resolution decodes and skip superseded waiters.
-        let _decode_permit = state
+        let decode_permit = state
             .decode_permit
-            .acquire()
+            .clone()
+            .acquire_owned()
             .await
             .map_err(|e| e.to_string())?;
         if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
@@ -955,6 +956,7 @@ pub async fn load_image(
         }
 
         let (pristine_img, exif_data_loaded) = tokio::task::spawn_blocking(move || {
+            let _decode_permit = decode_permit;
             if generation_tracker.load(Ordering::SeqCst) != my_generation {
                 return Err("Load cancelled".to_string());
             }
