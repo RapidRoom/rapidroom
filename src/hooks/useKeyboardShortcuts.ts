@@ -85,6 +85,27 @@ export const useKeyboardShortcuts = ({
       return libraryActivePath ? [libraryActivePath] : [];
     };
 
+    const rateAndAdvance = (rating: number) => {
+      const s = getStoreState();
+      const list = sortedListRef.current;
+      const isEditor = s.ui.activeView === 'editor';
+      const currentPath = isEditor ? s.editor.selectedImage?.path : s.library.libraryActivePath;
+      const currentIndex = currentPath ? list.findIndex((img) => img.path === currentPath) : -1;
+      const nextImage = currentIndex === -1 ? undefined : list[currentIndex + 1];
+
+      handleRate(rating);
+
+      if (!s.settings.appSettings?.autoAdvanceOnRate || !nextImage) return;
+      const ratedCount = s.library.multiSelectedPaths.length || (s.editor.selectedImage ? 1 : 0);
+      if (ratedCount !== 1) return;
+      if (isEditor) {
+        handleImageSelect(nextImage.path, true);
+      } else {
+        s.library.setLibrary({ libraryActivePath: nextImage.path, multiSelectedPaths: [nextImage.path] });
+        handleImageSelect(nextImage.path, false);
+      }
+    };
+
     const actions: Record<string, any> = {
       open_image: {
         shouldFire: (s: any) => s.ui.activeView === 'library' && s.library.libraryActivePath !== null,
@@ -447,42 +468,42 @@ export const useKeyboardShortcuts = ({
         shouldFire: () => true,
         execute: (e: any) => {
           e.preventDefault();
-          handleRate(0);
+          rateAndAdvance(0);
         },
       },
       rate_1: {
         shouldFire: () => true,
         execute: (e: any) => {
           e.preventDefault();
-          handleRate(1);
+          rateAndAdvance(1);
         },
       },
       rate_2: {
         shouldFire: () => true,
         execute: (e: any) => {
           e.preventDefault();
-          handleRate(2);
+          rateAndAdvance(2);
         },
       },
       rate_3: {
         shouldFire: () => true,
         execute: (e: any) => {
           e.preventDefault();
-          handleRate(3);
+          rateAndAdvance(3);
         },
       },
       rate_4: {
         shouldFire: () => true,
         execute: (e: any) => {
           e.preventDefault();
-          handleRate(4);
+          rateAndAdvance(4);
         },
       },
       rate_5: {
         shouldFire: () => true,
         execute: (e: any) => {
           e.preventDefault();
-          handleRate(5);
+          rateAndAdvance(5);
         },
       },
       color_label_none: {

@@ -2,6 +2,20 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "wb-picker-original",
+      "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["lalibertemarc"],
+      "source": "lalibertemarc/RapidRAW",
+      "commits": ["https://github.com/lalibertemarc/RapidRAW/commit/b41aa56622518ca33526139520011fed73ca129e"],
+      "upstream_issues": ["CyberTimon/RapidRAW#1251", "CyberTimon/RapidRAW#746", "CyberTimon/RapidRAW#1768"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Rendering pipeline unchanged; only the temperature/tint values the picker produces differ. A hover swatch shows the sampled colour and the resulting temperature/tint.",
+      "highlight": "**A white balance picker you can trust.** It reads the untouched raw data, averages a square or a dragged area, and shows a live preview before you click, which helps with mixed-light night shots."
+    },
+    {
       "id": "tauri-2.12",
       "title": "Tauri 2.12: Native Titlebar works with tiling Wayland compositors (Hyprland)",
       "category": "platform",
@@ -353,6 +367,73 @@
       "rendering_change": false,
       "notes": "Reads only the file headers it needs (TIFF-based raws such as Sony ARW, JPEG, Fuji RAF, Canon CR3); never writes a sidecar. A rating cleared before this change looks the same as one never set, so the camera rating shows until it is cleared again. The idea that an empty XMP sidecar must not hide the camera rating comes from moschmdt (upstream PR 1714).",
       "highlight": "**Star ratings you set in the camera show up in the library.**"
+    },
+    {
+      "id": "regression-ci",
+      "title": "Pixel-exact regression check in CI: 18 renders on a software Vulkan renderer (Mesa lavapipe), compared by pixel hash",
+      "category": "ci",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Runs on pull requests touching src-tauri or the regression harness, on pushes to main and on demand; not a required check yet. Each job renders twice to prove lavapipe is deterministic. The reference (rapidroom/regression/ci-reference.json) is recorded on the runner and committed by a maintainer. Written with Claude Code."
+    },
+    {
+      "id": "bm3d-strength",
+      "title": "BM3D denoise: raising the strength no longer adds noise back",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1404"],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "The detail blend re-added up to 50% of the original high frequencies, noise included, and grew with strength. It now matches the old blend up to 33% strength and fades to zero at 100%. Only BM3D denoise output above 33% strength changes; the edit pipeline and its regression renders are untouched. Unit tests check that RMSE against a clean image doesn't rise with strength. Written with Claude Code."
+    },
+    {
+      "id": "dcp-parser",
+      "title": "Groundwork for camera-matching profiles: a bounds-checked reader for Adobe DCP files (not used by the app yet)",
+      "category": "feature",
+      "landed": "2026-10-03",
+      "authors": ["harrytuckerr"],
+      "source": "harrytuckerr/RapidRAW",
+      "commits": ["https://github.com/harrytuckerr/RapidRAW/commit/f9a2c72c2740f271593ac08aef6ddd84b0ed3574"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Parser and its synthetic test fixtures only (round-trip, ExtraCameraProfiles, a 10,000-input mutation test); nothing in the render path calls it yet, so output is unchanged. The fork's acceptance test against one vendor file on the author's machine was dropped. Harvested with Claude Code."
+    },
+    {
+      "id": "culling-auto-advance",
+      "title": "Culling: optional auto-advance to the next image after rating with a shortcut, and an \"exactly N stars\" rating filter",
+      "category": "feature",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1749", "CyberTimon/RapidRAW#1583"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Auto-advance is off by default (Settings → General) and only moves on when a single image is rated with the 0–5 keys; it stops at the last image. The ≥/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
+      "highlight": "**Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars."
+    },
+    {
+      "id": "lightroom-xmp-import",
+      "title": "Import Lightroom and Camera Raw XMP sidecars: Basic, HSL, colour grading, curves, vignette, crop and straighten, rating, label and keywords, for one photo or a whole folder tree",
+      "category": "feature",
+      "landed": "2026-10-03",
+      "authors": ["dimafa", "StephenMasseur"],
+      "source": "dimafa/RapidRAW (upstream PR 1465, which builds on StephenMasseur's PR 1280)",
+      "commits": [
+        "https://github.com/dimafa/RapidRAW/commit/7a6913f563a7ed6a3e9493d8f49471622c8caf76",
+        "https://github.com/dimafa/RapidRAW/commit/b3d0c52472c77b7d93c7774ec663df0341a6a772"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1465"],
+      "rendering_change": false,
+      "notes": "Merged with every original commit. Right-click a photo and choose Import XMP Adjustments, or a folder and choose Import Matching XMP Sidecars. The photos are not changed; with XMP sync on, rating, label and keywords are written back to the .xmp as after any edit. An imported Lightroom rating counts as one set in RapidRoom, so it wins over the camera's rating, even when it is 0. RapidRoom routes the sidecar writes through its atomic writer and refuses imports onto a card opened in Card mode. The PR also reworks the existing .xmp preset import (Shadows2012 is now copied 1:1 instead of x1.5, nested Looks are ignored, PV2003/2010 values are read). Lightroom and RapidRAW render differently, so similar values don't give identical images; mapping fixes follow in RapidRoom #54. Harvested with Claude Code.",
+      "highlight": "**Bring your Lightroom edits along:** import XMP sidecars"
     },
     {
       "id": "headless-exit-code",

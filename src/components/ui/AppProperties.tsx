@@ -36,6 +36,7 @@ export enum Invokes {
   ApplyAutoAdjustmentsToPaths = 'apply_auto_adjustments_to_paths',
   ApplyDenoising = 'apply_denoising',
   CalculateAutoAdjustments = 'calculate_auto_adjustments',
+  SampleWhiteBalance = 'sample_white_balance',
   CancelAiTask = 'cancel_ai_task',
   CancelExport = 'cancel_export',
   CheckAIConnectorStatus = 'check_ai_connector_status',
@@ -69,6 +70,8 @@ export enum Invokes {
   HandleImportPresetsFromFile = 'handle_import_presets_from_file',
   HandleImportPresetsFromFiles = 'handle_import_presets_from_files',
   HandleImportLegacyPresetsFromFile = 'handle_import_legacy_presets_from_file',
+  ImportXmpAdjustmentsForImage = 'import_xmp_adjustments_for_image',
+  ImportMatchingXmpSidecarsInFolder = 'import_matching_xmp_sidecars_in_folder',
   ImportFiles = 'import_files',
   InvokeGenerativeReplaseWithMaskDef = 'invoke_generative_replace_with_mask_def',
   IsTetheringSupported = 'is_tethering_supported',
@@ -246,6 +249,7 @@ export interface AppSettings {
   copyPasteSettings?: CopyPasteSettings;
   enableFocusMode?: boolean;
   enableToolFocusMode?: boolean;
+  autoAdvanceOnRate?: boolean;
   openTreeSections?: string[];
   folderIcons?: Record<string, string>;
   exifOverlay?: ExifOverlay;
@@ -284,6 +288,7 @@ export type EditedStatus = (typeof EditedStatus)[keyof typeof EditedStatus];
 export interface FilterCriteria {
   colors: Array<string>;
   rating: number;
+  ratingExact?: boolean;
   rawStatus: RawStatus;
   editedStatus?: EditedStatus;
 }

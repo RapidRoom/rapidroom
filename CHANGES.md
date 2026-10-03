@@ -4,10 +4,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**27 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**32 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                               |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct                | fix         | [@lalibertemarc](https://github.com/lalibertemarc)                                                                       | [#1251](https://github.com/CyberTimon/RapidRAW/issues/1251); [#746](https://github.com/CyberTimon/RapidRAW/issues/746); [#1768](https://github.com/CyberTimon/RapidRAW/issues/1768)                                                                    |
 | Tauri 2.12: Native Titlebar works with tiling Wayland compositors (Hyprland)                                                                                                       | platform    | [@yojen7](https://github.com/yojen7)                                                                                     | PR [#1813](https://github.com/CyberTimon/RapidRAW/pull/1813) merged                                                                                                                                                                                    |
 | No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw … \| head`)                                                                                                   | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | PR [#1819](https://github.com/CyberTimon/RapidRAW/pull/1819) open                                                                                                                                                                                      |
 | Exports embed an sRGB ICC profile (JPEG, PNG, TIFF), so colour-managed apps and print services read them correctly                                                                 | feature     | [@yojen7](https://github.com/yojen7)                                                                                     | [#1489](https://github.com/CyberTimon/RapidRAW/issues/1489) open 57 d; PR [#1820](https://github.com/CyberTimon/RapidRAW/pull/1820) open                                                                                                               |
@@ -36,11 +37,25 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Read-only Card mode: browse a memory card without RapidRoom creating, changing or deleting anything on it                                                                          | feature     | [@TomasLiutvinas](https://github.com/TomasLiutvinas), [@yojen7](https://github.com/yojen7)                               | not yet offered                                                                                                                                                                                                                                        |
 | Previews and exports skip GPU blur passes that no active adjustment reads                                                                                                          | performance | [@SandeepSubba](https://github.com/SandeepSubba)                                                                         | not yet offered                                                                                                                                                                                                                                        |
 | Star ratings set in the camera (embedded XMP or EXIF Rating) show in the library; a rating you set or clear in RapidRoom always wins                                               | feature     | [@csiroqa](https://github.com/csiroqa), [@masmoriya](https://github.com/masmoriya), [@yojen7](https://github.com/yojen7) | [#517](https://github.com/CyberTimon/RapidRAW/issues/517); [#1130](https://github.com/CyberTimon/RapidRAW/issues/1130); PR [#1529](https://github.com/CyberTimon/RapidRAW/issues/1529); PR [#1714](https://github.com/CyberTimon/RapidRAW/issues/1714) |
+| Pixel-exact regression check in CI: 18 renders on a software Vulkan renderer (Mesa lavapipe), compared by pixel hash                                                               | ci          | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                        |
+| BM3D denoise: raising the strength no longer adds noise back ⚑                                                                                                                     | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1404](https://github.com/CyberTimon/RapidRAW/issues/1404)                                                                                                                                                                                            |
+| Groundwork for camera-matching profiles: a bounds-checked reader for Adobe DCP files (not used by the app yet)                                                                     | feature     | [@harrytuckerr](https://github.com/harrytuckerr)                                                                         | not yet offered                                                                                                                                                                                                                                        |
+| Culling: optional auto-advance to the next image after rating with a shortcut, and an "exactly N stars" rating filter                                                              | feature     | [@yojen7](https://github.com/yojen7)                                                                                     | [#1749](https://github.com/CyberTimon/RapidRAW/issues/1749); [#1583](https://github.com/CyberTimon/RapidRAW/issues/1583)                                                                                                                               |
+| Import Lightroom and Camera Raw XMP sidecars: Basic, HSL, colour grading, curves, vignette, crop and straighten, rating, label and keywords, for one photo or a whole folder tree  | feature     | [@dimafa](https://github.com/dimafa), [@StephenMasseur](https://github.com/StephenMasseur)                               | PR [#1465](https://github.com/CyberTimon/RapidRAW/issues/1465)                                                                                                                                                                                         |
 | Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)                                                                                         | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                        |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
 ## Details
+
+### White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@lalibertemarc](https://github.com/lalibertemarc), from lalibertemarc/RapidRAW
+- **Upstream:** [#1251](https://github.com/CyberTimon/RapidRAW/issues/1251); [#746](https://github.com/CyberTimon/RapidRAW/issues/746); [#1768](https://github.com/CyberTimon/RapidRAW/issues/1768)
+- **Commits:** [b41aa56](https://github.com/lalibertemarc/RapidRAW/commit/b41aa56622518ca33526139520011fed73ca129e)
+- **Notes:** Rendering pipeline unchanged; only the temperature/tint values the picker produces differ. A hover swatch shows the sampled colour and the resulting temperature/tint.
 
 ### Tauri 2.12: Native Titlebar works with tiling Wayland compositors (Hyprland)
 
@@ -260,6 +275,48 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** [#517](https://github.com/CyberTimon/RapidRAW/issues/517); [#1130](https://github.com/CyberTimon/RapidRAW/issues/1130); PR [#1529](https://github.com/CyberTimon/RapidRAW/issues/1529); PR [#1714](https://github.com/CyberTimon/RapidRAW/issues/1714)
 - **Commits:** [feda53d](https://github.com/csiroqa/RapidRAW/commit/feda53dbbc8daf543fe539451e653e24f1843cd4), [c035b79](https://github.com/csiroqa/RapidRAW/commit/c035b79f110fa09fff443a0c109ffa1544a30124), [8392d6c](https://github.com/masmoriya/RapidRAW/commit/8392d6c9eb55a630d64f176fd833f636aabc33db)
 - **Notes:** Reads only the file headers it needs (TIFF-based raws such as Sony ARW, JPEG, Fuji RAF, Canon CR3); never writes a sidecar. A rating cleared before this change looks the same as one never set, so the camera rating shows until it is cleared again. The idea that an empty XMP sidecar must not hide the camera rating comes from moschmdt (upstream PR 1714).
+
+### Pixel-exact regression check in CI: 18 renders on a software Vulkan renderer (Mesa lavapipe), compared by pixel hash
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** not yet offered
+- **Notes:** Runs on pull requests touching src-tauri or the regression harness, on pushes to main and on demand; not a required check yet. Each job renders twice to prove lavapipe is deterministic. The reference (rapidroom/regression/ci-reference.json) is recorded on the runner and committed by a maintainer. Written with Claude Code.
+
+### BM3D denoise: raising the strength no longer adds noise back
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** [#1404](https://github.com/CyberTimon/RapidRAW/issues/1404)
+- **Notes:** The detail blend re-added up to 50% of the original high frequencies, noise included, and grew with strength. It now matches the old blend up to 33% strength and fades to zero at 100%. Only BM3D denoise output above 33% strength changes; the edit pipeline and its regression renders are untouched. Unit tests check that RMSE against a clean image doesn't rise with strength. Written with Claude Code.
+
+### Groundwork for camera-matching profiles: a bounds-checked reader for Adobe DCP files (not used by the app yet)
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@harrytuckerr](https://github.com/harrytuckerr), from harrytuckerr/RapidRAW
+- **Upstream:** not yet offered
+- **Commits:** [f9a2c72](https://github.com/harrytuckerr/RapidRAW/commit/f9a2c72c2740f271593ac08aef6ddd84b0ed3574)
+- **Notes:** Parser and its synthetic test fixtures only (round-trip, ExtraCameraProfiles, a 10,000-input mutation test); nothing in the render path calls it yet, so output is unchanged. The fork's acceptance test against one vendor file on the author's machine was dropped. Harvested with Claude Code.
+
+### Culling: optional auto-advance to the next image after rating with a shortcut, and an "exactly N stars" rating filter
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** [#1749](https://github.com/CyberTimon/RapidRAW/issues/1749); [#1583](https://github.com/CyberTimon/RapidRAW/issues/1583)
+- **Notes:** Auto-advance is off by default (Settings → General) and only moves on when a single image is rated with the 0–5 keys; it stops at the last image. The ≥/= button next to the rating filter stars switches between "N and up" and "exactly N". Written with Claude Code.
+
+### Import Lightroom and Camera Raw XMP sidecars: Basic, HSL, colour grading, curves, vignette, crop and straighten, rating, label and keywords, for one photo or a whole folder tree
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@dimafa](https://github.com/dimafa), [@StephenMasseur](https://github.com/StephenMasseur), from dimafa/RapidRAW (upstream PR 1465, which builds on StephenMasseur's PR 1280)
+- **Upstream:** PR [#1465](https://github.com/CyberTimon/RapidRAW/issues/1465)
+- **Commits:** [7a6913f](https://github.com/dimafa/RapidRAW/commit/7a6913f563a7ed6a3e9493d8f49471622c8caf76), [b3d0c52](https://github.com/dimafa/RapidRAW/commit/b3d0c52472c77b7d93c7774ec663df0341a6a772)
+- **Notes:** Merged with every original commit. Right-click a photo and choose Import XMP Adjustments, or a folder and choose Import Matching XMP Sidecars. The photos are not changed; with XMP sync on, rating, label and keywords are written back to the .xmp as after any edit. An imported Lightroom rating counts as one set in RapidRoom, so it wins over the camera's rating, even when it is 0. RapidRoom routes the sidecar writes through its atomic writer and refuses imports onto a card opened in Card mode. The PR also reworks the existing .xmp preset import (Shadows2012 is now copied 1:1 instead of x1.5, nested Looks are ignored, PV2003/2010 values are read). Lightroom and RapidRAW render differently, so similar values don't give identical images; mapping fixes follow in RapidRoom #54. Harvested with Claude Code.
 
 ### Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)
 
