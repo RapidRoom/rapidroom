@@ -4,7 +4,7 @@ Linux only for now: a `.deb` and an AppImage, built on Ubuntu 22.04 (x86_64). Wi
 
 ## Versions
 
-There are two version numbers:
+Two version numbers, and the tag and package version made from them:
 
 | What                     | Where                                           | Example          |
 | ------------------------ | ----------------------------------------------- | ---------------- |
@@ -40,7 +40,7 @@ There are two version numbers:
 
 If the build fails, fix it on `main`, then move the tag (`git tag -f -a v0.1.0 …` and `git push -f origin v0.1.0`) or bump to the next version. Delete a broken draft by hand.
 
-Push tags only. Don't create the release in the GitHub UI: that triggers upstream's `release.yml` (`release: created`), which builds every platform with upstream's naming.
+Push the tag; don't create the release by hand. Upstream's `release.yml` (all platforms, triggered by `release: created`) only runs in `CyberTimon/RapidRAW`.
 
 ## What makes it install next to RapidRAW
 
@@ -56,7 +56,7 @@ Set in `src-tauri/tauri.linux.conf.json` and `src-tauri/src/lib.rs`:
 | Window class / Wayland app ID                   | `RapidRAW`                                     | `RapidRoom`                                       |
 | Single-instance D-Bus name                      | `io.github.CyberTimon.RapidRAW.SingleInstance` | `io.github.RapidRoom.RapidRoom.SingleInstance`    |
 
-Tauri's resource directory on Linux is `<exe dir>/../lib/<productName>`, falling back to `$APPDIR/usr/lib/<productName>` and then `/usr/lib/<productName>`. With `productName` set to `RapidRoom` none of these can be RapidRAW's. The workflow fails if the `.deb` contains any path with `RapidRAW` in it.
+Tauri's resource directory on Linux is `<exe dir>/../lib/<productName>`, falling back to `$APPDIR/usr/lib/<productName>` and then `/usr/lib/<productName>`. With `productName` set to `RapidRoom` none of these can be RapidRAW's. The workflow fails if the `.deb` is missing `/usr/bin/rapidroom`, `RapidRoom.desktop` or the resources under `/usr/lib/RapidRoom`, or contains any path with `RapidRAW` in it.
 
 **Still shared:** the app identifier stays `io.github.CyberTimon.RapidRAW`, so settings, presets, the library database, thumbnails, logs and the WebView storage live in the same folders as RapidRAW's (`~/.config/io.github.CyberTimon.RapidRAW`, `~/.local/share/io.github.CyberTimon.RapidRAW`, `~/.cache/io.github.CyberTimon.RapidRAW`). That is on purpose for now, so existing users keep their settings. Moving to a RapidRoom identifier needs a settings migration and is a separate issue.
 

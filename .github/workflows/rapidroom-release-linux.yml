@@ -104,7 +104,12 @@ jobs:
           cp "${appimages[0]}" "release-assets/RapidRoom_v${RR_VERSION}_amd64.AppImage"
           dpkg-deb --field "release-assets/RapidRoom_v${RR_VERSION}_amd64.deb" Package Version
           contents="$(dpkg-deb --contents "release-assets/RapidRoom_v${RR_VERSION}_amd64.deb")"
-          grep -E 'usr/(bin|share/applications)/|usr/lib/[^/]+/$' <<< "$contents"
+          for path in usr/bin/rapidroom usr/share/applications/RapidRoom.desktop usr/lib/RapidRoom/resources/libonnxruntime.so usr/lib/RapidRoom/lensfun_db; do
+            if ! grep -qE " (\./)?${path}/?$" <<< "$contents"; then
+              echo "::error::The .deb has no ${path}"
+              exit 1
+            fi
+          done
           if grep -q 'RapidRAW' <<< "$contents"; then
             echo "::error::The .deb installs files under a RapidRAW name; it would clash with a RapidRAW install."
             exit 1
