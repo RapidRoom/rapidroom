@@ -289,6 +289,22 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "From the type errors harrytuckerr's fork flagged as likely bugs (`harrytuckerr/RapidRAW#1`). The others (image cache, interactive patch, pinned folders, panel moves) were type-only and are fixed without behaviour changes. Written with Claude Code."
+    },
+    {
+      "id": "bound-raw-decodes",
+      "title": "Rapid navigation shares one decode slot between editor loads and culling previews; superseded editor loads skip decoding",
+      "category": "performance",
+      "landed": "2026-10-02",
+      "authors": ["subbajeu", "yojen7"],
+      "source": "SandeepSubba/RapidRAW",
+      "commits": [
+        "https://github.com/SandeepSubba/RapidRAW/commit/60e2a0a840e8056184c65d5ad606e5a8daf1ad09",
+        "https://github.com/SandeepSubba/RapidRAW/commit/dd4ac6619b15fc141da98f03d4f3bdcd0aecd4cf"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Editor and culling share a one-permit semaphore. Blocking tasks retain the permit if their awaiting task is cancelled. Culling requests are serialized, not cancelled."
     }
   ]
 }

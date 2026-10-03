@@ -1384,7 +1384,19 @@ async fn generate_preview_for_path(
     js_adjustments: Value,
     app_handle: tauri::AppHandle,
 ) -> Result<Response, String> {
+    // Culling fires one of these per image and nothing here is cancellable, so
+    // without a permit a burst of navigation stacks up full decodes — each
+    // holding the source image plus its f16 RGBA upload buffer (~190 MB for a
+    // 24MP frame) before it ever reaches the GPU mutex. Enough of them in
+    // flight exhausts system memory.
+    let decode_permit = app_handle.state::<AppState>().decode_permit.clone();
+    let decode_permit = decode_permit
+        .acquire_owned()
+        .await
+        .map_err(|e| e.to_string())?;
+
     tokio::task::spawn_blocking(move || {
+        let _decode_permit = decode_permit;
         let state = app_handle.state::<AppState>();
         let context = get_or_init_gpu_context(&state, &app_handle)?;
         let (source_path, _) = parse_virtual_path(&path);
@@ -2168,6 +2180,7 @@ pub fn run() {
             patched_warped_cache: Mutex::new(None),
             full_transformed_cache: Mutex::new(None),
             decoded_image_cache: Mutex::new(DecodedImageCache::new(5)),
+            decode_permit: Arc::new(tokio::sync::Semaphore::new(1)),
             thumbnail_manager: ThumbnailManager::new(),
             metadata_manager: MetadataManager::new(),
             disks_cache: Mutex::new(None),

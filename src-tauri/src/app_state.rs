@@ -244,6 +244,12 @@ pub struct AppState {
     pub patched_warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
     pub full_transformed_cache: Mutex<Option<TransformedImageCache>>,
     pub decoded_image_cache: Mutex<DecodedImageCache>,
+    /// Only one full-resolution decode at a time. Arrowing through a folder
+    /// fires a load per keypress, and key auto-repeat outruns a RAW decode —
+    /// without this every in-flight decode holds its own hundreds of MB and
+    /// the machine runs out of memory. Stale waiters bail on the generation
+    /// check as soon as they get the permit.
+    pub decode_permit: Arc<tokio::sync::Semaphore>,
     pub thumbnail_manager: Arc<ThumbnailManager>,
     pub metadata_manager: Arc<MetadataManager>,
     pub disks_cache: Mutex<Option<Disks>>,
