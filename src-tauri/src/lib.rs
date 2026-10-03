@@ -118,7 +118,7 @@ use tagging_utils::{candidates, hierarchy};
 #[cfg(target_os = "macos")]
 extern "C" fn force_exit(_signal: libc::c_int) {
     unsafe {
-        libc::_exit(0);
+        libc::_exit(process_exit_code());
     }
 }
 
@@ -1983,14 +1983,21 @@ pub fn run() {
             match launch_req {
                 LaunchRequest::HeadlessExport(session) => {
                     let app_handle_clone = app_handle.clone();
+                    let export = tauri::async_runtime::spawn(
+                        crate::export_processing::run_headless_export(session, app_handle.clone()),
+                    );
                     tauri::async_runtime::spawn(async move {
-                        match crate::export_processing::run_headless_export(session, app_handle_clone.clone()).await {
+                        let result = export
+                            .await
+                            .unwrap_or_else(|e| Err(format!("Export task panicked: {}", e)));
+                        match result {
                             Ok(_) => {
                                 cli_println!("Headless export completed successfully.");
                                 app_handle_clone.exit(0);
                             }
                             Err(e) => {
                                 cli_eprintln!("Headless export failed: {}", e);
+                                set_process_exit_code(1);
                                 app_handle_clone.exit(1);
                             }
                         }
@@ -2372,21 +2379,24 @@ pub fn run() {
 				        }
 				    }
 				}
-                tauri::RunEvent::ExitRequested { api, .. } => {
+                tauri::RunEvent::ExitRequested { api, code, .. } => {
                     api.prevent_exit();
+                    let code = resolve_exit_code(code, process_exit_code());
 
                     #[cfg(target_os = "macos")]
-                    unsafe { libc::_exit(0); }
+                    unsafe { libc::_exit(code); }
 
                     #[cfg(not(target_os = "macos"))]
-                    std::process::exit(0);
+                    std::process::exit(code);
                 }
                 tauri::RunEvent::Exit => {
+                    let code = process_exit_code();
+
                     #[cfg(target_os = "macos")]
-                    unsafe { libc::_exit(0); }
+                    unsafe { libc::_exit(code); }
 
                     #[cfg(not(target_os = "macos"))]
-                    std::process::exit(0);
+                    std::process::exit(code);
                 }
                 _ => {}
             }

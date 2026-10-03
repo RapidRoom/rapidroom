@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicI32, Ordering};
 use tauri::Emitter;
 
 use crate::export_processing::TiffBitDepth;
@@ -31,6 +32,25 @@ pub enum LaunchRequest {
     EditSession(ExternalEditSession),
     HeadlessExport(HeadlessExportSession),
     InvalidHeadless(String),
+}
+
+static PROCESS_EXIT_CODE: AtomicI32 = AtomicI32::new(0);
+
+pub fn set_process_exit_code(code: i32) {
+    PROCESS_EXIT_CODE.store(code, Ordering::SeqCst);
+}
+
+pub fn process_exit_code() -> i32 {
+    PROCESS_EXIT_CODE.load(Ordering::SeqCst)
+}
+
+// `app_handle.exit(code)` arrives as `RunEvent::ExitRequested { code }`; a failure
+// recorded with `set_process_exit_code` must win over a plain window-close exit.
+pub fn resolve_exit_code(requested: Option<i32>, recorded: i32) -> i32 {
+    match requested {
+        Some(code) if code != 0 => code,
+        _ => recorded,
+    }
 }
 
 #[derive(Serialize, Default)]
@@ -189,5 +209,28 @@ pub fn emit_launch_request(app_handle: &tauri::AppHandle, request: LaunchRequest
             log::error!("Invalid headless export request: {}", error);
         }
         LaunchRequest::None => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_exit_request_keeps_its_code() {
+        assert_eq!(resolve_exit_code(Some(1), 0), 1);
+        assert_eq!(resolve_exit_code(Some(2), 1), 2);
+    }
+
+    #[test]
+    fn recorded_failure_survives_a_plain_exit() {
+        assert_eq!(resolve_exit_code(None, 1), 1);
+        assert_eq!(resolve_exit_code(Some(0), 1), 1);
+    }
+
+    #[test]
+    fn success_and_window_close_exit_zero() {
+        assert_eq!(resolve_exit_code(Some(0), 0), 0);
+        assert_eq!(resolve_exit_code(None, 0), 0);
     }
 }

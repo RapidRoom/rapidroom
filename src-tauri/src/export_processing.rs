@@ -1478,7 +1478,7 @@ pub(crate) async fn export_images_impl(
     adjustments_mode: ExportAdjustmentsMode,
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
-    completion_tx: Option<tokio::sync::oneshot::Sender<Result<(), usize>>>,
+    completion_tx: Option<tokio::sync::oneshot::Sender<Result<(), Vec<String>>>>,
 ) -> Result<(), String> {
     ensure_export_destination_writable(
         &paths,
@@ -1921,7 +1921,7 @@ pub(crate) async fn export_images_impl(
 
         if let Some(tx) = completion_tx {
             if error_count > 0 {
-                let _ = tx.send(Err(error_count));
+                let _ = tx.send(Err(errors));
             } else {
                 let _ = tx.send(Ok(()));
             }
@@ -2063,7 +2063,14 @@ pub async fn run_headless_export(
 
     match rx.await {
         Ok(Ok(())) => Ok(()),
-        Ok(Err(errors)) => Err(format!("Export completed with {} errors.", errors)),
+        Ok(Err(errors)) => Err(match errors.as_slice() {
+            [error] => error.clone(),
+            _ => format!(
+                "{} exports failed:\n  {}",
+                errors.len(),
+                errors.join("\n  ")
+            ),
+        }),
         Err(_) => Err("Export task panicked or was cancelled.".to_string()),
     }
 }
