@@ -1036,6 +1036,18 @@ fn copy_full_exif_from_source(
     copied_any
 }
 
+fn encode_user_comment(comment: &str) -> Vec<u8> {
+    if comment.is_ascii() {
+        let mut bytes = b"ASCII\0\0\0".to_vec();
+        bytes.extend_from_slice(comment.as_bytes());
+        bytes
+    } else {
+        let mut bytes = b"UNICODE\0".to_vec();
+        bytes.extend(comment.encode_utf16().flat_map(u16::to_le_bytes));
+        bytes
+    }
+}
+
 fn apply_sidecar_field_overrides(metadata: &mut Metadata, map: &HashMap<String, String>) {
     let clean_s = |s: &String| s.replace('"', "").trim().to_string();
     let is_user_edit = |s: &str| !s.is_empty() && s != "...";
@@ -1073,7 +1085,7 @@ fn apply_sidecar_field_overrides(metadata: &mut Metadata, map: &HashMap<String, 
     match map.get("UserComment").map(clean_s) {
         Some(val) => {
             if is_user_edit(&val) && !val.starts_with("0x") {
-                metadata.set_tag(ExifTag::UserComment(val.into_bytes()));
+                metadata.set_tag(ExifTag::UserComment(encode_user_comment(&val)));
             }
         }
         None => {
@@ -1308,7 +1320,7 @@ pub fn write_image_with_metadata(
             metadata.set_tag(ExifTag::Copyright(clean_s(val)));
         }
         if let Some(val) = map.get("UserComment") {
-            metadata.set_tag(ExifTag::UserComment(clean_s(val).into_bytes()));
+            metadata.set_tag(ExifTag::UserComment(encode_user_comment(&clean_s(val))));
         }
         if let Some(val) = map.get("ImageDescription") {
             metadata.set_tag(ExifTag::ImageDescription(clean_s(val)));
