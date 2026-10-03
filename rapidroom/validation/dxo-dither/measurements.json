@@ -1,5 +1,6 @@
 {
-  "validated_application_commit": "3eaa0c6e3c143958440fef79fb49bf7a09fb81b3",
+  "validated_application_commit": "6fe98ce5052808598d45aa952ef0492077b51561",
+  "initial_fix_validation_commit": "3eaa0c6e3c143958440fef79fb49bf7a09fb81b3",
   "raw_decoder_before": "fe0839580ece6aab0884ebb7d806f34ff01fb52b",
   "raw_decoder_after": "4c960626978287ab8e4aabe70a6cfa60b4582273",
   "environment": {
@@ -26,7 +27,7 @@
     "sample": "DSC_5426.dng",
     "sample_sha256": "b28f8b3dd097f9b2b60016614b67b707eb6858041021db7acdc742f34725541b",
     "before_engine_sha256": "6eccf353e510d7a8c21d0919a95ed2c58861aeae9e001957374edb333af20019",
-    "after_engine_sha256": "1c6625ca7e4f19446ab9aadaef914e13e05b464c20fc6f957caedcc7161a62c9",
+    "after_engine_sha256": "e8f90b4844a7b1b62f9d6eeb246aba5a04c9d8615c716163dc3babadf794d2f8",
     "width": 4024,
     "height": 6048,
     "icc": "sRGB",
@@ -50,6 +51,7 @@
     "same_environment": true,
     "matches_committed_reference": true,
     "reference_updated": false,
+    "merged_main_matches_initial_fix_run": true,
     "changed_images": [
       {
         "set": "busy-agx-lut-effects",
