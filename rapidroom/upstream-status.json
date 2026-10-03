@@ -1,6 +1,30 @@
 {
   "as_of": "2026-10-03",
   "refs": {
+    "CyberTimon/RapidRAW#1251": {
+      "kind": "issue",
+      "title": "FEATURE: White Balance Picker Sampling Area.",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1251",
+      "state": "open",
+      "created": "2026-06-06",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#746": {
+      "kind": "issue",
+      "title": "BUG: Clipping warning affects white balance color picker",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/746",
+      "state": "open",
+      "created": "2026-02-27",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1768": {
+      "kind": "issue",
+      "title": "FEATURE: RGB value shown when sampling with the White Balance picker",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1768",
+      "state": "open",
+      "created": "2026-09-23",
+      "closed": null
+    },
     "CyberTimon/RapidRAW#1813": {
       "kind": "pr",
       "title": "chore(deps): bump tauri to 2.12 (fixes native titlebar on Hyprland/Sway)",
@@ -29,9 +53,9 @@
       "kind": "pr",
       "title": "feat: embed an sRGB ICC profile in JPEG and PNG exports",
       "url": "https://github.com/CyberTimon/RapidRAW/pull/1820",
-      "state": "open",
+      "state": "merged",
       "created": "2026-10-01",
-      "closed": null
+      "closed": "2026-10-03"
     },
     "CyberTimon/RapidRAW#850": {
       "kind": "issue",
@@ -93,8 +117,104 @@
       "kind": "issue",
       "title": "BUG: During a batch export a few photos are mismatched",
       "url": "https://github.com/CyberTimon/RapidRAW/issues/1571",
-      "state": "open",
+      "state": "closed",
       "created": "2026-08-21",
+      "closed": "2026-10-03"
+    },
+    "CyberTimon/RapidRAW#1825": {
+      "kind": "pr",
+      "title": "Build colour/luminance mask sources from the exported image (fixes #1571)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1825",
+      "state": "merged",
+      "created": "2026-10-03",
+      "closed": "2026-10-03"
+    },
+    "CyberTimon/RapidRAW#517": {
+      "kind": "issue",
+      "title": "Rating From Camera not Recognized",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/517",
+      "state": "open",
+      "created": "2025-12-15",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1130": {
+      "kind": "issue",
+      "title": "BUG: Rating not read from Panasonic/Lumix RW2 file",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1130",
+      "state": "open",
+      "created": "2026-05-04",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1529": {
+      "kind": "pr",
+      "title": "feat: read camera-embedded rating from RAW/EXIF & XMP",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1529",
+      "state": "open",
+      "created": "2026-08-17",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1714": {
+      "kind": "pr",
+      "title": "Import Dialogue Improvements & Small Bug Fixes",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1714",
+      "state": "open",
+      "created": "2026-09-08",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1404": {
+      "kind": "issue",
+      "title": "BUG: BM3D denoise slider values incorrect",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1404",
+      "state": "open",
+      "created": "2026-07-22",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1749": {
+      "kind": "issue",
+      "title": "BUG/FEATURE: Auto-select next image in culling view when rating an image and \"Unrated only\" filter is on",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1749",
+      "state": "open",
+      "created": "2026-09-19",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1583": {
+      "kind": "issue",
+      "title": "FEATURE: Filter by Exact Rating",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1583",
+      "state": "open",
+      "created": "2026-08-23",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1465": {
+      "kind": "pr",
+      "title": "feat: import Lightroom XMP sidecars",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1465",
+      "state": "open",
+      "created": "2026-08-03",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1790": {
+      "kind": "pr",
+      "title": "perf(linux): fix multi-second allocation stalls and parallelize raw decoding improves 5-10x linux perf on Radeon 890M",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1790",
+      "state": "open",
+      "created": "2026-09-26",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1697": {
+      "kind": "issue",
+      "title": "Clicking outside the denoise modal during processing dismisses it silently while the background process continuesBUG:",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1697",
+      "state": "open",
+      "created": "2026-09-06",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1119": {
+      "kind": "issue",
+      "title": "BUG: compressed RAW Files, black Dots at Highlights",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1119",
+      "state": "open",
+      "created": "2026-05-01",
       "closed": null
     }
   }
