@@ -4668,6 +4668,7 @@ pub fn resolve_xmp_path(image_path: &Path) -> Option<PathBuf> {
 fn merge_xmp_metadata_fields(content: &str, metadata: &mut ImageMetadata) {
     if let Some(rating) = extract_xmp_rating(content) {
         metadata.rating = rating;
+        metadata.rating_is_explicit = true;
         if let Some(adjustments) = metadata.adjustments.as_object_mut() {
             adjustments.insert("rating".to_string(), serde_json::json!(rating));
         } else {
@@ -5582,6 +5583,7 @@ mod lightroom_xmp_import_tests {
 <x:xmpmeta xmlns:x="adobe:ns:meta/">
  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
   <rdf:Description rdf:about=""
+   xmlns:xmp="http://ns.adobe.com/xap/1.0/"
    xmlns:tiff="http://ns.adobe.com/tiff/1.0/"
    xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
    {attributes}>
@@ -5707,6 +5709,50 @@ mod lightroom_xmp_import_tests {
             imported.metadata.adjustments["crop"]
         );
         assert_eq!(saved.adjustments["rotation"], serde_json::json!(-2.5));
+    }
+
+    #[test]
+    fn imported_lightroom_rating_wins_over_the_camera_rating() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("DSC00001.ARW");
+        let sidecar = dir.path().join("DSC00001.ARW.rrdata");
+        let xmp = dir.path().join("DSC00001.xmp");
+        fs::write(
+            &raw,
+            crate::exif_processing::rating_samples::sony_arw(true, Some("4"), None),
+        )
+        .unwrap();
+        let shown = |xmp_sync: bool| {
+            resolve_image_metadata(
+                &raw,
+                &sidecar,
+                xmp_sync,
+                &crate::app_settings::AppSettings::default(),
+            )
+            .rating
+        };
+        let import = |attributes: &str| {
+            fs::write(&xmp, lightroom_xmp(attributes)).unwrap();
+            import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap()
+        };
+        assert_eq!(shown(false), 4);
+
+        let imported = import(r#"crs:Exposure2012="+0.30""#);
+        assert!(!imported.metadata.rating_is_explicit);
+        assert_eq!(shown(false), 4, "no xmp:Rating keeps the camera rating");
+
+        let imported = import(r#"xmp:Rating="0" crs:Exposure2012="+0.30""#);
+        assert!(imported.metadata.rating_is_explicit);
+        assert_eq!(
+            shown(false),
+            0,
+            "a rating cleared in Lightroom stays cleared"
+        );
+        assert_eq!(shown(true), 0);
+
+        import(r#"xmp:Rating="2" crs:Exposure2012="+0.30""#);
+        assert_eq!(shown(false), 2);
+        assert_eq!(shown(true), 2);
     }
 
     #[test]
