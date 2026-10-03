@@ -2525,7 +2525,7 @@ pub fn get_all_adjustments_from_json(
 
     for (i, mask_def) in mask_definitions
         .iter()
-        .filter(|m| m.visible)
+        .filter(|m| m.visible && !m.sub_masks.is_empty())
         .enumerate()
         .take(MAX_MASKS)
     {

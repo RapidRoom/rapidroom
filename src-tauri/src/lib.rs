@@ -97,14 +97,14 @@ use crate::formats::is_raw_file;
 use crate::hdr_deghosting::{align_hdr_frames, assert_uniform_dimensions, load_hdr_frames};
 use crate::image_loader::{composite_patches_on_image, load_and_composite};
 use crate::image_processing::{
-    Crop, RenderRequest, apply_coarse_rotation, apply_cpu_default_raw_processing, apply_flip,
-    apply_geometry_warp, apply_linear_to_srgb, downscale_f32_image, get_all_adjustments_from_json,
+    Crop, RenderRequest, apply_coarse_rotation, apply_flip, apply_geometry_warp,
+    apply_linear_to_srgb, downscale_f32_image, get_all_adjustments_from_json,
     get_or_init_gpu_context, process_and_get_dynamic_image, resolve_tonemapper_override,
     resolve_tonemapper_override_from_handle, warp_image_geometry,
 };
 use crate::mask_generation::{
-    MaskDefinition, generate_mask_bitmap, get_cached_or_generate_mask,
-    resolve_warped_image_for_masks,
+    MaskDefinition, build_full_warped_image, build_warped_image_for_masks, generate_mask_bitmap,
+    get_cached_or_generate_mask, resolve_warped_image_for_masks,
 };
 use crate::window_customizer::PinchZoomDisablePlugin;
 pub use adjustment_utils::*;
@@ -305,7 +305,31 @@ pub fn get_cached_full_warped_image(
     state: &tauri::State<AppState>,
     js_adjustments: &serde_json::Value,
 ) -> Result<Arc<DynamicImage>, String> {
-    let geo_hash = calculate_geometry_hash(js_adjustments);
+    get_cached_full_warped_image_for_path(state, None, js_adjustments)
+}
+
+pub fn get_cached_full_warped_image_for_path(
+    state: &tauri::State<AppState>,
+    path: Option<&str>,
+    js_adjustments: &serde_json::Value,
+) -> Result<Arc<DynamicImage>, String> {
+    let loaded_image = state
+        .original_image
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+        .ok_or("No original image loaded")?;
+
+    if let Some(path) = path
+        && parse_virtual_path(path).0 != parse_virtual_path(&loaded_image.path).0
+    {
+        return Err(format!("'{}' is not the loaded image", path));
+    }
+
+    let mut hasher = DefaultHasher::new();
+    loaded_image.path.hash(&mut hasher);
+    calculate_geometry_hash(js_adjustments).hash(&mut hasher);
+    let cache_key = hasher.finish();
 
     {
         let cache_lock = state
@@ -313,28 +337,23 @@ pub fn get_cached_full_warped_image(
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         if let Some((hash, img)) = cache_lock.as_ref()
-            && *hash == geo_hash
+            && *hash == cache_key
         {
             return Ok(Arc::clone(img));
         }
     }
 
-    let (base_arc, is_raw) = get_original_image(state)?;
-    let mut cow_image = Cow::Borrowed(base_arc.as_ref());
-
-    if is_raw {
-        apply_cpu_default_raw_processing(cow_image.to_mut());
-    }
-
-    let warped_image = apply_geometry_warp(cow_image, js_adjustments).into_owned();
-    let warped_arc = Arc::new(warped_image);
+    let warped_arc = Arc::new(
+        build_full_warped_image(&loaded_image.image, loaded_image.is_raw, js_adjustments)
+            .into_owned(),
+    );
 
     {
         let mut cache_lock = state
             .full_warped_cache
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        *cache_lock = Some((geo_hash, Arc::clone(&warped_arc)));
+        *cache_lock = Some((cache_key, Arc::clone(&warped_arc)));
     }
 
     Ok(warped_arc)
@@ -537,6 +556,7 @@ fn process_preview_job(
         .filter_map(|def| {
             get_cached_or_generate_mask(
                 &state,
+                &loaded_image.path,
                 def,
                 preview_width,
                 preview_height,
@@ -881,6 +901,7 @@ async fn generate_uncropped_preview(
             .filter_map(|def| {
                 get_cached_or_generate_mask(
                     &state,
+                    &path,
                     def,
                     preview_width,
                     preview_height,
@@ -982,6 +1003,7 @@ fn generate_preset_preview(
         .filter_map(|def| {
             get_cached_or_generate_mask(
                 &state,
+                &loaded_image.path,
                 def,
                 img_w,
                 img_h,
@@ -1406,7 +1428,7 @@ async fn generate_preview_for_path(
             mask_generation::parse_mask_definitions(&js_adjustments);
 
         let warped_image =
-            resolve_warped_image_for_masks(&state, &js_adjustments, &mask_definitions);
+            build_warped_image_for_masks(&base_image, is_raw, &js_adjustments, &mask_definitions);
         let mask_bitmaps: Vec<ImageBuffer<Luma<u8>, Vec<u8>>> = mask_definitions
             .iter()
             .filter_map(|def| {

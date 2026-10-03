@@ -1707,6 +1707,7 @@ pub fn generate_thumbnail_data(
             .filter_map(|def| {
                 crate::get_cached_or_generate_mask(
                     &state,
+                    path_str,
                     def,
                     preview_w,
                     preview_h,

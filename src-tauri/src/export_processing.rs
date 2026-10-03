@@ -39,12 +39,12 @@ use crate::image_processing::{
 use crate::lut_processing::{
     convert_image_to_cube_lut, generate_identity_lut_image, get_or_load_lut,
 };
-use crate::mask_generation::{MaskDefinition, generate_mask_bitmap};
+use crate::mask_generation::{MaskDefinition, build_warped_image_for_masks, generate_mask_bitmap};
 
 use crate::cache_utils::{calculate_full_job_hash, calculate_transform_hash};
 use crate::{
     apply_all_transformations, generate_transformed_preview, get_cached_or_generate_mask,
-    hydrate_adjustments, load_settings, resolve_warped_image_for_masks,
+    hydrate_adjustments, load_settings,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -971,7 +971,8 @@ fn process_image_for_export_pipeline(
     let mask_definitions: Vec<MaskDefinition> =
         crate::mask_generation::parse_mask_definitions(js_adjustments);
 
-    let warped_image = resolve_warped_image_for_masks(state, js_adjustments, &mask_definitions);
+    let warped_image =
+        build_warped_image_for_masks(base_image, is_raw, js_adjustments, &mask_definitions);
     let mask_bitmaps: Vec<ImageBuffer<Luma<u8>, Vec<u8>>> = mask_definitions
         .iter()
         .filter_map(|def| {
@@ -1280,7 +1281,8 @@ fn export_masks_for_image(
     let mask_definitions: Vec<MaskDefinition> =
         crate::mask_generation::parse_mask_definitions(js_adjustments);
 
-    let warped_image = resolve_warped_image_for_masks(state, js_adjustments, &mask_definitions);
+    let warped_image =
+        build_warped_image_for_masks(base_image, is_raw, js_adjustments, &mask_definitions);
     let mut mask_bitmaps = Vec::with_capacity(mask_definitions.len());
     for definition in &mask_definitions {
         ensure_export_not_cancelled(cancellation_token)?;
@@ -1725,26 +1727,20 @@ pub(crate) async fn export_images_impl(
                         return Ok(());
                     }
 
-                    let base_image = if is_current_edit {
-                        match crate::get_original_image(&state) {
-                            Ok((orig_data_arc, _)) => {
-                                composite_patches_on_image(&orig_data_arc, &js_adjustments)
-                                    .map_err(|e| format!("Failed to composite AI patches: {}", e))?
-                            }
-                            Err(_) => {
-                                let bytes =
-                                    fs::read(&source_path_str).map_err(|e| e.to_string())?;
-                                load_and_composite(
-                                    &bytes,
-                                    &source_path_str,
-                                    &js_adjustments,
-                                    false,
-                                    &settings,
-                                    None,
-                                )
-                                .map_err(|e| format!("Failed to load fallback image: {}", e))?
-                            }
-                        }
+                    let loaded_image = if is_current_edit {
+                        state
+                            .original_image
+                            .lock()
+                            .unwrap()
+                            .clone()
+                            .filter(|loaded| parse_virtual_path(&loaded.path).0 == source_path)
+                    } else {
+                        None
+                    };
+
+                    let base_image = if let Some(loaded_image) = loaded_image {
+                        composite_patches_on_image(&loaded_image.image, &js_adjustments)
+                            .map_err(|e| format!("Failed to composite AI patches: {}", e))?
                     } else {
                         match read_file_mapped(Path::new(&source_path_str)) {
                             Ok(mmap) => load_and_composite(
@@ -2150,6 +2146,7 @@ pub async fn estimate_export_sizes(
             .filter_map(|def| {
                 get_cached_or_generate_mask(
                     &state,
+                    &loaded_image.path,
                     def,
                     img_w,
                     img_h,
@@ -2285,6 +2282,7 @@ pub async fn estimate_export_sizes(
             .filter_map(|def| {
                 get_cached_or_generate_mask(
                     &state,
+                    &source_path_str,
                     def,
                     preview_w,
                     preview_h,
