@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { homeDir } from '@tauri-apps/api/path';
 import { toast } from 'react-toastify';
+import i18n from 'i18next';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
@@ -510,14 +511,33 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
     }
   }, [handleSelectSubfolder, handleSelectAlbum]);
 
+  // Card mode replaced the library roots with the card, so put the saved roots back.
+  const leaveCardMode = async () => {
+    const { appSettings } = useSettingsStore.getState();
+    const rootFolders: string[] = appSettings?.rootFolders ?? [];
+    await invoke(Invokes.SetCardBrowseRoot, { path: null });
+    let folderTrees: unknown[] = [];
+    if (rootFolders.length > 0) {
+      folderTrees = await invoke<unknown[]>(Invokes.GetPinnedFolderTrees, {
+        paths: rootFolders,
+        expandedFolders: rootFolders,
+        showImageCounts: appSettings?.enableFolderImageCounts || appSettings?.folderTreeSort?.key === 'imageCount',
+      }).catch(() => []);
+    }
+    useLibraryStore.getState().setLibrary({
+      cardBrowseRoot: null,
+      rootPaths: rootFolders,
+      folderTrees,
+      expandedFolders: new Set(rootFolders),
+    });
+  };
+
   const handleOpenFolder = useCallback(async () => {
     const { osPlatform, appSettings, handleSettingsChange } = useSettingsStore.getState();
-    const { rootPaths, folderTrees, setLibrary } = useLibraryStore.getState();
+    const { setLibrary } = useLibraryStore.getState();
     const isAndroid = osPlatform === 'android';
 
     try {
-      await invoke(Invokes.SetCardBrowseRoot, { path: null });
-      setLibrary({ cardBrowseRoot: null });
       let selectedPath = '';
       if (isAndroid) {
         selectedPath = await invoke<string>(Invokes.GetOrCreateInternalLibraryRoot);
@@ -529,6 +549,10 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       }
 
       if (selectedPath) {
+        if (useLibraryStore.getState().cardBrowseRoot) {
+          await leaveCardMode();
+        }
+        const { rootPaths, folderTrees } = useLibraryStore.getState();
         if (!rootPaths.includes(selectedPath)) {
           const newRootPaths = [...rootPaths, selectedPath];
           setLibrary({ rootPaths: newRootPaths });
@@ -582,11 +606,11 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
         expandedFolders: new Set([selected]),
       });
       await handleSelectSubfolder(selected, false);
-      toast.success('Card opened in read-only mode. Import photos before editing them.');
+      toast.success(i18n.t('library.cardMode.opened'));
     } catch (err) {
       await invoke(Invokes.SetCardBrowseRoot, { path: null }).catch(() => undefined);
       useLibraryStore.getState().setLibrary({ cardBrowseRoot: null });
-      toast.error(`Failed to browse card: ${err}`);
+      toast.error(i18n.t('library.cardMode.browseFailed', { error: String(err) }));
     }
   };
 
@@ -602,6 +626,9 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
           : [];
 
       if (rootFolders.length === 0) return;
+
+      await invoke(Invokes.SetCardBrowseRoot, { path: null });
+      setLibrary({ cardBrowseRoot: null });
 
       const folderState = appSettings?.lastFolderState;
       const pathToSelect = folderState?.currentFolderPath || rootFolders[0];

@@ -33,7 +33,7 @@ interface LibraryViewProps {
   handleContinueSession: (...args: any) => void;
   handleGoHome: (...args: any) => void;
   handleOpenFolder: (...args: any) => void;
-  handleBrowseCard: (...args: any) => void;
+  handleBrowseCard: () => void;
   handleImportClick: (path: string) => void;
   handleLibraryRefresh: () => Promise<void>;
   handleCopyAdjustments: () => void;
