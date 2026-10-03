@@ -911,6 +911,16 @@
     }
   },
   "library": {
+    "cardMode": {
+      "badge": "Card mode · read-only",
+      "badgeDetail": "Nothing is written to this card",
+      "badgeTooltip": "RapidRoom never writes to this card: no sidecars, XMP files, renames or deletions. Edits stay in memory until you import the photos.",
+      "browse": "Browse a memory card safely",
+      "browseFailed": "Failed to browse the card: {{error}}",
+      "browseTooltip": "Browse a memory card read-only",
+      "editNotSaved": "Card mode is read-only: edits stay in memory and aren't saved to the card. Import the photo to keep them.",
+      "opened": "Card opened read-only. RapidRoom won't change anything on it; import photos to keep your edits."
+    },
     "community": {
       "actionSave": "Save",
       "actionSaved": "Saved",

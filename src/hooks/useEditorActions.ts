@@ -17,12 +17,25 @@ import {
 import { calculateCenteredCrop } from '../utils/cropUtils';
 import { Invokes } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
+import { isPathInCardRoot } from '../utils/cardMode';
+import i18n from 'i18next';
 
 export const debouncedSetHistory = debounce((newAdj: Adjustments) => {
   useEditorStore.getState().pushHistory(newAdj);
 }, 500);
 
+let cardEditNoticeShownFor: string | null = null;
+
 export const debouncedSave = debounce((path: string, adjustmentsToSave: Adjustments) => {
+  const cardRoot = useLibraryStore.getState().cardBrowseRoot;
+  if (isPathInCardRoot(path, cardRoot)) {
+    if (cardEditNoticeShownFor !== cardRoot) {
+      cardEditNoticeShownFor = cardRoot;
+      toast.info(i18n.t('library.cardMode.editNotSaved'));
+    }
+    return;
+  }
+
   invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave }).catch((err) => {
     console.error('Auto-save failed:', err);
     toast.error(`Failed to save changes: ${err}`);

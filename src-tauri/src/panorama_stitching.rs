@@ -126,6 +126,7 @@ pub async fn save_panorama(
     first_path_str: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    crate::file_management::ensure_card_writable_for_paths(&[&first_path_str])?;
     let panorama_image = state
         .panorama_result
         .lock()

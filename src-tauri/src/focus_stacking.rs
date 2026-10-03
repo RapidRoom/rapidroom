@@ -2139,6 +2139,7 @@ pub async fn save_focus_stack(
     first_path_str: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    crate::file_management::ensure_card_writable_for_paths(&[&first_path_str])?;
     let focus_image = state
         .focus_stack_result
         .lock()

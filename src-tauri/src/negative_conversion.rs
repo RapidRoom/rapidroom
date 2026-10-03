@@ -286,6 +286,7 @@ pub async fn convert_negatives(
     params: NegativeConversionParams,
     app_handle: AppHandle,
 ) -> Result<Vec<String>, String> {
+    crate::file_management::ensure_card_writable_for_paths(&paths)?;
     tokio::task::spawn_blocking(move || {
         let mut results = Vec::new();
 

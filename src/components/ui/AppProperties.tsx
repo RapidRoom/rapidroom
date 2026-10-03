@@ -92,6 +92,7 @@ export enum Invokes {
   SaveHdr = 'save_hdr',
   SavePresets = 'save_presets',
   SaveSettings = 'save_settings',
+  SetCardBrowseRoot = 'set_card_browse_root',
   SetColorLabelForPaths = 'set_color_label_for_paths',
   SetRatingForPaths = 'set_rating_for_paths',
   ShowInFinder = 'show_in_finder',

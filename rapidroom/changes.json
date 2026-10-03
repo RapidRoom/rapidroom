@@ -307,6 +307,36 @@
       "notes": "Editor and culling share a one-permit semaphore. Blocking tasks retain the permit if their awaiting task is cancelled. Culling requests are serialized, not cancelled."
     },
     {
+      "id": "card-mode",
+      "title": "Read-only Card mode: browse a memory card without RapidRoom creating, changing or deleting anything on it",
+      "category": "feature",
+      "landed": "2026-10-03",
+      "authors": ["TomasLiutvinas", "yojen7"],
+      "source": "TomasLiutvinas/RapidRAW (extended by yojen7 to every write path)",
+      "commits": [
+        "https://github.com/TomasLiutvinas/RapidRAW/commit/f5197a74386608b2bf0125b61b39fa88e97903b8",
+        "https://github.com/TomasLiutvinas/RapidRAW/commit/ac1543cc672db8382bf507aad50cc52f0596255c"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The backend refuses every write under the card folder: sidecars, XMP sync and creation, EXIF refresh, tag cleanup, rename, move, copy into, delete, duplicates, virtual copies, and outputs saved next to the originals (export, denoise, HDR, panorama, focus stack, collage, negatives). Edits stay in memory. Written with Claude Code.",
+      "highlight": "**Browse memory cards safely:** read-only Card mode never writes to the card"
+    },
+    {
+      "id": "skip-unused-blurs",
+      "title": "Previews and exports skip GPU blur passes that no active adjustment reads",
+      "category": "performance",
+      "landed": "2026-10-03",
+      "authors": ["SandeepSubba"],
+      "source": "SandeepSubba/RapidRAW",
+      "commits": ["https://github.com/SandeepSubba/RapidRAW/commit/a27a87bf55546e930cfb6689c4cf39028e570b2d"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Adapted to RapidRoom's shader with Claude Code: sharpening also reads the tonal blur, highlights doesn't, and RapidRoom has no skin smoothing. Output should be pixel-identical; speed-up not measured yet."
+    },
+    {
       "id": "regression-ci",
       "title": "Pixel-exact regression check in CI: 18 renders on a software Vulkan renderer (Mesa lavapipe), compared by pixel hash",
       "category": "ci",

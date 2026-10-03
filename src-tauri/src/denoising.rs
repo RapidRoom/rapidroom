@@ -95,6 +95,7 @@ pub async fn batch_denoise_images(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
+    crate::file_management::ensure_card_writable_for_paths(&paths)?;
     let mut ai_session = None;
     if method == "ai" {
         let session = crate::ai_processing::get_or_init_denoise_model(
@@ -194,6 +195,7 @@ pub async fn save_denoised_image(
     original_path_str: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    crate::file_management::ensure_card_writable_for_paths(&[&original_path_str])?;
     let denoised_image = state.denoise_result.lock().unwrap().take().ok_or_else(|| {
         "No denoised image found in memory. It might have already been saved or cleared."
             .to_string()

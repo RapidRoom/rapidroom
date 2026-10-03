@@ -265,6 +265,7 @@ pub async fn start_background_indexing(
     app_handle: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    file_management::ensure_card_writable(Path::new(&folder_path))?;
     if let Some(handle) = state.indexing_task_handle.lock().unwrap().take() {
         println!("Cancelling previous indexing task.");
         handle.abort();
@@ -427,12 +428,22 @@ pub async fn start_background_indexing(
     Ok(())
 }
 
+/// `Some(create_if_missing)` when XMP sync is on.
+fn xmp_sync_setting(app_handle: &AppHandle) -> Option<bool> {
+    let settings = crate::load_settings(app_handle.clone()).ok()?;
+    settings
+        .enable_xmp_sync
+        .unwrap_or(false)
+        .then(|| settings.create_xmp_if_missing.unwrap_or(false))
+}
+
 fn modify_tags_for_path(
     path_str: &str,
-    app_handle: &AppHandle,
+    xmp_sync: Option<bool>,
     modify_fn: impl Fn(&mut Vec<String>),
 ) -> Result<(), String> {
     let (source_path, sidecar_path) = parse_virtual_path(path_str);
+    file_management::ensure_card_writable(&source_path)?;
 
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
@@ -452,10 +463,7 @@ fn modify_tags_for_path(
     crate::file_management::write_file_atomically(&sidecar_path, json_string)
         .map_err(|e| e.to_string())?;
 
-    if let Ok(settings) = crate::load_settings(app_handle.clone())
-        && settings.enable_xmp_sync.unwrap_or(false)
-    {
-        let create_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
+    if let Some(create_if_missing) = xmp_sync {
         file_management::sync_metadata_to_xmp(&source_path, &metadata, create_if_missing);
     }
 
@@ -468,9 +476,10 @@ pub fn add_tag_for_paths(
     tag: String,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    let xmp_sync = xmp_sync_setting(&app_handle);
     paths.par_iter().for_each(|path| {
         let tag_clone = tag.clone();
-        if let Err(e) = modify_tags_for_path(path, &app_handle, |tags| {
+        if let Err(e) = modify_tags_for_path(path, xmp_sync, |tags| {
             if !tags.contains(&tag_clone) {
                 tags.push(tag_clone.clone());
             }
@@ -487,9 +496,10 @@ pub fn remove_tag_for_paths(
     tag: String,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    let xmp_sync = xmp_sync_setting(&app_handle);
     paths.par_iter().for_each(|path| {
         let tag_clone = tag.clone();
-        if let Err(e) = modify_tags_for_path(path, &app_handle, |tags| {
+        if let Err(e) = modify_tags_for_path(path, xmp_sync, |tags| {
             tags.retain(|t| t != &tag_clone);
         }) {
             eprintln!("Failed to remove tag from {}: {}", path, e);
@@ -516,15 +526,7 @@ fn rrdata_source_path(rrdata: &Path) -> Option<PathBuf> {
     Some(rrdata.with_file_name(source_filename))
 }
 
-fn sync_xmp_for_rrdata(
-    rrdata_path: &Path,
-    metadata: &ImageMetadata,
-    enable_xmp_sync: bool,
-    create_xmp_if_missing: bool,
-) {
-    if !enable_xmp_sync {
-        return;
-    }
+fn sync_xmp_for_rrdata(rrdata_path: &Path, metadata: &ImageMetadata, create_xmp_if_missing: bool) {
     if let Some(source_path) = rrdata_source_path(rrdata_path) {
         file_management::sync_metadata_to_xmp(&source_path, metadata, create_xmp_if_missing);
     }
@@ -532,13 +534,29 @@ fn sync_xmp_for_rrdata(
 
 #[tauri::command]
 pub fn clear_ai_tags(root_path: String, app_handle: AppHandle) -> Result<usize, String> {
-    if !Path::new(&root_path).exists() {
+    // Keep color tags and user tags, remove others (AI tags)
+    clear_tags_in_tree(&root_path, xmp_sync_setting(&app_handle), |tag| {
+        tag.starts_with(COLOR_TAG_PREFIX) || tag.starts_with(USER_TAG_PREFIX)
+    })
+}
+
+#[tauri::command]
+pub fn clear_all_tags(root_path: String, app_handle: AppHandle) -> Result<usize, String> {
+    // Keep only color tags, remove AI and user tags
+    clear_tags_in_tree(&root_path, xmp_sync_setting(&app_handle), |tag| {
+        tag.starts_with(COLOR_TAG_PREFIX)
+    })
+}
+
+fn clear_tags_in_tree(
+    root_path: &str,
+    xmp_sync: Option<bool>,
+    keep: impl Fn(&str) -> bool,
+) -> Result<usize, String> {
+    file_management::ensure_card_writable(Path::new(root_path))?;
+    if !Path::new(root_path).exists() {
         return Err(format!("Root path does not exist: {}", root_path));
     }
-
-    let settings = crate::load_settings(app_handle.clone()).unwrap_or_default();
-    let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-    let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
 
     let mut updated_count = 0;
     let walker = WalkDir::new(root_path).into_iter();
@@ -552,10 +570,7 @@ pub fn clear_ai_tags(root_path: String, app_handle: AppHandle) -> Result<usize, 
             && let Some(tags) = &mut metadata.tags
         {
             let original_len = tags.len();
-            // Keep color tags and user tags, remove others (AI tags)
-            tags.retain(|tag| {
-                tag.starts_with(COLOR_TAG_PREFIX) || tag.starts_with(USER_TAG_PREFIX)
-            });
+            tags.retain(|tag| keep(tag));
 
             if tags.len() < original_len {
                 if tags.is_empty() {
@@ -565,7 +580,9 @@ pub fn clear_ai_tags(root_path: String, app_handle: AppHandle) -> Result<usize, 
                     && crate::file_management::write_file_atomically(path, json_string).is_ok()
                 {
                     updated_count += 1;
-                    sync_xmp_for_rrdata(path, &metadata, enable_xmp_sync, create_xmp_if_missing);
+                    if let Some(create_if_missing) = xmp_sync {
+                        sync_xmp_for_rrdata(path, &metadata, create_if_missing);
+                    }
                 }
             }
         }
@@ -573,43 +590,81 @@ pub fn clear_ai_tags(root_path: String, app_handle: AppHandle) -> Result<usize, 
     Ok(updated_count)
 }
 
-#[tauri::command]
-pub fn clear_all_tags(root_path: String, app_handle: AppHandle) -> Result<usize, String> {
-    if !Path::new(&root_path).exists() {
-        return Err(format!("Root path does not exist: {}", root_path));
+#[cfg(test)]
+mod card_mode_tests {
+    use super::*;
+    use crate::file_management::CARD_READ_ONLY_ERROR;
+    use crate::file_management::card_mode_test_support::{CardMode, folders, path_str, snapshot};
+
+    fn tags_in(sidecar: &Path) -> Vec<String> {
+        crate::exif_processing::load_sidecar(sidecar)
+            .tags
+            .unwrap_or_default()
     }
 
-    let settings = crate::load_settings(app_handle.clone()).unwrap_or_default();
-    let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-    let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
+    #[test]
+    fn ai_tag_cleanup_never_touches_the_card() {
+        let f = folders();
+        let _mode = CardMode::on(&f.card);
+        let before = snapshot(&f.card);
+        let keep_user =
+            |tag: &str| tag.starts_with(COLOR_TAG_PREFIX) || tag.starts_with(USER_TAG_PREFIX);
 
-    let mut updated_count = 0;
-    let walker = WalkDir::new(root_path).into_iter();
+        assert_eq!(
+            clear_tags_in_tree(&path_str(&f.dcim), Some(true), keep_user).unwrap_err(),
+            CARD_READ_ONLY_ERROR
+        );
+        let parent = f.card.parent().unwrap();
+        assert_eq!(
+            clear_tags_in_tree(&path_str(parent), Some(true), keep_user).unwrap(),
+            1
+        );
+        assert_eq!(snapshot(&f.card), before);
+        assert_eq!(
+            tags_in(&f.library.join("IMG_0001.jpg.rrdata")),
+            vec!["user:keep", "color:red"]
+        );
+    }
 
-    for entry in walker.filter_map(|e| e.ok()) {
-        let path = entry.path();
-        if path.is_file()
-            && path.extension().and_then(|s| s.to_str()) == Some("rrdata")
-            && let Ok(content) = fs::read_to_string(path)
-            && let Ok(mut metadata) = serde_json::from_str::<ImageMetadata>(&content)
-            && let Some(tags) = &mut metadata.tags
+    #[test]
+    fn clearing_all_tags_never_touches_the_card() {
+        let f = folders();
+        let _mode = CardMode::on(&f.card);
+        let before = snapshot(&f.card);
+        let keep_color = |tag: &str| tag.starts_with(COLOR_TAG_PREFIX);
+
+        assert_eq!(
+            clear_tags_in_tree(&path_str(&f.card), None, keep_color).unwrap_err(),
+            CARD_READ_ONLY_ERROR
+        );
+        let parent = f.card.parent().unwrap();
+        assert_eq!(
+            clear_tags_in_tree(&path_str(parent), None, keep_color).unwrap(),
+            1
+        );
+        assert_eq!(snapshot(&f.card), before);
+        assert_eq!(
+            tags_in(&f.library.join("IMG_0001.jpg.rrdata")),
+            vec!["color:red"]
+        );
+    }
+
+    #[test]
+    fn tag_edits_refuse_the_card() {
+        let f = folders();
+        let add = |tags: &mut Vec<String>| tags.push("user:new".to_string());
         {
-            let original_len = tags.len();
-            // Keep only color tags, remove AI and user tags
-            tags.retain(|tag| tag.starts_with(COLOR_TAG_PREFIX));
-
-            if tags.len() < original_len {
-                if tags.is_empty() {
-                    metadata.tags = None;
-                }
-                if let Ok(json_string) = serde_json::to_string_pretty(&metadata)
-                    && crate::file_management::write_file_atomically(path, json_string).is_ok()
-                {
-                    updated_count += 1;
-                    sync_xmp_for_rrdata(path, &metadata, enable_xmp_sync, create_xmp_if_missing);
-                }
-            }
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            let photo = path_str(&f.dcim.join("IMG_0001.jpg"));
+            assert_eq!(
+                modify_tags_for_path(&photo, Some(true), add).unwrap_err(),
+                CARD_READ_ONLY_ERROR
+            );
+            assert_eq!(snapshot(&f.card), before);
         }
+        let _mode = CardMode::off();
+        modify_tags_for_path(&path_str(&f.library.join("IMG_0001.jpg")), None, add).unwrap();
+        assert!(tags_in(&f.library.join("IMG_0001.jpg.rrdata")).contains(&"user:new".to_string()));
     }
-    Ok(updated_count)
 }

@@ -1335,6 +1335,12 @@ impl GpuProcessor {
         };
 
         let adjustments = request.adjustments;
+
+        // Skip blur passes that nothing consumes: when a flag is false, run_blur is
+        // skipped and the dummy view is bound below, which the shader's per-effect
+        // zero-guards never read. Computed once per image, before the tile loop.
+        let blur_needs = compute_blur_needs(&adjustments);
+
         if adjustments.global.flare_amount > 0.0 {
             let mut encoder = device.create_command_encoder(&Default::default());
 
@@ -1558,10 +1564,14 @@ impl GpuProcessor {
                     true
                 };
 
-                let did_create_sharpness_blur = run_blur(1.0, &self.sharpness_blur_view);
-                let did_create_tonal_blur = run_blur(3.5, &self.tonal_blur_view);
-                let did_create_clarity_blur = run_blur(8.0, &self.clarity_blur_view);
-                let did_create_structure_blur = run_blur(40.0, &self.structure_blur_view);
+                let did_create_sharpness_blur =
+                    blur_needs.sharpness && run_blur(1.0, &self.sharpness_blur_view);
+                let did_create_tonal_blur =
+                    blur_needs.tonal && run_blur(3.5, &self.tonal_blur_view);
+                let did_create_clarity_blur =
+                    blur_needs.clarity && run_blur(8.0, &self.clarity_blur_view);
+                let did_create_structure_blur =
+                    blur_needs.structure && run_blur(40.0, &self.structure_blur_view);
 
                 let mut main_encoder = device.create_command_encoder(&Default::default());
 
@@ -1826,6 +1836,49 @@ pub fn process_and_get_dynamic_image_with_analytics(
         output_to_display,
         analytics_config,
     )
+}
+
+/// Which of the four blur passes have at least one active consumer.
+/// Each flag is the union of every shader read of that blur (shader.wgsl,
+/// `main`), each behind the guard named here:
+///
+/// - sharpness (r1): `apply_sharpen`, `abs(t_sharpness) >= 0.0005`
+/// - tonal (r3.5): `apply_sharpen` when sharpening, `t_sharpness >= 0.0005`;
+///   `apply_tonal_adjustments` detail term, `t_shadows != 0 || t_blacks != 0`
+/// - clarity (r8): clarity local contrast, `t_clarity != 0`;
+///   `apply_centre_local_contrast`, `centre != 0` (global only);
+///   `apply_halation`, `t_halation > 0`
+/// - structure (r40): structure local contrast, `t_structure != 0`;
+///   `apply_glow_bloom`, `t_glow > 0`; `apply_dehaze`, `t_dehaze != 0`
+///
+/// The shader's `t_*` values are the global value plus every active mask's
+/// value times its influence, so a value that is 0 globally but non-zero in a
+/// mask still needs the blur. Each field is tested with `!= 0.0`, which covers
+/// every guard above for both signs. Highlights, contrast and whites don't read
+/// a blur texture.
+struct BlurNeeds {
+    sharpness: bool,
+    tonal: bool,
+    clarity: bool,
+    structure: bool,
+}
+
+fn compute_blur_needs(adjustments: &AllAdjustments) -> BlurNeeds {
+    let g = &adjustments.global;
+    let mut n = BlurNeeds {
+        sharpness: g.sharpness != 0.0,
+        tonal: g.sharpness != 0.0 || g.shadows != 0.0 || g.blacks != 0.0,
+        clarity: g.clarity != 0.0 || g.halation_amount != 0.0 || g.centré != 0.0,
+        structure: g.structure != 0.0 || g.glow_amount != 0.0 || g.dehaze != 0.0,
+    };
+    let mask_count = (adjustments.mask_count as usize).min(adjustments.mask_adjustments.len());
+    for m in &adjustments.mask_adjustments[..mask_count] {
+        n.sharpness |= m.sharpness != 0.0;
+        n.tonal |= m.sharpness != 0.0 || m.shadows != 0.0 || m.blacks != 0.0;
+        n.clarity |= m.clarity != 0.0 || m.halation_amount != 0.0;
+        n.structure |= m.structure != 0.0 || m.glow_amount != 0.0 || m.dehaze != 0.0;
+    }
+    n
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2217,5 +2270,144 @@ fn process_and_get_dynamic_image_inner(
                 .ok_or("Failed to create 16-bit image buffer from GPU data")?;
             Ok(DynamicImage::ImageRgba16(img_buf))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::compute_blur_needs;
+    use crate::image_processing::AllAdjustments;
+
+    // [sharpness, tonal, clarity, structure]
+    type Needs = [bool; 4];
+    const NONE: Needs = [false, false, false, false];
+    const SHARPEN: Needs = [true, true, false, false];
+    const TONAL: Needs = [false, true, false, false];
+    const CLARITY: Needs = [false, false, true, false];
+    const STRUCTURE: Needs = [false, false, false, true];
+
+    fn with_masks(mask_count: u32) -> AllAdjustments {
+        AllAdjustments {
+            mask_count,
+            ..Default::default()
+        }
+    }
+
+    fn needs(a: &AllAdjustments) -> Needs {
+        let n = compute_blur_needs(a);
+        [n.sharpness, n.tonal, n.clarity, n.structure]
+    }
+
+    #[test]
+    fn blur_needs_matches_shader_consumers() {
+        type Set = fn(&mut AllAdjustments, f32);
+        // Every field that turns on a blur read in shader.wgsl, set globally and
+        // only inside the last active mask, plus fields that must not.
+        let table: &[(&str, Set, Needs)] = &[
+            ("sharpness", |a, v| a.global.sharpness = v, SHARPEN),
+            (
+                "mask sharpness",
+                |a, v| a.mask_adjustments[2].sharpness = v,
+                SHARPEN,
+            ),
+            ("shadows", |a, v| a.global.shadows = v, TONAL),
+            (
+                "mask shadows",
+                |a, v| a.mask_adjustments[2].shadows = v,
+                TONAL,
+            ),
+            ("blacks", |a, v| a.global.blacks = v, TONAL),
+            (
+                "mask blacks",
+                |a, v| a.mask_adjustments[2].blacks = v,
+                TONAL,
+            ),
+            ("clarity", |a, v| a.global.clarity = v, CLARITY),
+            (
+                "mask clarity",
+                |a, v| a.mask_adjustments[2].clarity = v,
+                CLARITY,
+            ),
+            ("centré", |a, v| a.global.centré = v, CLARITY),
+            ("halation", |a, v| a.global.halation_amount = v, CLARITY),
+            (
+                "mask halation",
+                |a, v| a.mask_adjustments[2].halation_amount = v,
+                CLARITY,
+            ),
+            ("structure", |a, v| a.global.structure = v, STRUCTURE),
+            (
+                "mask structure",
+                |a, v| a.mask_adjustments[2].structure = v,
+                STRUCTURE,
+            ),
+            ("glow", |a, v| a.global.glow_amount = v, STRUCTURE),
+            (
+                "mask glow",
+                |a, v| a.mask_adjustments[2].glow_amount = v,
+                STRUCTURE,
+            ),
+            ("dehaze", |a, v| a.global.dehaze = v, STRUCTURE),
+            (
+                "mask dehaze",
+                |a, v| a.mask_adjustments[2].dehaze = v,
+                STRUCTURE,
+            ),
+            ("highlights", |a, v| a.global.highlights = v, NONE),
+            (
+                "mask highlights",
+                |a, v| a.mask_adjustments[2].highlights = v,
+                NONE,
+            ),
+            ("contrast", |a, v| a.global.contrast = v, NONE),
+            (
+                "mask contrast",
+                |a, v| a.mask_adjustments[2].contrast = v,
+                NONE,
+            ),
+            ("whites", |a, v| a.global.whites = v, NONE),
+            ("mask whites", |a, v| a.mask_adjustments[2].whites = v, NONE),
+            ("exposure", |a, v| a.global.exposure = v, NONE),
+            (
+                "sharpness threshold",
+                |a, v| a.global.sharpness_threshold = v,
+                NONE,
+            ),
+            ("flare", |a, v| a.global.flare_amount = v, NONE),
+            ("luma nr", |a, v| a.global.luma_noise_reduction = v, NONE),
+        ];
+        for &(name, set, expected) in table {
+            for v in [1.0, -1.0, 0.001] {
+                let mut a = with_masks(3);
+                set(&mut a, v);
+                assert_eq!(needs(&a), expected, "{name} = {v}");
+            }
+            let mut a = with_masks(3);
+            set(&mut a, 0.0);
+            assert_eq!(needs(&a), NONE, "{name} = 0");
+        }
+    }
+
+    #[test]
+    fn blur_needs_combines_global_and_masks() {
+        assert_eq!(needs(&AllAdjustments::default()), NONE);
+
+        let mut a = with_masks(2);
+        a.global.clarity = 0.5;
+        a.mask_adjustments[1].glow_amount = 0.5;
+        assert_eq!(needs(&a), [false, false, true, true]);
+
+        // Global and mask values can cancel in the shader only where the mask's
+        // influence is 1, so the blur still has to run.
+        let mut a = with_masks(1);
+        a.global.sharpness = 0.5;
+        a.mask_adjustments[0].sharpness = -0.5;
+        assert_eq!(needs(&a), SHARPEN);
+
+        // Masks at or beyond mask_count are not read by the shader.
+        let mut a = with_masks(2);
+        a.mask_adjustments[2].structure = 1.0;
+        a.mask_adjustments[31].sharpness = 1.0;
+        assert_eq!(needs(&a), NONE);
     }
 }

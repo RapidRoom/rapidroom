@@ -459,6 +459,9 @@ pub async fn tether_capture(
     app_handle: tauri::AppHandle,
     destination_folder: Option<String>,
 ) -> Result<String, String> {
+    if let Some(folder) = &destination_folder {
+        crate::file_management::ensure_card_writable(std::path::Path::new(folder))?;
+    }
     #[cfg(feature = "tethering")]
     {
         tauri::async_runtime::spawn_blocking(move || {
