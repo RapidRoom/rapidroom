@@ -1,8 +1,13 @@
 {
+  "productName": "RapidRoom",
+  "mainBinaryName": "rapidroom",
   "bundle": {
     "linux": {
+      "deb": {
+        "desktopTemplate": "linux/RapidRoom.desktop"
+      },
       "rpm": {
-        "provides": ["rapid-raw"],
+        "desktopTemplate": "linux/RapidRoom.desktop",
         "recommends": ["webkit2gtk4.1", "webkit2gtk4", "libwebkit2gtk-4_1-0", "webkit2gtk-4_1-injected-bundles"]
       }
     }

@@ -22,7 +22,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Your keywords travel with your exports.** Tags you add show up as keywords in Lightroom, digiKam, photo sites and stock agencies.
 - **Browse memory cards safely:** read-only Card mode never writes to the card
 
-25 improvements on top of RapidRAW so far, including fixes for 8 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+26 improvements on top of RapidRAW so far, including fixes for 8 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Why RapidRoom

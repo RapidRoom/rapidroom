@@ -335,6 +335,18 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Adapted to RapidRoom's shader with Claude Code: sharpening also reads the tonal blur, highlights doesn't, and RapidRoom has no skin smoothing. Output should be pixel-identical; speed-up not measured yet."
+    },
+    {
+      "id": "linux-release",
+      "title": "Linux release packaging: a .deb and an AppImage named RapidRoom that install side by side with RapidRAW",
+      "category": "platform",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Binary `rapidroom`, resources in /usr/lib/RapidRoom, RapidRoom.desktop, window class RapidRoom, and its own single-instance D-Bus name. The app identifier (and so the settings folder) is still shared with RapidRAW. A `v*` tag builds a draft release; see rapidroom/RELEASING.md. Written with Claude Code."
     }
   ]
 }
