@@ -263,6 +263,18 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Covers settings saving (success and backend failure) and Tauri event listener cleanup. Written with Claude Code."
+    },
+    {
+      "id": "paste-without-settings",
+      "title": "Pasting adjustments works even when the settings failed to load (it used to do nothing)",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "From the type errors harrytuckerr's fork flagged as likely bugs (`harrytuckerr/RapidRAW#1`). The others (image cache, interactive patch, pinned folders, panel moves) were type-only and are fixed without behaviour changes. Written with Claude Code."
     }
   ]
 }
