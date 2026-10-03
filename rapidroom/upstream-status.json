@@ -121,6 +121,14 @@
       "created": "2026-08-21",
       "closed": "2026-10-03"
     },
+    "CyberTimon/RapidRAW#1825": {
+      "kind": "pr",
+      "title": "Build colour/luminance mask sources from the exported image (fixes #1571)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1825",
+      "state": "merged",
+      "created": "2026-10-03",
+      "closed": "2026-10-03"
+    },
     "CyberTimon/RapidRAW#517": {
       "kind": "issue",
       "title": "Rating From Camera not Recognized",

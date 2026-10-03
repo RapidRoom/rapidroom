@@ -248,7 +248,7 @@
       "authors": ["yojen7"],
       "source": "rapidroom",
       "upstream_issues": ["CyberTimon/RapidRAW#1571"],
-      "upstream_prs": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1825"],
       "rendering_change": true,
       "notes": "Only exports with colour/luminance masks (or an empty mask before another mask) change: they now match the editor. Prior art: R-Laine/RapidRAW@d49c341 (same path-keyed idea, different base).",
       "highlight": "**Reliable batch exports.** Large exports no longer slip another photo into some images, and colour and luminance masks now apply correctly when exporting."
