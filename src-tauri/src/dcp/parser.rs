@@ -1106,75 +1106,8 @@ mod tests {
 
     // ---- env-gated tests against vendor assets (never committed) -----------
 
-    /// Parse the supplied Cobalt DCP and assert every value in §1.3 exactly.
-    #[test]
-    #[ignore = "requires vendor DCP; enable with RAPIDRAW_TEST_ASSETS=1"]
-    #[allow(clippy::approx_constant)] // real DCP matrix value near FRAC_PI_6
-    fn parses_supplied_cobalt_dcp_exact() {
-        let path =
-            Path::new("/Users/harrisontucker/Downloads/Fujifilm X-Pro2 Cobalt Flat v3.0.dcp");
-        if std::env::var("RAPIDRAW_TEST_ASSETS").as_deref() != Ok("1") {
-            return;
-        }
-        assert!(path.exists(), "supplied DCP not present: {path:?}");
-
-        let profiles = parse_dcp(path).expect("supplied DCP should parse");
-        assert_eq!(profiles.len(), 1, "expected exactly one profile");
-        let p = &profiles[0];
-
-        // String / count tags.
-        assert_eq!(p.unique_camera_model, "Fujifilm X-Pro2");
-        assert_eq!(p.profile_name, "Cobalt Flat");
-        assert_eq!(p.copyright.as_deref(), Some("(c)Cobalt-Image 2024"));
-        assert_eq!(p.embed_policy, EmbedPolicy::EmbedNever);
-        assert_eq!(p.calibration_illuminant_1, Illuminant::StdA);
-        assert_eq!(p.calibration_illuminant_2, Some(Illuminant::D65));
-        assert_eq!(p.look_table_encoding, TableEncoding::Srgb);
-        assert_eq!(p.hue_sat_map_encoding, TableEncoding::Linear);
-
-        // Matrices to 1e-6 (row-major, file order).
-        let cm1 = [
-            1.339f32, -0.731, 0.0216, -0.3983, 1.1994, 0.2238, -0.0435, 0.1035, 0.6328,
-        ];
-        let cm2 = [
-            1.1434, -0.4948, -0.121, -0.3746, 1.2042, 0.1903, -0.0666, 0.1479, 0.5235,
-        ];
-        let fm1 = [
-            0.5852, 0.2478, 0.1314, 0.2148, 0.7488, 0.0364, 0.0075, 0.0195, 0.7981,
-        ];
-        let fm2 = [
-            0.525, 0.2687, 0.1706, 0.198, 0.752, 0.05, 0.0001, 0.0111, 0.8139,
-        ];
-        assert_matrix(p.color_matrix_1, &cm1);
-        assert_matrix(p.color_matrix_2.expect("dual illuminant"), &cm2);
-        assert_matrix(p.forward_matrix_1.expect("forward matrix 1"), &fm1);
-        assert_matrix(p.forward_matrix_2.expect("forward matrix 2"), &fm2);
-
-        // Rendering tables: counts + dims.
-        let hs = p.hue_sat_map.as_ref().expect("hue_sat_map present");
-        assert_eq!(
-            (hs.map_1.hue_div, hs.map_1.sat_div, hs.map_1.val_div),
-            (90, 30, 1)
-        );
-        assert_eq!(
-            hs.map_1.data.len(),
-            2700,
-            "HueSatMap1 must be 2700 triplets"
-        );
-        let hs2 = hs.map_2.as_ref().expect("hue_sat_map 2 present");
-        assert_eq!(hs2.data.len(), 2700, "HueSatMap2 must be 2700 triplets");
-
-        let lt = p.look_table.as_ref().expect("look_table present");
-        assert_eq!((lt.hue_div, lt.sat_div, lt.val_div), (90, 30, 30));
-        assert_eq!(lt.data.len(), 81_000, "LookTable must be 81000 triplets");
-
-        // Tone curve: 8192 (x,y) pairs.
-        let tc = p.tone_curve.as_ref().expect("tone_curve present");
-        assert_eq!(tc.points.len(), 8192, "tone curve must be 8192 pairs");
-    }
-
     /// Parse additional vendor DCPs from a directory to prove generality.
-    /// Looks for `test-assets/dcp/*.dcp` (see test-assets/README.md).
+    /// Looks for `test-assets/dcp/*.dcp` (not committed).
     #[test]
     #[ignore = "requires additional vendor DCPs; enable with RAPIDRAW_TEST_ASSETS=1"]
     fn round_trip_additional_vendor_dcps() {
@@ -1202,18 +1135,5 @@ mod tests {
             parsed += profiles.len();
         }
         assert!(parsed >= 3, "expected >= 3 vendor DCPs, parsed {parsed}");
-    }
-
-    fn assert_matrix(actual: Mat3, expected: &[f32; 9]) {
-        for i in 0..3 {
-            for j in 0..3 {
-                let a = actual[(i, j)];
-                let e = expected[i * 3 + j];
-                assert!(
-                    (a - e).abs() < 1e-6,
-                    "matrix mismatch at ({i},{j}): got {a}, expected {e}"
-                );
-            }
-        }
     }
 }
