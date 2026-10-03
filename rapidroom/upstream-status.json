@@ -88,6 +88,14 @@
       "state": "open",
       "created": "2026-09-03",
       "closed": null
+    },
+    "CyberTimon/RapidRAW#1571": {
+      "kind": "issue",
+      "title": "BUG: During a batch export a few photos are mismatched",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1571",
+      "state": "open",
+      "created": "2026-08-21",
+      "closed": null
     }
   }
 }
