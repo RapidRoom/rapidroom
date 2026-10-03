@@ -54,7 +54,9 @@ android {
             }
         }
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            if (rootProject.file("keystore.properties").exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             
             isMinifyEnabled = true
             proguardFiles(
