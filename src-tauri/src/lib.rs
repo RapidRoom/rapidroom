@@ -90,8 +90,8 @@ use tempfile::NamedTempFile;
 use tokio::sync::Mutex as TokioMutex;
 
 use crate::cache_utils::{
-    DecodedImageCache, calculate_full_job_hash, calculate_geometry_hash, calculate_transform_hash,
-    calculate_visual_hash,
+    DecodedImageCache, calculate_full_job_hash, calculate_geometry_hash,
+    calculate_image_cache_hash, calculate_transform_hash, calculate_visual_hash,
 };
 use crate::file_management::{parse_virtual_path, read_file_mapped};
 use crate::formats::is_raw_file;
@@ -173,7 +173,8 @@ pub fn generate_transformed_preview(
     adjustments: &serde_json::Value,
     preview_dim: u32,
 ) -> Result<(DynamicImage, f32, (f32, f32)), String> {
-    let transform_hash = calculate_transform_hash(adjustments);
+    let transform_hash =
+        calculate_image_cache_hash(&loaded_image.path, calculate_transform_hash(adjustments));
 
     let (transformed_full_res, unscaled_crop_offset) = {
         let mut cache_lock = state
@@ -218,7 +219,10 @@ fn compute_full_transformed_res(
     loaded_image: &LoadedImage,
     adjustments: &serde_json::Value,
 ) -> Result<(Arc<DynamicImage>, (f32, f32)), String> {
-    let geo_hash = crate::cache_utils::calculate_patched_warped_hash(adjustments);
+    let geo_hash = calculate_image_cache_hash(
+        &loaded_image.path,
+        crate::cache_utils::calculate_patched_warped_hash(adjustments),
+    );
 
     let warped_arc = {
         let mut cache_lock = state
@@ -327,10 +331,8 @@ pub fn get_cached_full_warped_image_for_path(
         return Err(format!("'{}' is not the loaded image", path));
     }
 
-    let mut hasher = DefaultHasher::new();
-    loaded_image.path.hash(&mut hasher);
-    calculate_geometry_hash(js_adjustments).hash(&mut hasher);
-    let cache_key = hasher.finish();
+    let cache_key =
+        calculate_image_cache_hash(&loaded_image.path, calculate_geometry_hash(js_adjustments));
 
     {
         let cache_lock = state
@@ -429,7 +431,10 @@ fn process_preview_job(
         .clone();
     drop(loaded_image_guard);
 
-    let new_transform_hash = calculate_transform_hash(&adjustments_clone);
+    let new_transform_hash = calculate_image_cache_hash(
+        &loaded_image.path,
+        calculate_transform_hash(&adjustments_clone),
+    );
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
     let live_quality = settings.live_preview_quality.as_deref().unwrap_or("high");
 

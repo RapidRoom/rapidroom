@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**33 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**34 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                               |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -43,6 +43,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Culling: optional auto-advance to the next image after rating with a shortcut, and an "exactly N stars" rating filter                                                              | feature     | [@yojen7](https://github.com/yojen7)                                                                                     | [#1749](https://github.com/CyberTimon/RapidRAW/issues/1749); [#1583](https://github.com/CyberTimon/RapidRAW/issues/1583)                                                                                                                               |
 | Import Lightroom and Camera Raw XMP sidecars: Basic, HSL, colour grading, curves, vignette, crop and straighten, rating, label and keywords, for one photo or a whole folder tree  | feature     | [@dimafa](https://github.com/dimafa), [@StephenMasseur](https://github.com/StephenMasseur)                               | PR [#1465](https://github.com/CyberTimon/RapidRAW/issues/1465)                                                                                                                                                                                         |
 | Window and DPI changes keep the latest preview size even when a render holds the display lock                                                                                      | fix         | [@subbajeu](https://github.com/subbajeu), [@yojen7](https://github.com/yojen7)                                           | not yet offered                                                                                                                                                                                                                                        |
+| Editor render caches include virtual image identity so a late preview cannot reuse another photo                                                                                   | fix         | [@mlauziertr](https://github.com/mlauziertr), [@yojen7](https://github.com/yojen7)                                       | not yet offered                                                                                                                                                                                                                                        |
 | Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)                                                                                         | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                        |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
@@ -327,6 +328,15 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** not yet offered
 - **Commits:** [1084ca9](https://github.com/SandeepSubba/RapidRAW/commit/1084ca96fbad8ea1c64dd58d6a26df06fdf3df60)
 - **Notes:** The latest physical surface size is queued outside the display lock and applied on the next transform, resize, or native preview render. Export processing is unchanged.
+
+### Editor render caches include virtual image identity so a late preview cannot reuse another photo
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@mlauziertr](https://github.com/mlauziertr), [@yojen7](https://github.com/yojen7), from mlauziertr/picportal-editor
+- **Upstream:** not yet offered
+- **Commits:** [8ec31d4](https://github.com/mlauziertr/picportal-editor/commit/8ec31d4f4fcddc50b6217d9d6419d7278d2937ec)
+- **Notes:** Transformed, patched/warped and small-preview cache keys include the full virtual image path. The existing path guard and mask-image snapshot from the batch-export fix are retained; its already image-keyed cache uses the equivalent shared helper. No image-processing math changes.
 
 ### Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)
 

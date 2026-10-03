@@ -449,6 +449,19 @@
       "notes": "The latest physical surface size is queued outside the display lock and applied on the next transform, resize, or native preview render. Export processing is unchanged."
     },
     {
+      "id": "image-render-cache-identity",
+      "title": "Editor render caches include virtual image identity so a late preview cannot reuse another photo",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["mlauziertr", "yojen7"],
+      "source": "mlauziertr/picportal-editor",
+      "commits": ["https://github.com/mlauziertr/picportal-editor/commit/8ec31d4f4fcddc50b6217d9d6419d7278d2937ec"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Transformed, patched/warped and small-preview cache keys include the full virtual image path. The existing path guard and mask-image snapshot from the batch-export fix are retained; its already image-keyed cache uses the equivalent shared helper. No image-processing math changes."
+    },
+    {
       "id": "headless-exit-code",
       "title": "Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)",
       "category": "fix",
