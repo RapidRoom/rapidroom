@@ -77,6 +77,7 @@ export function useAndroidBackHandler() {
         return;
       }
       if (ui.denoiseModalState.isOpen) {
+        if (ui.pendingDenoiseJob || ui.denoiseModalState.isProcessing) return;
         ui.setUI((state: any) => ({ denoiseModalState: { ...state.denoiseModalState, isOpen: false } }));
         return;
       }
@@ -91,7 +92,9 @@ export function useAndroidBackHandler() {
         return;
       }
 
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }),
+      );
     };
 
     return () => {

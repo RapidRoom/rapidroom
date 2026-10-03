@@ -241,6 +241,7 @@ export default function DenoiseModal({
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; path: string } | null>(null);
   const isBatch = targetPaths.length > 1;
   const mouseDownTarget = useRef<EventTarget | null>(null);
+  const runId = useRef(0);
 
   const targetPathsKey = targetPaths.join('\n');
 
@@ -255,12 +256,12 @@ export default function DenoiseModal({
 
   useEffect(() => {
     const unlisten = listen('denoise-batch-progress', (e: any) => {
-      setBatchProgress(e.payload);
+      if (isOpen && isProcessing) setBatchProgress(e.payload);
     });
     return () => {
       unlisten.then((f) => f());
     };
-  }, []);
+  }, [isOpen, isProcessing]);
 
   useEffect(() => {
     if (!isOpen || targetPaths.length === 0) {
@@ -304,6 +305,7 @@ export default function DenoiseModal({
       const timer = setTimeout(() => setShow(true), 10);
       return () => clearTimeout(timer);
     } else {
+      runId.current += 1;
       setShow(false);
       const timer = setTimeout(() => {
         setIsMounted(false);
@@ -317,6 +319,7 @@ export default function DenoiseModal({
 
   const handleClose = useCallback(() => {
     if (isSaving) return;
+    runId.current += 1;
     onClose();
   }, [onClose, isSaving]);
 
@@ -325,24 +328,24 @@ export default function DenoiseModal({
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget && mouseDownTarget.current === e.currentTarget) {
+    if (!isProcessing && !isSaving && e.target === e.currentTarget && mouseDownTarget.current === e.currentTarget) {
       handleClose();
     }
     mouseDownTarget.current = null;
   };
 
   const handleRunDenoise = async () => {
+    if (isProcessing || isSaving) return;
     setSavedPath(null);
     if (isBatch) {
-      setIsSaving(true);
+      const currentRun = ++runId.current;
       try {
         await onBatchDenoise(intensity / 100, method, targetPaths);
-        onClose();
+        if (currentRun === runId.current) onClose();
       } catch (e) {
         console.error('Batch denoise failed:', e);
       } finally {
-        setIsSaving(false);
-        setBatchProgress(null);
+        if (currentRun === runId.current) setBatchProgress(null);
       }
     } else {
       onDenoise(intensity / 100, method);
@@ -406,7 +409,7 @@ export default function DenoiseModal({
       );
     }
 
-    if (isProcessing || (isBatch && isSaving)) {
+    if (isProcessing) {
       return (
         <div className="flex h-[460px] overflow-hidden rounded-lg border border-surface">
           <div className="w-2/5 relative overflow-hidden shrink-0 bg-[#0a0a0a] flex items-center justify-center">
@@ -497,8 +500,8 @@ export default function DenoiseModal({
     const disabled = isProcessing || isSaving;
 
     return (
-      <div className={`w-full flex items-center gap-4 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-        <div className="flex-1 flex items-center gap-6">
+      <div className="w-full flex items-center gap-4">
+        <div className={`flex-1 flex items-center gap-6 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="flex flex-col gap-1 w-[280px] mt-2 shrink-0">
             <Text variant={TextVariants.body} weight={TextWeights.medium}>
               {t('modals.denoise.methodLabel')}
@@ -533,9 +536,10 @@ export default function DenoiseModal({
         <div className="flex gap-2 shrink-0">
           <button
             onClick={handleClose}
+            disabled={isSaving}
             className="px-4 py-2 rounded-md text-text-secondary hover:bg-card-active transition-colors text-sm"
           >
-            {previewBase64 ? t('modals.denoise.close') : t('modals.denoise.cancel')}
+            {previewBase64 && !isProcessing ? t('modals.denoise.close') : t('modals.denoise.cancel')}
           </button>
 
           <Button
@@ -543,7 +547,7 @@ export default function DenoiseModal({
             disabled={isProcessing || isSaving}
             variant={previewBase64 && !isBatch ? 'secondary' : 'primary'}
           >
-            {isProcessing || (isBatch && isSaving) ? (
+            {isProcessing ? (
               <Loader2 className="animate-spin mr-2" size={16} />
             ) : previewBase64 && !isBatch ? (
               <RefreshCw className="mr-2" size={16} />

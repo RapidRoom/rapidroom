@@ -473,6 +473,18 @@
       "upstream_prs": ["CyberTimon/RapidRAW#1790"],
       "rendering_change": false,
       "notes": "Allocation-only change: enable mimalloc no_thp and retain the Linux smaps regression test. The allocator version and image-processing math are unchanged. The remaining GPU logging, benchmark and parallel conversion work is tracked in RapidRoom issue #66."
+    },
+    {
+      "id": "denoise-dialog-cancel",
+      "title": "Denoise dialogs stay open on busy backdrop clicks; Cancel stops waiting and discards the eventual UI result",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1697"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Another denoise cannot start while a command is pending. Cancellation does not interrupt the backend: single processing may continue and batch work may still write files. Real interruption and job IDs are tracked in RapidRoom #68."
     }
   ]
 }
