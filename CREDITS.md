@@ -28,6 +28,8 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 
 ## Third-party assets
 
+- **Start-screen photograph** `public/splash-rapidroom.jpg`: © 2025 [@yojen7](https://github.com/yojen7), **all rights reserved**. It is not covered by the AGPL and is included with permission for RapidRoom only. Forks must replace it; see `public/splash-rapidroom.jpg.license`.
+- **RapidRoom logo** (`.github/assets/rapidroom-logo.png`, `public/rapidroom-logo.png`, app icons): by @yojen7 for RapidRoom. Text set in Liberation Sans Bold (SIL OFL 1.1).
 - **sRGB ICC profile** `src-tauri/icc/sRGB-v2-magic.icc`: from [saucecontrol/Compact-ICC-Profiles](https://github.com/saucecontrol/Compact-ICC-Profiles), CC0-1.0.
 - **Poppins font**: by the Indian Type Foundry, SIL Open Font License 1.1, bundled via [@fontsource/poppins](https://fontsource.org/fonts/poppins).
 

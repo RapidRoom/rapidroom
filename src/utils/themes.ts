@@ -11,7 +11,7 @@ export const THEMES: Array<ThemeProps> = [
   {
     id: Theme.Dark,
     name: 'settings.themes.dark',
-    splashImage: '/splash-dark.jpg',
+    splashImage: '/splash-rapidroom.jpg',
     cssVariables: {
       '--app-bg-primary': 'rgb(24, 24, 24)',
       '--app-bg-secondary': 'rgb(35, 35, 35)',
@@ -28,7 +28,7 @@ export const THEMES: Array<ThemeProps> = [
   {
     id: Theme.Light,
     name: 'settings.themes.light',
-    splashImage: '/splash-light.jpg',
+    splashImage: '/splash-rapidroom.jpg',
     cssVariables: {
       '--app-bg-primary': 'rgb(245, 245, 245)',
       '--app-bg-secondary': 'rgb(255, 255, 255)',
@@ -45,7 +45,7 @@ export const THEMES: Array<ThemeProps> = [
   {
     id: Theme.Grey,
     name: 'settings.themes.grey',
-    splashImage: '/splash-grey.jpg',
+    splashImage: '/splash-rapidroom.jpg',
     cssVariables: {
       '--app-bg-primary': 'rgb(112, 112, 112)',
       '--app-bg-secondary': 'rgb(118, 118, 118)',

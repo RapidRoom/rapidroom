@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**19 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**20 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                   | Upstream                                                                                                                                                |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -28,6 +28,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | "RAW only" with "prefer JPEG" grouping shows the RAW files instead of nothing                                                                                                      | fix         | [@yojen7](https://github.com/yojen7)                                                 | [#1454](https://github.com/CyberTimon/RapidRAW/issues/1454) open 64 d                                                                                   |
 | The library and folder tree refresh after exporting into the source folder                                                                                                         | fix         | [@yojen7](https://github.com/yojen7)                                                 | [#1674](https://github.com/CyberTimon/RapidRAW/issues/1674) open 30 d                                                                                   |
 | Batch export no longer puts another photo into some outputs: colour and luminance masks are built from the image being exported, and masks are paired with the right adjustments ⚑ | fix         | [@yojen7](https://github.com/yojen7)                                                 | [#1571](https://github.com/CyberTimon/RapidRAW/issues/1571) open 43 d                                                                                   |
+| RapidRoom name, logo, app icon and start-screen photo                                                                                                                              | platform    | [@yojen7](https://github.com/yojen7)                                                 | RapidRoom only                                                                                                                                          |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
@@ -182,3 +183,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@yojen7](https://github.com/yojen7)
 - **Upstream:** [#1571](https://github.com/CyberTimon/RapidRAW/issues/1571) open 43 d
 - **Notes:** Only exports with colour/luminance masks (or an empty mask before another mask) change: they now match the editor. Prior art: R-Laine/RapidRAW@d49c341 (same path-keyed idea, different base).
+
+### RapidRoom name, logo, app icon and start-screen photo
+
+- **Type:** platform
+- **Landed in RapidRoom:** 2026-10-02
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** RapidRoom only
+- **Notes:** The app identifier (settings and data location) is unchanged, so existing RapidRAW settings, presets and library carry over. The start-screen photo is all rights reserved (not AGPL).

@@ -238,6 +238,19 @@
       "rendering_change": true,
       "notes": "Only exports with colour/luminance masks (or an empty mask before another mask) change: they now match the editor. Prior art: R-Laine/RapidRAW@d49c341 (same path-keyed idea, different base).",
       "highlight": "**Reliable batch exports.** Large exports no longer slip another photo into some images, and colour and luminance masks now apply correctly when exporting."
+    },
+    {
+      "id": "rapidroom-branding",
+      "title": "RapidRoom name, logo, app icon and start-screen photo",
+      "category": "platform",
+      "landed": "2026-10-02",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "rapidroom_only": true,
+      "notes": "The app identifier (settings and data location) is unchanged, so existing RapidRAW settings, presets and library carry over. The start-screen photo is all rights reserved (not AGPL)."
     }
   ]
 }

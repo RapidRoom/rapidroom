@@ -365,7 +365,10 @@ export default function MainLibrary(props: MainLibraryProps) {
               ) : (
                 <>
                   <div className="my-auto text-left relative z-10">
-                    <Text variant={TextVariants.displayLarge}>{t('library.splash.brand')}</Text>
+                    <div className="flex items-center gap-4">
+                      <img src="/rapidroom-logo.png" alt="" className="w-14 h-14 shrink-0" draggable={false} />
+                      <Text variant={TextVariants.displayLarge}>{t('library.splash.brand')}</Text>
+                    </div>
                     <Text
                       variant={TextVariants.heading}
                       color={TextColors.secondary}
