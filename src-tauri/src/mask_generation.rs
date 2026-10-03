@@ -15,13 +15,55 @@ use std::sync::Arc;
 use crate::app_state::AppState;
 use crate::get_cached_full_warped_image;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(crate = "serde")]
 #[serde(rename_all = "camelCase")]
 pub enum SubMaskMode {
+    #[default]
     Additive,
     Subtractive,
     Intersect,
+}
+
+/// Reads a sub-mask mode, falling back to additive rather than failing.
+///
+/// A mode this cannot read used to abort the whole `Vec<MaskDefinition>`, which
+/// every call site turns into an empty list, so one unreadable field silently
+/// removed every mask on the image while the panel went on listing them. A
+/// mask whose mode cannot be read is still a mask, and additive is the mode
+/// every one of them is created with.
+fn lenient_sub_mask_mode<'de, D>(deserializer: D) -> Result<SubMaskMode, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Value::deserialize(deserializer)?;
+    match serde_json::from_value(value.clone()) {
+        Ok(mode) => Ok(mode),
+        Err(e) => {
+            log::warn!("sub-mask mode {value} is not a mode ({e}), reading it as additive");
+            Ok(SubMaskMode::Additive)
+        }
+    }
+}
+
+/// Reads the mask definitions out of an adjustments blob.
+///
+/// Every caller previously discarded the parse error and rendered with no
+/// masks at all, which looks identical to an image that has none.
+pub fn parse_mask_definitions(adjustments: &Value) -> Vec<MaskDefinition> {
+    let Some(masks) = adjustments.get("masks") else {
+        return Vec::new();
+    };
+    if masks.is_null() {
+        return Vec::new();
+    }
+    match serde_json::from_value(masks.clone()) {
+        Ok(definitions) => definitions,
+        Err(e) => {
+            log::error!("masks could not be read and were dropped from this render: {e}");
+            Vec::new()
+        }
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -36,6 +78,7 @@ pub struct SubMask {
     pub invert: bool,
     #[serde(default = "default_opacity")]
     pub opacity: f32,
+    #[serde(default, deserialize_with = "lenient_sub_mask_mode")]
     pub mode: SubMaskMode,
     pub parameters: Value,
 }
@@ -1508,4 +1551,83 @@ pub fn get_cached_or_generate_mask(
     }
 
     generated
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn sub_mask(id: &str, mode: Value) -> Value {
+        json!({
+            "id": id,
+            "type": "radial",
+            "visible": true,
+            "invert": false,
+            "opacity": 100.0,
+            "mode": mode,
+            "parameters": { "centerX": 10.0, "centerY": 10.0 },
+        })
+    }
+
+    fn container(id: &str, sub_masks: Vec<Value>) -> Value {
+        json!({
+            "id": id,
+            "name": "Mask",
+            "visible": true,
+            "invert": false,
+            "opacity": 100.0,
+            "adjustments": {},
+            "subMasks": sub_masks,
+        })
+    }
+
+    #[test]
+    fn reads_ordinary_masks() {
+        let adjustments = json!({
+            "masks": [container("a", vec![sub_mask("s1", json!("subtractive"))])],
+        });
+        let parsed = parse_mask_definitions(&adjustments);
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].sub_masks[0].mode, SubMaskMode::Subtractive);
+    }
+
+    /// A drag onto an existing sub-mask used to write the drop index into the
+    /// mode field. Serde cannot read a number as a mode, and the failure took
+    /// the whole array with it, so every mask on the image stopped applying
+    /// while the panel went on listing them.
+    #[test]
+    fn a_numeric_mode_does_not_remove_every_mask_on_the_image() {
+        let adjustments = json!({
+            "masks": [
+                container("a", vec![sub_mask("s1", json!("additive"))]),
+                container("b", vec![sub_mask("s2", json!(2))]),
+            ],
+        });
+        let parsed = parse_mask_definitions(&adjustments);
+        assert_eq!(parsed.len(), 2, "an unreadable mode dropped the other mask");
+        assert_eq!(parsed[1].sub_masks[0].mode, SubMaskMode::Additive);
+    }
+
+    #[test]
+    fn an_absent_mode_is_additive() {
+        let mut sub = sub_mask("s1", json!("additive"));
+        sub.as_object_mut().unwrap().remove("mode");
+        let parsed = parse_mask_definitions(&json!({ "masks": [container("a", vec![sub])] }));
+        assert_eq!(parsed[0].sub_masks[0].mode, SubMaskMode::Additive);
+    }
+
+    #[test]
+    fn no_masks_key_and_a_null_one_both_read_as_none() {
+        assert!(parse_mask_definitions(&json!({})).is_empty());
+        assert!(parse_mask_definitions(&json!({ "masks": Value::Null })).is_empty());
+    }
+
+    /// Something this cannot read at all still has to render, but the error is
+    /// reported rather than swallowed.
+    #[test]
+    fn unreadable_masks_leave_the_render_without_them() {
+        assert!(parse_mask_definitions(&json!({ "masks": "not a list" })).is_empty());
+        assert!(parse_mask_definitions(&json!({ "masks": [{ "id": "a" }] })).is_empty());
+    }
 }

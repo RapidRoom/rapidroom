@@ -372,7 +372,10 @@ pub async fn start_background_indexing(
 
                                     if let Ok(json_string) = serde_json::to_string_pretty(&metadata)
                                     {
-                                        let _ = fs::write(sidecar_path, json_string);
+                                        let _ = crate::file_management::write_file_atomically(
+                                            sidecar_path,
+                                            json_string,
+                                        );
                                     }
                                 }
                             }
@@ -435,7 +438,8 @@ fn modify_tags_for_path(
     }
 
     let json_string = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
-    fs::write(&sidecar_path, json_string).map_err(|e| e.to_string())?;
+    crate::file_management::write_file_atomically(&sidecar_path, json_string)
+        .map_err(|e| e.to_string())?;
 
     if let Ok(settings) = crate::load_settings(app_handle.clone())
         && settings.enable_xmp_sync.unwrap_or(false)
@@ -547,7 +551,7 @@ pub fn clear_ai_tags(root_path: String, app_handle: AppHandle) -> Result<usize, 
                     metadata.tags = None;
                 }
                 if let Ok(json_string) = serde_json::to_string_pretty(&metadata)
-                    && fs::write(path, json_string).is_ok()
+                    && crate::file_management::write_file_atomically(path, json_string).is_ok()
                 {
                     updated_count += 1;
                     sync_xmp_for_rrdata(path, &metadata, enable_xmp_sync, create_xmp_if_missing);
@@ -588,7 +592,7 @@ pub fn clear_all_tags(root_path: String, app_handle: AppHandle) -> Result<usize,
                     metadata.tags = None;
                 }
                 if let Ok(json_string) = serde_json::to_string_pretty(&metadata)
-                    && fs::write(path, json_string).is_ok()
+                    && crate::file_management::write_file_atomically(path, json_string).is_ok()
                 {
                     updated_count += 1;
                     sync_xmp_for_rrdata(path, &metadata, enable_xmp_sync, create_xmp_if_missing);
