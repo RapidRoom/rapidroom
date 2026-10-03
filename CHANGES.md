@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**25 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**26 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                         | Upstream                                                                                                                                                |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35,6 +35,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Rapid navigation shares one decode slot between editor loads and culling previews; superseded editor loads skip decoding                                                           | performance | [@subbajeu](https://github.com/subbajeu), [@yojen7](https://github.com/yojen7)             | not yet offered                                                                                                                                         |
 | Read-only Card mode: browse a memory card without RapidRoom creating, changing or deleting anything on it                                                                          | feature     | [@TomasLiutvinas](https://github.com/TomasLiutvinas), [@yojen7](https://github.com/yojen7) | not yet offered                                                                                                                                         |
 | Previews and exports skip GPU blur passes that no active adjustment reads                                                                                                          | performance | [@SandeepSubba](https://github.com/SandeepSubba)                                           | not yet offered                                                                                                                                         |
+| BM3D denoise: raising the strength no longer adds noise back ⚑                                                                                                                     | fix         | [@yojen7](https://github.com/yojen7)                                                       | [#1404](https://github.com/CyberTimon/RapidRAW/issues/1404)                                                                                             |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
@@ -249,3 +250,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** not yet offered
 - **Commits:** [a27a87b](https://github.com/SandeepSubba/RapidRAW/commit/a27a87bf55546e930cfb6689c4cf39028e570b2d)
 - **Notes:** Adapted to RapidRoom's shader with Claude Code: sharpening also reads the tonal blur, highlights doesn't, and RapidRoom has no skin smoothing. Output should be pixel-identical; speed-up not measured yet.
+
+### BM3D denoise: raising the strength no longer adds noise back
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** [#1404](https://github.com/CyberTimon/RapidRAW/issues/1404)
+- **Notes:** The detail blend re-added up to 50% of the original high frequencies, noise included, and grew with strength. It now matches the old blend up to 33% strength and fades to zero at 100%. Only BM3D denoise output above 33% strength changes; the edit pipeline and its regression renders are untouched. Unit tests check that RMSE against a clean image doesn't rise with strength. Written with Claude Code.
