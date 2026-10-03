@@ -5,7 +5,7 @@ RapidRoom is a community build of [RapidRAW](https://github.com/CyberTimon/Rapid
 ## Picking work
 
 - Work comes from issues. Agent queues are the labels `agent:codex` and `agent:claude-cloud`. Take only issues with your label, and comment on the issue when you start, so two agents never work on the same thing.
-- `needs-josh` means a human has to test, judge or decide something. Do the code, then say exactly what needs checking. Don't mark the issue done.
+- `needs-human` means a person has to test, judge or decide something. Do the code, then say exactly what needs checking. Don't mark the issue done.
 - One issue per branch and per PR. Branch names: `codex/<issue>-<slug>` or `claude/<issue>-<slug>`. Cloud sessions that are assigned a branch name may keep it. Either way, put the issue number in the PR title and write `Closes #<issue>` in the body.
 - PRs go to `RapidRoom/rapidroom` `main`. A maintainer reviews and merges them. Never push to `main` directly.
 
@@ -33,6 +33,7 @@ RapidRoom is a community build of [RapidRAW](https://github.com/CyberTimon/Rapid
 ## Don'ts
 
 - **Don't link upstream or fork issues and PRs** (`CyberTimon/RapidRAW#123`, `someone/fork#4`) in RapidRoom issues, PRs or commit messages. GitHub would add a "mentioned" event to their tracker. Write them as code, `` `CyberTimon/RapidRAW#123` ``. Links to commits are fine.
+- **Don't @-mention people outside RapidRoom** (fork authors, upstream maintainers) in issues, PRs or commit messages. GitHub notifies them. Name them without the @, e.g. "by chuckhenrich". Maintainers decide when to contact people.
 - **Don't post anything outside this repo:** no upstream PRs, comments on other repos, or forks. The maintainers decide that.
 - **Don't modify or reuse `public/splash-rapidroom.jpg`.** It is all rights reserved; see its `.license` file.
 - **Don't change the app identifier** (`io.github.CyberTimon.RapidRAW` in `tauri.conf.json`). It keeps existing users' settings.

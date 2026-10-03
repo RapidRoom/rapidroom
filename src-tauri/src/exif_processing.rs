@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use crate::formats::is_raw_file;
 use crate::image_processing::ImageMetadata;
+use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use exif::{Exif, In, Value};
 use little_exif::exif_tag::ExifTag;
@@ -1232,6 +1233,7 @@ pub fn write_image_with_metadata(
     output_format: &str,
     keep_metadata: bool,
     strip_gps: bool,
+    tags: Option<&[String]>,
 ) -> Result<(), String> {
     // FIXME: temporary solution until I find a way to write metadata to TIFF
     if !keep_metadata || output_format.to_lowercase() == "tiff" {
@@ -1565,6 +1567,12 @@ pub fn write_image_with_metadata(
         log::warn!("Failed to write metadata: {}", e);
     }
 
+    if let Some(tags) = tags
+        && !tags.is_empty()
+    {
+        inject_xmp_keywords(image_bytes, output_format, tags);
+    }
+
     Ok(())
 }
 
@@ -1583,6 +1591,26 @@ pub fn get_rrexif_path(image_path: &Path) -> PathBuf {
 fn load_primary_metadata(image_path: &Path) -> ImageMetadata {
     let primary = get_primary_sidecar_path(image_path);
     load_sidecar(&primary)
+}
+
+pub fn load_tags_from_sidecar(image_path: &Path) -> Option<Vec<String>> {
+    let metadata = load_primary_metadata(image_path);
+    let keywords = export_keywords(&metadata.tags.unwrap_or_default());
+    (!keywords.is_empty()).then_some(keywords)
+}
+
+fn export_keywords(tags: &[String]) -> Vec<String> {
+    let mut keywords: Vec<String> = Vec::new();
+    for tag in tags {
+        if tag.starts_with(COLOR_TAG_PREFIX) {
+            continue;
+        }
+        let keyword = tag.strip_prefix(USER_TAG_PREFIX).unwrap_or(tag).trim();
+        if !keyword.is_empty() && !keywords.iter().any(|k| k == keyword) {
+            keywords.push(keyword.to_string());
+        }
+    }
+    keywords
 }
 
 fn save_primary_metadata(image_path: &Path, metadata: &ImageMetadata) -> std::io::Result<()> {
@@ -1713,6 +1741,359 @@ pub fn write_rrexif_sidecar(source_path_str: &str, target_image_path: &Path) -> 
     metadata.exif = Some(exif_data);
     save_primary_metadata(target_image_path, &metadata)
         .map_err(|e| format!("Failed to write sidecar: {}", e))
+}
+
+/// Builds a minimal XMP packet containing dc:subject keywords and injects
+/// it into the image bytes in the correct location for each container format.
+fn inject_xmp_keywords(image_bytes: &mut Vec<u8>, format: &str, tags: &[String]) {
+    let xmp_packet = build_xmp_keywords_packet(tags);
+    let xmp_bytes = xmp_packet.as_bytes();
+
+    match format.to_lowercase().as_str() {
+        "jpg" | "jpeg" => inject_xmp_jpeg(image_bytes, xmp_bytes),
+        "png" => inject_xmp_png(image_bytes, xmp_bytes),
+        "webp" => inject_xmp_webp(image_bytes, xmp_bytes),
+        _ => {
+            log::debug!("XMP keyword injection not supported for format: {}", format);
+        }
+    }
+}
+
+/// Builds a minimal XMP packet string containing dc:subject keywords.
+fn build_xmp_keywords_packet(tags: &[String]) -> String {
+    let items: String = tags
+        .iter()
+        .map(|t| {
+            let escaped = t
+                .replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;")
+                .replace('"', "&quot;")
+                .replace('\'', "&apos;");
+            format!("      <rdf:li>{}</rdf:li>\n", escaped)
+        })
+        .collect();
+
+    format!(
+        "<?xpacket begin='\u{FEFF}' id='W5M0MpCehiHzreSzNTczkc9d'?>\n\
+         <x:xmpmeta xmlns:x='adobe:ns:meta/'>\n\
+           <rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>\n\
+             <rdf:Description rdf:about='' xmlns:dc='http://purl.org/dc/elements/1.1/'>\n\
+               <dc:subject>\n\
+                 <rdf:Bag>\n\
+         {}\
+                 </rdf:Bag>\n\
+               </dc:subject>\n\
+             </rdf:Description>\n\
+           </rdf:RDF>\n\
+         </x:xmpmeta>\n\
+         <?xpacket end='w'?>",
+        items
+    )
+}
+
+/// Injects XMP as a JPEG APP1 segment after the SOI marker and any leading
+/// JFIF APP0 / Exif APP1 segments, which readers expect to come first.
+fn inject_xmp_jpeg(image_bytes: &mut Vec<u8>, xmp_bytes: &[u8]) {
+    const NAMESPACE: &[u8] = b"http://ns.adobe.com/xap/1.0/\0";
+    let segment_data_len = 2 + NAMESPACE.len() + xmp_bytes.len();
+    if segment_data_len > 0xFFFF {
+        log::warn!(
+            "XMP keyword packet too large for JPEG APP1 segment ({} bytes); skipping",
+            segment_data_len
+        );
+        return;
+    }
+    let length = segment_data_len as u16;
+
+    let mut segment = Vec::with_capacity(2 + segment_data_len);
+    segment.extend_from_slice(&[0xFF, 0xE1]);
+    segment.extend_from_slice(&length.to_be_bytes());
+    segment.extend_from_slice(NAMESPACE);
+    segment.extend_from_slice(xmp_bytes);
+
+    if image_bytes.len() >= 2 && image_bytes[0] == 0xFF && image_bytes[1] == 0xD8 {
+        let pos = jpeg_xmp_insert_pos(image_bytes);
+        image_bytes.splice(pos..pos, segment);
+    } else {
+        log::warn!("JPEG bytes do not begin with SOI marker; skipping XMP injection");
+    }
+}
+
+fn jpeg_xmp_insert_pos(bytes: &[u8]) -> usize {
+    let mut pos = 2usize;
+    while pos + 4 <= bytes.len() && bytes[pos] == 0xFF {
+        let marker = bytes[pos + 1];
+        let length = u16::from_be_bytes([bytes[pos + 2], bytes[pos + 3]]) as usize;
+        let is_jfif = marker == 0xE0;
+        let is_exif = marker == 0xE1 && bytes[pos + 4..].starts_with(b"Exif\0\0");
+        if !(is_jfif || is_exif) || pos + 2 + length > bytes.len() {
+            break;
+        }
+        pos += 2 + length;
+    }
+    pos
+}
+
+/// Injects XMP as a PNG iTXt chunk before the first IDAT chunk, where all readers look for it.
+fn inject_xmp_png(image_bytes: &mut Vec<u8>, xmp_bytes: &[u8]) {
+    const KEYWORD: &[u8] = b"XML:com.adobe.xmp";
+    let mut chunk_data: Vec<u8> = Vec::new();
+    chunk_data.extend_from_slice(KEYWORD);
+    chunk_data.push(0x00); // null separator
+    chunk_data.push(0x00); // compression flag: none
+    chunk_data.push(0x00); // compression method: none
+    chunk_data.push(0x00); // language tag: empty
+    chunk_data.push(0x00); // translated keyword: empty
+    chunk_data.extend_from_slice(xmp_bytes);
+
+    let length = chunk_data.len() as u32;
+    let chunk_type = b"iTXt";
+
+    let mut crc_input = Vec::with_capacity(4 + chunk_data.len());
+    crc_input.extend_from_slice(chunk_type);
+    crc_input.extend_from_slice(&chunk_data);
+    let crc = crc32_ieee(&crc_input);
+
+    let mut chunk = Vec::with_capacity(12 + chunk_data.len());
+    chunk.extend_from_slice(&length.to_be_bytes());
+    chunk.extend_from_slice(chunk_type);
+    chunk.extend_from_slice(&chunk_data);
+    chunk.extend_from_slice(&crc.to_be_bytes());
+
+    if let Some(idat_pos) = find_png_chunk(image_bytes, b"IDAT") {
+        image_bytes.splice(idat_pos..idat_pos, chunk);
+    } else {
+        log::warn!("Could not find PNG IDAT chunk; skipping XMP injection");
+    }
+}
+
+/// Injects XMP as a WebP XMP  chunk in the RIFF container.
+fn inject_xmp_webp(image_bytes: &mut Vec<u8>, xmp_bytes: &[u8]) {
+    let padded_len = xmp_bytes.len().next_multiple_of(2);
+    let mut chunk: Vec<u8> = Vec::with_capacity(8 + padded_len);
+    chunk.extend_from_slice(b"XMP ");
+    chunk.extend_from_slice(&(xmp_bytes.len() as u32).to_le_bytes());
+    chunk.extend_from_slice(xmp_bytes);
+    if !xmp_bytes.len().is_multiple_of(2) {
+        chunk.push(0x00);
+    }
+
+    if image_bytes.len() >= 30 && &image_bytes[0..4] == b"RIFF" && &image_bytes[8..12] == b"WEBP" {
+        // An XMP chunk is only valid in the extended format, with the VP8X XMP flag set.
+        if &image_bytes[12..16] != b"VP8X" && !convert_webp_to_extended(image_bytes) {
+            log::warn!("Could not convert WebP to the extended format; skipping XMP injection");
+            return;
+        }
+        image_bytes[20] |= 0x04;
+        let current_riff_size =
+            u32::from_le_bytes(image_bytes[4..8].try_into().unwrap_or([0u8; 4]));
+        let new_riff_size = current_riff_size.saturating_add(chunk.len() as u32);
+        image_bytes[4..8].copy_from_slice(&new_riff_size.to_le_bytes());
+        image_bytes.extend_from_slice(&chunk);
+    } else {
+        log::warn!("WebP bytes do not have valid RIFF/WEBP header; skipping XMP injection");
+    }
+}
+
+/// Turns a simple-format WebP (a lone VP8 or VP8L chunk, plus any trailing
+/// chunks) into the extended format by inserting a VP8X header chunk.
+fn convert_webp_to_extended(image_bytes: &mut Vec<u8>) -> bool {
+    let payload = &image_bytes[20..];
+    let (width, height, has_alpha) = match &image_bytes[12..16] {
+        b"VP8 " if payload[3..6] == [0x9D, 0x01, 0x2A] => (
+            (u16::from_le_bytes([payload[6], payload[7]]) & 0x3FFF) as u32,
+            (u16::from_le_bytes([payload[8], payload[9]]) & 0x3FFF) as u32,
+            false,
+        ),
+        b"VP8L" if payload[0] == 0x2F => {
+            let bits = u32::from_le_bytes([payload[1], payload[2], payload[3], payload[4]]);
+            (
+                (bits & 0x3FFF) + 1,
+                ((bits >> 14) & 0x3FFF) + 1,
+                (bits >> 28) & 1 == 1,
+            )
+        }
+        _ => return false,
+    };
+    if width == 0 || height == 0 {
+        return false;
+    }
+
+    let mut flags = if has_alpha { 0x10u8 } else { 0 };
+    let mut pos = 12usize;
+    while pos + 8 <= image_bytes.len() {
+        let size = u32::from_le_bytes(image_bytes[pos + 4..pos + 8].try_into().unwrap()) as usize;
+        if &image_bytes[pos..pos + 4] == b"EXIF" {
+            flags |= 0x08;
+        }
+        pos += 8 + size + (size % 2);
+    }
+
+    let mut chunk = Vec::with_capacity(18);
+    chunk.extend_from_slice(b"VP8X");
+    chunk.extend_from_slice(&10u32.to_le_bytes());
+    chunk.extend_from_slice(&[flags, 0, 0, 0]);
+    chunk.extend_from_slice(&(width - 1).to_le_bytes()[..3]);
+    chunk.extend_from_slice(&(height - 1).to_le_bytes()[..3]);
+
+    let riff_size = u32::from_le_bytes(image_bytes[4..8].try_into().unwrap());
+    image_bytes[4..8].copy_from_slice(&(riff_size + chunk.len() as u32).to_le_bytes());
+    image_bytes.splice(12..12, chunk);
+    true
+}
+
+/// Finds the byte offset of the first chunk of the given type in PNG bytes.
+fn find_png_chunk(bytes: &[u8], wanted: &[u8; 4]) -> Option<usize> {
+    let mut pos = 8usize;
+    while pos + 8 <= bytes.len() {
+        let length = u32::from_be_bytes(bytes[pos..pos + 4].try_into().ok()?) as usize;
+        let chunk_type = &bytes[pos + 4..pos + 8];
+        if chunk_type == wanted {
+            return Some(pos);
+        }
+        pos += 8 + length + 4;
+    }
+    None
+}
+
+/// CRC32 using the IEEE polynomial, as required by PNG.
+fn crc32_ieee(data: &[u8]) -> u32 {
+    let mut crc: u32 = 0xFFFFFFFF;
+    for &byte in data {
+        let index = ((crc ^ byte as u32) & 0xFF) as usize;
+        crc = CRC32_TABLE[index] ^ (crc >> 8);
+    }
+    crc ^ 0xFFFFFFFF
+}
+
+/// Precomputed CRC32 IEEE lookup table.
+const CRC32_TABLE: [u32; 256] = {
+    let mut table = [0u32; 256];
+    let mut i = 0usize;
+    while i < 256 {
+        let mut c = i as u32;
+        let mut k = 0;
+        while k < 8 {
+            if c & 1 != 0 {
+                c = 0xEDB88320 ^ (c >> 1);
+            } else {
+                c >>= 1;
+            }
+            k += 1;
+        }
+        table[i] = c;
+        i += 1;
+    }
+    table
+};
+
+#[cfg(test)]
+mod xmp_keyword_tests {
+    use super::*;
+    use image::{DynamicImage, ImageFormat, RgbImage};
+
+    fn tags(values: &[&str]) -> Vec<String> {
+        values.iter().map(|s| s.to_string()).collect()
+    }
+
+    fn encode(format: &str) -> Vec<u8> {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(16, 8, image::Rgb([200, 80, 40])));
+        if format == "webp" {
+            return webp::Encoder::from_image(&image)
+                .unwrap()
+                .encode(90.0)
+                .to_vec();
+        }
+        let image_format = if format == "png" {
+            ImageFormat::Png
+        } else {
+            ImageFormat::Jpeg
+        };
+        let mut cursor = Cursor::new(Vec::new());
+        image.write_to(&mut cursor, image_format).unwrap();
+        cursor.into_inner()
+    }
+
+    fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        haystack.windows(needle.len()).position(|w| w == needle)
+    }
+
+    fn export_with_keywords(format: &str) -> Vec<u8> {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source.png");
+        fs::write(&source, encode("png")).unwrap();
+        let mut bytes = encode(format);
+        let keywords = tags(&["Beach", "Tom & Jerry"]);
+        write_image_with_metadata(
+            &mut bytes,
+            source.to_str().unwrap(),
+            format,
+            true,
+            false,
+            Some(&keywords),
+        )
+        .unwrap();
+        bytes
+    }
+
+    #[test]
+    fn keywords_drop_color_labels_and_user_prefix() {
+        let keywords = export_keywords(&tags(&[
+            "color:red",
+            "user:Beach",
+            "Beach",
+            "sunset",
+            "user: ",
+        ]));
+        assert_eq!(keywords, tags(&["Beach", "sunset"]));
+    }
+
+    #[test]
+    fn packet_escapes_xml() {
+        let packet = build_xmp_keywords_packet(&tags(&["Tom & Jerry", "<b>"]));
+        assert!(packet.contains("<rdf:li>Tom &amp; Jerry</rdf:li>"));
+        assert!(packet.contains("<rdf:li>&lt;b&gt;</rdf:li>"));
+    }
+
+    #[test]
+    fn jpeg_export_carries_keywords_after_jfif_and_exif() {
+        let bytes = export_with_keywords("jpg");
+        let xmp_pos = find(&bytes, b"http://ns.adobe.com/xap/1.0/\0").unwrap();
+        if let Some(exif_pos) = find(&bytes, b"Exif\0\0") {
+            assert!(exif_pos < xmp_pos);
+        }
+        assert_eq!(jpeg_xmp_insert_pos(&bytes), xmp_pos - 4);
+        assert!(find(&bytes, b"<rdf:li>Tom &amp; Jerry</rdf:li>").is_some());
+        image::load_from_memory_with_format(&bytes, ImageFormat::Jpeg).unwrap();
+    }
+
+    #[test]
+    fn png_export_carries_keywords() {
+        let bytes = export_with_keywords("png");
+        let xmp_pos = find(&bytes, b"iTXtXML:com.adobe.xmp").unwrap();
+        assert!(xmp_pos < find_png_chunk(&bytes, b"IDAT").unwrap());
+        assert!(find(&bytes, b"<rdf:li>Beach</rdf:li>").is_some());
+        // The png decoder verifies chunk CRCs.
+        image::load_from_memory_with_format(&bytes, ImageFormat::Png).unwrap();
+    }
+
+    #[test]
+    fn webp_export_carries_keywords_with_vp8x_flag() {
+        let mut simple = encode("webp");
+        assert_eq!(&simple[12..16], b"VP8 ");
+        inject_xmp_keywords(&mut simple, "webp", &tags(&["Beach"]));
+        assert_eq!(&simple[12..16], b"VP8X");
+        assert_eq!(&simple[24..30], &[15, 0, 0, 7, 0, 0]);
+
+        let bytes = export_with_keywords("webp");
+        assert_eq!(&bytes[12..16], b"VP8X");
+        assert_ne!(bytes[20] & 0x04, 0);
+        let riff_size = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
+        assert_eq!(riff_size + 8, bytes.len());
+        assert!(find(&bytes, b"XMP ").is_some());
+        image::load_from_memory_with_format(&bytes, ImageFormat::WebP).unwrap();
+    }
 }
 
 #[cfg(test)]

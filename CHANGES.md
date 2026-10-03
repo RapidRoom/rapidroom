@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**21 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**23 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                         | Upstream                                                                                                                                                |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -28,8 +28,10 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | "RAW only" with "prefer JPEG" grouping shows the RAW files instead of nothing                                                                                                      | fix         | [@yojen7](https://github.com/yojen7)                                                       | [#1454](https://github.com/CyberTimon/RapidRAW/issues/1454) open 64 d                                                                                   |
 | The library and folder tree refresh after exporting into the source folder                                                                                                         | fix         | [@yojen7](https://github.com/yojen7)                                                       | [#1674](https://github.com/CyberTimon/RapidRAW/issues/1674) open 30 d                                                                                   |
 | Batch export no longer puts another photo into some outputs: colour and luminance masks are built from the image being exported, and masks are paired with the right adjustments ⚑ | fix         | [@yojen7](https://github.com/yojen7)                                                       | [#1571](https://github.com/CyberTimon/RapidRAW/issues/1571) open 43 d                                                                                   |
+| Exported JPEG, PNG and WebP files carry your tags as XMP keywords (dc:subject) when metadata is kept                                                                               | feature     | [@chuckhenrich](https://github.com/chuckhenrich), [@yojen7](https://github.com/yojen7)     | not yet offered                                                                                                                                         |
 | RapidRoom name, logo, app icon and start-screen photo; the start screen credits RapidRAW as the upstream project                                                                   | platform    | [@yojen7](https://github.com/yojen7)                                                       | RapidRoom only                                                                                                                                          |
 | Frontend test foundation: Vitest with a mocked Tauri API, run on every pull request                                                                                                | ci          | [@yojen7](https://github.com/yojen7)                                                       | not yet offered                                                                                                                                         |
+| Pasting adjustments works even when the settings failed to load (it used to do nothing)                                                                                            | fix         | [@yojen7](https://github.com/yojen7)                                                       | not yet offered                                                                                                                                         |
 | Read-only Card mode: browse a memory card without RapidRoom creating, changing or deleting anything on it                                                                          | feature     | [@TomasLiutvinas](https://github.com/TomasLiutvinas), [@yojen7](https://github.com/yojen7) | not yet offered                                                                                                                                         |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
@@ -186,6 +188,15 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** [#1571](https://github.com/CyberTimon/RapidRAW/issues/1571) open 43 d
 - **Notes:** Only exports with colour/luminance masks (or an empty mask before another mask) change: they now match the editor. Prior art: R-Laine/RapidRAW@d49c341 (same path-keyed idea, different base).
 
+### Exported JPEG, PNG and WebP files carry your tags as XMP keywords (dc:subject) when metadata is kept
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@chuckhenrich](https://github.com/chuckhenrich), [@yojen7](https://github.com/yojen7), from chuckhenrich/RapidRAW (adapted in RapidRoom: colour labels left out, user: prefix stripped, JPEG/WebP placement fixed)
+- **Upstream:** not yet offered
+- **Commits:** [8564c6c](https://github.com/chuckhenrich/RapidRAW/commit/8564c6c94240b15a35e96c7e5ae94ecc8c7b7e31)
+- **Notes:** Only with "Keep metadata" on. Not yet for TIFF, AVIF or JXL exports, or for TIFF sources (no metadata is written for those today). The fork commit cites `#1618`, probably the upstream issue; not verified.
+
 ### RapidRoom name, logo, app icon and start-screen photo; the start screen credits RapidRAW as the upstream project
 
 - **Type:** platform
@@ -201,6 +212,14 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@yojen7](https://github.com/yojen7)
 - **Upstream:** not yet offered
 - **Notes:** Covers settings saving (success and backend failure) and Tauri event listener cleanup. Written with Claude Code.
+
+### Pasting adjustments works even when the settings failed to load (it used to do nothing)
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** not yet offered
+- **Notes:** From the type errors harrytuckerr's fork flagged as likely bugs (`harrytuckerr/RapidRAW#1`). The others (image cache, interactive patch, pinned folders, panel moves) were type-only and are fixed without behaviour changes. Written with Claude Code.
 
 ### Read-only Card mode: browse a memory card without RapidRoom creating, changing or deleting anything on it
 
