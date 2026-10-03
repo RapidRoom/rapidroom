@@ -1097,6 +1097,7 @@
     "splash": {
       "addFolder": "Add Folder",
       "brand": "RapidRoom",
+      "communityBuildOf": "community build of",
       "continueSession": "Continue Session",
       "contribute": "Contribute on GitHub",
       "descriptionAndroid": "A blazingly fast, GPU-accelerated RAW image editor. Open the library to begin.",
@@ -1110,6 +1111,10 @@
       "openFolder": "Open Folder",
       "openLibrary": "Open Library",
       "or": "or",
+      "photoBy": "Photo by",
+      "rapidroomVersion": "RapidRoom {{version}}",
+      "supportUpstream": "Support RapidRAW on Ko-fi",
+      "upstreamBy": "by",
       "version": "Version {{version}}",
       "welcomeBack": "Welcome back!",
       "welcomeBackDesc": "Continue where you left off or start a new session."

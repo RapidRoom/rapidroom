@@ -241,7 +241,7 @@
     },
     {
       "id": "rapidroom-branding",
-      "title": "RapidRoom name, logo, app icon and start-screen photo",
+      "title": "RapidRoom name, logo, app icon and start-screen photo; the start screen credits RapidRAW as the upstream project",
       "category": "platform",
       "landed": "2026-10-02",
       "authors": ["yojen7"],

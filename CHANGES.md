@@ -28,7 +28,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | "RAW only" with "prefer JPEG" grouping shows the RAW files instead of nothing                                                                                                      | fix         | [@yojen7](https://github.com/yojen7)                                                 | [#1454](https://github.com/CyberTimon/RapidRAW/issues/1454) open 64 d                                                                                   |
 | The library and folder tree refresh after exporting into the source folder                                                                                                         | fix         | [@yojen7](https://github.com/yojen7)                                                 | [#1674](https://github.com/CyberTimon/RapidRAW/issues/1674) open 30 d                                                                                   |
 | Batch export no longer puts another photo into some outputs: colour and luminance masks are built from the image being exported, and masks are paired with the right adjustments ⚑ | fix         | [@yojen7](https://github.com/yojen7)                                                 | [#1571](https://github.com/CyberTimon/RapidRAW/issues/1571) open 43 d                                                                                   |
-| RapidRoom name, logo, app icon and start-screen photo                                                                                                                              | platform    | [@yojen7](https://github.com/yojen7)                                                 | RapidRoom only                                                                                                                                          |
+| RapidRoom name, logo, app icon and start-screen photo; the start screen credits RapidRAW as the upstream project                                                                   | platform    | [@yojen7](https://github.com/yojen7)                                                 | RapidRoom only                                                                                                                                          |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
@@ -184,7 +184,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** [#1571](https://github.com/CyberTimon/RapidRAW/issues/1571) open 43 d
 - **Notes:** Only exports with colour/luminance masks (or an empty mask before another mask) change: they now match the editor. Prior art: R-Laine/RapidRAW@d49c341 (same path-keyed idea, different base).
 
-### RapidRoom name, logo, app icon and start-screen photo
+### RapidRoom name, logo, app icon and start-screen photo; the start screen credits RapidRAW as the upstream project
 
 - **Type:** platform
 - **Landed in RapidRoom:** 2026-10-02

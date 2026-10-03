@@ -43,6 +43,7 @@ import SettingsPanel from './SettingsPanel';
 
 import LibraryGrid from './library/LibraryGrid';
 import { SearchInput, ViewOptionsDropdown } from './library/LibraryHeader';
+import { RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
 
 export interface ColumnWidths {
   thumbnail: number;
@@ -302,7 +303,7 @@ export default function MainLibrary(props: MainLibraryProps) {
         const latestVersionStr = latestTag.startsWith('v') ? latestTag.substring(1) : latestTag;
         setLatestVersion(latestVersionStr);
 
-        if (compareVersions(currentVersion, latestVersionStr) < 0) {
+        if (compareVersions(RAPIDROOM_VERSION, latestVersionStr) < 0) {
           setIsUpdateAvailable(true);
         }
       } catch (error) {
@@ -431,14 +432,14 @@ export default function MainLibrary(props: MainLibraryProps) {
                     className="absolute bottom-8 left-8 lg:left-16 space-y-1 z-10 drop-shadow-sm"
                   >
                     <p>
-                      {t('library.splash.imagesBy')}{' '}
+                      {t('library.splash.photoBy')}{' '}
                       <a
-                        href="https://instagram.com/timonkaech.photography"
+                        href="https://github.com/yojen7"
                         className="hover:underline"
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        Timon Käch
+                        yojen7
                       </a>
                     </p>
                     {appVersion && (
@@ -452,7 +453,7 @@ export default function MainLibrary(props: MainLibraryProps) {
                             }`}
                             onClick={() => {
                               if (isUpdateAvailable) {
-                                open('https://github.com/RapidRoom/rapidroom/releases/latest');
+                                open(`${RAPIDROOM_REPO_URL}/releases/latest`);
                               }
                             }}
                             data-tooltip={
@@ -462,7 +463,7 @@ export default function MainLibrary(props: MainLibraryProps) {
                             }
                           >
                             <span className={isUpdateAvailable ? 'group-hover:hidden' : ''}>
-                              {t('library.splash.version', { version: appVersion })}
+                              {t('library.splash.rapidroomVersion', { version: RAPIDROOM_VERSION })}
                             </span>
                             {isUpdateAvailable && (
                               <span className="hidden group-hover:inline text-yellow-400">
@@ -473,26 +474,46 @@ export default function MainLibrary(props: MainLibraryProps) {
                         </p>
                         <span>-</span>
                         <p>
+                          {t('library.splash.communityBuildOf')}{' '}
                           <a
-                            href="https://ko-fi.com/cybertimon"
+                            href={UPSTREAM_REPO_URL}
                             className="hover:underline"
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            {t('library.splash.donate')}
-                          </a>
-                          <span className="mx-1">{t('library.splash.or')}</span>
+                            RapidRAW {appVersion}
+                          </a>{' '}
+                          {t('library.splash.upstreamBy')}{' '}
                           <a
-                            href="https://github.com/CyberTimon/RapidRAW"
+                            href="https://github.com/CyberTimon"
                             className="hover:underline"
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            {t('library.splash.contribute')}
+                            Timon Käch
                           </a>
                         </p>
                       </div>
                     )}
+                    <p>
+                      <a
+                        href={RAPIDROOM_REPO_URL}
+                        className="hover:underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {t('library.splash.contribute')}
+                      </a>
+                      <span className="mx-1">·</span>
+                      <a
+                        href="https://ko-fi.com/cybertimon"
+                        className="hover:underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {t('library.splash.supportUpstream')}
+                      </a>
+                    </p>
                   </Text>
                 </>
               )}
