@@ -710,7 +710,9 @@ fn apply_creative_color(color: vec3<f32>, sat: f32, vib: f32) -> vec3<f32> {
     var vib_factor: f32 = 0.0;
     if (vib != 0.0) {
         if (vib > 0.0) {
-            let sat_weight = pow(1.0 - current_sat, 1.25);
+            // HSV division can round a fully saturated colour just above 1.
+            // Keep the fractional power in its nonnegative domain.
+            let sat_weight = pow(max(1.0 - current_sat, 0.0), 1.25);
             let skin_center = 25.0;
             let hue_dist = min(abs(hue - skin_center), 360.0 - abs(hue - skin_center));
             let is_skin = 1.0 - smoothstep(12.0, 38.0, hue_dist);
@@ -733,6 +735,20 @@ fn apply_creative_color(color: vec3<f32>, sat: f32, vib: f32) -> vec3<f32> {
 }
 
 fn apply_hsl_panel(color: vec3<f32>, hsl_adjustments: array<HslColor, 8>, coords_i: vec2<i32>) -> vec3<f32> {
+    // These are the effective per-pixel bands, including mask adjustments.
+    // An inactive mixer must preserve linear RGB exactly, including negative
+    // and HDR channels, before any clamp or colour-space round trip.
+    var mixer_enabled = false;
+    for (var i = 0u; i < 8u; i = i + 1u) {
+        let band = hsl_adjustments[i];
+        if (band.hue != 0.0 || band.saturation != 0.0 || band.luminance != 0.0) {
+            mixer_enabled = true;
+            break;
+        }
+    }
+    if (!mixer_enabled) {
+        return color;
+    }
     let safe_color = max(color, vec3<f32>(0.0));
     if (distance(safe_color.r, safe_color.g) < 0.001 && distance(safe_color.g, safe_color.b) < 0.001) {
         return safe_color;

@@ -2292,6 +2292,10 @@ fn process_and_get_dynamic_image_inner(
 }
 
 #[cfg(test)]
+#[path = "hsl_shader_tests.rs"]
+mod hsl_shader_tests;
+
+#[cfg(test)]
 mod tests {
     use super::compute_blur_needs;
     use crate::image_processing::AllAdjustments;
