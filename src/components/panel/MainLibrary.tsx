@@ -294,7 +294,8 @@ export default function MainLibrary(props: MainLibraryProps) {
     const checkVersion = async () => {
       try {
         const currentVersion = await getVersion();
-        setAppVersion(currentVersion);
+        // Release builds carry the RapidRoom version as build metadata (1.6.4+rr.0.1.0); show the RapidRAW base.
+        setAppVersion(currentVersion.split('+')[0]);
 
         const response = await fetch('https://api.github.com/repos/RapidRoom/rapidroom/releases/latest');
         if (!response.ok) {

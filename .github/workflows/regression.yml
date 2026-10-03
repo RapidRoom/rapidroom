@@ -30,7 +30,7 @@ env:
   CI_SUBSET: sony-a7cr-18mp-lossless-s,sony-a7c2-15mp-compressed,canon-r50-24mp-craw,nikon-zfc-21mp-lossless,fuji-xt4-26mp-lossless,google-pixel7pro-dng
   RAPIDROOM_CORPUS: ${{ github.workspace }}/.corpus
   WORK: /mnt/regression
-  ENGINE: src-tauri/target/release/RapidRAW
+  ENGINE: src-tauri/target/release/rapidroom
   REFERENCE: rapidroom/regression/ci-reference.json
 
 jobs:

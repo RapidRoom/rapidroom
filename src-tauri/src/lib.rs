@@ -1786,6 +1786,8 @@ pub fn run() {
 
     #[cfg(target_os = "linux")]
     {
+        // Window class and Wayland app ID, so desktops match RapidRoom.desktop, not RapidRAW's.
+        gtk::glib::set_prgname(Some("RapidRoom"));
         if !is_headless {
             builder = builder.plugin(tauri_plugin_wayland_nvidia_quirk::init());
         }
@@ -1794,7 +1796,7 @@ pub fn run() {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
         if !is_headless {
-            builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            let focus_main = |app: &tauri::AppHandle, argv: Vec<String>, _cwd: String| {
                 log::info!(
                     "New instance launched with args: {:?}. Focusing main window.",
                     argv
@@ -1810,7 +1812,14 @@ pub fn run() {
 
                 let forwarded_args = argv.get(1..).unwrap_or(&[]);
                 emit_launch_request(app, parse_launch_args(forwarded_args));
-            }));
+            };
+            // The default D-Bus name comes from the identifier, which RapidRoom still shares with RapidRAW.
+            builder = builder.plugin(
+                tauri_plugin_single_instance::Builder::new()
+                    .dbus_id("io.github.RapidRoom.RapidRoom")
+                    .callback(focus_main)
+                    .build(),
+            );
         }
     }
 
