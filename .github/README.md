@@ -16,8 +16,10 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Colour-managed exports.** JPEG, PNG and TIFF files carry an sRGB profile, so browsers, other apps and print labs show your colours as intended.
 - **Sony lossless M/S and Canon mRAW/sRAW raws open correctly**, without the green borders upstream still shows.
 - **Private and offline by default.** Nothing is contacted at startup except the update check: no Google Fonts, and the cloud sign-in service loads only if you use cloud features.
+- **Your edits are safer.** Edits are saved crash-safe, a damaged mask no longer wipes out the others, and a corrupt panel layout no longer resets your settings.
+- **Keyboard-friendly.** You can always see where keyboard focus is when you Tab through the app.
 
-7 improvements on top of RapidRAW so far, including fixes for 2 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+18 improvements on top of RapidRAW so far, including fixes for 7 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Why RapidRoom

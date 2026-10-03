@@ -48,6 +48,46 @@
       "state": "open",
       "created": "2026-09-03",
       "closed": null
+    },
+    "CyberTimon/RapidRAW#1397": {
+      "kind": "issue",
+      "title": "BUG: Set File Timestamp from EXIF Capture Date Setting does not persist",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1397",
+      "state": "open",
+      "created": "2026-07-18",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1161": {
+      "kind": "issue",
+      "title": "BUG: Invalid charset error in Comments EXIF data",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1161",
+      "state": "open",
+      "created": "2026-05-10",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1609": {
+      "kind": "issue",
+      "title": "BUG: Auto tagging creates more tags than allowed",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1609",
+      "state": "open",
+      "created": "2026-08-26",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1454": {
+      "kind": "issue",
+      "title": "BUG: directory with mixed types of RAW files and JPG doesn't present any files when grouping raw+jpeg is enabled",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1454",
+      "state": "open",
+      "created": "2026-07-31",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1674": {
+      "kind": "issue",
+      "title": "BUG: Folder doesn't update after image(s) are exported into it",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1674",
+      "state": "open",
+      "created": "2026-09-03",
+      "closed": null
     }
   }
 }

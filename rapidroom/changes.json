@@ -96,6 +96,135 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false
+    },
+    {
+      "category": "fix",
+      "landed": "2026-10-02",
+      "source": "sheldonxxxx/RapidRAW (extended by yojen7 to newer upstream save paths)",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "atomic-sidecars",
+      "title": "Edit and metadata sidecars (.rrdata, .rrexif, XMP) are saved atomically, so a crash, power loss or full disk can't leave a half-written edit",
+      "authors": ["sheldonxxxx", "yojen7"],
+      "commits": ["https://github.com/sheldonxxxx/RapidRAW/commit/b54be6fef1e2533ecaf258143ad61fed6330244c"],
+      "highlight": "**Your edits are safer.** Edits are saved crash-safe, a damaged mask no longer wipes out the others, and a corrupt panel layout no longer resets your settings."
+    },
+    {
+      "category": "fix",
+      "landed": "2026-10-02",
+      "source": "pluja/RapidRAW-Fork",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "mask-recovery",
+      "title": "One unreadable field in a saved mask no longer removes every mask on the image",
+      "authors": ["pluja"],
+      "commits": ["https://github.com/pluja/RapidRAW-Fork/commit/d4017d349e6c18eb7ffae73206d7ed4baed895a9"]
+    },
+    {
+      "category": "fix",
+      "landed": "2026-10-02",
+      "source": "pluja/RapidRAW-Fork",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "corrupt-panel-layout",
+      "title": "A corrupt saved panel layout no longer erases all settings at startup",
+      "authors": ["pluja"],
+      "commits": ["https://github.com/pluja/RapidRAW-Fork/commit/3f9fc5e2e02488a68c2dcbc69967c8593bdc4fb2"]
+    },
+    {
+      "category": "fix",
+      "landed": "2026-10-02",
+      "source": "pluja/RapidRAW-Fork",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "curve-index",
+      "title": "The curve shader no longer indexes past the end of its point array",
+      "authors": ["pluja"],
+      "commits": ["https://github.com/pluja/RapidRAW-Fork/commit/3eab73ca2b11840816d7d2236e4453795d7edeba"]
+    },
+    {
+      "category": "performance",
+      "landed": "2026-10-02",
+      "source": "VailElla/RapidRAW",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "float-upload",
+      "title": "Float images go to the GPU without a full temporary copy (less memory per edit)",
+      "authors": ["VailElla"],
+      "commits": ["https://github.com/VailElla/RapidRAW/commit/d6cda855a5e250480b281cc681ab2f3cb04f478c"]
+    },
+    {
+      "category": "fix",
+      "landed": "2026-10-02",
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "focus-visible",
+      "title": "Keyboard focus is visible again on every button (Tab navigation), without rings on mouse clicks",
+      "authors": ["yojen7"],
+      "notes": "Made with OpenAI Codex. Fixes markallisongit/RapidRAW#30, which applies to upstream too.",
+      "highlight": "**Keyboard-friendly.** You can always see where keyboard focus is when you Tab through the app."
+    },
+    {
+      "category": "fix",
+      "landed": "2026-10-02",
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1397"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "export-preset-fields",
+      "title": "Export presets keep their TIFF bit depth and \"set file timestamp from EXIF\" settings",
+      "authors": ["yojen7"]
+    },
+    {
+      "category": "fix",
+      "landed": "2026-10-02",
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1161"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "user-comment-charset",
+      "title": "EXIF UserComment is written with its character-code header, so other apps read the whole comment",
+      "authors": ["yojen7"]
+    },
+    {
+      "category": "fix",
+      "landed": "2026-10-02",
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1609"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "ai-tag-limit",
+      "title": "The \"maximum AI tags\" setting is respected",
+      "authors": ["yojen7"]
+    },
+    {
+      "category": "fix",
+      "landed": "2026-10-02",
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1454"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "filter-before-grouping",
+      "title": "\"RAW only\" with \"prefer JPEG\" grouping shows the RAW files instead of nothing",
+      "authors": ["yojen7"]
+    },
+    {
+      "category": "fix",
+      "landed": "2026-10-02",
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1674"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "id": "refresh-after-export",
+      "title": "The library and folder tree refresh after exporting into the source folder",
+      "authors": ["yojen7"]
     }
   ]
 }
