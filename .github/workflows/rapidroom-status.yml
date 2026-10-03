@@ -1,0 +1,57 @@
+name: RapidRoom change list
+
+# Keeps the "What RapidRoom adds" table (README) and CHANGES.md in sync with
+# rapidroom/changes.json and with the current state of the upstream issues and PRs.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'rapidroom/**'
+  pull_request:
+    paths:
+      - 'rapidroom/**'
+      - '.github/README.md'
+      - 'CHANGES.md'
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Rendered files match changes.json
+        run: node rapidroom/status.mjs --check
+
+  refresh:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Fetch upstream status and render
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node rapidroom/status.mjs --refresh
+      - name: Commit if changed
+        run: |
+          if git diff --quiet; then echo "No changes."; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am 'chore: refresh the RapidRoom change list'
+          git push

@@ -1,0 +1,53 @@
+{
+  "as_of": "2026-10-03",
+  "refs": {
+    "CyberTimon/RapidRAW#1813": {
+      "kind": "pr",
+      "title": "chore(deps): bump tauri to 2.12 (fixes native titlebar on Hyprland/Sway)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1813",
+      "state": "merged",
+      "created": "2026-10-01",
+      "closed": "2026-10-02"
+    },
+    "CyberTimon/RapidRAW#1819": {
+      "kind": "pr",
+      "title": "fix: don't abort or hang when stdout/stderr is a closed pipe",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1819",
+      "state": "open",
+      "created": "2026-10-01",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1489": {
+      "kind": "issue",
+      "title": "Feature request: Embed/select ICC color profile on export",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1489",
+      "state": "open",
+      "created": "2026-08-07",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1820": {
+      "kind": "pr",
+      "title": "feat: embed an sRGB ICC profile in JPEG and PNG exports",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1820",
+      "state": "open",
+      "created": "2026-10-01",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#850": {
+      "kind": "issue",
+      "title": "BUG: Strange green frames around images",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/850",
+      "state": "open",
+      "created": "2026-03-12",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW-DngLab#7": {
+      "kind": "pr",
+      "title": "fix: mRAW/sRAW active-area crop uses wrong width for scale factor",
+      "url": "https://github.com/CyberTimon/RapidRAW-DngLab/pull/7",
+      "state": "open",
+      "created": "2026-09-03",
+      "closed": null
+    }
+  }
+}

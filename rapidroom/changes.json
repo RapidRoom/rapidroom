@@ -1,0 +1,97 @@
+{
+  "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes.",
+  "changes": [
+    {
+      "id": "tauri-2.12",
+      "title": "Tauri 2.12: Native Titlebar works with tiling Wayland compositors (Hyprland)",
+      "category": "platform",
+      "landed": "2026-10-02",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1813"],
+      "rendering_change": false
+    },
+    {
+      "id": "closed-pipe",
+      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw … | head`)",
+      "category": "fix",
+      "landed": "2026-10-02",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1819"],
+      "rendering_change": false
+    },
+    {
+      "id": "srgb-icc",
+      "title": "Exports embed an sRGB ICC profile (JPEG, PNG, TIFF), so colour-managed apps and print services read them correctly",
+      "category": "feature",
+      "landed": "2026-10-02",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1489"],
+      "upstream_prs": ["CyberTimon/RapidRAW#1820"],
+      "rendering_change": false,
+      "notes": "Pixels unchanged; only the profile tag is added. The TIFF part goes upstream after #1752."
+    },
+    {
+      "id": "sony-ms-crop",
+      "title": "Sony lossless M/S raws (A7C II, A7CR) and Canon mRAW/sRAW no longer get green borders",
+      "category": "fix",
+      "landed": "2026-10-02",
+      "authors": ["Kheil-Z"],
+      "source": "CyberTimon/RapidRAW-DngLab#7 (rebased onto 934af4b by yojen7)",
+      "commits": ["https://github.com/yojen7/RapidRAW-DngLab/commit/fe0839580ece6aab0884ebb7d806f34ff01fb52b"],
+      "upstream_issues": ["CyberTimon/RapidRAW#850"],
+      "upstream_prs": ["CyberTimon/RapidRAW-DngLab#7"],
+      "rendering_change": true,
+      "notes": "Only the affected files change: their crop is now correct."
+    },
+    {
+      "id": "bundle-poppins",
+      "title": "The Poppins UI font is bundled: no Google Fonts request at startup, and the UI works offline",
+      "category": "privacy",
+      "landed": "2026-10-02",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false
+    },
+    {
+      "id": "clerk-opt-in",
+      "title": "The Clerk sign-in SDK loads only when cloud features are turned on, with telemetry off",
+      "category": "privacy",
+      "landed": "2026-10-02",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false
+    },
+    {
+      "id": "update-check",
+      "title": "The update check looks at RapidRoom releases",
+      "category": "platform",
+      "landed": "2026-10-02",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "rapidroom_only": true
+    },
+    {
+      "id": "ci-android-unsigned",
+      "title": "CI builds Android unsigned when no signing key is configured, so forks get green builds",
+      "category": "ci",
+      "landed": "2026-10-02",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false
+    }
+  ]
+}

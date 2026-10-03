@@ -18,6 +18,7 @@ Every PR, ours or harvested, needs:
 - **Rendering unchanged, or changed on purpose.** A pixel-exact regression check on a small CC0 raw corpus is being added to CI. Until then, a maintainer runs it locally. A PR that changes rendered output on purpose says so and shows before/after images. Updating the reference renders needs sign-off from a human maintainer.
 - **A description a reviewer can check:** what changed, why, and how it was tested (OS, GPU, cameras). Mark anything untested as untested.
 - **One change per PR.** Small PRs get merged faster.
+- **An entry in [`rapidroom/changes.json`](../rapidroom/changes.json)** for anything users would notice: title, authors, source, and the upstream issue/PR it relates to. Then run `node rapidroom/status.mjs` to update the README table and [CHANGES.md](../CHANGES.md). This list is how RapidRoom shows what it adds and how it compares with upstream.
 
 ## Harvesting from other forks
 
@@ -25,7 +26,7 @@ RapidRAW and all its forks are AGPL-3.0, so good work can be brought in even if 
 
 - **Keep authorship.** Cherry-pick or merge with the original author on the commit. If you squash or adapt it, add a `Co-authored-by:` trailer and a "from <fork>@<commit>" line.
 - **Keep notices.** Leave copyright and licence headers as they are.
-- **Credit it.** Add the fork and author to [CREDITS.md](../CREDITS.md) in the same PR.
+- **Credit it.** Add the fork and author to [CREDITS.md](../CREDITS.md) and an entry with `source` and `commits` to `rapidroom/changes.json`, in the same PR.
 - **Tell the author.** A short, friendly note on their repo, and offer any improvements back.
 
 ## Upstream first, where it fits
