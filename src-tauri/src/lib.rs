@@ -1307,6 +1307,7 @@ async fn save_hdr(
     first_path_str: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    file_management::ensure_card_writable_for_paths(&[&first_path_str])?;
     let hdr_image = state.hdr_result.lock().unwrap().take().ok_or_else(|| {
         "No hdr image found in memory to save. It might have already been saved.".to_string()
     })?;
@@ -1350,6 +1351,7 @@ async fn save_hdr(
 
 #[tauri::command]
 async fn save_collage(base64_data: String, first_path_str: String) -> Result<String, String> {
+    file_management::ensure_card_writable_for_paths(&[&first_path_str])?;
     let data_url_prefix = "data:image/png;base64,";
     if !base64_data.starts_with(data_url_prefix) {
         return Err("Invalid base64 data format".to_string());
@@ -2244,6 +2246,7 @@ pub fn run() {
             image_processing::calculate_auto_adjustments,
             mask_generation::generate_mask_overlay,
             file_management::update_exif_fields,
+            file_management::set_card_browse_root,
             file_management::get_supported_file_types,
             file_management::read_exif_for_paths,
             file_management::list_images_in_dir,

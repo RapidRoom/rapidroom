@@ -1455,6 +1455,18 @@ fn export_adjustments_as_lut(
     Ok(cube_lut)
 }
 
+fn ensure_export_destination_writable(
+    paths: &[String],
+    output_folder_or_file: &str,
+    destination_type: Option<&str>,
+) -> Result<(), String> {
+    if destination_type == Some("originalFolder") {
+        crate::file_management::ensure_card_writable_for_paths(paths)
+    } else {
+        crate::file_management::ensure_card_writable(std::path::Path::new(output_folder_or_file))
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn export_images_impl(
     paths: Vec<String>,
@@ -1468,6 +1480,11 @@ pub(crate) async fn export_images_impl(
     app_handle: tauri::AppHandle,
     completion_tx: Option<tokio::sync::oneshot::Sender<Result<(), usize>>>,
 ) -> Result<(), String> {
+    ensure_export_destination_writable(
+        &paths,
+        &output_folder_or_file,
+        export_settings.destination_type.as_deref(),
+    )?;
     let cancellation_token = register_export_task(&state.export_task_token)?;
     let task_guard = ExportTaskGuard::with_app_handle(
         Arc::clone(&state.export_task_token),
@@ -2352,4 +2369,44 @@ pub async fn estimate_export_sizes(
     };
 
     Ok(single_image_extrapolated_size * paths.len())
+}
+
+#[cfg(test)]
+mod card_mode_tests {
+    use super::ensure_export_destination_writable;
+    use crate::file_management::CARD_READ_ONLY_ERROR;
+    use crate::file_management::card_mode_test_support::{CardMode, folders, path_str};
+
+    #[test]
+    fn export_refuses_destinations_on_the_card() {
+        let f = folders();
+        let _mode = CardMode::on(&f.card);
+        let from_card = vec![path_str(&f.dcim.join("IMG_0001.jpg"))];
+        let from_library = vec![path_str(&f.library.join("IMG_0001.jpg"))];
+
+        assert_eq!(
+            ensure_export_destination_writable(&from_card, "", Some("originalFolder")).unwrap_err(),
+            CARD_READ_ONLY_ERROR
+        );
+        assert_eq!(
+            ensure_export_destination_writable(&from_library, &path_str(&f.dcim), None)
+                .unwrap_err(),
+            CARD_READ_ONLY_ERROR
+        );
+        assert_eq!(
+            ensure_export_destination_writable(
+                &from_library,
+                &path_str(&f.dcim.join("photo.jpg")),
+                Some("custom")
+            )
+            .unwrap_err(),
+            CARD_READ_ONLY_ERROR
+        );
+        assert!(
+            ensure_export_destination_writable(&from_card, &path_str(&f.library), None).is_ok()
+        );
+        assert!(
+            ensure_export_destination_writable(&from_library, "", Some("originalFolder")).is_ok()
+        );
+    }
 }

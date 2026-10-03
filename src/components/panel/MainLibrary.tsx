@@ -16,6 +16,7 @@ import {
   Columns,
   SlidersHorizontal,
   Rows3,
+  MemoryStick,
 } from 'lucide-react';
 import CullingView from './library/CullingView';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -44,6 +45,7 @@ import SettingsPanel from './SettingsPanel';
 import LibraryGrid from './library/LibraryGrid';
 import { SearchInput, ViewOptionsDropdown } from './library/LibraryHeader';
 import { RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
+import { isPathInCardRoot } from '../../utils/cardMode';
 
 export interface ColumnWidths {
   thumbnail: number;
@@ -62,6 +64,7 @@ interface MainLibraryProps {
   aiModelDownloadStatus: string | null;
   appSettings: AppSettings | null;
   currentFolderPath: string | null;
+  cardBrowseRoot: string | null;
   groupBadgeInfo: Map<GroupId, GroupBadgeInfo> | null;
   imageList: Array<ImageFile>;
   imageRatings: Record<string, number>;
@@ -83,6 +86,7 @@ interface MainLibraryProps {
   onImportClick(): void;
   onLibraryRefresh(): void;
   onOpenFolder(): void;
+  onBrowseCard(): void;
   onSettingsChange(settings: AppSettings): Promise<void>;
   onThumbnailAspectRatioChange(aspectRatio: ThumbnailAspectRatio): void;
   onThumbnailSizeChange(size: ThumbnailSize): void;
@@ -163,6 +167,7 @@ function DisplayModeSwitch({ displayMode, setDisplayMode, t }: DisplayModeSwitch
 
 export default function MainLibrary(props: MainLibraryProps) {
   const { t } = useTranslation();
+  const isCardFolder = isPathInCardRoot(props.currentFolderPath, props.cardBrowseRoot);
   const setUI = useUIStore((state) => state.setUI);
   const [appVersion, setAppVersion] = useState('');
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
@@ -423,6 +428,15 @@ export default function MainLibrary(props: MainLibraryProps) {
                           <Settings size={20} />
                         </Button>
                       </div>
+                      {!props.isAndroid && (
+                        <Button
+                          className="rounded-md h-11 w-full flex justify-center items-center bg-surface text-text-primary shadow-md transition-transform duration-200 hover:scale-[1.01] active:scale-[.98]"
+                          onClick={props.onBrowseCard}
+                          size="lg"
+                        >
+                          <MemoryStick size={20} className="mr-2" /> {t('library.cardMode.browse')}
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -533,6 +547,17 @@ export default function MainLibrary(props: MainLibraryProps) {
       >
         <div className="min-w-0">
           <Text variant={TextVariants.headline}>{t('library.header.title')}</Text>
+          {isCardFolder && (
+            <div
+              className="mt-1 flex items-center gap-1 text-xs min-w-0"
+              data-tooltip={t('library.cardMode.badgeTooltip')}
+              role="status"
+            >
+              <MemoryStick size={14} className="text-emerald-400 shrink-0" />
+              <span className="font-semibold text-emerald-400 whitespace-nowrap">{t('library.cardMode.badge')}</span>
+              <span className="text-text-secondary truncate">· {t('library.cardMode.badgeDetail')}</span>
+            </div>
+          )}
           {!props.isAndroid && (
             <div className="flex items-center gap-2">
               {props.currentFolderPath ? (
@@ -609,6 +634,15 @@ export default function MainLibrary(props: MainLibraryProps) {
               editedStatusOptions={translatedEditedStatusOptions}
               sortOptions={translatedSortOptions}
             />
+            {!props.isAndroid && !props.cardBrowseRoot && (
+              <Button
+                className="h-12 w-12 bg-transparent text-text-primary shadow-none p-0 flex items-center justify-center"
+                onClick={props.onBrowseCard}
+                data-tooltip={t('library.cardMode.browseTooltip')}
+              >
+                <MemoryStick className="w-5 h-5" />
+              </Button>
+            )}
             {!props.isAndroid && (
               <Button
                 className="h-12 w-12 bg-transparent text-text-primary shadow-none p-0 flex items-center justify-center"
