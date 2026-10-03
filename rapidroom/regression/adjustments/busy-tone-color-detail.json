@@ -13,26 +13,42 @@
   "vibrance": 18,
   "saturation": -6,
   "curves": {
-    "luma":  [{"x": 0, "y": 6}, {"x": 64, "y": 54}, {"x": 192, "y": 206}, {"x": 255, "y": 250}],
-    "red":   [{"x": 0, "y": 0}, {"x": 128, "y": 134}, {"x": 255, "y": 255}],
-    "green": [{"x": 0, "y": 0}, {"x": 255, "y": 255}],
-    "blue":  [{"x": 0, "y": 8}, {"x": 128, "y": 122}, {"x": 255, "y": 255}]
+    "luma": [
+      { "x": 0, "y": 6 },
+      { "x": 64, "y": 54 },
+      { "x": 192, "y": 206 },
+      { "x": 255, "y": 250 }
+    ],
+    "red": [
+      { "x": 0, "y": 0 },
+      { "x": 128, "y": 134 },
+      { "x": 255, "y": 255 }
+    ],
+    "green": [
+      { "x": 0, "y": 0 },
+      { "x": 255, "y": 255 }
+    ],
+    "blue": [
+      { "x": 0, "y": 8 },
+      { "x": 128, "y": 122 },
+      { "x": 255, "y": 255 }
+    ]
   },
   "hsl": {
-    "reds":     {"hue": 6,   "saturation": 10,  "luminance": -4},
-    "oranges":  {"hue": -4,  "saturation": -8,  "luminance": 6},
-    "yellows":  {"hue": -10, "saturation": 15,  "luminance": 0},
-    "greens":   {"hue": 12,  "saturation": -20, "luminance": -6},
-    "aquas":    {"hue": 0,   "saturation": 12,  "luminance": 0},
-    "blues":    {"hue": -8,  "saturation": 20,  "luminance": -12},
-    "purples":  {"hue": 5,   "saturation": -10, "luminance": 0},
-    "magentas": {"hue": 0,   "saturation": -15, "luminance": 4}
+    "reds": { "hue": 6, "saturation": 10, "luminance": -4 },
+    "oranges": { "hue": -4, "saturation": -8, "luminance": 6 },
+    "yellows": { "hue": -10, "saturation": 15, "luminance": 0 },
+    "greens": { "hue": 12, "saturation": -20, "luminance": -6 },
+    "aquas": { "hue": 0, "saturation": 12, "luminance": 0 },
+    "blues": { "hue": -8, "saturation": 20, "luminance": -12 },
+    "purples": { "hue": 5, "saturation": -10, "luminance": 0 },
+    "magentas": { "hue": 0, "saturation": -15, "luminance": 4 }
   },
   "colorGrading": {
-    "shadows":    {"hue": 200, "saturation": 18, "luminance": -4},
-    "midtones":   {"hue": 35,  "saturation": 6,  "luminance": 0},
-    "highlights": {"hue": 45,  "saturation": 14, "luminance": 3},
-    "global":     {"hue": 0,   "saturation": 0,  "luminance": 0},
+    "shadows": { "hue": 200, "saturation": 18, "luminance": -4 },
+    "midtones": { "hue": 35, "saturation": 6, "luminance": 0 },
+    "highlights": { "hue": 45, "saturation": 14, "luminance": 3 },
+    "global": { "hue": 0, "saturation": 0, "luminance": 0 },
     "blending": 60,
     "balance": -10
   },

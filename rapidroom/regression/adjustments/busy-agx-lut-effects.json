@@ -10,9 +10,12 @@
   "hue": 0,
   "colorCalibration": {
     "shadowsTint": 6,
-    "redHue": 8, "redSaturation": 10,
-    "greenHue": -6, "greenSaturation": -8,
-    "blueHue": 4, "blueSaturation": 12
+    "redHue": 8,
+    "redSaturation": 10,
+    "greenHue": -6,
+    "greenSaturation": -8,
+    "blueHue": 4,
+    "blueSaturation": 12
   },
   "lutPath": "baseline-warm-teal-9.cube",
   "lutIntensity": 70,
