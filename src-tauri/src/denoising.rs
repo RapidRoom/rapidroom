@@ -18,7 +18,7 @@ use tauri::{AppHandle, Emitter};
 struct ProgressReporter<'a> {
     counter: &'a Arc<AtomicUsize>,
     total_work: usize,
-    app_handle: &'a AppHandle,
+    app_handle: Option<&'a AppHandle>,
 }
 
 const BLOCK_SIZE: usize = 8;
@@ -251,6 +251,18 @@ fn run_bm3d(
     intensity: f32,
     app_handle: &AppHandle,
 ) -> Result<DynamicImage, String> {
+    Ok(DynamicImage::ImageRgb32F(bm3d_denoise(
+        rgb_img,
+        intensity,
+        Some(app_handle),
+    )))
+}
+
+fn bm3d_denoise(
+    rgb_img: &Rgb32FImage,
+    intensity: f32,
+    app_handle: Option<&AppHandle>,
+) -> Rgb32FImage {
     let (width, height) = rgb_img.dimensions();
     let params = Bm3dParams::from_intensity(intensity);
     let dct_tables = Arc::new(DctTables::new());
@@ -265,7 +277,9 @@ fn run_bm3d(
     let total_work_units = (patches_x * patches_y) * 2;
     let progress_counter = Arc::new(AtomicUsize::new(0));
 
-    let _ = app_handle.emit("denoise-progress", "Processing (Step 1/2)...");
+    if let Some(app_handle) = app_handle {
+        let _ = app_handle.emit("denoise-progress", "Processing (Step 1/2)...");
+    }
 
     let progress = ProgressReporter {
         counter: &progress_counter,
@@ -276,9 +290,11 @@ fn run_bm3d(
         bm3d_process_joint(&channels, width, height, &params, &dct_tables, &progress);
 
     {
-        let _ = app_handle.emit("denoise-progress", "Blending detail...");
+        if let Some(app_handle) = app_handle {
+            let _ = app_handle.emit("denoise-progress", "Blending detail...");
+        }
         let blurred_y = gaussian_blur_1ch(&original_y, width as usize, height as usize, 3.0);
-        let detail_strength = (intensity * 0.5_f32).clamp(0.0_f32, 0.5_f32);
+        let detail_strength = (intensity * 0.5).min((1.0 - intensity) * 0.25).max(0.0);
         let y_ch = &mut denoised_channels[0];
         for i in 0..y_ch.len() {
             let hf = original_y[i] - blurred_y[i];
@@ -292,8 +308,7 @@ fn run_bm3d(
         &denoised_channels[2],
     );
 
-    let out_img_buffer = merge_channels(&[r, g, b], width, height);
-    Ok(DynamicImage::ImageRgb32F(out_img_buffer))
+    merge_channels(&[r, g, b], width, height)
 }
 
 fn denoise_image(
@@ -506,11 +521,13 @@ fn run_bm3d_step_joint(
 
     ref_patches.par_iter().for_each(|&(rx, ry)| {
         let c = progress.counter.fetch_add(1, AtomicOrdering::Relaxed);
-        if c.is_multiple_of(200) {
+        if let Some(app_handle) = progress.app_handle
+            && c.is_multiple_of(200)
+        {
             let pct = (c as f32 / progress.total_work as f32) * 100.0;
             let step_str = if is_step_1 { "Step 1/2" } else { "Step 2/2" };
             let msg = format!("{} - {:.0}%", step_str, pct);
-            let _ = progress.app_handle.emit("denoise-progress", msg);
+            let _ = app_handle.emit("denoise-progress", msg);
         }
 
         let mut group_locs_buf = [(0, 0); MAX_GROUP_SIZE];
@@ -1032,4 +1049,99 @@ fn gaussian_blur_1ch(data: &[f32], width: usize, height: usize, sigma: f32) -> V
     }
 
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Lcg(u64);
+
+    impl Lcg {
+        fn uniform(&mut self) -> f32 {
+            self.0 = self
+                .0
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((self.0 >> 40) as f32 + 0.5) / (1u64 << 24) as f32
+        }
+
+        fn gaussian(&mut self) -> f32 {
+            let u1 = self.uniform();
+            let u2 = self.uniform();
+            (-2.0 * u1.ln()).sqrt() * (2.0 * std::f32::consts::PI * u2).cos()
+        }
+    }
+
+    fn clean_image(w: u32, h: u32, checker: bool) -> Rgb32FImage {
+        Rgb32FImage::from_fn(w, h, |x, y| {
+            let fx = x as f32 / w as f32;
+            let fy = y as f32 / h as f32;
+            let square = if checker && (x / 24 + y / 24) % 2 == 0 {
+                0.15
+            } else {
+                0.0
+            };
+            Rgb([
+                0.25 + 0.4 * fx + square,
+                0.3 + 0.3 * fy + square,
+                0.55 - 0.3 * fx + square,
+            ])
+        })
+    }
+
+    fn add_noise(img: &Rgb32FImage, sigma: f32, seed: u64) -> Rgb32FImage {
+        let mut rng = Lcg(seed);
+        let mut out = img.clone();
+        for p in out.pixels_mut() {
+            for c in 0..3 {
+                p[c] = (p[c] + rng.gaussian() * sigma).clamp(0.0, 1.0);
+            }
+        }
+        out
+    }
+
+    fn rmse(a: &Rgb32FImage, b: &Rgb32FImage) -> f32 {
+        let mut sum = 0.0f64;
+        for (pa, pb) in a.pixels().zip(b.pixels()) {
+            for c in 0..3 {
+                let d = (pa[c] - pb[c]) as f64 * 255.0;
+                sum += d * d;
+            }
+        }
+        (sum / (a.len() as f64)).sqrt() as f32
+    }
+
+    #[test]
+    fn bm3d_strength_does_not_add_noise_back() {
+        let clean = clean_image(128, 128, false);
+        for sigma in [20.0, 35.0] {
+            let noisy = add_noise(&clean, sigma / 255.0, 27);
+            let mut prev = f32::MAX;
+            for step in 3..=10 {
+                let intensity = step as f32 / 10.0;
+                let err = rmse(&bm3d_denoise(&noisy, intensity, None), &clean);
+                assert!(
+                    err <= prev + 0.1,
+                    "sigma {sigma}: RMSE rose from {prev:.2} to {err:.2} at intensity {intensity:.1}"
+                );
+                prev = err;
+            }
+        }
+    }
+
+    #[test]
+    fn bm3d_output_is_closer_to_clean_than_input() {
+        let clean = clean_image(128, 128, true);
+        let noisy = add_noise(&clean, 20.0 / 255.0, 27);
+        let noisy_err = rmse(&noisy, &clean);
+        for step in 1..=10 {
+            let intensity = step as f32 / 10.0;
+            let err = rmse(&bm3d_denoise(&noisy, intensity, None), &clean);
+            assert!(
+                err < noisy_err,
+                "intensity {intensity:.1}: RMSE {err:.2} not below noisy input {noisy_err:.2}"
+            );
+        }
+    }
 }

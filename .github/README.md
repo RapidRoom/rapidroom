@@ -23,7 +23,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Browse memory cards safely:** read-only Card mode never writes to the card
 - **Star ratings you set in the camera show up in the library.**
 
-26 improvements on top of RapidRAW so far, including fixes for 8 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+27 improvements on top of RapidRAW so far, including fixes for 8 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Why RapidRoom
