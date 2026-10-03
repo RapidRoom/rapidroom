@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   check:
@@ -35,8 +35,13 @@ jobs:
         run: node rapidroom/status.mjs --check
 
   refresh:
+    # main is protected, so this job can't commit. It fails when the upstream
+    # statuses in the change list are out of date; a maintainer then runs
+    # `node rapidroom/status.mjs --refresh` and commits the result.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -48,10 +53,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node rapidroom/status.mjs --refresh
-      - name: Commit if changed
+      - name: Fail if the change list is out of date
         run: |
-          if git diff --quiet; then echo "No changes."; exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -am 'chore: refresh the RapidRoom change list'
-          git push
+          if git diff --quiet; then echo "Change list is up to date."; exit 0; fi
+          git diff --stat
+          echo "::error::Upstream statuses changed. Run 'node rapidroom/status.mjs --refresh' and commit."
+          exit 1
