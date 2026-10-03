@@ -1611,7 +1611,9 @@ pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>>
         && let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&content)
     {
         save_exif_to_rrcache(image_path, map.clone());
-        let _ = fs::remove_file(&legacy);
+        if !crate::file_management::is_card_read_only_path(&legacy) {
+            let _ = fs::remove_file(&legacy);
+        }
         return Some(map);
     }
 
@@ -1711,4 +1713,79 @@ pub fn write_rrexif_sidecar(source_path_str: &str, target_image_path: &Path) -> 
     metadata.exif = Some(exif_data);
     save_primary_metadata(target_image_path, &metadata)
         .map_err(|e| format!("Failed to write sidecar: {}", e))
+}
+
+#[cfg(test)]
+mod card_mode_tests {
+    use super::*;
+    use crate::file_management::card_mode_test_support::{CardMode, folders, snapshot};
+
+    fn bloated_sidecar() -> String {
+        format!(
+            r#"{{"version":1,"rating":0,"adjustments":{{}},"exif":{{"MakerNote":"{}"}}}}"#,
+            "x".repeat(2000)
+        )
+    }
+
+    #[test]
+    fn sidecar_auto_heal_refuses_the_card() {
+        let f = folders();
+        let card_sidecar = f.dcim.join("IMG_0001.jpg.rrdata");
+        let library_sidecar = f.library.join("IMG_0001.jpg.rrdata");
+        fs::write(&card_sidecar, bloated_sidecar()).unwrap();
+        fs::write(&library_sidecar, bloated_sidecar()).unwrap();
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            let meta = load_sidecar(&card_sidecar);
+            assert!(meta.exif.unwrap()["MakerNote"].len() < 500);
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        load_sidecar(&library_sidecar);
+        assert!(fs::read_to_string(&library_sidecar).unwrap().len() < 1000);
+    }
+
+    #[test]
+    fn exif_sidecar_save_refuses_the_card() {
+        let f = folders();
+        let metadata = ImageMetadata {
+            exif: Some(HashMap::from([("Make".to_string(), "Canon".to_string())])),
+            ..Default::default()
+        };
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            assert!(save_primary_metadata(&f.dcim.join("IMG_0001.jpg"), &metadata).is_err());
+            assert!(save_primary_metadata(&f.dcim.join("IMG_0002.jpg"), &metadata).is_err());
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        save_primary_metadata(&f.library.join("IMG_0001.jpg"), &metadata).unwrap();
+        assert!(
+            fs::read_to_string(f.library.join("IMG_0001.jpg.rrdata"))
+                .unwrap()
+                .contains("Canon")
+        );
+    }
+
+    #[test]
+    fn legacy_rrexif_is_kept_on_the_card() {
+        let f = folders();
+        let exif = r#"{"Make":"Canon"}"#;
+        for folder in [&f.dcim, &f.library] {
+            fs::remove_file(folder.join("IMG_0001.jpg.rrdata")).unwrap();
+            fs::write(folder.join("IMG_0001.jpg.rrexif"), exif).unwrap();
+        }
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            let map = read_rrexif_sidecar(&f.dcim.join("IMG_0001.jpg")).unwrap();
+            assert_eq!(map["Make"], "Canon");
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        read_rrexif_sidecar(&f.library.join("IMG_0001.jpg")).unwrap();
+        assert!(!f.library.join("IMG_0001.jpg.rrexif").exists());
+    }
 }
