@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::{BufReader, Cursor};
+use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
@@ -437,42 +437,205 @@ fn parse_xmp_rating(raw: &str) -> Option<u8> {
     }
 }
 
-static XMP_RATING_ATTR: std::sync::OnceLock<regex::bytes::Regex> = std::sync::OnceLock::new();
-static XMP_RATING_ELEM: std::sync::OnceLock<regex::bytes::Regex> = std::sync::OnceLock::new();
+const MAX_RATING_IFDS: usize = 8;
+const MAX_IFD_ENTRIES: usize = 1024;
+const MAX_XMP_PACKET: u64 = 1 << 20;
+const MAX_JPEG_SEGMENTS: usize = 64;
+const MAX_BMFF_BOXES: usize = 64;
+const XMP_UUID: [u8; 16] = [
+    0xbe, 0x7a, 0xcf, 0xcb, 0x97, 0xa9, 0x42, 0xe8, 0x9c, 0x71, 0x99, 0x94, 0x91, 0xe3, 0xaf, 0xac,
+];
 
-pub fn read_image_rating(file_bytes: &[u8]) -> Option<u8> {
-    let attr = XMP_RATING_ATTR
-        .get_or_init(|| regex::bytes::Regex::new(r#"xmp:Rating\s*=\s*["'](-?[0-9]+)["']"#).unwrap());
-    if let Some(caps) = attr.captures(file_bytes) {
-        if let Some(m) = caps.get(1) {
-            if let Ok(s) = std::str::from_utf8(m.as_bytes())
-                && let Some(r) = parse_xmp_rating(s)
-            {
-                return Some(r);
+fn xmp_rating(packet: &[u8]) -> Option<u8> {
+    static PATTERN: OnceLock<regex::bytes::Regex> = OnceLock::new();
+    let pattern = PATTERN.get_or_init(|| {
+        regex::bytes::Regex::new(
+            r#"(?:xmp|xap):Rating\s*=\s*["']\s*(-?[0-9]+)\s*["']|<(?:xmp|xap):Rating\s*>\s*(-?[0-9]+)\s*</(?:xmp|xap):Rating\s*>"#,
+        )
+        .unwrap()
+    });
+    pattern.captures_iter(packet).find_map(|caps| {
+        let m = caps.get(1).or_else(|| caps.get(2))?;
+        parse_xmp_rating(std::str::from_utf8(m.as_bytes()).ok()?)
+    })
+}
+
+fn read_bytes<R: Read + Seek>(reader: &mut R, offset: u64, len: u64) -> Option<Vec<u8>> {
+    if len > MAX_XMP_PACKET {
+        return None;
+    }
+    reader.seek(SeekFrom::Start(offset)).ok()?;
+    let mut buf = vec![0; len as usize];
+    reader.read_exact(&mut buf).ok()?;
+    Some(buf)
+}
+
+/// Star rating (0..=5) stored in the file by the camera or another tool: the
+/// embedded XMP `xmp:Rating`, or else the EXIF Rating tag (0x4746). Reads only
+/// the headers it needs and never decodes pixels.
+pub fn read_image_rating<R: Read + Seek>(reader: &mut R) -> Option<u8> {
+    let mut header = [0u8; 16];
+    reader.read_exact(&mut header).ok()?;
+    match header {
+        [b'I', b'I', ..] | [b'M', b'M', ..] => tiff_rating(reader, 0),
+        [0xff, 0xd8, ..] => jpeg_rating(reader, 2),
+        [_, _, _, _, b'f', b't', b'y', b'p', ..] => bmff_rating(reader),
+        _ if &header[..15] == b"FUJIFILMCCD-RAW" => {
+            let jpeg_offset = u32::from_be_bytes(read_bytes(reader, 84, 4)?.try_into().ok()?);
+            let soi = read_bytes(reader, jpeg_offset as u64, 2)?;
+            (soi == [0xff, 0xd8]).then_some(())?;
+            jpeg_rating(reader, jpeg_offset as u64 + 2)
+        }
+        _ => None,
+    }
+}
+
+pub fn read_embedded_rating(path: &Path) -> Option<u8> {
+    let mut file = fs::File::open(path).ok()?;
+    read_image_rating(&mut file)
+}
+
+/// The rating to show: the user's rating from the sidecar wins, including a
+/// cleared one; otherwise the rating embedded in the file. Never writes a sidecar.
+pub fn resolve_rating(image_path: &Path, metadata: &ImageMetadata) -> u8 {
+    if metadata.rating != 0
+        || metadata.rating_is_explicit
+        || crate::file_management::is_cloud_placeholder(image_path)
+    {
+        return metadata.rating;
+    }
+    read_embedded_rating(image_path).unwrap_or(0)
+}
+
+fn tiff_rating<R: Read + Seek>(reader: &mut R, base: u64) -> Option<u8> {
+    let header = read_bytes(reader, base, 8)?;
+    let little = match &header[..2] {
+        b"II" => true,
+        b"MM" => false,
+        _ => return None,
+    };
+    let u16_at = |b: &[u8]| {
+        let b = [b[0], b[1]];
+        if little {
+            u16::from_le_bytes(b)
+        } else {
+            u16::from_be_bytes(b)
+        }
+    };
+    let u32_at = |b: &[u8]| {
+        let b = [b[0], b[1], b[2], b[3]];
+        if little {
+            u32::from_le_bytes(b)
+        } else {
+            u32::from_be_bytes(b)
+        }
+    };
+    // 42 is TIFF; Olympus ORF and Panasonic RW2 use their own magic numbers.
+    if !matches!(u16_at(&header[2..]), 42 | 0x4f52 | 0x5352 | 0x55) {
+        return None;
+    }
+
+    let mut pending = vec![u32_at(&header[4..])];
+    let mut visited = Vec::new();
+    let mut exif_rating = None;
+    while let Some(offset) = pending.pop() {
+        if offset == 0 || visited.contains(&offset) || visited.len() >= MAX_RATING_IFDS {
+            continue;
+        }
+        visited.push(offset);
+        let ifd_start = base.checked_add(offset as u64)?;
+        let Some(count) = read_bytes(reader, ifd_start, 2).map(|b| u16_at(&b) as usize) else {
+            continue;
+        };
+        if count == 0 || count > MAX_IFD_ENTRIES {
+            continue;
+        }
+        let Some(entries) = read_bytes(reader, ifd_start + 2, count as u64 * 12 + 4) else {
+            continue;
+        };
+        for entry in entries[..count * 12].as_chunks::<12>().0 {
+            let (tag, kind, len) = (u16_at(entry), u16_at(&entry[2..]), u32_at(&entry[4..]));
+            match (tag, kind) {
+                (0x4746, 3) if len == 1 => {
+                    let value = u16_at(&entry[8..]);
+                    if value <= 5 {
+                        exif_rating = Some(value as u8);
+                    }
+                }
+                (0x02bc, 1 | 7) if len > 4 => {
+                    if let Some(rating) = base
+                        .checked_add(u32_at(&entry[8..]) as u64)
+                        .and_then(|start| read_bytes(reader, start, len as u64))
+                        .and_then(|packet| xmp_rating(&packet))
+                    {
+                        return Some(rating);
+                    }
+                }
+                (0x8769, 4 | 13) if len == 1 => pending.push(u32_at(&entry[8..])),
+                _ => {}
             }
         }
+        pending.push(u32_at(&entries[count * 12..]));
     }
-    let elem = XMP_RATING_ELEM
-        .get_or_init(|| regex::bytes::Regex::new(r#"<xmp:Rating>(-?[0-9]+)</xmp:Rating>"#).unwrap());
-    if let Some(caps) = elem.captures(file_bytes) {
-        if let Some(m) = caps.get(1) {
-            if let Ok(s) = std::str::from_utf8(m.as_bytes())
-                && let Some(r) = parse_xmp_rating(s)
-            {
-                return Some(r);
+    exif_rating
+}
+
+fn jpeg_rating<R: Read + Seek>(reader: &mut R, start: u64) -> Option<u8> {
+    reader.seek(SeekFrom::Start(start)).ok()?;
+    let mut exif_rating = None;
+    for _ in 0..MAX_JPEG_SEGMENTS {
+        let mut marker = [0u8; 2];
+        reader.read_exact(&mut marker).ok()?;
+        if marker[0] != 0xff || matches!(marker[1], 0xd9 | 0xda) {
+            break;
+        }
+        if matches!(marker[1], 0x01 | 0xd0..=0xd8 | 0xff) {
+            if marker[1] == 0xff {
+                reader.seek(SeekFrom::Current(-1)).ok()?;
             }
+            continue;
+        }
+        let mut len = [0u8; 2];
+        reader.read_exact(&mut len).ok()?;
+        let len = u16::from_be_bytes(len).checked_sub(2)? as usize;
+        if marker[1] != 0xe1 {
+            reader.seek(SeekFrom::Current(len as i64)).ok()?;
+            continue;
+        }
+        let mut payload = vec![0; len];
+        reader.read_exact(&mut payload).ok()?;
+        if let Some(packet) = payload.strip_prefix(b"http://ns.adobe.com/xap/1.0/\0")
+            && let Some(rating) = xmp_rating(packet)
+        {
+            return Some(rating);
+        }
+        if let Some(tiff) = payload.strip_prefix(b"Exif\0\0") {
+            exif_rating = exif_rating.or_else(|| tiff_rating(&mut Cursor::new(tiff), 0));
         }
     }
+    exif_rating
+}
 
-    // Private EXIF Rating tag (0x4746).
-    if let Some(exif) = read_exif(file_bytes) {
-        for field in exif.fields() {
-            if field.tag.number() == 0x4746 {
-                return field.value.get_uint(0).and_then(|v| (v <= 5).then_some(v as u8));
-            }
+fn bmff_rating<R: Read + Seek>(reader: &mut R) -> Option<u8> {
+    let mut offset = 0u64;
+    for _ in 0..MAX_BMFF_BOXES {
+        let header = read_bytes(reader, offset, 8)?;
+        let mut size = u32::from_be_bytes(header[..4].try_into().ok()?) as u64;
+        let mut header_len = 8;
+        if size == 1 {
+            size = u64::from_be_bytes(read_bytes(reader, offset + 8, 8)?.try_into().ok()?);
+            header_len = 16;
         }
+        if size < header_len {
+            return None;
+        }
+        if &header[4..] == b"uuid" && read_bytes(reader, offset + header_len, 16)? == XMP_UUID {
+            let start = offset + header_len + 16;
+            let packet = read_bytes(reader, start, size.checked_sub(header_len + 16)?)?;
+            return xmp_rating(&packet);
+        }
+        offset = offset.checked_add(size)?;
     }
-
     None
 }
 
@@ -2145,45 +2308,309 @@ mod xmp_keyword_tests {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{parse_xmp_rating, read_image_rating};
+pub(crate) mod rating_samples {
+    pub fn xmp_packet(rating: &str) -> Vec<u8> {
+        format!(
+            "<?xpacket begin=\"\u{feff}\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\
+             <x:xmpmeta xmlns:x=\"adobe:ns:meta/\" x:xmptk=\"XMP Core 5.1.2\">\
+             <rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\
+             <rdf:Description rdf:about=\"\" xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" \
+             xmp:Rating=\"{rating}\"/></rdf:RDF></x:xmpmeta><?xpacket end=\"w\"?>"
+        )
+        .into_bytes()
+    }
 
-    #[test]
-    fn xmp_attribute_rating() {
-        let bytes = b"<rdf:RDF><rdf:Description xmp:Rating=\"4\"></rdf:Description></rdf:RDF>".to_vec();
-        assert_eq!(read_image_rating(&bytes), Some(4));
+    /// A TIFF with one IFD; values longer than four bytes go after the IFD.
+    pub fn tiff(little: bool, entries: &[(u16, u16, u32, Vec<u8>)]) -> Vec<u8> {
+        let u16b = |v: u16| {
+            if little {
+                v.to_le_bytes()
+            } else {
+                v.to_be_bytes()
+            }
+        };
+        let u32b = |v: u32| {
+            if little {
+                v.to_le_bytes()
+            } else {
+                v.to_be_bytes()
+            }
+        };
+        let mut out = if little {
+            b"II".to_vec()
+        } else {
+            b"MM".to_vec()
+        };
+        out.extend(u16b(42));
+        out.extend(u32b(8));
+        out.extend(u16b(entries.len() as u16));
+        let mut data_offset = 8 + 2 + entries.len() * 12 + 4;
+        let mut data: Vec<u8> = Vec::new();
+        for (tag, kind, count, value) in entries {
+            out.extend(u16b(*tag));
+            out.extend(u16b(*kind));
+            out.extend(u32b(*count));
+            if value.len() <= 4 {
+                let mut inline = value.clone();
+                inline.resize(4, 0);
+                out.extend(inline);
+            } else {
+                out.extend(u32b(data_offset as u32));
+                data_offset += value.len();
+                data.extend(value);
+            }
+        }
+        out.extend(u32b(0));
+        out.extend(data);
+        out
+    }
+
+    /// Laid out like a Sony ARW: IFD0 with Make, Model, the EXIF Rating tag
+    /// and the XMP packet (tag 700).
+    pub fn sony_arw(little: bool, xmp_rating: Option<&str>, exif_rating: Option<u16>) -> Vec<u8> {
+        let short = |v: u16| {
+            if little {
+                v.to_le_bytes()
+            } else {
+                v.to_be_bytes()
+            }
+            .to_vec()
+        };
+        let mut entries = vec![
+            (0x010f, 2, 5, b"SONY\0".to_vec()),
+            (0x0110, 2, 10, b"ILCE-7CM2\0".to_vec()),
+        ];
+        if let Some(rating) = exif_rating {
+            entries.push((0x4746, 3, 1, short(rating)));
+        }
+        if let Some(rating) = xmp_rating {
+            let packet = xmp_packet(rating);
+            entries.push((0x02bc, 1, packet.len() as u32, packet));
+        }
+        tiff(little, &entries)
+    }
+
+    pub fn jpeg(segments: &[(u8, Vec<u8>)]) -> Vec<u8> {
+        let mut out = vec![0xff, 0xd8];
+        for (marker, payload) in segments {
+            out.extend([0xff, *marker]);
+            out.extend(((payload.len() + 2) as u16).to_be_bytes());
+            out.extend(payload);
+        }
+        out.extend([0xff, 0xda, 0x00, 0x02, 0xff, 0xd9]);
+        out
+    }
+
+    pub fn xmp_app1(rating: &str) -> (u8, Vec<u8>) {
+        let mut payload = b"http://ns.adobe.com/xap/1.0/\0".to_vec();
+        payload.extend(xmp_packet(rating));
+        (0xe1, payload)
+    }
+
+    pub fn exif_app1(rating: u16) -> (u8, Vec<u8>) {
+        let mut payload = b"Exif\0\0".to_vec();
+        payload.extend(tiff(
+            false,
+            &[(0x4746, 3, 1, rating.to_be_bytes().to_vec())],
+        ));
+        (0xe1, payload)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rating_samples::*;
+    use super::{XMP_UUID, parse_xmp_rating, read_image_rating, xmp_rating};
+    use std::io::Cursor;
+
+    fn rating(bytes: &[u8]) -> Option<u8> {
+        read_image_rating(&mut Cursor::new(bytes))
     }
 
     #[test]
-    fn xmp_attribute_rating_single_quote() {
-        let bytes = b"<rdf:Description xmp:Rating='2'/>".to_vec();
-        assert_eq!(read_image_rating(&bytes), Some(2));
+    fn xmp_attribute_rating() {
+        assert_eq!(
+            xmp_rating(b"<rdf:Description xmp:Rating=\"4\"></rdf:Description>"),
+            Some(4)
+        );
+        assert_eq!(xmp_rating(b"<rdf:Description xmp:Rating='2'/>"), Some(2));
+        assert_eq!(
+            xmp_rating(b"<rdf:Description xap:Rating = \" 1 \"/>"),
+            Some(1)
+        );
     }
 
     #[test]
     fn xmp_element_rating() {
-        let bytes = b"<rdf:Description><xmp:Rating>3</xmp:Rating></rdf:Description>".to_vec();
-        assert_eq!(read_image_rating(&bytes), Some(3));
+        assert_eq!(
+            xmp_rating(b"<rdf:Description><xmp:Rating>3</xmp:Rating></rdf:Description>"),
+            Some(3)
+        );
     }
 
     #[test]
     fn xmp_rating_mapping() {
-        assert_eq!(parse_xmp_rating("-1"), None); // rejected is not a star
+        assert_eq!(parse_xmp_rating("-1"), None);
         assert_eq!(parse_xmp_rating("0"), Some(0));
         assert_eq!(parse_xmp_rating("5"), Some(5));
         assert_eq!(parse_xmp_rating("7"), None);
         assert_eq!(parse_xmp_rating("abc"), None);
+        assert_eq!(parse_xmp_rating("99999999999"), None);
+        assert_eq!(xmp_rating(b"<rdf:RDF></rdf:RDF> no rating present"), None);
     }
 
     #[test]
-    fn explicit_zero_rating() {
-        let bytes = b"<rdf:Description xmp:Rating=\"0\"/>".to_vec();
-        assert_eq!(read_image_rating(&bytes), Some(0));
+    fn sony_arw_xmp_rating_both_byte_orders() {
+        for little in [true, false] {
+            assert_eq!(rating(&sony_arw(little, Some("3"), None)), Some(3));
+            assert_eq!(rating(&sony_arw(little, None, Some(4))), Some(4));
+            assert_eq!(rating(&sony_arw(little, Some("5"), Some(1))), Some(5));
+            assert_eq!(rating(&sony_arw(little, Some("0"), None)), Some(0));
+            assert_eq!(rating(&sony_arw(little, None, None)), None);
+        }
     }
 
     #[test]
-    fn no_rating_returns_none() {
-        let bytes = b"<rdf:RDF></rdf:RDF> no rating present".to_vec();
-        assert_eq!(read_image_rating(&bytes), None);
+    fn rejected_or_out_of_range_xmp_falls_back_to_exif() {
+        assert_eq!(rating(&sony_arw(true, Some("-1"), Some(2))), Some(2));
+        assert_eq!(rating(&sony_arw(true, Some("9"), None)), None);
+        assert_eq!(rating(&sony_arw(true, None, Some(9))), None);
+    }
+
+    #[test]
+    fn exif_sub_ifd_rating() {
+        // IFD0 points to an EXIF IFD at offset 26 that holds the Rating tag.
+        let mut bytes = b"II*\0\x08\0\0\0".to_vec();
+        bytes.extend(1u16.to_le_bytes());
+        bytes.extend([0x69, 0x87, 4, 0, 1, 0, 0, 0, 26, 0, 0, 0]);
+        bytes.extend(0u32.to_le_bytes());
+        bytes.extend(1u16.to_le_bytes());
+        bytes.extend([0x46, 0x47, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
+        bytes.extend(0u32.to_le_bytes());
+        assert_eq!(rating(&bytes), Some(2));
+    }
+
+    #[test]
+    fn jpeg_ratings() {
+        assert_eq!(rating(&jpeg(&[xmp_app1("4")])), Some(4));
+        assert_eq!(rating(&jpeg(&[exif_app1(2)])), Some(2));
+        assert_eq!(rating(&jpeg(&[exif_app1(2), xmp_app1("5")])), Some(5));
+        assert_eq!(rating(&jpeg(&[(0xe0, b"JFIF\0".to_vec())])), None);
+    }
+
+    #[test]
+    fn fuji_raf_embedded_jpeg() {
+        let jpeg = jpeg(&[exif_app1(1), xmp_app1("3")]);
+        let mut bytes = b"FUJIFILMCCD-RAW 0201FF383501".to_vec();
+        bytes.resize(84, 0);
+        bytes.extend(100u32.to_be_bytes());
+        bytes.extend((jpeg.len() as u32).to_be_bytes());
+        bytes.resize(100, 0);
+        bytes.extend(jpeg);
+        assert_eq!(rating(&bytes), Some(3));
+    }
+
+    #[test]
+    fn canon_cr3_xmp_box() {
+        let mut bytes = Vec::new();
+        bytes.extend(16u32.to_be_bytes());
+        bytes.extend(b"ftypcrx \0\0\0\x01");
+        bytes.extend(12u32.to_be_bytes());
+        bytes.extend(b"moov\0\0\0\0");
+        let packet = xmp_packet("2");
+        bytes.extend(((8 + 16 + packet.len()) as u32).to_be_bytes());
+        bytes.extend(b"uuid");
+        bytes.extend(XMP_UUID);
+        bytes.extend(packet);
+        assert_eq!(rating(&bytes), Some(2));
+    }
+
+    #[test]
+    fn malformed_data_returns_none() {
+        let le = |v: u32| v.to_le_bytes();
+        let cases: Vec<Vec<u8>> = vec![
+            vec![],
+            b"II*\0".to_vec(),
+            vec![0x42; 4096],
+            // IFD offset past the end of the file.
+            [b"II*\0".as_slice(), &le(0xffff_fff0), &[0; 8]].concat(),
+            // Wrong TIFF magic.
+            [b"II\x2b\0".as_slice(), &le(8), &[0; 8]].concat(),
+            // 65535 entries claimed, none present.
+            [b"II*\0".as_slice(), &le(8), &[0xff, 0xff], &[0; 8]].concat(),
+            // IFD0 whose next-IFD pointer is itself.
+            [
+                b"II*\0".as_slice(),
+                &le(8),
+                &[1, 0, 0x0f, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                &le(8),
+            ]
+            .concat(),
+            // XMP packet claiming 4 GiB, and one pointing past the end.
+            tiff(true, &[(0x02bc, 7, u32::MAX, le(64).to_vec())]),
+            tiff(true, &[(0x02bc, 7, 64, le(0xffff_0000).to_vec())]),
+            // JPEG with a segment length below 2, and a truncated APP1.
+            vec![
+                0xff, 0xd8, 0xff, 0xe1, 0x00, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+            vec![
+                0xff, 0xd8, 0xff, 0xe1, 0xff, 0xff, b'E', b'x', b'i', b'f', 0, 0, 0, 0, 0, 0,
+            ],
+            // ISO BMFF boxes with size 0, a zero 64-bit size, and an overflowing one.
+            [&0u32.to_be_bytes()[..], b"ftypcrx \0\0\0\0"].concat(),
+            [
+                &1u32.to_be_bytes()[..],
+                b"ftyp",
+                &0u64.to_be_bytes(),
+                b"crx ",
+            ]
+            .concat(),
+            [
+                &1u32.to_be_bytes()[..],
+                b"ftyp",
+                &u64::MAX.to_be_bytes(),
+                b"crx ",
+            ]
+            .concat(),
+            // RAF whose JPEG offset is past the end.
+            [
+                b"FUJIFILMCCD-RAW ".as_slice(),
+                &[0; 68],
+                &u32::MAX.to_be_bytes(),
+                &[0; 8],
+            ]
+            .concat(),
+        ];
+        for (i, bytes) in cases.iter().enumerate() {
+            assert_eq!(rating(bytes), None, "case {i}");
+        }
+    }
+
+    #[test]
+    fn truncated_and_corrupted_files_do_not_panic() {
+        let samples = [
+            sony_arw(true, Some("3"), Some(3)),
+            sony_arw(false, Some("3"), Some(3)),
+            jpeg(&[exif_app1(2), xmp_app1("4")]),
+        ];
+        let mut seed = 0x2545_f491_4f6c_dd1du64;
+        for sample in &samples {
+            for len in 0..sample.len() {
+                let _ = rating(&sample[..len]);
+            }
+            for _ in 0..2000 {
+                let mut bytes = sample.clone();
+                for _ in 0..4 {
+                    seed ^= seed << 13;
+                    seed ^= seed >> 7;
+                    seed ^= seed << 17;
+                    let at = (seed as usize) % bytes.len();
+                    bytes[at] = (seed >> 32) as u8;
+                }
+                if let Some(r) = rating(&bytes) {
+                    assert!(r <= 5);
+                }
+            }
+        }
     }
 }
