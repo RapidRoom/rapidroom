@@ -105,19 +105,14 @@ export default function ConfirmModal({
         <Text className="mb-6 whitespace-pre-wrap">{message}</Text>
         <div className="flex justify-end gap-3 mt-5">
           <Button
-            className="bg-bg-primary shadow-transparent hover:bg-bg-primary text-white shadow-none focus:outline-hidden focus:ring-0"
+            className="bg-bg-primary shadow-transparent hover:bg-bg-primary text-white shadow-none"
             onClick={onClose}
             variant="ghost"
             tabIndex={0}
           >
             {resolvedCancelText}
           </Button>
-          <Button
-            onClick={handleConfirm}
-            variant={confirmVariant}
-            autoFocus={true}
-            className="focus:outline-hidden focus:ring-0 focus:ring-offset-0"
-          >
+          <Button onClick={handleConfirm} variant={confirmVariant} autoFocus={true}>
             {resolvedConfirmText}
           </Button>
         </div>

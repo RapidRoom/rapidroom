@@ -116,8 +116,14 @@
     @apply text-text-primary font-sans;
   }
 
-  *:focus {
+  *:focus:not(:focus-visible) {
     outline: none !important;
+  }
+
+  *:focus-visible {
+    /* Keep keyboard focus visible over component outline utilities. */
+    outline: 2px solid color-mix(in srgb, var(--color-accent) 30%, var(--color-text-primary)) !important;
+    outline-offset: 2px;
   }
 
   .enable-color-transitions *,
