@@ -233,6 +233,7 @@ export default function BottomBar({
   );
 
   const allColors = [...COLOR_LABELS, { name: 'none', color: '#9ca3af' }];
+  const ratingComparisonSymbol = filterCriteria.ratingExact ? '=' : '≥';
   const currentHeight = filmstripHeight ?? 120;
   const isCollapsed = !isFilmstripVisible;
   const effectiveHeight = isFilmstripVisible ? currentHeight : 0;
@@ -502,6 +503,20 @@ export default function BottomBar({
                       </button>
                     );
                   })}
+                  <button
+                    data-tooltip={
+                      filterCriteria.ratingExact
+                        ? t('library.filters.rating.matchExactlyTooltip')
+                        : t('library.filters.rating.matchAtLeastTooltip')
+                    }
+                    onClick={() => setFilterCriteria((prev) => ({ ...prev, ratingExact: !prev.ratingExact }))}
+                    className={clsx(
+                      'ml-0.5 w-4 text-xs font-semibold focus:outline-none transition-colors',
+                      filterCriteria.ratingExact ? 'text-accent' : 'text-text-secondary hover:text-text-primary',
+                    )}
+                  >
+                    {ratingComparisonSymbol}
+                  </button>
                 </div>
 
                 <div className="h-4 w-px bg-border-color"></div>

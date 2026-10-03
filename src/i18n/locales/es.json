@@ -987,10 +987,16 @@
         "andUpSuffix": "y superior",
         "fiveOnly": "Solo 5",
         "fourAndUp": "4 y superior",
+        "fourOnly": "Solo 4",
+        "matchAtLeastTooltip": "Se muestra esta valoración y superiores. Haz clic para mostrar solo esta valoración.",
+        "matchExactlyTooltip": "Se muestra solo esta valoración. Haz clic para incluir valoraciones superiores.",
         "oneAndUp": "1 y superior",
+        "oneOnly": "Solo 1",
         "onlySuffix": "solo",
         "threeAndUp": "3 y superior",
+        "threeOnly": "Solo 3",
         "twoAndUp": "2 y superior",
+        "twoOnly": "Solo 2",
         "unrated": "Solo sin puntuación"
       },
       "raw": {
@@ -1607,11 +1613,14 @@
       "title": "Gestión de datos"
     },
     "general": {
+      "autoAdvance": "Avanzar tras valorar",
+      "autoAdvanceDesc": "Al valorar una sola imagen con un atajo de teclado, se pasa a la imagen siguiente.",
       "createXmp": "Crear archivos XMP faltantes",
       "createXmpDesc": "Crear automáticamente un nuevo archivo sidecar XMP si no existe uno para una imagen.",
       "createXmpMissing": "Crear XMP si falta",
       "displayEditIcon": "Mostrar icono de edición",
       "displayEditIconDesc": "Muestra un pequeño icono de control deslizante en las miniaturas que han sido editadas.",
+      "enableAutoAdvance": "Activar avance automático",
       "enableFocusMode": "Activar modo de enfoque",
       "enableNeutralGreyCanvas": "Activar fondo gris neutro",
       "enableOsTitlebar": "Activar barra de título del SO",

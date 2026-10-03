@@ -962,10 +962,16 @@
         "andUpSuffix": "及以上",
         "fiveOnly": "僅 5 星",
         "fourAndUp": "4 星及以上",
+        "fourOnly": "僅 4 星",
+        "matchAtLeastTooltip": "正在顯示此評分及以上。點擊僅顯示此評分。",
+        "matchExactlyTooltip": "正在僅顯示此評分。點擊以包含更高評分。",
         "oneAndUp": "1 星及以上",
+        "oneOnly": "僅 1 星",
         "onlySuffix": "僅",
         "threeAndUp": "3 星及以上",
+        "threeOnly": "僅 3 星",
         "twoAndUp": "2 星及以上",
+        "twoOnly": "僅 2 星",
         "unrated": "僅未評分"
       },
       "raw": {
@@ -1572,11 +1578,14 @@
       "title": "資料管理"
     },
     "general": {
+      "autoAdvance": "評分後自動前進",
+      "autoAdvanceDesc": "使用鍵盤快捷鍵為單張影像評分後，自動前往下一張影像。",
       "createXmp": "建立缺失的 XMP 檔案",
       "createXmpDesc": "如果影像沒有對應的 XMP 附屬檔案，則自動建立一個。",
       "createXmpMissing": "缺失時建立 XMP",
       "displayEditIcon": "顯示編輯圖示",
       "displayEditIconDesc": "在已編輯的縮圖上顯示一個小滑桿圖示。",
+      "enableAutoAdvance": "啟用自動前進",
       "enableFocusMode": "啟用專注模式",
       "enableNeutralGreyCanvas": "啟用中性灰背景",
       "enableOsTitlebar": "啟用系統標題欄",

@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**29 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**30 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                               |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -40,6 +40,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Pixel-exact regression check in CI: 18 renders on a software Vulkan renderer (Mesa lavapipe), compared by pixel hash                                                               | ci          | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                        |
 | BM3D denoise: raising the strength no longer adds noise back ⚑                                                                                                                     | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1404](https://github.com/CyberTimon/RapidRAW/issues/1404)                                                                                                                                                                                            |
 | Groundwork for camera-matching profiles: a bounds-checked reader for Adobe DCP files (not used by the app yet)                                                                     | feature     | [@harrytuckerr](https://github.com/harrytuckerr)                                                                         | not yet offered                                                                                                                                                                                                                                        |
+| Culling: optional auto-advance to the next image after rating with a shortcut, and an "exactly N stars" rating filter                                                              | feature     | [@yojen7](https://github.com/yojen7)                                                                                     | [#1749](https://github.com/CyberTimon/RapidRAW/issues/1749); [#1583](https://github.com/CyberTimon/RapidRAW/issues/1583)                                                                                                                               |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
@@ -297,3 +298,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** not yet offered
 - **Commits:** [f9a2c72](https://github.com/harrytuckerr/RapidRAW/commit/f9a2c72c2740f271593ac08aef6ddd84b0ed3574)
 - **Notes:** Parser and its synthetic test fixtures only (round-trip, ExtraCameraProfiles, a 10,000-input mutation test); nothing in the render path calls it yet, so output is unchanged. The fork's acceptance test against one vendor file on the author's machine was dropped. Harvested with Claude Code.
+
+### Culling: optional auto-advance to the next image after rating with a shortcut, and an "exactly N stars" rating filter
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** [#1749](https://github.com/CyberTimon/RapidRAW/issues/1749); [#1583](https://github.com/CyberTimon/RapidRAW/issues/1583)
+- **Notes:** Auto-advance is off by default (Settings → General) and only moves on when a single image is rated with the 0–5 keys; it stops at the last image. The ≥/= button next to the rating filter stars switches between "N and up" and "exactly N". Written with Claude Code.

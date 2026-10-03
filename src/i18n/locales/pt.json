@@ -987,10 +987,16 @@
         "andUpSuffix": "e superior",
         "fiveOnly": "Apenas 5",
         "fourAndUp": "4 e superior",
+        "fourOnly": "Apenas 4",
+        "matchAtLeastTooltip": "A mostrar esta classificação e superiores. Clique para mostrar apenas esta classificação.",
+        "matchExactlyTooltip": "A mostrar apenas esta classificação. Clique para incluir classificações superiores.",
         "oneAndUp": "1 e superior",
+        "oneOnly": "Apenas 1",
         "onlySuffix": "apenas",
         "threeAndUp": "3 e superior",
+        "threeOnly": "Apenas 3",
         "twoAndUp": "2 e superior",
+        "twoOnly": "Apenas 2",
         "unrated": "Apenas Sem Avaliação"
       },
       "raw": {
@@ -1608,11 +1614,14 @@
       "title": "Gerenciamento de Dados"
     },
     "general": {
+      "autoAdvance": "Avançar após classificar",
+      "autoAdvanceDesc": "Ao classificar uma única imagem com um atalho de teclado, passa para a imagem seguinte.",
       "createXmp": "Criar Arquivos XMP Ausentes",
       "createXmpDesc": "Cria automaticamente um novo arquivo sidecar XMP se não existir um para uma imagem.",
       "createXmpMissing": "Criar XMP se ausente",
       "displayEditIcon": "Exibir Ícone de Edição",
       "displayEditIconDesc": "Mostrar um pequeno ícone de controle deslizante em miniaturas que foram editadas.",
+      "enableAutoAdvance": "Ativar avanço automático",
       "enableFocusMode": "Ativar Modo de Foco",
       "enableNeutralGreyCanvas": "Ativar fundo cinza neutro",
       "enableOsTitlebar": "Ativar Barra de Título do SO",

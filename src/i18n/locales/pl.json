@@ -1010,10 +1010,16 @@
         "andUpSuffix": "i więcej",
         "fiveOnly": "tylko 5",
         "fourAndUp": "4 i więcej",
+        "fourOnly": "tylko 4",
+        "matchAtLeastTooltip": "Pokazuje tę ocenę i wyższe. Kliknij, aby pokazać tylko tę ocenę.",
+        "matchExactlyTooltip": "Pokazuje tylko tę ocenę. Kliknij, aby uwzględnić wyższe oceny.",
         "oneAndUp": "1 i więcej",
+        "oneOnly": "tylko 1",
         "onlySuffix": "tylko",
         "threeAndUp": "3 i więcej",
+        "threeOnly": "tylko 3",
         "twoAndUp": "2 i więcej",
+        "twoOnly": "tylko 2",
         "unrated": "Tylko bez oceny"
       },
       "raw": {
@@ -1642,11 +1648,14 @@
       "title": "Zarządzanie danymi"
     },
     "general": {
+      "autoAdvance": "Przejdź dalej po ocenie",
+      "autoAdvanceDesc": "Po ocenieniu pojedynczego zdjęcia skrótem klawiszowym przejdź do następnego zdjęcia.",
       "createXmp": "Twórz brakujące pliki XMP",
       "createXmpDesc": "Automatycznie utwórz nowy plik poboczny XMP, jeśli nie istnieje dla obrazu.",
       "createXmpMissing": "Utwórz XMP, jeśli brakuje",
       "displayEditIcon": "Wyświetl ikonę edycji",
       "displayEditIconDesc": "Pokazuje małą ikonkę suwaków na miniaturach, które były edytowane.",
+      "enableAutoAdvance": "Włącz automatyczne przechodzenie",
       "enableFocusMode": "Włącz Tryb skupienia",
       "enableNeutralGreyCanvas": "Włącz neutralne szare tło",
       "enableOsTitlebar": "Włącz systemowy pasek tytułu",

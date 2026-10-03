@@ -1219,6 +1219,18 @@ export default function SettingsPanel({
                         />
                       </SettingItem>
 
+                      <SettingItem
+                        label={t('settings.general.autoAdvance')}
+                        description={t('settings.general.autoAdvanceDesc')}
+                      >
+                        <Switch
+                          checked={appSettings?.autoAdvanceOnRate ?? false}
+                          id="auto-advance-toggle"
+                          label={t('settings.general.enableAutoAdvance')}
+                          onChange={(checked) => onSettingsChange({ ...appSettings, autoAdvanceOnRate: checked })}
+                        />
+                      </SettingItem>
+
                       <SettingItem label={t('settings.general.font')} description={t('settings.general.fontDesc')}>
                         <Dropdown
                           onChange={(value: any) => onSettingsChange({ ...appSettings, fontFamily: value })}

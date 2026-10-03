@@ -143,7 +143,16 @@ const SegmentedSwitch = ({ options, value, onChange }: SegmentedSwitchProps) => 
   );
 };
 
-const RatingSegmentedSwitch = ({ rating, onChange, ratingFilterOptions }: any) => {
+const RatingSegmentedSwitch = ({ rating, ratingExact, onChange, onToggleExact, ratingFilterOptions }: any) => {
+  const { t } = useTranslation();
+  const exactLabels: Record<number, string> = {
+    1: t('library.filters.rating.oneOnly'),
+    2: t('library.filters.rating.twoOnly'),
+    3: t('library.filters.rating.threeOnly'),
+    4: t('library.filters.rating.fourOnly'),
+    5: t('library.filters.rating.fiveOnly'),
+  };
+  const comparisonSymbol = ratingExact ? '=' : '≥';
   const [bubbleStyle, setBubbleStyle] = useState({});
   const isInitialAnimation = useRef(true);
 
@@ -210,7 +219,9 @@ const RatingSegmentedSwitch = ({ rating, onChange, ratingFilterOptions }: any) =
             {[...Array(5)].map((_, index) => {
               const starValue = index + 1;
               const isFilled = rating > 0 && starValue <= rating;
-              const optionLabel = ratingFilterOptions.find((o: any) => o.value === starValue)?.label;
+              const optionLabel = ratingExact
+                ? exactLabels[starValue]
+                : ratingFilterOptions.find((o: any) => o.value === starValue)?.label;
 
               return (
                 <button
@@ -231,6 +242,23 @@ const RatingSegmentedSwitch = ({ rating, onChange, ratingFilterOptions }: any) =
                 </button>
               );
             })}
+            <button
+              data-tooltip={
+                ratingExact
+                  ? t('library.filters.rating.matchExactlyTooltip')
+                  : t('library.filters.rating.matchAtLeastTooltip')
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExact();
+              }}
+              className={clsx(
+                'focus:outline-hidden ml-0.5 w-4 text-xs font-semibold transition-colors',
+                ratingExact ? 'text-accent' : 'text-text-secondary hover:text-text-primary',
+              )}
+            >
+              {comparisonSymbol}
+            </button>
           </div>
         </div>
       </div>
@@ -681,7 +709,11 @@ export function ViewOptionsDropdown({
             <div className="px-3 mt-1">
               <RatingSegmentedSwitch
                 rating={filterCriteria.rating}
+                ratingExact={filterCriteria.ratingExact ?? false}
                 onChange={(val: number) => setFilterCriteria((prev: FilterCriteria) => ({ ...prev, rating: val }))}
+                onToggleExact={() =>
+                  setFilterCriteria((prev: FilterCriteria) => ({ ...prev, ratingExact: !prev.ratingExact }))
+                }
                 ratingFilterOptions={ratingFilterOptions}
               />
             </div>

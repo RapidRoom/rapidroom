@@ -962,10 +962,16 @@
         "andUpSuffix": "以上",
         "fiveOnly": "5のみ",
         "fourAndUp": "4以上",
+        "fourOnly": "4のみ",
+        "matchAtLeastTooltip": "この評価以上を表示中。クリックするとこの評価のみを表示します。",
+        "matchExactlyTooltip": "この評価のみを表示中。クリックすると上位の評価も含めます。",
         "oneAndUp": "1以上",
+        "oneOnly": "1のみ",
         "onlySuffix": "のみ",
         "threeAndUp": "3以上",
+        "threeOnly": "3のみ",
         "twoAndUp": "2以上",
+        "twoOnly": "2のみ",
         "unrated": "未評価のみ"
       },
       "raw": {
@@ -1572,11 +1578,14 @@
       "title": "データ管理"
     },
     "general": {
+      "autoAdvance": "評価後に自動で次へ",
+      "autoAdvanceDesc": "キーボードショートカットで1枚の画像を評価すると、次の画像に移動します。",
       "createXmp": "見つからないXMPファイルを作成",
       "createXmpDesc": "画像にXMPサイドカーファイルが存在しない場合、自動的に新規作成します。",
       "createXmpMissing": "見つからない場合はXMPを作成",
       "displayEditIcon": "編集アイコンを表示",
       "displayEditIconDesc": "編集されたサムネイルに小さなスライダーアイコンを表示します。",
+      "enableAutoAdvance": "自動で次へを有効にする",
       "enableFocusMode": "フォーカスモードを有効にする",
       "enableNeutralGreyCanvas": "ニュートラルグレーの背景を有効にする",
       "enableOsTitlebar": "OSのタイトルバーを有効にする",
