@@ -29,6 +29,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | The library and folder tree refresh after exporting into the source folder                                                                                                         | fix         | [@yojen7](https://github.com/yojen7)                                                 | [#1674](https://github.com/CyberTimon/RapidRAW/issues/1674) open 30 d                                                                                   |
 | Batch export no longer puts another photo into some outputs: colour and luminance masks are built from the image being exported, and masks are paired with the right adjustments ⚑ | fix         | [@yojen7](https://github.com/yojen7)                                                 | [#1571](https://github.com/CyberTimon/RapidRAW/issues/1571) open 43 d                                                                                   |
 | RapidRoom name, logo, app icon and start-screen photo; the start screen credits RapidRAW as the upstream project                                                                   | platform    | [@yojen7](https://github.com/yojen7)                                                 | RapidRoom only                                                                                                                                          |
+| Frontend test foundation: Vitest with a mocked Tauri API, run on every pull request                                                                                                | ci          | [@yojen7](https://github.com/yojen7)                                                 | not yet offered                                                                                                                                         |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
@@ -191,3 +192,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@yojen7](https://github.com/yojen7)
 - **Upstream:** RapidRoom only
 - **Notes:** The app identifier (settings and data location) is unchanged, so existing RapidRAW settings, presets and library carry over. The start-screen photo is all rights reserved (not AGPL).
+
+### Frontend test foundation: Vitest with a mocked Tauri API, run on every pull request
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** not yet offered
+- **Notes:** Covers settings saving (success and backend failure) and Tauri event listener cleanup. Written with Claude Code.
