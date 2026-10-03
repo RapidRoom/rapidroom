@@ -4,10 +4,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**28 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**29 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                               |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct                | fix         | [@lalibertemarc](https://github.com/lalibertemarc)                                                                       | [#1251](https://github.com/CyberTimon/RapidRAW/issues/1251); [#746](https://github.com/CyberTimon/RapidRAW/issues/746); [#1768](https://github.com/CyberTimon/RapidRAW/issues/1768)                                                                    |
 | Tauri 2.12: Native Titlebar works with tiling Wayland compositors (Hyprland)                                                                                                       | platform    | [@yojen7](https://github.com/yojen7)                                                                                     | PR [#1813](https://github.com/CyberTimon/RapidRAW/pull/1813) merged                                                                                                                                                                                    |
 | No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw … \| head`)                                                                                                   | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | PR [#1819](https://github.com/CyberTimon/RapidRAW/pull/1819) open                                                                                                                                                                                      |
 | Exports embed an sRGB ICC profile (JPEG, PNG, TIFF), so colour-managed apps and print services read them correctly                                                                 | feature     | [@yojen7](https://github.com/yojen7)                                                                                     | [#1489](https://github.com/CyberTimon/RapidRAW/issues/1489) open 57 d; PR [#1820](https://github.com/CyberTimon/RapidRAW/pull/1820) open                                                                                                               |
@@ -43,6 +44,15 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
 ## Details
+
+### White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@lalibertemarc](https://github.com/lalibertemarc), from lalibertemarc/RapidRAW
+- **Upstream:** [#1251](https://github.com/CyberTimon/RapidRAW/issues/1251); [#746](https://github.com/CyberTimon/RapidRAW/issues/746); [#1768](https://github.com/CyberTimon/RapidRAW/issues/1768)
+- **Commits:** [b41aa56](https://github.com/lalibertemarc/RapidRAW/commit/b41aa56622518ca33526139520011fed73ca129e)
+- **Notes:** Rendering pipeline unchanged; only the temperature/tint values the picker produces differ. A hover swatch shows the sampled colour and the resulting temperature/tint.
 
 ### Tauri 2.12: Native Titlebar works with tiling Wayland compositors (Hyprland)
 

@@ -2,6 +2,20 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "wb-picker-original",
+      "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["lalibertemarc"],
+      "source": "lalibertemarc/RapidRAW",
+      "commits": ["https://github.com/lalibertemarc/RapidRAW/commit/b41aa56622518ca33526139520011fed73ca129e"],
+      "upstream_issues": ["CyberTimon/RapidRAW#1251", "CyberTimon/RapidRAW#746", "CyberTimon/RapidRAW#1768"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Rendering pipeline unchanged; only the temperature/tint values the picker produces differ. A hover swatch shows the sampled colour and the resulting temperature/tint.",
+      "highlight": "**A white balance picker you can trust.** It reads the untouched raw data, averages a square or a dragged area, and shows a live preview before you click, which helps with mixed-light night shots."
+    },
+    {
       "id": "tauri-2.12",
       "title": "Tauri 2.12: Native Titlebar works with tiling Wayland compositors (Hyprland)",
       "category": "platform",
