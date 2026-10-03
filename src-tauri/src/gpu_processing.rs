@@ -61,6 +61,22 @@ pub struct WgpuDisplay {
 }
 
 impl WgpuDisplay {
+    /// Apply a window size recorded by the resize handler. The handler can only
+    /// try_lock the display, so a resize that races a render is left here and
+    /// picked up by whoever gets the lock next — otherwise the swapchain stays
+    /// smaller than the window and the uncovered strip renders as black.
+    pub fn apply_pending_size(&mut self, context: &GpuContext) {
+        let Some((width, height)) = context.pending_surface_size.lock().unwrap().take() else {
+            return;
+        };
+        if self.config.width == width && self.config.height == height {
+            return;
+        }
+        self.config.width = width;
+        self.config.height = height;
+        self.surface.configure(&context.device, &self.config);
+    }
+
     pub fn render(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         if let Some(bind_group) = &self.current_bind_group {
             let output = match self.surface.get_current_texture() {
@@ -427,6 +443,7 @@ pub fn get_or_init_gpu_context(
         queue: Arc::new(queue),
         limits,
         display: Arc::new(std::sync::Mutex::new(display_opt)),
+        pending_surface_size: Arc::new(std::sync::Mutex::new(None)),
     };
     *context_lock = Some(new_context.clone());
     Ok(new_context)
@@ -2200,6 +2217,7 @@ fn process_and_get_dynamic_image_inner(
             .unwrap_or_else(|e| e.into_inner())
             .as_mut()
     {
+        display.apply_pending_size(context);
         display.latest_transform.image_size = [width as f32, height as f32];
         display.latest_transform.texture_size =
             [processor_state.width as f32, processor_state.height as f32];

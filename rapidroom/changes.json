@@ -436,6 +436,19 @@
       "highlight": "**Bring your Lightroom edits along:** import XMP sidecars"
     },
     {
+      "id": "pending-preview-resize",
+      "title": "Window and DPI changes keep the latest preview size even when a render holds the display lock",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["subbajeu", "yojen7"],
+      "source": "SandeepSubba/RapidRAW",
+      "commits": ["https://github.com/SandeepSubba/RapidRAW/commit/1084ca96fbad8ea1c64dd58d6a26df06fdf3df60"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The latest physical surface size is queued outside the display lock and applied on the next transform, resize, or native preview render. Export processing is unchanged."
+    },
+    {
       "id": "headless-exit-code",
       "title": "Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)",
       "category": "fix",

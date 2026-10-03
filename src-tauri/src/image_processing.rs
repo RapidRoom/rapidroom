@@ -2552,6 +2552,10 @@ pub struct GpuContext {
     pub queue: Arc<wgpu::Queue>,
     pub limits: wgpu::Limits,
     pub display: Arc<std::sync::Mutex<Option<WgpuDisplay>>>,
+    /// Latest window size seen by the resize handler, not yet applied to the
+    /// swapchain. Kept off the `display` mutex so the UI thread can always
+    /// record it without blocking on an in-flight render.
+    pub pending_surface_size: Arc<std::sync::Mutex<Option<(u32, u32)>>>,
 }
 
 #[inline(always)]
