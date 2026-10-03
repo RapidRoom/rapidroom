@@ -964,10 +964,16 @@
         "andUpSuffix": "i superior",
         "fiveOnly": "Només 5",
         "fourAndUp": "4 i superior",
+        "fourOnly": "Només 4",
+        "matchAtLeastTooltip": "Es mostra aquesta valoració i superiors. Feu clic per mostrar només aquesta valoració.",
+        "matchExactlyTooltip": "Es mostra només aquesta valoració. Feu clic per incloure valoracions superiors.",
         "oneAndUp": "1 i superior",
+        "oneOnly": "Només 1",
         "onlySuffix": "només",
         "threeAndUp": "3 i superior",
+        "threeOnly": "Només 3",
         "twoAndUp": "2 i superior",
+        "twoOnly": "Només 2",
         "unrated": "Només sense puntuació"
       },
       "raw": {
@@ -1574,11 +1580,14 @@
       "title": "Gestió de dades"
     },
     "general": {
+      "autoAdvance": "Avançar després de valorar",
+      "autoAdvanceDesc": "Quan valoreu una sola imatge amb una drecera de teclat, es passa a la imatge següent.",
       "createXmp": "Crear fitxers XMP que falten",
       "createXmpDesc": "Crear automàticament un nou fitxer sidecar XMP si no n'existeix cap per a una imatge.",
       "createXmpMissing": "Crear XMP si falta",
       "displayEditIcon": "Mostrar icona d'edició",
       "displayEditIconDesc": "Mostra una petita icona de control lliscant a les miniatures que han estat editades.",
+      "enableAutoAdvance": "Activar l'avanç automàtic",
       "enableFocusMode": "Activar mode de concentració",
       "enableNeutralGreyCanvas": "Activa el fons gris neutre",
       "enableOsTitlebar": "Activar barra de títol del SO",

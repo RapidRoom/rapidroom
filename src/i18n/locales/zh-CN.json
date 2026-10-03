@@ -962,10 +962,16 @@
         "andUpSuffix": "及以上",
         "fiveOnly": "仅 5 星",
         "fourAndUp": "4 星及以上",
+        "fourOnly": "仅 4 星",
+        "matchAtLeastTooltip": "正在显示此评分及以上。点击仅显示此评分。",
+        "matchExactlyTooltip": "正在仅显示此评分。点击以包含更高评分。",
         "oneAndUp": "1 星及以上",
+        "oneOnly": "仅 1 星",
         "onlySuffix": "仅",
         "threeAndUp": "3 星及以上",
+        "threeOnly": "仅 3 星",
         "twoAndUp": "2 星及以上",
+        "twoOnly": "仅 2 星",
         "unrated": "仅未评分"
       },
       "raw": {
@@ -1572,11 +1578,14 @@
       "title": "数据管理"
     },
     "general": {
+      "autoAdvance": "评分后自动前进",
+      "autoAdvanceDesc": "使用键盘快捷键为单张图像评分后，自动转到下一张图像。",
       "createXmp": "创建缺失的 XMP 文件",
       "createXmpDesc": "如果图像没有对应的 XMP 附属文件，则自动创建一个。",
       "createXmpMissing": "缺失时创建 XMP",
       "displayEditIcon": "显示编辑图标",
       "displayEditIconDesc": "在已编辑的缩略图上显示一个小滑块图标。",
+      "enableAutoAdvance": "启用自动前进",
       "enableFocusMode": "启用专注模式",
       "enableNeutralGreyCanvas": "启用中性灰背景",
       "enableOsTitlebar": "启用系统标题栏",

@@ -24,6 +24,8 @@ pub struct FilterCriteria {
     pub edited_status: Option<String>,
     #[serde(default)]
     pub colors: Vec<String>,
+    #[serde(default)]
+    pub rating_exact: bool,
 }
 
 impl Default for FilterCriteria {
@@ -33,6 +35,7 @@ impl Default for FilterCriteria {
             raw_status: "all".to_string(),
             edited_status: Some("all".to_string()),
             colors: Vec::new(),
+            rating_exact: false,
         }
     }
 }
@@ -557,6 +560,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub enable_tool_focus_mode: Option<bool>,
     #[serde(default)]
+    pub auto_advance_on_rate: Option<bool>,
+    #[serde(default)]
     pub folder_icons: Option<HashMap<String, String>>,
     #[serde(default)]
     pub raw_preprocessing_color_nr: Option<f32>,
@@ -674,6 +679,7 @@ impl Default for AppSettings {
             default_non_raw_tonemapper: Some("basic".to_string()),
             enable_focus_mode: Some(false),
             enable_tool_focus_mode: Some(false),
+            auto_advance_on_rate: Some(false),
             folder_icons: Some(HashMap::new()),
             raw_preprocessing_color_nr: Some(0.5),
             raw_preprocessing_sharpening: Some(0.35),

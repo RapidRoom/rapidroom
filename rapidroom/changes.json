@@ -335,6 +335,19 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Adapted to RapidRoom's shader with Claude Code: sharpening also reads the tonal blur, highlights doesn't, and RapidRoom has no skin smoothing. Output should be pixel-identical; speed-up not measured yet."
+    },
+    {
+      "id": "culling-auto-advance",
+      "title": "Culling: optional auto-advance to the next image after rating with a shortcut, and an \"exactly N stars\" rating filter",
+      "category": "feature",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1749", "CyberTimon/RapidRAW#1583"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Auto-advance is off by default (Settings → General) and only moves on when a single image is rated with the 0–5 keys; it stops at the last image. The ≥/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
+      "highlight": "**Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars."
     }
   ]
 }

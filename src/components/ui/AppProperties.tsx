@@ -246,6 +246,7 @@ export interface AppSettings {
   copyPasteSettings?: CopyPasteSettings;
   enableFocusMode?: boolean;
   enableToolFocusMode?: boolean;
+  autoAdvanceOnRate?: boolean;
   openTreeSections?: string[];
   folderIcons?: Record<string, string>;
   exifOverlay?: ExifOverlay;
@@ -284,6 +285,7 @@ export type EditedStatus = (typeof EditedStatus)[keyof typeof EditedStatus];
 export interface FilterCriteria {
   colors: Array<string>;
   rating: number;
+  ratingExact?: boolean;
   rawStatus: RawStatus;
   editedStatus?: EditedStatus;
 }
