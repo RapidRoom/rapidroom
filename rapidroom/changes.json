@@ -377,6 +377,19 @@
       "upstream_prs": [],
       "rendering_change": true,
       "notes": "The detail blend re-added up to 50% of the original high frequencies, noise included, and grew with strength. It now matches the old blend up to 33% strength and fades to zero at 100%. Only BM3D denoise output above 33% strength changes; the edit pipeline and its regression renders are untouched. Unit tests check that RMSE against a clean image doesn't rise with strength. Written with Claude Code."
+    },
+    {
+      "id": "dcp-parser",
+      "title": "Groundwork for camera-matching profiles: a bounds-checked reader for Adobe DCP files (not used by the app yet)",
+      "category": "feature",
+      "landed": "2026-10-03",
+      "authors": ["harrytuckerr"],
+      "source": "harrytuckerr/RapidRAW",
+      "commits": ["https://github.com/harrytuckerr/RapidRAW/commit/f9a2c72c2740f271593ac08aef6ddd84b0ed3574"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Parser and its synthetic test fixtures only (round-trip, ExtraCameraProfiles, a 10,000-input mutation test); nothing in the render path calls it yet, so output is unchanged. The fork's acceptance test against one vendor file on the author's machine was dropped. Harvested with Claude Code."
     }
   ]
 }
