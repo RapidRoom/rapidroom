@@ -240,6 +240,20 @@
       "highlight": "**Reliable batch exports.** Large exports no longer slip another photo into some images, and colour and luminance masks now apply correctly when exporting."
     },
     {
+      "id": "xmp-keywords-export",
+      "title": "Exported JPEG, PNG and WebP files carry your tags as XMP keywords (dc:subject) when metadata is kept",
+      "category": "feature",
+      "landed": "2026-10-03",
+      "authors": ["chuckhenrich", "yojen7"],
+      "source": "chuckhenrich/RapidRAW (adapted in RapidRoom: colour labels left out, user: prefix stripped, JPEG/WebP placement fixed)",
+      "commits": ["https://github.com/chuckhenrich/RapidRAW/commit/8564c6c94240b15a35e96c7e5ae94ecc8c7b7e31"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Only with \"Keep metadata\" on. Not yet for TIFF, AVIF or JXL exports, or for TIFF sources (no metadata is written for those today). The fork commit cites `#1618`, probably the upstream issue; not verified.",
+      "highlight": "**Your keywords travel with your exports.** Tags you add show up as keywords in Lightroom, digiKam, photo sites and stock agencies."
+    },
+    {
       "id": "rapidroom-branding",
       "title": "RapidRoom name, logo, app icon and start-screen photo; the start screen credits RapidRAW as the upstream project",
       "category": "platform",
