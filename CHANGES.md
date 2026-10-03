@@ -404,7 +404,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@lalibertemarc](https://github.com/lalibertemarc), from CyberTimon/RapidRAW
 - **Upstream:** [#1775](https://github.com/CyberTimon/RapidRAW/issues/1775); PR [#1777](https://github.com/CyberTimon/RapidRAW/issues/1777)
 - **Commits:** [e883421](https://github.com/CyberTimon/RapidRAW/commit/e8834210d9c88793b463f4feca3b6e5ee3f65e55)
-- **Notes:** Normal upstream-main merge. Convert linear RGB to sRGB before the HSV split and convert back before the linear-luminance rescale. The function is called for default and adjusted exports; all pixel differences are documented per commit.
+- **Notes:** Normal upstream-main merge. Active effective bands convert linear RGB to sRGB before the HSV split and back before the linear-luminance rescale. Inactive bands now return original linear RGB exactly; the accompanying zero-HSL and vibrance-domain correction has its own entry and rendering evidence.
 
 ### Sync upstream main: shared RAW embedded previews, Nikon lens metadata fallback and mask Escape/cache fixes
 

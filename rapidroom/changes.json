@@ -550,7 +550,7 @@
       "upstream_issues": ["CyberTimon/RapidRAW#1775"],
       "upstream_prs": ["CyberTimon/RapidRAW#1777"],
       "rendering_change": true,
-      "notes": "Normal upstream-main merge. Convert linear RGB to sRGB before the HSV split and convert back before the linear-luminance rescale. The function is called for default and adjusted exports; all pixel differences are documented per commit."
+      "notes": "Normal upstream-main merge. Active effective bands convert linear RGB to sRGB before the HSV split and back before the linear-luminance rescale. Inactive bands now return original linear RGB exactly; the accompanying zero-HSL and vibrance-domain correction has its own entry and rendering evidence."
     },
     {
       "id": "upstream-sync-20261003",

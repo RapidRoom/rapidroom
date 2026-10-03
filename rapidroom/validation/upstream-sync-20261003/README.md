@@ -1,4 +1,6 @@
-# Upstream sync: per-commit rendering evidence
+# Initial upstream sync: per-commit rendering evidence
+
+**Final follow-up:** [Inactive HSL and positive-vibrance correction](hsl-noop/README.md) supersedes the unfixed rendering results below. It records the root cause, minimal fix and final 60-case comparisons. The following evidence describes the initial sync through `b19e4a47`, before the two local corrections.
 
 This normal merge takes upstream main through `0957a1ae31248e46196e24c0fe81b92f71f9f69d`. The rendering changes are continuous magenta-highlight recovery and perceptual-space HSL hue/saturation. RapidRoom's existing rawler crop/dither fix and other protections remain. The additive EXIF conflict preserves both bounded rating readers and the incoming lens helper. The optional inverse-sRGB exponent fix is separate in #15.
 
