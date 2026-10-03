@@ -525,6 +525,52 @@
       "upstream_prs": [],
       "rendering_change": true,
       "notes": "Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only."
+    },
+    {
+      "id": "continuous-magenta-highlight-correction",
+      "title": "Saturated red highlights use a continuous magenta correction instead of abrupt green lifts",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["3048mm"],
+      "source": "CyberTimon/RapidRAW",
+      "commits": ["https://github.com/CyberTimon/RapidRAW/commit/e99082ad1d3cfea3db1f3e6611340f024f664258"],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1824"],
+      "rendering_change": true,
+      "notes": "Arrives through the normal upstream-main merge, with original author and Claude co-author retained. Weight the existing correction by relative magenta excess; the empirical full-weight threshold is 0.25. Human visual/reference approval is required."
+    },
+    {
+      "id": "perceptual-hsl-mixer-hue",
+      "title": "HSL mixer hue and saturation are evaluated in sRGB perceptual space while luminance stays linear",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["lalibertemarc"],
+      "source": "CyberTimon/RapidRAW",
+      "commits": ["https://github.com/CyberTimon/RapidRAW/commit/e8834210d9c88793b463f4feca3b6e5ee3f65e55"],
+      "upstream_issues": ["CyberTimon/RapidRAW#1775"],
+      "upstream_prs": ["CyberTimon/RapidRAW#1777"],
+      "rendering_change": true,
+      "notes": "Normal upstream-main merge. Convert linear RGB to sRGB before the HSV split and convert back before the linear-luminance rescale. The function is called for default and adjusted exports; all pixel differences are documented per commit."
+    },
+    {
+      "id": "upstream-sync-20261003",
+      "title": "Sync upstream main: shared RAW embedded previews, Nikon lens metadata fallback and mask Escape/cache fixes",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["lalibertemarc", "CyberTimon"],
+      "source": "CyberTimon/RapidRAW",
+      "commits": [
+        "https://github.com/CyberTimon/RapidRAW/commit/0957a1ae",
+        "https://github.com/CyberTimon/RapidRAW/commit/c11c7a5c",
+        "https://github.com/CyberTimon/RapidRAW/commit/43248097",
+        "https://github.com/CyberTimon/RapidRAW/commit/4e45e620",
+        "https://github.com/CyberTimon/RapidRAW/commit/9671795e",
+        "https://github.com/CyberTimon/RapidRAW/commit/cf6813f1"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1823", "CyberTimon/RapidRAW#1815", "CyberTimon/RapidRAW#1827"],
+      "rendering_change": false,
+      "notes": "Preserve every RapidRoom change and upstream author. The additive EXIF conflict keeps bounded rating readers and the new lens helper. Existing float upload and ICC work are deduplicated; rawler crop/dither, mask/export protections and cache identity are retained. Render-changing highlight and HSL commits have separate entries."
     }
   ]
 }

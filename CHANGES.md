@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**38 changes on top of RapidRAW.** 18 fix upstream issues that had been open a median of 68 days when RapidRoom shipped the fix; 17 of them still open upstream. 9 offered upstream as PRs, 3 merged so far.
+**41 changes on top of RapidRAW.** 18 fix upstream issues that had been open a median of 68 days when RapidRoom shipped the fix; 17 of them still open upstream. 9 offered upstream as PRs, 3 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                                                           |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -49,6 +49,9 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Linux release packaging: a .deb and an AppImage named RapidRoom that install side by side with RapidRAW                                                                            | platform    | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
 | Denoise dialogs stay open on busy backdrop clicks; Cancel stops waiting and discards the eventual UI result                                                                        | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1697](https://github.com/CyberTimon/RapidRAW/issues/1697) open 27 d                                                                                                                                                                                                              |
 | DxO compressed DNG highlights no longer wrap to black dots when lookup-table dithering exceeds 16 bits ⚑                                                                           | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1119](https://github.com/CyberTimon/RapidRAW/issues/1119) open 155 d                                                                                                                                                                                                             |
+| Saturated red highlights use a continuous magenta correction instead of abrupt green lifts ⚑                                                                                       | fix         | [@3048mm](https://github.com/3048mm)                                                                                     | PR [#1824](https://github.com/CyberTimon/RapidRAW/issues/1824)                                                                                                                                                                                                                     |
+| HSL mixer hue and saturation are evaluated in sRGB perceptual space while luminance stays linear ⚑                                                                                 | fix         | [@lalibertemarc](https://github.com/lalibertemarc)                                                                       | [#1775](https://github.com/CyberTimon/RapidRAW/issues/1775); PR [#1777](https://github.com/CyberTimon/RapidRAW/issues/1777)                                                                                                                                                        |
+| Sync upstream main: shared RAW embedded previews, Nikon lens metadata fallback and mask Escape/cache fixes                                                                         | fix         | [@lalibertemarc](https://github.com/lalibertemarc), [@CyberTimon](https://github.com/CyberTimon)                         | PR [#1823](https://github.com/CyberTimon/RapidRAW/issues/1823); PR [#1815](https://github.com/CyberTimon/RapidRAW/issues/1815); PR [#1827](https://github.com/CyberTimon/RapidRAW/issues/1827)                                                                                     |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
@@ -383,3 +386,30 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** [#1119](https://github.com/CyberTimon/RapidRAW/issues/1119) open 155 d
 - **Commits:** [5a44585](https://github.com/yojen7/RapidRAW-DngLab/commit/5a44585da25c7ff783c83a4bff25281f0cf28159), [4c96062](https://github.com/yojen7/RapidRAW-DngLab/commit/4c960626978287ab8e4aabe70a6cfa60b4582273)
 - **Notes:** Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only.
+
+### Saturated red highlights use a continuous magenta correction instead of abrupt green lifts
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@3048mm](https://github.com/3048mm), from CyberTimon/RapidRAW
+- **Upstream:** PR [#1824](https://github.com/CyberTimon/RapidRAW/issues/1824)
+- **Commits:** [e99082a](https://github.com/CyberTimon/RapidRAW/commit/e99082ad1d3cfea3db1f3e6611340f024f664258)
+- **Notes:** Arrives through the normal upstream-main merge, with original author and Claude co-author retained. Weight the existing correction by relative magenta excess; the empirical full-weight threshold is 0.25. Human visual/reference approval is required.
+
+### HSL mixer hue and saturation are evaluated in sRGB perceptual space while luminance stays linear
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@lalibertemarc](https://github.com/lalibertemarc), from CyberTimon/RapidRAW
+- **Upstream:** [#1775](https://github.com/CyberTimon/RapidRAW/issues/1775); PR [#1777](https://github.com/CyberTimon/RapidRAW/issues/1777)
+- **Commits:** [e883421](https://github.com/CyberTimon/RapidRAW/commit/e8834210d9c88793b463f4feca3b6e5ee3f65e55)
+- **Notes:** Normal upstream-main merge. Convert linear RGB to sRGB before the HSV split and convert back before the linear-luminance rescale. The function is called for default and adjusted exports; all pixel differences are documented per commit.
+
+### Sync upstream main: shared RAW embedded previews, Nikon lens metadata fallback and mask Escape/cache fixes
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@lalibertemarc](https://github.com/lalibertemarc), [@CyberTimon](https://github.com/CyberTimon), from CyberTimon/RapidRAW
+- **Upstream:** PR [#1823](https://github.com/CyberTimon/RapidRAW/issues/1823); PR [#1815](https://github.com/CyberTimon/RapidRAW/issues/1815); PR [#1827](https://github.com/CyberTimon/RapidRAW/issues/1827)
+- **Commits:** [0957a1a](https://github.com/CyberTimon/RapidRAW/commit/0957a1ae), [c11c7a5](https://github.com/CyberTimon/RapidRAW/commit/c11c7a5c), [4324809](https://github.com/CyberTimon/RapidRAW/commit/43248097), [4e45e62](https://github.com/CyberTimon/RapidRAW/commit/4e45e620), [9671795](https://github.com/CyberTimon/RapidRAW/commit/9671795e), [cf6813f](https://github.com/CyberTimon/RapidRAW/commit/cf6813f1)
+- **Notes:** Preserve every RapidRoom change and upstream author. The additive EXIF conflict keeps bounded rating readers and the new lens helper. Existing float upload and ICC work are deduplicated; rawler crop/dither, mask/export protections and cache identity are retained. Render-changing highlight and HSL commits have separate entries.

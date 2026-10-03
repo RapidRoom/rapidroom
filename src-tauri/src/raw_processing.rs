@@ -309,3 +309,26 @@ pub fn get_fast_demosaic_scale_factor(
     }
     1.0
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn magenta_correction_does_not_jump_across_the_green_blue_boundary() {
+        for (below, above) in [(0.009, 0.011), (0.0099999, 0.0100001)] {
+            let (_, green_below, _) = recover_clipped_pixel(2.8, 0.010, below);
+            let (_, green_above, _) = recover_clipped_pixel(2.8, 0.010, above);
+            assert!((green_above - green_below).abs() < 0.005);
+        }
+    }
+
+    #[test]
+    fn recovery_preserves_dark_pixels_and_strong_magenta_highlights() {
+        assert_eq!(recover_clipped_pixel(0.4, 0.1, 0.3), (0.4, 0.1, 0.3));
+        let (red, green, blue) = recover_clipped_pixel(2.22, 0.82, 1.57);
+        assert!((red - 2.22).abs() < 1e-6);
+        assert!((green - 2.104).abs() < 0.001);
+        assert!((blue - 2.091).abs() < 0.001);
+    }
+}
