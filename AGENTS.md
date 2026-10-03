@@ -17,6 +17,7 @@ When a session is started with "take the next cloud issue":
 2. Skip an issue if it has a "working on this" comment from another session in the last 24 hours, or an open PR that closes it. Also skip it if its body or an **Agent brief** comment says to wait for another issue that's still open.
 3. Comment "Claude Code cloud session: working on this", then follow the issue body and any **Agent brief** comment. The brief wins if they disagree.
 4. One issue per session. Open a PR into `main` titled `#<issue> <summary>` that closes the issue. Then stop.
+5. **Keep your PR mergeable.** Other sessions merge into `main` while yours is open. When your PR conflicts, merge `main` into your branch (don't force-push over reviewed commits). Resolve `rapidroom/changes.json` by keeping every entry, and `CREDITS.md` by keeping every row. Regenerate `CHANGES.md` and the README with `node rapidroom/status.mjs`, rerun the checks, and push. Code conflicts with another PR: keep both behaviours, and say in a PR comment what you did.
 
 ## Harvesting from forks
 
