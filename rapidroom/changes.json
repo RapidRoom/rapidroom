@@ -462,6 +462,19 @@
       "notes": "Transformed, patched/warped and small-preview cache keys include the full virtual image path. The existing path guard and mask-image snapshot from the batch-export fix are retained; its already image-keyed cache uses the equivalent shared helper. No image-processing math changes."
     },
     {
+      "id": "linux-allocator-no-thp",
+      "title": "Linux large allocations no longer request transparent huge pages from mimalloc, avoiding compaction stalls on fragmented memory",
+      "category": "performance",
+      "landed": "2026-10-03",
+      "authors": ["elhigu"],
+      "source": "CyberTimon/RapidRAW",
+      "commits": ["https://github.com/CyberTimon/RapidRAW/commit/a7424509bba7ed44154fa283b1c3d41abf982c5a"],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1790"],
+      "rendering_change": false,
+      "notes": "Allocation-only change: enable mimalloc no_thp and retain the Linux smaps regression test. The allocator version and image-processing math are unchanged. The remaining GPU logging, benchmark and parallel conversion work is tracked in RapidRoom issue #66."
+    },
+    {
       "id": "headless-exit-code",
       "title": "Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)",
       "category": "fix",
