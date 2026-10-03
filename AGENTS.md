@@ -33,6 +33,7 @@ RapidRoom is a community build of [RapidRAW](https://github.com/CyberTimon/Rapid
 ## Don'ts
 
 - **Don't link upstream or fork issues and PRs** (`CyberTimon/RapidRAW#123`, `someone/fork#4`) in RapidRoom issues, PRs or commit messages. GitHub would add a "mentioned" event to their tracker. Write them as code, `` `CyberTimon/RapidRAW#123` ``. Links to commits are fine.
+- **Don't @-mention people outside RapidRoom** (fork authors, upstream maintainers) in issues, PRs or commit messages. GitHub notifies them. Name them without the @, e.g. "by chuckhenrich". Maintainers decide when to contact people.
 - **Don't post anything outside this repo:** no upstream PRs, comments on other repos, or forks. The maintainers decide that.
 - **Don't modify or reuse `public/splash-rapidroom.jpg`.** It is all rights reserved; see its `.license` file.
 - **Don't change the app identifier** (`io.github.CyberTimon.RapidRAW` in `tauri.conf.json`). It keeps existing users' settings.
