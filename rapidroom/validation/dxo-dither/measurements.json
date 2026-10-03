@@ -1,0 +1,207 @@
+{
+  "validated_application_commit": "3eaa0c6e3c143958440fef79fb49bf7a09fb81b3",
+  "raw_decoder_before": "fe0839580ece6aab0884ebb7d806f34ff01fb52b",
+  "raw_decoder_after": "4c960626978287ab8e4aabe70a6cfa60b4582273",
+  "environment": {
+    "hostname": "omarchy",
+    "kernel": "7.2.5-3-omarchy",
+    "cpu_count": 8,
+    "gpus": [
+      {
+        "card": "card0",
+        "driver": "xe",
+        "pci_id": "8086:64A0"
+      }
+    ],
+    "packages": [
+      "mesa 1:26.2.2-1",
+      "vulkan-intel 1:26.2.2-1",
+      "intel-media-driver 26.2.4-1",
+      "vulkan-icd-loader 1.4.357.0-1"
+    ],
+    "python": "3.14.7",
+    "numpy": "2.5.3"
+  },
+  "dxo": {
+    "sample": "DSC_5426.dng",
+    "sample_sha256": "b28f8b3dd097f9b2b60016614b67b707eb6858041021db7acdc742f34725541b",
+    "before_engine_sha256": "6eccf353e510d7a8c21d0919a95ed2c58861aeae9e001957374edb333af20019",
+    "after_engine_sha256": "1c6625ca7e4f19446ab9aadaef914e13e05b464c20fc6f957caedcc7161a62c9",
+    "width": 4024,
+    "height": 6048,
+    "icc": "sRGB",
+    "pixels_changed": 2056903,
+    "pixel_count": 24337152,
+    "pct_pixels_changed": 8.45169968942956,
+    "max_abs_16bit": 65535,
+    "isolated_dark_before": 82031,
+    "isolated_dark_after": 0,
+    "isolated_dark_became_bright": 82031,
+    "dark_metric": "Mean RGB <8192 with eight-neighbor mean RGB >49152; corrected means the same center becomes >49152. Edges excluded.",
+    "crop": [128, 640, 256, 256],
+    "crop_corrected_pixels": 2956
+  },
+  "corpus": {
+    "compared": 60,
+    "identical": 57,
+    "changed": 3,
+    "missing": 0,
+    "exact_comparator_exit": 1,
+    "same_environment": true,
+    "matches_committed_reference": true,
+    "reference_updated": false,
+    "changed_images": [
+      {
+        "set": "busy-agx-lut-effects",
+        "id": "apple-iphone12pro-proraw",
+        "ref_icc": "sRGB",
+        "test_icc": "sRGB",
+        "ref_size": [3024, 4032],
+        "test_size": [3024, 4032],
+        "ref_pixel_sha256": "8221d6a6acd11ede0244ae105d4bd2058a0590dae9fd9b191f3875809ee80f77",
+        "test_pixel_sha256": "7f18ede7857bd953afe963e3ec3e52f170dff680ec945afc00ce846d2fb5c7fd",
+        "identical": false,
+        "max_abs": 2272,
+        "mean_abs": 0.001552833067383332,
+        "psnr_db": 95.02039991713295,
+        "pct_over_threshold": 6.561266481901403e-5,
+        "de00_mean": 2.6622958309942437e-6,
+        "de00_p99": 0.0,
+        "de00_max": 0.2408484525237247,
+        "violations": [
+          "max_abs 2272 > 0",
+          "mean_abs 0.002 > 0",
+          "PSNR 95.0 < 1000",
+          "pct>thr 0.0001% > 0%",
+          "dE00 mean 0.0000 > 0"
+        ],
+        "pass": false
+      },
+      {
+        "set": "busy-tone-color-detail",
+        "id": "apple-iphone12pro-proraw",
+        "ref_icc": "sRGB",
+        "test_icc": "sRGB",
+        "ref_size": [3024, 4032],
+        "test_size": [3024, 4032],
+        "ref_pixel_sha256": "ee70261aa02b8007e8a8e250b55988797971d7cdff0a8cc12228558372df03b7",
+        "test_pixel_sha256": "9942647ad51a1d385808b8f874c6cae85a9711e90db24a0203de230417be6ba6",
+        "identical": false,
+        "max_abs": 3488,
+        "mean_abs": 0.0009671306794322667,
+        "psnr_db": 95.50856706580932,
+        "pct_over_threshold": 1.6403166204753508e-5,
+        "de00_mean": 1.6455202231855321e-6,
+        "de00_p99": 0.0,
+        "de00_max": 0.1576856836090412,
+        "violations": [
+          "max_abs 3488 > 0",
+          "mean_abs 0.001 > 0",
+          "PSNR 95.5 < 1000",
+          "pct>thr 0.0000% > 0%",
+          "dE00 mean 0.0000 > 0"
+        ],
+        "pass": false
+      },
+      {
+        "set": "neutral",
+        "id": "apple-iphone12pro-proraw",
+        "ref_icc": "sRGB",
+        "test_icc": "sRGB",
+        "ref_size": [3024, 4032],
+        "test_size": [3024, 4032],
+        "ref_pixel_sha256": "59aa07e3e929a9a2b0c7ca0422558b4920d6cc7f621b1254f52c069e91abe7ef",
+        "test_pixel_sha256": "fd2d9cf14cef5a93477ad2e820d64ae50b8e83dfe22694f0f0ed2d607c69f39a",
+        "identical": false,
+        "max_abs": 160,
+        "mean_abs": 0.00016359424428207496,
+        "psnr_db": 115.05534702462425,
+        "pct_over_threshold": 0.0,
+        "de00_mean": 1.4095343311361074e-7,
+        "de00_p99": 0.0,
+        "de00_max": 0.04878056744082495,
+        "violations": ["max_abs 160 > 0", "mean_abs 0.000 > 0", "PSNR 115.1 < 1000", "dE00 mean 0.0000 > 0"],
+        "pass": false
+      }
+    ]
+  },
+  "iphone_decoded_samples": {
+    "samples": 36578304,
+    "changed": 2,
+    "before_min": 0,
+    "before_max": 0,
+    "after_min": 65535,
+    "after_max": 65535,
+    "changed_pixels": 2,
+    "changes": [
+      {
+        "sample_index": 536347,
+        "x": 1374,
+        "y": 44,
+        "channel": 1,
+        "before": 0,
+        "after": 65535
+      },
+      {
+        "sample_index": 584731,
+        "x": 1374,
+        "y": 48,
+        "channel": 1,
+        "before": 0,
+        "after": 65535
+      }
+    ]
+  },
+  "iphone_render_differences": [
+    {
+      "set": "neutral",
+      "pixels_changed": 31,
+      "channel_values_changed": 86,
+      "pct_pixels_changed": 0.00025424907617367935,
+      "max_abs": 160,
+      "changed_bounds_xyxy": [2972, 1371, 2984, 1379],
+      "max_change_coordinate_xy": [2977, 1373],
+      "before_at_max": [65087, 65247, 65311],
+      "after_at_max": [65247, 65375, 65439],
+      "crop_xywh": [2896, 1309, 128, 128]
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "pixels_changed": 501,
+      "channel_values_changed": 667,
+      "pct_pixels_changed": 0.004108993134290753,
+      "max_abs": 2272,
+      "changed_bounds_xyxy": [2882, 1337, 3022, 1523],
+      "max_change_coordinate_xy": [2995, 1413],
+      "before_at_max": [60703, 59487, 59199],
+      "after_at_max": [58783, 57215, 56959],
+      "crop_xywh": [2896, 1349, 128, 128]
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "pixels_changed": 350,
+      "channel_values_changed": 489,
+      "pct_pixels_changed": 0.0028705540858318637,
+      "max_abs": 3488,
+      "changed_bounds_xyxy": [2868, 1265, 3023, 1469],
+      "max_change_coordinate_xy": [2975, 1374],
+      "before_at_max": [64287, 64223, 63711],
+      "after_at_max": [62271, 61919, 60223],
+      "crop_xywh": [2896, 1310, 128, 128]
+    }
+  ],
+  "iphone_repeat_checks": [
+    {
+      "run": "before",
+      "images": 3,
+      "identical_to": "committed reference",
+      "engine_sha256": "6eccf353e510d7a8c21d0919a95ed2c58861aeae9e001957374edb333af20019"
+    },
+    {
+      "run": "after-repeat",
+      "images": 3,
+      "identical_to": "full #17 run",
+      "engine_sha256": "1c6625ca7e4f19446ab9aadaef914e13e05b464c20fc6f957caedcc7161a62c9"
+    }
+  ]
+}
