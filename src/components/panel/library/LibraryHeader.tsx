@@ -786,7 +786,7 @@ export function ViewOptionsDropdown({
                     key={color.name}
                     data-tooltip={title}
                     onClick={(e: any) => handleColorClick(color.name, e)}
-                    className="w-5 h-5 rounded-full focus:outline-hidden focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-surface transition-transform hover:scale-110"
+                    className="w-5 h-5 rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface transition-transform hover:scale-110"
                     role="menuitem"
                   >
                     <div className="relative w-full h-full">
