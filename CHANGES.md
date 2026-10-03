@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**25 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**26 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                         | Upstream                                                                                                                                                |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35,6 +35,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Rapid navigation shares one decode slot between editor loads and culling previews; superseded editor loads skip decoding                                                           | performance | [@subbajeu](https://github.com/subbajeu), [@yojen7](https://github.com/yojen7)             | not yet offered                                                                                                                                         |
 | Read-only Card mode: browse a memory card without RapidRoom creating, changing or deleting anything on it                                                                          | feature     | [@TomasLiutvinas](https://github.com/TomasLiutvinas), [@yojen7](https://github.com/yojen7) | not yet offered                                                                                                                                         |
 | Previews and exports skip GPU blur passes that no active adjustment reads                                                                                                          | performance | [@SandeepSubba](https://github.com/SandeepSubba)                                           | not yet offered                                                                                                                                         |
+| Import Lightroom and Camera Raw XMP sidecars: Basic, HSL, colour grading, curves, vignette, crop and straighten, rating, label and keywords, for one photo or a whole folder tree  | feature     | [@dimafa](https://github.com/dimafa), [@StephenMasseur](https://github.com/StephenMasseur) | PR [#1465](https://github.com/CyberTimon/RapidRAW/issues/1465)                                                                                          |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
@@ -249,3 +250,12 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** not yet offered
 - **Commits:** [a27a87b](https://github.com/SandeepSubba/RapidRAW/commit/a27a87bf55546e930cfb6689c4cf39028e570b2d)
 - **Notes:** Adapted to RapidRoom's shader with Claude Code: sharpening also reads the tonal blur, highlights doesn't, and RapidRoom has no skin smoothing. Output should be pixel-identical; speed-up not measured yet.
+
+### Import Lightroom and Camera Raw XMP sidecars: Basic, HSL, colour grading, curves, vignette, crop and straighten, rating, label and keywords, for one photo or a whole folder tree
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@dimafa](https://github.com/dimafa), [@StephenMasseur](https://github.com/StephenMasseur), from dimafa/RapidRAW (upstream PR 1465, which builds on StephenMasseur's PR 1280)
+- **Upstream:** PR [#1465](https://github.com/CyberTimon/RapidRAW/issues/1465)
+- **Commits:** [7a6913f](https://github.com/dimafa/RapidRAW/commit/7a6913f563a7ed6a3e9493d8f49471622c8caf76), [b3d0c52](https://github.com/dimafa/RapidRAW/commit/b3d0c52472c77b7d93c7774ec663df0341a6a772)
+- **Notes:** Merged with every original commit. Right-click a photo or a folder and choose Import XMP Adjustments; the originals and the .xmp files are not changed. RapidRoom routes the sidecar writes through its atomic writer and refuses imports onto a card opened in Card mode. The PR also reworks the existing .xmp preset import (Shadows2012 is now copied 1:1 instead of x1.5, nested Looks are ignored, PV2003/2010 values are read). Lightroom and RapidRAW render differently, so similar values don't give identical images; mapping fixes follow in RapidRoom #54. Harvested with Claude Code.

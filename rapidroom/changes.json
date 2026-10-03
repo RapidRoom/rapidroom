@@ -335,6 +335,23 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Adapted to RapidRoom's shader with Claude Code: sharpening also reads the tonal blur, highlights doesn't, and RapidRoom has no skin smoothing. Output should be pixel-identical; speed-up not measured yet."
+    },
+    {
+      "id": "lightroom-xmp-import",
+      "title": "Import Lightroom and Camera Raw XMP sidecars: Basic, HSL, colour grading, curves, vignette, crop and straighten, rating, label and keywords, for one photo or a whole folder tree",
+      "category": "feature",
+      "landed": "2026-10-03",
+      "authors": ["dimafa", "StephenMasseur"],
+      "source": "dimafa/RapidRAW (upstream PR 1465, which builds on StephenMasseur's PR 1280)",
+      "commits": [
+        "https://github.com/dimafa/RapidRAW/commit/7a6913f563a7ed6a3e9493d8f49471622c8caf76",
+        "https://github.com/dimafa/RapidRAW/commit/b3d0c52472c77b7d93c7774ec663df0341a6a772"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1465"],
+      "rendering_change": false,
+      "notes": "Merged with every original commit. Right-click a photo or a folder and choose Import XMP Adjustments; the originals and the .xmp files are not changed. RapidRoom routes the sidecar writes through its atomic writer and refuses imports onto a card opened in Card mode. The PR also reworks the existing .xmp preset import (Shadows2012 is now copied 1:1 instead of x1.5, nested Looks are ignored, PV2003/2010 values are read). Lightroom and RapidRAW render differently, so similar values don't give identical images; mapping fixes follow in RapidRoom #54. Harvested with Claude Code.",
+      "highlight": "**Bring your Lightroom edits along:** import XMP sidecars"
     }
   ]
 }
