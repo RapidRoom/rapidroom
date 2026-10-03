@@ -2861,9 +2861,10 @@ fn import_xmp_adjustments_to_sidecar(
         return Err("Selected file is not an XMP sidecar.".to_string());
     }
 
+    let (source_path, sidecar_path) = parse_virtual_path(path);
+    ensure_card_writable(&source_path)?;
     let xmp_content = fs::read_to_string(xmp_path)
         .map_err(|error| format!("Failed to read XMP file: {}", error))?;
-    let (source_path, sidecar_path) = parse_virtual_path(path);
     let converted_preset =
         preset_converter::convert_xmp_sidecar_to_preset_for_image(&xmp_content, &source_path)?;
 
@@ -2884,7 +2885,7 @@ fn import_xmp_adjustments_to_sidecar(
     merge_xmp_metadata_fields(&xmp_content, &mut metadata);
 
     let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
-    fs::write(&sidecar_path, json_string).map_err(|error| error.to_string())?;
+    write_file_atomically(&sidecar_path, json_string).map_err(|error| error.to_string())?;
 
     Ok(ImportedXmpSidecar {
         source_path,
@@ -2900,6 +2901,7 @@ pub fn import_xmp_adjustments_for_image(
     app_handle: AppHandle,
     state: tauri::State<AppState>,
 ) -> Result<ImageMetadata, String> {
+    ensure_card_writable_for_paths(&[&path])?;
     let xmp_path = xmp_path
         .map(PathBuf::from)
         .or_else(|| find_matching_xmp_sidecar(&path))
@@ -2930,6 +2932,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
         if !folder.is_dir() {
             return Err(format!("Folder not found: {}", folder.display()));
         }
+        ensure_card_tree_writable(&folder)?;
 
         let (matches, skipped, traversal_failures) = find_matching_xmp_sidecars_recursive(&folder);
         let total = matches.len();
@@ -5557,5 +5560,200 @@ mod tests {
         assert!(failures.is_empty());
 
         fs::remove_dir_all(test_directory).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod lightroom_xmp_import_tests {
+    use super::card_mode_test_support::{CardMode, folders, path_str, snapshot};
+    use super::*;
+
+    fn lightroom_xmp(attributes: &str) -> String {
+        format!(
+            r#"<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about=""
+   xmlns:tiff="http://ns.adobe.com/tiff/1.0/"
+   xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
+   {attributes}>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>"#
+        )
+    }
+
+    fn adjustment(metadata: &ImageMetadata, key: &str) -> f64 {
+        metadata.adjustments[key]
+            .as_f64()
+            .unwrap_or_else(|| panic!("{key} missing from {}", metadata.adjustments))
+    }
+
+    fn leftover_temp_files(folder: &Path) -> Vec<PathBuf> {
+        fs::read_dir(folder)
+            .unwrap()
+            .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+            .filter(|path| {
+                path.file_name()
+                    .is_some_and(|name| name.to_string_lossy().starts_with(".rapidraw-"))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn imports_pv2012_basic_adjustments_into_the_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("DSC_0042.NEF");
+        let xmp = dir.path().join("DSC_0042.xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        fs::write(
+            &xmp,
+            lightroom_xmp(
+                r#"crs:Version="9.12"
+   crs:ProcessVersion="6.7"
+   crs:WhiteBalance="As Shot"
+   crs:Exposure2012="+0.65"
+   crs:Contrast2012="+12"
+   crs:Highlights2012="-48"
+   crs:Shadows2012="+35"
+   crs:Whites2012="+8"
+   crs:Blacks2012="-14"
+   crs:Clarity2012="+10"
+   crs:Dehaze="+5"
+   crs:Vibrance="+18"
+   crs:Saturation="-6"
+   crs:HasCrop="False"
+   crs:AlreadyApplied="False""#,
+            ),
+        )
+        .unwrap();
+
+        let imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+
+        for (key, expected) in [
+            ("exposure", 0.65),
+            ("contrast", 12.0),
+            ("highlights", -48.0),
+            ("shadows", 35.0),
+            ("whites", 8.0),
+            ("blacks", -14.0),
+            ("clarity", 10.0),
+            ("dehaze", 5.0),
+            ("vibrance", 18.0),
+            ("saturation", -6.0),
+        ] {
+            assert_eq!(adjustment(&imported.metadata, key), expected, "{key}");
+        }
+        assert!(imported.metadata.adjustments.get("crop").is_none());
+        assert!(imported.metadata.adjustments.get("temperature").is_none());
+
+        assert_eq!(
+            imported.sidecar_path,
+            dir.path().join("DSC_0042.NEF.rrdata")
+        );
+        let saved = crate::exif_processing::load_sidecar(&imported.sidecar_path);
+        assert_eq!(saved.adjustments, imported.metadata.adjustments);
+        assert!(leftover_temp_files(dir.path()).is_empty());
+        assert_eq!(fs::read(&raw).unwrap(), b"raw bytes");
+    }
+
+    #[test]
+    fn imports_a_rotated_crop_in_post_rotation_pixels() {
+        // A 4800x3200 crop at (600, 400), straightened by 2.5 degrees. Lightroom
+        // stores the crop corners in the unrotated image, normalised.
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("IMG_1234.CR2");
+        let xmp = dir.path().join("IMG_1234.xmp");
+        fs::write(
+            &xmp,
+            lightroom_xmp(
+                r#"crs:ProcessVersion="11.0"
+   tiff:ImageWidth="6000"
+   tiff:ImageLength="4000"
+   tiff:Orientation="1"
+   crs:HasCrop="True"
+   crs:AlreadyApplied="False"
+   crs:CropLeft="0.112013"
+   crs:CropTop="0.074209"
+   crs:CropRight="0.887987"
+   crs:CropBottom="0.925791"
+   crs:CropAngle="2.5"
+   crs:CropConstrainToWarp="0""#,
+            ),
+        )
+        .unwrap();
+
+        let imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+
+        assert_eq!(
+            imported.metadata.adjustments["crop"],
+            serde_json::json!({ "x": 600.0, "y": 400.0, "width": 4800.0, "height": 3200.0 })
+        );
+        assert_eq!(adjustment(&imported.metadata, "rotation"), -2.5);
+        assert_eq!(adjustment(&imported.metadata, "aspectRatio"), 1.5);
+
+        let saved = crate::exif_processing::load_sidecar(&imported.sidecar_path);
+        assert_eq!(
+            saved.adjustments["crop"],
+            imported.metadata.adjustments["crop"]
+        );
+        assert_eq!(saved.adjustments["rotation"], serde_json::json!(-2.5));
+    }
+
+    #[test]
+    fn import_into_a_read_only_card_folder_is_refused() {
+        let f = folders();
+        let edited = lightroom_xmp(r#"crs:Exposure2012="+1.00" crs:Contrast2012="+20""#);
+        fs::write(f.dcim.join("IMG_0001.xmp"), &edited).unwrap();
+        fs::write(f.dcim.join("IMG_0002.jpg"), b"jpeg bytes").unwrap();
+        fs::write(f.dcim.join("IMG_0002.xmp"), &edited).unwrap();
+        fs::write(f.library.join("IMG_0001.xmp"), &edited).unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let picked_xmp = outside.path().join("picked.xmp");
+        fs::write(&picked_xmp, &edited).unwrap();
+
+        let _mode = CardMode::on(&f.card);
+        let before = snapshot(&f.card);
+
+        for (image, xmp) in [
+            (f.dcim.join("IMG_0001.jpg"), f.dcim.join("IMG_0001.xmp")),
+            (f.dcim.join("IMG_0002.jpg"), f.dcim.join("IMG_0002.xmp")),
+            (f.dcim.join("IMG_0002.jpg"), picked_xmp.clone()),
+        ] {
+            let error = import_xmp_adjustments_to_sidecar(&path_str(&image), &xmp, None)
+                .expect_err("import onto the card must be refused");
+            assert_eq!(error, CARD_READ_ONLY_ERROR);
+        }
+        let virtual_copy = format!("{}?vc=abc123", path_str(&f.dcim.join("IMG_0001.jpg")));
+        assert_eq!(
+            import_xmp_adjustments_to_sidecar(&virtual_copy, &picked_xmp, None).unwrap_err(),
+            CARD_READ_ONLY_ERROR
+        );
+
+        // The folder import runs every match through the same function.
+        let (matches, _, _) = find_matching_xmp_sidecars_recursive(f.card.parent().unwrap());
+        let mut imported = Vec::new();
+        for (image, xmp) in &matches {
+            match import_xmp_adjustments_to_sidecar(&path_str(image), xmp, None) {
+                Ok(_) => imported.push(image.clone()),
+                Err(error) => {
+                    assert!(image.starts_with(&f.card), "{}: {error}", image.display());
+                    assert_eq!(error, CARD_READ_ONLY_ERROR);
+                }
+            }
+        }
+        assert_eq!(imported, vec![f.library.join("IMG_0001.jpg")]);
+        assert_eq!(snapshot(&f.card), before);
+
+        let library_sidecar =
+            crate::exif_processing::load_sidecar(&f.library.join("IMG_0001.jpg.rrdata"));
+        assert!(library_sidecar.adjustments.get("contrast").is_some());
+        assert_eq!(library_sidecar.rating, 2);
+        assert!(
+            library_sidecar
+                .tags
+                .is_some_and(|tags| tags.contains(&"user:keep".to_string()))
+        );
     }
 }
