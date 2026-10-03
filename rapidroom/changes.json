@@ -322,6 +322,19 @@
       "rendering_change": false,
       "notes": "The backend refuses every write under the card folder: sidecars, XMP sync and creation, EXIF refresh, tag cleanup, rename, move, copy into, delete, duplicates, virtual copies, and outputs saved next to the originals (export, denoise, HDR, panorama, focus stack, collage, negatives). Edits stay in memory. Written with Claude Code.",
       "highlight": "**Browse memory cards safely:** read-only Card mode never writes to the card"
+    },
+    {
+      "id": "skip-unused-blurs",
+      "title": "Previews and exports skip GPU blur passes that no active adjustment reads",
+      "category": "performance",
+      "landed": "2026-10-03",
+      "authors": ["SandeepSubba"],
+      "source": "SandeepSubba/RapidRAW",
+      "commits": ["https://github.com/SandeepSubba/RapidRAW/commit/a27a87bf55546e930cfb6689c4cf39028e570b2d"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Adapted to RapidRoom's shader with Claude Code: sharpening also reads the tonal blur, highlights doesn't, and RapidRoom has no skin smoothing. Output should be pixel-identical; speed-up not measured yet."
     }
   ]
 }

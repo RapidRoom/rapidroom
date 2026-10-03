@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**24 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
+**25 changes on top of RapidRAW.** 8 fix upstream issues that had been open a median of 60 days when RapidRoom shipped the fix; 8 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                         | Upstream                                                                                                                                                |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -34,6 +34,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Pasting adjustments works even when the settings failed to load (it used to do nothing)                                                                                            | fix         | [@yojen7](https://github.com/yojen7)                                                       | not yet offered                                                                                                                                         |
 | Rapid navigation shares one decode slot between editor loads and culling previews; superseded editor loads skip decoding                                                           | performance | [@subbajeu](https://github.com/subbajeu), [@yojen7](https://github.com/yojen7)             | not yet offered                                                                                                                                         |
 | Read-only Card mode: browse a memory card without RapidRoom creating, changing or deleting anything on it                                                                          | feature     | [@TomasLiutvinas](https://github.com/TomasLiutvinas), [@yojen7](https://github.com/yojen7) | not yet offered                                                                                                                                         |
+| Previews and exports skip GPU blur passes that no active adjustment reads                                                                                                          | performance | [@SandeepSubba](https://github.com/SandeepSubba)                                           | not yet offered                                                                                                                                         |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
@@ -239,3 +240,12 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** not yet offered
 - **Commits:** [f5197a7](https://github.com/TomasLiutvinas/RapidRAW/commit/f5197a74386608b2bf0125b61b39fa88e97903b8), [ac1543c](https://github.com/TomasLiutvinas/RapidRAW/commit/ac1543cc672db8382bf507aad50cc52f0596255c)
 - **Notes:** The backend refuses every write under the card folder: sidecars, XMP sync and creation, EXIF refresh, tag cleanup, rename, move, copy into, delete, duplicates, virtual copies, and outputs saved next to the originals (export, denoise, HDR, panorama, focus stack, collage, negatives). Edits stay in memory. Written with Claude Code.
+
+### Previews and exports skip GPU blur passes that no active adjustment reads
+
+- **Type:** performance
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@SandeepSubba](https://github.com/SandeepSubba), from SandeepSubba/RapidRAW
+- **Upstream:** not yet offered
+- **Commits:** [a27a87b](https://github.com/SandeepSubba/RapidRAW/commit/a27a87bf55546e930cfb6689c4cf39028e570b2d)
+- **Notes:** Adapted to RapidRoom's shader with Claude Code: sharpening also reads the tonal blur, highlights doesn't, and RapidRoom has no skin smoothing. Output should be pixel-identical; speed-up not measured yet.
