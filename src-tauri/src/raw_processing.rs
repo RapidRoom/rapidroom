@@ -293,3 +293,25 @@ pub fn get_fast_demosaic_scale_factor(
     }
     1.0
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn srgb_linearization_matches_reference_values() {
+        for (input, expected) in [
+            (0.0, 0.0),
+            (0.04045, 0.003130805),
+            (0.5, 0.21404114),
+            (1.0, 1.0),
+        ] {
+            assert!((srgb_to_linear(input) - expected).abs() < 1e-7);
+        }
+    }
+
+    #[test]
+    fn srgb_linearization_meets_at_the_segment_join() {
+        assert!((srgb_to_linear(0.040451) - srgb_to_linear(0.04045)).abs() < 1e-6);
+    }
+}

@@ -525,6 +525,19 @@
       "upstream_prs": [],
       "rendering_change": true,
       "notes": "Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only."
+    },
+    {
+      "id": "linear-raw-srgb-exponent",
+      "title": "LinearRaw gamma modes use the sRGB exponent 2.4 when removing gamma",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["pluja"],
+      "source": "pluja/RapidRAW-Fork",
+      "commits": ["https://github.com/pluja/RapidRAW-Fork/commit/eb68ee88ba309a6b4e9770046204bc6292f0f1d7"],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1633"],
+      "rendering_change": true,
+      "notes": "Correct the power from 3.0 to 2.4 in the optional gamma and gamma_skip_calib modes for LinearRaw files. Auto/skip_calib modes, Bayer and X-Trans files do not use this inverse transfer function."
     }
   ]
 }
