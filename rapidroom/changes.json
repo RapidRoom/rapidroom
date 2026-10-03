@@ -305,6 +305,18 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Editor and culling share a one-permit semaphore. Blocking tasks retain the permit if their awaiting task is cancelled. Culling requests are serialized, not cancelled."
+    },
+    {
+      "id": "headless-exit-code",
+      "title": "Failed headless CLI exports exit with status 1 and say why on stderr (they used to exit 0)",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The run-loop exit handler ignored the requested exit code and always called exit(0). A CI job runs the binary under xvfb for a missing input and an unwritable output. Written with Claude Code."
     }
   ]
 }
