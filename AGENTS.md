@@ -6,7 +6,7 @@ RapidRoom is a community build of [RapidRAW](https://github.com/CyberTimon/Rapid
 
 - Work comes from issues. Agent queues are the labels `agent:codex` and `agent:claude-cloud`. Take only issues with your label, and comment on the issue when you start, so two agents never work on the same thing.
 - `needs-josh` means a human has to test, judge or decide something. Do the code, then say exactly what needs checking. Don't mark the issue done.
-- One issue per branch and per PR. Branch names: `codex/<issue>-<slug>` or `claude/<issue>-<slug>`.
+- One issue per branch and per PR. Branch names: `codex/<issue>-<slug>` or `claude/<issue>-<slug>`. Cloud sessions that are assigned a branch name may keep it. Either way, put the issue number in the PR title and write `Closes #<issue>` in the body.
 - PRs go to `RapidRoom/rapidroom` `main`. A maintainer reviews and merges them. Never push to `main` directly.
 
 ## Harvesting from forks
@@ -16,6 +16,8 @@ RapidRoom is a community build of [RapidRAW](https://github.com/CyberTimon/Rapid
 - Add the source to `CREDITS.md`.
 
 ## Every PR
+
+- **Lockfile:** if you change dependencies, regenerate `package-lock.json` with **npm 11 or newer**. npm 10 drops the existing `libc` fields from the lockfile.
 
 - **Changelog:** add an entry to `rapidroom/changes.json` (fields are described at the top of the file), then run `node rapidroom/status.mjs` to update the README and `CHANGES.md`. Add a `highlight` only for something a new user would notice.
 - **Checks:**
