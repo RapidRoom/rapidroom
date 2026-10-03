@@ -337,6 +337,24 @@
       "notes": "Adapted to RapidRoom's shader with Claude Code: sharpening also reads the tonal blur, highlights doesn't, and RapidRoom has no skin smoothing. Output should be pixel-identical; speed-up not measured yet."
     },
     {
+      "id": "camera-ratings",
+      "title": "Star ratings set in the camera (embedded XMP or EXIF Rating) show in the library; a rating you set or clear in RapidRoom always wins",
+      "category": "feature",
+      "landed": "2026-10-03",
+      "authors": ["csiroqa", "masmoriya", "yojen7"],
+      "source": "csiroqa/RapidRAW (upstream PR, adapted by yojen7 with the explicit-clear idea from masmoriya/RapidRAW)",
+      "commits": [
+        "https://github.com/csiroqa/RapidRAW/commit/feda53dbbc8daf543fe539451e653e24f1843cd4",
+        "https://github.com/csiroqa/RapidRAW/commit/c035b79f110fa09fff443a0c109ffa1544a30124",
+        "https://github.com/masmoriya/RapidRAW/commit/8392d6c9eb55a630d64f176fd833f636aabc33db"
+      ],
+      "upstream_issues": ["CyberTimon/RapidRAW#517", "CyberTimon/RapidRAW#1130"],
+      "upstream_prs": ["CyberTimon/RapidRAW#1529", "CyberTimon/RapidRAW#1714"],
+      "rendering_change": false,
+      "notes": "Reads only the file headers it needs (TIFF-based raws such as Sony ARW, JPEG, Fuji RAF, Canon CR3); never writes a sidecar. A rating cleared before this change looks the same as one never set, so the camera rating shows until it is cleared again. The idea that an empty XMP sidecar must not hide the camera rating comes from moschmdt (upstream PR 1714).",
+      "highlight": "**Star ratings you set in the camera show up in the library.**"
+    },
+    {
       "id": "bm3d-strength",
       "title": "BM3D denoise: raising the strength no longer adds noise back",
       "category": "fix",

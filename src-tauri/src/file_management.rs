@@ -208,8 +208,8 @@ fn resolve_image_metadata(
         crate::image_processing::is_image_edited(&metadata.adjustments, is_raw, tm_override);
     ImageFileMetadata {
         is_edited,
+        rating: crate::exif_processing::resolve_rating(image_path, &metadata),
         tags: metadata.tags,
-        rating: metadata.rating,
         is_raw,
     }
 }
@@ -1940,20 +1940,23 @@ fn generate_single_thumbnail_and_cache(
             sidecar_path.clone(),
         );
         (0, false, Vec::new())
-    } else if let Ok(content) = fs::read_to_string(&sidecar_path) {
-        if let Ok(meta) = serde_json::from_str::<ImageMetadata>(&content) {
-            let is_raw = crate::formats::is_raw_file(path_str);
-            let tm = crate::image_processing::resolve_tonemapper_override(settings, is_raw);
-            (
-                meta.rating,
-                crate::image_processing::is_image_edited(&meta.adjustments, is_raw, tm),
-                serde_json::to_vec(&meta.adjustments).unwrap_or_default(),
-            )
-        } else {
-            (0, false, Vec::new())
-        }
+    } else if let Some(meta) = fs::read_to_string(&sidecar_path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<ImageMetadata>(&content).ok())
+    {
+        let is_raw = crate::formats::is_raw_file(path_str);
+        let tm = crate::image_processing::resolve_tonemapper_override(settings, is_raw);
+        (
+            crate::exif_processing::resolve_rating(&source_path, &meta),
+            crate::image_processing::is_image_edited(&meta.adjustments, is_raw, tm),
+            serde_json::to_vec(&meta.adjustments).unwrap_or_default(),
+        )
     } else {
-        (0, false, Vec::new())
+        (
+            crate::exif_processing::resolve_rating(&source_path, &ImageMetadata::default()),
+            false,
+            Vec::new(),
+        )
     };
 
     let cache_hash = compute_thumbnail_cache_hash(path_str, &adjustments_bytes)?;
@@ -3217,6 +3220,16 @@ pub fn set_color_label_for_paths(
     Ok(())
 }
 
+fn store_user_rating(sidecar_path: &Path, rating: u8) -> ImageMetadata {
+    let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
+    metadata.rating = rating;
+    metadata.rating_is_explicit = true;
+    if let Ok(json_string) = serde_json::to_string_pretty(&metadata) {
+        let _ = write_file_atomically(sidecar_path, json_string);
+    }
+    metadata
+}
+
 #[tauri::command]
 pub fn set_rating_for_paths(
     paths: Vec<String>,
@@ -3231,13 +3244,7 @@ pub fn set_rating_for_paths(
     paths.par_iter().for_each(|path| {
         let (_, sidecar_path) = parse_virtual_path(path);
 
-        let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-
-        metadata.rating = rating;
-
-        if let Ok(json_string) = serde_json::to_string_pretty(&metadata) {
-            let _ = write_file_atomically(&sidecar_path, json_string);
-        }
+        let metadata = store_user_rating(&sidecar_path, rating);
 
         if enable_xmp_sync {
             let source_path = parse_virtual_path(path).0;
@@ -4380,6 +4387,7 @@ pub fn sync_metadata_from_xmp(source_path: &Path, metadata: &mut ImageMetadata) 
         && let Ok(content) = fs::read_to_string(&xmp_file)
     {
         if metadata.rating == 0
+            && !metadata.rating_is_explicit
             && let Some(rating) = extract_xmp_rating(&content)
             && rating != 0
         {
@@ -5051,5 +5059,123 @@ mod card_mode_tests {
         let target = f.library.join("presets.rrpreset");
         handle_export_presets_to_file(Vec::new(), path_str(&target)).unwrap();
         assert!(target.is_file());
+    }
+}
+
+#[cfg(test)]
+mod embedded_rating_tests {
+    use super::{resolve_image_metadata, store_user_rating};
+    use crate::app_settings::AppSettings;
+    use crate::exif_processing::rating_samples::{sony_arw, xmp_packet};
+    use std::fs;
+    use std::path::PathBuf;
+
+    struct Shot {
+        _dir: tempfile::TempDir,
+        raw: PathBuf,
+        sidecar: PathBuf,
+        xmp: PathBuf,
+    }
+
+    fn camera_rated(stars: &str) -> Shot {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("DSC00001.ARW");
+        fs::write(&raw, sony_arw(true, Some(stars), None)).unwrap();
+        Shot {
+            sidecar: dir.path().join("DSC00001.ARW.rrdata"),
+            xmp: dir.path().join("DSC00001.xmp"),
+            raw,
+            _dir: dir,
+        }
+    }
+
+    fn shown_rating(shot: &Shot, xmp_sync: bool) -> u8 {
+        resolve_image_metadata(&shot.raw, &shot.sidecar, xmp_sync, &AppSettings::default()).rating
+    }
+
+    #[test]
+    fn embedded_rating_without_sidecar() {
+        let shot = camera_rated("4");
+        assert_eq!(shown_rating(&shot, false), 4);
+        assert_eq!(shown_rating(&shot, true), 4);
+        assert!(
+            !shot.sidecar.exists(),
+            "reading a camera rating must not create a sidecar"
+        );
+    }
+
+    #[test]
+    fn sidecar_rating_overrides_embedded() {
+        let shot = camera_rated("4");
+        fs::write(
+            &shot.sidecar,
+            r#"{"version":1,"rating":2,"adjustments":{}}"#,
+        )
+        .unwrap();
+        assert_eq!(shown_rating(&shot, false), 2);
+
+        let shot = camera_rated("4");
+        fs::write(&shot.xmp, xmp_packet("5")).unwrap();
+        assert_eq!(shown_rating(&shot, true), 5);
+
+        let shot = camera_rated("4");
+        store_user_rating(&shot.sidecar, 1);
+        fs::write(&shot.xmp, xmp_packet("5")).unwrap();
+        assert_eq!(shown_rating(&shot, true), 1);
+    }
+
+    #[test]
+    fn skeleton_xmp_sidecar_does_not_hide_embedded_rating() {
+        let shot = camera_rated("4");
+        fs::write(&shot.xmp, xmp_packet("0")).unwrap();
+        assert_eq!(shown_rating(&shot, true), 4);
+    }
+
+    #[test]
+    fn user_cleared_rating_stays_cleared() {
+        let shot = camera_rated("4");
+        assert_eq!(shown_rating(&shot, false), 4);
+        store_user_rating(&shot.sidecar, 0);
+        assert_eq!(shown_rating(&shot, false), 0);
+
+        fs::write(&shot.xmp, xmp_packet("5")).unwrap();
+        assert_eq!(shown_rating(&shot, true), 0);
+
+        // Other sidecar writes (edits, tags) keep the flag.
+        let mut metadata = crate::exif_processing::load_sidecar(&shot.sidecar);
+        metadata.tags = Some(vec!["portrait".into()]);
+        fs::write(&shot.sidecar, serde_json::to_string(&metadata).unwrap()).unwrap();
+        assert_eq!(shown_rating(&shot, true), 0);
+    }
+
+    #[test]
+    fn unflagged_zero_rating_falls_back_to_embedded() {
+        // Sidecars written by edits (or before this flag existed) say nothing about the rating.
+        let shot = camera_rated("3");
+        fs::write(
+            &shot.sidecar,
+            r#"{"version":1,"rating":0,"adjustments":{"exposure":0.5}}"#,
+        )
+        .unwrap();
+        assert_eq!(shown_rating(&shot, false), 3);
+        assert!(
+            !fs::read_to_string(&shot.sidecar)
+                .unwrap()
+                .contains("rating_is_explicit")
+        );
+    }
+
+    #[test]
+    fn malformed_files_show_no_rating() {
+        let shot = camera_rated("4");
+        fs::write(&shot.raw, b"II*\0\xff\xff\xff\xff garbage").unwrap();
+        assert_eq!(shown_rating(&shot, true), 0);
+
+        fs::write(&shot.sidecar, "{ not json").unwrap();
+        fs::write(&shot.xmp, "<xmp:Rating>banana</xmp:Rating>").unwrap();
+        assert_eq!(shown_rating(&shot, true), 0);
+
+        fs::remove_file(&shot.raw).unwrap();
+        assert_eq!(shown_rating(&shot, false), 0);
     }
 }
