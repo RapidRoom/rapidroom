@@ -1,5 +1,5 @@
 {
-  "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes.",
+  "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
       "id": "tauri-2.12",
@@ -10,7 +10,8 @@
       "source": "rapidroom",
       "upstream_issues": [],
       "upstream_prs": ["CyberTimon/RapidRAW#1813"],
-      "rendering_change": false
+      "rendering_change": false,
+      "highlight": "**At home on Linux tiling desktops.** The native title bar works with Wayland compositors like Hyprland instead of fighting them."
     },
     {
       "id": "closed-pipe",
@@ -33,7 +34,8 @@
       "upstream_issues": ["CyberTimon/RapidRAW#1489"],
       "upstream_prs": ["CyberTimon/RapidRAW#1820"],
       "rendering_change": false,
-      "notes": "Pixels unchanged; only the profile tag is added. The TIFF part goes upstream after #1752."
+      "notes": "Pixels unchanged; only the profile tag is added. The TIFF part goes upstream after #1752.",
+      "highlight": "**Colour-managed exports.** JPEG, PNG and TIFF files carry an sRGB profile, so browsers, other apps and print labs show your colours as intended."
     },
     {
       "id": "sony-ms-crop",
@@ -46,7 +48,8 @@
       "upstream_issues": ["CyberTimon/RapidRAW#850"],
       "upstream_prs": ["CyberTimon/RapidRAW-DngLab#7"],
       "rendering_change": true,
-      "notes": "Only the affected files change: their crop is now correct."
+      "notes": "Only the affected files change: their crop is now correct.",
+      "highlight": "**Sony lossless M/S and Canon mRAW/sRAW raws open correctly**, without the green borders upstream still shows."
     },
     {
       "id": "bundle-poppins",
@@ -57,7 +60,8 @@
       "source": "rapidroom",
       "upstream_issues": [],
       "upstream_prs": [],
-      "rendering_change": false
+      "rendering_change": false,
+      "highlight": "**Private and offline by default.** Nothing is contacted at startup except the update check: no Google Fonts, and the cloud sign-in service loads only if you use cloud features."
     },
     {
       "id": "clerk-opt-in",

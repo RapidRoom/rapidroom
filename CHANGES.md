@@ -1,6 +1,8 @@
-# What RapidRoom adds to RapidRAW
+# RapidRoom changelog
 
-Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.
+Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/CyberTimon/RapidRAW), with who made it and where it stands upstream.
+
+<sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
 **7 changes on top of RapidRAW.** 2 fix upstream issues that had been open a median of 130 days when RapidRoom shipped the fix; 2 of them still open upstream. 4 offered upstream as PRs, 1 merged so far.
 

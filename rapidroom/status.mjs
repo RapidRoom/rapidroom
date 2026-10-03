@@ -112,9 +112,12 @@ const row = (c) =>
   `| ${cell(c.title)}${c.rendering_change ? ' ⚑' : ''} | ${c.category} | ${who(c)} | ${upstreamCell(c)} |`;
 const table = (list) => ['| Change | Type | By | Upstream |', '|---|---|---|---|', ...list.map(row)].join('\n');
 const asOf = cache.as_of ? `Upstream status as of ${cache.as_of}.` : 'Upstream status not fetched yet.';
-const legend = `⚑ changes rendered output on purpose. ${asOf} Full list with sources: [CHANGES.md](../CHANGES.md).`;
 
-const readmeBlock = `${START}\n${summary}\n\n${table(shown)}\n\n${legend}\n${END}`;
+const highlights = changes.filter((c) => c.highlight).map((c) => `- ${c.highlight}`);
+const stillOpenLine = stillOpen.length
+  ? `, including fixes for ${stillOpen.length} upstream issue${stillOpen.length === 1 ? '' : 's'} that ${stillOpen.length === 1 ? 'is' : 'are'} still open there`
+  : '';
+const readmeBlock = `${START}\n${highlights.join('\n')}\n\n${shown.length} improvements on top of RapidRAW so far${stillOpenLine}. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).\n${END}`;
 
 const detail = (c) =>
   [
@@ -130,9 +133,11 @@ const detail = (c) =>
     ...(c.notes ? [`- **Notes:** ${c.notes}`] : []),
   ].join('\n');
 
-const changesMd = `# What RapidRoom adds to RapidRAW
+const changesMd = `# RapidRoom changelog
 
-Generated from [rapidroom/changes.json](rapidroom/changes.json) by \`node rapidroom/status.mjs\`; don't edit by hand.
+Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/CyberTimon/RapidRAW), with who made it and where it stands upstream.
+
+<sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by \`node rapidroom/status.mjs\`; don't edit by hand.</sub>
 
 ${summary}
 

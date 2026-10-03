@@ -18,7 +18,7 @@ Every PR, ours or harvested, needs:
 - **Rendering unchanged, or changed on purpose.** A pixel-exact regression check on a small CC0 raw corpus is being added to CI. Until then, a maintainer runs it locally. A PR that changes rendered output on purpose says so and shows before/after images. Updating the reference renders needs sign-off from a human maintainer.
 - **A description a reviewer can check:** what changed, why, and how it was tested (OS, GPU, cameras). Mark anything untested as untested.
 - **One change per PR.** Small PRs get merged faster.
-- **An entry in [`rapidroom/changes.json`](../rapidroom/changes.json)** for anything users would notice: title, authors, source, and the upstream issue/PR it relates to. Then run `node rapidroom/status.mjs` to update the README table and [CHANGES.md](../CHANGES.md). This list is how RapidRoom shows what it adds and how it compares with upstream.
+- **An entry in [`rapidroom/changes.json`](../rapidroom/changes.json)** for anything users would notice: title, authors, source, and the upstream issue/PR it relates to. Add a one-line `highlight` only for features or major fixes a new user would care about; those are listed in the README. Then run `node rapidroom/status.mjs` to update the README and the full changelog, [CHANGES.md](../CHANGES.md). This list is how RapidRoom shows what it adds and how it compares with upstream.
 
 ## Harvesting from other forks
 
