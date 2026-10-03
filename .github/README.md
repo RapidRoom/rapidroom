@@ -46,7 +46,7 @@ For the full feature tour, tethering, the CLI and system requirements, see the [
 
 ## Get involved
 
-Bug reports, fixes and features from your own fork are all welcome. Start with [CONTRIBUTING](CONTRIBUTING.md). If you maintain a RapidRAW fork and want to help run RapidRoom, open an issue. See [GOVERNANCE](GOVERNANCE.md) for how decisions are made.
+Bug reports, fixes and features from your own fork are all welcome. Start with [CONTRIBUTING](CONTRIBUTING.md). What's planned is on the [roadmap](https://github.com/orgs/RapidRoom/projects/1); questions and ideas go to [Discussions](https://github.com/RapidRoom/rapidroom/discussions). If you maintain a RapidRAW fork and want to help run RapidRoom, open an issue. See [GOVERNANCE](GOVERNANCE.md) for how decisions are made.
 
 ## Support upstream
 
