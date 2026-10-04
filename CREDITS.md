@@ -107,6 +107,8 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 
 Inactive HSL exact no-op and positive-vibrance power-domain fix: yojen7, with Codex. The upstream perceptual HSL work by lalibertemarc and Claude is retained.
 
+Adobe lossy DNG stage-2 polynomial mapping fix: yojen7, with Codex; original implementation following Adobe's DNG specification. Existing rawler authorship and LGPL-2.1 notices are retained.
+
 ## Third-party assets
 
 - **Start-screen photograph** `public/splash-rapidroom.jpg`: © 2025 [@yojen7](https://github.com/yojen7), **all rights reserved**. It is not covered by the AGPL and is included with permission for RapidRoom only. Forks must replace it; see `public/splash-rapidroom.jpg.license`.
