@@ -424,6 +424,68 @@ pub fn lrtemplate_to_xmp(source: &str) -> Result<LrtemplateXmp, String> {
         return Err("Malformed .lrtemplate: missing `value.settings` table".to_string());
     };
 
+    settings_to_xmp(settings, root.get("title"), false)
+}
+
+/// Catalog develop rows contain a settings table directly, rather than the
+/// preset wrapper. They use the same bounded parser and XMP encoder.
+pub fn catalog_develop_to_xmp(
+    source: &str,
+    as_shot: Option<(f64, f64)>,
+) -> Result<LrtemplateXmp, String> {
+    if source.len() > MAX_INPUT_BYTES {
+        return Err("Catalog develop row is too large".into());
+    }
+    let mut settings =
+        Parser::new(source.strip_prefix('\u{feff}').unwrap_or(source)).parse_chunk()?;
+    if let Some((temperature, tint)) = as_shot {
+        if !temperature.is_finite() || temperature <= 0.0 || !tint.is_finite() {
+            return Err("Invalid catalog as-shot white balance".into());
+        }
+        settings
+            .fields
+            .retain(|(key, _)| key != "AsShotTemperature" && key != "AsShotTint");
+        settings
+            .fields
+            .push(("AsShotTemperature".into(), LuaValue::Num(temperature)));
+        settings
+            .fields
+            .push(("AsShotTint".into(), LuaValue::Num(tint)));
+    }
+    if settings.get("HasCrop").is_none()
+        && ["CropLeft", "CropRight", "CropTop", "CropBottom"]
+            .iter()
+            .all(|key| matches!(settings.get(key), Some(LuaValue::Num(_))))
+    {
+        settings
+            .fields
+            .push(("HasCrop".into(), LuaValue::Bool(true)));
+    }
+    settings_to_xmp(&settings, None, true)
+}
+
+/// Only an explicitly as-shot history row supplies a white-balance baseline.
+/// No estimates are made from other photos in the folder.
+pub fn catalog_as_shot_white_balance(source: &str) -> Result<Option<(f64, f64)>, String> {
+    if source.len() > MAX_INPUT_BYTES {
+        return Err("Catalog develop row is too large".into());
+    }
+    let settings = Parser::new(source.strip_prefix('\u{feff}').unwrap_or(source)).parse_chunk()?;
+    if matches!(settings.get("WhiteBalance"), Some(LuaValue::Str(value)) if value.eq_ignore_ascii_case("As Shot"))
+        && let (Some(LuaValue::Num(temperature)), Some(LuaValue::Num(tint))) =
+            (settings.get("Temperature"), settings.get("Tint"))
+        && *temperature > 0.0
+    {
+        return Ok(Some((*temperature, *tint)));
+    }
+    Ok(None)
+}
+
+fn settings_to_xmp(
+    settings: &LuaTable,
+    title: Option<&LuaValue>,
+    report_scalars: bool,
+) -> Result<LrtemplateXmp, String> {
     let mut attributes = String::new();
     let mut curves = String::new();
     let mut unsupported = Vec::new();
@@ -471,6 +533,28 @@ pub fn lrtemplate_to_xmp(source: &str) -> Result<LrtemplateXmp, String> {
                         matches!(table.get("Amount"), Some(LuaValue::Num(n)) if *n <= 0.0);
                     if !disabled {
                         report("profileLook");
+                        // Reuse the mapper's profile-look luma composition while
+                        // reporting unsupported profile color and LUT settings.
+                        if report_scalars
+                            && let Some(LuaValue::Table(parameters)) = table.get("Parameters")
+                            && let Some(LuaValue::Table(curve)) = parameters.get("ToneCurvePV2012")
+                        {
+                            let points = curve_points("ToneCurvePV2012", curve)?;
+                            if !points.is_empty() {
+                                let amount = match table.get("Amount") {
+                                    Some(LuaValue::Num(value)) => *value,
+                                    _ => 1.0,
+                                };
+                                curves.push_str(&format!(
+                                    "<crs:Look><rdf:Description crs:Amount=\"{}\"><crs:Parameters><rdf:Description><crs:ToneCurvePV2012><rdf:Seq>",
+                                    format_number(amount)
+                                ));
+                                for (x, y) in points {
+                                    curves.push_str(&format!("<rdf:li>{x}, {y}</rdf:li>"));
+                                }
+                                curves.push_str("</rdf:Seq></crs:ToneCurvePV2012></rdf:Description></crs:Parameters></rdf:Description></crs:Look>");
+                            }
+                        }
                     }
                 } else if MASK_KEYS.contains(&key.as_str()) {
                     report("masks");
@@ -482,6 +566,9 @@ pub fn lrtemplate_to_xmp(source: &str) -> Result<LrtemplateXmp, String> {
                 continue;
             }
         };
+        if report_scalars && !crate::preset_converter::is_mapped_xmp_scalar(key) {
+            report(key);
+        }
         attributes.push_str(&format!(" crs:{}=\"{}\"", key, escape_xml(&scalar)));
     }
 
@@ -489,7 +576,7 @@ pub fn lrtemplate_to_xmp(source: &str) -> Result<LrtemplateXmp, String> {
         "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description xmlns:crs=\"http://ns.adobe.com/camera-raw-settings/1.0/\"{}>",
         attributes
     );
-    if let Some(LuaValue::Str(title)) = root.get("title") {
+    if let Some(LuaValue::Str(title)) = title {
         let title = localized_title(title).trim();
         if !title.is_empty() {
             xmp.push_str(&format!(
@@ -509,6 +596,104 @@ mod tests {
     use super::*;
     use crate::preset_converter::convert_xmp_to_preset;
     use serde_json::json;
+
+    #[test]
+    fn catalog_rows_use_the_shared_mapper_and_report_nested_settings() {
+        let converted = catalog_develop_to_xmp(
+            r#"s = { Exposure2012 = 0.5, Sharpness = 40, ColorNoiseReduction = 25,
+                ToneCurvePV2012 = { 0, 0, 255, 255 },
+                Look = { Parameters = { Exposure2012 = 9 } },
+                GradientBasedCorrections = { { LocalExposure = 1 } }, FutureScalar = 7 }"#,
+            None,
+        )
+        .unwrap();
+        let preset = convert_xmp_to_preset(&converted.xmp).unwrap();
+        assert_eq!(preset.adjustments["exposure"], json!(0.5));
+        let reference = convert_xmp_to_preset(
+            r#"<rdf:Description crs:Sharpness="40" crs:ColorNoiseReduction="25"/>"#,
+        )
+        .unwrap();
+        assert_eq!(
+            preset.adjustments["sharpness"],
+            reference.adjustments["sharpness"]
+        );
+        assert_eq!(
+            preset.adjustments["colorNoiseReduction"],
+            reference.adjustments["colorNoiseReduction"]
+        );
+        assert_eq!(
+            preset.adjustments["curves"]["luma"],
+            json!([{ "x": 0, "y": 0 }, { "x": 255, "y": 255 }])
+        );
+        assert_eq!(
+            converted.unsupported,
+            ["profileLook", "masks", "FutureScalar"]
+        );
+        assert!(catalog_develop_to_xmp("s = { Exposure2012 = os.execute('cmd') }", None).is_err());
+    }
+
+    #[test]
+    fn catalog_nested_look_curves_reuse_the_existing_composition_mapper() {
+        let converted = catalog_develop_to_xmp(
+            "s = { Exposure2012 = 0.5, ToneCurvePV2012 = {0, 0, 255, 255}, Look = { Amount = 0.5, Parameters = { Exposure2012 = 9, ToneCurvePV2012 = {0, 0, 64, 48, 192, 208, 255, 255} } } }",
+            None,
+        ).unwrap();
+        let preset = convert_xmp_to_preset(&converted.xmp).unwrap();
+        let expected = convert_xmp_to_preset(
+            r#"<rdf:Description crs:Exposure2012="0.5"><crs:ToneCurvePV2012><rdf:Seq><rdf:li>0, 0</rdf:li><rdf:li>255, 255</rdf:li></rdf:Seq></crs:ToneCurvePV2012><crs:Look><rdf:Description crs:Amount="0.5"><crs:Parameters><rdf:Description><crs:ToneCurvePV2012><rdf:Seq><rdf:li>0, 0</rdf:li><rdf:li>64, 48</rdf:li><rdf:li>192, 208</rdf:li><rdf:li>255, 255</rdf:li></rdf:Seq></crs:ToneCurvePV2012></rdf:Description></crs:Parameters></rdf:Description></crs:Look></rdf:Description>"#,
+        ).unwrap();
+        assert_eq!(preset.adjustments, expected.adjustments);
+        assert_eq!(preset.adjustments["exposure"], json!(0.5));
+        assert_eq!(converted.unsupported, ["profileLook"]);
+    }
+
+    #[test]
+    fn catalog_white_balance_uses_an_explicit_as_shot_history_row() {
+        let baseline = catalog_as_shot_white_balance(
+            "s = { WhiteBalance = 'As Shot', Temperature = 4440, Tint = -5 }",
+        )
+        .unwrap();
+        assert_eq!(baseline, Some((4440.0, -5.0)));
+        assert_eq!(
+            catalog_as_shot_white_balance(
+                "s = { WhiteBalance = 'Custom', Temperature = 5550, Tint = 12 }"
+            )
+            .unwrap(),
+            None
+        );
+        let converted = catalog_develop_to_xmp(
+            "s = { WhiteBalance = 'Custom', Temperature = 5550, Tint = 12, AsShotTemperature = 1, AsShotTint = 1 }",
+            baseline,
+        )
+        .unwrap();
+        assert_eq!(converted.xmp.matches("crs:AsShotTemperature=").count(), 1);
+        let preset =
+            crate::preset_converter::convert_xmp_sidecar_to_preset(&converted.xmp).unwrap();
+        let expected_temperature = (1_000_000.0 / 4440.0 - 1_000_000.0 / 5550.0) / 150.0 * 100.0;
+        assert!(
+            (preset.adjustments["temperature"].as_f64().unwrap() - expected_temperature).abs()
+                < 1e-6
+        );
+        assert!((preset.adjustments["tint"].as_f64().unwrap() - 17.0 / 150.0 * 100.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn catalog_crops_go_through_the_existing_sidecar_geometry_mapper() {
+        let converted = catalog_develop_to_xmp(
+            "s = { CropLeft = 0.125, CropRight = 0.25, CropTop = 0, CropBottom = 0.25 }",
+            None,
+        )
+        .unwrap();
+        let xmp = converted.xmp.replace(
+            "<rdf:Description ",
+            "<rdf:Description xmlns:tiff=\"http://ns.adobe.com/tiff/1.0/\" tiff:ImageWidth=\"8\" tiff:ImageLength=\"4\" tiff:Orientation=\"8\" ",
+        );
+        let preset = crate::preset_converter::convert_xmp_sidecar_to_preset(&xmp).unwrap();
+        assert_eq!(
+            preset.adjustments["crop"],
+            json!({ "x": 0.0, "y": 6.0, "width": 1.0, "height": 1.0 })
+        );
+    }
 
     // Synthetic preset in Lightroom's Lua-table layout.
     const SYNTHETIC: &str = r#"s = {

@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lightroom-catalog-develop-import",
+      "title": "Preview and selectively import Lightroom catalog photo edits, crop, straighten, rotation, star ratings and virtual copies, with unsupported-setting reports and independent replacement choices",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["laurensiusadi", "yojen7"],
+      "source": "laurensiusadi/RapidRAW, adapted in RapidRoom with the shared read-only catalog reader and current image-aware XMP mapper",
+      "commits": ["https://github.com/laurensiusadi/RapidRAW/commit/dda6cc51c69dc6a17906609dbb667eff3507aeeb"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Catalogs and originals are read only. Reuses the collections root resolver and bounded Lua-table parser; caps compressed rows at 4 MiB. Preview lists converted controls, unsupported settings, missing originals and unreadable sidecars before an explicit selection is applied. Existing edits, cleared ratings, keywords, EXIF and other metadata are preserved unless the relevant replacement choice is enabled. Uses atomic sidecars, Card mode guards, stale-preview checks and stable full-ID virtual-copy identities. As-shot white balance requires an explicit history reference; no folder median is estimated. Supported nested profile tone curves use the existing mapper; Adobe profiles, local/AI masks and other unsupported fields are reported. Synthetic native/frontend coverage and private sidecar-derived synthetic-catalog calibration only; real Lightroom catalogs, desktop interaction and other platforms still need human checks. Adobe rendering parity is not promised. Adapted with Codex, with source authorship retained."
+    },
+    {
       "id": "lightroom-collections-import",
       "title": "Import Lightroom Classic collections and collection sets from a .lrcat catalog as albums, with a preview of found and missing photos and relinking of moved root folders",
       "category": "feature",
