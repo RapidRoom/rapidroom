@@ -8,11 +8,11 @@ This PR also ships the stopgap: **Open Terminal Here** in the folder context men
 
 Right-click a folder in the folder tree → **Open Terminal Here**. Rust command `open_terminal_here` (`src-tauri/src/terminal.rs`):
 
-- **Linux:** `$TERMINAL` first, then `xdg-terminal-exec` (the freedesktop default-terminal launcher), then Ghostty, foot, kitty, Alacritty, WezTerm, Ptyxis, GNOME Terminal, GNOME Console, Konsole, Xfce Terminal, Tilix, `x-terminal-emulator`, xterm. The first one installed wins. Each gets its own working-directory flag, because single-instance terminals (Ghostty, kitty, GNOME's) can open the window in an existing process that has a different working directory.
+- **Linux:** `$TERMINAL` first, then [`xdg-terminal-exec`](https://github.com/Vladimir-csp/xdg-terminal-exec) (the XDG default-terminal launcher), then Ghostty, foot, kitty, Alacritty, WezTerm, Ptyxis, GNOME Terminal, GNOME Console, Konsole, Xfce Terminal, Tilix, `x-terminal-emulator`, xterm. The first one installed wins. `xdg-terminal-exec` gets its documented `--dir=<folder>` option, so an already running terminal is given the folder explicitly. Each gets its own working-directory flag, because single-instance terminals (Ghostty, kitty, GNOME's) can open the window in an existing process that has a different working directory.
 - **macOS:** `open -a Terminal <folder>`.
 - **Windows:** Windows Terminal (`wt -d <folder>`), otherwise a new `cmd` window in the folder.
 - **Environment:** `RAPIDROOM_VERSION` and `RAPIDROOM_FOLDER`. The MCP URL and the endpoint from #116 are added here when #116 lands, so an assistant started in that terminal finds the running app.
-- **AppImage:** the AppImage's `LD_LIBRARY_PATH`, GTK/GIO module paths, and its entries in `PATH` and `XDG_DATA_DIRS` are removed, so neither the terminal nor the tools you run in it load RapidRoom's bundled libraries.
+- **AppImage:** the AppImage's `LD_LIBRARY_PATH`, GTK/GIO module paths, and its directory descendants in `PATH`, `XDG_DATA_DIRS` and `XDG_CONFIG_DIRS` (sibling paths with a shared name prefix are retained) are removed, so neither the terminal nor the tools you run in it load RapidRoom's bundled libraries.
 - **Flatpak:** returns a clear error. A sandboxed app can't start a host terminal without `flatpak-spawn --host`, which is a full sandbox escape. RapidRoom doesn't ship a Flatpak today.
 - **Security:** the webview sends only a folder path. It must be an existing absolute directory. The terminal program comes from a fixed list or from `$TERMINAL` in the process environment, never from settings, so script in the webview can't choose what runs.
 
@@ -28,7 +28,7 @@ Tested: unit tests for argument building, AppImage environment cleanup, the fall
 
 ### What the frontend actually loads (measured)
 
-Checked on the production build (`npm run build`), statically and in Chromium under a CSP. The harness is in [`validation/csp/`](validation/csp/README.md).
+Checked on the production build (`npm run build`), statically and in Chromium under a CSP. A local integration recheck at `d364a964` reproduces the four start-screen results with no page errors; editor and native-terminal behavior are not covered by this harness. The harness is in [`validation/csp/`](validation/csp/README.md).
 
 | Directive     | Needed for                                                                                                                                                                                                      | Source                                                             |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |

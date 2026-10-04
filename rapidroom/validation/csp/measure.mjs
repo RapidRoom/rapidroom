@@ -3,7 +3,7 @@
 // its own (scripts, styles, fetches, frames), not what the Rust side does.
 //
 //   npm run build
-//   npm i --no-save playwright-core
+//   npm i --no-save --package-lock=false playwright-core
 //   node rapidroom/validation/csp/measure.mjs [policy] [--cloud]
 //
 // policy: proposed (default), strict-style, current. --cloud starts with the AI provider set
@@ -65,8 +65,9 @@ const types = {
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (p === '/') p = '/index.html';
-  const file = path.join(DIST, p);
-  if (!file.startsWith(DIST) || !fs.existsSync(file)) {
+  const file = path.resolve(DIST, `.${p}`);
+  const relative = path.relative(DIST, file);
+  if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative) || !fs.existsSync(file)) {
     res.writeHead(404);
     return res.end();
   }
@@ -82,6 +83,8 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage();
 const violations = new Set();
+const pageErrors = [];
+page.on('pageerror', (error) => pageErrors.push(error.message));
 await page.exposeFunction('__reportViolation', (v) => violations.add(v));
 await page.addInitScript(
   ({ cloud }) => {
@@ -120,6 +123,9 @@ await page.addInitScript(
 await page.goto(`http://127.0.0.1:${server.address().port}/`);
 await page.waitForTimeout(6000);
 const rendered = await page.evaluate(() => (document.getElementById('root')?.childElementCount ?? 0) > 0);
-console.log(JSON.stringify({ policy: policyName, csp, cloud, rendered, violations: [...violations] }, null, 2));
+console.log(
+  JSON.stringify({ policy: policyName, csp, cloud, rendered, pageErrors, violations: [...violations] }, null, 2),
+);
 await browser.close();
 server.close();
+if (!rendered) process.exitCode = 1;

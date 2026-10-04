@@ -31,7 +31,8 @@ fn known_terminal(program: &str, dir: &str) -> Option<Launch> {
         "kitty" => launch(program, &["--directory", dir]),
         "wezterm" => launch(program, &["start", "--cwd", dir]),
         "konsole" => launch(program, &["--workdir", dir]),
-        "xdg-terminal-exec" | "x-terminal-emulator" | "xterm" => launch(program, &[]),
+        "xdg-terminal-exec" => launch(program, &[&format!("--dir={dir}")]),
+        "x-terminal-emulator" | "xterm" => launch(program, &[]),
         _ => return None,
     })
 }
@@ -107,7 +108,9 @@ fn appimage_env_fixes(
             let value = get(var)?;
             let kept: Vec<&str> = value
                 .split(':')
-                .filter(|entry| !entry.is_empty() && !entry.starts_with(&appdir))
+                .filter(|entry| {
+                    !entry.is_empty() && !Path::new(entry).starts_with(Path::new(&appdir))
+                })
                 .collect();
             let kept = kept.join(":");
             (kept != value).then(|| (var.to_string(), kept))
@@ -263,6 +266,31 @@ mod tests {
                     "/usr/local/share:/usr/share".to_string()
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn appimage_cleanup_preserves_sibling_paths_with_the_same_prefix() {
+        let env = HashMap::from([
+            ("APPDIR", "/opt/rapidroom"),
+            (
+                "PATH",
+                "/opt/rapidroom/bin:/opt/rapidroom-tools/bin:/usr/bin",
+            ),
+        ]);
+        let (_, rewrite) = appimage_env_fixes(|var| env.get(var).map(|s| s.to_string()));
+        assert_eq!(
+            rewrite,
+            vec![("PATH".into(), "/opt/rapidroom-tools/bin:/usr/bin".into())]
+        );
+    }
+
+    #[test]
+    fn default_terminal_launcher_gets_an_explicit_directory() {
+        let dir = "/photos/a b";
+        assert_eq!(
+            known_terminal("xdg-terminal-exec", dir),
+            Some(launch("xdg-terminal-exec", &["--dir=/photos/a b"]))
         );
     }
 
