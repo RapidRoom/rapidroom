@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
 use std::hash::{Hash, Hasher};
-use std::io::Cursor;
+use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::Ordering;
@@ -1627,59 +1627,82 @@ pub fn read_file_mapped(path: &Path) -> Result<Mmap, ReadFileError> {
     Ok(mmap)
 }
 
-fn find_embedded_jpeg(exif: &exif::Exif, ifd: exif::In) -> Option<&[u8]> {
-    let offset = exif
-        .get_field(exif::Tag::JPEGInterchangeFormat, ifd)?
-        .value
-        .get_uint(0)? as usize;
-    let len = exif
-        .get_field(exif::Tag::JPEGInterchangeFormatLength, ifd)?
-        .value
-        .get_uint(0)? as usize;
-    exif.buf().get(offset..offset + len)
-}
-
-fn apply_exif_orientation(img: DynamicImage, orientation: u32) -> DynamicImage {
-    match orientation {
-        2 => img.fliph(),
-        3 => img.rotate180(),
-        4 => img.flipv(),
-        5 => img.rotate90().fliph(),
-        6 => img.rotate90(),
-        7 => img.rotate270().fliph(),
-        8 => img.rotate270(),
-        _ => img,
+fn can_use_embedded_preview(
+    adjustments: &serde_json::Value,
+    settings: &AppSettings,
+    file_bytes: &[u8],
+) -> bool {
+    if adjustments.is_null() {
+        return true;
     }
-}
-
-fn exif_embedded_preview(exif: &exif::Exif) -> Option<DynamicImage> {
-    let (jpeg_bytes, ifd) = find_embedded_jpeg(exif, exif::In::PRIMARY)
-        .map(|b| (b, exif::In::PRIMARY))
-        .or_else(|| {
-            find_embedded_jpeg(exif, exif::In::THUMBNAIL).map(|b| (b, exif::In::THUMBNAIL))
-        })?;
-
-    let img = image::load_from_memory_with_format(jpeg_bytes, image::ImageFormat::Jpeg).ok()?;
-
-    let orientation = exif
-        .get_field(exif::Tag::Orientation, ifd)
-        .and_then(|f| f.value.get_uint(0))
-        .unwrap_or(1);
-
-    Some(apply_exif_orientation(img, orientation))
-}
-
-fn try_load_embedded_raw_preview(source_path: &Path, target_res: u32) -> Option<DynamicImage> {
-    let mmap = read_file_mapped(source_path).ok()?;
-
-    let preview = match exif_processing::read_exif(&mmap) {
-        Some(exif) => exif_embedded_preview(&exif)?,
-        None => {
-            image_loader::safe_embedded_preview_fallback(&mmap, &source_path.to_string_lossy())?
-        }
+    if !adjustments.is_object() {
+        return false;
+    }
+    let tm = crate::image_processing::resolve_tonemapper_override(settings, true);
+    if crate::image_processing::is_image_edited(adjustments, true, tm)
+        || adjustments["lensBlurEnabled"].as_bool().unwrap_or(false)
+    {
+        return false;
+    }
+    if adjustments["crop"].is_null() {
+        return true;
+    }
+    let Ok(crop) = serde_json::from_value::<Crop>(adjustments["crop"].clone()) else {
+        return false;
     };
+    let Some((w, h, _)) = crate::raw_processing::get_raw_dimensions(file_bytes) else {
+        return false;
+    };
+    full_size_crop(&crop, w, h)
+}
 
-    (preview.width().max(preview.height()) >= (target_res as f32 * 0.95) as u32).then_some(preview)
+fn thumbnail_embedded_preview(
+    adjustments: &serde_json::Value,
+    settings: &AppSettings,
+    file_bytes: &[u8],
+    path: &str,
+) -> Option<DynamicImage> {
+    if settings.always_decode_raw_thumbnails.unwrap_or(false)
+        || !can_use_embedded_preview(adjustments, settings, file_bytes)
+    {
+        return None;
+    }
+    let resolution = settings.medium_thumbnail_resolution.unwrap_or(1280);
+    let preview = image_loader::safe_embedded_preview(file_bytes, path, Some(resolution))?;
+    (preview.width().max(preview.height()) >= (resolution as f32 * 0.95) as u32).then_some(preview)
+}
+
+fn full_size_crop(crop: &Crop, width: u32, height: u32) -> bool {
+    let near = |a: f64, b: u32| a.is_finite() && a > 0.0 && (a - b as f64).abs() <= 1.0;
+    crop.x.abs() <= 0.1
+        && crop.y.abs() <= 0.1
+        && ((near(crop.width, width) && near(crop.height, height))
+            || (near(crop.width, height) && near(crop.height, width)))
+}
+
+fn has_ai_patches(adjustments: &serde_json::Value) -> bool {
+    adjustments["aiPatches"]
+        .as_array()
+        .is_some_and(|patches| !patches.is_empty())
+}
+
+fn thumbnail_proxy_min_dim(
+    file_bytes: &[u8],
+    target_res: u32,
+    crop: Option<&Crop>,
+) -> Option<usize> {
+    let (full_w, full_h, is_linear) = crate::raw_processing::get_raw_dimensions(file_bytes)?;
+    if !is_linear {
+        return None;
+    }
+    let full_max_dim = full_w.max(full_h) as f64;
+    let needed = match crop {
+        Some(c) if c.width > 0.0 && c.height > 0.0 => {
+            target_res as f64 * full_max_dim / c.width.max(c.height)
+        }
+        _ => target_res as f64,
+    };
+    Some(needed.min(full_max_dim).ceil() as usize)
 }
 
 pub fn generate_thumbnail_data(
@@ -1711,13 +1734,13 @@ pub fn generate_thumbnail_data(
         .map_or(serde_json::Value::Null, |m| m.adjustments.clone());
 
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
-    let always_decode_raw = settings.always_decode_raw_thumbnails.unwrap_or(false);
-
-    if is_raw && adjustments.is_null() && preloaded_image.is_none() && !always_decode_raw {
-        let target_res = settings.medium_thumbnail_resolution.unwrap_or(1280);
-        if let Some(preview) = try_load_embedded_raw_preview(&source_path, target_res) {
-            return Ok(preview);
-        }
+    if is_raw
+        && preloaded_image.is_none()
+        && let Ok(mmap) = read_file_mapped(&source_path)
+        && let Some(preview) =
+            thumbnail_embedded_preview(&adjustments, &settings, &mmap, &source_path_str)
+    {
+        return Ok(preview);
     }
 
     if let (Some(context), Some(meta)) = (gpu_context, metadata)
@@ -1772,9 +1795,7 @@ pub fn generate_thumbnail_data(
                         mmap_guard.as_ref().unwrap()
                     }
                     Err(e) => {
-                        if preloaded_image.is_none() {
-                            log::warn!("Fallback read for {}: {}", source_path_str, e);
-                        }
+                        log::warn!("Fallback read for {}: {}", source_path_str, e);
                         let bytes = fs::read(&source_path).map_err(|io_err| {
                             anyhow::anyhow!(
                                 "Fallback read failed for {}: {}",
@@ -1787,14 +1808,20 @@ pub fn generate_thumbnail_data(
                     }
                 };
 
-                let img = image_loader::load_and_composite(
+                let proxy_min_dim = if is_raw && !has_ai_patches(&adjustments) {
+                    thumbnail_proxy_min_dim(file_slice, target_res, crop_data.as_ref())
+                } else {
+                    None
+                };
+                let base = image_loader::load_base_image_with_proxy(
                     file_slice,
                     &source_path_str,
-                    &adjustments,
                     true,
                     &settings,
                     None,
+                    proxy_min_dim,
                 )?;
+                let img = image_loader::composite_patches_on_image(&base, &adjustments)?;
 
                 if is_raw {
                     raw_scale_factor = crate::raw_processing::get_fast_demosaic_scale_factor(
@@ -1917,8 +1944,11 @@ pub fn generate_thumbnail_data(
             })
             .collect();
 
-        let tm_override = crate::image_processing::resolve_tonemapper_override(&settings, is_raw);
-        let gpu_adjustments = get_all_adjustments_from_json(&meta.adjustments, is_raw, tm_override);
+        let gpu_is_raw = is_raw;
+        let tm_override =
+            crate::image_processing::resolve_tonemapper_override(&settings, gpu_is_raw);
+        let gpu_adjustments =
+            get_all_adjustments_from_json(&meta.adjustments, gpu_is_raw, tm_override);
         let lut_path = meta.adjustments["lutPath"].as_str();
         let lut = lut_path.and_then(|p| {
             let mut cache = state.lut_cache.lock().unwrap();
@@ -2019,6 +2049,29 @@ fn generate_single_thumbnail_and_cache(
     app_handle: &AppHandle,
     settings: &AppSettings,
 ) -> Option<(String, String, u8, bool)> {
+    generate_single_thumbnail_and_cache_with(
+        path_str,
+        thumb_cache_dir,
+        gpu_context,
+        preloaded_image,
+        force_regenerate,
+        app_handle,
+        settings,
+        |_| {},
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn generate_single_thumbnail_and_cache_with(
+    path_str: &str,
+    thumb_cache_dir: &Path,
+    gpu_context: Option<&GpuContext>,
+    preloaded_image: Option<&DynamicImage>,
+    force_regenerate: bool,
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    before_generate: impl FnOnce(bool),
+) -> Option<(String, String, u8, bool)> {
     let (source_path, sidecar_path) = parse_virtual_path(path_str);
 
     let (rating, is_edited, adjustments_bytes) = if is_cloud_placeholder(&sidecar_path) {
@@ -2066,6 +2119,8 @@ fn generate_single_thumbnail_and_cache(
         return None;
     }
 
+    before_generate(is_edited);
+
     let target_width_small = settings.small_thumbnail_resolution.unwrap_or(480);
     let target_width_medium = settings.medium_thumbnail_resolution.unwrap_or(1280);
 
@@ -2088,11 +2143,35 @@ fn generate_single_thumbnail_and_cache(
     None
 }
 
-fn prefetch_source_file(path_str: &str) {
+const RAW_HEADER_PREFETCH_BYTES: u64 = 8 * 1024 * 1024;
+
+fn prefetch_source_file(path_str: &str, is_edited: bool, always_decode_raw: bool) {
     let (source_path, _) = parse_virtual_path(path_str);
-    if let Ok(mut file) = std::fs::File::open(&source_path) {
-        let _ = std::io::copy(&mut file, &mut std::io::sink());
+    let Ok(mut file) = std::fs::File::open(&source_path) else {
+        return;
+    };
+    let source_path_str = source_path.to_string_lossy().into_owned();
+    if is_raw_file(&source_path_str) {
+        let mut head = Vec::new();
+        if (&mut file)
+            .take(RAW_HEADER_PREFETCH_BYTES)
+            .read_to_end(&mut head)
+            .is_err()
+        {
+            return;
+        }
+        if !is_edited && !always_decode_raw {
+            return;
+        }
+        let is_dng = source_path_str.to_lowercase().ends_with(".dng");
+        let is_linear_dng = is_dng
+            && crate::raw_processing::get_raw_dimensions(&head)
+                .is_some_and(|(_, _, is_linear)| is_linear);
+        if is_linear_dng && !always_decode_raw {
+            return;
+        }
     }
+    let _ = std::io::copy(&mut file, &mut std::io::sink());
 }
 
 pub fn start_thumbnail_workers(app_handle: tauri::AppHandle) {
@@ -2131,12 +2210,10 @@ pub fn start_thumbnail_workers(app_handle: tauri::AppHandle) {
                 let current_settings = load_settings(app_clone.clone()).unwrap_or_default();
 
                 if let Ok(cache_dir) = get_thumb_cache_dir(&app_clone) {
-                    if manager_clone.rotational_disk.load(Ordering::Relaxed) {
-                        let _io_permit = manager_clone.io_gate.lock().unwrap();
-                        prefetch_source_file(&path_to_process);
-                    }
-
-                    let result = generate_single_thumbnail_and_cache(
+                    let always_decode_raw = current_settings
+                        .always_decode_raw_thumbnails
+                        .unwrap_or(false);
+                    let result = generate_single_thumbnail_and_cache_with(
                         &path_to_process,
                         &cache_dir,
                         gpu_context.as_ref(),
@@ -2144,6 +2221,16 @@ pub fn start_thumbnail_workers(app_handle: tauri::AppHandle) {
                         false,
                         &app_clone,
                         &current_settings,
+                        |is_edited| {
+                            if manager_clone.rotational_disk.load(Ordering::Relaxed) {
+                                let _io_permit = manager_clone.io_gate.lock().unwrap();
+                                prefetch_source_file(
+                                    &path_to_process,
+                                    is_edited,
+                                    always_decode_raw,
+                                );
+                            }
+                        },
                     );
 
                     if let Some((small_path, medium_path, rating, is_edited)) = result {
@@ -5598,6 +5685,171 @@ mod card_mode_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires RAPIDROOM_THUMBNAIL_QA_INPUT pointing to a local sample"]
+    fn real_raw_thumbnail_probe() {
+        let path = std::env::var("RAPIDROOM_THUMBNAIL_QA_INPUT").unwrap();
+        let io_read_bytes = || {
+            fs::read_to_string("/proc/self/io").ok().and_then(|s| {
+                s.lines().find_map(|line| {
+                    line.strip_prefix("read_bytes: ")
+                        .and_then(|v| v.parse::<u64>().ok())
+                })
+            })
+        };
+        let io_before = io_read_bytes();
+        let _file = fs::File::open(&path).unwrap();
+        #[cfg(target_os = "linux")]
+        if std::env::var("RAPIDROOM_THUMBNAIL_QA_COLD").as_deref() == Ok("1") {
+            use std::os::fd::AsRawFd;
+            // Only evict this read-only sample's clean pages, never the system cache.
+            assert_eq!(
+                unsafe { libc::posix_fadvise(_file.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) },
+                0
+            );
+        }
+        let mmap = read_file_mapped(Path::new(&path)).unwrap();
+        let settings = AppSettings::default();
+        let input_dimensions = crate::raw_processing::get_raw_dimensions(&mmap).unwrap();
+        let start = std::time::Instant::now();
+        let preview = thumbnail_embedded_preview(&serde_json::Value::Null, &settings, &mmap, &path);
+        let seconds = start.elapsed().as_secs_f64();
+        let dimensions = preview.as_ref().map(|p| (p.width(), p.height()));
+        let defaults = thumbnail_embedded_preview(&serde_json::json!({}), &settings, &mmap, &path);
+        assert_eq!(
+            dimensions,
+            defaults.as_ref().map(|p| (p.width(), p.height()))
+        );
+        assert!(
+            thumbnail_embedded_preview(
+                &serde_json::json!({"exposure": 0.5}),
+                &settings,
+                &mmap,
+                &path
+            )
+            .is_none()
+        );
+        assert!(
+            thumbnail_embedded_preview(
+                &serde_json::json!({"aiPatches": [{}]}),
+                &settings,
+                &mmap,
+                &path
+            )
+            .is_none()
+        );
+        let mut force_raw = settings.clone();
+        force_raw.always_decode_raw_thumbnails = Some(true);
+        assert!(
+            thumbnail_embedded_preview(&serde_json::Value::Null, &force_raw, &mmap, &path)
+                .is_none()
+        );
+        let fraction = std::env::var("RAPIDROOM_THUMBNAIL_QA_CROP_FRACTION")
+            .ok()
+            .map(|v| v.parse::<f64>().unwrap())
+            .unwrap_or(1.0);
+        assert!(fraction > 0.0 && fraction <= 1.0);
+        let crop = Crop {
+            x: 0.0,
+            y: 0.0,
+            width: f64::from(input_dimensions.0) * fraction,
+            height: f64::from(input_dimensions.1) * fraction,
+        };
+        let proxy_min = thumbnail_proxy_min_dim(&mmap, 1280, Some(&crop));
+        let proxy = if input_dimensions.2 && proxy_min.is_some() {
+            let image = crate::raw_processing::develop_raw_image(
+                &mmap,
+                true,
+                0.0,
+                "linear".into(),
+                None,
+                proxy_min,
+            )
+            .unwrap();
+            assert!(image.to_rgb32f().as_raw().iter().all(|v| v.is_finite()));
+            let scale = crate::raw_processing::get_fast_demosaic_scale_factor(
+                &mmap,
+                image.width(),
+                image.height(),
+            );
+            let ratio = image.width().max(image.height()) as f32
+                / input_dimensions.0.max(input_dimensions.1) as f32;
+            assert!((scale - if ratio > 0.97 { 1.0 } else { ratio }).abs() < 1e-5);
+            Some((image.width(), image.height()))
+        } else {
+            None
+        };
+        println!(
+            "THUMBNAIL_QA {}",
+            serde_json::json!({"input": input_dimensions, "preview": dimensions, "preview_seconds": seconds, "physical_read_bytes": io_read_bytes().zip(io_before).map(|(a,b)| a.saturating_sub(b)), "proxy_min_dim": proxy_min, "crop_fraction": fraction, "proxy": proxy})
+        );
+    }
+
+    #[test]
+    fn embedded_preview_keeps_defaults_and_rejects_user_edits() {
+        let settings = AppSettings::default();
+        for value in [
+            serde_json::Value::Null,
+            serde_json::json!({}),
+            serde_json::json!({"exposure": 0.0}),
+        ] {
+            assert!(can_use_embedded_preview(&value, &settings, b""));
+        }
+        for value in [
+            serde_json::json!({"exposure": 0.5}),
+            serde_json::json!({"lensBlurEnabled": true}),
+            serde_json::json!({"aiPatches": [{}]}),
+            serde_json::json!({"masks": [{}]}),
+            serde_json::json!({"orientationSteps": 1}),
+            serde_json::json!({"rotation": 0.5}),
+            serde_json::json!({"crop": {}}),
+            serde_json::json!(7),
+        ] {
+            assert!(!can_use_embedded_preview(&value, &settings, b""), "{value}");
+        }
+    }
+
+    #[test]
+    fn a_small_real_crop_is_not_discarded_as_a_full_size_crop() {
+        let full = Crop {
+            x: 0.0,
+            y: 0.0,
+            width: 7008.0,
+            height: 4672.0,
+        };
+        assert!(full_size_crop(&full, 7008, 4672));
+        assert!(full_size_crop(&full, 4672, 7008));
+        assert!(full_size_crop(
+            &Crop {
+                width: 7007.5,
+                ..full
+            },
+            7008,
+            4672
+        ));
+        for crop in [
+            Crop {
+                width: 7006.0,
+                ..full
+            },
+            Crop { x: 1.0, ..full },
+            Crop {
+                height: 4640.0,
+                ..full
+            },
+            Crop {
+                width: f64::NAN,
+                ..full
+            },
+            Crop {
+                width: -7008.0,
+                ..full
+            },
+        ] {
+            assert!(!full_size_crop(&crop, 7008, 4672));
+        }
+    }
 
     #[test]
     fn imports_crop_only_lightroom_xmp_to_sidecar() {
