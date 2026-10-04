@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { ImageFile, Panel, ExifOverlay } from '../components/ui/AppProperties';
-import { KEYBIND_DEFINITIONS, normalizeCombo } from '../utils/keyboardUtils';
+import { ImageFile, ImageFlag, Panel, ExifOverlay } from '../components/ui/AppProperties';
+import { KEYBIND_DEFINITIONS, getDefaultCombo, normalizeCombo } from '../utils/keyboardUtils';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -14,6 +14,7 @@ interface KeyboardShortcutsProps {
   sortedImageList: Array<ImageFile>;
   handleBackToLibrary(): void;
   handleDeleteSelected(): void;
+  handleDeleteRejected(): void;
   handleGoHome(): void;
   handleImageSelect(path: string, openInEditor?: boolean): void;
   handlePasteFiles(str: string): void;
@@ -24,13 +25,14 @@ export const useKeyboardShortcuts = ({
   sortedImageList,
   handleBackToLibrary,
   handleDeleteSelected,
+  handleDeleteRejected,
   handleGoHome,
   handleImageSelect,
   handlePasteFiles,
   handleZoomChange,
 }: KeyboardShortcutsProps) => {
   const { handleRotate, handleCopyAdjustments, handlePasteAdjustments, toggleShowOriginal } = useEditorActions();
-  const { handleRate, handleSetColorLabel } = useLibraryActions();
+  const { handleRate, handleSetFlag, handleSetColorLabel } = useLibraryActions();
 
   const sortedListRef = useRef(sortedImageList);
   useEffect(() => {
@@ -61,11 +63,12 @@ export const useKeyboardShortcuts = ({
 
     type StoreState = ReturnType<typeof getStoreState>;
     const comboMap = new Map<string, string>();
-    const keybinds = useSettingsStore.getState().appSettings?.keybinds;
+    const { appSettings, osPlatform } = useSettingsStore.getState();
+    const keybinds = appSettings?.keybinds;
 
     for (const def of KEYBIND_DEFINITIONS) {
       const userCombo = keybinds?.[def.action];
-      const effective = userCombo && userCombo.length > 0 ? userCombo : def.defaultCombo;
+      const effective = userCombo && userCombo.length > 0 ? userCombo : getDefaultCombo(def, osPlatform);
       if (effective) {
         comboMap.set(effective.join('+'), def.action);
       }
@@ -167,6 +170,13 @@ export const useKeyboardShortcuts = ({
         execute: (e: any) => {
           e.preventDefault();
           handleDeleteSelected();
+        },
+      },
+      delete_rejected: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          handleDeleteRejected();
         },
       },
       preview_prev: {
@@ -318,6 +328,20 @@ export const useKeyboardShortcuts = ({
         execute: (e: any, s: any) => {
           e.preventDefault();
           s.ui.toggleFullScreen();
+        },
+      },
+      cycle_lights_out: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'library' || s.ui.activeView === 'editor',
+        execute: (e: KeyboardEvent, s: ReturnType<typeof getStoreState>) => {
+          e.preventDefault();
+          s.ui.cycleLightsOut(1);
+        },
+      },
+      cycle_lights_out_reverse: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'library' || s.ui.activeView === 'editor',
+        execute: (e: KeyboardEvent, s: ReturnType<typeof getStoreState>) => {
+          e.preventDefault();
+          s.ui.cycleLightsOut(-1);
         },
       },
       show_original: {
@@ -514,6 +538,27 @@ export const useKeyboardShortcuts = ({
           rateAndAdvance(5);
         },
       },
+      flag_pick: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          handleSetFlag(ImageFlag.Pick);
+        },
+      },
+      flag_reject: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          handleSetFlag(ImageFlag.Reject);
+        },
+      },
+      unflag: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          handleSetFlag(null);
+        },
+      },
       color_label_none: {
         shouldFire: () => true,
         execute: (e: any) => {
@@ -591,7 +636,8 @@ export const useKeyboardShortcuts = ({
         match: (e: KeyboardEvent) => e.code === 'Escape',
         execute: (e: KeyboardEvent, s: any) => {
           e.preventDefault();
-          if (s.editor.isStraightenActive) s.editor.setEditor({ isStraightenActive: false });
+          if (s.ui.lightsOutMode !== 'off') s.ui.setUI({ lightsOutMode: 'off' });
+          else if (s.editor.isStraightenActive) s.editor.setEditor({ isStraightenActive: false });
           else if (s.ui.customEscapeHandler) s.ui.customEscapeHandler();
           else if (s.ui.activeView === 'editor' && s.editor.referenceView.isChooserOpen)
             s.editor.dispatchReferenceView({ type: s.editor.referenceView.reference ? 'close-chooser' : 'exit' });
@@ -711,6 +757,7 @@ export const useKeyboardShortcuts = ({
   }, [
     handleBackToLibrary,
     handleDeleteSelected,
+    handleDeleteRejected,
     handleGoHome,
     handleImageSelect,
     handlePasteFiles,
@@ -720,6 +767,7 @@ export const useKeyboardShortcuts = ({
     handleCopyImagePaths,
     handlePasteAdjustments,
     handleRate,
+    handleSetFlag,
     handleSetColorLabel,
     toggleShowOriginal,
   ]);

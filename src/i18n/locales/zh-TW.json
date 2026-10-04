@@ -159,13 +159,17 @@
       "confirmDeleteGroupNested": "確認刪除組及所有巢狀相簿",
       "deleteAlbum": "刪除相簿",
       "deleteGroup": "刪除組",
+      "importLightroom": "Import Lightroom Collections…",
+      "lightroomCatalog": "Lightroom Catalog",
       "moveHere": "移動至此",
       "moveTo": "移動到...",
       "newAlbum": "新建相簿",
       "newGroup": "新建組",
+      "relinkLightroom": "Relink Lightroom Folders…",
       "renameAlbum": "重新命名相簿",
       "renameGroup": "重新命名組",
-      "rootDir": "根目錄"
+      "rootDir": "根目錄",
+      "selectLightroomCatalog": "Select Lightroom Catalog"
     },
     "colors": {
       "blue": "藍色",
@@ -192,6 +196,9 @@
       "denoise": "降噪影像",
       "editImage": "編輯影像",
       "exportImage": "匯出影像",
+      "flag": "標記",
+      "flagPick": "留用",
+      "flagReject": "已拒絕",
       "frameImage": "裝裱影像",
       "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "合併為 HDR",
@@ -206,7 +213,8 @@
       "resetAdjustments": "重置調整",
       "stitchPanorama": "拼接全景圖",
       "tagging": "標籤",
-      "undo": "復原"
+      "undo": "復原",
+      "unflagged": "無標記"
     },
     "folders": {
       "changeIcon": "更換圖示",
@@ -230,6 +238,7 @@
     "library": {
       "addCopiedToAlbum_one": "將複製的影像新增到相簿",
       "addCopiedToAlbum_other": "將 {{count}} 張複製的影像新增到相簿",
+      "deleteRejected": "刪除已拒絕的影像",
       "refreshView": "重新整理檢視"
     },
     "merge": {
@@ -302,6 +311,7 @@
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
     "toasts": {
+      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
       "couldNotShowExplorer": "無法在檔案資源管理器中顯示檔案：{{err}}",
       "couldNotShowFolder": "無法顯示資料夾：{{err}}",
       "failedAddToAlbum": "新增到相簿失敗：{{err}}",
@@ -312,6 +322,7 @@
       "failedDelete": "刪除失敗：{{err}}",
       "failedDeleteFolder": "刪除資料夾失敗：{{err}}",
       "failedDuplicate": "複製檔案失敗：{{err}}",
+      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
       "failedImportMatchingXmpSidecars": "Failed to import matching XMP sidecars: {{err}}",
       "failedImportXmpAdjustments": "Failed to import XMP adjustments: {{err}}",
       "failedMatchingXmpSidecars_other": "Matching XMP sidecars failed to import: {{count}}.",
@@ -319,6 +330,7 @@
       "failedMoveError": "移動失敗：{{err}}",
       "failedMoveInvalid": "移動失敗：未找到目標組或目標組無效。",
       "failedRemoveImages": "移除影像失敗：{{err}}",
+      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
       "importedMatchingXmpSidecars_other": "Imported matching XMP sidecars: {{count}}.",
       "importedXmpAdjustments": "Imported XMP adjustments.",
       "importingMatchingXmpSidecars": "Importing matching XMP sidecars…",
@@ -750,6 +762,7 @@
         "presetFile": "預設檔案",
         "rapidRawPreset": "RapidRAW 預設"
       },
+      "favorites": "收藏",
       "menu": {
         "configurePreset": "配置預設",
         "deleteFolder": "刪除資料夾",
@@ -777,8 +790,10 @@
       "tooltips": {
         "explore": "探索社群預設",
         "export": "將所有預設匯出為 .rrpreset 檔案",
+        "favorite": "加入收藏",
         "import": "從 .rrpreset 檔案匯入預設",
-        "saveNew": "儲存為新預設"
+        "saveNew": "儲存為新預設",
+        "unfavorite": "從收藏中移除"
       },
       "types": {
         "folder": "資料夾",
@@ -1002,6 +1017,13 @@
         "editedOnly": "僅已編輯",
         "uneditedOnly": "僅未編輯"
       },
+      "flag": {
+        "all": "所有影像",
+        "excludeRejected": "隱藏已拒絕",
+        "picked": "留用",
+        "rejected": "已拒絕",
+        "unflagged": "未標記"
+      },
       "noMatch": "未找到匹配過濾條件的影像。",
       "rating": {
         "all": "顯示全部",
@@ -1089,6 +1111,7 @@
         "filterByColorLabel": "按顏色標籤過濾",
         "filterByEdited": "按編輯狀態過濾",
         "filterByFileType": "按檔案型別過濾",
+        "filterByFlag": "按標記過濾",
         "filterByRating": "按評分過濾",
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
@@ -1122,11 +1145,21 @@
       "expandFolder": "展開資料夾",
       "imagesCount_one": "1 張影像",
       "imagesCount_other": "{{count}} 張影像",
+      "rejected": "已拒絕",
       "tooltipAperture": "光圈",
       "tooltipFocalLength": "焦距",
       "tooltipIso": "ISO",
       "tooltipShutterSpeed": "快門速度",
       "tooltipVirtualCopy": "虛擬副本"
+    },
+    "reject": {
+      "deleteConfirm": "刪除已拒絕",
+      "deleteMessage_one": "確定要刪除 {{count}} 張已拒絕的影像嗎？它們將被移至資源回收筒。",
+      "deleteMessage_other": "確定要刪除 {{count}} 張已拒絕的影像嗎？它們將被移至資源回收筒。",
+      "deleteTitle": "刪除已拒絕的影像",
+      "noneToDelete": "沒有可刪除的已拒絕影像。",
+      "virtualCopiesWarning_one": "由於原始影像已被拒絕，{{count}} 個未被拒絕的虛擬副本也將被刪除。",
+      "virtualCopiesWarning_other": "由於原始影像已被拒絕，{{count}} 個未被拒絕的虛擬副本也將被刪除。"
     },
     "search": {
       "noResults": "未找到結果",
@@ -1310,7 +1343,7 @@
     "culling": {
       "actionDelete": "移至垃圾桶",
       "actionRateZero": "將評分設為 1 星",
-      "actionReject": "標記為已拒絕（紅色標籤）",
+      "actionReject": "標記為已拒絕",
       "applyButton_one": "應用到 1 張影像",
       "applyButton_other": "應用到 {{count}} 張影像",
       "bestImage": "最佳影像",
@@ -1450,6 +1483,36 @@
       "zoomInTooltip": "放大",
       "zoomOutTooltip": "縮小"
     },
+    "lightroomImport": {
+      "addRootFolders": "Also add the found root folders to Folders",
+      "besideCatalog": "Found next to the catalog",
+      "collectionSets": "Collection sets",
+      "collections": "Collections",
+      "copied": "List copied.",
+      "copyList": "Copy List",
+      "found": "Found",
+      "imagesFound": "Images found",
+      "imagesMissing": "Images missing",
+      "import": "Import",
+      "importing": "Importing…",
+      "missingFiles": "Missing files: {{total}}",
+      "missingFilesHint": "Missing files stay in their albums and show up again once their folder is found or relinked.",
+      "missingFilesMore": "…and {{total}} more",
+      "missingRoots": "Root folders not found: {{total}}. Their images are imported as missing until you relink them.",
+      "notFound": "Not found",
+      "nothingToImport": "This catalog has no collections to import.",
+      "reading": "Reading the catalog…",
+      "relink": "Relink…",
+      "relinkTitle": "Find the folder for {{path}}",
+      "relinked": "Relinked",
+      "replacesPrevious": "This catalog was imported before. Importing again refreshes its albums where you put them; your other albums stay as they are.",
+      "rootFolders": "Root folders",
+      "rootFoldersHint": "Where the catalog's folders are on this computer. Relink a folder that moved or comes from another computer. The catalog itself is only read, never changed.",
+      "rootImages": "Images: {{images}}, missing: {{missing}}",
+      "skippedOther": "Books, slideshows, prints and web galleries, not imported: {{total}}",
+      "smartCollections": "Smart collections, not imported: {{total}}",
+      "title": "Import Lightroom Collections"
+    },
     "negativeConversion": {
       "blueWeight": "藍色（黃色）",
       "cancel": "取消",
@@ -1497,13 +1560,31 @@
     },
     "renameFile": {
       "cancel": "取消",
+      "conflictExisting": "名稱已存在",
+      "conflictInBatch": "名稱重複",
+      "conflicts_one": "{{count}} 個檔名衝突，請修改範本。",
+      "conflicts_other": "{{count}} 個檔名衝突，請修改範本。",
       "fileNamingTemplate": "檔案命名模板",
+      "groupAuto": "自動：間隔不超過",
+      "groupSeconds": "同組照片之間的秒數",
+      "groupSelection": "整個選取範圍為一組",
+      "groups": "{group} 與 {member} 的分組",
       "newName": "新名稱",
+      "preview": "預覽",
+      "renamed_one": "已重新命名 {{count}} 個檔案",
+      "renamed_other": "已重新命名 {{count}} 個檔案",
       "save": "儲存",
+      "seconds": "秒的照片",
+      "summary": "照片：{{photos}} · 檔案：{{files}}",
       "titleMultiple": "重新命名 {{count}} 張影像",
       "titleMultiple_one": "重新命名 {{count}} 張影像",
       "titleMultiple_other": "重新命名 {{count}} 張影像",
-      "titleSingle": "重新命名影像"
+      "titleSingle": "重新命名影像",
+      "undo": "復原",
+      "undoFailed": "無法復原重新命名：{{err}}",
+      "undoLast_one": "復原上次重新命名（{{count}} 張照片）",
+      "undoLast_other": "復原上次重新命名（{{count}} 張照片）",
+      "undone": "已復原重新命名"
     },
     "renameFolder": {
       "cancel": "取消",
@@ -1672,7 +1753,10 @@
         "copy_files": "複製選中的檔案",
         "copy_image_path": "複製所選圖片的路徑",
         "cycle_zoom": "迴圈縮放（適應、2倍適應、100%）",
+        "delete_rejected": "刪除已拒絕的檔案",
         "delete_selected": "刪除選中的檔案",
+        "flag_pick": "標記為留用",
+        "flag_reject": "標記為拒絕",
         "focus_search": "聚焦搜尋框",
         "open_image": "開啟選中的影像",
         "open_settings": "開啟設定",
@@ -1700,6 +1784,8 @@
         "toggle_export": "切換匯出面板",
         "toggle_folder_tree": "切換資料夾樹面板",
         "toggle_fullscreen": "切換全屏",
+        "cycle_lights_out": "循環切換熄燈模式",
+        "cycle_lights_out_reverse": "反向循環切換熄燈模式",
         "toggle_left_panel": "切換左側面板",
         "toggle_library_exif": "切換 EXIF 疊加",
         "toggle_masks": "切換遮色片面板",
@@ -1708,6 +1794,7 @@
         "toggle_reference_view": "切換參考檢視",
         "toggle_right_panel": "切換右側面板",
         "undo": "復原調整",
+        "unflag": "取消標記",
         "zoom_100": "縮放到 100%",
         "zoom_fit": "縮放以適應",
         "zoom_in": "放大",
@@ -2045,6 +2132,10 @@
         "virtualCopy": "虛擬副本"
       },
       "virtualCopyAbbreviation": "VC"
+    },
+    "flags": {
+      "togglePick": "切換留用",
+      "toggleReject": "切換拒絕"
     },
     "imagePicker": {
       "clearImage": "清除影像",

@@ -31,6 +31,20 @@
   }
 }
 
+.lights-out-dim .lights-out-chrome {
+  opacity: 0.25 !important;
+}
+
+.lights-out-black .lights-out-chrome {
+  display: none !important;
+}
+
+.lights-out-black .lights-out-content {
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+}
+
 @utility slider-input {
   &::-webkit-slider-thumb {
     @apply h-4 w-4 appearance-none rounded-full bg-accent;
@@ -142,13 +156,13 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background-color: var(--color-text-secondary);
+    background-color: color-mix(in srgb, var(--color-text-secondary) 18%, transparent);
     border-radius: 10px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: theme('colors.hover-color');
+    background-color: color-mix(in srgb, var(--color-text-secondary) 35%, transparent);
   }
 
   .macos-window-shell {
