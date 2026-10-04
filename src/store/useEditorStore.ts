@@ -5,6 +5,12 @@ import { ChannelConfig } from '../components/adjustments/Curves';
 import { ImageDimensions } from '../hooks/useImageRenderSize';
 import { ToolType } from '../components/panel/right/Masks';
 import { OverlayMode } from '../components/panel/right/CropPanel';
+import {
+  DEFAULT_REFERENCE_VIEW_STATE,
+  ReferenceViewCommand,
+  ReferenceViewState,
+  reduceReferenceView,
+} from '../utils/referenceView';
 
 interface InteractivePatch {
   url: string;
@@ -38,6 +44,7 @@ interface EditorState {
   lastRenderedAdjustments: Adjustments | null;
   interactivePatch: InteractivePatch | null;
   showOriginal: boolean;
+  referenceView: ReferenceViewState;
 
   // Analytics
   histogram: ChannelConfig | null;
@@ -88,6 +95,7 @@ interface EditorState {
   redo: () => void;
   resetHistory: (initialState: Adjustments) => void;
   goToHistoryIndex: (index: number) => void;
+  dispatchReferenceView: (command: ReferenceViewCommand) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -102,6 +110,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   previewRenderVersion: 0,
   lastRenderedAdjustments: null,
   showOriginal: false,
+  referenceView: DEFAULT_REFERENCE_VIEW_STATE,
   histogram: null,
   waveform: null,
   isWaveformVisible: false,
@@ -183,4 +192,7 @@ export const useEditorStore = create<EditorState>((set) => ({
       }
       return state;
     }),
+
+  dispatchReferenceView: (command) =>
+    set((state) => ({ referenceView: reduceReferenceView(state.referenceView, command) })),
 }));

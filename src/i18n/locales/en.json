@@ -288,6 +288,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -781,6 +791,17 @@
         "tool": "Tool"
       }
     },
+    "referenceView": {
+      "active": "Active",
+      "cancel": "Cancel",
+      "chooseHint": "Click a photo in the filmstrip to use it as the reference.",
+      "clear": "Clear reference",
+      "close": "Close reference view",
+      "readOnly": "Read-only",
+      "reference": "Reference",
+      "replace": "Choose another reference",
+      "unavailable": "Reference image unavailable"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Adjust",
@@ -802,6 +823,7 @@
         "fullscreen": "Toggle Fullscreen (F)",
         "iso": "ISO",
         "redo": "Redo (Ctrl+Y) or History (Right-click)",
+        "referenceView": "Reference View (Shift+R)",
         "showEdited": "Show Edited (B)",
         "showOriginal": "Show Original (B)",
         "shutterSpeed": "Shutter Speed",
@@ -1702,6 +1724,7 @@
         "toggle_masks": "Toggle Masks panel",
         "toggle_metadata": "Toggle Metadata panel",
         "toggle_presets": "Toggle Presets panel",
+        "toggle_reference_view": "Toggle reference view",
         "toggle_right_panel": "Toggle Right Panel",
         "undo": "Undo adjustment",
         "zoom_100": "Zoom to 100%",

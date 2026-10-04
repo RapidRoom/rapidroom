@@ -2,7 +2,7 @@ use crate::image_processing::apply_orientation;
 use anyhow::{Result, anyhow};
 use image::{DynamicImage, ImageBuffer, Rgba};
 use rawler::{
-    decoders::{Orientation, RawDecodeParams},
+    decoders::{Decoder, Orientation, RawDecodeParams},
     imgop::develop::{DemosaicAlgorithm, Intermediate, ProcessingStep, RawDevelop},
     rawimage::{RawImage, RawPhotometricInterpretation},
     rawsource::RawSource,
@@ -29,6 +29,26 @@ pub fn develop_raw_image(
     Ok(apply_orientation(developed_image, orientation))
 }
 
+fn metadata_orientation(decoder: &dyn Decoder, source: &RawSource) -> Result<Orientation> {
+    let metadata = decoder.raw_metadata(source, &RawDecodeParams::default())?;
+    Ok(metadata
+        .exif
+        .orientation
+        .map(Orientation::from_u16)
+        .unwrap_or(Orientation::Normal))
+}
+
+pub fn extract_embedded_preview(file_bytes: &[u8]) -> Option<DynamicImage> {
+    let source = RawSource::new_from_slice(file_bytes);
+    let decoder = rawler::get_decoder(&source).ok()?;
+    let preview = decoder
+        .full_image(&source, &RawDecodeParams::default())
+        .ok()??;
+    let orientation =
+        metadata_orientation(decoder.as_ref(), &source).unwrap_or(Orientation::Normal);
+    Some(apply_orientation(preview, orientation))
+}
+
 fn is_linear_raw_format(raw_image: &RawImage) -> bool {
     matches!(
         raw_image.photometric,
@@ -41,7 +61,7 @@ fn srgb_to_linear(value: f32) -> f32 {
     if value <= 0.04045 {
         value / 12.92
     } else {
-        ((value + 0.055) / 1.055).powf(3.0)
+        ((value + 0.055) / 1.055).powf(2.4)
     }
 }
 
@@ -75,7 +95,8 @@ fn recover_clipped_pixel(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
     if magenta > 0.0 {
         let target_g = cur_r.min(cur_b) * 0.80 + ((cur_r + cur_b) * 0.5) * 0.20;
         let correction = (target_g - cur_g).max(0.0);
-        cur_g += correction * outer_blend;
+        let magenta_weight = smoothstep(0.0, 0.25, magenta / max_c);
+        cur_g += correction * outer_blend * magenta_weight;
     }
 
     let residual = (cur_r.min(cur_b) - cur_g).max(0.0);
@@ -130,12 +151,7 @@ fn develop_internal(
     check_cancel()?;
     let mut raw_image: RawImage = decoder.raw_image(&source, &RawDecodeParams::default(), false)?;
 
-    let metadata = decoder.raw_metadata(&source, &RawDecodeParams::default())?;
-    let orientation = metadata
-        .exif
-        .orientation
-        .map(Orientation::from_u16)
-        .unwrap_or(Orientation::Normal);
+    let orientation = metadata_orientation(decoder.as_ref(), &source)?;
 
     let is_linear_format = is_linear_raw_format(&raw_image);
 
@@ -292,4 +308,44 @@ pub fn get_fast_demosaic_scale_factor(
         }
     }
     1.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn srgb_linearization_matches_reference_values() {
+        for (input, expected) in [
+            (0.0, 0.0),
+            (0.04045, 0.003130805),
+            (0.5, 0.21404114),
+            (1.0, 1.0),
+        ] {
+            assert!((srgb_to_linear(input) - expected).abs() < 1e-7);
+        }
+    }
+
+    #[test]
+    fn srgb_linearization_meets_at_the_segment_join() {
+        assert!((srgb_to_linear(0.040451) - srgb_to_linear(0.04045)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn magenta_correction_does_not_jump_across_the_green_blue_boundary() {
+        for (below, above) in [(0.009, 0.011), (0.0099999, 0.0100001)] {
+            let (_, green_below, _) = recover_clipped_pixel(2.8, 0.010, below);
+            let (_, green_above, _) = recover_clipped_pixel(2.8, 0.010, above);
+            assert!((green_above - green_below).abs() < 0.005);
+        }
+    }
+
+    #[test]
+    fn recovery_preserves_dark_pixels_and_strong_magenta_highlights() {
+        assert_eq!(recover_clipped_pixel(0.4, 0.1, 0.3), (0.4, 0.1, 0.3));
+        let (red, green, blue) = recover_clipped_pixel(2.22, 0.82, 1.57);
+        assert!((red - 2.22).abs() < 1e-6);
+        assert!((green - 2.104).abs() < 0.001);
+        assert!((blue - 2.091).abs() < 0.001);
+    }
 }
