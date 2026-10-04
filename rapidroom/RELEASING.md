@@ -4,18 +4,37 @@ Linux only for now: a `.deb` and an AppImage, built on Ubuntu 22.04 (x86_64). Wi
 
 ## Versions
 
-Two version numbers, and the tag and package version made from them:
+RapidRoom has its own version, `MAJOR.MINOR.PATCH`, independent of upstream. It started at **2.2.0**.
 
-| What                     | Where                                           | Example          |
-| ------------------------ | ----------------------------------------------- | ---------------- |
-| RapidRoom version        | `RAPIDROOM_VERSION` in `src/utils/rapidroom.ts` | `0.1.0`          |
-| RapidRAW base (upstream) | `version` in `src-tauri/tauri.conf.json`        | `1.6.4`          |
-| Release tag              | `v` + RapidRoom version                         | `v0.1.0`         |
-| Package version          | base + `+rr.` + RapidRoom version               | `1.6.4+rr.0.1.0` |
+| What                                    | Where                                                                                                                             | Example  |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| RapidRoom version                       | `RAPIDROOM_VERSION` in `src/utils/rapidroom.ts` **and** `version` in `src-tauri/tauri.conf.json` (a Vitest test keeps them equal) | `2.2.0`  |
+| Release tag                             | `v` + RapidRoom version                                                                                                           | `v2.2.0` |
+| Package version (.deb, AppImage, About) | the RapidRoom version                                                                                                             | `2.2.0`  |
+| RapidRAW base (upstream)                | `RAPIDRAW_BASE_VERSION` in `src/utils/rapidroom.ts`                                                                               | `1.6.4`  |
 
-- `RAPIDROOM_VERSION` is plain `MAJOR.MINOR.PATCH`. The update check strips the `v` from the latest release's tag and compares the numbers with `RAPIDROOM_VERSION`, so suffixes like `-rc.1` don't compare. The release workflow refuses a tag that isn't exactly `v<RAPIDROOM_VERSION>`.
-- Don't change `version` in `tauri.conf.json` for a RapidRoom release; it follows upstream. The workflow sets the package version to `<base>+rr.<RapidRoom version>` at build time, so the `.deb` version goes up with every RapidRoom release (and with every upstream sync), and `apt`/`dpkg` upgrade in place. The start screen shows the RapidRAW base without the `+rr.` part.
+- The start screen shows `RapidRoom 2.2.0 - community build of RapidRAW 1.6.4`.
+- The update check strips the `v` from the latest release's tag and compares the numbers with `RAPIDROOM_VERSION`, so suffixes like `-rc.1` don't compare. The release workflow refuses a tag that isn't exactly `v<RAPIDROOM_VERSION>`, or a `tauri.conf.json` version that differs.
+- **Upstream syncs:** upstream bumps `version` in `tauri.conf.json` on its releases. Keep RapidRoom's value there, and set `RAPIDRAW_BASE_VERSION` to the upstream release the sync brings in.
 - The update check only sees published, non-prerelease releases (`/releases/latest`). Drafts are invisible to users.
+
+### Which number to bump
+
+Look at the entries in `rapidroom/changes.json` (and merged PRs) since the last tag:
+
+| Bump                      | When                                                                                                                                                                                                                             | Example                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| **PATCH** (2.2.0 → 2.2.1) | Only fixes: crashes, wrong behaviour, performance, packaging. No new features or settings, and **no deliberate change to how existing photos render**. Safe to take without reading the notes.                                   | a crash fix, a broken export option                      |
+| **MINOR** (2.2.x → 2.3.0) | Anything else that keeps compatibility: new features or settings, harvests, upstream syncs, and deliberate rendering changes (entries with `rendering_change: true`, marked ⚑; the regression reference is re-blessed for them). | Reference View, an upstream sync that changes highlights |
+| **MAJOR** (2.x → 3.0.0)   | A break: edits or sidecars that older RapidRoom/RapidRAW can't read, settings or catalog data that must be migrated or reset, a removed feature or platform. Rare, and announced ahead.                                          | a new sidecar format                                     |
+
+When in doubt between two, take the bigger one. Release notes list rendering changes first, so nobody is surprised by an edit that looks different.
+
+### When to release
+
+- **Minor:** when `main` has a verified batch worth shipping, roughly every one to two weeks while development is busy. Everything on `main` has already passed CI and the 60-image regression check, so a release is a tag, not a freeze.
+- **Patch:** any time, for a regression or a bad bug in the latest release. Branch from the release tag if `main` already has minor-level changes, fix there, tag `vX.Y.Z+1`, and merge the fix into `main` too.
+- Between releases, `main` keeps the last released number; the bump PR is the first step of the next release.
 
 ## Steps
 
@@ -24,13 +43,13 @@ Two version numbers, and the tag and package version made from them:
 
    ```sh
    git checkout main && git pull
-   git tag -a v0.1.0 -m "RapidRoom 0.1.0"
-   git push origin v0.1.0
+   git tag -a v2.2.0 -m "RapidRoom 2.2.0"
+   git push origin v2.2.0
    ```
 
 3. The **RapidRoom release: Linux** workflow (`.github/workflows/rapidroom-release-linux.yml`) checks the tag, builds, and attaches these to a **draft** release named after the tag:
-   - `RapidRoom_v0.1.0_amd64.deb`
-   - `RapidRoom_v0.1.0_amd64.AppImage`
+   - `RapidRoom_v2.2.0_amd64.deb`
+   - `RapidRoom_v2.2.0_amd64.AppImage`
    - `SHA256SUMS`
 
    It never publishes. If the draft already exists, it replaces the assets; if the release is already published, it fails and leaves it alone.
@@ -38,7 +57,7 @@ Two version numbers, and the tag and package version made from them:
 4. Download both packages and test them on a machine that also has stock RapidRAW installed (see the checklist below).
 5. Edit the draft's notes (the new entries in `CHANGES.md` since the last release), then publish it. From then on the update check offers it.
 
-If the build fails, fix it on `main`, then move the tag (`git tag -f -a v0.1.0 …` and `git push -f origin v0.1.0`) or bump to the next version. Delete a broken draft by hand.
+If the build fails, fix it on `main`, then move the tag (`git tag -f -a v2.2.0 …` and `git push -f origin v2.2.0`) or bump to the next version. Delete a broken draft by hand.
 
 Push the tag; don't create the release by hand. Upstream's `release.yml` (all platforms, triggered by `release: created`) only runs in `CyberTimon/RapidRAW`.
 
@@ -64,11 +83,11 @@ Tauri's resource directory on Linux is `<exe dir>/../lib/<productName>`, falling
 
 With stock RapidRAW installed:
 
-- [ ] `sudo apt install ./RapidRoom_v0.1.0_amd64.deb` installs without conflicts and without removing RapidRAW.
+- [ ] `sudo apt install ./RapidRoom_v2.2.0_amd64.deb` installs without conflicts and without removing RapidRAW.
 - [ ] `dpkg -L rapid-room` lists `/usr/bin/rapidroom`, `/usr/lib/RapidRoom/…` and `/usr/share/applications/RapidRoom.desktop`, and nothing named RapidRAW.
 - [ ] Both apps can run at the same time; starting one doesn't just focus the other.
 - [ ] The taskbar/dock shows the RapidRoom icon for RapidRoom's window, on X11 and on Wayland (`xprop WM_CLASS` shows `"RapidRoom", "RapidRoom"`).
 - [ ] AI masks work (ONNX Runtime loads from `/usr/lib/RapidRoom/resources`), film LUTs list, and lens correction finds lenses.
 - [ ] The AppImage runs on its own (`chmod +x`, run it) with the same checks.
-- [ ] The start screen shows `RapidRoom 0.1.0` and `RapidRAW 1.6.4`.
+- [ ] The start screen shows `RapidRoom 2.2.0` and `RapidRAW 1.6.4`.
 - [ ] Upgrading from the previous RapidRoom `.deb` replaces it in place.
