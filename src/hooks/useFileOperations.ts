@@ -2,13 +2,14 @@ import { createElement, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { Invokes } from '../components/ui/AppProperties';
+import { ImageFlag, Invokes } from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
 import UndoToast from '../components/ui/UndoToast';
 import { RenameOptions, RenameOutcome, pathMapper } from '../utils/batchRename';
@@ -20,6 +21,8 @@ export function useFileOperations(
   handleBackToLibrary: () => void,
   sortedImageList: any[],
 ) {
+  const { t } = useTranslation();
+
   const getParentDir = (filePath: string): string => {
     const separator = filePath.includes('/') ? '/' : '\\';
     const lastSeparatorIndex = filePath.lastIndexOf(separator);
@@ -149,6 +152,37 @@ export function useFileOperations(
       },
     });
   }, [executeDelete]);
+
+  const handleDeleteRejected = useCallback(() => {
+    const { imageList } = useLibraryStore.getState();
+    const rejectedPaths = imageList.filter((image) => image.flag === ImageFlag.Reject).map((image) => image.path);
+
+    if (rejectedPaths.length === 0) {
+      toast.info(t('library.reject.noneToDelete'));
+      return;
+    }
+
+    const rejectedSet = new Set(rejectedPaths);
+    const affectedCopyCount = imageList.filter(
+      (image) =>
+        image.path.includes('?vc=') && !rejectedSet.has(image.path) && rejectedSet.has(image.path.split('?vc=')[0]),
+    ).length;
+    const deleteMessage = t('library.reject.deleteMessage', { count: rejectedPaths.length });
+
+    useUIStore.getState().setUI({
+      confirmModalState: {
+        confirmText: t('library.reject.deleteConfirm'),
+        confirmVariant: 'destructive',
+        isOpen: true,
+        message:
+          affectedCopyCount > 0
+            ? `${deleteMessage}\n\n${t('library.reject.virtualCopiesWarning', { count: affectedCopyCount })}`
+            : deleteMessage,
+        onConfirm: () => executeDelete(rejectedPaths, { includeAssociated: false }),
+        title: t('library.reject.deleteTitle'),
+      },
+    });
+  }, [executeDelete, t]);
 
   const handleCreateFolder = useCallback(
     async (folderName: string) => {
@@ -432,6 +466,7 @@ export function useFileOperations(
   return {
     executeDelete,
     handleDeleteSelected,
+    handleDeleteRejected,
     handleCreateFolder,
     handleRenameFolder,
     handleSaveRename,

@@ -1,8 +1,16 @@
 import { useMemo } from 'react';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { RawStatus, EditedStatus, SortDirection, ImageFile, GroupingMode } from '../components/ui/AppProperties';
+import {
+  RawStatus,
+  EditedStatus,
+  ImageFlag,
+  SortDirection,
+  ImageFile,
+  GroupingMode,
+} from '../components/ui/AppProperties';
 import { buildImageGroups, GroupBadgeInfo, GroupId } from '../utils/imageGrouping';
+import { matchesFlagStatus } from '../utils/imageFlags';
 
 export const ADVANCED_QUERY_REGEX =
   /^(iso|aperture|f|shutter|s|focal|mm|rating|color|camera|make|model|lens)\s*(?::)?\s*(>=|<=|>|<|=)?\s*(.+)$/i;
@@ -67,6 +75,8 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
       if (filterCriteria.editedStatus === EditedStatus.EditedOnly && !image.is_edited) return false;
       if (filterCriteria.editedStatus === EditedStatus.UneditedOnly && image.is_edited) return false;
     }
+
+    if (!matchesFlagStatus(image.flag, filterCriteria.flagStatus)) return false;
 
     if (filterCriteria.colors && filterCriteria.colors.length > 0) {
       const imageColor = (image.tags || []).find((tag: string) => tag.startsWith('color:'))?.substring(6);
@@ -200,6 +210,9 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
 
   const list = [...filteredBySearch];
 
+  const getRatingSortValue = (image: ImageFile) =>
+    image.flag === ImageFlag.Reject ? -1 : imageRatings[image.path] || 0;
+
   list.sort((a, b) => {
     const { key, order } = sortCriteria;
     let comparison = 0;
@@ -234,7 +247,7 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
         comparison = a.modified - b.modified;
         break;
       case 'rating':
-        comparison = (imageRatings[a.path] || 0) - (imageRatings[b.path] || 0);
+        comparison = getRatingSortValue(a) - getRatingSortValue(b);
         break;
       case 'edited':
         comparison = a.is_edited === b.is_edited ? 0 : a.is_edited ? 1 : -1;
