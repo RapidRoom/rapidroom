@@ -70,6 +70,7 @@ rgb = "0.8.53"
 imgref = "1.12.2"
 sysinfo = "0.39.6"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+flate2 = "=1.1.9"
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 trash = "5.2.6"
@@ -135,7 +136,10 @@ strip = true
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-clippy"))'] }
 
 # Carry Kheil-Z's Sony lossless M/S and Canon mRAW/sRAW default-crop fix
-# (rebased onto 934af4b), plus saturating lookup-table highlight dithering
-# for DxO compressed DNGs. Keep this patch until upstream includes both fixes.
+# (rebased onto 934af4b), saturating lookup-table highlight dithering for DxO
+# compressed DNGs, Adobe stage-2 polynomial mappings, and SebastianEggli's
+# fast preview paths (DNG LinearRaw
+# proxies, CR3/ORF previews, zero-copy RawSource; `CyberTimon/RapidRAW-DngLab#10`).
+# Keep this patch until upstream includes these fixes.
 [patch."https://github.com/CyberTimon/RapidRAW-DngLab.git"]
-rawler = { git = "https://github.com/yojen7/RapidRAW-DngLab.git", rev = "4c960626978287ab8e4aabe70a6cfa60b4582273" }
+rawler = { git = "https://github.com/yojen7/RapidRAW-DngLab.git", rev = "a98bd053c4a14c0c1105ee08a8deba8ce5e6ca5d" }

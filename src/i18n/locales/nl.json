@@ -1672,6 +1672,8 @@
         "toggle_export": "Exportpaneel aan/uit",
         "toggle_folder_tree": "Mappenstructuurpaneel aan/uit",
         "toggle_fullscreen": "Volledig scherm aan/uit",
+        "cycle_lights_out": "Lights Out doorlopen",
+        "cycle_lights_out_reverse": "Lights Out achteruit doorlopen",
         "toggle_left_panel": "Linkerpaneel aan/uit",
         "toggle_library_exif": "EXIF-overlay aan/uit",
         "toggle_masks": "Maskerpaneel aan/uit",

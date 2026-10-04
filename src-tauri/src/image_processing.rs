@@ -2110,18 +2110,24 @@ pub fn is_image_edited(
     bytemuck::bytes_of(&current_adj) != bytemuck::bytes_of(&default_adj)
 }
 
+fn is_section_visible(adjustments: &serde_json::Value, section: &str) -> bool {
+    adjustments
+        .get("sectionVisibility")
+        .and_then(|v| v.get(section))
+        .and_then(|s| s.as_bool())
+        .unwrap_or(true)
+}
+
+fn is_color_tool_visible(adjustments: &serde_json::Value, tool: &str) -> bool {
+    is_section_visible(adjustments, "color") && is_section_visible(adjustments, tool)
+}
+
 fn get_global_adjustments_from_json(
     js_adjustments: &serde_json::Value,
     is_raw: bool,
     tonemapper_override: Option<u32>,
 ) -> GlobalAdjustments {
-    let visibility = js_adjustments.get("sectionVisibility");
-    let is_visible = |section: &str| -> bool {
-        visibility
-            .and_then(|v| v.get(section))
-            .and_then(|s| s.as_bool())
-            .unwrap_or(true)
-    };
+    let is_visible = |section: &str| is_section_visible(js_adjustments, section);
 
     let get_val = |section: &str, key: &str, scale: f32, default: Option<f64>| -> f32 {
         if is_visible(section) {
@@ -2181,6 +2187,9 @@ fn get_global_adjustments_from_json(
     } else {
         Vec::new()
     };
+
+    let color_grading_visible = is_color_tool_visible(js_adjustments, "colorGrading");
+    let color_mixer_visible = is_color_tool_visible(js_adjustments, "colorMixer");
 
     let cg_obj = js_adjustments
         .get("colorGrading")
@@ -2342,32 +2351,32 @@ fn get_global_adjustments_from_json(
         _pad_cg2: 0.0,
         _pad_cg3: 0.0,
         _pad_cg4: 0.0,
-        color_grading_shadows: if is_visible("color") {
+        color_grading_shadows: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["shadows"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_midtones: if is_visible("color") {
+        color_grading_midtones: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["midtones"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_highlights: if is_visible("color") {
+        color_grading_highlights: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["highlights"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_global: if is_visible("color") {
+        color_grading_global: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["global"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_blending: if is_visible("color") {
+        color_grading_blending: if color_grading_visible {
             cg_obj["blending"].as_f64().unwrap_or(50.0) as f32 / SCALES.color_grading_blending
         } else {
             0.5
         },
-        color_grading_balance: if is_visible("color") {
+        color_grading_balance: if color_grading_visible {
             cg_obj["balance"].as_f64().unwrap_or(0.0) as f32 / SCALES.color_grading_balance
         } else {
             0.0
@@ -2377,7 +2386,7 @@ fn get_global_adjustments_from_json(
 
         color_calibration: color_cal_settings,
 
-        hsl: if is_visible("color") {
+        hsl: if color_mixer_visible {
             parse_hsl_adjustments(&js_adjustments.get("hsl").cloned().unwrap_or_default())
         } else {
             [HslColor::default(); 8]
@@ -2412,13 +2421,7 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
         return MaskAdjustments::default();
     }
 
-    let visibility = adj.get("sectionVisibility");
-    let is_visible = |section: &str| -> bool {
-        visibility
-            .and_then(|v| v.get(section))
-            .and_then(|s| s.as_bool())
-            .unwrap_or(true)
-    };
+    let is_visible = |section: &str| is_section_visible(adj, section);
 
     let get_val = |section: &str, key: &str, scale: f32| -> f32 {
         if is_visible(section) {
@@ -2449,6 +2452,9 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
     } else {
         Vec::new()
     };
+    let color_grading_visible = is_color_tool_visible(adj, "colorGrading");
+    let color_mixer_visible = is_color_tool_visible(adj, "colorMixer");
+
     let cg_obj = adj.get("colorGrading").cloned().unwrap_or_default();
 
     MaskAdjustments {
@@ -2485,32 +2491,32 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
         hue: get_val("color", "hue", 1.0),
         _pad_cg1: 0.0,
         _pad_cg2: 0.0,
-        color_grading_shadows: if is_visible("color") {
+        color_grading_shadows: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["shadows"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_midtones: if is_visible("color") {
+        color_grading_midtones: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["midtones"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_highlights: if is_visible("color") {
+        color_grading_highlights: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["highlights"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_global: if is_visible("color") {
+        color_grading_global: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["global"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_blending: if is_visible("color") {
+        color_grading_blending: if color_grading_visible {
             cg_obj["blending"].as_f64().unwrap_or(50.0) as f32 / SCALES.color_grading_blending
         } else {
             0.5
         },
-        color_grading_balance: if is_visible("color") {
+        color_grading_balance: if color_grading_visible {
             cg_obj["balance"].as_f64().unwrap_or(0.0) as f32 / SCALES.color_grading_balance
         } else {
             0.0
@@ -2518,7 +2524,7 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
         _pad5: 0.0,
         _pad6: 0.0,
 
-        hsl: if is_visible("color") {
+        hsl: if color_mixer_visible {
             parse_hsl_adjustments(&adj.get("hsl").cloned().unwrap_or_default())
         } else {
             [HslColor::default(); 8]
@@ -3780,6 +3786,95 @@ mod white_balance_sample_tests {
         let s = compute_white_balance_sample(&img, true, &diamond).unwrap();
         assert!(s.count < 16);
         assert!(s.temperature.abs() < 1e-4);
+    }
+}
+
+#[cfg(test)]
+mod color_tool_visibility_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn edited(visibility: Option<serde_json::Value>) -> serde_json::Value {
+        let mut adj = json!({
+            "saturation": 20,
+            "colorGrading": {
+                "shadows": { "hue": 200, "saturation": 40, "luminance": 0 },
+                "midtones": { "hue": 30, "saturation": 10, "luminance": 5 },
+                "highlights": { "hue": 60, "saturation": 25, "luminance": 0 },
+                "global": { "hue": 0, "saturation": 0, "luminance": 0 },
+                "blending": 70,
+                "balance": 15
+            },
+            "hsl": { "reds": { "hue": 10, "saturation": -20, "luminance": 5 } }
+        });
+        if let Some(v) = visibility {
+            adj["sectionVisibility"] = v;
+        }
+        adj
+    }
+
+    fn global(adj: &serde_json::Value) -> GlobalAdjustments {
+        get_global_adjustments_from_json(adj, true, None)
+    }
+
+    fn has_grading(a: &GlobalAdjustments) -> bool {
+        a.color_grading_shadows.saturation != 0.0 && a.color_grading_balance != 0.0
+    }
+
+    fn has_mixer(a: &GlobalAdjustments) -> bool {
+        a.hsl[0].hue != 0.0
+    }
+
+    #[test]
+    fn absent_tool_keys_render_like_all_visible() {
+        let all_on = global(&edited(Some(json!({
+            "basic": true, "curves": true, "color": true,
+            "colorGrading": true, "colorMixer": true, "details": true, "effects": true
+        }))));
+        for vis in [None, Some(json!({})), Some(json!({ "color": true }))] {
+            let a = global(&edited(vis));
+            assert_eq!(bytemuck::bytes_of(&a), bytemuck::bytes_of(&all_on));
+        }
+        assert!(has_grading(&all_on) && has_mixer(&all_on));
+    }
+
+    #[test]
+    fn tools_toggle_independently() {
+        let no_grading = global(&edited(Some(json!({ "colorGrading": false }))));
+        assert!(!has_grading(&no_grading) && has_mixer(&no_grading));
+        assert_eq!(no_grading.color_grading_blending, 0.5);
+
+        let no_mixer = global(&edited(Some(json!({ "colorMixer": false }))));
+        assert!(has_grading(&no_mixer) && !has_mixer(&no_mixer));
+        assert!(no_mixer.saturation != 0.0);
+    }
+
+    #[test]
+    fn color_panel_eye_bypasses_both_tools() {
+        let a = global(&edited(Some(json!({
+            "color": false, "colorGrading": true, "colorMixer": true
+        }))));
+        assert!(!has_grading(&a) && !has_mixer(&a));
+        assert_eq!(a.saturation, 0.0);
+    }
+
+    #[test]
+    fn mask_tools_follow_the_same_rules() {
+        let on = get_mask_adjustments_from_json(&edited(None));
+        let explicit = get_mask_adjustments_from_json(&edited(Some(json!({ "color": true }))));
+        assert_eq!(bytemuck::bytes_of(&on), bytemuck::bytes_of(&explicit));
+        assert!(on.color_grading_shadows.saturation != 0.0 && on.hsl[0].hue != 0.0);
+
+        let no_grading =
+            get_mask_adjustments_from_json(&edited(Some(json!({ "colorGrading": false }))));
+        assert!(no_grading.color_grading_shadows.saturation == 0.0 && no_grading.hsl[0].hue != 0.0);
+
+        let no_mixer =
+            get_mask_adjustments_from_json(&edited(Some(json!({ "colorMixer": false }))));
+        assert!(no_mixer.color_grading_shadows.saturation != 0.0 && no_mixer.hsl[0].hue == 0.0);
+
+        let parent_off = get_mask_adjustments_from_json(&edited(Some(json!({ "color": false }))));
+        assert!(parent_off.color_grading_shadows.saturation == 0.0 && parent_off.hsl[0].hue == 0.0);
     }
 }
 
