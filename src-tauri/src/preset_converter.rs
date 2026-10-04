@@ -957,6 +957,121 @@ fn extract_tone_curve_points(xmp_str: &str, curve_name: &str) -> Option<Vec<Valu
     }
 }
 
+const MAX_RAPIDRAW_CURVE_POINTS: usize = 16;
+
+fn strip_nested_looks(xmp_content: &str) -> std::borrow::Cow<'_, str> {
+    regex!(r"(?s)<crs:Look>.*?</crs:Look>").replace_all(xmp_content, "")
+}
+
+fn curve_points_as_f64(points: &[Value]) -> Vec<(f64, f64)> {
+    points
+        .iter()
+        .filter_map(|point| Some((point["x"].as_f64()?, point["y"].as_f64()?)))
+        .collect()
+}
+
+// Port of apply_curve in shader.wgsl (monotone cubic Hermite on 0-255), so a
+// composed curve matches what RapidRAW renders for the source curves.
+fn evaluate_rapidraw_curve(points: &[(f64, f64)], x: f64) -> f64 {
+    let count = points.len();
+    if count < 2 {
+        return x;
+    }
+    if x <= points[0].0 {
+        return points[0].1;
+    }
+    if x >= points[count - 1].0 {
+        return points[count - 1].1;
+    }
+    for i in 0..count - 1 {
+        let (p1, p2) = (points[i], points[i + 1]);
+        if x > p2.0 {
+            continue;
+        }
+        let p0 = points[i.max(1) - 1];
+        let p3 = points[(i + 2).min(count - 1)];
+        let delta_before = (p1.1 - p0.1) / (p1.0 - p0.0).max(0.001);
+        let delta_current = (p2.1 - p1.1) / (p2.0 - p1.0).max(0.001);
+        let delta_after = (p3.1 - p2.1) / (p3.0 - p2.0).max(0.001);
+        let mut tangent_at_p1 = if i == 0 {
+            delta_current
+        } else if delta_before * delta_current <= 0.0 {
+            0.0
+        } else {
+            (delta_before + delta_current) / 2.0
+        };
+        let mut tangent_at_p2 = if i + 1 == count - 1 {
+            delta_current
+        } else if delta_current * delta_after <= 0.0 {
+            0.0
+        } else {
+            (delta_current + delta_after) / 2.0
+        };
+        if delta_current != 0.0 {
+            let alpha = tangent_at_p1 / delta_current;
+            let beta = tangent_at_p2 / delta_current;
+            if alpha * alpha + beta * beta > 9.0 {
+                let tau = 3.0 / (alpha * alpha + beta * beta).sqrt();
+                tangent_at_p1 *= tau;
+                tangent_at_p2 *= tau;
+            }
+        }
+        let dx = p2.0 - p1.0;
+        if dx <= 0.0 {
+            return p1.1;
+        }
+        let t = (x - p1.0) / dx;
+        let (t2, t3) = (t * t, t * t * t);
+        let y = (2.0 * t3 - 3.0 * t2 + 1.0) * p1.1
+            + (t3 - 2.0 * t2 + t) * tangent_at_p1 * dx
+            + (-2.0 * t3 + 3.0 * t2) * p2.1
+            + (t3 - t2) * tangent_at_p2 * dx;
+        return y.clamp(0.0, 255.0);
+    }
+    points[count - 1].1
+}
+
+/// Tone curves of nested looks (the Adobe Color profile look, creative
+/// profiles), each scaled by its crs:Amount, in the order Lightroom applies them.
+fn extract_nested_look_luma_curves(xmp_content: &str) -> Vec<(f64, Vec<(f64, f64)>)> {
+    regex!(r"(?s)<crs:Look>(.*?)</crs:Look>")
+        .captures_iter(xmp_content)
+        .filter_map(|captures| {
+            let look = captures.get(1)?.as_str();
+            let amount = extract_namespaced_scalar(look, "crs", "Amount")
+                .and_then(|value| value.parse::<f64>().ok())
+                .filter(|value| value.is_finite())
+                .unwrap_or(1.0)
+                .clamp(0.0, 2.0);
+            let points = curve_points_as_f64(&extract_tone_curve_points(look, "ToneCurvePV2012")?);
+            let is_identity = points.iter().all(|(x, y)| x == y);
+            (amount > 0.0 && !is_identity).then_some((amount, points))
+        })
+        .collect()
+}
+
+/// Lightroom applies the profile look before the user's tone curve. RapidRAW
+/// has one luma curve, so sample the composition at evenly spaced inputs.
+fn compose_luma_curve_with_looks(
+    looks: &[(f64, Vec<(f64, f64)>)],
+    outer: Option<&[(f64, f64)]>,
+) -> Vec<Value> {
+    let step = 255.0 / (MAX_RAPIDRAW_CURVE_POINTS - 1) as f64;
+    (0..MAX_RAPIDRAW_CURVE_POINTS)
+        .map(|index| {
+            let x = (index as f64 * step).round();
+            let mut y = x;
+            for (amount, points) in looks {
+                y += amount * (evaluate_rapidraw_curve(points, y) - y);
+            }
+            if let Some(outer) = outer {
+                y = evaluate_rapidraw_curve(outer, y);
+            }
+            json!({ "x": x as u32, "y": y.round().clamp(0.0, 255.0) as u32 })
+        })
+        .collect()
+}
+
 pub fn convert_xmp_to_preset(xmp_content: &str) -> Result<Preset, String> {
     convert_xmp_to_preset_with_crop(xmp_content, false, Some(5500.0), None, None)
 }
@@ -1342,13 +1457,28 @@ fn convert_xmp_to_preset_with_crop(
         (["ToneCurvePV2012Green", "ToneCurveGreen"], "green"),
         (["ToneCurvePV2012Blue", "ToneCurveBlue"], "blue"),
     ];
+    let outer_content = strip_nested_looks(xmp_content);
     for (xmp_curves, rr_curve) in curve_mappings {
         for xmp_curve in xmp_curves {
-            if let Some(points) = extract_tone_curve_points(xmp_content, xmp_curve) {
+            if let Some(points) = extract_tone_curve_points(&outer_content, xmp_curve) {
                 curves_map.insert(rr_curve.to_string(), Value::Array(points));
                 break;
             }
         }
+    }
+    let look_curves = extract_nested_look_luma_curves(xmp_content);
+    if !look_curves.is_empty() {
+        let outer_luma = curves_map
+            .get("luma")
+            .and_then(Value::as_array)
+            .map(|points| curve_points_as_f64(points));
+        curves_map.insert(
+            "luma".to_string(),
+            Value::Array(compose_luma_curve_with_looks(
+                &look_curves,
+                outer_luma.as_deref(),
+            )),
+        );
     }
     if !curves_map.is_empty() {
         adjustments.insert("curves".to_string(), Value::Object(curves_map));
@@ -2281,6 +2411,122 @@ mod tests {
         assert!(
             !adobe_camera_raw_already_applied(r#"<rdf:Description crs:AlreadyApplied="False" />"#)
                 .unwrap()
+        );
+    }
+
+    const ADOBE_COLOR_LOOK: &str = r#"<crs:Look>
+                <rdf:Description crs:Name="Adobe Color" crs:Amount="1">
+                  <crs:Parameters>
+                    <rdf:Description crs:ProcessVersion="11.0" crs:LookTable="0000">
+                      <crs:ToneCurvePV2012>
+                        <rdf:Seq>
+                          <rdf:li>0, 0</rdf:li>
+                          <rdf:li>64, 48</rdf:li>
+                          <rdf:li>192, 208</rdf:li>
+                          <rdf:li>255, 255</rdf:li>
+                        </rdf:Seq>
+                      </crs:ToneCurvePV2012>
+                    </rdf:Description>
+                  </crs:Parameters>
+                </rdf:Description>
+              </crs:Look>"#;
+
+    fn luma_at(preset: &Preset, x: u64) -> u64 {
+        preset.adjustments["curves"]["luma"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|point| point["x"].as_u64() == Some(x))
+            .and_then(|point| point["y"].as_u64())
+            .unwrap()
+    }
+
+    #[test]
+    fn evaluates_curves_like_the_shader() {
+        let curve = [(0.0, 0.0), (64.0, 48.0), (192.0, 208.0), (255.0, 255.0)];
+        assert_eq!(evaluate_rapidraw_curve(&curve, 0.0), 0.0);
+        assert_eq!(evaluate_rapidraw_curve(&curve, 64.0), 48.0);
+        assert_eq!(evaluate_rapidraw_curve(&curve, 255.0), 255.0);
+        let identity = [(0.0, 0.0), (255.0, 255.0)];
+        assert!((evaluate_rapidraw_curve(&identity, 100.0) - 100.0).abs() < 1e-9);
+        let mid = evaluate_rapidraw_curve(&curve, 128.0);
+        assert!(mid > 120.0 && mid < 136.0, "{mid}");
+    }
+
+    #[test]
+    fn composes_nested_look_tone_curve_into_luma() {
+        let look_only = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:Exposure2012="0">{ADOBE_COLOR_LOOK}</rdf:Description>"#
+        ))
+        .unwrap();
+        let luma = look_only.adjustments["curves"]["luma"].as_array().unwrap();
+        assert_eq!(luma.len(), MAX_RAPIDRAW_CURVE_POINTS);
+        assert_eq!(luma_at(&look_only, 0), 0);
+        assert_eq!(luma_at(&look_only, 255), 255);
+        assert!(luma_at(&look_only, 51) < 51);
+        assert!(luma_at(&look_only, 204) > 204);
+
+        // The user's curve applies on top of the look: here it inverts it.
+        let with_user_curve = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:Exposure2012="0">
+              <crs:ToneCurvePV2012>
+                <rdf:Seq>
+                  <rdf:li>0, 255</rdf:li>
+                  <rdf:li>255, 0</rdf:li>
+                </rdf:Seq>
+              </crs:ToneCurvePV2012>
+              {ADOBE_COLOR_LOOK}
+            </rdf:Description>"#
+        ))
+        .unwrap();
+        for x in [0, 51, 102, 153, 204, 255] {
+            assert_eq!(
+                luma_at(&with_user_curve, x),
+                255 - luma_at(&look_only, x),
+                "{x}"
+            );
+        }
+    }
+
+    #[test]
+    fn reads_outer_curve_even_when_the_look_comes_first() {
+        let preset = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:Exposure2012="0">
+              {}
+              <crs:ToneCurvePV2012>
+                <rdf:Seq>
+                  <rdf:li>0, 0</rdf:li>
+                  <rdf:li>255, 255</rdf:li>
+                </rdf:Seq>
+              </crs:ToneCurvePV2012>
+            </rdf:Description>"#,
+            ADOBE_COLOR_LOOK.replace("crs:Amount=\"1\"", "crs:Amount=\"0\"")
+        ))
+        .unwrap();
+
+        assert_eq!(
+            preset.adjustments["curves"]["luma"],
+            json!([{ "x": 0, "y": 0 }, { "x": 255, "y": 255 }])
+        );
+    }
+
+    #[test]
+    fn scales_nested_look_curve_by_its_amount() {
+        let full = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:Exposure2012="0">{ADOBE_COLOR_LOOK}</rdf:Description>"#
+        ))
+        .unwrap();
+        let half = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:Exposure2012="0">{}</rdf:Description>"#,
+            ADOBE_COLOR_LOOK.replace("crs:Amount=\"1\"", "crs:Amount=\"0.5\"")
+        ))
+        .unwrap();
+
+        let full_shift = 204 - luma_at(&full, 204) as i64;
+        let half_shift = 204 - luma_at(&half, 204) as i64;
+        assert!(
+            (full_shift - 2 * half_shift).abs() <= 1,
+            "{full_shift} {half_shift}"
         );
     }
 
