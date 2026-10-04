@@ -1684,6 +1684,8 @@
         "toggle_export": "Alternar tauler d'Exportació",
         "toggle_folder_tree": "Alternar tauler d'arbre de carpetes",
         "toggle_fullscreen": "Alternar pantalla completa",
+        "cycle_lights_out": "Canvia el mode Lights Out",
+        "cycle_lights_out_reverse": "Canvia el mode Lights Out enrere",
         "toggle_left_panel": "Commutar el panell esquerre",
         "toggle_library_exif": "Alternar superposició EXIF",
         "toggle_masks": "Alternar tauler de Màscares",

@@ -1754,6 +1754,8 @@
         "toggle_export": "Przełącz panel Eksport",
         "toggle_folder_tree": "Przełącz panel drzewa folderów",
         "toggle_fullscreen": "Przełącz tryb pełnoekranowy",
+        "cycle_lights_out": "Przełączaj Lights Out",
+        "cycle_lights_out_reverse": "Przełączaj Lights Out wstecz",
         "toggle_left_panel": "Przełącz lewy panel",
         "toggle_library_exif": "Przełącz nakładkę EXIF",
         "toggle_masks": "Przełącz panel Maski",

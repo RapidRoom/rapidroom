@@ -1717,6 +1717,8 @@
         "toggle_export": "Alternar panel de Exportación",
         "toggle_folder_tree": "Alternar panel de árbol de carpetas",
         "toggle_fullscreen": "Alternar pantalla completa",
+        "cycle_lights_out": "Recorrer Lights Out",
+        "cycle_lights_out_reverse": "Recorrer Lights Out hacia atrás",
         "toggle_left_panel": "Alternar panel izquierdo",
         "toggle_library_exif": "Alternar superposición EXIF",
         "toggle_masks": "Alternar panel de Máscaras",

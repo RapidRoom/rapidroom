@@ -11,6 +11,7 @@ import {
 import { useEditorStore } from './useEditorStore';
 
 export type SwitcherPlacement = 'bottom' | 'right' | 'left' | 'top';
+export type LightsOutMode = 'off' | 'dim' | 'black';
 
 export interface CropSectionsState {
   transform: boolean;
@@ -212,6 +213,7 @@ export interface UIState {
   uiVisibility: UiVisibility;
   isLibraryExportPanelVisible: boolean;
   isSettingsOpen: boolean;
+  lightsOutMode: LightsOutMode;
 
   leftPanelWidth: number;
   rightPanelWidth: number;
@@ -270,6 +272,7 @@ export interface UIState {
   setCustomEscapeHandler: (handler: (() => void) | null) => void;
   searchFocusRequest: number;
   requestSearchFocus: () => void;
+  cycleLightsOut: (direction?: 1 | -1) => void;
   toggleFullScreen: () => void;
   resetWorkspaceLayout: (isTetheringSupported?: boolean) => WorkspaceState;
 }
@@ -283,6 +286,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   uiVisibility: { filmstrip: true, leftPanel: true, rightPanel: true, quickFilter: false },
   isLibraryExportPanelVisible: false,
   isSettingsOpen: false,
+  lightsOutMode: 'off',
 
   leftPanelWidth: DEFAULT_PANEL_WIDTH,
   rightPanelWidth: DEFAULT_PANEL_WIDTH,
@@ -561,4 +565,10 @@ export const useUIStore = create<UIState>((set, get) => ({
   setCustomEscapeHandler: (handler) => set({ customEscapeHandler: handler }),
   searchFocusRequest: 0,
   requestSearchFocus: () => set((state) => ({ searchFocusRequest: state.searchFocusRequest + 1 })),
+  cycleLightsOut: (direction = 1) =>
+    set((state) => {
+      const modes: LightsOutMode[] = ['off', 'dim', 'black'];
+      const currentIndex = modes.indexOf(state.lightsOutMode);
+      return { lightsOutMode: modes[(currentIndex + direction + modes.length) % modes.length] };
+    }),
 }));

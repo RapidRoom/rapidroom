@@ -91,6 +91,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const isFullScreen = useUIStore((s) => s.isFullScreen);
   const activePanel = useUIStore((s) => s.activePanel);
   const isInstantTransition = useUIStore((s) => s.isInstantTransition);
+  const isLightsOut = useUIStore((s) => s.lightsOutMode !== 'off');
   const setUI = useUIStore((s) => s.setUI);
   const isLoading = useLibraryStore((s) => s.isViewLoading);
   const selectedImage = useEditorStore((s) => s.selectedImage);
@@ -1415,8 +1416,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       isCropping,
       uncroppedAdjustedPreviewUrl,
       showOriginal,
-      bgPrimary: parseRgb(bgPrimaryStr),
-      bgSecondary: isNeutralGrey ? NEUTRAL_GREY_RGB : parseRgb(bgSecondaryStr),
+      bgPrimary: isLightsOut ? [0, 0, 0, 1] : parseRgb(bgPrimaryStr),
+      bgSecondary: isLightsOut ? [0, 0, 0, 1] : isNeutralGrey ? NEUTRAL_GREY_RGB : parseRgb(bgSecondaryStr),
     };
   }, [
     appSettings?.useWgpuRenderer,
@@ -1426,6 +1427,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     isCropping,
     uncroppedAdjustedPreviewUrl,
     showOriginal,
+    isLightsOut,
     appSettings?.theme,
     finalPreviewUrl,
   ]);
@@ -1435,6 +1437,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }, [
     appSettings?.useWgpuRenderer,
     appSettings?.editorNeutralGreyBg,
+    isLightsOut,
     selectedImage?.isReady,
     hasRenderedFirstFrame,
     isCropping,
@@ -2265,17 +2268,20 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   return (
     <div
       className={clsx(
-        'flex-1 flex flex-col relative overflow-hidden min-h-0',
+        'lights-out-content flex-1 flex flex-col relative overflow-hidden min-h-0',
         !isInstantTransition && 'transition-all duration-300 ease-in-out',
         isFullScreen
           ? 'rounded-none p-0 gap-0'
-          : clsx('rounded-lg p-2 gap-2', appSettings?.useWgpuRenderer !== false ? 'bg-transparent' : 'bg-bg-secondary'),
+          : clsx(
+              'rounded-lg p-2 gap-2',
+              appSettings?.useWgpuRenderer !== false ? 'bg-transparent' : isLightsOut ? 'bg-black' : 'bg-bg-secondary',
+            ),
       )}
     >
       {hasRenderedAnyPreview && <div className="hidden" data-bench-id="editor-first-frame" />}
       <div
         className={clsx(
-          'shrink-0 relative z-10',
+          'lights-out-chrome shrink-0 relative z-10',
           !isInstantTransition && 'transition-all duration-300 ease-in-out',
           isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100',
           toolbarOverflowVisible ? 'overflow-visible' : 'overflow-hidden',
@@ -2304,10 +2310,13 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
       <div
         className={clsx(
-          'flex-1 relative overflow-hidden touch-none',
+          'lights-out-content flex-1 relative overflow-hidden touch-none',
           isFullScreen ? 'rounded-none' : 'rounded-lg',
-          appSettings?.useWgpuRenderer !== false && !isFullScreen && 'ring-[9999px] ring-bg-secondary',
-          !isWgpuActive && (appSettings?.editorNeutralGreyBg ? 'bg-[#808080]' : 'bg-bg-secondary'),
+          appSettings?.useWgpuRenderer !== false &&
+            !isFullScreen &&
+            clsx('ring-[9999px]', isLightsOut ? 'ring-black' : 'ring-bg-secondary'),
+          !isWgpuActive &&
+            (isLightsOut ? 'bg-black' : appSettings?.editorNeutralGreyBg ? 'bg-[#808080]' : 'bg-bg-secondary'),
         )}
         style={{ cursor: cursorStyle }}
         onContextMenu={onContextMenu}

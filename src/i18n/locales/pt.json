@@ -1718,6 +1718,8 @@
         "toggle_export": "Alternar painel de Exportação",
         "toggle_folder_tree": "Alternar painel da árvore de pastas",
         "toggle_fullscreen": "Alternar tela cheia",
+        "cycle_lights_out": "Alternar Lights Out",
+        "cycle_lights_out_reverse": "Alternar Lights Out para trás",
         "toggle_left_panel": "Alternar painel esquerdo",
         "toggle_library_exif": "Alternar sobreposição EXIF",
         "toggle_masks": "Alternar painel de Máscaras",

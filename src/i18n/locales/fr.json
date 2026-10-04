@@ -1717,6 +1717,8 @@
         "toggle_export": "Basculer le panneau d'exportation",
         "toggle_folder_tree": "Afficher/Masquer le panneau d'arborescence des dossiers",
         "toggle_fullscreen": "Basculer en plein écran",
+        "cycle_lights_out": "Parcourir le mode Lights Out",
+        "cycle_lights_out_reverse": "Parcourir Lights Out en sens inverse",
         "toggle_left_panel": "Afficher/Masquer le panneau gauche",
         "toggle_library_exif": "Basculer la superposition EXIF",
         "toggle_masks": "Basculer le panneau des masques",

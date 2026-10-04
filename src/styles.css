@@ -31,6 +31,20 @@
   }
 }
 
+.lights-out-dim .lights-out-chrome {
+  opacity: 0.25 !important;
+}
+
+.lights-out-black .lights-out-chrome {
+  display: none !important;
+}
+
+.lights-out-black .lights-out-content {
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+}
+
 @utility slider-input {
   &::-webkit-slider-thumb {
     @apply h-4 w-4 appearance-none rounded-full bg-accent;

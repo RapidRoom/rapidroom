@@ -163,6 +163,7 @@ function App() {
     activePanel,
     activeLayoutDragItem,
     isSettingsOpen,
+    lightsOutMode,
     setUI,
     setPanel,
     setLayoutDragItem,
@@ -181,6 +182,7 @@ function App() {
       activePanel: state.activePanel,
       activeLayoutDragItem: state.activeLayoutDragItem,
       isSettingsOpen: state.isSettingsOpen,
+      lightsOutMode: state.lightsOutMode,
       setUI: state.setUI,
       setPanel: state.setPanel,
       setLayoutDragItem: state.setLayoutDragItem,
@@ -657,6 +659,43 @@ function App() {
     };
   }, [setUI]);
 
+  const wasWindowFullscreenBeforeBlackRef = useRef<boolean | null>(null);
+  const lightsOutFullscreenTransitionRef = useRef(0);
+  useEffect(() => {
+    if (isAndroid) return;
+    const transition = ++lightsOutFullscreenTransitionRef.current;
+    const appWindow = getCurrentWindow();
+
+    const synchronizeBlackFullscreen = async () => {
+      if (lightsOutMode === 'black') {
+        if (wasWindowFullscreenBeforeBlackRef.current !== null) return;
+
+        const wasFullscreen = await appWindow.isFullscreen();
+        if (transition !== lightsOutFullscreenTransitionRef.current) return;
+
+        wasWindowFullscreenBeforeBlackRef.current = wasFullscreen;
+        if (!wasFullscreen) {
+          await appWindow.setFullscreen(true);
+          if (useUIStore.getState().lightsOutMode !== 'black') {
+            await appWindow.setFullscreen(false);
+          }
+        }
+        return;
+      }
+
+      const wasFullscreen = wasWindowFullscreenBeforeBlackRef.current;
+      if (wasFullscreen === null) return;
+
+      wasWindowFullscreenBeforeBlackRef.current = null;
+      if (!wasFullscreen && (await appWindow.isFullscreen())) {
+        if (transition !== lightsOutFullscreenTransitionRef.current) return;
+        await appWindow.setFullscreen(false);
+      }
+    };
+
+    synchronizeBlackFullscreen().catch((err) => console.error('Failed to sync Lights Out fullscreen:', err));
+  }, [lightsOutMode, isAndroid]);
+
   const handlePanelSelect = useCallback(
     (panelId: Panel) => {
       setPanel(panelId);
@@ -851,14 +890,15 @@ function App() {
       <div
         className={clsx(
           'flex flex-col h-screen font-sans text-text-primary overflow-hidden select-none',
+          `lights-out-${lightsOutMode}`,
           useMacWindowShell && 'macos-window-shell',
-          isWgpuActive ? 'bg-transparent' : 'bg-bg-primary',
+          isWgpuActive ? 'bg-transparent' : lightsOutMode !== 'off' ? 'bg-black' : 'bg-bg-primary',
         )}
       >
         {!isAndroid && (
           <div
             className={clsx(
-              'shrink-0 overflow-hidden z-50',
+              'lights-out-chrome shrink-0 overflow-hidden z-50',
               !isInstantTransition && 'transition-all duration-300 ease-in-out',
               isFullScreen ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-15 opacity-100',
             )}
@@ -868,7 +908,7 @@ function App() {
         )}
         <div
           className={clsx(
-            'flex-1 flex flex-col min-h-0',
+            'lights-out-content flex-1 flex flex-col min-h-0',
             isLayoutReady && hasMainContent && !isInstantTransition && 'transition-all duration-300 ease-in-out',
             [hasMainContent && (isFullScreen ? 'p-0 gap-0' : 'p-2 gap-2')],
           )}
@@ -899,12 +939,14 @@ function App() {
               )}
               <div className="relative flex-1 flex flex-col min-w-0">
                 {selectedImage && externalEditSession && (
-                  <ExternalEditBar
-                    session={externalEditSession}
-                    isFinishing={isExternalEditFinishing}
-                    errorMessage={exportState.status === Status.Error ? exportState.errorMessage : ''}
-                    onDone={finishExternalEdit}
-                  />
+                  <div className="lights-out-chrome">
+                    <ExternalEditBar
+                      session={externalEditSession}
+                      isFinishing={isExternalEditFinishing}
+                      errorMessage={exportState.status === Status.Error ? exportState.errorMessage : ''}
+                      onDone={finishExternalEdit}
+                    />
+                  </div>
                 )}
                 <div
                   className={clsx(
