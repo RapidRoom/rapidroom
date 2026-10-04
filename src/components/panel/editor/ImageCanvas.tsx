@@ -1710,6 +1710,7 @@ const ImageCanvas = memo(
       getCanvasPointer,
       imageRenderSize,
       previewUrl: finalPreviewUrl,
+      useDisplayTexture: !!isWgpuActive,
       zoomScale: effectiveZoomScale,
       setAdjustments,
     });

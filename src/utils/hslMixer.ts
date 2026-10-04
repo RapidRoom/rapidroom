@@ -26,6 +26,11 @@ const HSL_RANGES: Array<[number, number]> = [
 
 const MIN_PRESENCE = 0.03;
 
+const SRGB_TO_LINEAR = Array.from({ length: 256 }, (_, i) => {
+  const c = i / 255;
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+});
+
 const smoothstep = (edge0: number, edge1: number, x: number) => {
   const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
   return t * t * (3 - 2 * t);
@@ -59,11 +64,13 @@ export const hslBandWeights = (r: number, g: number, b: number, property: HslMix
   return raw.map((v) => (v / total) * gate);
 };
 
+// The preview is sRGB-encoded; the shader's mixer weights bands by hue and saturation in linear RGB.
 export const sampleHslPresence = (rgba: Uint8ClampedArray, property: HslMixerProperty): HslPresence => {
   const totals = HSL_RANGES.map(() => 0);
   const count = rgba.length / 4;
   for (let i = 0; i < rgba.length; i += 4) {
-    hslBandWeights(rgba[i] / 255, rgba[i + 1] / 255, rgba[i + 2] / 255, property).forEach((w, band) => {
+    const [r, g, b] = [rgba[i], rgba[i + 1], rgba[i + 2]].map((v) => SRGB_TO_LINEAR[v]);
+    hslBandWeights(r, g, b, property).forEach((w, band) => {
       totals[band] += w;
     });
   }

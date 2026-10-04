@@ -1,4 +1,4 @@
-import { useState, useMemo, CSSProperties, ReactNode } from 'react';
+import { useEffect, useState, useMemo, CSSProperties, ReactNode } from 'react';
 import { Pipette, Sliders } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -478,6 +478,10 @@ export default function ColorPanel({
     ],
     [t],
   );
+
+  useEffect(() => {
+    if (!isForMask) return () => setEditor({ mixerPickerProperty: null });
+  }, [isForMask, setEditor]);
 
   const toggleMixerExpanded = () => {
     if (isMixerExpanded && mixerPickerProperty) setEditor({ mixerPickerProperty: null });

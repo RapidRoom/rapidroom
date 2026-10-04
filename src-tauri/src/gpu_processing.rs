@@ -1802,6 +1802,9 @@ pub fn read_display_area(
         .ok_or("WGPU display is not initialized")?
         .latest_transform
         .image_size;
+    if width < 1.0 || height < 1.0 {
+        return Err("No image has been rendered to the display".to_string());
+    }
     let processor_lock = state
         .gpu_processor
         .lock()
