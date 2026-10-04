@@ -405,6 +405,7 @@ function App() {
     handleCreateFolder,
     handleRenameFolder,
     handleSaveRename,
+    handleUndoRename,
     handleRenameFiles,
     handleStartImport,
     handleImportClick,
@@ -1031,6 +1032,7 @@ function App() {
           handleCreateFolder={handleCreateFolder}
           handleRenameFolder={handleRenameFolder}
           handleSaveRename={handleSaveRename}
+          handleUndoRename={handleUndoRename}
           handleStartImport={handleStartImport}
           handleSetFlag={handleSetFlag}
           handleRate={handleRate}
@@ -1038,6 +1040,7 @@ function App() {
           handleSaveCollage={handleSaveCollage}
           handleCreateAlbumItem={handleCreateAlbumItem}
           handleRenameAlbumItem={handleRenameAlbumItem}
+          refreshAllFolderTrees={refreshAllFolderTrees}
         />
         <ToastContainer
           position="bottom-right"

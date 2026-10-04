@@ -2,6 +2,80 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lightroom-collections-import",
+      "title": "Import Lightroom Classic collections and collection sets from a .lrcat catalog as albums, with a preview of found and missing photos and relinking of moved root folders",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["Bennyyy27"],
+      "source": "Bennyyy27/RapidRAW, branch scs/compact-ui (adapted in RapidRoom: shared read-only catalog reader, preview dialog)",
+      "commits": [
+        "https://github.com/Bennyyy27/RapidRAW/commit/3bd74e26c6424d57daa8d404eb32fc8157de8b27",
+        "https://github.com/Bennyyy27/RapidRAW/commit/0cfa8dd9426fb5f86a3c0781b2f8c6f18083dbab"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Right-click an empty spot under Albums and choose Import Lightroom Collections. The catalog is only read: a closed catalog is opened as an immutable SQLite file, one with a leftover -wal or -journal file is read from a temporary copy, and a catalog that Lightroom Classic has open (.lock file) is refused. A preview lists collection sets, collections, found and missing photos, skipped smart collections, and each root folder with where it was found, so roots from a Windows or macOS catalog can be relinked before importing. Missing photos stay in their albums. Importing the same catalog again refreshes its group in place. Smart collections, books, slideshows, prints, web galleries and develop settings are not imported. Album saves are now atomic. Adds the rusqlite dependency (MIT; bundled SQLite is public domain). Not yet tested against a real Lightroom catalog in RapidRoom. Harvested with Claude Code.",
+      "highlight": "**Bring your Lightroom collections along:** import collection sets and collections from a catalog"
+    },
+    {
+      "id": "pipeline-bench-parallel-conversions",
+      "title": "Faster raw decoding: highlight recovery and pixel-format conversions run on all CPU cores; the GPU adapter is logged; `rapidraw bench` measures the image pipeline without a window",
+      "category": "performance",
+      "landed": "2026-10-04",
+      "authors": ["elhigu"],
+      "source": "CyberTimon/RapidRAW",
+      "commits": [
+        "https://github.com/CyberTimon/RapidRAW/commit/d2e9351d48eadef1662affdc2a21d82e26debe04",
+        "https://github.com/CyberTimon/RapidRAW/commit/0cd9d875f0dd2a8ac6c29f87ec8ea288812a297b",
+        "https://github.com/CyberTimon/RapidRAW/commit/f52b75a81f993b68b1f303e898bc54dba2f76c75"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1790"],
+      "rendering_change": false,
+      "notes": "The parallel conversions are per-pixel and tested bit for bit against the serial code. The bench command follows RapidRoom's headless CLI rules: no window, closed-pipe-safe output, exit 1 on failure and 2 on bad arguments. Upstream's speed-up figures are not yet measured on RapidRoom."
+    },
+    {
+      "id": "batch-rename-photos",
+      "title": "Batch rename treats a photo as one unit: RAW+JPEG/HEIF pairs and every sidecar (.rrdata incl. virtual copies, both XMP styles, .acr, .dop, .pp3) move together, with metadata, burst and group tokens, a preview with collision checks, a rollback-safe two-phase rename and undo",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["yojen7", "SandeepSubba"],
+      "source": "rapidroom; metadata tokens from SandeepSubba/RapidRAW (upstream PR 1309)",
+      "commits": ["https://github.com/SandeepSubba/RapidRAW/commit/12b3c5e52eb1574fa8ef06ab3d32867d415a946f"],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1309"],
+      "rendering_change": false,
+      "notes": "New tokens: {rating}, {stars}, {camera}, {lens}, {iso}, {focal}, {folder}, {label}, {title}, {author}, {copyright}, {comments}, and for rename {group} and {member}. Export and import use the same token engine. {sequence} follows capture time (DateTimeOriginal plus SubSecTimeOriginal), so bursts and brackets number in shooting order. Unknown tokens are an error in the rename preview. Undo covers the last rename and survives a restart. Albums, cached thumbnails and EXIF, the selection and the editor follow the new names. Still refused in Card mode. Written with Claude Code.",
+      "highlight": "**Rename photos, not just files.** RAW+JPEG pairs and all their sidecars move together, bursts number in shooting order, and you see every new name before anything changes, with undo."
+    },
+    {
+      "id": "lightroom-xmp-import-fixes",
+      "title": "Lightroom XMP import: lens profile turns on lens correction, profile-look tone curves are kept, dead keys are dropped, and an import report lists what was not transferred",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Follow-up to the Lightroom import (RapidRoom #54). Changes what imported sidecars render: crs:LensProfileEnable=1 now switches lens correction to auto with distortion and vignetting on; the tone curve of a nested look (Adobe Color, creative profiles) is composed under the user's luma curve; ToneCurvePV2012 points are copied without the old shadow-dampening rewrite; SharpenEdgeMasking maps to the sharpening threshold. sharpenRadius, sharpenDetail, sharpenMasking, colorNoiseDetail and colorNoiseSmoothness are no longer written (nothing read them). Exposure scaling to RapidRAW's 1.25 EV unit is in the code but off (SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS) until the tone calibration lands. Single-photo and folder imports now report custom white balance, profile look, AI Denoise, masks and Point Color when they could not be transferred. Written with Claude Code."
+    },
+    {
+      "id": "reference-view",
+      "title": "Editor Reference View: pin a read-only reference photo beside the image you are editing (Shift+R)",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["cgasgarth"],
+      "source": "cgasgarth/RapidRaw",
+      "commits": ["https://github.com/cgasgarth/RapidRaw/commit/aa0e23573923dfc45c2c5d97b26b4e1e8ee77fdf"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Reference-view state and toolbar UX ported from cgasgarth's Lightroom reference view and adapted to RapidRoom's editor by Claude Code. Pick the reference from the filmstrip. It is rendered from its saved adjustments through the existing read-only preview command, has its own zoom and pan, and never becomes the selected, edited or exported image. Display only: no change to the image pipeline or exports.",
+      "highlight": "**Reference View like Lightroom.** Pin one photo next to the one you are editing, then match the look while you move through the filmstrip."
+    },
+    {
       "id": "wb-picker-original",
       "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
       "category": "fix",
@@ -508,7 +582,7 @@
       "upstream_issues": ["CyberTimon/RapidRAW#1697"],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Another denoise cannot start while a command is pending. Cancellation does not interrupt the backend: single processing may continue and batch work may still write files. Real interruption and job IDs are tracked in RapidRoom #68."
+      "notes": "Another denoise cannot start while a command is pending. Cancellation does not interrupt the backend: single processing may continue and batch work may still write files. Superseded by `denoise-backend-cancel` (RapidRoom #68), which adds real interruption and job IDs."
     },
     {
       "id": "dxo-dng-highlight-dither",
@@ -525,6 +599,102 @@
       "upstream_prs": [],
       "rendering_change": true,
       "notes": "Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only."
+    },
+    {
+      "id": "denoise-backend-cancel",
+      "title": "Cancelling a denoise stops the backend work, and each job's progress, preview and saved result are tied to its own job ID",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1697"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The backend hands out a job ID; progress, preview, error and batch events carry it, and Save only takes the result of the job whose preview is shown. `cancel_denoise` sets a flag checked between BM3D patches, between AI tiles and between batch files, and terminates an ONNX tile already running. Not interruptible: the AI model download, the Apple RAW 9 develop call, image decoding and preview/file encoding. A cancelled batch keeps the files it already finished; the file being written goes to a hidden partial file that is deleted, and existing files are never removed. A new denoise can start right after Cancel. Denoise output is unchanged. Written with Claude Code."
+    },
+    {
+      "id": "linear-raw-srgb-exponent",
+      "title": "LinearRaw gamma modes use the sRGB exponent 2.4 when removing gamma",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["pluja"],
+      "source": "pluja/RapidRAW-Fork",
+      "commits": ["https://github.com/pluja/RapidRAW-Fork/commit/eb68ee88ba309a6b4e9770046204bc6292f0f1d7"],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1633"],
+      "rendering_change": true,
+      "notes": "Correct the power from 3.0 to 2.4 in the optional gamma and gamma_skip_calib modes for LinearRaw files. Auto/skip_calib modes, Bayer and X-Trans files do not use this inverse transfer function."
+    },
+    {
+      "id": "continuous-magenta-highlight-correction",
+      "title": "Saturated red highlights use a continuous magenta correction instead of abrupt green lifts",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["3048mm"],
+      "source": "CyberTimon/RapidRAW",
+      "commits": ["https://github.com/CyberTimon/RapidRAW/commit/e99082ad1d3cfea3db1f3e6611340f024f664258"],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1824"],
+      "rendering_change": true,
+      "notes": "Arrives through the normal upstream-main merge, with original author and Claude co-author retained. Weight the existing correction by relative magenta excess; the empirical full-weight threshold is 0.25. Human visual/reference approval is required."
+    },
+    {
+      "id": "perceptual-hsl-mixer-hue",
+      "title": "HSL mixer hue and saturation are evaluated in sRGB perceptual space while luminance stays linear",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["lalibertemarc"],
+      "source": "CyberTimon/RapidRAW",
+      "commits": ["https://github.com/CyberTimon/RapidRAW/commit/e8834210d9c88793b463f4feca3b6e5ee3f65e55"],
+      "upstream_issues": ["CyberTimon/RapidRAW#1775"],
+      "upstream_prs": ["CyberTimon/RapidRAW#1777"],
+      "rendering_change": true,
+      "notes": "Normal upstream-main merge. Active effective bands convert linear RGB to sRGB before the HSV split and back before the linear-luminance rescale. Inactive bands now return original linear RGB exactly; the accompanying zero-HSL and vibrance-domain correction has its own entry and rendering evidence."
+    },
+    {
+      "id": "upstream-sync-20261003",
+      "title": "Sync upstream main: shared RAW embedded previews, Nikon lens metadata fallback and mask Escape/cache fixes",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["lalibertemarc", "CyberTimon"],
+      "source": "CyberTimon/RapidRAW",
+      "commits": [
+        "https://github.com/CyberTimon/RapidRAW/commit/0957a1ae31248e46196e24c0fe81b92f71f9f69d",
+        "https://github.com/CyberTimon/RapidRAW/commit/c11c7a5c8d0c78b9f28175a377c53a6569aebe53",
+        "https://github.com/CyberTimon/RapidRAW/commit/432480973061898dd04fa3d04119bd02d6bd372f",
+        "https://github.com/CyberTimon/RapidRAW/commit/4e45e6206fb63d37dd5e2764db8a134a79d2034c",
+        "https://github.com/CyberTimon/RapidRAW/commit/9671795e65803df4fc75239d752ddd16b829345b",
+        "https://github.com/CyberTimon/RapidRAW/commit/cf6813f198a252068eaa349eec7598d6761e830a"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1823", "CyberTimon/RapidRAW#1815", "CyberTimon/RapidRAW#1827"],
+      "rendering_change": true,
+      "notes": "Preserve every RapidRoom change and upstream author. The additive EXIF conflict keeps bounded rating readers and the new lens helper. Existing float upload and ICC work are deduplicated; rawler crop/dither, mask/export protections and cache identity are retained. Render-changing highlight and HSL commits have separate entries. Cache fixes can correct stale rendered masks/exports; the corpus has no interactive cache-reuse scenarios, so those paths still need running-app testing."
+    },
+    {
+      "id": "inactive-hsl-vibrance-domain",
+      "title": "Inactive HSL preserves linear RGB exactly; saturated colours no longer turn grey under positive vibrance",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Check all eight effective per-pixel HSL bands before clamping or conversion, including mask contributions. Keep the positive-vibrance fractional power base nonnegative when HSV saturation rounds above one. Active HSL retains the upstream perceptual conversion and existing negative-channel policy; HDR values above one remain supported. Written with Codex. Rendering evidence and GPU regression tests accompany the upstream-main sync."
+    },
+    {
+      "id": "lrtemplate-lua-import",
+      "title": "Import old Lightroom `.lrtemplate` presets stored as plain Lua tables, without running any Lua",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["laurensiusadi"],
+      "source": "laurensiusadi/RapidRAW",
+      "commits": ["https://github.com/laurensiusadi/RapidRAW/commit/bb60210c609c6939d34deba9c1043fe9d01bde92"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Rewritten from the fork's regex converter as a bounded Lua-table parser that feeds the existing XMP preset mapping, so values match .xmp presets. Settings nested in Looks or local corrections are not read. Batch preset import lists what was not imported (profile look, masks, Point Color, camera or lens profile, custom white balance) using the same identifiers as the XMP sidecar report; malformed files or curves are rejected with a reason. Importing only adds a preset; photos change only when you apply it. Harvested with Claude Code."
     },
     {
       "id": "pick-reject-flags",

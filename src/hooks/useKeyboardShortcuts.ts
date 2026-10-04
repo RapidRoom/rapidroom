@@ -61,6 +61,7 @@ export const useKeyboardShortcuts = ({
       process: useProcessStore.getState(),
     });
 
+    type StoreState = ReturnType<typeof getStoreState>;
     const comboMap = new Map<string, string>();
     const { appSettings, osPlatform } = useSettingsStore.getState();
     const keybinds = appSettings?.keybinds;
@@ -334,6 +335,13 @@ export const useKeyboardShortcuts = ({
         execute: (e: any) => {
           e.preventDefault();
           toggleShowOriginal();
+        },
+      },
+      toggle_reference_view: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.editor.dispatchReferenceView({ type: 'toggle' });
         },
       },
       toggle_adjustments: {
@@ -616,6 +624,8 @@ export const useKeyboardShortcuts = ({
           e.preventDefault();
           if (s.editor.isStraightenActive) s.editor.setEditor({ isStraightenActive: false });
           else if (s.ui.customEscapeHandler) s.ui.customEscapeHandler();
+          else if (s.ui.activeView === 'editor' && s.editor.referenceView.isChooserOpen)
+            s.editor.dispatchReferenceView({ type: s.editor.referenceView.reference ? 'close-chooser' : 'exit' });
           else if (s.editor.activeAiSubMaskId) s.editor.setEditor({ activeAiSubMaskId: null });
           else if (s.editor.activeAiPatchContainerId) s.editor.setEditor({ activeAiPatchContainerId: null });
           else if (s.editor.activeMaskId) s.editor.setEditor({ activeMaskId: null });

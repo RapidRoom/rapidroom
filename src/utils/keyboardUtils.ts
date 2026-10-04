@@ -129,6 +129,12 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     defaultCombo: ['KeyB'],
     section: 'view',
   },
+  {
+    action: 'toggle_reference_view',
+    description: 'settings.keybinds.actions.toggle_reference_view',
+    defaultCombo: ['shift', 'KeyR'],
+    section: 'view',
+  },
   { action: 'rate_0', description: 'settings.keybinds.actions.rate_0', defaultCombo: ['Digit0'], section: 'rating' },
   { action: 'rate_1', description: 'settings.keybinds.actions.rate_1', defaultCombo: ['Digit1'], section: 'rating' },
   { action: 'rate_2', description: 'settings.keybinds.actions.rate_2', defaultCombo: ['Digit2'], section: 'rating' },

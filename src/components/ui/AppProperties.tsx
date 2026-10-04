@@ -39,7 +39,9 @@ export enum Invokes {
   ApplyDenoising = 'apply_denoising',
   CalculateAutoAdjustments = 'calculate_auto_adjustments',
   SampleWhiteBalance = 'sample_white_balance',
+  BatchDenoiseImages = 'batch_denoise_images',
   CancelAiTask = 'cancel_ai_task',
+  CancelDenoise = 'cancel_denoise',
   CancelExport = 'cancel_export',
   CheckAIConnectorStatus = 'check_ai_connector_status',
   ClearAllSidecars = 'clear_all_sidecars',
@@ -47,6 +49,7 @@ export enum Invokes {
   ClearAllTags = 'clear_all_tags',
   ClearThumbnailCache = 'clear_thumbnail_cache',
   CopyFiles = 'copy_files',
+  CreateDenoiseJob = 'create_denoise_job',
   CreateFolder = 'create_folder',
   CreateVirtualCopy = 'create_virtual_copy',
   CullImages = 'cull_images',
@@ -58,11 +61,13 @@ export enum Invokes {
   GenerateAiForegroundMask = 'generate_ai_foreground_mask',
   GenerateAiSkyMask = 'generate_ai_sky_mask',
   GenerateAiSubjectMask = 'generate_ai_subject_mask',
+  GenerateExportFilename = 'generate_export_filename',
   GeneratePreviewForPath = 'generate_preview_for_path',
   GenerateMaskOverlay = 'generate_mask_overlay',
   GeneratePresetPreview = 'generate_preset_preview',
   GenerateUncroppedPreview = 'generate_uncropped_preview',
   GetFolderTree = 'get_folder_tree',
+  GetLastRename = 'get_last_rename',
   GetFolderChildren = 'get_folder_children',
   GetLogFilePath = 'get_log_file_path',
   GetOrCreateInternalLibraryRoot = 'get_or_create_internal_library_root',
@@ -84,6 +89,7 @@ export enum Invokes {
   LoadMetadata = 'load_metadata',
   LoadPresets = 'load_presets',
   LoadSettings = 'load_settings',
+  PreviewRenameFiles = 'preview_rename_files',
   MoveFiles = 'move_files',
   ReadExifForPaths = 'read_exif_for_paths',
   RemoveTagForPaths = 'remove_tag_for_paths',
@@ -108,6 +114,7 @@ export enum Invokes {
   SaveFocusStack = 'save_focus_stack',
   MergeHdr = 'merge_hdr',
   TestAIConnectorConnection = 'test_ai_connector_connection',
+  UndoLastRename = 'undo_last_rename',
   UpdateWgpuTransform = 'update_wgpu_transform',
   UpdateExifFields = 'update_exif_fields',
   FetchCommunityPresets = 'fetch_community_presets',
@@ -118,6 +125,8 @@ export enum Invokes {
   SaveAlbums = 'save_albums',
   AddToAlbum = 'add_to_album',
   GetAlbumImages = 'get_album_images',
+  PreviewLightroomCollections = 'preview_lightroom_collections',
+  ImportLightroomCollections = 'import_lightroom_collections',
   TetherListCameras = 'tether_list_cameras',
   TetherConnect = 'tether_connect',
   TetherGetSettings = 'tether_get_settings',
@@ -259,6 +268,7 @@ export interface AppSettings {
   language?: string;
   fontFamily?: string;
   folderTreeSort?: FolderTreeSort;
+  lightroomPathMappings?: Record<string, string>;
   taggingShortcuts?: string[];
   libraryDisplayMode?: LibraryDisplayMode;
   grouping?: GroupingMode;

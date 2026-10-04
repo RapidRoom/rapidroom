@@ -4,7 +4,7 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { Status } from '../components/ui/ExportImportProperties';
 import { useProcessStore } from '../store/useProcessStore';
 import { useEditorStore } from '../store/useEditorStore';
-import { useUIStore } from '../store/useUIStore';
+import { isActiveDenoiseEvent, useUIStore } from '../store/useUIStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 
 interface TauriListenerProps {
@@ -225,46 +225,35 @@ export function useTauriListeners({
           });
       }),
       listen('denoise-progress', (event: any) => {
-        if (
-          isEffectActive &&
-          useUIStore.getState().denoiseModalState.isOpen &&
-          useUIStore.getState().denoiseModalState.isProcessing
-        )
+        if (isEffectActive && isActiveDenoiseEvent(event.payload))
           useUIStore.getState().setUI((state) => ({
-            denoiseModalState: { ...state.denoiseModalState, progressMessage: event.payload as string },
+            denoiseModalState: { ...state.denoiseModalState, progressMessage: event.payload.message },
           }));
       }),
       listen('denoise-complete', (event: any) => {
         if (
           isEffectActive &&
           useUIStore.getState().denoiseModalState.targetPaths.length === 1 &&
-          useUIStore.getState().denoiseModalState.isOpen &&
-          useUIStore.getState().denoiseModalState.isProcessing
+          isActiveDenoiseEvent(event.payload)
         ) {
-          const payload = event.payload;
-          const isObject = typeof payload === 'object' && payload !== null;
           useUIStore.getState().setUI((state) => ({
             denoiseModalState: {
               ...state.denoiseModalState,
               isProcessing: false,
-              previewBase64: isObject ? payload.denoised : payload,
-              originalBase64: isObject ? payload.original : null,
+              previewBase64: event.payload.denoised,
+              originalBase64: event.payload.original ?? null,
               progressMessage: null,
             },
           }));
         }
       }),
       listen('denoise-error', (event: any) => {
-        if (
-          isEffectActive &&
-          useUIStore.getState().denoiseModalState.isOpen &&
-          useUIStore.getState().denoiseModalState.isProcessing
-        ) {
+        if (isEffectActive && isActiveDenoiseEvent(event.payload)) {
           useUIStore.getState().setUI((state) => ({
             denoiseModalState: {
               ...state.denoiseModalState,
-              isProcessing: state.pendingDenoiseJob === 'batch',
-              error: String(event.payload),
+              isProcessing: state.denoiseModalState.targetPaths.length > 1,
+              error: String(event.payload.message),
               progressMessage: null,
             },
           }));

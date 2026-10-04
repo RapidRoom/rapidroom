@@ -9,6 +9,7 @@ import { globalImageCache } from '../utils/ImageLRUCache';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { computeSortedLibrary } from './useSortedLibrary';
 import { expandGroupedPaths } from '../utils/imageGrouping';
+import { getReferenceLabel, isReferenceCandidate } from '../utils/referenceView';
 import type { FolderTree } from '../components/panel/right/FolderTree';
 import { getImageFlag, restoreFlags, toggledFlag, withFlag } from '../utils/imageFlags';
 
@@ -287,8 +288,15 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
   const handleImageClick = useCallback(
     (path: string, event: any) => {
       const { selectionAnchorPath, libraryActivePath, setLibrary } = useLibraryStore.getState();
-      const { selectedImage } = useEditorStore.getState();
+      const { selectedImage, referenceView, dispatchReferenceView } = useEditorStore.getState();
       const inEditor = !!selectedImage;
+
+      if (inEditor && referenceView.isChooserOpen) {
+        if (isReferenceCandidate(referenceView, path, selectedImage.path)) {
+          dispatchReferenceView({ image: { label: getReferenceLabel(path), path }, type: 'set-reference' });
+        }
+        return;
+      }
 
       handleMultiSelectClick(path, event, {
         shiftAnchor: selectionAnchorPath ?? (inEditor ? selectedImage.path : libraryActivePath),

@@ -581,6 +581,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub folder_tree_sort: Option<FolderTreeSort>,
     #[serde(default)]
+    pub lightroom_path_mappings: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
     pub library_display_mode: Option<String>,
     #[serde(default)]
     pub grouping: Option<String>,
@@ -691,6 +693,7 @@ impl Default for AppSettings {
             exif_overlay: Some("off".to_string()),
             language: Some("en".to_string()),
             folder_tree_sort: Some(FolderTreeSort::default()),
+            lightroom_path_mappings: Some(HashMap::new()),
             library_display_mode: Some("grid".to_string()),
             grouping: Some("off".to_string()),
             require_matching_exif: Some(false),

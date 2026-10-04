@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { createElement, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
@@ -10,6 +11,8 @@ import { useProcessStore } from '../store/useProcessStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { ImageFlag, Invokes } from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
+import UndoToast from '../components/ui/UndoToast';
+import { RenameOptions, RenameOutcome, pathMapper } from '../utils/batchRename';
 
 export function useFileOperations(
   refreshImageList: () => Promise<void>,
@@ -250,47 +253,74 @@ export function useFileOperations(
     [refreshAllFolderTrees],
   );
 
-  const handleSaveRename = useCallback(
-    async (nameTemplate: string) => {
-      const { renameTargetPaths, setUI } = useUIStore.getState();
+  const applyRenameOutcome = useCallback(
+    async (outcome: RenameOutcome) => {
+      if (outcome.images.length === 0) return;
+      const mapPath = pathMapper(outcome);
       const { selectedImage } = useEditorStore.getState();
-      const { libraryActivePath, setLibrary } = useLibraryStore.getState();
+      const { libraryActivePath, multiSelectedPaths, setLibrary } = useLibraryStore.getState();
+      const movedImages = new Set(outcome.images.map((change) => change.from));
+
+      useProcessStore.getState().setProcess((state) => {
+        const thumbnails = { ...state.thumbnails };
+        const mediumThumbnails = { ...state.mediumThumbnails };
+        movedImages.forEach((path) => {
+          delete thumbnails[path];
+          delete mediumThumbnails[path];
+        });
+        return { thumbnails, mediumThumbnails };
+      });
+
+      await refreshImageList();
+
+      setLibrary({
+        libraryActivePath: libraryActivePath ? mapPath(libraryActivePath) : null,
+        multiSelectedPaths: multiSelectedPaths.map(mapPath),
+      });
+      if (selectedImage && movedImages.has(selectedImage.path)) {
+        handleImageSelect(mapPath(selectedImage.path));
+      }
+    },
+    [refreshImageList, handleImageSelect],
+  );
+
+  const handleUndoRename = useCallback(async () => {
+    try {
+      const outcome: RenameOutcome = await invoke(Invokes.UndoLastRename);
+      await applyRenameOutcome(outcome);
+      toast.success(i18n.t('modals.renameFile.undone'));
+    } catch (err) {
+      toast.error(i18n.t('modals.renameFile.undoFailed', { err }));
+    }
+  }, [applyRenameOutcome]);
+
+  const handleSaveRename = useCallback(
+    async (nameTemplate: string, options: RenameOptions) => {
+      const { renameTargetPaths, setUI } = useUIStore.getState();
 
       if (renameTargetPaths.length > 0 && nameTemplate) {
         try {
-          const newPaths: Array<string> = await invoke(Invokes.RenameFiles, {
+          const outcome: RenameOutcome = await invoke(Invokes.RenameFiles, {
             nameTemplate,
+            options,
             paths: renameTargetPaths,
           });
-
-          await refreshImageList();
-
-          if (selectedImage && renameTargetPaths.includes(selectedImage.path)) {
-            const oldPathIndex = renameTargetPaths.indexOf(selectedImage.path);
-            if (newPaths[oldPathIndex]) {
-              handleImageSelect(newPaths[oldPathIndex]);
-            } else {
-              handleBackToLibrary();
-            }
-          }
-
-          if (libraryActivePath && renameTargetPaths.includes(libraryActivePath)) {
-            const oldPathIndex = renameTargetPaths.indexOf(libraryActivePath);
-            if (newPaths[oldPathIndex]) {
-              setLibrary({ libraryActivePath: newPaths[oldPathIndex] });
-            } else {
-              setLibrary({ libraryActivePath: null });
-            }
-          }
-
-          setLibrary({ multiSelectedPaths: newPaths });
+          await applyRenameOutcome(outcome);
+          toast.success(({ closeToast }) =>
+            createElement(UndoToast, {
+              closeToast,
+              message: i18n.t('modals.renameFile.renamed', { count: outcome.files.length }),
+              onUndo: handleUndoRename,
+              undoLabel: i18n.t('modals.renameFile.undo'),
+            }),
+          );
         } catch (err) {
           toast.error(`Failed to rename files: ${err}`);
         }
       }
       setUI({ renameTargetPaths: [] });
     },
-    [refreshImageList, handleImageSelect, handleBackToLibrary],
+    [applyRenameOutcome, handleUndoRename],
   );
 
   const handleRenameFiles = useCallback((paths: Array<string>) => {
@@ -440,6 +470,7 @@ export function useFileOperations(
     handleCreateFolder,
     handleRenameFolder,
     handleSaveRename,
+    handleUndoRename,
     handleRenameFiles,
     handleStartImport,
     startImportFiles,
