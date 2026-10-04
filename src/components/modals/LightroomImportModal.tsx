@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { CheckCircle2, CircleAlert, FolderSearch } from 'lucide-react';
 import Switch from '../ui/Switch';
+import LightroomDevelopImport from './LightroomDevelopImport';
 import Text from '../ui/Text';
 import { TextVariants } from '../../types/typography';
 import { AlbumItem, Invokes } from '../ui/AppProperties';
@@ -38,12 +39,14 @@ interface LightroomImportModalProps {
   catalogPath: string | null;
   onClose(): void;
   refreshAllFolderTrees(): Promise<void>;
+  refreshImageList(): Promise<void>;
 }
 
 export default function LightroomImportModal({
   catalogPath,
   onClose,
   refreshAllFolderTrees,
+  refreshImageList,
 }: LightroomImportModalProps) {
   const { t } = useTranslation();
   const [isMounted, setIsMounted] = useState(false);
@@ -54,12 +57,14 @@ export default function LightroomImportModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [addRootFolders, setAddRootFolders] = useState(false);
+  const [tab, setTab] = useState<'collections' | 'develop'>('collections');
   const rootPaths = useLibraryStore((state) => state.rootPaths);
   const isCardMode = useLibraryStore((state) => state.cardBrowseRoot !== null);
 
   useEffect(() => {
     if (catalogPath) {
       setIsMounted(true);
+      setTab('collections');
       setPreview(null);
       setError(null);
       setAddRootFolders(false);
@@ -113,6 +118,25 @@ export default function LightroomImportModal({
       .filter((root) => root.found && !rootPaths.includes(root.localPath))
       .map((root) => root.localPath) ?? [];
 
+  const persistImportPaths = async () => {
+    if (!mappings) return;
+    const newRoots = addRootFolders && !isCardMode ? rootsToAdd : [];
+    const { rootPaths: currentRoots, expandedFolders, setLibrary } = useLibraryStore.getState();
+    const updatedRoots = [...currentRoots, ...newRoots.filter((root) => !currentRoots.includes(root))];
+    const { appSettings, handleSettingsChange } = useSettingsStore.getState();
+    if (appSettings) {
+      await handleSettingsChange({
+        ...appSettings,
+        lightroomPathMappings: { ...appSettings.lightroomPathMappings, ...mappings },
+        ...(newRoots.length > 0 ? { rootFolders: updatedRoots } : {}),
+      });
+    }
+    if (newRoots.length > 0) {
+      setLibrary({ rootPaths: updatedRoots, expandedFolders: new Set([...expandedFolders, ...newRoots]) });
+      await refreshAllFolderTrees();
+    }
+  };
+
   const handleImport = async () => {
     if (!catalogPath || !mappings || !preview) return;
     setIsImporting(true);
@@ -124,21 +148,7 @@ export default function LightroomImportModal({
       const albumTree = await invoke<AlbumItem[]>(Invokes.GetAlbums);
       useLibraryStore.getState().setLibrary({ albumTree });
 
-      const newRoots = addRootFolders && !isCardMode ? rootsToAdd : [];
-      const { rootPaths: currentRoots, expandedFolders, setLibrary } = useLibraryStore.getState();
-      const updatedRoots = [...currentRoots, ...newRoots.filter((root) => !currentRoots.includes(root))];
-      const { appSettings, handleSettingsChange } = useSettingsStore.getState();
-      if (appSettings) {
-        await handleSettingsChange({
-          ...appSettings,
-          lightroomPathMappings: { ...appSettings.lightroomPathMappings, ...mappings },
-          ...(newRoots.length > 0 ? { rootFolders: updatedRoots } : {}),
-        });
-      }
-      if (newRoots.length > 0) {
-        setLibrary({ rootPaths: updatedRoots, expandedFolders: new Set([...expandedFolders, ...newRoots]) });
-        await refreshAllFolderTrees();
-      }
+      await persistImportPaths();
       toast.success(t('contextMenus.toasts.importedLightroomCollections', { name: result.catalogName }));
       onClose();
     } catch (err) {
@@ -210,22 +220,43 @@ export default function LightroomImportModal({
           {catalogPath}
         </Text>
 
+        <div className="flex gap-2 mb-4" role="tablist" aria-label={t('modals.lightroomImport.title')}>
+          <button
+            role="tab"
+            aria-selected={tab === 'collections'}
+            disabled={isImporting}
+            className="px-3 py-2 rounded-md aria-selected:bg-bg-primary disabled:opacity-50"
+            onClick={() => setTab('collections')}
+          >
+            {t('modals.lightroomImport.collections')}
+          </button>
+          <button
+            role="tab"
+            aria-selected={tab === 'develop'}
+            disabled={isImporting}
+            className="px-3 py-2 rounded-md aria-selected:bg-bg-primary disabled:opacity-50"
+            onClick={() => setTab('develop')}
+          >
+            {t('modals.lightroomDevelop.title')}
+          </button>
+        </div>
         <div className="flex-1 overflow-y-auto space-y-6 text-sm pr-1">
           {error && <Text color="error">{error}</Text>}
           {!preview && !error && <Text color="secondary">{t('modals.lightroomImport.reading')}</Text>}
 
           {preview && (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {stats.map((stat) => (
-                  <div key={stat.label} className="bg-bg-primary rounded-md p-3">
-                    <Text variant={TextVariants.heading}>{stat.value.toLocaleString()}</Text>
-                    <Text variant={TextVariants.small}>{stat.label}</Text>
-                  </div>
-                ))}
-              </div>
-
-              {preview.replacesPreviousImport && (
+              {tab === 'collections' && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {stats.map((stat) => (
+                    <div key={stat.label} className="bg-bg-primary rounded-md p-3">
+                      <Text variant={TextVariants.heading}>{stat.value.toLocaleString()}</Text>
+                      <Text variant={TextVariants.small}>{stat.label}</Text>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {tab === 'collections' && preview.replacesPreviousImport && (
                 <Text color="secondary">{t('modals.lightroomImport.replacesPrevious')}</Text>
               )}
 
@@ -282,7 +313,7 @@ export default function LightroomImportModal({
                 </div>
               )}
 
-              {preview.smartCollections.length > 0 && (
+              {tab === 'collections' && preview.smartCollections.length > 0 && (
                 <details>
                   <summary className="cursor-pointer text-text-secondary">
                     {t('modals.lightroomImport.smartCollections', { total: preview.smartCollections.length })}
@@ -295,13 +326,13 @@ export default function LightroomImportModal({
                 </details>
               )}
 
-              {preview.skippedOtherCount > 0 && (
+              {tab === 'collections' && preview.skippedOtherCount > 0 && (
                 <Text color="secondary">
                   {t('modals.lightroomImport.skippedOther', { total: preview.skippedOtherCount })}
                 </Text>
               )}
 
-              {preview.missingImageCount > 0 && (
+              {tab === 'collections' && preview.missingImageCount > 0 && (
                 <details>
                   <summary className="cursor-pointer text-text-secondary">
                     {t('modals.lightroomImport.missingFiles', { total: preview.missingImageCount })}
@@ -332,16 +363,32 @@ export default function LightroomImportModal({
                 </details>
               )}
 
-              {!hasContent && <Text color="secondary">{t('modals.lightroomImport.nothingToImport')}</Text>}
+              {tab === 'collections' && !hasContent && (
+                <Text color="secondary">{t('modals.lightroomImport.nothingToImport')}</Text>
+              )}
 
               {rootsToAdd.length > 0 && !isCardMode && (
                 <Switch
+                  disabled={isImporting}
                   checked={addRootFolders}
                   label={t('modals.lightroomImport.addRootFolders')}
                   onChange={setAddRootFolders}
                 />
               )}
             </>
+          )}
+          {tab === 'develop' && catalogPath && mappings && (
+            <LightroomDevelopImport
+              catalogPath={catalogPath}
+              mappings={mappings}
+              isCardMode={isCardMode}
+              onBusyChange={setIsImporting}
+              onClose={onClose}
+              onImported={async () => {
+                await persistImportPaths();
+                await refreshImageList();
+              }}
+            />
           )}
         </div>
 
@@ -353,13 +400,15 @@ export default function LightroomImportModal({
           >
             {t('modals.confirm.cancel')}
           </button>
-          <button
-            className="px-4 py-2 rounded-md bg-accent shadow-shiny text-button-text font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!hasContent || isLoading || isImporting || !!error}
-            onClick={handleImport}
-          >
-            {isImporting ? t('modals.lightroomImport.importing') : t('modals.lightroomImport.import')}
-          </button>
+          {tab === 'collections' && (
+            <button
+              className="px-4 py-2 rounded-md bg-accent shadow-shiny text-button-text font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!hasContent || isLoading || isImporting || !!error}
+              onClick={handleImport}
+            >
+              {isImporting ? t('modals.lightroomImport.importing') : t('modals.lightroomImport.import')}
+            </button>
+          )}
         </div>
       </div>
     </div>

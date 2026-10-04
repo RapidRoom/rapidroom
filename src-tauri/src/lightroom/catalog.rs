@@ -153,7 +153,7 @@ impl Catalog {
         }
     }
 
-    fn has_column(&self, table: &str, column: &str) -> bool {
+    pub(crate) fn has_column(&self, table: &str, column: &str) -> bool {
         self.connection
             .prepare(&format!("SELECT {column} FROM {table} LIMIT 0"))
             .is_ok()

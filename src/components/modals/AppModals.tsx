@@ -321,6 +321,7 @@ export default function AppModals(props: AppModalsProps) {
       />
       <LightroomImportModal
         catalogPath={lightroomImportCatalog}
+        refreshImageList={props.refreshImageList}
         onClose={() => setUI({ lightroomImportCatalog: null })}
         refreshAllFolderTrees={props.refreshAllFolderTrees}
       />
