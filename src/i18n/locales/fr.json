@@ -804,6 +804,17 @@
         "tool": "Outil"
       }
     },
+    "referenceView": {
+      "active": "Active",
+      "cancel": "Annuler",
+      "chooseHint": "Cliquez sur une photo du film fixe pour l’utiliser comme référence.",
+      "clear": "Retirer la référence",
+      "close": "Fermer la vue de référence",
+      "readOnly": "Lecture seule",
+      "reference": "Référence",
+      "replace": "Choisir une autre référence",
+      "unavailable": "Image de référence indisponible"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Ajuster",
@@ -825,6 +836,7 @@
         "fullscreen": "Basculer en plein écran (F)",
         "iso": "ISO",
         "redo": "Rétablir (Ctrl+Y) ou Historique (Clic-droit)",
+        "referenceView": "Vue de référence (Maj+R)",
         "showEdited": "Afficher l'image modifiée (B)",
         "showOriginal": "Afficher l'original (B)",
         "shutterSpeed": "Vitesse d'obturation",
@@ -1722,6 +1734,7 @@
         "toggle_masks": "Basculer le panneau des masques",
         "toggle_metadata": "Basculer le panneau des métadonnées",
         "toggle_presets": "Basculer le panneau des paramètres prédéfinis",
+        "toggle_reference_view": "Afficher/masquer la vue de référence",
         "toggle_right_panel": "Afficher/Masquer le panneau droit",
         "undo": "Annuler l'ajustement",
         "zoom_100": "Zoomer à 100%",

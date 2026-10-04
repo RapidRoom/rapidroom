@@ -783,6 +783,17 @@
         "tool": "Eina"
       }
     },
+    "referenceView": {
+      "active": "Activa",
+      "cancel": "Cancel·la",
+      "chooseHint": "Feu clic a una foto de la tira per utilitzar-la com a referència.",
+      "clear": "Treu la referència",
+      "close": "Tanca la vista de referència",
+      "readOnly": "Només lectura",
+      "reference": "Referència",
+      "replace": "Tria una altra referència",
+      "unavailable": "La imatge de referència no està disponible"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Ajustar",
@@ -804,6 +815,7 @@
         "fullscreen": "Alternar pantalla completa (F)",
         "iso": "ISO",
         "redo": "Refer (Ctrl+Y) o Historial (Clic dret)",
+        "referenceView": "Vista de referència (Maj+R)",
         "showEdited": "Mostrar editat (B)",
         "showOriginal": "Mostrar original (B)",
         "shutterSpeed": "Velocitat d'obturació",
@@ -1689,6 +1701,7 @@
         "toggle_masks": "Alternar tauler de Màscares",
         "toggle_metadata": "Alternar tauler de Metadades",
         "toggle_presets": "Alternar tauler d'Ajustos preestablerts",
+        "toggle_reference_view": "Commuta la vista de referència",
         "toggle_right_panel": "Commutar el panell dret",
         "undo": "Desfer ajustament",
         "zoom_100": "Apropar al 100%",
