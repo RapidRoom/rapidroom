@@ -2,6 +2,23 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "compact-adjustment-density",
+      "title": "Optional compact adjustment sliders: label, track and value on one row, with aligned columns, in the Develop and mask panels",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["pluja", "Bennyyy27"],
+      "source": "pluja/RapidRAW-Fork",
+      "commits": [
+        "https://github.com/pluja/RapidRAW-Fork/commit/198d23c0b89e073c88a621d43090488c2a8baf9e",
+        "https://github.com/Bennyyy27/RapidRAW/commit/69445eefb3598f3461eb3ed28fb82913b2e04d0f"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Off by default (Settings > General). Layout from pluja's one-row slider; narrow-panel column sizing follows Bennyyy27's final compact density. Drag travel spans the whole row in both densities, so switching density does not change sensitivity.",
+      "highlight": "**More sliders on a laptop screen.** An optional compact layout puts each slider's label, track and value on one line, so about twice as many controls fit without scrolling."
+    },
+    {
       "id": "wb-picker-original",
       "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
       "category": "fix",

@@ -1574,11 +1574,14 @@
       "title": "Gegevensbeheer"
     },
     "general": {
+      "compactAdjustments": "Compacte schuifregelaars",
+      "compactAdjustmentsDesc": "Zet elke ontwikkelschuifregelaar op één regel, met label en waarde naast de balk, zodat er op een klein scherm meer regelaars passen.",
       "createXmp": "Ontbrekende XMP-bestanden maken",
       "createXmpDesc": "Automatisch een nieuw XMP-sidecar-bestand maken als er geen bestaat voor een afbeelding.",
       "createXmpMissing": "XMP maken indien ontbrekend",
       "displayEditIcon": "Bewerkingspictogram weergeven",
       "displayEditIconDesc": "Toon een klein schuifregelaarpictogram op miniaturen die zijn bewerkt.",
+      "enableCompactAdjustments": "Compacte schuifregelaars inschakelen",
       "enableFocusMode": "Focusmodus inschakelen",
       "enableNeutralGreyCanvas": "Neutrale grijze achtergrond inschakelen",
       "enableOsTitlebar": "OS-titelbalk inschakelen",

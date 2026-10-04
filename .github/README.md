@@ -12,6 +12,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 
 <!-- rapidroom-changes:start -->
 
+- **More sliders on a laptop screen.** An optional compact layout puts each slider's label, track and value on one line, so about twice as many controls fit without scrolling.
 - **A white balance picker you can trust.** It reads the untouched raw data, averages a square or a dragged area, and shows a live preview before you click, which helps with mixed-light night shots.
 - **At home on Linux tiling desktops.** The native title bar works with Wayland compositors like Hyprland instead of fighting them.
 - **Colour-managed exports.** JPEG, PNG and TIFF files carry an sRGB profile, so browsers, other apps and print labs show your colours as intended.
@@ -26,7 +27,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars.
 - **Bring your Lightroom edits along:** import XMP sidecars
 
-38 improvements on top of RapidRAW so far, including fixes for 17 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+39 improvements on top of RapidRAW so far, including fixes for 17 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Why RapidRoom

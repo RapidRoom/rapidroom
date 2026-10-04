@@ -46,7 +46,7 @@ import {
 
 import CollapsibleSection from '../../ui/CollapsibleSection';
 import Switch from '../../ui/Switch';
-import Slider from '../../ui/Slider';
+import Slider, { SliderDensityScope, getAdjustmentDensity } from '../../ui/Slider';
 import BasicAdjustments from '../../adjustments/Basic';
 import CurveGraph from '../../adjustments/Curves';
 import ColorPanel from '../../adjustments/Color';
@@ -1040,7 +1040,10 @@ export default function MasksPanel() {
           )}
         </AnimatePresence>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 p-3">
+        <SliderDensityScope
+          className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 p-3"
+          density={getAdjustmentDensity(appSettings?.adjustmentDensity)}
+        >
           {selectedImage ? (
             <>
               <AnimatePresence mode="wait">
@@ -1229,7 +1232,7 @@ export default function MasksPanel() {
               </Text>
             </div>
           )}
-        </div>
+        </SliderDensityScope>
       </div>
 
       <DragOverlay dropAnimation={{ duration: 150, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>

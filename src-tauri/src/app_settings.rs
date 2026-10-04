@@ -597,6 +597,8 @@ pub struct AppSettings {
     pub custom_aspect_ratios: Vec<CustomAspectRatio>,
     #[serde(default)]
     pub adjustment_layout: AdjustmentLayout,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adjustment_density: Option<String>,
     #[serde(default)]
     pub workspace: WorkspaceState,
 }
@@ -697,6 +699,7 @@ impl Default for AppSettings {
             always_decode_raw_thumbnails: Some(false),
             custom_aspect_ratios: Vec::new(),
             adjustment_layout: AdjustmentLayout::default(),
+            adjustment_density: None,
             workspace: WorkspaceState::default(),
         }
     }
@@ -801,4 +804,27 @@ pub fn save_settings(settings: AppSettings, app_handle: AppHandle) -> Result<(),
         .unwrap()
         .set_capacity(cache_size);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adjustment_density_is_left_out_until_chosen() {
+        let saved = serde_json::to_value(AppSettings::default()).unwrap();
+        assert!(saved.get("adjustmentDensity").is_none());
+
+        let reloaded: AppSettings = serde_json::from_value(saved.clone()).unwrap();
+        assert_eq!(serde_json::to_value(reloaded).unwrap(), saved);
+    }
+
+    #[test]
+    fn adjustment_density_round_trips() {
+        let mut saved = serde_json::to_value(AppSettings::default()).unwrap();
+        saved["adjustmentDensity"] = serde_json::json!("compact");
+
+        let reloaded: AppSettings = serde_json::from_value(saved).unwrap();
+        assert_eq!(reloaded.adjustment_density.as_deref(), Some("compact"));
+    }
 }
