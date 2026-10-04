@@ -30,7 +30,7 @@ pub struct HeadlessExportSession {
     pub sharpening: Option<Option<OutputSharpening>>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum LaunchRequest {
     None,
     OpenFile(String),
