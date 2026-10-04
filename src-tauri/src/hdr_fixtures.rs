@@ -161,10 +161,7 @@ pub fn make_bracket(scene: &Rgb32FImage, spec: &BracketSpec) -> SyntheticBracket
                 let (sx, sy) = (x as f32 + 0.5 - shift.0, y as f32 + 0.5 - shift.1);
                 let mut v = sample_bilinear(scene, sx, sy);
                 if let Some((cx, cy, m)) = disc {
-                    let cover = coverage(((sx - cx).powi(2) + (sy - cy).powi(2)).sqrt(), m.radius);
-                    for c in 0..3 {
-                        v[c] = v[c] * (1.0 - cover) + m.color[c] * cover;
-                    }
+                    paint_disc(&mut v, sx, sy, cx, cy, m);
                 }
                 let mut any_clipped = false;
                 for value in v.iter_mut() {
@@ -192,10 +189,7 @@ pub fn make_bracket(scene: &Rgb32FImage, spec: &BracketSpec) -> SyntheticBracket
         let (sx, sy) = (x as f32 + 0.5 - ref_shift.0, y as f32 + 0.5 - ref_shift.1);
         let mut v = sample_bilinear(scene, sx, sy);
         if let Some((cx, cy, m)) = ref_disc {
-            let cover = coverage(((sx - cx).powi(2) + (sy - cy).powi(2)).sqrt(), m.radius);
-            for c in 0..3 {
-                v[c] = v[c] * (1.0 - cover) + m.color[c] * cover;
-            }
+            paint_disc(&mut v, sx, sy, cx, cy, m);
         }
         Rgb(v)
     });
@@ -262,6 +256,13 @@ fn sensor(signal: f32, spec: &BracketSpec, rng: &mut Rng) -> f32 {
         v = (v / spec.white_level * steps).round() / steps * spec.white_level;
     }
     v
+}
+
+fn paint_disc(v: &mut [f32; 3], x: f32, y: f32, cx: f32, cy: f32, disc: &MovingDisc) {
+    let cover = coverage(((x - cx).powi(2) + (y - cy).powi(2)).sqrt(), disc.radius);
+    for (value, color) in v.iter_mut().zip(disc.color) {
+        *value = *value * (1.0 - cover) + color * cover;
+    }
 }
 
 fn coverage(distance: f32, radius: f32) -> f32 {
