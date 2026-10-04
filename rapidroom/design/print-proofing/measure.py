@@ -99,7 +99,8 @@ def de2000(lab1, lab2):
     Lbp = (L1 + L2) / 2
     Cbp = (C1p + C2p) / 2
     hsum = h1p + h2p
-    hbp = np.where(np.abs(h1p - h2p) > 180, (hsum + 360) / 2, hsum / 2)
+    hbp = np.where(np.abs(h1p - h2p) > 180,
+                   np.where(hsum < 360, (hsum + 360) / 2, (hsum - 360) / 2), hsum / 2)
     hbp = np.where(C1p * C2p == 0, hsum, hbp)
     T = (1 - 0.17 * np.cos(np.radians(hbp - 30)) + 0.24 * np.cos(np.radians(2 * hbp))
          + 0.32 * np.cos(np.radians(3 * hbp + 6)) - 0.20 * np.cos(np.radians(4 * hbp - 63)))
@@ -230,8 +231,8 @@ def main(path):
         code = np.abs(np.round(got * 255) - np.round(ref * 255)).max()
         stats(f"{n}^3 float LUT (max 8-bit code diff {code:.0f})", de)
         if n == 33:
-            got16 = tetra(np.round(lut * 65535) / 65535, samples)
-            stats("33^3 LUT stored as 16-bit", de2000(lab_ref, srgb_to_lab(got16)))
+            got16 = tetra(lut.astype(np.float16).astype(np.float64), samples)
+            stats("33^3 LUT stored as float16", de2000(lab_ref, srgb_to_lab(got16)))
             got8 = tetra(np.round(lut * 255) / 255, samples)
             stats("33^3 LUT stored as 8-bit", de2000(lab_ref, srgb_to_lab(got8)))
     lcms8 = proof(RELATIVE, RELATIVE, F_BPC, fmt=TYPE_RGB_8, src=np.round(samples * 255).astype(np.uint8), dtype=np.uint8) / 255.0
