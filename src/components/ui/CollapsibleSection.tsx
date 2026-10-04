@@ -65,7 +65,9 @@ export default function CollapsibleSection({
               <VisibilityToggle
                 className={clsx(
                   'z-10',
-                  isHovering || !isContentVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
+                  isHovering || !isContentVisible
+                    ? 'opacity-100'
+                    : 'opacity-0 pointer-events-none focus-visible:opacity-100 focus-visible:pointer-events-auto',
                 )}
                 isVisible={isContentVisible}
                 onToggle={onToggleVisibility}

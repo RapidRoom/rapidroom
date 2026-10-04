@@ -68,7 +68,7 @@ export default function AdjustmentSubSection({
             <VisibilityToggle
               className={clsx(
                 isContentVisible &&
-                  'opacity-0 pointer-events-none group-hover/tool:opacity-100 group-hover/tool:pointer-events-auto',
+                  'opacity-0 pointer-events-none group-hover/tool:opacity-100 group-hover/tool:pointer-events-auto group-focus-within/tool:opacity-100 group-focus-within/tool:pointer-events-auto',
               )}
               isVisible={isContentVisible}
               onToggle={onToggleVisibility}

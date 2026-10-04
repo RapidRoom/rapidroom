@@ -13,6 +13,8 @@ export default function VisibilityToggle({ className, isVisible, onToggle }: Vis
 
   return (
     <button
+      aria-label={isVisible ? t('ui.collapsibleSection.disableSection') : t('ui.collapsibleSection.enableSection')}
+      aria-pressed={isVisible}
       className={clsx(
         'p-1 rounded-full text-text-secondary hover:bg-bg-primary transition-opacity duration-300',
         className,
