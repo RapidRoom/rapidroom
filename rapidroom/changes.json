@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "assistant-skill-plugin",
+      "title": "RapidRoom skill and Claude Code plugin: editing workflow, adjustment reference generated from the code, tutor mode, source lookup and assistant-drafted issues",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["yojen7", "sheldonxxxx"],
+      "source": "rapidroom",
+      "commits": ["https://github.com/sheldonxxxx/Lightweft/tree/d332fbd629faf7e47144ba173d7f2032be62199d"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "rapidroom/plugin: a Claude Code plugin (skill, six slash commands, MCP connection) and a Codex copy, for the in-app MCP server (RapidRoom #5). The adjustment and mask reference is generated from INITIAL_ADJUSTMENTS, the editor sliders and createSubMask, and a Vitest test fails when it drifts. Artistic direction, taste learning and film-look guidance are adapted from sheldonxxxx's Lightweft skills (MIT). Planned MCP tools are listed as coming. Issue drafts are shown to the user and posted only after an explicit yes. Docs only: the app and its rendering are unchanged. Written with Claude Code."
+    },
+    {
       "id": "lightroom-xmp-import-fixes",
       "title": "Lightroom XMP import: lens profile turns on lens correction, profile-look tone curves are kept, dead keys are dropped, and an import report lists what was not transferred",
       "category": "fix",

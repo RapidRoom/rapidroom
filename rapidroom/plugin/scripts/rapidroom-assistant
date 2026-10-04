@@ -1,0 +1,31 @@
+#!/bin/sh
+# Start Claude Code or Codex in the folder RapidRoom has open in its library.
+# Usage: rapidroom-assistant [claude|codex] [folder]
+# Until RapidRoom has a built-in terminal (issue #119). Reads RapidRoom's settings file and
+# changes nothing.
+set -eu
+
+assistant="${1:-claude}"
+folder="${2:-}"
+
+if [ -z "$folder" ]; then
+  settings="${XDG_DATA_HOME:-$HOME/.local/share}/io.github.CyberTimon.RapidRAW/settings.json"
+  if [ -r "$settings" ]; then
+    if command -v jq >/dev/null 2>&1; then
+      folder=$(jq -r '.lastFolderState.currentFolderPath // .lastRootPath // empty' "$settings")
+    elif command -v python3 >/dev/null 2>&1; then
+      folder=$(python3 -c 'import json, sys
+s = json.load(open(sys.argv[1]))
+print((s.get("lastFolderState") or {}).get("currentFolderPath") or s.get("lastRootPath") or "")' "$settings")
+    fi
+  fi
+fi
+
+if [ -z "$folder" ] || [ ! -d "$folder" ]; then
+  folder="${XDG_PICTURES_DIR:-$HOME/Pictures}"
+fi
+[ -d "$folder" ] || folder="$HOME"
+
+cd "$folder"
+echo "RapidRoom assistant: $assistant in $folder"
+exec "$assistant"
