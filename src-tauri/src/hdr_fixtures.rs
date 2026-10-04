@@ -450,7 +450,7 @@ mod tests {
         };
         let bytes = std::fs::read(&raw).unwrap();
         let developed =
-            crate::raw_processing::develop_raw_image(&bytes, true, 2.5, "auto".into(), None)
+            crate::raw_processing::develop_raw_image(&bytes, true, 2.5, "auto".into(), None, None)
                 .unwrap();
         let scene = developed.to_rgb32f();
         let (w, h) = scene.dimensions();

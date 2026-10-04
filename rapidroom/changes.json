@@ -2,6 +2,50 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "orf-scoped-image-processing",
+      "title": "Fix intermittent green OM System/Olympus RAW exports by reading image metadata from its correct directory",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original rawler decoder fix, AI-assisted)",
+      "commits": ["https://github.com/yojen7/RapidRAW-DngLab/commit/a98bd053c4a14c0c1105ee08a8deba8ce5e6ca5d"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Scope ORF white balance, black levels, valid bits and crop to the ImageProcessing maker-note IFD, rejecting truncated fields. CameraSettings preview tags can no longer shadow image metadata through unordered traversal. Preserve legacy root white balance, RAW thumbnails, DNG proxies and Adobe lossy-DNG corrections. Restores the approved reference output without changing render settings."
+    },
+    {
+      "id": "raw-thumb-previews",
+      "title": "Faster RAW library thumbnails: unedited raws use the smallest sufficient embedded preview, edited linear DNGs render from their embedded proxy",
+      "category": "performance",
+      "landed": "2026-10-04",
+      "authors": ["SebastianEggli"],
+      "source": "SebastianEggli/MyRR",
+      "commits": [
+        "https://github.com/SebastianEggli/MyRR/commit/4a646075d557f6faa5310377f26ae66120af1aa4",
+        "https://github.com/SebastianEggli/MyRR/commit/f0a5c66ccad1e1a82b880dc8e469c6fb21144d66",
+        "https://github.com/SebastianEggli/MyRR/commit/e93c7110b218727ce4fb49c3019415ad0f7e188e",
+        "https://github.com/SebastianEggli/RapidRAW-DngLab/commit/094189d738f30ec8e973b998fc59a84d00d94d8c"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1809", "CyberTimon/RapidRAW-DngLab#10"],
+      "rendering_change": false,
+      "notes": "Exports preserve the preceding full-image decode; library thumbnails may differ because they use smaller embedded JPEGs or correctly normalized DNG proxies. The rawler dependency f13d56ec retains RapidRoom crop, dither and full-image Adobe polynomial fixes alongside Sebastian Eggli's preview paths. Adaptations preserve metadata orientation and parallel conversions, reject real or malformed crops from the unedited-preview gate, and retry the full image if a proxy fails. Native real-file and cold/warm sample-probe results are recorded on the PR."
+    },
+    {
+      "id": "adobe-lossy-dng-map-polynomial",
+      "title": "Apply Adobe lossy DNG polynomial mappings before developing the full image, fixing pink and blown-out photos",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original rawler decoder fix, AI-assisted)",
+      "commits": [],
+      "upstream_issues": ["CyberTimon/RapidRAW#1542"],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Apply validated DNG OpcodeList2 MapPolynomial operations in order, after linearization and black/white normalization and before demosaic. Respect per-plane areas and pitches, clip each mapped result, and prevent converted DNGs replaying already baked mappings. Unknown-only lists keep the existing decoder behavior; required unsupported operations mixed with polynomial mappings report an error. Private real-file before/after evidence and corpus validation are recorded in the PR. Human rendering approval is required."
+    },
+    {
       "id": "lightroom-catalog-develop-import",
       "title": "Preview and selectively import Lightroom catalog photo edits, crop, straighten, rotation, star ratings and virtual copies, with unsupported-setting reports and independent replacement choices",
       "category": "feature",
