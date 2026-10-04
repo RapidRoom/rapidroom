@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { invoke } from '@tauri-apps/api/core';
 import debounce from 'lodash.debounce';
+import { useTranslation } from 'react-i18next';
 
 import { ImageDimensions, RenderSize, useImageRenderSize } from '../../hooks/useImageRenderSize';
 import { Adjustments, AiPatch, MaskContainer, INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
@@ -19,6 +20,7 @@ import {
 } from '../../utils/cropUtils';
 import EditorToolbar from './editor/EditorToolbar';
 import ImageCanvas from './editor/ImageCanvas';
+import ReferencePane from './editor/ReferencePane';
 import { Mask, SubMask } from './right/Masks';
 import { Panel, TransformState, Invokes } from '../ui/AppProperties';
 import { useEditorStore } from '../../store/useEditorStore';
@@ -27,6 +29,7 @@ import { useUIStore } from '../../store/useUIStore';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useAiMasking } from '../../hooks/useAiMasking';
 import { useEditorActions } from '../../hooks/useEditorActions';
+import { getReferenceLabel, isReferenceViewActive } from '../../utils/referenceView';
 
 const parseRgb = (rgbStr: string): [number, number, number, number] => {
   const match = rgbStr.match(/[\d.]+/g);
@@ -88,9 +91,11 @@ interface EditorProps {
 export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, transformWrapperRef }: EditorProps) {
   const appSettings = useSettingsStore((s) => s.appSettings);
   const osPlatform = useSettingsStore((s) => s.osPlatform);
+  const { t } = useTranslation();
   const isFullScreen = useUIStore((s) => s.isFullScreen);
   const activePanel = useUIStore((s) => s.activePanel);
   const isInstantTransition = useUIStore((s) => s.isInstantTransition);
+  const isLightsOut = useUIStore((s) => s.lightsOutMode !== 'off');
   const setUI = useUIStore((s) => s.setUI);
   const isLoading = useLibraryStore((s) => s.isViewLoading);
   const selectedImage = useEditorStore((s) => s.selectedImage);
@@ -101,6 +106,9 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const uncroppedAdjustedPreviewUrl = useEditorStore((s) => s.uncroppedAdjustedPreviewUrl);
   const interactivePatch = useEditorStore((s) => s.interactivePatch);
   const showOriginal = useEditorStore((s) => s.showOriginal);
+  const referenceView = useEditorStore((s) => s.referenceView);
+  const dispatchReferenceView = useEditorStore((s) => s.dispatchReferenceView);
+  const isReferenceViewOn = isReferenceViewActive(referenceView);
   const isSliderDragging = useEditorStore((s) => s.isSliderDragging);
   const targetZoom = useEditorStore((s) => s.zoom);
   const originalSize = useEditorStore((s) => s.originalSize);
@@ -1417,8 +1425,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       isCropping,
       uncroppedAdjustedPreviewUrl,
       showOriginal,
-      bgPrimary: parseRgb(bgPrimaryStr),
-      bgSecondary: isNeutralGrey ? NEUTRAL_GREY_RGB : parseRgb(bgSecondaryStr),
+      bgPrimary: isLightsOut ? [0, 0, 0, 1] : parseRgb(bgPrimaryStr),
+      bgSecondary: isLightsOut ? [0, 0, 0, 1] : isNeutralGrey ? NEUTRAL_GREY_RGB : parseRgb(bgSecondaryStr),
     };
   }, [
     appSettings?.useWgpuRenderer,
@@ -1428,6 +1436,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     isCropping,
     uncroppedAdjustedPreviewUrl,
     showOriginal,
+    isLightsOut,
     appSettings?.theme,
     finalPreviewUrl,
   ]);
@@ -1437,6 +1446,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }, [
     appSettings?.useWgpuRenderer,
     appSettings?.editorNeutralGreyBg,
+    isLightsOut,
     selectedImage?.isReady,
     hasRenderedFirstFrame,
     isCropping,
@@ -2267,17 +2277,20 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   return (
     <div
       className={clsx(
-        'flex-1 flex flex-col relative overflow-hidden min-h-0',
+        'lights-out-content flex-1 flex flex-col relative overflow-hidden min-h-0',
         !isInstantTransition && 'transition-all duration-300 ease-in-out',
         isFullScreen
           ? 'rounded-none p-0 gap-0'
-          : clsx('rounded-lg p-2 gap-2', appSettings?.useWgpuRenderer !== false ? 'bg-transparent' : 'bg-bg-secondary'),
+          : clsx(
+              'rounded-lg p-2 gap-2',
+              appSettings?.useWgpuRenderer !== false ? 'bg-transparent' : isLightsOut ? 'bg-black' : 'bg-bg-secondary',
+            ),
       )}
     >
       {hasRenderedAnyPreview && <div className="hidden" data-bench-id="editor-first-frame" />}
       <div
         className={clsx(
-          'shrink-0 relative z-10',
+          'lights-out-chrome shrink-0 relative z-10',
           !isInstantTransition && 'transition-all duration-300 ease-in-out',
           isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100',
           toolbarOverflowVisible ? 'overflow-visible' : 'overflow-hidden',
@@ -2293,6 +2306,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onRedo={redo}
           onToggleFullScreen={toggleFullScreen}
           onToggleShowOriginal={toggleShowOriginal}
+          isReferenceViewActive={isReferenceViewOn}
+          onToggleReferenceView={() => dispatchReferenceView({ type: 'toggle' })}
           onUndo={undo}
           selectedImage={selectedImage}
           showOriginal={showOriginal}
@@ -2304,102 +2319,125 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         />
       </div>
 
-      <div
-        className={clsx(
-          'flex-1 relative overflow-hidden touch-none',
-          isFullScreen ? 'rounded-none' : 'rounded-lg',
-          appSettings?.useWgpuRenderer !== false && !isFullScreen && 'ring-[9999px] ring-bg-secondary',
-          !isWgpuActive && (appSettings?.editorNeutralGreyBg ? 'bg-[#808080]' : 'bg-bg-secondary'),
-        )}
-        style={{ cursor: cursorStyle }}
-        onContextMenu={onContextMenu}
-        ref={imageContainerRef}
-        onPointerDownCapture={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onClick={handleClick}
-      >
-        {showSpinner && (
-          <div
-            className={clsx(
-              'absolute inset-0 bg-bg-secondary/80 flex items-center justify-center z-50 transition-opacity duration-300',
-              isLoaderVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
-            )}
-          >
-            <Loader2 size={48} className="animate-spin text-accent" />
-          </div>
-        )}
-
-        <div
-          ref={contentRef}
-          className="w-full h-full flex items-center justify-center origin-top-left"
-          style={{
-            transform: `translate(${transformState.positionX}px, ${transformState.positionY}px) scale(${transformState.scale})`,
-          }}
-        >
-          <ImageCanvas
-            appSettings={appSettings}
-            activeAiPatchContainerId={activeAiPatchContainerId}
-            activeAiSubMaskId={activeAiSubMaskId}
-            activeMaskContainerId={activeMaskContainerId}
-            activeMaskId={activeMaskId}
-            adjustments={adjustments}
-            brushSettings={brushSettings}
-            crop={crop}
-            finalPreviewUrl={finalPreviewUrl}
-            handleCropComplete={handleCropComplete}
-            imageRenderSize={imageRenderSize}
-            interactivePatch={interactivePatch}
-            isAiEditing={isAiEditing}
-            isCropping={isCropping}
-            isMaskControlHovered={isMaskControlHovered}
-            isMasking={isMasking}
-            isStraightenActive={isStraightenActive}
-            isRotationActive={isRotationActive}
-            isSliderDragging={isSliderDragging}
-            maskOverlayUrl={maskOverlayUrl}
-            onGenerateAiMask={handleGenerateAiMask}
-            onSelectAiPatchContainer={(id) => setEditor({ activeAiPatchContainerId: id })}
-            onSelectMaskContainer={(id) => setEditor({ activeMaskContainerId: id })}
-            onLiveMaskPreview={handleLiveMaskPreview}
-            onDirectPatch={handleDirectPatch}
-            onQuickErase={handleQuickErase}
-            onSelectAiSubMask={(id) => setEditor({ activeAiSubMaskId: id })}
-            onSelectMask={(id) => setEditor({ activeMaskId: id })}
-            onStraighten={handleStraighten}
-            selectedImage={selectedImage}
-            setCrop={handleCropChange}
-            setIsMaskHovered={setIsMaskHovered}
-            setIsMaskTouchInteracting={setIsMaskTouchInteracting}
-            showOriginal={showOriginal}
-            uncroppedAdjustedPreviewUrl={uncroppedAdjustedPreviewUrl}
-            updateSubMask={updateSubMaskLocal}
-            isWbPickerActive={isWbPickerActive}
-            onWbPicked={handleWbPicked}
-            setAdjustments={setAdjustments}
-            overlayRotation={overlayRotation}
-            overlayMode={overlayMode}
-            cursorStyle={cursorStyle}
-            isMaxZoom={isMaxZoom}
-            liveRotation={liveRotation}
-            transformState={transformState}
-            hasRenderedFirstFrame={hasRenderedFirstFrame}
+      <div className={clsx('lights-out-content flex-1 flex min-h-0 min-w-0', isReferenceViewOn && 'gap-2')}>
+        {isReferenceViewOn && (
+          <ReferencePane
+            isChooserOpen={referenceView.isChooserOpen}
+            reference={referenceView.reference}
+            onCancelChooser={() => dispatchReferenceView({ type: 'close-chooser' })}
+            onChoose={() => dispatchReferenceView({ type: 'open-chooser' })}
+            onClear={() => dispatchReferenceView({ type: 'clear-reference' })}
+            onExit={() => dispatchReferenceView({ type: 'exit' })}
           />
-        </div>
-        {straightenDragLine && (
-          <svg className="absolute inset-0 pointer-events-none z-[100]" style={{ width: '100%', height: '100%' }}>
-            <line
-              x1={straightenDragLine.start.x}
-              y1={straightenDragLine.start.y}
-              x2={straightenDragLine.end.x}
-              y2={straightenDragLine.end.y}
-              stroke="#0ea5e9"
-              strokeWidth="2"
-              strokeDasharray="4 4"
-            />
-          </svg>
         )}
+        <div
+          className={clsx(
+            'lights-out-content flex-1 basis-0 min-w-0 relative overflow-hidden touch-none',
+            isFullScreen ? 'rounded-none' : 'rounded-lg',
+            appSettings?.useWgpuRenderer !== false &&
+              !isFullScreen &&
+              clsx('ring-[9999px]', isLightsOut ? 'ring-black' : 'ring-bg-secondary'),
+            !isWgpuActive &&
+              (isLightsOut ? 'bg-black' : appSettings?.editorNeutralGreyBg ? 'bg-[#808080]' : 'bg-bg-secondary'),
+          )}
+          style={{ cursor: cursorStyle }}
+          onContextMenu={onContextMenu}
+          ref={imageContainerRef}
+          onPointerDownCapture={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onClick={handleClick}
+        >
+          {showSpinner && (
+            <div
+              className={clsx(
+                'absolute inset-0 bg-bg-secondary/80 flex items-center justify-center z-50 transition-opacity duration-300',
+                isLoaderVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
+              )}
+            >
+              <Loader2 size={48} className="animate-spin text-accent" />
+            </div>
+          )}
+
+          <div
+            ref={contentRef}
+            className="w-full h-full flex items-center justify-center origin-top-left"
+            style={{
+              transform: `translate(${transformState.positionX}px, ${transformState.positionY}px) scale(${transformState.scale})`,
+            }}
+          >
+            <ImageCanvas
+              appSettings={appSettings}
+              activeAiPatchContainerId={activeAiPatchContainerId}
+              activeAiSubMaskId={activeAiSubMaskId}
+              activeMaskContainerId={activeMaskContainerId}
+              activeMaskId={activeMaskId}
+              adjustments={adjustments}
+              brushSettings={brushSettings}
+              crop={crop}
+              finalPreviewUrl={finalPreviewUrl}
+              handleCropComplete={handleCropComplete}
+              imageRenderSize={imageRenderSize}
+              interactivePatch={interactivePatch}
+              isAiEditing={isAiEditing}
+              isCropping={isCropping}
+              isMaskControlHovered={isMaskControlHovered}
+              isMasking={isMasking}
+              isStraightenActive={isStraightenActive}
+              isRotationActive={isRotationActive}
+              isSliderDragging={isSliderDragging}
+              maskOverlayUrl={maskOverlayUrl}
+              onGenerateAiMask={handleGenerateAiMask}
+              onSelectAiPatchContainer={(id) => setEditor({ activeAiPatchContainerId: id })}
+              onSelectMaskContainer={(id) => setEditor({ activeMaskContainerId: id })}
+              onLiveMaskPreview={handleLiveMaskPreview}
+              onDirectPatch={handleDirectPatch}
+              onQuickErase={handleQuickErase}
+              onSelectAiSubMask={(id) => setEditor({ activeAiSubMaskId: id })}
+              onSelectMask={(id) => setEditor({ activeMaskId: id })}
+              onStraighten={handleStraighten}
+              selectedImage={selectedImage}
+              setCrop={handleCropChange}
+              setIsMaskHovered={setIsMaskHovered}
+              setIsMaskTouchInteracting={setIsMaskTouchInteracting}
+              showOriginal={showOriginal}
+              uncroppedAdjustedPreviewUrl={uncroppedAdjustedPreviewUrl}
+              updateSubMask={updateSubMaskLocal}
+              isWbPickerActive={isWbPickerActive}
+              onWbPicked={handleWbPicked}
+              setAdjustments={setAdjustments}
+              overlayRotation={overlayRotation}
+              overlayMode={overlayMode}
+              cursorStyle={cursorStyle}
+              isMaxZoom={isMaxZoom}
+              liveRotation={liveRotation}
+              transformState={transformState}
+              hasRenderedFirstFrame={hasRenderedFirstFrame}
+            />
+          </div>
+          {straightenDragLine && (
+            <svg className="absolute inset-0 pointer-events-none z-[100]" style={{ width: '100%', height: '100%' }}>
+              <line
+                x1={straightenDragLine.start.x}
+                y1={straightenDragLine.start.y}
+                x2={straightenDragLine.end.x}
+                y2={straightenDragLine.end.y}
+                stroke="#0ea5e9"
+                strokeWidth="2"
+                strokeDasharray="4 4"
+              />
+            </svg>
+          )}
+          {isReferenceViewOn && (
+            <div className="lights-out-chrome absolute left-2 top-2 z-20 flex max-w-[70%] items-center gap-2 rounded-md bg-surface/90 px-2 py-1 shadow pointer-events-none">
+              <span className="shrink-0 rounded bg-accent px-1.5 text-[10px] font-semibold uppercase tracking-wide text-button-text">
+                {t('editor.referenceView.active')}
+              </span>
+              <span className="truncate text-xs text-text-primary">{getReferenceLabel(selectedImage.path)}</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

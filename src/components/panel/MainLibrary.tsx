@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import clsx from 'clsx';
 import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-shell';
 import {
@@ -32,6 +33,7 @@ import {
   ThumbnailAspectRatio,
   RawStatus,
   EditedStatus,
+  FlagStatus,
   LibraryDisplayMode,
 } from '../ui/AppProperties';
 import { GroupBadgeInfo, GroupId } from '../../utils/imageGrouping';
@@ -44,7 +46,7 @@ import SettingsPanel from './SettingsPanel';
 
 import LibraryGrid from './library/LibraryGrid';
 import { SearchInput, ViewOptionsDropdown } from './library/LibraryHeader';
-import { RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
+import { RAPIDRAW_BASE_VERSION, RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
 import { isPathInCardRoot } from '../../utils/cardMode';
 
 export interface ColumnWidths {
@@ -176,6 +178,7 @@ export default function MainLibrary(props: MainLibraryProps) {
   const [isBusyLoaderMounted, setIsBusyLoaderMounted] = useState(false);
   const [isProgressHovered, setIsProgressHovered] = useState(false);
   const isSettingsOpen = useUIStore((state) => state.isSettingsOpen);
+  const lightsOutMode = useUIStore((state) => state.lightsOutMode);
 
   const libraryDisplayMode = props.appSettings?.libraryDisplayMode || LibraryDisplayMode.Grid;
 
@@ -217,6 +220,17 @@ export default function MainLibrary(props: MainLibraryProps) {
       { key: EditedStatus.All, label: t('library.filters.edited.all') },
       { key: EditedStatus.EditedOnly, label: t('library.filters.edited.editedOnly') },
       { key: EditedStatus.UneditedOnly, label: t('library.filters.edited.uneditedOnly') },
+    ],
+    [t],
+  );
+
+  const translatedFlagStatusOptions = useMemo(
+    () => [
+      { key: FlagStatus.All, label: t('library.filters.flag.all') },
+      { key: FlagStatus.Picked, label: t('library.filters.flag.picked') },
+      { key: FlagStatus.Unflagged, label: t('library.filters.flag.unflagged') },
+      { key: FlagStatus.ExcludeRejected, label: t('library.filters.flag.excludeRejected') },
+      { key: FlagStatus.Rejected, label: t('library.filters.flag.rejected') },
     ],
     [t],
   );
@@ -294,8 +308,7 @@ export default function MainLibrary(props: MainLibraryProps) {
     const checkVersion = async () => {
       try {
         const currentVersion = await getVersion();
-        // Release builds carry the RapidRoom version as build metadata (1.6.4+rr.0.1.0); show the RapidRAW base.
-        setAppVersion(currentVersion.split('+')[0]);
+        setAppVersion(currentVersion);
 
         const response = await fetch('https://api.github.com/repos/RapidRoom/rapidroom/releases/latest');
         if (!response.ok) {
@@ -478,7 +491,7 @@ export default function MainLibrary(props: MainLibraryProps) {
                             }
                           >
                             <span className={isUpdateAvailable ? 'group-hover:hidden' : ''}>
-                              {t('library.splash.rapidroomVersion', { version: RAPIDROOM_VERSION })}
+                              {t('library.splash.rapidroomVersion', { version: appVersion })}
                             </span>
                             {isUpdateAvailable && (
                               <span className="hidden group-hover:inline text-yellow-400">
@@ -496,7 +509,7 @@ export default function MainLibrary(props: MainLibraryProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            RapidRAW {appVersion}
+                            RapidRAW {RAPIDRAW_BASE_VERSION}
                           </a>{' '}
                           {t('library.splash.upstreamBy')}{' '}
                           <a
@@ -540,9 +553,14 @@ export default function MainLibrary(props: MainLibraryProps) {
   }
 
   return (
-    <div className="relative z-20 flex-1 flex flex-col h-full min-w-0 bg-bg-secondary rounded-lg overflow-visible">
+    <div
+      className={clsx(
+        'lights-out-content relative z-20 flex-1 flex flex-col h-full min-w-0 rounded-lg overflow-visible',
+        lightsOutMode !== 'off' ? 'bg-black' : 'bg-bg-secondary',
+      )}
+    >
       <header
-        className="p-3 shrink-0 flex justify-between items-center border-b border-surface gap-4"
+        className="lights-out-chrome relative z-10 p-3 shrink-0 flex justify-between items-center border-b border-surface gap-4"
         onMouseEnter={() => setIsProgressHovered(true)}
         onMouseLeave={() => setIsProgressHovered(false)}
       >
@@ -633,6 +651,7 @@ export default function MainLibrary(props: MainLibraryProps) {
               ratingFilterOptions={translatedRatingFilterOptions}
               rawStatusOptions={translatedRawStatusOptions}
               editedStatusOptions={translatedEditedStatusOptions}
+              flagStatusOptions={translatedFlagStatusOptions}
               sortOptions={translatedSortOptions}
             />
             {!props.isAndroid && !props.cardBrowseRoot && (

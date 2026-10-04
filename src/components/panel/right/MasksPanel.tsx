@@ -80,6 +80,7 @@ import {
   MaskContainer,
   ADJUSTMENT_SECTIONS,
   getVisibleAdjustmentSections,
+  showSectionAndTools,
 } from '../../../utils/adjustments';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import { OPTION_SEPARATOR, Orientation, Panel } from '../../ui/AppProperties';
@@ -424,7 +425,7 @@ export default function MasksPanel() {
       } else if (activeMaskId) onSelectMask(null);
       else if (activeMaskContainerId) onSelectContainer(null);
     };
-    if (activeMaskContainerId || renamingId) setCustomEscapeHandler(() => handler);
+    if (activeMaskContainerId || renamingId) setCustomEscapeHandler(handler);
     else setCustomEscapeHandler(null);
     return () => setCustomEscapeHandler(null);
   }, [activeMaskContainerId, activeMaskId, renamingId, onSelectContainer, onSelectMask, setCustomEscapeHandler]);
@@ -2031,7 +2032,7 @@ function SettingsPanel({
     const cur = container.adjustments;
     const vis = cur.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility;
     updateContainer(container.id, {
-      adjustments: { ...cur, sectionVisibility: { ...vis, [sectionName]: !vis[sectionName] } },
+      adjustments: { ...cur, sectionVisibility: { ...vis, [sectionName]: !(vis[sectionName] ?? true) } },
     });
   };
 
@@ -2059,10 +2060,10 @@ function SettingsPanel({
       setMaskContainerAdjustments((prev: any) => ({
         ...prev,
         ...copiedSectionAdjustments.values,
-        sectionVisibility: {
-          ...(prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility),
-          [sectionName]: true,
-        },
+        sectionVisibility: showSectionAndTools(
+          prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility,
+          sectionName,
+        ),
       }));
     };
 
@@ -2076,10 +2077,10 @@ function SettingsPanel({
       setMaskContainerAdjustments((prev: any) => ({
         ...prev,
         ...resetValues,
-        sectionVisibility: {
-          ...(prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility),
-          [sectionName]: true,
-        },
+        sectionVisibility: showSectionAndTools(
+          prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility,
+          sectionName,
+        ),
       }));
     };
 
@@ -2292,6 +2293,8 @@ function SettingsPanel({
                 isForMask={true}
                 appSettings={appSettings}
                 onDragStateChange={onDragStateChange}
+                onToggleVisibility={handleToggleVisibility}
+                sectionVisibility={sectionVisibility}
               />
             </CollapsibleSection>
           );

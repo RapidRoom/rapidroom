@@ -46,6 +46,10 @@ export function useAndroidBackHandler() {
         ui.setUI({ isRenameAlbumModalOpen: false });
         return;
       }
+      if (ui.lightroomImportCatalog) {
+        ui.setUI({ lightroomImportCatalog: null });
+        return;
+      }
       if (ui.panoramaModalState.isOpen) {
         ui.setUI({
           panoramaModalState: {
@@ -77,7 +81,7 @@ export function useAndroidBackHandler() {
         return;
       }
       if (ui.denoiseModalState.isOpen) {
-        if (ui.pendingDenoiseJob || ui.denoiseModalState.isProcessing) return;
+        if (ui.denoiseModalState.isProcessing) return;
         ui.setUI((state: any) => ({ denoiseModalState: { ...state.denoiseModalState, isOpen: false } }));
         return;
       }
