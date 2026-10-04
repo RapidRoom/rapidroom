@@ -309,7 +309,9 @@
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
         "aiDenoise": "AI Denoise",
-        "masks": "masks and local adjustments",
+        "aiMasks": "AI masks (subject, sky, people, objects)",
+        "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
+        "masks": "masks of a kind RapidRAW can't import",
         "pointColor": "Point Color",
         "profileLook": "profile look (colour table)",
         "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
