@@ -43,6 +43,8 @@ mod formats;
 mod gpu_processing;
 mod guided_perspective;
 mod hdr_deghosting;
+#[cfg(test)]
+mod hdr_fixtures;
 mod image_loader;
 mod image_processing;
 mod inpainting;
