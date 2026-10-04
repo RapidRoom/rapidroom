@@ -1018,7 +1018,8 @@
         "all": "Toutes les images",
         "excludeRejected": "Masquer les rejetées",
         "picked": "Retenue",
-        "rejected": "Rejetée"
+        "rejected": "Rejetée",
+        "unflagged": "Sans marquage"
       },
       "noMatch": "Aucune image ne correspond à votre filtre.",
       "rating": {
@@ -1715,6 +1716,8 @@
         "cycle_zoom": "Faire défiler le zoom (Ajuster, 2x Ajuster, 100%)",
         "delete_rejected": "Supprimer le(s) fichier(s) rejeté(s)",
         "delete_selected": "Supprimer le(s) fichier(s) sélectionné(s)",
+        "flag_pick": "Marquer comme retenue",
+        "flag_reject": "Marquer comme rejetée",
         "focus_search": "Activer le champ de recherche",
         "open_image": "Ouvrir l'image sélectionnée",
         "open_settings": "Ouvrir les paramètres",
@@ -1746,9 +1749,7 @@
         "toggle_library_exif": "Basculer la superposition EXIF",
         "toggle_masks": "Basculer le panneau des masques",
         "toggle_metadata": "Basculer le panneau des métadonnées",
-        "toggle_pick": "Basculer le marquage retenu",
         "toggle_presets": "Basculer le panneau des paramètres prédéfinis",
-        "toggle_reject": "Basculer le marquage rejeté",
         "toggle_right_panel": "Afficher/Masquer le panneau droit",
         "undo": "Annuler l'ajustement",
         "unflag": "Retirer le marquage",

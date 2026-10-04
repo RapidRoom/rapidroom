@@ -993,7 +993,8 @@
         "all": "Alle Bilder",
         "excludeRejected": "Abgelehnte ausblenden",
         "picked": "Ausgewählt",
-        "rejected": "Abgelehnt"
+        "rejected": "Abgelehnt",
+        "unflagged": "Ohne Markierung"
       },
       "noMatch": "Keine Bilder gefunden, die Ihrem Filter entsprechen.",
       "rating": {
@@ -1678,6 +1679,8 @@
         "cycle_zoom": "Zoom durchwechseln (Einpassen, 2x Einpassen, 100%)",
         "delete_rejected": "Abgelehnte Datei(en) löschen",
         "delete_selected": "Ausgewählte Datei(en) löschen",
+        "flag_pick": "Als ausgewählt markieren",
+        "flag_reject": "Als abgelehnt markieren",
         "focus_search": "Suchfeld fokussieren",
         "open_image": "Ausgewähltes Bild öffnen",
         "open_settings": "Einstellungen öffnen",
@@ -1709,9 +1712,7 @@
         "toggle_library_exif": "EXIF-Überlagerung ein-/ausblenden",
         "toggle_masks": "Maskieren-Panel ein-/ausblenden",
         "toggle_metadata": "Metadaten-Panel ein-/ausblenden",
-        "toggle_pick": "Auswahlmarkierung umschalten",
         "toggle_presets": "Vorgaben-Panel ein-/ausblenden",
-        "toggle_reject": "Ablehnungsmarkierung umschalten",
         "toggle_right_panel": "Rechtes Panel ein-/ausblenden",
         "undo": "Bearbeitung rückgängig machen",
         "unflag": "Markierung entfernen",

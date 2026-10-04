@@ -19,6 +19,8 @@ export const GLOBAL_KEYS = [
   'p',
   'i',
   'e',
+  'x',
+  'u',
   '0',
   '1',
   '2',
@@ -296,6 +298,7 @@ export type ImageFlag = (typeof ImageFlag)[keyof typeof ImageFlag];
 export const FlagStatus = {
   All: 'all',
   Picked: 'picked',
+  Unflagged: 'unflagged',
   ExcludeRejected: 'excludeRejected',
   Rejected: 'rejected',
 } as const;

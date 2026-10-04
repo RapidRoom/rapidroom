@@ -1018,7 +1018,8 @@
         "all": "Todas las imágenes",
         "excludeRejected": "Ocultar rechazadas",
         "picked": "Elegida",
-        "rejected": "Rechazada"
+        "rejected": "Rechazada",
+        "unflagged": "Sin marca"
       },
       "noMatch": "No se encontraron imágenes que coincidan con tu filtro.",
       "rating": {
@@ -1715,6 +1716,8 @@
         "cycle_zoom": "Alternar zoom (Ajustar, 2x Ajustar, 100%)",
         "delete_rejected": "Eliminar archivo(s) rechazado(s)",
         "delete_selected": "Eliminar archivo(s) seleccionado(s)",
+        "flag_pick": "Marcar como elegida",
+        "flag_reject": "Marcar como rechazada",
         "focus_search": "Enfocar el campo de búsqueda",
         "open_image": "Abrir imagen seleccionada",
         "open_settings": "Abrir la configuración",
@@ -1746,9 +1749,7 @@
         "toggle_library_exif": "Alternar superposición EXIF",
         "toggle_masks": "Alternar panel de Máscaras",
         "toggle_metadata": "Alternar panel de Metadatos",
-        "toggle_pick": "Alternar marca de elegida",
         "toggle_presets": "Alternar panel de Ajustes preestablecidos",
-        "toggle_reject": "Alternar marca de rechazada",
         "toggle_right_panel": "Alternar panel derecho",
         "undo": "Deshacer ajuste",
         "unflag": "Quitar marca",

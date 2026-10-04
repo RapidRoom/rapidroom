@@ -226,6 +226,7 @@ export default function MainLibrary(props: MainLibraryProps) {
     () => [
       { key: FlagStatus.All, label: t('library.filters.flag.all') },
       { key: FlagStatus.Picked, label: t('library.filters.flag.picked') },
+      { key: FlagStatus.Unflagged, label: t('library.filters.flag.unflagged') },
       { key: FlagStatus.ExcludeRejected, label: t('library.filters.flag.excludeRejected') },
       { key: FlagStatus.Rejected, label: t('library.filters.flag.rejected') },
     ],

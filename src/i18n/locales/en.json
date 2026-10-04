@@ -1003,7 +1003,8 @@
         "all": "All Images",
         "excludeRejected": "Hide Rejected",
         "picked": "Picked",
-        "rejected": "Rejected"
+        "rejected": "Rejected",
+        "unflagged": "Unflagged"
       },
       "noMatch": "No images found that match your filter.",
       "rating": {
@@ -1693,6 +1694,8 @@
         "cycle_zoom": "Cycle zoom (Fit, 2x Fit, 100%)",
         "delete_rejected": "Delete rejected file(s)",
         "delete_selected": "Delete selected file(s)",
+        "flag_pick": "Flag as pick",
+        "flag_reject": "Flag as rejected",
         "focus_search": "Focus search field",
         "open_image": "Open selected image",
         "open_settings": "Open settings",
@@ -1724,9 +1727,7 @@
         "toggle_library_exif": "Toggle EXIF overlay",
         "toggle_masks": "Toggle Masks panel",
         "toggle_metadata": "Toggle Metadata panel",
-        "toggle_pick": "Toggle pick flag",
         "toggle_presets": "Toggle Presets panel",
-        "toggle_reject": "Toggle reject flag",
         "toggle_right_panel": "Toggle Right Panel",
         "undo": "Undo adjustment",
         "unflag": "Remove flag",

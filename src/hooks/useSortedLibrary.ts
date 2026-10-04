@@ -4,13 +4,13 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import {
   RawStatus,
   EditedStatus,
-  FlagStatus,
   ImageFlag,
   SortDirection,
   ImageFile,
   GroupingMode,
 } from '../components/ui/AppProperties';
 import { buildImageGroups, GroupBadgeInfo, GroupId } from '../utils/imageGrouping';
+import { matchesFlagStatus } from '../utils/imageFlags';
 
 export const ADVANCED_QUERY_REGEX =
   /^(iso|aperture|f|shutter|s|focal|mm|rating|color|camera|make|model|lens)\s*(?::)?\s*(>=|<=|>|<|=)?\s*(.+)$/i;
@@ -76,11 +76,7 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
       if (filterCriteria.editedStatus === EditedStatus.UneditedOnly && image.is_edited) return false;
     }
 
-    if (filterCriteria.flagStatus && filterCriteria.flagStatus !== FlagStatus.All) {
-      if (filterCriteria.flagStatus === FlagStatus.Picked && image.flag !== ImageFlag.Pick) return false;
-      if (filterCriteria.flagStatus === FlagStatus.ExcludeRejected && image.flag === ImageFlag.Reject) return false;
-      if (filterCriteria.flagStatus === FlagStatus.Rejected && image.flag !== ImageFlag.Reject) return false;
-    }
+    if (!matchesFlagStatus(image.flag, filterCriteria.flagStatus)) return false;
 
     if (filterCriteria.colors && filterCriteria.colors.length > 0) {
       const imageColor = (image.tags || []).find((tag: string) => tag.startsWith('color:'))?.substring(6);

@@ -989,7 +989,8 @@
         "all": "所有图像",
         "excludeRejected": "隐藏已拒绝",
         "picked": "留用",
-        "rejected": "已拒绝"
+        "rejected": "已拒绝",
+        "unflagged": "未标记"
       },
       "noMatch": "未找到匹配过滤条件的图像。",
       "rating": {
@@ -1674,6 +1675,8 @@
         "cycle_zoom": "循环缩放（适应、2倍适应、100%）",
         "delete_rejected": "删除已拒绝的文件",
         "delete_selected": "删除选中的文件",
+        "flag_pick": "标记为留用",
+        "flag_reject": "标记为拒绝",
         "focus_search": "聚焦搜索框",
         "open_image": "打开选中的图像",
         "open_settings": "打开设置",
@@ -1705,9 +1708,7 @@
         "toggle_library_exif": "切换 EXIF 叠加",
         "toggle_masks": "切换蒙版面板",
         "toggle_metadata": "切换元数据面板",
-        "toggle_pick": "切换留用标记",
         "toggle_presets": "切换预设面板",
-        "toggle_reject": "切换拒绝标记",
         "toggle_right_panel": "切换右侧面板",
         "undo": "撤销调整",
         "unflag": "取消标记",

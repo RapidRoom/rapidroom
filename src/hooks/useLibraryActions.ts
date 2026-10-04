@@ -10,7 +10,7 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { computeSortedLibrary } from './useSortedLibrary';
 import { expandGroupedPaths } from '../utils/imageGrouping';
 import type { FolderTree } from '../components/panel/right/FolderTree';
-import { getImageFlag } from '../utils/imageFlags';
+import { getImageFlag, restoreFlags, toggledFlag, withFlag } from '../utils/imageFlags';
 
 const resolveTargetPaths = (paths?: string[]) => {
   const { multiSelectedPaths, imageList } = useLibraryStore.getState();
@@ -21,15 +21,6 @@ const resolveTargetPaths = (paths?: string[]) => {
 
   const groupingMode = useSettingsStore.getState().appSettings?.grouping ?? 'off';
   return { selectedPaths, expandedPaths: expandGroupedPaths(imageList, selectedPaths, groupingMode) };
-};
-
-const withFlag = (imageList: ImageFile[], paths: string[], flag: ImageFlag | null, onlyFrom?: ImageFlag) => {
-  const pathSet = new Set(paths);
-  return imageList.map((image) =>
-    pathSet.has(image.path) && image.flag !== flag && (!onlyFrom || image.flag === onlyFrom)
-      ? { ...image, flag }
-      : image,
-  );
 };
 
 export function useLibraryActions(handleImageSelect?: (path: string, openInEditor?: boolean) => void) {
@@ -64,12 +55,14 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     const { expandedPaths } = resolveTargetPaths(paths);
     if (expandedPaths.length === 0) return;
 
-    useLibraryStore.getState().setLibrary((state) => ({
+    const { imageList: previous, setLibrary } = useLibraryStore.getState();
+    setLibrary((state) => ({
       imageList: withFlag(state.imageList, expandedPaths, flag),
     }));
 
     invoke(Invokes.SetFlagForPaths, { paths: expandedPaths, flag }).catch((err) => {
       console.error(err);
+      setLibrary((state) => ({ imageList: restoreFlags(state.imageList, previous, expandedPaths) }));
       toast.error(`Failed to update flag: ${err}`);
     });
   }, []);
@@ -80,8 +73,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
       if (selectedPaths.length === 0) return;
 
       const { imageList } = useLibraryStore.getState();
-      const hasFlag = getImageFlag(imageList, selectedPaths[0]) === flag;
-      handleSetFlag(hasFlag ? null : flag, selectedPaths);
+      handleSetFlag(toggledFlag(getImageFlag(imageList, selectedPaths[0]), flag), selectedPaths);
     },
     [handleSetFlag],
   );

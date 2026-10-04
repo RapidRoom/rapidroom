@@ -1043,7 +1043,8 @@
         "all": "Wszystkie obrazy",
         "excludeRejected": "Ukryj odrzucone",
         "picked": "Wybrane",
-        "rejected": "Odrzucone"
+        "rejected": "Odrzucone",
+        "unflagged": "Bez oznaczenia"
       },
       "noMatch": "Nie znaleziono obrazów pasujących do twojego filtra.",
       "rating": {
@@ -1754,6 +1755,8 @@
         "cycle_zoom": "Przełącz przybliżenie (Dopasuj, 2x Dopasuj, 100%)",
         "delete_rejected": "Usuń odrzucone pliki",
         "delete_selected": "Usuń wybrane pliki",
+        "flag_pick": "Oznacz jako wybrane",
+        "flag_reject": "Oznacz jako odrzucone",
         "focus_search": "Przejdź do pola wyszukiwania",
         "open_image": "Otwórz wybrany obraz",
         "open_settings": "Otwórz ustawienia",
@@ -1785,9 +1788,7 @@
         "toggle_library_exif": "Przełącz nakładkę EXIF",
         "toggle_masks": "Przełącz panel Maski",
         "toggle_metadata": "Przełącz panel Metadane",
-        "toggle_pick": "Przełącz oznaczenie wybrania",
         "toggle_presets": "Przełącz panel Presety",
-        "toggle_reject": "Przełącz oznaczenie odrzucenia",
         "toggle_right_panel": "Przełącz prawy panel",
         "undo": "Cofnij korektę",
         "unflag": "Usuń oznaczenie",

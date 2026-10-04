@@ -989,7 +989,8 @@
         "all": "모든 이미지",
         "excludeRejected": "거부됨 숨기기",
         "picked": "선택됨",
-        "rejected": "거부됨"
+        "rejected": "거부됨",
+        "unflagged": "플래그 없음"
       },
       "noMatch": "필터와 일치하는 이미지를 찾을 수 없습니다.",
       "rating": {
@@ -1674,6 +1675,8 @@
         "cycle_zoom": "확대/축소 순환 (맞춤, 2배 맞춤, 100%)",
         "delete_rejected": "거부된 파일 삭제",
         "delete_selected": "선택한 파일 삭제",
+        "flag_pick": "선택 플래그 지정",
+        "flag_reject": "거부 플래그 지정",
         "focus_search": "검색창에 포커스",
         "open_image": "선택한 이미지 열기",
         "open_settings": "설정 열기",
@@ -1705,9 +1708,7 @@
         "toggle_library_exif": "EXIF 오버레이 전환",
         "toggle_masks": "마스크 패널 전환",
         "toggle_metadata": "메타데이터 패널 전환",
-        "toggle_pick": "선택 플래그 전환",
         "toggle_presets": "프리셋 패널 전환",
-        "toggle_reject": "거부 플래그 전환",
         "toggle_right_panel": "오른쪽 패널 토글",
         "undo": "조정 실행 취소",
         "unflag": "플래그 해제",

@@ -989,7 +989,8 @@
         "all": "所有影像",
         "excludeRejected": "隱藏已拒絕",
         "picked": "留用",
-        "rejected": "已拒絕"
+        "rejected": "已拒絕",
+        "unflagged": "未標記"
       },
       "noMatch": "未找到匹配過濾條件的影像。",
       "rating": {
@@ -1674,6 +1675,8 @@
         "cycle_zoom": "迴圈縮放（適應、2倍適應、100%）",
         "delete_rejected": "刪除已拒絕的檔案",
         "delete_selected": "刪除選中的檔案",
+        "flag_pick": "標記為留用",
+        "flag_reject": "標記為拒絕",
         "focus_search": "聚焦搜尋框",
         "open_image": "開啟選中的影像",
         "open_settings": "開啟設定",
@@ -1705,9 +1708,7 @@
         "toggle_library_exif": "切換 EXIF 疊加",
         "toggle_masks": "切換遮色片面板",
         "toggle_metadata": "切換後設資料面板",
-        "toggle_pick": "切換留用標記",
         "toggle_presets": "切換預設面板",
-        "toggle_reject": "切換拒絕標記",
         "toggle_right_panel": "切換右側面板",
         "undo": "復原調整",
         "unflag": "取消標記",

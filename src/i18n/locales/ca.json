@@ -995,7 +995,8 @@
         "all": "Totes les imatges",
         "excludeRejected": "Amaga les rebutjades",
         "picked": "Seleccionada",
-        "rejected": "Rebutjada"
+        "rejected": "Rebutjada",
+        "unflagged": "Sense marca"
       },
       "noMatch": "No s'ha trobat cap imatge que coincideixi amb el vostre filtre.",
       "rating": {
@@ -1682,6 +1683,8 @@
         "cycle_zoom": "Alternar zoom (Ajustar, 2x Ajustar, 100%)",
         "delete_rejected": "Eliminar els fitxers rebutjats",
         "delete_selected": "Eliminar els fitxers seleccionats",
+        "flag_pick": "Marca com a seleccionada",
+        "flag_reject": "Marca com a rebutjada",
         "focus_search": "Enfocar camp de cerca",
         "open_image": "Obrir la imatge seleccionada",
         "open_settings": "Obrir Configuració",
@@ -1713,9 +1716,7 @@
         "toggle_library_exif": "Alternar superposició EXIF",
         "toggle_masks": "Alternar tauler de Màscares",
         "toggle_metadata": "Alternar tauler de Metadades",
-        "toggle_pick": "Commuta la marca de seleccionada",
         "toggle_presets": "Alternar tauler d'Ajustos preestablerts",
-        "toggle_reject": "Commuta la marca de rebutjada",
         "toggle_right_panel": "Commutar el panell dret",
         "undo": "Desfer ajustament",
         "unflag": "Treure la marca",

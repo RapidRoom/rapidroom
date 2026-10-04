@@ -136,14 +136,14 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
   { action: 'rate_4', description: 'settings.keybinds.actions.rate_4', defaultCombo: ['Digit4'], section: 'rating' },
   { action: 'rate_5', description: 'settings.keybinds.actions.rate_5', defaultCombo: ['Digit5'], section: 'rating' },
   {
-    action: 'toggle_pick',
-    description: 'settings.keybinds.actions.toggle_pick',
-    defaultCombo: ['shift', 'KeyP'],
+    action: 'flag_pick',
+    description: 'settings.keybinds.actions.flag_pick',
+    defaultCombo: ['KeyP'],
     section: 'rating',
   },
   {
-    action: 'toggle_reject',
-    description: 'settings.keybinds.actions.toggle_reject',
+    action: 'flag_reject',
+    description: 'settings.keybinds.actions.flag_reject',
     defaultCombo: ['KeyX'],
     section: 'rating',
   },
@@ -216,7 +216,7 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
   {
     action: 'toggle_presets',
     description: 'settings.keybinds.actions.toggle_presets',
-    defaultCombo: ['KeyP'],
+    defaultCombo: ['shift', 'KeyP'],
     section: 'panels',
   },
   {
