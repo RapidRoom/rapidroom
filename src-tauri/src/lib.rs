@@ -30,6 +30,8 @@ mod android_integration;
 mod app_settings;
 mod app_state;
 mod apple_raw;
+mod batch_rename;
+mod bench;
 mod cache_utils;
 mod camera_tethering;
 mod culling;
@@ -38,27 +40,36 @@ mod denoising;
 mod exif_processing;
 mod export_processing;
 mod file_management;
+mod file_naming;
 mod focus_stacking;
 mod formats;
 mod gpu_processing;
 mod guided_perspective;
 mod hdr_deghosting;
+#[cfg(test)]
+mod hdr_fixtures;
 mod image_loader;
 mod image_processing;
 mod inpainting;
 mod launch_request;
 mod lens_blur;
 mod lens_correction;
+mod lightroom;
+mod lrtemplate;
 mod lut_processing;
 mod mask_generation;
 mod multi_exposure;
 mod negative_conversion;
 mod panorama_stitching;
 mod panorama_utils;
+mod perf_trace;
 mod preset_converter;
 mod raw_processing;
 mod tagging;
 mod tagging_utils;
+#[cfg(test)]
+mod test_support;
+mod two_phase_rename;
 mod window_customizer;
 
 use std::collections::{HashMap, hash_map::DefaultHasher};
@@ -176,6 +187,7 @@ pub fn generate_transformed_preview(
     let transform_hash =
         calculate_image_cache_hash(&loaded_image.path, calculate_transform_hash(adjustments));
 
+    let full_span = perf_trace::span("base.full_res_transform");
     let (transformed_full_res, unscaled_crop_offset) = {
         let mut cache_lock = state
             .full_transformed_cache
@@ -197,8 +209,10 @@ pub fn generate_transformed_preview(
         }
     };
 
+    drop(full_span);
     let (full_res_w, full_res_h) = transformed_full_res.dimensions();
 
+    let _downscale_span = perf_trace::span("base.downscale_to_preview");
     let final_preview_base = if full_res_w > preview_dim || full_res_h > preview_dim {
         downscale_f32_image(&transformed_full_res, preview_dim, preview_dim)
     } else {
@@ -407,6 +421,27 @@ async fn update_wgpu_transform(
     Ok(())
 }
 
+#[tauri::command]
+async fn sample_display_area(
+    x: f32,
+    y: f32,
+    radius: f32,
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<u8>, String> {
+    tokio::task::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let context = state
+            .gpu_context
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .ok_or("GPU context is not initialized")?;
+        crate::gpu_processing::read_display_area(&context, &state, (x, y), radius)
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {}", e))?
+}
+
 #[allow(clippy::too_many_arguments)]
 fn process_preview_job(
     app_handle: &tauri::AppHandle,
@@ -421,7 +456,9 @@ fn process_preview_job(
 ) -> Result<Vec<u8>, String> {
     let fn_start = std::time::Instant::now();
     let context = get_or_init_gpu_context(&state, app_handle)?;
+    let hydrate_span = perf_trace::span("job.hydrate_adjustments");
     hydrate_adjustments(&state, &mut adjustments_json);
+    drop(hydrate_span);
     let adjustments_clone = adjustments_json;
 
     let loaded_image_guard = state.original_image.lock().unwrap();
@@ -435,7 +472,9 @@ fn process_preview_job(
         &loaded_image.path,
         calculate_transform_hash(&adjustments_clone),
     );
+    let settings_span = perf_trace::span("job.load_settings");
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    drop(settings_span);
     let live_quality = settings.live_preview_quality.as_deref().unwrap_or("high");
 
     let default_preview_dim = settings.editor_preview_resolution.unwrap_or(1920);
@@ -478,6 +517,7 @@ fn process_preview_job(
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = None;
 
+        let _span = perf_trace::span("job.transformed_preview_base");
         let (base, scale, offset) =
             generate_transformed_preview(&state, &loaded_image, &adjustments_clone, preview_dim)?;
         (Arc::new(base), scale, offset)
@@ -496,6 +536,7 @@ fn process_preview_job(
                 let ratio = w as f32 / h as f32;
                 ((target_size as f32 * ratio) as u32, target_size)
             };
+            let _span = perf_trace::span("job.downscale_interactive");
             Arc::new(image_processing::downscale_f32_image(
                 &final_preview_base,
                 small_w,
@@ -558,6 +599,7 @@ fn process_preview_job(
         unscaled_crop_offset.1 * effective_scale,
     );
 
+    let mask_span = perf_trace::span("job.masks");
     let mask_bitmaps: Vec<ImageBuffer<Luma<u8>, Vec<u8>>> = mask_definitions
         .iter()
         .filter_map(|def| {
@@ -574,9 +616,13 @@ fn process_preview_job(
         })
         .collect();
 
+    drop(mask_span);
+
     let is_raw = loaded_image.is_raw;
+    let parse_span = perf_trace::span("job.parse_adjustments");
     let tm_override = resolve_tonemapper_override_from_handle(app_handle, is_raw);
     let final_adjustments = get_all_adjustments_from_json(&adjustments_clone, is_raw, tm_override);
+    drop(parse_span);
     let lut_path = adjustments_clone["lutPath"].as_str();
     let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
 
@@ -650,6 +696,7 @@ fn process_preview_job(
 
         let step_start = std::time::Instant::now();
 
+        let _encode_span = perf_trace::span("job.jpeg_encode");
         let encode_result = Encoder::new(Preset::BaselineFastest)
             .quality(jpeg_quality)
             .fast_color(true)
@@ -1413,6 +1460,7 @@ async fn generate_preview_for_path(
         let is_raw = is_raw_file(&source_path_str);
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
+        let load_span = perf_trace::span("full.decode_raw");
         let base_image = match read_file_mapped(&source_path) {
             Ok(mmap) => load_and_composite(
                 &mmap,
@@ -1442,8 +1490,11 @@ async fn generate_preview_for_path(
             }
         };
 
+        drop(load_span);
+        let transform_span = perf_trace::span("full.transform");
         let (transformed_image, unscaled_crop_offset) =
             apply_all_transformations(Cow::Borrowed(&base_image), &js_adjustments);
+        drop(transform_span);
         let (img_w, img_h) = transformed_image.dimensions();
         let mask_definitions: Vec<MaskDefinition> =
             mask_generation::parse_mask_definitions(&js_adjustments);
@@ -1487,6 +1538,7 @@ async fn generate_preview_for_path(
         )?;
 
         let (width, height) = final_image.dimensions();
+        let _encode_span = perf_trace::span("full.jpeg_encode");
         let rgb_pixels = final_image.to_rgb8().into_vec();
 
         let bytes = Encoder::new(Preset::BaselineFastest)
@@ -1780,7 +1832,14 @@ pub fn run() {
         eprintln!("Headless export failed: {}", error);
         std::process::exit(2);
     }
-    let is_headless = matches!(launch_req, LaunchRequest::HeadlessExport(_));
+    if let LaunchRequest::InvalidBench(error) = &launch_req {
+        cli_eprintln!("Invalid bench arguments: {}", error);
+        std::process::exit(2);
+    }
+    let is_headless = matches!(
+        launch_req,
+        LaunchRequest::HeadlessExport(_) | LaunchRequest::HeadlessBench(_)
+    );
 
     let mut builder = tauri::Builder::default();
 
@@ -2014,7 +2073,29 @@ pub fn run() {
 
                     return Ok(());
                 }
-                LaunchRequest::InvalidHeadless(_) => unreachable!("invalid headless arguments exit before app setup"),
+                LaunchRequest::HeadlessBench(session) => {
+                    let app_handle_clone = app_handle.clone();
+                    let bench = tauri::async_runtime::spawn(crate::bench::run_headless_bench(
+                        session,
+                        app_handle.clone(),
+                    ));
+                    tauri::async_runtime::spawn(async move {
+                        let result = bench
+                            .await
+                            .unwrap_or_else(|e| Err(format!("Bench task panicked: {}", e)));
+                        match result {
+                            Ok(_) => app_handle_clone.exit(0),
+                            Err(e) => {
+                                cli_eprintln!("Bench failed: {}", e);
+                                set_process_exit_code(1);
+                                app_handle_clone.exit(1);
+                            }
+                        }
+                    });
+
+                    return Ok(());
+                }
+                LaunchRequest::InvalidHeadless(_) | LaunchRequest::InvalidBench(_) => unreachable!("invalid headless arguments exit before app setup"),
                 _ => {}
             }
 
@@ -2200,6 +2281,7 @@ pub fn run() {
             panorama_result: Arc::new(Mutex::new(None)),
             focus_stack_result: Arc::new(Mutex::new(None)),
             denoise_result: Arc::new(Mutex::new(None)),
+            denoise_jobs: denoising::DenoiseJobs::default(),
             indexing_task_handle: Mutex::new(None),
             lut_cache: Mutex::new(HashMap::new()),
             initial_file_path: Mutex::new(None),
@@ -2247,6 +2329,7 @@ pub fn run() {
             frontend_ready,
             cancel_thumbnail_generation,
             update_wgpu_transform,
+            sample_display_area,
             android_integration::resolve_android_content_uri_name,
             cache_utils::clear_session_caches,
             cache_utils::clear_image_caches,
@@ -2267,6 +2350,8 @@ pub fn run() {
             inpainting::generate_manual_cleanup_patch,
             inpainting::generate_liquify_patch,
             inpainting::generate_retouch_patch,
+            denoising::create_denoise_job,
+            denoising::cancel_denoise,
             denoising::apply_denoising,
             denoising::batch_denoise_images,
             denoising::save_denoised_image,
@@ -2298,6 +2383,10 @@ pub fn run() {
             file_management::move_files,
             file_management::rename_folder,
             file_management::rename_files,
+            file_management::preview_rename_files,
+            file_management::get_last_rename,
+            file_management::undo_last_rename,
+            file_management::generate_export_filename,
             file_management::duplicate_file,
             file_management::show_in_finder,
             file_management::delete_files_from_disk,
@@ -2322,12 +2411,17 @@ pub fn run() {
             file_management::clear_thumbnail_cache,
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,
+            file_management::set_flag_for_paths,
             file_management::import_files,
             file_management::create_virtual_copy,
             file_management::get_albums,
             file_management::save_albums,
             file_management::add_to_album,
             file_management::get_album_images,
+            lightroom::collections::preview_lightroom_collections,
+            lightroom::collections::import_lightroom_collections,
+            lightroom::develop::preview_lightroom_develop,
+            lightroom::develop::import_lightroom_develop,
             tagging::start_background_indexing,
             tagging::clear_ai_tags,
             tagging::clear_all_tags,

@@ -18,6 +18,7 @@ import {
   INITIAL_ADJUSTMENTS,
   ADJUSTMENT_SECTIONS,
   getVisibleAdjustmentSections,
+  showSectionAndTools,
 } from '../../../utils/adjustments';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import { OPTION_SEPARATOR, Orientation } from '../../ui/AppProperties';
@@ -86,7 +87,7 @@ export default function Controls() {
   );
 
   const toggleWbPicker = useCallback(
-    () => setEditor((state) => ({ isWbPickerActive: !state.isWbPickerActive })),
+    () => setEditor((state) => ({ isWbPickerActive: !state.isWbPickerActive, mixerPickerProperty: null })),
     [setEditor],
   );
 
@@ -110,7 +111,7 @@ export default function Controls() {
         ...prev,
         sectionVisibility: {
           ...currentVisibility,
-          [sectionName]: !currentVisibility[sectionName],
+          [sectionName]: !(currentVisibility[sectionName] ?? true),
         },
       };
     });
@@ -170,10 +171,10 @@ export default function Controls() {
       setAdjustments((prev: Adjustments) => ({
         ...prev,
         ...copiedSectionAdjustments.values,
-        sectionVisibility: {
-          ...(prev.sectionVisibility || INITIAL_ADJUSTMENTS.sectionVisibility),
-          [sectionName]: true,
-        },
+        sectionVisibility: showSectionAndTools(
+          prev.sectionVisibility || INITIAL_ADJUSTMENTS.sectionVisibility,
+          sectionName,
+        ),
       }));
     };
 
@@ -185,10 +186,10 @@ export default function Controls() {
       setAdjustments((prev: Adjustments) => ({
         ...prev,
         ...resetValues,
-        sectionVisibility: {
-          ...(prev.sectionVisibility || INITIAL_ADJUSTMENTS.sectionVisibility),
-          [sectionName]: true,
-        },
+        sectionVisibility: showSectionAndTools(
+          prev.sectionVisibility || INITIAL_ADJUSTMENTS.sectionVisibility,
+          sectionName,
+        ),
       }));
     };
 
@@ -325,6 +326,8 @@ export default function Controls() {
                     isWbPickerActive={isWbPickerActive}
                     toggleWbPicker={toggleWbPicker}
                     onDragStateChange={onDragStateChange}
+                    onToggleVisibility={handleToggleVisibility}
+                    sectionVisibility={sectionVisibility}
                   />
                 </CollapsibleSection>
               </div>

@@ -35,6 +35,7 @@ export interface SliderMarker {
 }
 
 interface SliderProps {
+  animateValueChanges?: boolean;
   defaultValue?: number;
   disabled?: boolean;
   label: React.ReactNode;
@@ -53,7 +54,7 @@ interface SliderProps {
 }
 
 const DOUBLE_CLICK_THRESHOLD_MS = 150;
-const FINE_ADJUSTMENT_MULTIPLIER = 0.2;
+export const FINE_ADJUSTMENT_MULTIPLIER = 0.2;
 const TOUCH_DRAG_THRESHOLD_PX = 10;
 const TOUCH_THUMB_HIT_RADIUS_PX = 24;
 
@@ -63,6 +64,7 @@ const hasFineAdjustmentModifier = (event: MouseEvent | TouchEvent | React.MouseE
   'shiftKey' in event && (event.shiftKey || event.altKey);
 
 const Slider = ({
+  animateValueChanges = true,
   defaultValue = 0,
   disabled = false,
   label,
@@ -319,7 +321,7 @@ const Slider = ({
       return;
     }
 
-    if (isWheelActivelyChangingRef.current) {
+    if (isWheelActivelyChangingRef.current || !animateValueChanges) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -357,7 +359,7 @@ const Slider = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [value, isDragging]);
+  }, [value, isDragging, animateValueChanges]);
 
   useEffect(() => {
     if (!isEditing || isDragging) {

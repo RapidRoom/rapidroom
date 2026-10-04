@@ -1755,9 +1755,12 @@ pub(crate) async fn export_images_impl(
                         state
                             .original_image
                             .lock()
-                            .unwrap()
+                            .unwrap_or_else(|e| e.into_inner())
                             .clone()
-                            .filter(|loaded| parse_virtual_path(&loaded.path).0 == source_path)
+                            .filter(|loaded| {
+                                parse_virtual_path(&loaded.path).0
+                                    == parse_virtual_path(&source_path_str).0
+                            })
                     } else {
                         None
                     };

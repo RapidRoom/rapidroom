@@ -26,6 +26,7 @@ interface DenoiseModalProps {
   previewBase64: string | null;
   originalBase64: string | null;
   isProcessing: boolean;
+  jobId?: number | null;
   progressMessage: string | null;
   aiModelDownloadStatus: string | null;
   isRaw: boolean;
@@ -224,6 +225,7 @@ export default function DenoiseModal({
   previewBase64,
   originalBase64,
   isProcessing,
+  jobId = null,
   progressMessage,
   aiModelDownloadStatus,
   isRaw,
@@ -256,12 +258,12 @@ export default function DenoiseModal({
 
   useEffect(() => {
     const unlisten = listen('denoise-batch-progress', (e: any) => {
-      if (isOpen && isProcessing) setBatchProgress(e.payload);
+      if (isOpen && isProcessing && jobId !== null && e.payload?.jobId === jobId) setBatchProgress(e.payload);
     });
     return () => {
       unlisten.then((f) => f());
     };
-  }, [isOpen, isProcessing]);
+  }, [isOpen, isProcessing, jobId]);
 
   useEffect(() => {
     if (!isOpen || targetPaths.length === 0) {

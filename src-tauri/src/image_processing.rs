@@ -49,12 +49,34 @@ impl<'a> IntoCowImage<'a> for &'a std::sync::Arc<DynamicImage> {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageFlag {
+    Pick,
+    Reject,
+}
+
+fn deserialize_image_flag<'de, D>(deserializer: D) -> Result<Option<ImageFlag>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(serde_json::from_value(Value::deserialize(deserializer)?).unwrap_or(None))
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImageMetadata {
     pub version: u32,
     pub rating: u8,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub rating_is_explicit: bool,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_image_flag",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub flag: Option<ImageFlag>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub flag_is_explicit: bool,
     pub adjustments: Value,
     #[serde(default)]
     pub tags: Option<Vec<String>>,
@@ -68,6 +90,8 @@ impl Default for ImageMetadata {
             version: 1,
             rating: 0,
             rating_is_explicit: false,
+            flag: None,
+            flag_is_explicit: false,
             adjustments: Value::Null,
             tags: None,
             exif: None,
@@ -2086,18 +2110,24 @@ pub fn is_image_edited(
     bytemuck::bytes_of(&current_adj) != bytemuck::bytes_of(&default_adj)
 }
 
+fn is_section_visible(adjustments: &serde_json::Value, section: &str) -> bool {
+    adjustments
+        .get("sectionVisibility")
+        .and_then(|v| v.get(section))
+        .and_then(|s| s.as_bool())
+        .unwrap_or(true)
+}
+
+fn is_color_tool_visible(adjustments: &serde_json::Value, tool: &str) -> bool {
+    is_section_visible(adjustments, "color") && is_section_visible(adjustments, tool)
+}
+
 fn get_global_adjustments_from_json(
     js_adjustments: &serde_json::Value,
     is_raw: bool,
     tonemapper_override: Option<u32>,
 ) -> GlobalAdjustments {
-    let visibility = js_adjustments.get("sectionVisibility");
-    let is_visible = |section: &str| -> bool {
-        visibility
-            .and_then(|v| v.get(section))
-            .and_then(|s| s.as_bool())
-            .unwrap_or(true)
-    };
+    let is_visible = |section: &str| is_section_visible(js_adjustments, section);
 
     let get_val = |section: &str, key: &str, scale: f32, default: Option<f64>| -> f32 {
         if is_visible(section) {
@@ -2157,6 +2187,9 @@ fn get_global_adjustments_from_json(
     } else {
         Vec::new()
     };
+
+    let color_grading_visible = is_color_tool_visible(js_adjustments, "colorGrading");
+    let color_mixer_visible = is_color_tool_visible(js_adjustments, "colorMixer");
 
     let cg_obj = js_adjustments
         .get("colorGrading")
@@ -2318,32 +2351,32 @@ fn get_global_adjustments_from_json(
         _pad_cg2: 0.0,
         _pad_cg3: 0.0,
         _pad_cg4: 0.0,
-        color_grading_shadows: if is_visible("color") {
+        color_grading_shadows: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["shadows"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_midtones: if is_visible("color") {
+        color_grading_midtones: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["midtones"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_highlights: if is_visible("color") {
+        color_grading_highlights: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["highlights"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_global: if is_visible("color") {
+        color_grading_global: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["global"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_blending: if is_visible("color") {
+        color_grading_blending: if color_grading_visible {
             cg_obj["blending"].as_f64().unwrap_or(50.0) as f32 / SCALES.color_grading_blending
         } else {
             0.5
         },
-        color_grading_balance: if is_visible("color") {
+        color_grading_balance: if color_grading_visible {
             cg_obj["balance"].as_f64().unwrap_or(0.0) as f32 / SCALES.color_grading_balance
         } else {
             0.0
@@ -2353,7 +2386,7 @@ fn get_global_adjustments_from_json(
 
         color_calibration: color_cal_settings,
 
-        hsl: if is_visible("color") {
+        hsl: if color_mixer_visible {
             parse_hsl_adjustments(&js_adjustments.get("hsl").cloned().unwrap_or_default())
         } else {
             [HslColor::default(); 8]
@@ -2388,13 +2421,7 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
         return MaskAdjustments::default();
     }
 
-    let visibility = adj.get("sectionVisibility");
-    let is_visible = |section: &str| -> bool {
-        visibility
-            .and_then(|v| v.get(section))
-            .and_then(|s| s.as_bool())
-            .unwrap_or(true)
-    };
+    let is_visible = |section: &str| is_section_visible(adj, section);
 
     let get_val = |section: &str, key: &str, scale: f32| -> f32 {
         if is_visible(section) {
@@ -2425,6 +2452,9 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
     } else {
         Vec::new()
     };
+    let color_grading_visible = is_color_tool_visible(adj, "colorGrading");
+    let color_mixer_visible = is_color_tool_visible(adj, "colorMixer");
+
     let cg_obj = adj.get("colorGrading").cloned().unwrap_or_default();
 
     MaskAdjustments {
@@ -2461,32 +2491,32 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
         hue: get_val("color", "hue", 1.0),
         _pad_cg1: 0.0,
         _pad_cg2: 0.0,
-        color_grading_shadows: if is_visible("color") {
+        color_grading_shadows: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["shadows"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_midtones: if is_visible("color") {
+        color_grading_midtones: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["midtones"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_highlights: if is_visible("color") {
+        color_grading_highlights: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["highlights"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_global: if is_visible("color") {
+        color_grading_global: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["global"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_blending: if is_visible("color") {
+        color_grading_blending: if color_grading_visible {
             cg_obj["blending"].as_f64().unwrap_or(50.0) as f32 / SCALES.color_grading_blending
         } else {
             0.5
         },
-        color_grading_balance: if is_visible("color") {
+        color_grading_balance: if color_grading_visible {
             cg_obj["balance"].as_f64().unwrap_or(0.0) as f32 / SCALES.color_grading_balance
         } else {
             0.0
@@ -2494,7 +2524,7 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
         _pad5: 0.0,
         _pad6: 0.0,
 
-        hsl: if is_visible("color") {
+        hsl: if color_mixer_visible {
             parse_hsl_adjustments(&adj.get("hsl").cloned().unwrap_or_default())
         } else {
             [HslColor::default(); 8]
@@ -2551,6 +2581,7 @@ pub struct GpuContext {
     pub device: Arc<wgpu::Device>,
     pub queue: Arc<wgpu::Queue>,
     pub limits: wgpu::Limits,
+    pub adapter_info: wgpu::AdapterInfo,
     pub display: Arc<std::sync::Mutex<Option<WgpuDisplay>>>,
     /// Latest window size seen by the resize handler, not yet applied to the
     /// swapchain. Kept off the `display` mutex so the UI thread can always
@@ -2574,15 +2605,32 @@ fn yc_to_rgb(y: f32, cb: f32, cr: f32) -> (f32, f32, f32) {
     (r, g, b)
 }
 
+fn to_rgb32f_parallel(image: &DynamicImage) -> image::Rgb32FImage {
+    match image {
+        DynamicImage::ImageRgba32F(rgba) => {
+            let (w, h) = rgba.dimensions();
+            let mut rgb = vec![0.0f32; (w as usize) * (h as usize) * 3];
+            rgb.par_chunks_exact_mut(3)
+                .zip(rgba.as_raw().par_chunks_exact(4))
+                .for_each(|(dst, src)| dst.copy_from_slice(&src[..3]));
+            image::ImageBuffer::from_raw(w, h, rgb).expect("RGB buffer matches image dimensions")
+        }
+        other => other.to_rgb32f(),
+    }
+}
+
 pub fn remove_raw_artifacts_and_enhance(
     image: &mut DynamicImage,
     color_nr_inv_sigma: f32,
     sharpening_amount: f32,
 ) {
-    let mut buffer = image.to_rgb32f();
+    let convert_span = crate::perf_trace::span("enhance.to_rgb32f");
+    let mut buffer = to_rgb32f_parallel(image);
+    drop(convert_span);
     let w = buffer.width() as usize;
     let h = buffer.height() as usize;
 
+    let ycc_span = crate::perf_trace::span("enhance.ycbcr");
     let mut ycbcr_buffer = vec![0.0f32; w * h * 3];
 
     let src = buffer.as_raw();
@@ -2597,7 +2645,9 @@ pub fn remove_raw_artifacts_and_enhance(
             dest[2] = cr;
         });
 
+    drop(ycc_span);
     if color_nr_inv_sigma > 0.0 {
+        let _nr_span = crate::perf_trace::span("enhance.color_nr");
         let base_inv_sigma = color_nr_inv_sigma;
         const OFFSETS: [isize; 3] = [-5, -1, 3];
         const OFFSET_SQUARES: [f32; 3] = [25.0, 1.0, 9.0];
@@ -2682,6 +2732,7 @@ pub fn remove_raw_artifacts_and_enhance(
     }
 
     if sharpening_amount > 0.0 {
+        let _span = crate::perf_trace::span("enhance.detail");
         apply_gentle_detail_enhance(&mut buffer, &ycbcr_buffer, sharpening_amount);
     }
 
@@ -3735,5 +3786,137 @@ mod white_balance_sample_tests {
         let s = compute_white_balance_sample(&img, true, &diamond).unwrap();
         assert!(s.count < 16);
         assert!(s.temperature.abs() < 1e-4);
+    }
+}
+
+#[cfg(test)]
+mod color_tool_visibility_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn edited(visibility: Option<serde_json::Value>) -> serde_json::Value {
+        let mut adj = json!({
+            "saturation": 20,
+            "colorGrading": {
+                "shadows": { "hue": 200, "saturation": 40, "luminance": 0 },
+                "midtones": { "hue": 30, "saturation": 10, "luminance": 5 },
+                "highlights": { "hue": 60, "saturation": 25, "luminance": 0 },
+                "global": { "hue": 0, "saturation": 0, "luminance": 0 },
+                "blending": 70,
+                "balance": 15
+            },
+            "hsl": { "reds": { "hue": 10, "saturation": -20, "luminance": 5 } }
+        });
+        if let Some(v) = visibility {
+            adj["sectionVisibility"] = v;
+        }
+        adj
+    }
+
+    fn global(adj: &serde_json::Value) -> GlobalAdjustments {
+        get_global_adjustments_from_json(adj, true, None)
+    }
+
+    fn has_grading(a: &GlobalAdjustments) -> bool {
+        a.color_grading_shadows.saturation != 0.0 && a.color_grading_balance != 0.0
+    }
+
+    fn has_mixer(a: &GlobalAdjustments) -> bool {
+        a.hsl[0].hue != 0.0
+    }
+
+    #[test]
+    fn absent_tool_keys_render_like_all_visible() {
+        let all_on = global(&edited(Some(json!({
+            "basic": true, "curves": true, "color": true,
+            "colorGrading": true, "colorMixer": true, "details": true, "effects": true
+        }))));
+        for vis in [None, Some(json!({})), Some(json!({ "color": true }))] {
+            let a = global(&edited(vis));
+            assert_eq!(bytemuck::bytes_of(&a), bytemuck::bytes_of(&all_on));
+        }
+        assert!(has_grading(&all_on) && has_mixer(&all_on));
+    }
+
+    #[test]
+    fn tools_toggle_independently() {
+        let no_grading = global(&edited(Some(json!({ "colorGrading": false }))));
+        assert!(!has_grading(&no_grading) && has_mixer(&no_grading));
+        assert_eq!(no_grading.color_grading_blending, 0.5);
+
+        let no_mixer = global(&edited(Some(json!({ "colorMixer": false }))));
+        assert!(has_grading(&no_mixer) && !has_mixer(&no_mixer));
+        assert!(no_mixer.saturation != 0.0);
+    }
+
+    #[test]
+    fn color_panel_eye_bypasses_both_tools() {
+        let a = global(&edited(Some(json!({
+            "color": false, "colorGrading": true, "colorMixer": true
+        }))));
+        assert!(!has_grading(&a) && !has_mixer(&a));
+        assert_eq!(a.saturation, 0.0);
+    }
+
+    #[test]
+    fn mask_tools_follow_the_same_rules() {
+        let on = get_mask_adjustments_from_json(&edited(None));
+        let explicit = get_mask_adjustments_from_json(&edited(Some(json!({ "color": true }))));
+        assert_eq!(bytemuck::bytes_of(&on), bytemuck::bytes_of(&explicit));
+        assert!(on.color_grading_shadows.saturation != 0.0 && on.hsl[0].hue != 0.0);
+
+        let no_grading =
+            get_mask_adjustments_from_json(&edited(Some(json!({ "colorGrading": false }))));
+        assert!(no_grading.color_grading_shadows.saturation == 0.0 && no_grading.hsl[0].hue != 0.0);
+
+        let no_mixer =
+            get_mask_adjustments_from_json(&edited(Some(json!({ "colorMixer": false }))));
+        assert!(no_mixer.color_grading_shadows.saturation != 0.0 && no_mixer.hsl[0].hue == 0.0);
+
+        let parent_off = get_mask_adjustments_from_json(&edited(Some(json!({ "color": false }))));
+        assert!(parent_off.color_grading_shadows.saturation == 0.0 && parent_off.hsl[0].hue == 0.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::{assert_bits_eq, sample_values};
+    use image::{ImageBuffer, Luma, Rgb, Rgba};
+
+    const W: u32 = 41;
+    const H: u32 = 19;
+
+    fn rgba32f_image() -> DynamicImage {
+        let values = sample_values((W * H * 4) as usize);
+        DynamicImage::ImageRgba32F(ImageBuffer::from_raw(W, H, values).unwrap())
+    }
+
+    #[test]
+    fn to_rgb32f_parallel_matches_image_crate_for_rgba_f32() {
+        let image = rgba32f_image();
+        assert_bits_eq(
+            image.to_rgb32f().as_raw(),
+            to_rgb32f_parallel(&image).as_raw(),
+        );
+    }
+
+    #[test]
+    fn to_rgb32f_parallel_matches_image_crate_for_other_formats() {
+        let images = [
+            DynamicImage::ImageRgb8(ImageBuffer::from_fn(W, H, |x, y| {
+                Rgb([(x * 7) as u8, (y * 11) as u8, (x + y) as u8])
+            })),
+            DynamicImage::ImageRgba16(ImageBuffer::from_fn(W, H, |x, y| {
+                Rgba([(x * 997) as u16, (y * 1553) as u16, 40000, (x * y) as u16])
+            })),
+            DynamicImage::ImageLuma8(ImageBuffer::from_fn(W, H, |x, y| Luma([(x ^ y) as u8]))),
+        ];
+        for image in images {
+            assert_bits_eq(
+                image.to_rgb32f().as_raw(),
+                to_rgb32f_parallel(&image).as_raw(),
+            );
+        }
     }
 }
