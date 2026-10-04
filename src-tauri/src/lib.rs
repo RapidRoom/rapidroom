@@ -30,6 +30,7 @@ mod android_integration;
 mod app_settings;
 mod app_state;
 mod apple_raw;
+mod batch_rename;
 mod bench;
 mod cache_utils;
 mod camera_tethering;
@@ -39,6 +40,7 @@ mod denoising;
 mod exif_processing;
 mod export_processing;
 mod file_management;
+mod file_naming;
 mod focus_stacking;
 mod formats;
 mod gpu_processing;
@@ -63,6 +65,7 @@ mod tagging;
 mod tagging_utils;
 #[cfg(test)]
 mod test_support;
+mod two_phase_rename;
 mod window_customizer;
 
 use std::collections::{HashMap, hash_map::DefaultHasher};
@@ -2351,6 +2354,10 @@ pub fn run() {
             file_management::move_files,
             file_management::rename_folder,
             file_management::rename_files,
+            file_management::preview_rename_files,
+            file_management::get_last_rename,
+            file_management::undo_last_rename,
+            file_management::generate_export_filename,
             file_management::duplicate_file,
             file_management::show_in_finder,
             file_management::delete_files_from_disk,
