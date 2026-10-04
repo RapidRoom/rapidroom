@@ -488,6 +488,7 @@ struct ImportedXmpSidecar {
     source_path: PathBuf,
     sidecar_path: PathBuf,
     metadata: ImageMetadata,
+    not_transferred: Vec<&'static str>,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -504,6 +505,22 @@ pub struct XmpSidecarImportResult {
     pub failures: Vec<String>,
     pub imported_paths: Vec<String>,
     pub unchanged_paths: Vec<String>,
+    pub not_transferred: Vec<XmpNotTransferred>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct XmpNotTransferred {
+    pub path: String,
+    pub items: Vec<&'static str>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct XmpImageImportResult {
+    #[serde(flatten)]
+    pub metadata: ImageMetadata,
+    pub not_transferred: Vec<&'static str>,
 }
 
 pub fn parse_virtual_path(virtual_path: &str) -> (PathBuf, PathBuf) {
@@ -1592,21 +1609,14 @@ fn apply_exif_orientation(img: DynamicImage, orientation: u32) -> DynamicImage {
     }
 }
 
-fn try_load_embedded_raw_preview(source_path: &Path, target_res: u32) -> Option<DynamicImage> {
-    let mmap = read_file_mapped(source_path).ok()?;
-    let exif = exif_processing::read_exif(&mmap)?;
-
-    let (jpeg_bytes, ifd) = find_embedded_jpeg(&exif, exif::In::PRIMARY)
+fn exif_embedded_preview(exif: &exif::Exif) -> Option<DynamicImage> {
+    let (jpeg_bytes, ifd) = find_embedded_jpeg(exif, exif::In::PRIMARY)
         .map(|b| (b, exif::In::PRIMARY))
         .or_else(|| {
-            find_embedded_jpeg(&exif, exif::In::THUMBNAIL).map(|b| (b, exif::In::THUMBNAIL))
+            find_embedded_jpeg(exif, exif::In::THUMBNAIL).map(|b| (b, exif::In::THUMBNAIL))
         })?;
 
     let img = image::load_from_memory_with_format(jpeg_bytes, image::ImageFormat::Jpeg).ok()?;
-
-    if img.width().max(img.height()) < (target_res as f32 * 0.95) as u32 {
-        return None;
-    }
 
     let orientation = exif
         .get_field(exif::Tag::Orientation, ifd)
@@ -1614,6 +1624,19 @@ fn try_load_embedded_raw_preview(source_path: &Path, target_res: u32) -> Option<
         .unwrap_or(1);
 
     Some(apply_exif_orientation(img, orientation))
+}
+
+fn try_load_embedded_raw_preview(source_path: &Path, target_res: u32) -> Option<DynamicImage> {
+    let mmap = read_file_mapped(source_path).ok()?;
+
+    let preview = match exif_processing::read_exif(&mmap) {
+        Some(exif) => exif_embedded_preview(&exif)?,
+        None => {
+            image_loader::safe_embedded_preview_fallback(&mmap, &source_path.to_string_lossy())?
+        }
+    };
+
+    (preview.width().max(preview.height()) >= (target_res as f32 * 0.95) as u32).then_some(preview)
 }
 
 pub fn generate_thumbnail_data(
@@ -2912,6 +2935,8 @@ fn import_xmp_adjustments_to_sidecar(
         return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
     }
 
+    let not_transferred =
+        preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
     metadata.adjustments = converted_preset.adjustments;
     resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
@@ -2924,6 +2949,7 @@ fn import_xmp_adjustments_to_sidecar(
         source_path,
         sidecar_path,
         metadata,
+        not_transferred,
     })
 }
 
@@ -2933,7 +2959,7 @@ pub fn import_xmp_adjustments_for_image(
     xmp_path: Option<String>,
     app_handle: AppHandle,
     state: tauri::State<AppState>,
-) -> Result<ImageMetadata, String> {
+) -> Result<XmpImageImportResult, String> {
     ensure_card_writable_for_paths(&[&path])?;
     let xmp_path = xmp_path
         .map(PathBuf::from)
@@ -2943,6 +2969,7 @@ pub fn import_xmp_adjustments_for_image(
     let imported = import_xmp_adjustments_to_sidecar(&path, &xmp_path, lens_db.as_deref())?;
     let imported_adjustments = imported.metadata.adjustments.clone();
     let sidecar_path = imported.sidecar_path.clone();
+    let not_transferred = imported.not_transferred;
 
     save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
 
@@ -2952,7 +2979,10 @@ pub fn import_xmp_adjustments_for_image(
         sidecar_path.display()
     );
 
-    Ok(crate::exif_processing::load_sidecar(&sidecar_path))
+    Ok(XmpImageImportResult {
+        metadata: crate::exif_processing::load_sidecar(&sidecar_path),
+        not_transferred,
+    })
 }
 
 #[tauri::command]
@@ -2988,6 +3018,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
             failures: traversal_failures,
             imported_paths: Vec::new(),
             unchanged_paths: Vec::new(),
+            not_transferred: Vec::new(),
         };
 
         let emit_progress = |current: usize, result: &XmpSidecarImportResult| {
@@ -3017,6 +3048,12 @@ pub async fn import_matching_xmp_sidecars_in_folder(
                         );
                     }
                     result.imported += 1;
+                    if !imported.not_transferred.is_empty() {
+                        result.not_transferred.push(XmpNotTransferred {
+                            path: path_string.clone(),
+                            items: imported.not_transferred,
+                        });
+                    }
                     result.imported_paths.push(path_string);
                 }
                 Err(error) if error == NO_SUPPORTED_XMP_CONTENT_ERROR => {

@@ -288,6 +288,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -781,6 +791,17 @@
         "tool": "Werkzeug"
       }
     },
+    "referenceView": {
+      "active": "Aktiv",
+      "cancel": "Abbrechen",
+      "chooseHint": "Klicke im Filmstreifen auf ein Foto, um es als Referenz zu verwenden.",
+      "clear": "Referenz entfernen",
+      "close": "Referenzansicht schließen",
+      "readOnly": "Schreibgeschützt",
+      "reference": "Referenz",
+      "replace": "Andere Referenz wählen",
+      "unavailable": "Referenzbild nicht verfügbar"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Anpassen",
@@ -802,6 +823,7 @@
         "fullscreen": "Vollbild umschalten (F)",
         "iso": "ISO",
         "redo": "Wiederholen (Strg+Y) oder Verlauf (Rechtsklick)",
+        "referenceView": "Referenzansicht (Umschalt+R)",
         "showEdited": "Bearbeitet anzeigen (B)",
         "showOriginal": "Original anzeigen (B)",
         "shutterSpeed": "Verschlusszeit",
@@ -1687,6 +1709,7 @@
         "toggle_masks": "Maskieren-Panel ein-/ausblenden",
         "toggle_metadata": "Metadaten-Panel ein-/ausblenden",
         "toggle_presets": "Vorgaben-Panel ein-/ausblenden",
+        "toggle_reference_view": "Referenzansicht ein/aus",
         "toggle_right_panel": "Rechtes Panel ein-/ausblenden",
         "undo": "Bearbeitung rückgängig machen",
         "zoom_100": "Auf 100% zoomen",

@@ -4,11 +4,13 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**39 changes on top of RapidRAW.** 18 fix upstream issues that had been open a median of 68 days when RapidRoom shipped the fix; 17 of them still open upstream. 13 offered upstream as PRs, 3 merged so far.
+**46 changes on top of RapidRAW.** 18 fix upstream issues that had been open a median of 68 days when RapidRoom shipped the fix; 17 of them still open upstream. 13 offered upstream as PRs, 3 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                                                           |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Lens correction evaluates Lensfun profiles the way Lensfun does: right radius per model, rescaled terms instead of ×2.5, calibration that fits the sensor ⚑                        | fix         | [@beneedict](https://github.com/beneedict), [@yojen7](https://github.com/yojen7)                                         | [#1688](https://github.com/CyberTimon/RapidRAW/issues/1688); [#1689](https://github.com/CyberTimon/RapidRAW/issues/1689); PR [#1705](https://github.com/CyberTimon/RapidRAW/issues/1705)                                                                                           |
+| Lightroom XMP import: lens profile turns on lens correction, profile-look tone curves are kept, dead keys are dropped, and an import report lists what was not transferred ⚑       | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
+| Editor Reference View: pin a read-only reference photo beside the image you are editing (Shift+R)                                                                                  | feature     | [@cgasgarth](https://github.com/cgasgarth)                                                                               | not yet offered                                                                                                                                                                                                                                                                    |
 | White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct                | fix         | [@lalibertemarc](https://github.com/lalibertemarc)                                                                       | [#1251](https://github.com/CyberTimon/RapidRAW/issues/1251) open 120 d; [#746](https://github.com/CyberTimon/RapidRAW/issues/746) open 219 d; [#1768](https://github.com/CyberTimon/RapidRAW/issues/1768) open 11 d                                                                |
 | Tauri 2.12: Native Titlebar works with tiling Wayland compositors (Hyprland)                                                                                                       | platform    | [@yojen7](https://github.com/yojen7)                                                                                     | PR [#1813](https://github.com/CyberTimon/RapidRAW/pull/1813) merged                                                                                                                                                                                                                |
 | No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw … \| head`)                                                                                                   | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | PR [#1819](https://github.com/CyberTimon/RapidRAW/pull/1819) open                                                                                                                                                                                                                  |
@@ -50,6 +52,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Linux release packaging: a .deb and an AppImage named RapidRoom that install side by side with RapidRAW                                                                            | platform    | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
 | Denoise dialogs stay open on busy backdrop clicks; Cancel stops waiting and discards the eventual UI result                                                                        | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1697](https://github.com/CyberTimon/RapidRAW/issues/1697) open 28 d                                                                                                                                                                                                              |
 | DxO compressed DNG highlights no longer wrap to black dots when lookup-table dithering exceeds 16 bits ⚑                                                                           | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1119](https://github.com/CyberTimon/RapidRAW/issues/1119) open 156 d                                                                                                                                                                                                             |
+| LinearRaw gamma modes use the sRGB exponent 2.4 when removing gamma ⚑                                                                                                              | fix         | [@pluja](https://github.com/pluja)                                                                                       | PR [#1633](https://github.com/CyberTimon/RapidRAW/issues/1633)                                                                                                                                                                                                                     |
+| Saturated red highlights use a continuous magenta correction instead of abrupt green lifts ⚑                                                                                       | fix         | [@3048mm](https://github.com/3048mm)                                                                                     | PR [#1824](https://github.com/CyberTimon/RapidRAW/issues/1824)                                                                                                                                                                                                                     |
+| HSL mixer hue and saturation are evaluated in sRGB perceptual space while luminance stays linear ⚑                                                                                 | fix         | [@lalibertemarc](https://github.com/lalibertemarc)                                                                       | [#1775](https://github.com/CyberTimon/RapidRAW/issues/1775); PR [#1777](https://github.com/CyberTimon/RapidRAW/issues/1777)                                                                                                                                                        |
+| Sync upstream main: shared RAW embedded previews, Nikon lens metadata fallback and mask Escape/cache fixes ⚑                                                                       | fix         | [@lalibertemarc](https://github.com/lalibertemarc), [@CyberTimon](https://github.com/CyberTimon)                         | PR [#1823](https://github.com/CyberTimon/RapidRAW/issues/1823); PR [#1815](https://github.com/CyberTimon/RapidRAW/issues/1815); PR [#1827](https://github.com/CyberTimon/RapidRAW/issues/1827)                                                                                     |
+| Inactive HSL preserves linear RGB exactly; saturated colours no longer turn grey under positive vibrance ⚑                                                                         | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-04.
 
@@ -63,6 +70,23 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** [#1688](https://github.com/CyberTimon/RapidRAW/issues/1688); [#1689](https://github.com/CyberTimon/RapidRAW/issues/1689); PR [#1705](https://github.com/CyberTimon/RapidRAW/issues/1705)
 - **Commits:** [99a142e](https://github.com/beneedict/RapidRAW/commit/99a142e6e7be658c721f5700811199429efb22ee)
 - **Notes:** Only images with a Lensfun lens profile change, and only when the lens is chosen or detected again: edits saved by an older version keep their previous lens values and render bit for bit as before. Checked against the Lensfun C++ library on 13 cases (ptlens, poly3, poly5; full frame, APS-C, Micro Four Thirds, compact; 3:2, 4:3, 16:9, portrait). The embedded RAW lens profiles of the source branch (CyberTimon/RapidRAW#1687) are not included.
+
+### Lightroom XMP import: lens profile turns on lens correction, profile-look tone curves are kept, dead keys are dropped, and an import report lists what was not transferred
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** not yet offered
+- **Notes:** Follow-up to the Lightroom import (RapidRoom #54). Changes what imported sidecars render: crs:LensProfileEnable=1 now switches lens correction to auto with distortion and vignetting on; the tone curve of a nested look (Adobe Color, creative profiles) is composed under the user's luma curve; ToneCurvePV2012 points are copied without the old shadow-dampening rewrite; SharpenEdgeMasking maps to the sharpening threshold. sharpenRadius, sharpenDetail, sharpenMasking, colorNoiseDetail and colorNoiseSmoothness are no longer written (nothing read them). Exposure scaling to RapidRAW's 1.25 EV unit is in the code but off (SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS) until the tone calibration lands. Single-photo and folder imports now report custom white balance, profile look, AI Denoise, masks and Point Color when they could not be transferred. Written with Claude Code.
+
+### Editor Reference View: pin a read-only reference photo beside the image you are editing (Shift+R)
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@cgasgarth](https://github.com/cgasgarth), from cgasgarth/RapidRaw
+- **Upstream:** not yet offered
+- **Commits:** [aa0e235](https://github.com/cgasgarth/RapidRaw/commit/aa0e23573923dfc45c2c5d97b26b4e1e8ee77fdf)
+- **Notes:** Reference-view state and toolbar UX ported from cgasgarth's Lightroom reference view and adapted to RapidRoom's editor by Claude Code. Pick the reference from the filmstrip. It is rendered from its saved adjustments through the existing read-only preview command, has its own zoom and pan, and never becomes the selected, edited or exported image. Display only: no change to the image pipeline or exports.
 
 ### White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct
 
@@ -393,3 +417,47 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** [#1119](https://github.com/CyberTimon/RapidRAW/issues/1119) open 156 d
 - **Commits:** [5a44585](https://github.com/yojen7/RapidRAW-DngLab/commit/5a44585da25c7ff783c83a4bff25281f0cf28159), [4c96062](https://github.com/yojen7/RapidRAW-DngLab/commit/4c960626978287ab8e4aabe70a6cfa60b4582273)
 - **Notes:** Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only.
+
+### LinearRaw gamma modes use the sRGB exponent 2.4 when removing gamma
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@pluja](https://github.com/pluja), from pluja/RapidRAW-Fork
+- **Upstream:** PR [#1633](https://github.com/CyberTimon/RapidRAW/issues/1633)
+- **Commits:** [eb68ee8](https://github.com/pluja/RapidRAW-Fork/commit/eb68ee88ba309a6b4e9770046204bc6292f0f1d7)
+- **Notes:** Correct the power from 3.0 to 2.4 in the optional gamma and gamma_skip_calib modes for LinearRaw files. Auto/skip_calib modes, Bayer and X-Trans files do not use this inverse transfer function.
+
+### Saturated red highlights use a continuous magenta correction instead of abrupt green lifts
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@3048mm](https://github.com/3048mm), from CyberTimon/RapidRAW
+- **Upstream:** PR [#1824](https://github.com/CyberTimon/RapidRAW/issues/1824)
+- **Commits:** [e99082a](https://github.com/CyberTimon/RapidRAW/commit/e99082ad1d3cfea3db1f3e6611340f024f664258)
+- **Notes:** Arrives through the normal upstream-main merge, with original author and Claude co-author retained. Weight the existing correction by relative magenta excess; the empirical full-weight threshold is 0.25. Human visual/reference approval is required.
+
+### HSL mixer hue and saturation are evaluated in sRGB perceptual space while luminance stays linear
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@lalibertemarc](https://github.com/lalibertemarc), from CyberTimon/RapidRAW
+- **Upstream:** [#1775](https://github.com/CyberTimon/RapidRAW/issues/1775); PR [#1777](https://github.com/CyberTimon/RapidRAW/issues/1777)
+- **Commits:** [e883421](https://github.com/CyberTimon/RapidRAW/commit/e8834210d9c88793b463f4feca3b6e5ee3f65e55)
+- **Notes:** Normal upstream-main merge. Active effective bands convert linear RGB to sRGB before the HSV split and back before the linear-luminance rescale. Inactive bands now return original linear RGB exactly; the accompanying zero-HSL and vibrance-domain correction has its own entry and rendering evidence.
+
+### Sync upstream main: shared RAW embedded previews, Nikon lens metadata fallback and mask Escape/cache fixes
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@lalibertemarc](https://github.com/lalibertemarc), [@CyberTimon](https://github.com/CyberTimon), from CyberTimon/RapidRAW
+- **Upstream:** PR [#1823](https://github.com/CyberTimon/RapidRAW/issues/1823); PR [#1815](https://github.com/CyberTimon/RapidRAW/issues/1815); PR [#1827](https://github.com/CyberTimon/RapidRAW/issues/1827)
+- **Commits:** [0957a1a](https://github.com/CyberTimon/RapidRAW/commit/0957a1ae31248e46196e24c0fe81b92f71f9f69d), [c11c7a5](https://github.com/CyberTimon/RapidRAW/commit/c11c7a5c8d0c78b9f28175a377c53a6569aebe53), [4324809](https://github.com/CyberTimon/RapidRAW/commit/432480973061898dd04fa3d04119bd02d6bd372f), [4e45e62](https://github.com/CyberTimon/RapidRAW/commit/4e45e6206fb63d37dd5e2764db8a134a79d2034c), [9671795](https://github.com/CyberTimon/RapidRAW/commit/9671795e65803df4fc75239d752ddd16b829345b), [cf6813f](https://github.com/CyberTimon/RapidRAW/commit/cf6813f198a252068eaa349eec7598d6761e830a)
+- **Notes:** Preserve every RapidRoom change and upstream author. The additive EXIF conflict keeps bounded rating readers and the new lens helper. Existing float upload and ICC work are deduplicated; rawler crop/dither, mask/export protections and cache identity are retained. Render-changing highlight and HSL commits have separate entries. Cache fixes can correct stale rendered masks/exports; the corpus has no interactive cache-reuse scenarios, so those paths still need running-app testing.
+
+### Inactive HSL preserves linear RGB exactly; saturated colours no longer turn grey under positive vibrance
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** not yet offered
+- **Notes:** Check all eight effective per-pixel HSL bands before clamping or conversion, including mask contributions. Keep the positive-vibrance fractional power base nonnegative when HSV saturation rounds above one. Active HSL retains the upstream perceptual conversion and existing negative-channel policy; HDR values above one remain supported. Written with Codex. Rendering evidence and GPU regression tests accompany the upstream-main sync.
