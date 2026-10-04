@@ -138,6 +138,7 @@ pub fn load_base_image_from_bytes(
         }) {
             Ok(Ok(mut image)) => {
                 if !use_fast_raw_dev && (color_nr_amount > 0.0 || sharpening_amount > 0.0) {
+                    let _span = crate::perf_trace::span("decode.enhance_total");
                     let start = Instant::now();
                     remove_raw_artifacts_and_enhance(
                         &mut image,
@@ -326,14 +327,9 @@ fn largest_tiff_jpeg_preview(buf: &[u8]) -> Option<DynamicImage> {
     None
 }
 
-fn embedded_preview_fallback(bytes: &[u8], path: &str) -> Option<DynamicImage> {
-    let img = match largest_tiff_jpeg_preview(bytes) {
-        Some(img) => img,
-        None => rawler::analyze::extract_preview_pixels(
-            path,
-            &rawler::decoders::RawDecodeParams::default(),
-        )
-        .ok()?,
+fn embedded_preview_fallback(bytes: &[u8]) -> Option<DynamicImage> {
+    let Some(img) = largest_tiff_jpeg_preview(bytes) else {
+        return crate::raw_processing::extract_embedded_preview(bytes);
     };
 
     let orientation = ExifReader::new()
@@ -351,10 +347,8 @@ fn embedded_preview_fallback(bytes: &[u8], path: &str) -> Option<DynamicImage> {
     })
 }
 
-fn safe_embedded_preview_fallback(bytes: &[u8], path: &str) -> Option<DynamicImage> {
-    match panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        embedded_preview_fallback(bytes, path)
-    })) {
+pub fn safe_embedded_preview_fallback(bytes: &[u8], path: &str) -> Option<DynamicImage> {
+    match panic::catch_unwind(panic::AssertUnwindSafe(|| embedded_preview_fallback(bytes))) {
         Ok(preview) => preview,
         Err(_) => {
             log::warn!("Embedded RAW preview extraction panicked for '{}'", path);
