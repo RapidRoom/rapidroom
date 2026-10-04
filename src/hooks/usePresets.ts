@@ -21,9 +21,15 @@ export interface PresetImportFailure {
   error: string;
 }
 
+export interface PresetImportWarning {
+  fileName: string;
+  message: string;
+}
+
 export interface PresetImportResult {
   presets: Array<UserPreset>;
   failures: Array<PresetImportFailure>;
+  warnings: Array<PresetImportWarning>;
 }
 
 function arrayMove(array: any, from: any, to: any) {
@@ -181,6 +187,17 @@ export function usePresets(currentAdjustments: Adjustments) {
           },
         };
       }
+      return item;
+    });
+    setPresets(updatedPresets);
+    savePresetsToBackend(updatedPresets);
+  };
+
+  const toggleFavorite = (id: string) => {
+    const toggle = (p: Preset) => (p.id === id ? { ...p, favorite: !p.favorite } : p);
+    const updatedPresets = presets.map((item: UserPreset) => {
+      if (item.preset) return { preset: toggle(item.preset) };
+      if (item.folder) return { folder: { ...item.folder, children: item.folder.children.map(toggle) } };
       return item;
     });
     setPresets(updatedPresets);
@@ -655,5 +672,6 @@ export function usePresets(currentAdjustments: Adjustments) {
     renameItem,
     reorderItems,
     sortAllPresetsAlphabetically,
+    toggleFavorite,
   };
 }

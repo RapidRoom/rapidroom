@@ -23,6 +23,23 @@
       "notes": "Only in builds with `--features mcp`. Listens on 127.0.0.1:7790 without authentication while the app runs; requests from browsers are refused. The default build has no MCP code and no listener. Comparison with sheldonxxxx's headless MCP and the security notes are in rapidroom/MCP.md."
     },
     {
+      "id": "lightroom-collections-import",
+      "title": "Import Lightroom Classic collections and collection sets from a .lrcat catalog as albums, with a preview of found and missing photos and relinking of moved root folders",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["Bennyyy27"],
+      "source": "Bennyyy27/RapidRAW, branch scs/compact-ui (adapted in RapidRoom: shared read-only catalog reader, preview dialog)",
+      "commits": [
+        "https://github.com/Bennyyy27/RapidRAW/commit/3bd74e26c6424d57daa8d404eb32fc8157de8b27",
+        "https://github.com/Bennyyy27/RapidRAW/commit/0cfa8dd9426fb5f86a3c0781b2f8c6f18083dbab"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Right-click an empty spot under Albums and choose Import Lightroom Collections. The catalog is only read: a closed catalog is opened as an immutable SQLite file, one with a leftover -wal or -journal file is read from a temporary copy, and a catalog that Lightroom Classic has open (.lock file) is refused. A preview lists collection sets, collections, found and missing photos, skipped smart collections, and each root folder with where it was found, so roots from a Windows or macOS catalog can be relinked before importing. Missing photos stay in their albums. Importing the same catalog again refreshes its group in place. Smart collections, books, slideshows, prints, web galleries and develop settings are not imported. Album saves are now atomic. Adds the rusqlite dependency (MIT; bundled SQLite is public domain). Not yet tested against a real Lightroom catalog in RapidRoom. Harvested with Claude Code.",
+      "highlight": "**Bring your Lightroom collections along:** import collection sets and collections from a catalog"
+    },
+    {
       "id": "pipeline-bench-parallel-conversions",
       "title": "Faster raw decoding: highlight recovery and pixel-format conversions run on all CPU cores; the GPU adapter is logged; `rapidraw bench` measures the image pipeline without a window",
       "category": "performance",
@@ -107,7 +124,7 @@
     },
     {
       "id": "closed-pipe",
-      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw \u2026 | head`)",
+      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw … | head`)",
       "category": "fix",
       "landed": "2026-10-02",
       "authors": ["yojen7"],
@@ -493,8 +510,8 @@
       "upstream_issues": ["CyberTimon/RapidRAW#1749", "CyberTimon/RapidRAW#1583"],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Auto-advance is off by default (Settings \u2192 General) and only moves on when a single image is rated with the 0\u20135 keys; it stops at the last image. The \u2265/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
-      "highlight": "**Faster culling:** rate with 0\u20135 and jump straight to the next photo, and filter for exactly N stars."
+      "notes": "Auto-advance is off by default (Settings → General) and only moves on when a single image is rated with the 0–5 keys; it stops at the last image. The ≥/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
+      "highlight": "**Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars."
     },
     {
       "id": "lightroom-xmp-import",
@@ -686,6 +703,50 @@
       "upstream_prs": [],
       "rendering_change": true,
       "notes": "Check all eight effective per-pixel HSL bands before clamping or conversion, including mask contributions. Keep the positive-vibrance fractional power base nonnegative when HSV saturation rounds above one. Active HSL retains the upstream perceptual conversion and existing negative-channel policy; HDR values above one remain supported. Written with Codex. Rendering evidence and GPU regression tests accompany the upstream-main sync."
+    },
+    {
+      "id": "lrtemplate-lua-import",
+      "title": "Import old Lightroom `.lrtemplate` presets stored as plain Lua tables, without running any Lua",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["laurensiusadi"],
+      "source": "laurensiusadi/RapidRAW",
+      "commits": ["https://github.com/laurensiusadi/RapidRAW/commit/bb60210c609c6939d34deba9c1043fe9d01bde92"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Rewritten from the fork's regex converter as a bounded Lua-table parser that feeds the existing XMP preset mapping, so values match .xmp presets. Settings nested in Looks or local corrections are not read. Batch preset import lists what was not imported (profile look, masks, Point Color, camera or lens profile, custom white balance) using the same identifiers as the XMP sidecar report; malformed files or curves are rejected with a reason. Importing only adds a preset; photos change only when you apply it. Harvested with Claude Code."
+    },
+    {
+      "id": "pick-reject-flags",
+      "title": "Pick and reject flags, separate from star ratings: P / X / U shortcuts, badges, a flag filter (picked, unflagged, hide rejected, rejected) and Delete rejected",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["lalibertemarc", "yojen7"],
+      "source": "lalibertemarc/RapidRAW (adapted by yojen7)",
+      "commits": ["https://github.com/lalibertemarc/RapidRAW/commit/1b4b9db115f0c1aa6f12e2b4bc0515ffb7fb0eb6"],
+      "upstream_issues": ["CyberTimon/RapidRAW#1599", "CyberTimon/RapidRAW#994", "CyberTimon/RapidRAW#1057"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The flag is its own `flag` field in the sidecar, so a reject keeps the stars and older builds ignore it. With XMP sync on, a reject is written as xmp:Rating=\"-1\" (darktable, Bridge and Lightroom use the same value) and read back from it; a flag you set or remove in RapidRoom wins over the .xmp, and a virtual copy never changes the original's reject. A Lightroom XMP import brings rejects in. The Presets panel shortcut moves from P to Shift+P. Upstream has two other designs for this, PRs 1075 (reject as rating -1) and 1272 (flags as tags); the PR for RapidRoom #32 explains the choice. Harvested with Claude Code. Local Codex review propagates sidecar save failures, keeps XMP unchanged when saving fails, and serializes optimistic rating/flag writes so a refused write restores the saved state without discarding later actions.",
+      "highlight": "**Pick and reject flags for culling,** separate from stars: P, X and U as in Lightroom, a flag filter, and rejects that darktable, Bridge and Lightroom understand."
+    },
+    {
+      "id": "presets-left-sidebar",
+      "title": "Presets move to the left sidebar with compact rows, hover previews, favorites and folder reordering",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["laurensiusadi"],
+      "source": "laurensiusadi/RapidRAW",
+      "commits": [
+        "https://github.com/laurensiusadi/RapidRAW/commit/953588443099def3fd0c5e92a55e1966d994e385",
+        "https://github.com/laurensiusadi/RapidRAW/commit/9e478b66eeee63be3e79238af708916655f52125"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Hovering a preset previews it on the image without touching the edit, its history or sidecars; only a click applies it. Saved workspaces keep their layout: Presets only moves when it is still in its old default spot on the right. Preset preview thumbnails are gone. Enter/Space apply a focused preset. Scrollbar thumbs across the app are more subtle.",
+      "highlight": "**Presets at your fingertips.** Presets sit in the left sidebar as compact rows: hover to preview one on your photo, click to apply, and star favorites to pin them on top."
     }
   ]
 }

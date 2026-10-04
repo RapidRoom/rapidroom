@@ -52,6 +52,8 @@ mod inpainting;
 mod launch_request;
 mod lens_blur;
 mod lens_correction;
+mod lightroom;
+mod lrtemplate;
 mod lut_processing;
 mod mask_generation;
 #[cfg(feature = "mcp")]
@@ -2416,12 +2418,15 @@ pub fn run() {
             file_management::clear_thumbnail_cache,
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,
+            file_management::set_flag_for_paths,
             file_management::import_files,
             file_management::create_virtual_copy,
             file_management::get_albums,
             file_management::save_albums,
             file_management::add_to_album,
             file_management::get_album_images,
+            lightroom::collections::preview_lightroom_collections,
+            lightroom::collections::import_lightroom_collections,
             tagging::start_background_indexing,
             tagging::clear_ai_tags,
             tagging::clear_all_tags,

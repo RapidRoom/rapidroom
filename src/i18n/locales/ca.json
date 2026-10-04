@@ -159,13 +159,17 @@
       "confirmDeleteGroupNested": "Confirmar eliminació del grup i de tots els àlbums niuats",
       "deleteAlbum": "Eliminar àlbum",
       "deleteGroup": "Eliminar grup",
+      "importLightroom": "Import Lightroom Collections…",
+      "lightroomCatalog": "Lightroom Catalog",
       "moveHere": "Moure aquí",
       "moveTo": "Moure a...",
       "newAlbum": "Nou àlbum",
       "newGroup": "Nou grup",
+      "relinkLightroom": "Relink Lightroom Folders…",
       "renameAlbum": "Reanomenar àlbum",
       "renameGroup": "Reanomenar grup",
-      "rootDir": "Directori arrel"
+      "rootDir": "Directori arrel",
+      "selectLightroomCatalog": "Select Lightroom Catalog"
     },
     "colors": {
       "blue": "Blau",
@@ -192,6 +196,9 @@
       "denoise": "Reduir soroll de la imatge",
       "editImage": "Editar imatge",
       "exportImage": "Exportar imatge",
+      "flag": "Marca",
+      "flagPick": "Seleccionada",
+      "flagReject": "Rebutjada",
       "frameImage": "Emmarcar imatge",
       "importXmpAdjustments": "Importar ajustaments XMP",
       "mergeHdr": "Fusionar a HDR",
@@ -206,7 +213,8 @@
       "resetAdjustments": "Restablir ajustaments",
       "stitchPanorama": "Unir panorama",
       "tagging": "Etiquetatge",
-      "undo": "Desfer"
+      "undo": "Desfer",
+      "unflagged": "Sense marca"
     },
     "folders": {
       "changeIcon": "Canviar icona",
@@ -230,6 +238,7 @@
     "library": {
       "addCopiedToAlbum_one": "Afegir imatge copiada a l'àlbum",
       "addCopiedToAlbum_other": "Afegir {{count}} imatges copiades a l'àlbum",
+      "deleteRejected": "Eliminar les imatges rebutjades",
       "refreshView": "Actualitzar vista"
     },
     "merge": {
@@ -302,6 +311,7 @@
       "unchanged": "No importats — sense canvis compatibles ({{total}})"
     },
     "toasts": {
+      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
       "couldNotShowExplorer": "No s'ha pogut mostrar el fitxer a l'explorador: {{err}}",
       "couldNotShowFolder": "No s'ha pogut mostrar la carpeta: {{err}}",
       "failedAddToAlbum": "No s'ha pogut afegir a l'àlbum: {{err}}",
@@ -312,6 +322,7 @@
       "failedDelete": "No s'ha pogut eliminar: {{err}}",
       "failedDeleteFolder": "No s'ha pogut eliminar la carpeta: {{err}}",
       "failedDuplicate": "No s'ha pogut duplicar el fitxer: {{err}}",
+      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
       "failedImportMatchingXmpSidecars": "No s'han pogut importar els fitxers XMP coincidents: {{err}}",
       "failedImportXmpAdjustments": "No s'han pogut importar els ajustaments XMP: {{err}}",
       "failedMatchingXmpSidecars_one": "No s'ha pogut importar {{count}} fitxer XMP coincident.",
@@ -321,6 +332,7 @@
       "failedMoveError": "No s'ha pogut moure: {{err}}",
       "failedMoveInvalid": "No s'ha pogut moure: el grup de destinació no s'ha trobat o no és vàlid.",
       "failedRemoveImages": "No s'han pogut treure les imatges: {{err}}",
+      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
       "importedMatchingXmpSidecars_one": "S'ha importat {{count}} fitxer XMP coincident.",
       "importedMatchingXmpSidecars_many": "S'han importat {{count}} fitxers XMP coincidents.",
       "importedMatchingXmpSidecars_other": "S'han importat {{count}} fitxers XMP coincidents.",
@@ -756,6 +768,7 @@
         "presetFile": "Fitxer d'ajust preestablert",
         "rapidRawPreset": "Ajust preestablert de RapidRAW"
       },
+      "favorites": "Preferits",
       "menu": {
         "configurePreset": "Configurar ajust preestablert",
         "deleteFolder": "Eliminar carpeta",
@@ -783,8 +796,10 @@
       "tooltips": {
         "explore": "Explorar ajustos de la comunitat",
         "export": "Exportar tots els ajustos preestablerts a un fitxer .rrpreset",
+        "favorite": "Afegeix als preferits",
         "import": "Importar ajustos preestablerts des d'un fitxer .rrpreset",
-        "saveNew": "Desar com a nou ajust preestablert"
+        "saveNew": "Desar com a nou ajust preestablert",
+        "unfavorite": "Treu dels preferits"
       },
       "types": {
         "folder": "Carpeta",
@@ -1008,6 +1023,13 @@
         "editedOnly": "Només editades",
         "uneditedOnly": "Només no editades"
       },
+      "flag": {
+        "all": "Totes les imatges",
+        "excludeRejected": "Amaga les rebutjades",
+        "picked": "Seleccionada",
+        "rejected": "Rebutjada",
+        "unflagged": "Sense marca"
+      },
       "noMatch": "No s'ha trobat cap imatge que coincideixi amb el vostre filtre.",
       "rating": {
         "all": "Mostrar-les totes",
@@ -1095,6 +1117,7 @@
         "filterByColorLabel": "Filtrar per etiqueta de color",
         "filterByEdited": "Filtrar per estat d'edició",
         "filterByFileType": "Filtrar per tipus de fitxer",
+        "filterByFlag": "Filtrar per marca",
         "filterByRating": "Filtrar per puntuació",
         "groupEditedFiles": "Incloure fitxers editats als grups",
         "groupIgnoreMetadata": "Ignorar dates EXIF no coincidents",
@@ -1128,11 +1151,23 @@
       "expandFolder": "Expandir carpeta",
       "imagesCount_one": "1 imatge",
       "imagesCount_other": "{{count}} imatges",
+      "rejected": "Rebutjada",
       "tooltipAperture": "Obertura",
       "tooltipFocalLength": "Distància focal",
       "tooltipIso": "ISO",
       "tooltipShutterSpeed": "Velocitat d'obturació",
       "tooltipVirtualCopy": "Còpia virtual"
+    },
+    "reject": {
+      "deleteConfirm": "Eliminar les rebutjades",
+      "deleteMessage_many": "Segur que voleu eliminar {{count}} imatges rebutjades? Es mouran a la paperera.",
+      "deleteMessage_one": "Segur que voleu eliminar {{count}} imatge rebutjada? Es mourà a la paperera.",
+      "deleteMessage_other": "Segur que voleu eliminar {{count}} imatges rebutjades? Es mouran a la paperera.",
+      "deleteTitle": "Eliminar les imatges rebutjades",
+      "noneToDelete": "No hi ha imatges rebutjades per eliminar.",
+      "virtualCopiesWarning_many": "També s'eliminaran {{count}} còpies virtuals no rebutjades perquè els seus originals estan rebutjats.",
+      "virtualCopiesWarning_one": "També s'eliminarà {{count}} còpia virtual no rebutjada perquè el seu original està rebutjat.",
+      "virtualCopiesWarning_other": "També s'eliminaran {{count}} còpies virtuals no rebutjades perquè els seus originals estan rebutjats."
     },
     "search": {
       "noResults": "No s'han trobat resultats",
@@ -1316,7 +1351,7 @@
     "culling": {
       "actionDelete": "Moure a la paperera",
       "actionRateZero": "Establir puntuació a 1 estrella",
-      "actionReject": "Marcar com a rebutjada (Etiqueta vermella)",
+      "actionReject": "Marcar com a rebutjada",
       "applyButton_one": "Aplicar a 1 imatge",
       "applyButton_other": "Aplicar a {{count}} imatges",
       "bestImage": "Millor imatge",
@@ -1455,6 +1490,36 @@
       "waitingAutoDetect": "S'està esperant l'autodetecció...",
       "zoomInTooltip": "Apropar",
       "zoomOutTooltip": "Allunyar"
+    },
+    "lightroomImport": {
+      "addRootFolders": "Also add the found root folders to Folders",
+      "besideCatalog": "Found next to the catalog",
+      "collectionSets": "Collection sets",
+      "collections": "Collections",
+      "copied": "List copied.",
+      "copyList": "Copy List",
+      "found": "Found",
+      "imagesFound": "Images found",
+      "imagesMissing": "Images missing",
+      "import": "Import",
+      "importing": "Importing…",
+      "missingFiles": "Missing files: {{total}}",
+      "missingFilesHint": "Missing files stay in their albums and show up again once their folder is found or relinked.",
+      "missingFilesMore": "…and {{total}} more",
+      "missingRoots": "Root folders not found: {{total}}. Their images are imported as missing until you relink them.",
+      "notFound": "Not found",
+      "nothingToImport": "This catalog has no collections to import.",
+      "reading": "Reading the catalog…",
+      "relink": "Relink…",
+      "relinkTitle": "Find the folder for {{path}}",
+      "relinked": "Relinked",
+      "replacesPrevious": "This catalog was imported before. Importing again refreshes its albums where you put them; your other albums stay as they are.",
+      "rootFolders": "Root folders",
+      "rootFoldersHint": "Where the catalog's folders are on this computer. Relink a folder that moved or comes from another computer. The catalog itself is only read, never changed.",
+      "rootImages": "Images: {{images}}, missing: {{missing}}",
+      "skippedOther": "Books, slideshows, prints and web galleries, not imported: {{total}}",
+      "smartCollections": "Smart collections, not imported: {{total}}",
+      "title": "Import Lightroom Collections"
     },
     "negativeConversion": {
       "blueWeight": "Blau (Groc)",
@@ -1699,7 +1764,10 @@
         "copy_files": "Copiar els fitxers seleccionats",
         "copy_image_path": "Copiar camí de les imatges seleccionades",
         "cycle_zoom": "Alternar zoom (Ajustar, 2x Ajustar, 100%)",
+        "delete_rejected": "Eliminar els fitxers rebutjats",
         "delete_selected": "Eliminar els fitxers seleccionats",
+        "flag_pick": "Marca com a seleccionada",
+        "flag_reject": "Marca com a rebutjada",
         "focus_search": "Enfocar camp de cerca",
         "open_image": "Obrir la imatge seleccionada",
         "open_settings": "Obrir Configuració",
@@ -1735,6 +1803,7 @@
         "toggle_reference_view": "Commuta la vista de referència",
         "toggle_right_panel": "Commutar el panell dret",
         "undo": "Desfer ajustament",
+        "unflag": "Treure la marca",
         "zoom_100": "Apropar al 100%",
         "zoom_fit": "Apropar per ajustar",
         "zoom_in": "Apropar",
@@ -2072,6 +2141,10 @@
         "virtualCopy": "Còpia virtual"
       },
       "virtualCopyAbbreviation": "CV"
+    },
+    "flags": {
+      "togglePick": "Commuta la selecció",
+      "toggleReject": "Commuta el rebuig"
     },
     "imagePicker": {
       "clearImage": "Esborrar imatge",
