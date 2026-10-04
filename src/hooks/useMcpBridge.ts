@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useEditorStore } from '../store/useEditorStore';
+import { debouncedSetHistory } from './useEditorActions';
 import {
   INITIAL_ADJUSTMENTS,
   buildParametricCurves,
@@ -21,6 +22,7 @@ interface McpStateResponse {
   adjustments: Adjustments;
   editRevision: string;
   isSelected: boolean;
+  validationError: string | null;
 }
 
 interface HistogramData {
@@ -48,23 +50,27 @@ function isHistogramData(value: unknown): value is HistogramData {
 
 const wait = (durationMs: number) => new Promise<void>((resolve) => setTimeout(resolve, durationMs));
 
+// 40 s at 250 ms. The backend waits 60 s, so a slow UI reports its own timeout.
+const POLL_INTERVAL_MS = 250;
+const POLL_ATTEMPTS = 160;
+
 async function waitForImage(path: string): Promise<void> {
-  for (let attempt = 0; attempt < 180; attempt += 1) {
+  for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     const selectedImage = useEditorStore.getState().selectedImage;
     if (selectedImage?.path === path && selectedImage.isReady) return;
-    await wait(250);
+    await wait(POLL_INTERVAL_MS);
   }
   throw new Error(`RapidRAW did not finish loading ${path}`);
 }
 
 async function waitForHistogram(path: string): Promise<HistogramData> {
-  for (let attempt = 0; attempt < 180; attempt += 1) {
+  for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     const editor = useEditorStore.getState();
     const histogram = editor.histogram as unknown;
     if (editor.selectedImage?.path === path && editor.selectedImage.isReady && isHistogramData(histogram)) {
       return histogram;
     }
-    await wait(250);
+    await wait(POLL_INTERVAL_MS);
   }
   throw new Error(`RapidRAW did not finish calculating the histogram for ${path}`);
 }
@@ -73,9 +79,9 @@ async function waitForAdjustmentRender(
   path: string,
   previousRenderVersion: number,
   expected: Adjustments,
-): Promise<void> {
+): Promise<boolean> {
   const expectedKey = JSON.stringify(expected);
-  for (let attempt = 0; attempt < 180; attempt += 1) {
+  for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     const editor = useEditorStore.getState();
     const rendered = editor.lastRenderedAdjustments;
     if (
@@ -85,11 +91,27 @@ async function waitForAdjustmentRender(
       rendered !== null &&
       (rendered === expected || JSON.stringify(rendered) === expectedKey)
     ) {
-      return;
+      return true;
     }
-    await wait(250);
+    await wait(POLL_INTERVAL_MS);
   }
-  throw new Error(`RapidRAW did not finish rendering the MCP adjustment for ${path}`);
+  // The edit is applied and in the history either way; only the preview is late.
+  return false;
+}
+
+// Applies an MCP edit as one undoable step, after any pending GUI history push,
+// so a slider drag in progress can't land on top of it. Returns whether a new
+// preview was rendered for it.
+async function applyEdit(path: string, nextAdjustments: Adjustments): Promise<boolean> {
+  debouncedSetHistory.flush();
+  const editor = useEditorStore.getState();
+  if (JSON.stringify(nextAdjustments) === JSON.stringify(editor.adjustments)) {
+    return true;
+  }
+  const previousRenderVersion = editor.previewRenderVersion;
+  editor.setEditor({ adjustments: nextAdjustments });
+  editor.pushHistory(nextAdjustments);
+  return waitForAdjustmentRender(path, previousRenderVersion, nextAdjustments);
 }
 
 async function syncState(path: string): Promise<McpStateResponse> {
@@ -144,6 +166,7 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
     const unlistenPromise = listen<McpCommand>('mcp-command', async (event) => {
       if (!active) return;
       const command = event.payload;
+      let renderPending = false;
 
       try {
         if (command.kind === 'select-image') {
@@ -169,31 +192,25 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
             await waitForImage(command.path);
           }
 
-          const editor = useEditorStore.getState();
-          const previousRenderVersion = editor.previewRenderVersion;
-          let expectedAdjustments: Adjustments;
+          let nextAdjustments: Adjustments;
           if (command.kind === 'reset-adjustments') {
-            const image = editor.selectedImage;
+            // Same result as the library's reset, but as an undoable step;
+            // autosave writes it to the sidecar like any other edit.
+            const image = useEditorStore.getState().selectedImage;
             const aspectRatio = image && image.width > 0 && image.height > 0 ? image.width / image.height : null;
-            const resetAdjustments = { ...INITIAL_ADJUSTMENTS, aspectRatio, aiPatches: [] };
-            editor.resetHistory(resetAdjustments);
-            editor.setEditor({ adjustments: resetAdjustments });
-            expectedAdjustments = resetAdjustments;
+            nextAdjustments = { ...INITIAL_ADJUSTMENTS, aspectRatio, aiPatches: [] };
           } else if (command.adjustments) {
-            const nextAdjustments = normalizeMcpAdjustments(command.adjustments);
-            editor.setEditor({ adjustments: nextAdjustments });
-            editor.pushHistory(nextAdjustments);
-            expectedAdjustments = nextAdjustments;
+            nextAdjustments = normalizeMcpAdjustments(command.adjustments);
           } else {
             throw new Error('MCP adjustment command did not include adjustments');
           }
-          await waitForAdjustmentRender(command.path, previousRenderVersion, expectedAdjustments);
+          renderPending = !(await applyEdit(command.path, nextAdjustments));
         }
 
         const response = await syncState(command.path);
         await invoke('ui_response', {
           requestId: command.requestId,
-          response: { ...response, isSelected: true },
+          response: { ...response, isSelected: true, renderPending },
           error: null,
         });
       } catch (error) {

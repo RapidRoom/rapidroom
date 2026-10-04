@@ -3,7 +3,6 @@ import { Crop, PercentCrop } from 'react-image-crop';
 import { Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { invoke } from '@tauri-apps/api/core';
-import debounce from 'lodash.debounce';
 import { useTranslation } from 'react-i18next';
 
 import { ImageDimensions, RenderSize, useImageRenderSize } from '../../hooks/useImageRenderSize';
@@ -28,7 +27,7 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 import { useUIStore } from '../../store/useUIStore';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useAiMasking } from '../../hooks/useAiMasking';
-import { useEditorActions } from '../../hooks/useEditorActions';
+import { debouncedSetHistory, useEditorActions } from '../../hooks/useEditorActions';
 import { getReferenceLabel, isReferenceViewActive } from '../../utils/referenceView';
 
 const parseRgb = (rgbStr: string): [number, number, number, number] => {
@@ -130,13 +129,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
   const goToHistoryIndex = useEditorStore((s) => s.goToHistoryIndex);
-  const pushHistory = useEditorStore((s) => s.pushHistory);
   const canUndo = adjustmentsHistoryIndex > 0;
   const canRedo = adjustmentsHistoryIndex < adjustmentsHistory.length - 1;
 
   const isAndroid = osPlatform === 'android';
-
-  const debouncedSetHistory = useMemo(() => debounce((newAdj: Adjustments) => pushHistory(newAdj), 500), [pushHistory]);
 
   const setAdjustments = useCallback(
     (value: Partial<Adjustments> | ((prev: Adjustments) => Adjustments)) => {
@@ -150,7 +146,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         };
       });
     },
-    [debouncedSetHistory, setEditor],
+    [setEditor],
   );
 
   const { handleGenerateAiMask, handleQuickErase, handleDirectPatch } = useAiMasking();

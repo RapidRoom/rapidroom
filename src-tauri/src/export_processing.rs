@@ -155,8 +155,8 @@ pub(crate) struct ExportRequest {
     pub(crate) base_origin_folders: Vec<String>,
     pub(crate) export_settings: ExportSettings,
     pub(crate) output_format: String,
-    pub(crate) current_edit_path: String,
-    pub(crate) current_edit_adjustments: Value,
+    pub(crate) current_edit_path: Option<String>,
+    pub(crate) current_edit_adjustments: Option<Value>,
 }
 
 #[derive(Clone)]
@@ -2106,8 +2106,8 @@ pub(crate) async fn export_images_and_wait(
         request.export_settings,
         request.output_format,
         ExportAdjustmentsMode::UseSidecars {
-            active_path: Some(request.current_edit_path),
-            active_adjustments: Some(request.current_edit_adjustments),
+            active_path: request.current_edit_path,
+            active_adjustments: request.current_edit_adjustments,
         },
         state,
         app_handle,

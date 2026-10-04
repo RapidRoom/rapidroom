@@ -45,4 +45,5 @@ pub(crate) const PROTOCOL_VERSION: &str = "2026-07-28";
 pub(crate) const DEFAULT_PORT: u16 = 7790;
 pub(crate) const MAX_HEADER_BYTES: usize = 32 * 1024;
 pub(crate) const MAX_BODY_BYTES: usize = 12 * 1024 * 1024;
-pub(crate) const UI_TIMEOUT: Duration = Duration::from_secs(45);
+// Longer than the frontend's own waits (40 s), so the UI reports its timeout first.
+pub(crate) const UI_TIMEOUT: Duration = Duration::from_secs(60);

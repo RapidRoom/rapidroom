@@ -84,8 +84,15 @@ pub(super) fn tool_definitions() -> Vec<Value> {
             }, "required": ["path"] }
         }),
         json!({
+            "name": "open_image",
+            "description": "Open an image in the RapidRAW editor. Works from the library or start screen, with no image loaded yet.",
+            "inputSchema": { "type": "object", "properties": {
+                "imagePath": { "type": "string" }
+            }, "required": ["imagePath"] }
+        }),
+        json!({
             "name": "select_image",
-            "description": "Load an image into the RapidRAW editor UI.",
+            "description": "Same as open_image.",
             "inputSchema": { "type": "object", "properties": {
                 "imagePath": { "type": "string" }
             }, "required": ["imagePath"] }
@@ -163,7 +170,7 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         }),
         json!({
             "name": "export_images",
-            "description": "Export one or more images and wait for completion. Use outputDirectory for a custom folder, or exportSettings.destinationType originalFolder with an optional subfolder. The active image uses its current edit; other images use their sidecars.",
+            "description": "Export one or more images and wait for completion. Use outputDirectory for a custom folder, or exportSettings.destinationType originalFolder with an optional subfolder. An image open in the editor uses its current edit; other images use their saved edits. No image needs to be open.",
             "inputSchema": { "type": "object", "additionalProperties": false, "properties": {
                 "imagePaths": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Source image paths." },
                 "outputDirectory": { "type": "string", "description": "Directory to create/use for customFolder exports. Required unless destinationType is originalFolder." },
@@ -182,7 +189,7 @@ pub(super) async fn call_tool(
 ) -> Result<Value, (i64, String)> {
     let result = match name {
         "list_images" => list_images(app_handle, &arguments),
-        "select_image" => select_image(app_handle, &arguments).await,
+        "open_image" | "select_image" => select_image(app_handle, &arguments).await,
         "get_image_state" => get_image_state(app_handle, &arguments),
         "get_active_image_state" => get_active_image_state(app_handle),
         "get_histogram_data" => get_histogram_data(app_handle, &arguments).await,
@@ -237,7 +244,6 @@ fn list_images(app_handle: &AppHandle, arguments: &Value) -> Result<Value, Strin
 
 async fn select_image(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
     let path = required_image_path(arguments)?;
-    ui::require_active_session(app_handle, None)?;
     ui::ensure_path_exists(&path, false)?;
     ui::request_ui(app_handle, "select-image", json!({ "path": path })).await
 }
@@ -452,7 +458,7 @@ async fn export_images(app_handle: &AppHandle, arguments: &Value) -> Result<Valu
         ));
     }
 
-    let active = ui::require_active_session(app_handle, None)?;
+    let active = ui::active_session(app_handle);
     let base_origin_folders = parse_base_origin_folders(arguments, &paths)?;
     let destination_type = export_settings.destination_type.clone();
     let subfolder = export_settings.subfolder.clone();
@@ -464,8 +470,8 @@ async fn export_images(app_handle: &AppHandle, arguments: &Value) -> Result<Valu
             base_origin_folders,
             export_settings,
             output_format: output_format.clone(),
-            current_edit_path: active.path.clone(),
-            current_edit_adjustments: active.adjustments.clone(),
+            current_edit_path: active.as_ref().map(|state| state.path.clone()),
+            current_edit_adjustments: active.as_ref().map(|state| state.adjustments.clone()),
         },
         app_handle.clone(),
     )
@@ -478,7 +484,7 @@ async fn export_images(app_handle: &AppHandle, arguments: &Value) -> Result<Valu
         "subfolder": subfolder,
         "outputFormat": output_format,
         "exportedCount": image_paths.len(),
-        "activeImagePath": active.path,
+        "activeImagePath": active.map(|state| state.path),
     }))
 }
 

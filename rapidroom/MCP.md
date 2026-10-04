@@ -20,26 +20,27 @@ claude mcp add --transport http rapidroom http://127.0.0.1:7790/mcp   # Claude C
 codex mcp add rapidroom --url http://127.0.0.1:7790/mcp               # Codex
 ```
 
-Open an image in the editor first. The tools work on the image in the active editor session, and every change goes through the editor, so you see it happen and can undo it.
+An agent can start from the library: `open_image` opens a photo in the editor. The editing tools work on the image open in the editor. Every change goes through the editor, so you see it happen, each MCP edit is one step you can undo with Ctrl+Z, and autosave writes it like a click. An edit that changes nothing returns at once. If the preview takes longer than 40 seconds, the edit is still applied and the result says `renderPending: true`. If the editor's current state doesn't fit the MCP schema (for example an out-of-range value from an imported sidecar), the state is still returned, with the problem in `validationError`.
 
 | Tool                                          | What it does                                                                                                         |
 | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `list_images`                                 | List supported images in a folder (paged, optionally recursive)                                                      |
-| `select_image`                                | Open another image in the editor                                                                                     |
+| `open_image` (alias `select_image`)           | Open an image in the editor, also when none is open yet                                                              |
 | `get_image_state`, `get_active_image_state`   | Current adjustments and an `editRevision`                                                                            |
 | `set_adjustments`, `update_adjustments`       | Replace or merge adjustments; validated against a strict schema. Pass `expectedRevision` to avoid overwriting edits. |
-| `reset_adjustments`, `apply_auto_adjustments` | Same as the editor's reset and auto buttons                                                                          |
+| `reset_adjustments`, `apply_auto_adjustments` | Reset everything (one undoable step) or apply auto adjustments                                                       |
 | `get_preview`                                 | JPEG render of the current or a proposed edit (128–4096 px)                                                          |
 | `get_histogram_data`                          | The editor's 256-bin RGB and luma histogram                                                                          |
 | `calculate_guided_perspective`                | Perspective transform and crop for guide lines, without changing the edit                                            |
-| `export_images`                               | Export with the export panel's settings and wait until it finishes                                                   |
+| `export_images`                               | Export with the export panel's settings and wait until it finishes; no image needs to be open                        |
 
 ## Security
 
 - **It listens on a loopback TCP port** (`127.0.0.1` only). Nothing outside the machine can reach it, and it makes no outgoing connections.
-- **There is no authentication.** Any program running on the same machine can connect while the app is running, including programs run by other users. Only build with `mcp` on a machine you trust.
+- **There is no authentication.** Any program running on the same machine can connect while the app is running, including programs run by other users. Only build with `mcp` on a machine you trust. A token and a stdio proxy are tracked in #116.
 - **Browsers can't drive it.** Requests carrying an `Origin` header are refused. rmcp also rejects any `Host` other than `localhost`, `127.0.0.1` or `::1`, which blocks DNS rebinding, and it only accepts `application/json`, so a web page can't send a "simple" cross-site request either.
-- **Reach:** edits only apply to the image in the active editor session. `list_images` and `export_images` can read and write any folder the user can.
+- **Protocol:** one JSON response per POST to `/mcp` (no event stream; GET gets `405`), `Content-Length` or chunked request bodies, and `Connection: close` on every response.
+- **Reach:** edits only apply to the image open in the editor. `list_images` and `export_images` can read and write any folder the user can.
 
 ## The two candidates
 

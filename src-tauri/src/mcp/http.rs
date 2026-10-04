@@ -11,7 +11,7 @@ use bytes::Bytes;
 use http_body::Body;
 use http_body_util::{BodyExt, Full};
 use tauri::{AppHandle, Manager};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 use super::server::{McpHttpService, create_http_service};
@@ -110,8 +110,18 @@ async fn handle_connection(mut stream: TcpStream, service: McpHttpService) -> Re
         return Ok(());
     }
 
-    if request.method != "POST" || request.path != "/mcp" {
+    if request.path != "/mcp" {
         write_basic_response(&mut stream, 404, "not found", "text/plain").await?;
+        return Ok(());
+    }
+
+    // Stateless JSON responses only: no server-sent event stream on GET.
+    if request.method != "POST" {
+        let response = "HTTP/1.1 405 Method Not Allowed\r\nAllow: POST\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        stream
+            .write_all(response.as_bytes())
+            .await
+            .map_err(|error| error.to_string())?;
         return Ok(());
     }
 
@@ -140,7 +150,7 @@ fn build_rmcp_request(request: HttpRequest) -> Result<Request<Full<Bytes>>, Stri
         .map_err(|error| format!("unable to build MCP request: {error}"))
 }
 
-async fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, String> {
+async fn read_request<S: AsyncRead + Unpin>(stream: &mut S) -> Result<HttpRequest, String> {
     let mut bytes = Vec::with_capacity(4096);
     let mut header_end = None;
     let mut chunk = [0_u8; 4096];
@@ -178,6 +188,22 @@ async fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, String> {
         headers.insert(name.trim().to_ascii_lowercase(), value.trim().to_string());
     }
 
+    let body_start = header_end + 4;
+    let chunked = headers
+        .get("transfer-encoding")
+        .is_some_and(|value| value.to_ascii_lowercase().contains("chunked"));
+    if chunked {
+        let body = read_chunked_body(stream, bytes.split_off(body_start)).await?;
+        headers.remove("transfer-encoding");
+        headers.insert("content-length".to_string(), body.len().to_string());
+        return Ok(HttpRequest {
+            method,
+            path,
+            headers,
+            body,
+        });
+    }
+
     let content_length = headers
         .get("content-length")
         .and_then(|value| value.parse::<usize>().ok())
@@ -186,7 +212,6 @@ async fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, String> {
         return Err("MCP request body exceeds the limit".to_string());
     }
 
-    let body_start = header_end + 4;
     while bytes.len() < body_start + content_length {
         let read = stream
             .read(&mut chunk)
@@ -204,6 +229,61 @@ async fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, String> {
         headers,
         body: bytes[body_start..body_start + content_length].to_vec(),
     })
+}
+
+async fn read_chunked_body<S: AsyncRead + Unpin>(
+    stream: &mut S,
+    mut buffer: Vec<u8>,
+) -> Result<Vec<u8>, String> {
+    let mut body = Vec::new();
+    let mut position = 0;
+    let mut chunk = [0_u8; 4096];
+    loop {
+        let size_line_end = loop {
+            if let Some(offset) = buffer[position..]
+                .windows(2)
+                .position(|window| window == b"\r\n")
+            {
+                break position + offset;
+            }
+            if buffer.len() - position > MAX_HEADER_BYTES {
+                return Err("invalid chunked HTTP body".to_string());
+            }
+            let read = stream
+                .read(&mut chunk)
+                .await
+                .map_err(|error| error.to_string())?;
+            if read == 0 {
+                return Err("connection closed inside a chunked HTTP body".to_string());
+            }
+            buffer.extend_from_slice(&chunk[..read]);
+        };
+        let size_text = std::str::from_utf8(&buffer[position..size_line_end])
+            .map_err(|_| "invalid chunk size".to_string())?;
+        let size_text = size_text.split(';').next().unwrap_or_default().trim();
+        let size = usize::from_str_radix(size_text, 16)
+            .map_err(|_| format!("invalid chunk size: {size_text}"))?;
+        let data_start = size_line_end + 2;
+        if size == 0 {
+            // Trailers are not used by MCP clients; the body ends here.
+            return Ok(body);
+        }
+        if body.len() + size > MAX_BODY_BYTES {
+            return Err("MCP request body exceeds the limit".to_string());
+        }
+        while buffer.len() < data_start + size + 2 {
+            let read = stream
+                .read(&mut chunk)
+                .await
+                .map_err(|error| error.to_string())?;
+            if read == 0 {
+                return Err("connection closed inside a chunked HTTP body".to_string());
+            }
+            buffer.extend_from_slice(&chunk[..read]);
+        }
+        body.extend_from_slice(&buffer[data_start..data_start + size]);
+        position = data_start + size + 2;
+    }
 }
 
 async fn write_basic_response(
@@ -259,4 +339,54 @@ where
         .write_all(&body)
         .await
         .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::io::AsyncWriteExt;
+
+    async fn parse(raw: &'static [u8]) -> Result<HttpRequest, String> {
+        let (mut client, mut server) = tokio::io::duplex(64);
+        let writer = tokio::spawn(async move {
+            for piece in raw.chunks(7) {
+                client.write_all(piece).await.unwrap();
+            }
+        });
+        let request = read_request(&mut server).await;
+        writer.await.unwrap();
+        request
+    }
+
+    #[tokio::test]
+    async fn reads_content_length_body() {
+        let request =
+            parse(b"POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 4\r\n\r\n{\"a\"")
+                .await;
+        let request = request.unwrap();
+        assert_eq!(request.method, "POST");
+        assert_eq!(request.path, "/mcp");
+        assert_eq!(request.body, b"{\"a\"");
+    }
+
+    #[tokio::test]
+    async fn decodes_chunked_body() {
+        let request = parse(
+            b"POST /mcp HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\nB;ext=1\r\n, MCP world\r\n0\r\n\r\n",
+        )
+        .await
+        .unwrap();
+        assert_eq!(request.body, b"hello, MCP world");
+        assert!(!request.headers.contains_key("transfer-encoding"));
+        assert_eq!(request.headers.get("content-length").unwrap(), "16");
+    }
+
+    #[tokio::test]
+    async fn rejects_bad_chunk_size() {
+        let request = parse(
+            b"POST /mcp HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\nhello\r\n0\r\n\r\n",
+        )
+        .await;
+        assert!(request.is_err());
+    }
 }

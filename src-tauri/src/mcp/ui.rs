@@ -6,6 +6,16 @@ use uuid::Uuid;
 use super::{UI_TIMEOUT, adjustments};
 use crate::{AppState, McpEditorState};
 
+pub(super) fn active_session(app_handle: &AppHandle) -> Option<McpEditorState> {
+    app_handle
+        .state::<AppState>()
+        .mcp
+        .editor_state
+        .lock()
+        .unwrap()
+        .clone()
+}
+
 pub(super) fn require_active_session(
     app_handle: &AppHandle,
     expected_path: Option<&str>,
@@ -89,14 +99,20 @@ pub fn sync_editor_state(
     adjustments: Value,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
-    adjustments::validate_adjustments(&adjustments)?;
+    // The editor's state is the truth even when it is outside the MCP schema
+    // (an out-of-range value from an imported sidecar, say). Store it anyway and
+    // report the problem, so MCP never serves an older state.
+    let validation_error = adjustments::validate_adjustments(&adjustments).err();
     let revision = adjustments::revision_for(&path, &adjustments);
-    *state.mcp.editor_state.lock().unwrap() = Some(McpEditorState {
-        path: path.clone(),
-        adjustments: adjustments.clone(),
-        revision: revision.clone(),
-    });
-    Ok(json!({ "imagePath": path, "adjustments": adjustments, "editRevision": revision }))
+    let editor_state = McpEditorState {
+        path,
+        adjustments,
+        revision,
+        validation_error,
+    };
+    let value = editor_state_value(&editor_state);
+    *state.mcp.editor_state.lock().unwrap() = Some(editor_state);
+    Ok(value)
 }
 
 pub fn clear_editor_session(state: State<'_, AppState>) {
@@ -109,6 +125,7 @@ pub(super) fn editor_state_value(state: &McpEditorState) -> Value {
         "adjustments": state.adjustments,
         "editRevision": state.revision,
         "isSelected": true,
+        "validationError": state.validation_error,
     })
 }
 

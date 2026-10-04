@@ -218,6 +218,7 @@ pub struct McpEditorState {
     pub path: String,
     pub adjustments: serde_json::Value,
     pub revision: String,
+    pub validation_error: Option<String>,
 }
 
 #[cfg(feature = "mcp")]
