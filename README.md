@@ -939,6 +939,8 @@ rapidraw export /path/to/photo.raw --output /path/to/print.tiff --format tiff --
 | `--preset <name>`      | Export preset or built-in recipe (name or id); explicit flags win      | _(None)_          |
 | `--sharpen <target>`   | `none`, `screen` or `print`; amount `:low`, `:standard` or `:high`     | _(Off)_           |
 
+For development, `rapidraw bench <image>` measures the image processing pipeline without opening the GUI and prints per-stage timings. See [bench/README.md](bench/README.md) for its options and for comparing two builds.
+
 ## System Requirements
 
 RapidRAW is built to be lightweight and cross-platform. The minimum (tested) requirements are:

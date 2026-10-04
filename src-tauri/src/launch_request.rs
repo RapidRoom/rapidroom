@@ -36,7 +36,9 @@ pub enum LaunchRequest {
     OpenFile(String),
     EditSession(ExternalEditSession),
     HeadlessExport(HeadlessExportSession),
+    HeadlessBench(crate::bench::BenchSession),
     InvalidHeadless(String),
+    InvalidBench(String),
 }
 
 static PROCESS_EXIT_CODE: AtomicI32 = AtomicI32::new(0);
@@ -93,6 +95,13 @@ fn parse_sharpen_arg(value: &str) -> Result<Option<OutputSharpening>, String> {
 }
 
 pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
+    if args.first().map(|s| s.as_str()) == Some("bench") {
+        return match crate::bench::parse_bench_args(&args[1..]) {
+            Ok(session) => LaunchRequest::HeadlessBench(session),
+            Err(e) => LaunchRequest::InvalidBench(e),
+        };
+    }
+
     if args.first().map(|s| s.as_str()) == Some("export") {
         let mut iter = args.iter().skip(1);
 
@@ -262,8 +271,14 @@ pub fn emit_launch_request(app_handle: &tauri::AppHandle, request: LaunchRequest
                 "Error: Headless export cannot be attached to an already running GUI instance."
             );
         }
+        LaunchRequest::HeadlessBench(_) => {
+            cli_println!("Error: bench cannot be attached to an already running GUI instance.");
+        }
         LaunchRequest::InvalidHeadless(error) => {
             log::error!("Invalid headless export request: {}", error);
+        }
+        LaunchRequest::InvalidBench(error) => {
+            log::error!("Invalid bench request: {}", error);
         }
         LaunchRequest::None => {}
     }

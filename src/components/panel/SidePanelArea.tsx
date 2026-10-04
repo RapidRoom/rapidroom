@@ -397,7 +397,7 @@ export default function SidePanelArea({
     return (
       <div
         className={clsx(
-          'flex shrink-0 h-full relative overflow-hidden',
+          'lights-out-chrome flex shrink-0 h-full relative overflow-hidden',
           isFullScreen ? 'w-0 opacity-0 pointer-events-none' : 'opacity-100',
           shouldAnimateWidth && 'transition-all duration-300 ease-in-out',
         )}
@@ -440,7 +440,7 @@ export default function SidePanelArea({
   return (
     <div
       className={clsx(
-        'flex shrink-0 h-full relative overflow-hidden',
+        'lights-out-chrome flex shrink-0 h-full relative overflow-hidden',
         isFullScreen ? 'w-0 opacity-0 pointer-events-none' : 'opacity-100',
         shouldAnimateWidth && 'transition-all duration-300 ease-in-out',
       )}

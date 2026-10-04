@@ -19,6 +19,8 @@ export const GLOBAL_KEYS = [
   'p',
   'i',
   'e',
+  'x',
+  'u',
   '0',
   '1',
   '2',
@@ -37,7 +39,9 @@ export enum Invokes {
   ApplyDenoising = 'apply_denoising',
   CalculateAutoAdjustments = 'calculate_auto_adjustments',
   SampleWhiteBalance = 'sample_white_balance',
+  BatchDenoiseImages = 'batch_denoise_images',
   CancelAiTask = 'cancel_ai_task',
+  CancelDenoise = 'cancel_denoise',
   CancelExport = 'cancel_export',
   CheckAIConnectorStatus = 'check_ai_connector_status',
   ClearAllSidecars = 'clear_all_sidecars',
@@ -45,6 +49,7 @@ export enum Invokes {
   ClearAllTags = 'clear_all_tags',
   ClearThumbnailCache = 'clear_thumbnail_cache',
   CopyFiles = 'copy_files',
+  CreateDenoiseJob = 'create_denoise_job',
   CreateFolder = 'create_folder',
   CreateVirtualCopy = 'create_virtual_copy',
   CullImages = 'cull_images',
@@ -56,11 +61,13 @@ export enum Invokes {
   GenerateAiForegroundMask = 'generate_ai_foreground_mask',
   GenerateAiSkyMask = 'generate_ai_sky_mask',
   GenerateAiSubjectMask = 'generate_ai_subject_mask',
+  GenerateExportFilename = 'generate_export_filename',
   GeneratePreviewForPath = 'generate_preview_for_path',
   GenerateMaskOverlay = 'generate_mask_overlay',
   GeneratePresetPreview = 'generate_preset_preview',
   GenerateUncroppedPreview = 'generate_uncropped_preview',
   GetFolderTree = 'get_folder_tree',
+  GetLastRename = 'get_last_rename',
   GetFolderChildren = 'get_folder_children',
   GetLogFilePath = 'get_log_file_path',
   GetOrCreateInternalLibraryRoot = 'get_or_create_internal_library_root',
@@ -83,7 +90,9 @@ export enum Invokes {
   LoadMetadata = 'load_metadata',
   LoadPresets = 'load_presets',
   LoadSettings = 'load_settings',
+  PreviewRenameFiles = 'preview_rename_files',
   MoveFiles = 'move_files',
+  OpenTerminalHere = 'open_terminal_here',
   ReadExifForPaths = 'read_exif_for_paths',
   RemoveTagForPaths = 'remove_tag_for_paths',
   RenameFiles = 'rename_files',
@@ -99,6 +108,7 @@ export enum Invokes {
   SetCardBrowseRoot = 'set_card_browse_root',
   SetColorLabelForPaths = 'set_color_label_for_paths',
   SetRatingForPaths = 'set_rating_for_paths',
+  SetFlagForPaths = 'set_flag_for_paths',
   ShowInFinder = 'show_in_finder',
   StartBackgroundIndexing = 'start_background_indexing',
   StitchPanorama = 'stitch_panorama',
@@ -106,6 +116,8 @@ export enum Invokes {
   SaveFocusStack = 'save_focus_stack',
   MergeHdr = 'merge_hdr',
   TestAIConnectorConnection = 'test_ai_connector_connection',
+  SampleDisplayArea = 'sample_display_area',
+  UndoLastRename = 'undo_last_rename',
   UpdateWgpuTransform = 'update_wgpu_transform',
   UpdateExifFields = 'update_exif_fields',
   FetchCommunityPresets = 'fetch_community_presets',
@@ -116,6 +128,10 @@ export enum Invokes {
   SaveAlbums = 'save_albums',
   AddToAlbum = 'add_to_album',
   GetAlbumImages = 'get_album_images',
+  PreviewLightroomDevelop = 'preview_lightroom_develop',
+  ImportLightroomDevelop = 'import_lightroom_develop',
+  PreviewLightroomCollections = 'preview_lightroom_collections',
+  ImportLightroomCollections = 'import_lightroom_collections',
   TetherListCameras = 'tether_list_cameras',
   TetherConnect = 'tether_connect',
   TetherGetSettings = 'tether_get_settings',
@@ -187,6 +203,7 @@ export interface WorkspaceState {
   panelLayout: Record<PanelRegion, Panel[]>;
   activePanels: Record<PanelRegion, Panel | null>;
   panelSwitcherPlacement: Record<PanelRegion, 'left' | 'right' | 'top' | 'bottom'>;
+  layoutVersion?: number;
 }
 
 export interface CustomAspectRatio {
@@ -257,6 +274,7 @@ export interface AppSettings {
   language?: string;
   fontFamily?: string;
   folderTreeSort?: FolderTreeSort;
+  lightroomPathMappings?: Record<string, string>;
   taggingShortcuts?: string[];
   libraryDisplayMode?: LibraryDisplayMode;
   grouping?: GroupingMode;
@@ -286,12 +304,30 @@ export const EditedStatus = {
 
 export type EditedStatus = (typeof EditedStatus)[keyof typeof EditedStatus];
 
+export const ImageFlag = {
+  Pick: 'pick',
+  Reject: 'reject',
+} as const;
+
+export type ImageFlag = (typeof ImageFlag)[keyof typeof ImageFlag];
+
+export const FlagStatus = {
+  All: 'all',
+  Picked: 'picked',
+  Unflagged: 'unflagged',
+  ExcludeRejected: 'excludeRejected',
+  Rejected: 'rejected',
+} as const;
+
+export type FlagStatus = (typeof FlagStatus)[keyof typeof FlagStatus];
+
 export interface FilterCriteria {
   colors: Array<string>;
   rating: number;
   ratingExact?: boolean;
   rawStatus: RawStatus;
   editedStatus?: EditedStatus;
+  flagStatus?: FlagStatus;
 }
 
 export interface Folder {
@@ -306,6 +342,7 @@ export interface ImageFile {
   modified: number;
   path: string;
   rating: number;
+  flag: ImageFlag | null;
   tags: Array<string> | null;
   exif: { [key: string]: string } | null;
   is_virtual_copy: boolean;
@@ -339,6 +376,7 @@ export interface Preset {
   includeMasks?: boolean;
   includeCropTransform?: boolean;
   presetType?: 'tool' | 'style';
+  favorite?: boolean;
 }
 
 export interface Progress {
