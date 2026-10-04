@@ -32,7 +32,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Presets at your fingertips.** Presets sit in the left sidebar as compact rows: hover to preview one on your photo, click to apply, and star favorites to pin them on top.
 - **Lights Out, Lightroom-style.** Press L to dim everything but the photo, again for pure black, Escape to come back. Good for judging night shots.
 - **Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains.
-- **More sliders on a laptop screen.** An optional compact layout puts each slider's label, track and value on one line, so about twice as many controls fit without scrolling.
+- **More sliders on a laptop screen.** An optional compact layout puts each slider's label, track and value on one line, so more controls fit without scrolling.
 
 59 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->

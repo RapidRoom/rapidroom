@@ -588,4 +588,4 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@pluja](https://github.com/pluja), [@Bennyyy27](https://github.com/Bennyyy27), from pluja/RapidRAW-Fork
 - **Upstream:** not yet offered
 - **Commits:** [198d23c](https://github.com/pluja/RapidRAW-Fork/commit/198d23c0b89e073c88a621d43090488c2a8baf9e), [69445ee](https://github.com/Bennyyy27/RapidRAW/commit/69445eefb3598f3461eb3ed28fb82913b2e04d0f)
-- **Notes:** Off by default (Settings > General). Layout from pluja's one-row slider; narrow-panel column sizing follows Bennyyy27's final compact density. Drag travel spans the whole row in both densities, so switching density does not change sensitivity.
+- **Notes:** Off by default (Settings > General). Layout from pluja's one-row slider; narrow-panel column sizing follows Bennyyy27's final compact density. Drag travel spans the whole row in both densities, so switching density does not change sensitivity. Local integration/review by Codex: accessible React-node and typed-field names, six slider tests, 48 browser layout cases and 24 full-panel cases with screenshots; native desktop checks remain.
