@@ -1784,6 +1784,8 @@
         "toggle_export": "내보내기 패널 전환",
         "toggle_folder_tree": "폴더 트리 패널 토글",
         "toggle_fullscreen": "전체 화면 전환",
+        "cycle_lights_out": "Lights Out 순환",
+        "cycle_lights_out_reverse": "Lights Out 역순 순환",
         "toggle_left_panel": "왼쪽 패널 토글",
         "toggle_library_exif": "EXIF 오버레이 전환",
         "toggle_masks": "마스크 패널 전환",

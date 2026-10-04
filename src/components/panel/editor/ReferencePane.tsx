@@ -4,6 +4,7 @@ import { ImageOff, Loader2, Replace, Trash2, X } from 'lucide-react';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { Invokes } from '../../ui/AppProperties';
+import { useUIStore } from '../../../store/useUIStore';
 import { useProcessStore } from '../../../store/useProcessStore';
 import { ReferenceViewImage } from '../../../utils/referenceView';
 
@@ -38,6 +39,7 @@ export default function ReferencePane({
   onExit,
 }: ReferencePaneProps) {
   const { t } = useTranslation();
+  const isLightsOut = useUIStore((state) => state.lightsOutMode !== 'off');
   const referencePath = reference?.path ?? null;
   const thumbnailUrl = useProcessStore((s) => (referencePath ? s.thumbnails[referencePath] : undefined));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -178,7 +180,10 @@ export default function ReferencePane({
 
   return (
     <div
-      className="relative z-10 flex-1 basis-0 min-w-0 overflow-hidden rounded-lg bg-bg-secondary border border-dashed border-text-secondary/40"
+      className={clsx(
+        'lights-out-content relative z-10 flex-1 basis-0 min-w-0 overflow-hidden rounded-lg border',
+        isLightsOut ? 'bg-black border-transparent' : 'bg-bg-secondary border-dashed border-text-secondary/40',
+      )}
       data-testid="editor-reference-pane"
       data-reference-state={reference ? status : 'choose-reference'}
     >
@@ -209,7 +214,7 @@ export default function ReferencePane({
       </div>
 
       {reference && status === 'loading' && (
-        <div className="absolute bottom-3 right-3 pointer-events-none">
+        <div className="lights-out-chrome absolute bottom-3 right-3 pointer-events-none">
           <Loader2 size={20} className="animate-spin text-text-secondary" />
         </div>
       )}
@@ -222,7 +227,7 @@ export default function ReferencePane({
       )}
 
       {(isChooserOpen || !reference) && (
-        <div className="absolute inset-0 flex items-center justify-center p-6 bg-bg-secondary/70 pointer-events-none">
+        <div className="lights-out-chrome absolute inset-0 flex items-center justify-center p-6 bg-bg-secondary/70 pointer-events-none">
           <div className="pointer-events-auto max-w-xs rounded-lg bg-surface/95 px-4 py-3 text-center shadow-lg">
             <p className="text-sm text-text-primary">{t('editor.referenceView.chooseHint')}</p>
             <button
@@ -237,7 +242,7 @@ export default function ReferencePane({
         </div>
       )}
 
-      <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2 pointer-events-none">
+      <div className="lights-out-chrome absolute inset-x-2 top-2 flex items-start justify-between gap-2 pointer-events-none">
         <div className="flex min-w-0 items-center gap-2 rounded-md bg-surface/90 px-2 py-1 shadow">
           <span className="shrink-0 rounded bg-text-secondary/25 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-primary">
             {t('editor.referenceView.reference')}
