@@ -197,7 +197,7 @@ fn resolve_image_metadata(
     let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
 
     if enable_xmp_sync
-        && sync_metadata_from_xmp(image_path, &mut metadata)
+        && sync_metadata_from_xmp(image_path, sidecar_path, &mut metadata)
         && let Ok(json) = serde_json::to_string_pretty(&metadata)
     {
         let _ = write_file_atomically(sidecar_path, json);
@@ -2757,7 +2757,7 @@ pub fn save_metadata_and_update_thumbnail(
         && settings.enable_xmp_sync.unwrap_or(false)
     {
         let create_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
-        sync_metadata_to_xmp(&source_path, &metadata, create_if_missing);
+        sync_metadata_to_xmp(&source_path, &sidecar_path, &metadata, create_if_missing);
     }
 
     let loaded_image_lock = state.original_image.lock().unwrap();
@@ -2993,6 +2993,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
                     if enable_xmp_sync {
                         sync_metadata_to_xmp(
                             &imported.source_path,
+                            &imported.sidecar_path,
                             &imported.metadata,
                             create_xmp_if_missing,
                         );
@@ -3135,7 +3136,12 @@ pub async fn apply_adjustments_to_paths(
 
             if enable_xmp_sync {
                 let source_path = parse_virtual_path(path).0;
-                sync_metadata_to_xmp(&source_path, &existing_metadata, create_xmp_if_missing);
+                sync_metadata_to_xmp(
+                    &source_path,
+                    &sidecar_path,
+                    &existing_metadata,
+                    create_xmp_if_missing,
+                );
             }
         });
 
@@ -3212,7 +3218,12 @@ pub async fn reset_adjustments_for_paths(
 
             if enable_xmp_sync {
                 let source_path = parse_virtual_path(path).0;
-                sync_metadata_to_xmp(&source_path, &existing_metadata, create_xmp_if_missing);
+                sync_metadata_to_xmp(
+                    &source_path,
+                    &sidecar_path,
+                    &existing_metadata,
+                    create_xmp_if_missing,
+                );
             }
         });
 
@@ -3318,7 +3329,12 @@ pub async fn apply_auto_lens_correction_to_paths(
             }
 
             if enable_xmp_sync {
-                sync_metadata_to_xmp(&source_path, &existing_metadata, create_xmp_if_missing);
+                sync_metadata_to_xmp(
+                    &source_path,
+                    &sidecar_path,
+                    &existing_metadata,
+                    create_xmp_if_missing,
+                );
             }
 
             let result = generate_single_thumbnail_and_cache(
@@ -3432,7 +3448,12 @@ pub async fn apply_auto_adjustments_to_paths(
                 }
 
                 if enable_xmp_sync {
-                    sync_metadata_to_xmp(&source_path, &existing_metadata, create_xmp_if_missing);
+                    sync_metadata_to_xmp(
+                        &source_path,
+                        &sidecar_path,
+                        &existing_metadata,
+                        create_xmp_if_missing,
+                    );
                 }
                 Ok(image)
             })()
@@ -3483,16 +3504,32 @@ fn update_metadata_for_paths(
 ) -> Result<(), String> {
     ensure_card_writable_for_paths(paths)?;
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
-    let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-    let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
+    let xmp_sync = settings
+        .enable_xmp_sync
+        .unwrap_or(false)
+        .then(|| settings.create_xmp_if_missing.unwrap_or(false));
+    update_metadata(paths, xmp_sync, update)
+}
 
+/// `xmp_sync` is `Some(create_if_missing)` when XMP sync is on.
+fn update_metadata(
+    paths: &[String],
+    xmp_sync: Option<bool>,
+    update: impl Fn(&mut ImageMetadata) + Sync,
+) -> Result<(), String> {
+    ensure_card_writable_for_paths(paths)?;
     paths.par_iter().for_each(|path| {
         let (source_path, sidecar_path) = parse_virtual_path(path);
 
         let metadata = update_sidecar(&sidecar_path, &update);
 
-        if enable_xmp_sync {
-            sync_metadata_to_xmp(&source_path, &metadata, create_xmp_if_missing);
+        if let Some(create_xmp_if_missing) = xmp_sync {
+            sync_metadata_to_xmp(
+                &source_path,
+                &sidecar_path,
+                &metadata,
+                create_xmp_if_missing,
+            );
         }
     });
 
@@ -3525,8 +3562,15 @@ fn apply_user_rating(metadata: &mut ImageMetadata, rating: u8) {
     metadata.rating = rating;
     metadata.rating_is_explicit = true;
     if rating > 0 && metadata.flag == Some(ImageFlag::Reject) {
-        metadata.flag = None;
+        apply_user_flag(metadata, None);
     }
+}
+
+/// Like `rating_is_explicit`: a flag set or removed in RapidRoom wins over a
+/// reject in the .xmp, so a removed reject doesn't come back from XMP sync.
+fn apply_user_flag(metadata: &mut ImageMetadata, flag: Option<ImageFlag>) {
+    metadata.flag = flag;
+    metadata.flag_is_explicit = true;
 }
 
 #[cfg(test)]
@@ -3552,7 +3596,7 @@ pub fn set_flag_for_paths(
     app_handle: AppHandle,
 ) -> Result<(), String> {
     update_metadata_for_paths(&paths, &app_handle, |metadata| {
-        metadata.flag = flag;
+        apply_user_flag(metadata, flag)
     })
 }
 
@@ -3565,7 +3609,7 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
     if enable_xmp_sync
-        && sync_metadata_from_xmp(&source_path, &mut metadata)
+        && sync_metadata_from_xmp(&source_path, &sidecar_path, &mut metadata)
         && let Ok(json) = serde_json::to_string_pretty(&metadata)
     {
         let _ = write_file_atomically(&sidecar_path, json);
@@ -4689,9 +4733,12 @@ pub fn resolve_xmp_path(image_path: &Path) -> Option<PathBuf> {
 }
 
 fn merge_xmp_metadata_fields(content: &str, metadata: &mut ImageMetadata) {
-    if let Some(rating) = extract_xmp_rating(content).and_then(|r| u8::try_from(r).ok()) {
-        metadata.rating = rating;
-        metadata.rating_is_explicit = true;
+    let xmp_rating = extract_xmp_rating(content);
+    if xmp_rating == Some(XMP_REJECTED_RATING) {
+        apply_user_flag(metadata, Some(ImageFlag::Reject));
+    }
+    if let Some(rating) = xmp_rating.and_then(|r| u8::try_from(r).ok()) {
+        apply_user_rating(metadata, rating);
         if let Some(adjustments) = metadata.adjustments.as_object_mut() {
             adjustments.insert("rating".to_string(), serde_json::json!(rating));
         } else {
@@ -4725,7 +4772,17 @@ fn merge_xmp_metadata_fields(content: &str, metadata: &mut ImageMetadata) {
     }
 }
 
-pub fn sync_metadata_from_xmp(source_path: &Path, metadata: &mut ImageMetadata) -> bool {
+/// A virtual copy shares the original's .xmp, so the .xmp's xmp:Rating="-1"
+/// belongs to the original image only.
+fn is_virtual_copy_sidecar(source_path: &Path, sidecar_path: &Path) -> bool {
+    parse_virtual_path(&source_path.to_string_lossy()).1 != sidecar_path
+}
+
+pub fn sync_metadata_from_xmp(
+    source_path: &Path,
+    sidecar_path: &Path,
+    metadata: &mut ImageMetadata,
+) -> bool {
     let actual_xmp = resolve_xmp_path(source_path);
 
     let mut changed = false;
@@ -4735,7 +4792,11 @@ pub fn sync_metadata_from_xmp(source_path: &Path, metadata: &mut ImageMetadata) 
     {
         let xmp_rating = extract_xmp_rating(&content);
 
-        if xmp_rating == Some(XMP_REJECTED_RATING) && metadata.flag.is_none() {
+        if xmp_rating == Some(XMP_REJECTED_RATING)
+            && metadata.flag.is_none()
+            && !metadata.flag_is_explicit
+            && !is_virtual_copy_sidecar(source_path, sidecar_path)
+        {
             metadata.flag = Some(ImageFlag::Reject);
             changed = true;
         }
@@ -4783,7 +4844,13 @@ pub fn sync_metadata_from_xmp(source_path: &Path, metadata: &mut ImageMetadata) 
     changed
 }
 
-pub fn sync_metadata_to_xmp(source_path: &Path, metadata: &ImageMetadata, create_if_missing: bool) {
+pub fn sync_metadata_to_xmp(
+    source_path: &Path,
+    sidecar_path: &Path,
+    metadata: &ImageMetadata,
+    create_if_missing: bool,
+) {
+    let is_virtual_copy = is_virtual_copy_sidecar(source_path, sidecar_path);
     let xmp_path = source_path.with_extension("xmp");
     let xmp_path_upper = source_path.with_extension("XMP");
 
@@ -4818,7 +4885,13 @@ pub fn sync_metadata_to_xmp(source_path: &Path, metadata: &ImageMetadata, create
     if let Some(xmp_file) = actual_xmp
         && let Ok(mut content) = fs::read_to_string(&xmp_file)
     {
-        let rating_str = if metadata.flag == Some(ImageFlag::Reject) {
+        // A virtual copy leaves the original's reject in the .xmp as it is.
+        let rejected = if is_virtual_copy {
+            extract_xmp_rating(&content) == Some(XMP_REJECTED_RATING)
+        } else {
+            metadata.flag == Some(ImageFlag::Reject)
+        };
+        let rating_str = if rejected {
             XMP_REJECTED_RATING.to_string()
         } else {
             metadata.rating.to_string()
@@ -5171,11 +5244,21 @@ mod card_mode_tests {
         {
             let _mode = CardMode::on(&f.card);
             let before = snapshot(&f.card);
-            sync_metadata_to_xmp(&f.dcim.join("IMG_0001.jpg"), &rated(5), true);
+            sync_metadata_to_xmp(
+                &f.dcim.join("IMG_0001.jpg"),
+                &f.dcim.join("IMG_0001.jpg.rrdata"),
+                &rated(5),
+                true,
+            );
             assert_eq!(snapshot(&f.card), before);
         }
         let _mode = CardMode::off();
-        sync_metadata_to_xmp(&f.library.join("IMG_0001.jpg"), &rated(5), true);
+        sync_metadata_to_xmp(
+            &f.library.join("IMG_0001.jpg"),
+            &f.library.join("IMG_0001.jpg.rrdata"),
+            &rated(5),
+            true,
+        );
         let xmp = fs::read_to_string(f.library.join("IMG_0001.xmp")).unwrap();
         assert!(xmp.contains("xmp:Rating=\"5\""));
     }
@@ -5188,11 +5271,21 @@ mod card_mode_tests {
         {
             let _mode = CardMode::on(&f.card);
             let before = snapshot(&f.card);
-            sync_metadata_to_xmp(&f.dcim.join("IMG_0001.jpg"), &rated(4), true);
+            sync_metadata_to_xmp(
+                &f.dcim.join("IMG_0001.jpg"),
+                &f.dcim.join("IMG_0001.jpg.rrdata"),
+                &rated(4),
+                true,
+            );
             assert_eq!(snapshot(&f.card), before);
         }
         let _mode = CardMode::off();
-        sync_metadata_to_xmp(&f.library.join("IMG_0001.jpg"), &rated(4), true);
+        sync_metadata_to_xmp(
+            &f.library.join("IMG_0001.jpg"),
+            &f.library.join("IMG_0001.jpg.rrdata"),
+            &rated(4),
+            true,
+        );
         assert!(
             fs::read_to_string(f.library.join("IMG_0001.xmp"))
                 .unwrap()
@@ -5961,5 +6054,319 @@ mod embedded_rating_tests {
 
         fs::remove_file(&shot.raw).unwrap();
         assert_eq!(shown_rating(&shot, false), 0);
+    }
+}
+
+#[cfg(test)]
+mod flag_tests {
+    use super::card_mode_test_support::{CardMode, folders, path_str, snapshot};
+    use super::{
+        CARD_READ_ONLY_ERROR, apply_user_flag, apply_user_rating,
+        import_xmp_adjustments_to_sidecar, resolve_image_metadata, update_metadata,
+    };
+    use crate::app_settings::AppSettings;
+    use crate::exif_processing::load_sidecar;
+    use crate::exif_processing::rating_samples::{sony_arw, xmp_packet};
+    use crate::image_processing::ImageFlag;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    struct Shot {
+        dir: tempfile::TempDir,
+        raw: PathBuf,
+        sidecar: PathBuf,
+        xmp: PathBuf,
+    }
+
+    fn camera_rated(stars: &str) -> Shot {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("DSC00001.ARW");
+        fs::write(&raw, sony_arw(true, Some(stars), None)).unwrap();
+        Shot {
+            sidecar: dir.path().join("DSC00001.ARW.rrdata"),
+            xmp: dir.path().join("DSC00001.xmp"),
+            raw,
+            dir,
+        }
+    }
+
+    fn set_flag(path: &Path, flag: Option<ImageFlag>, xmp_sync: Option<bool>) {
+        update_metadata(&[path_str(path)], xmp_sync, |m| apply_user_flag(m, flag)).unwrap();
+    }
+
+    fn set_rating(path: &Path, rating: u8, xmp_sync: Option<bool>) {
+        update_metadata(&[path_str(path)], xmp_sync, |m| {
+            apply_user_rating(m, rating)
+        })
+        .unwrap();
+    }
+
+    fn shown(raw: &Path, sidecar: &Path, xmp_sync: bool) -> (u8, Option<ImageFlag>) {
+        let metadata = resolve_image_metadata(raw, sidecar, xmp_sync, &AppSettings::default());
+        (metadata.rating, metadata.flag)
+    }
+
+    fn xmp_rating(xmp: &Path) -> String {
+        let content = fs::read_to_string(xmp).unwrap();
+        super::extract_xmp_rating(&content).unwrap().to_string()
+    }
+
+    #[test]
+    fn flag_is_stored_next_to_the_rating() {
+        let shot = camera_rated("4");
+        set_rating(&shot.raw, 3, None);
+        set_flag(&shot.raw, Some(ImageFlag::Pick), None);
+
+        let json = fs::read_to_string(&shot.sidecar).unwrap();
+        assert!(json.contains(r#""flag": "pick""#), "{json}");
+        let saved = load_sidecar(&shot.sidecar);
+        assert_eq!(saved.rating, 3);
+        assert_eq!(saved.flag, Some(ImageFlag::Pick));
+        assert_eq!(
+            shown(&shot.raw, &shot.sidecar, false),
+            (3, Some(ImageFlag::Pick))
+        );
+
+        set_flag(&shot.raw, Some(ImageFlag::Reject), None);
+        assert_eq!(load_sidecar(&shot.sidecar).flag, Some(ImageFlag::Reject));
+        assert_eq!(
+            load_sidecar(&shot.sidecar).rating,
+            3,
+            "a reject keeps the stars"
+        );
+
+        set_flag(&shot.raw, None, None);
+        let json = fs::read_to_string(&shot.sidecar).unwrap();
+        assert!(!json.contains(r#""flag":"#), "{json}");
+        assert!(json.contains(r#""flag_is_explicit": true"#), "{json}");
+        assert_eq!(shown(&shot.raw, &shot.sidecar, false), (3, None));
+    }
+
+    #[test]
+    fn untouched_sidecars_get_no_flag_fields() {
+        let json =
+            serde_json::to_string(&crate::image_processing::ImageMetadata::default()).unwrap();
+        assert!(!json.contains("flag"), "{json}");
+
+        // Tags and ratings written by other commands don't add them either.
+        let shot = camera_rated("4");
+        set_rating(&shot.raw, 2, None);
+        assert!(!fs::read_to_string(&shot.sidecar).unwrap().contains("flag"));
+    }
+
+    #[test]
+    fn unknown_flag_values_read_as_unflagged() {
+        let shot = camera_rated("4");
+        for flag in [r#""maybe""#, "7", "null", r#"{"a":1}"#, r#""PICK""#] {
+            fs::write(
+                &shot.sidecar,
+                format!(
+                    r#"{{"version":1,"rating":2,"flag":{flag},"adjustments":{{"exposure":0.5}}}}"#
+                ),
+            )
+            .unwrap();
+            let saved = load_sidecar(&shot.sidecar);
+            assert_eq!(saved.flag, None, "{flag}");
+            assert_eq!(
+                saved.rating, 2,
+                "{flag}: the rest of the sidecar still loads"
+            );
+            assert_eq!(saved.adjustments["exposure"], serde_json::json!(0.5));
+        }
+    }
+
+    #[test]
+    fn flag_writes_keep_the_rest_of_the_sidecar() {
+        let shot = camera_rated("4");
+        fs::write(
+            &shot.sidecar,
+            r#"{"version":1,"rating":5,"adjustments":{"exposure":1.25},"tags":["user:keep"]}"#,
+        )
+        .unwrap();
+        set_flag(&shot.raw, Some(ImageFlag::Pick), None);
+
+        let saved = load_sidecar(&shot.sidecar);
+        assert_eq!(saved.adjustments["exposure"], serde_json::json!(1.25));
+        assert_eq!(saved.tags, Some(vec!["user:keep".to_string()]));
+        assert_eq!(saved.rating, 5);
+        let leftovers: Vec<_> = fs::read_dir(shot.dir.path())
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "{leftovers:?}");
+    }
+
+    #[test]
+    fn card_mode_refuses_flag_writes() {
+        let f = folders();
+        let _mode = CardMode::on(&f.card);
+        let before = snapshot(&f.card);
+
+        let card_image = f.dcim.join("IMG_0001.jpg");
+        for paths in [
+            vec![path_str(&card_image)],
+            vec![format!("{}?vc=abc123", path_str(&card_image))],
+            // One card path refuses the whole batch, so a selection is never half-flagged.
+            vec![
+                path_str(&f.library.join("IMG_0001.jpg")),
+                path_str(&card_image),
+            ],
+        ] {
+            let error = update_metadata(&paths, Some(true), |m| {
+                apply_user_flag(m, Some(ImageFlag::Reject))
+            })
+            .unwrap_err();
+            assert_eq!(error, CARD_READ_ONLY_ERROR);
+        }
+        assert_eq!(snapshot(&f.card), before);
+        assert_eq!(
+            load_sidecar(&f.library.join("IMG_0001.jpg.rrdata")).flag,
+            None
+        );
+
+        set_flag(
+            &f.library.join("IMG_0001.jpg"),
+            Some(ImageFlag::Pick),
+            Some(true),
+        );
+        assert_eq!(
+            load_sidecar(&f.library.join("IMG_0001.jpg.rrdata")).flag,
+            Some(ImageFlag::Pick)
+        );
+    }
+
+    #[test]
+    fn reject_round_trips_through_xmp_rating() {
+        let shot = camera_rated("4");
+        set_rating(&shot.raw, 3, Some(true));
+        assert_eq!(xmp_rating(&shot.xmp), "3");
+
+        set_flag(&shot.raw, Some(ImageFlag::Reject), Some(true));
+        assert_eq!(xmp_rating(&shot.xmp), "-1");
+        assert_eq!(load_sidecar(&shot.sidecar).rating, 3);
+
+        // A pick is RapidRoom-only; the .xmp keeps the stars.
+        set_flag(&shot.raw, Some(ImageFlag::Pick), Some(true));
+        assert_eq!(xmp_rating(&shot.xmp), "3");
+
+        set_flag(&shot.raw, Some(ImageFlag::Reject), Some(true));
+        set_flag(&shot.raw, None, Some(true));
+        assert_eq!(xmp_rating(&shot.xmp), "3", "unflagging restores the stars");
+    }
+
+    #[test]
+    fn reject_from_another_app_is_read_from_xmp() {
+        let shot = camera_rated("4");
+        fs::write(&shot.xmp, xmp_packet("-1")).unwrap();
+
+        assert_eq!(
+            shown(&shot.raw, &shot.sidecar, false),
+            (4, None),
+            "XMP sync off"
+        );
+        assert_eq!(
+            shown(&shot.raw, &shot.sidecar, true),
+            (4, Some(ImageFlag::Reject)),
+            "the camera's stars still show; -1 is not a star rating"
+        );
+        assert_eq!(load_sidecar(&shot.sidecar).flag, Some(ImageFlag::Reject));
+    }
+
+    #[test]
+    fn removed_reject_does_not_come_back_from_xmp() {
+        let shot = camera_rated("4");
+        fs::write(&shot.xmp, xmp_packet("-1")).unwrap();
+        assert_eq!(
+            shown(&shot.raw, &shot.sidecar, true).1,
+            Some(ImageFlag::Reject)
+        );
+
+        // Unflagged with XMP sync off, so the .xmp still says -1.
+        set_flag(&shot.raw, None, None);
+        assert_eq!(xmp_rating(&shot.xmp), "-1");
+        assert_eq!(shown(&shot.raw, &shot.sidecar, true), (4, None));
+
+        // Same for a reject cleared by giving the photo stars.
+        let shot = camera_rated("4");
+        fs::write(&shot.xmp, xmp_packet("-1")).unwrap();
+        assert_eq!(
+            shown(&shot.raw, &shot.sidecar, true).1,
+            Some(ImageFlag::Reject)
+        );
+        set_rating(&shot.raw, 2, None);
+        assert_eq!(shown(&shot.raw, &shot.sidecar, true), (2, None));
+    }
+
+    #[test]
+    fn stars_clear_a_reject_but_zero_stars_do_not() {
+        let shot = camera_rated("4");
+        set_flag(&shot.raw, Some(ImageFlag::Reject), Some(true));
+        set_rating(&shot.raw, 0, Some(true));
+        assert_eq!(
+            shown(&shot.raw, &shot.sidecar, true),
+            (0, Some(ImageFlag::Reject))
+        );
+        assert_eq!(xmp_rating(&shot.xmp), "-1");
+
+        set_rating(&shot.raw, 5, Some(true));
+        assert_eq!(shown(&shot.raw, &shot.sidecar, true), (5, None));
+        assert_eq!(xmp_rating(&shot.xmp), "5");
+    }
+
+    #[test]
+    fn a_virtual_copy_never_rejects_the_original() {
+        let shot = camera_rated("4");
+        let copy = format!("{}?vc=abc123", path_str(&shot.raw));
+        let copy_sidecar = shot.dir.path().join("DSC00001.ARW.abc123.rrdata");
+
+        update_metadata(std::slice::from_ref(&copy), Some(true), |m| {
+            apply_user_flag(m, Some(ImageFlag::Reject))
+        })
+        .unwrap();
+        assert_eq!(load_sidecar(&copy_sidecar).flag, Some(ImageFlag::Reject));
+        assert_ne!(xmp_rating(&shot.xmp), "-1");
+        assert_eq!(shown(&shot.raw, &shot.sidecar, true).1, None);
+
+        // The original's reject isn't undone by writes from the copy...
+        set_flag(&shot.raw, Some(ImageFlag::Reject), Some(true));
+        update_metadata(std::slice::from_ref(&copy), Some(true), |m| {
+            apply_user_flag(m, None);
+            apply_user_rating(m, 3);
+        })
+        .unwrap();
+        assert_eq!(xmp_rating(&shot.xmp), "-1");
+        assert_eq!(
+            shown(&shot.raw, &shot.sidecar, true).1,
+            Some(ImageFlag::Reject)
+        );
+
+        // ...and isn't copied onto a copy that was never flagged.
+        let fresh_copy_sidecar = shot.dir.path().join("DSC00001.ARW.def456.rrdata");
+        assert_eq!(shown(&shot.raw, &fresh_copy_sidecar, true).1, None);
+        assert!(load_sidecar(&fresh_copy_sidecar).flag.is_none());
+    }
+
+    #[test]
+    fn lightroom_reject_imports_as_a_reject_flag() {
+        let shot = camera_rated("4");
+        let lr_xmp = shot.dir.path().join("lightroom.xmp");
+        fs::write(
+            &lr_xmp,
+            r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmp:Rating="-1"/></rdf:RDF></x:xmpmeta>"#,
+        )
+        .unwrap();
+
+        let imported =
+            import_xmp_adjustments_to_sidecar(&path_str(&shot.raw), &lr_xmp, None).unwrap();
+        assert_eq!(imported.metadata.flag, Some(ImageFlag::Reject));
+        assert!(
+            !imported.metadata.rating_is_explicit,
+            "-1 is not a star rating"
+        );
+        assert_eq!(
+            shown(&shot.raw, &shot.sidecar, false),
+            (4, Some(ImageFlag::Reject))
+        );
     }
 }
