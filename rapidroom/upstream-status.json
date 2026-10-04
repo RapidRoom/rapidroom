@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-03",
+  "as_of": "2026-10-04",
   "refs": {
     "CyberTimon/RapidRAW#1251": {
       "kind": "issue",
@@ -105,6 +105,14 @@
       "created": "2026-08-26",
       "closed": null
     },
+    "CyberTimon/RapidRAW#1837": {
+      "kind": "pr",
+      "title": "Respect the maximum AI tag count (fixes #1609)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1837",
+      "state": "open",
+      "created": "2026-10-04",
+      "closed": null
+    },
     "CyberTimon/RapidRAW#1454": {
       "kind": "issue",
       "title": "BUG: directory with mixed types of RAW files and JPG doesn't present any files when grouping raw+jpeg is enabled",
@@ -127,6 +135,14 @@
       "url": "https://github.com/CyberTimon/RapidRAW/issues/1674",
       "state": "open",
       "created": "2026-09-03",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1836": {
+      "kind": "pr",
+      "title": "Refresh the library and folder tree after an export (fixes #1674)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1836",
+      "state": "open",
+      "created": "2026-10-04",
       "closed": null
     },
     "CyberTimon/RapidRAW#1571": {
