@@ -2,6 +2,20 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "sony-aspect-crop",
+      "title": "Sony 4:3, 1:1 and 16:9 camera framing opens as an editable crop",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "commits": ["https://github.com/yojen7/RapidRAW-DngLab/commit/bca09813d1a0973d9a66e51bc1a52d47669227e6"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Reads SonyCropTopLeft/SonyCropSize in the rawler fork, retains the full DefaultCrop image for crop expansion/reset, and preserves existing sidecar framing. The M/S crop and saturating highlight dither fixes remain. AI-assisted with Codex; maintainer visual review required.",
+      "highlight": "**Sony camera aspect ratios are respected.** 4:3, square and 16:9 shots start with the camera framing, and you can expand the crop back to the full image."
+    },
+    {
       "id": "wb-picker-original",
       "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
       "category": "fix",
@@ -29,7 +43,7 @@
     },
     {
       "id": "closed-pipe",
-      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw … | head`)",
+      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw \u2026 | head`)",
       "category": "fix",
       "landed": "2026-10-02",
       "authors": ["yojen7"],
@@ -415,8 +429,8 @@
       "upstream_issues": ["CyberTimon/RapidRAW#1749", "CyberTimon/RapidRAW#1583"],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Auto-advance is off by default (Settings → General) and only moves on when a single image is rated with the 0–5 keys; it stops at the last image. The ≥/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
-      "highlight": "**Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars."
+      "notes": "Auto-advance is off by default (Settings \u2192 General) and only moves on when a single image is rated with the 0\u20135 keys; it stops at the last image. The \u2265/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
+      "highlight": "**Faster culling:** rate with 0\u20135 and jump straight to the next photo, and filter for exactly N stars."
     },
     {
       "id": "lightroom-xmp-import",

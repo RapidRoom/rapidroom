@@ -245,8 +245,21 @@ pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
     meta
 }
 
-pub fn load_sidecar_with_exif(sidecar_path: &Path, source_path: &Path) -> ImageMetadata {
+/// Seed only an unedited image; existing sidecar framing stays in the original
+/// full DefaultCrop coordinate system. Reading does not write a sidecar.
+pub fn load_sidecar_with_camera_crop(sidecar_path: &Path, source_path: &Path) -> ImageMetadata {
     let mut meta = load_sidecar(sidecar_path);
+    if meta.adjustments.is_null() {
+        crate::raw_processing::apply_camera_crop_default_from_path(
+            &mut meta.adjustments,
+            source_path,
+        );
+    }
+    meta
+}
+
+pub fn load_sidecar_with_exif(sidecar_path: &Path, source_path: &Path) -> ImageMetadata {
+    let mut meta = load_sidecar_with_camera_crop(sidecar_path, source_path);
 
     if meta.exif.is_none() {
         if let Some(cached_exif) = read_rrexif_sidecar(source_path) {

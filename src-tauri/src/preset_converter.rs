@@ -247,7 +247,8 @@ fn probe_xmp_crop_image_dimensions(image_path: &Path) -> Option<(f64, f64)> {
             .raw_image(&source, &RawDecodeParams::default(), true)
             .ok()?;
         let dimensions = raw_image
-            .crop_area
+            .default_crop_area
+            .or(raw_image.crop_area)
             .or(raw_image.active_area)
             .map(|crop| (crop.d.w, crop.d.h))
             .unwrap_or((raw_image.width, raw_image.height));

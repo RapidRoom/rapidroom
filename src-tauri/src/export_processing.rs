@@ -1618,15 +1618,29 @@ pub(crate) async fn export_images_impl(
                             if let Some(adj) = active_adjustments {
                                 adj.clone()
                             } else {
-                                crate::exif_processing::load_sidecar(&sidecar_path).adjustments
+                                crate::exif_processing::load_sidecar_with_camera_crop(
+                                    &sidecar_path,
+                                    &source_path,
+                                )
+                                .adjustments
                             }
                         } else {
-                            crate::exif_processing::load_sidecar(&sidecar_path).adjustments
+                            crate::exif_processing::load_sidecar_with_camera_crop(
+                                &sidecar_path,
+                                &source_path,
+                            )
+                            .adjustments
                         }
                     }
                     ExportAdjustmentsMode::GlobalOverride(adj) => adj.clone(),
                 };
 
+                if matches!(adjustments_mode, ExportAdjustmentsMode::GlobalOverride(_)) {
+                    crate::raw_processing::apply_camera_crop_default_from_path(
+                        &mut js_adjustments,
+                        &source_path,
+                    );
+                }
                 hydrate_adjustments(&state, &mut js_adjustments);
                 let is_raw = is_raw_file(&source_path_str);
                 let original_path = std::path::Path::new(&source_path_str);
@@ -2239,7 +2253,8 @@ pub async fn estimate_export_sizes(
 
         (preview_byte_size as f64 * pixel_ratio) as usize
     } else {
-        let metadata = crate::exif_processing::load_sidecar(&sidecar_path);
+        let metadata =
+            crate::exif_processing::load_sidecar_with_camera_crop(&sidecar_path, &source_path);
         let mut js_adjustments = metadata.adjustments;
 
         const ESTIMATE_DIM: u32 = 1280;

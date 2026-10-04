@@ -922,7 +922,8 @@ pub async fn load_image(
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     let source_path_str = source_path.to_string_lossy().to_string();
 
-    let metadata: ImageMetadata = crate::exif_processing::load_sidecar(&sidecar_path);
+    let metadata: ImageMetadata =
+        crate::exif_processing::load_sidecar_with_camera_crop(&sidecar_path, &source_path);
 
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
 

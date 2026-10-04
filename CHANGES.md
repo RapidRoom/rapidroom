@@ -4,10 +4,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**38 changes on top of RapidRAW.** 18 fix upstream issues that had been open a median of 68 days when RapidRoom shipped the fix; 17 of them still open upstream. 11 offered upstream as PRs, 3 merged so far.
+**39 changes on top of RapidRAW.** 18 fix upstream issues that had been open a median of 68 days when RapidRoom shipped the fix; 17 of them still open upstream. 11 offered upstream as PRs, 3 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                                                           |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sony 4:3, 1:1 and 16:9 camera framing opens as an editable crop ⚑                                                                                                                  | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
 | White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct                | fix         | [@lalibertemarc](https://github.com/lalibertemarc)                                                                       | [#1251](https://github.com/CyberTimon/RapidRAW/issues/1251) open 119 d; [#746](https://github.com/CyberTimon/RapidRAW/issues/746) open 218 d; [#1768](https://github.com/CyberTimon/RapidRAW/issues/1768) open 10 d                                                                |
 | Tauri 2.12: Native Titlebar works with tiling Wayland compositors (Hyprland)                                                                                                       | platform    | [@yojen7](https://github.com/yojen7)                                                                                     | PR [#1813](https://github.com/CyberTimon/RapidRAW/pull/1813) merged                                                                                                                                                                                                                |
 | No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw … \| head`)                                                                                                   | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | PR [#1819](https://github.com/CyberTimon/RapidRAW/pull/1819) open                                                                                                                                                                                                                  |
@@ -53,6 +54,15 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-03.
 
 ## Details
+
+### Sony 4:3, 1:1 and 16:9 camera framing opens as an editable crop
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** not yet offered
+- **Commits:** [bca0981](https://github.com/yojen7/RapidRAW-DngLab/commit/bca09813d1a0973d9a66e51bc1a52d47669227e6)
+- **Notes:** Reads SonyCropTopLeft/SonyCropSize in the rawler fork, retains the full DefaultCrop image for crop expansion/reset, and preserves existing sidecar framing. The M/S crop and saturating highlight dither fixes remain. AI-assisted with Codex; maintainer visual review required.
 
 ### White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct
 

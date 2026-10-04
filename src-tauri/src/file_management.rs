@@ -3550,6 +3550,13 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
         let _ = write_file_atomically(&sidecar_path, json);
     }
 
+    if metadata.adjustments.is_null() {
+        crate::raw_processing::apply_camera_crop_default_from_path(
+            &mut metadata.adjustments,
+            &source_path,
+        );
+    }
+
     Ok(metadata)
 }
 

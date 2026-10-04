@@ -37,6 +37,8 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 | Bundled Poppins font                 | @yojen7 (AI-assisted)                              | not yet proposed                                                                                                                                                                               |
 | Clerk loaded only for cloud features | @yojen7 (AI-assisted)                              | not yet proposed                                                                                                                                                                               |
 
+| Editable Sony in-camera aspect crop | @yojen7 (AI-assisted with Codex) | [rawler bca0981](https://github.com/yojen7/RapidRAW-DngLab/commit/bca09813d1a0973d9a66e51bc1a52d47669227e6); original RapidRoom work |
+
 ## Third-party assets
 
 - **Start-screen photograph** `public/splash-rapidroom.jpg`: © 2025 [@yojen7](https://github.com/yojen7), **all rights reserved**. It is not covered by the AGPL and is included with permission for RapidRoom only. Forks must replace it; see `public/splash-rapidroom.jpg.license`.
