@@ -304,6 +304,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -804,6 +814,17 @@
         "tool": "Strumento"
       }
     },
+    "referenceView": {
+      "active": "Attiva",
+      "cancel": "Annulla",
+      "chooseHint": "Fai clic su una foto nella pellicola per usarla come riferimento.",
+      "clear": "Rimuovi riferimento",
+      "close": "Chiudi vista di riferimento",
+      "readOnly": "Sola lettura",
+      "reference": "Riferimento",
+      "replace": "Scegli un altro riferimento",
+      "unavailable": "Immagine di riferimento non disponibile"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Regola",
@@ -825,6 +846,7 @@
         "fullscreen": "Attiva/Disattiva Schermo Intero (F)",
         "iso": "ISO",
         "redo": "Ripeti (Ctrl+Y) o Cronologia (Tasto destro)",
+        "referenceView": "Vista di riferimento (Maiusc+R)",
         "showEdited": "Mostra Modificata (B)",
         "showOriginal": "Mostra Originale (B)",
         "shutterSpeed": "Tempo di Esposizione",
@@ -1743,6 +1765,7 @@
         "toggle_masks": "Attiva/Disattiva pannello Maschere",
         "toggle_metadata": "Attiva/Disattiva pannello Metadati",
         "toggle_presets": "Attiva/Disattiva pannello Predefiniti",
+        "toggle_reference_view": "Attiva/disattiva vista di riferimento",
         "toggle_right_panel": "Mostra/Nascondi pannello destro",
         "undo": "Annulla modifica",
         "zoom_100": "Zoom al 100%",

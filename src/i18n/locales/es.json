@@ -304,6 +304,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -804,6 +814,17 @@
         "tool": "Herramienta"
       }
     },
+    "referenceView": {
+      "active": "Activa",
+      "cancel": "Cancelar",
+      "chooseHint": "Haz clic en una foto de la tira de imágenes para usarla como referencia.",
+      "clear": "Quitar referencia",
+      "close": "Cerrar vista de referencia",
+      "readOnly": "Solo lectura",
+      "reference": "Referencia",
+      "replace": "Elegir otra referencia",
+      "unavailable": "Imagen de referencia no disponible"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Ajustar",
@@ -825,6 +846,7 @@
         "fullscreen": "Alternar pantalla completa (F)",
         "iso": "ISO",
         "redo": "Rehacer (Ctrl+Y) o Historial (Clic derecho)",
+        "referenceView": "Vista de referencia (Mayús+R)",
         "showEdited": "Mostrar editado (B)",
         "showOriginal": "Mostrar original (B)",
         "shutterSpeed": "Velocidad de obturación",
@@ -1743,6 +1765,7 @@
         "toggle_masks": "Alternar panel de Máscaras",
         "toggle_metadata": "Alternar panel de Metadatos",
         "toggle_presets": "Alternar panel de Ajustes preestablecidos",
+        "toggle_reference_view": "Alternar vista de referencia",
         "toggle_right_panel": "Alternar panel derecho",
         "undo": "Deshacer ajuste",
         "zoom_100": "Hacer zoom al 100%",
