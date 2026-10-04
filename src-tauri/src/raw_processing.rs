@@ -336,7 +336,7 @@ pub fn camera_crop_from_bytes(file_bytes: &[u8]) -> Option<Crop> {
         .ok()?;
     let mut base = raw_image.default_crop_area?;
     if let Some(active) = raw_image.active_area {
-        base = base.intersection(active);
+        base = base.intersection(&active);
     }
     let crop = raw_image.crop_area?;
     let metadata = decoder
