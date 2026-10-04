@@ -25,8 +25,9 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Star ratings you set in the camera show up in the library.**
 - **Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars.
 - **Bring your Lightroom edits along:** import XMP sidecars
+- **Pick and reject flags for culling,** separate from stars: P, X and U as in Lightroom, a flag filter, and rejects that darktable, Bridge and Lightroom understand.
 
-38 improvements on top of RapidRAW so far, including fixes for 17 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+39 improvements on top of RapidRAW so far, including fixes for 17 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Why RapidRoom

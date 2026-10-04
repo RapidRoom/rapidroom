@@ -525,6 +525,20 @@
       "upstream_prs": [],
       "rendering_change": true,
       "notes": "Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only."
+    },
+    {
+      "id": "pick-reject-flags",
+      "title": "Pick and reject flags, separate from star ratings: P / X / U shortcuts, badges, a flag filter (picked, unflagged, hide rejected, rejected) and Delete rejected",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["lalibertemarc", "yojen7"],
+      "source": "lalibertemarc/RapidRAW (adapted by yojen7)",
+      "commits": ["https://github.com/lalibertemarc/RapidRAW/commit/1b4b9db115f0c1aa6f12e2b4bc0515ffb7fb0eb6"],
+      "upstream_issues": ["CyberTimon/RapidRAW#1599", "CyberTimon/RapidRAW#994", "CyberTimon/RapidRAW#1057"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The flag is its own `flag` field in the sidecar, so a reject keeps the stars and older builds ignore it. With XMP sync on, a reject is written as xmp:Rating=\"-1\" (darktable, Bridge and Lightroom use the same value) and read back from it; a flag you set or remove in RapidRoom wins over the .xmp, and a virtual copy never changes the original's reject. A Lightroom XMP import brings rejects in. The Presets panel shortcut moves from P to Shift+P. Upstream has two other designs for this, PRs 1075 (reject as rating -1) and 1272 (flags as tags); the PR for RapidRoom #32 explains the choice. Harvested with Claude Code.",
+      "highlight": "**Pick and reject flags for culling,** separate from stars: P, X and U as in Lightroom, a flag filter, and rejects that darktable, Bridge and Lightroom understand."
     }
   ]
 }
