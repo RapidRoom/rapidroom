@@ -12,6 +12,7 @@ import { expandGroupedPaths } from '../utils/imageGrouping';
 import { getReferenceLabel, isReferenceCandidate } from '../utils/referenceView';
 import type { FolderTree } from '../components/panel/right/FolderTree';
 import { getImageFlag, restoreFlags, toggledFlag, withFlag } from '../utils/imageFlags';
+import { enqueueLibraryMetadataWrite } from '../utils/libraryMetadataWrites';
 
 const resolveTargetPaths = (paths?: string[]) => {
   const { multiSelectedPaths, imageList } = useLibraryStore.getState();
@@ -35,20 +36,41 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     const currentRating = imageRatings[selectedPaths[0]] || 0;
     const finalRating = newRating === currentRating && !isRejected ? 0 : newRating;
 
-    setLibrary((state) => {
-      const newRatings = { ...state.imageRatings };
-      pathsToRate.forEach((p) => {
-        newRatings[p] = finalRating;
-      });
-      if (finalRating > 0) {
-        return { imageRatings: newRatings, imageList: withFlag(state.imageList, pathsToRate, null, ImageFlag.Reject) };
-      }
-      return { imageRatings: newRatings };
-    });
-
-    invoke(Invokes.SetRatingForPaths, { paths: pathsToRate, rating: finalRating }).catch((err) => {
-      console.error(err);
-      toast.error(`Failed to apply rating: ${err}`);
+    enqueueLibraryMetadataWrite({
+      apply: () => {
+        const previous = useLibraryStore.getState();
+        setLibrary((state) => {
+          const newRatings = { ...state.imageRatings };
+          pathsToRate.forEach((p) => {
+            newRatings[p] = finalRating;
+          });
+          if (finalRating > 0) {
+            return {
+              imageRatings: newRatings,
+              imageList: withFlag(state.imageList, pathsToRate, null, ImageFlag.Reject),
+            };
+          }
+          return { imageRatings: newRatings };
+        });
+        return () => {
+          setLibrary((state) => {
+            const ratings = { ...state.imageRatings };
+            for (const path of pathsToRate) {
+              if (Object.hasOwn(previous.imageRatings, path)) ratings[path] = previous.imageRatings[path];
+              else delete ratings[path];
+            }
+            return {
+              imageRatings: ratings,
+              imageList: restoreFlags(state.imageList, previous.imageList, pathsToRate),
+            };
+          });
+        };
+      },
+      save: () => invoke(Invokes.SetRatingForPaths, { paths: pathsToRate, rating: finalRating }),
+      onError: (err) => {
+        console.error(err);
+        toast.error(`Failed to apply rating: ${err}`);
+      },
     });
   }, []);
 
@@ -56,15 +78,18 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     const { expandedPaths } = resolveTargetPaths(paths);
     if (expandedPaths.length === 0) return;
 
-    const { imageList: previous, setLibrary } = useLibraryStore.getState();
-    setLibrary((state) => ({
-      imageList: withFlag(state.imageList, expandedPaths, flag),
-    }));
-
-    invoke(Invokes.SetFlagForPaths, { paths: expandedPaths, flag }).catch((err) => {
-      console.error(err);
-      setLibrary((state) => ({ imageList: restoreFlags(state.imageList, previous, expandedPaths) }));
-      toast.error(`Failed to update flag: ${err}`);
+    const { setLibrary } = useLibraryStore.getState();
+    enqueueLibraryMetadataWrite({
+      apply: () => {
+        const { imageList: previous } = useLibraryStore.getState();
+        setLibrary((state) => ({ imageList: withFlag(state.imageList, expandedPaths, flag) }));
+        return () => setLibrary((state) => ({ imageList: restoreFlags(state.imageList, previous, expandedPaths) }));
+      },
+      save: () => invoke(Invokes.SetFlagForPaths, { paths: expandedPaths, flag }),
+      onError: (err) => {
+        console.error(err);
+        toast.error(`Failed to update flag: ${err}`);
+      },
     });
   }, []);
 

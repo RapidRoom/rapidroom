@@ -3555,13 +3555,20 @@ pub async fn apply_auto_adjustments_to_paths(
     Ok(())
 }
 
-fn update_sidecar(sidecar_path: &Path, update: impl Fn(&mut ImageMetadata)) -> ImageMetadata {
+fn update_sidecar(
+    sidecar_path: &Path,
+    update: impl Fn(&mut ImageMetadata),
+) -> Result<ImageMetadata, String> {
     let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
     update(&mut metadata);
-    if let Ok(json_string) = serde_json::to_string_pretty(&metadata) {
-        let _ = write_file_atomically(sidecar_path, json_string);
-    }
-    metadata
+    let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
+    write_file_atomically(sidecar_path, json_string).map_err(|error| {
+        format!(
+            "Failed to save metadata to {}: {error}",
+            sidecar_path.display()
+        )
+    })?;
+    Ok(metadata)
 }
 
 fn update_metadata_for_paths(
@@ -3585,10 +3592,10 @@ fn update_metadata(
     update: impl Fn(&mut ImageMetadata) + Sync,
 ) -> Result<(), String> {
     ensure_card_writable_for_paths(paths)?;
-    paths.par_iter().for_each(|path| {
+    paths.par_iter().try_for_each(|path| {
         let (source_path, sidecar_path) = parse_virtual_path(path);
 
-        let metadata = update_sidecar(&sidecar_path, &update);
+        let metadata = update_sidecar(&sidecar_path, &update)?;
 
         if let Some(create_xmp_if_missing) = xmp_sync {
             sync_metadata_to_xmp(
@@ -3598,9 +3605,8 @@ fn update_metadata(
                 create_xmp_if_missing,
             );
         }
-    });
-
-    Ok(())
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -3642,7 +3648,7 @@ fn apply_user_flag(metadata: &mut ImageMetadata, flag: Option<ImageFlag>) {
 
 #[cfg(test)]
 fn store_user_rating(sidecar_path: &Path, rating: u8) -> ImageMetadata {
-    update_sidecar(sidecar_path, |metadata| apply_user_rating(metadata, rating))
+    update_sidecar(sidecar_path, |metadata| apply_user_rating(metadata, rating)).unwrap()
 }
 
 #[tauri::command]
@@ -6182,6 +6188,24 @@ mod flag_tests {
     fn xmp_rating(xmp: &Path) -> String {
         let content = fs::read_to_string(xmp).unwrap();
         super::extract_xmp_rating(&content).unwrap().to_string()
+    }
+
+    #[test]
+    fn a_failed_sidecar_write_returns_an_error_without_syncing_xmp() {
+        let shot = camera_rated("4");
+        fs::create_dir(&shot.sidecar).unwrap();
+        fs::write(&shot.xmp, xmp_packet("3")).unwrap();
+        let before = fs::read(&shot.xmp).unwrap();
+
+        let error = update_metadata(&[path_str(&shot.raw)], Some(true), |metadata| {
+            apply_user_flag(metadata, Some(ImageFlag::Reject));
+        })
+        .unwrap_err();
+
+        assert!(error.contains("Failed to save metadata"), "{error}");
+        assert!(error.contains(&path_str(&shot.sidecar)), "{error}");
+        assert!(shot.sidecar.is_dir());
+        assert_eq!(fs::read(&shot.xmp).unwrap(), before);
     }
 
     #[test]

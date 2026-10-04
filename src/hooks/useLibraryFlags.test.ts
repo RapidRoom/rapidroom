@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createElement } from 'react';
 import { act } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
 import { invoke, mockCommand } from '../test/tauriMock';
 import { useLibraryActions } from './useLibraryActions';
@@ -13,8 +13,10 @@ import { ImageFile, ImageFlag, Invokes } from '../components/ui/AppProperties';
 
 const initialLibraryState = useLibraryStore.getState();
 const initialEditorState = useEditorStore.getState();
+const roots: Root[] = [];
 
-afterEach(() => {
+afterEach(async () => {
+  for (const root of roots.splice(0)) await act(async () => root.unmount());
   useLibraryStore.setState(initialLibraryState, true);
   useEditorStore.setState(initialEditorState, true);
 });
@@ -26,6 +28,7 @@ async function mountLibraryActions() {
     return null;
   }
   const root = createRoot(document.createElement('div'));
+  roots.push(root);
   await act(async () => {
     root.render(createElement(Harness));
   });
@@ -110,5 +113,76 @@ describe('flag actions in the library store', () => {
     actions.handleRate(0, ['/r.raw']);
     expect(storedFlags()).toEqual({ '/r.raw': ImageFlag.Reject });
     await settle();
+  });
+
+  it('restores both stars and the reject when a rating write is refused', async () => {
+    mockCommand(Invokes.SetRatingForPaths, () => {
+      throw new Error('This card is open read-only.');
+    });
+    library({ '/r.raw': ImageFlag.Reject, '/p.raw': ImageFlag.Pick }, { '/r.raw': 2 });
+    const actions = await mountLibraryActions();
+
+    actions.handleRate(3, ['/r.raw', '/p.raw']);
+    expect(storedFlags()['/r.raw']).toBeNull();
+    await settle();
+
+    expect(storedFlags()).toEqual({ '/r.raw': ImageFlag.Reject, '/p.raw': ImageFlag.Pick });
+    expect(useLibraryStore.getState().imageRatings).toEqual({ '/r.raw': 2 });
+  });
+
+  it('saves rapid flag actions in order and keeps the later action after an earlier failure', async () => {
+    let rejectFirst!: (error: Error) => void;
+    const writes: unknown[] = [];
+    mockCommand(Invokes.SetFlagForPaths, (args) => {
+      writes.push(args);
+      if (writes.length === 1) return new Promise<void>((_, reject) => (rejectFirst = reject));
+    });
+    library({ '/a.raw': null });
+    const actions = await mountLibraryActions();
+
+    actions.handleSetFlag(ImageFlag.Pick, ['/a.raw']);
+    actions.handleSetFlag(ImageFlag.Reject, ['/a.raw']);
+    expect(storedFlags()['/a.raw']).toBe(ImageFlag.Reject);
+    expect(writes).toHaveLength(1);
+    await act(async () => rejectFirst(new Error('Write refused')));
+
+    expect(writes).toEqual([
+      { paths: ['/a.raw'], flag: ImageFlag.Pick },
+      { paths: ['/a.raw'], flag: ImageFlag.Reject },
+    ]);
+    expect(storedFlags()['/a.raw']).toBe(ImageFlag.Reject);
+  });
+
+  it('returns to the saved flags when two queued writes are refused', async () => {
+    let rejectFirst!: (error: Error) => void;
+    let calls = 0;
+    mockCommand(Invokes.SetFlagForPaths, () => {
+      if (++calls === 1) return new Promise<void>((_, reject) => (rejectFirst = reject));
+      throw new Error('This card is open read-only.');
+    });
+    library({ '/a.raw': null });
+    const actions = await mountLibraryActions();
+
+    actions.handleSetFlag(ImageFlag.Pick, ['/a.raw']);
+    actions.handleSetFlag(ImageFlag.Reject, ['/a.raw']);
+    await act(async () => rejectFirst(new Error('This card is open read-only.')));
+
+    expect(calls).toBe(2);
+    expect(storedFlags()['/a.raw']).toBeNull();
+  });
+
+  it('keeps a queued pick when an earlier rating that cleared a reject is refused', async () => {
+    let rejectRating!: (error: Error) => void;
+    mockCommand(Invokes.SetRatingForPaths, () => new Promise<void>((_, reject) => (rejectRating = reject)));
+    mockCommand(Invokes.SetFlagForPaths, () => undefined);
+    library({ '/r.raw': ImageFlag.Reject }, { '/r.raw': 2 });
+    const actions = await mountLibraryActions();
+
+    actions.handleRate(3, ['/r.raw']);
+    actions.handleSetFlag(ImageFlag.Pick, ['/r.raw']);
+    await act(async () => rejectRating(new Error('Rating write refused')));
+
+    expect(useLibraryStore.getState().imageRatings).toEqual({ '/r.raw': 2 });
+    expect(storedFlags()['/r.raw']).toBe(ImageFlag.Pick);
   });
 });
