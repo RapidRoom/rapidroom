@@ -49,7 +49,7 @@ These are documented working practices, not looks to imitate. Use one when this 
    Starting points, not answers: judge the render, not the number. RapidRoom's `exposure` unit is about 1.25 EV, so these values are slightly stronger than the same EV numbers; that's fine as a start. Build subject and environment from the same selection so they share one edge, then check the edge for halos. AI subject masks over MCP are [coming](tools.md#coming); until then use radial and linear masks, or ask the user to make the subject mask in the GUI.
 
 5. **Colour: one idea per image.** Warm–cool contrast, one saturated accent, a restrained palette, or monochrome. Use `hsl` to calm competing colours and deepen the ones that carry the mood. `vibrance` before `saturation`; global `saturation` past about +15 needs a reason. Offer monochrome as an alternative when colour adds nothing.
-6. **Detail and finish.** Denoise before sharpening; for high-ISO files the AI denoise in the GUI beats the sliders. Sharpen the subject, not the background. Glow, grain and lens blur only when they support the mood.
+6. **Detail and finish.** Denoise before sharpening; for high-ISO files compare the GUI denoise options on this image, inspecting detail and artifacts rather than assuming one method is better. Sharpen the subject, not the background. Glow, grain and lens blur only when they support the mood.
 7. **Deliver alternatives** for a new photo: two or three real interpretations (for example natural, dramatic, monochrome), named by their idea. When the user already has a style or asks for one version, deliver one strong version.
 
 ## Check before delivering

@@ -9,7 +9,7 @@ import cropPanelSource from '../components/panel/right/CropPanel.tsx?raw';
 import masksPanelSource from '../components/panel/right/MasksPanel.tsx?raw';
 import lutControlSource from '../components/ui/LUTControl.tsx?raw';
 import enMessages from '../i18n/locales/en.json';
-import { buildAdjustmentReference, parseSliderProps, sliderPath } from './adjustmentReference';
+import { buildAdjustmentReference, collectSliderRanges, parseSliderProps, sliderPath } from './adjustmentReference';
 import { ADJUSTMENT_NOTES, MASK_TYPE_NOTES } from './adjustmentReferenceNotes';
 import { Mask } from '../components/panel/right/Masks';
 
@@ -29,6 +29,16 @@ const SLIDER_SOURCES = {
 };
 
 describe('slider parsing', () => {
+  it('documents all three properties of the tabbed HSL mixer', () => {
+    const result = collectSliderRanges({
+      color: '<Slider min={-100} max={100} step={1} value={hsl[color][property]} />',
+    });
+    expect(result.unmapped).toEqual([]);
+    for (const property of ['hue', 'saturation', 'luminance']) {
+      expect(result.ranges[`hsl.<band>.${property}`]).toEqual({ min: -100, max: 100, step: 1 });
+    }
+  });
+
   it('reads props, including multi-line expressions', () => {
     const [props] = parseSliderProps(`<Slider
       label={t('x')}

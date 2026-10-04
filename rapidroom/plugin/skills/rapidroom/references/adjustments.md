@@ -225,26 +225,28 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 
 Not part of Copy & Paste; most are set by the editor itself.
 
-| Key                         | Type           | Default    | Slider range | Step | Masks | Notes                                                                                      |
-| --------------------------- | -------------- | ---------- | ------------ | ---- | ----- | ------------------------------------------------------------------------------------------ |
-| `aiPatches`                 | array          | `[]`       |              |      |       | Generative edits made in the GUI. Leave alone.                                             |
-| `lensBlurAmount`            | number         | `40`       | 0 to 100     | 1    |       | Strength of the depth-of-field blur. Needs `lensBlurEnabled` and a depth map.              |
-| `lensBlurDiffusion`         | number         | `0`        | 0 to 100     | 1    |       | Softens the blur discs.                                                                    |
-| `lensBlurShape`             | string         | `"circle"` |              |      |       | Bokeh shape: `circle`, `hexagon`, `octagon` or `ring`.                                     |
-| `lensBlurDepthMap`          | string \| null | `null`     |              |      |       | Depth map the GUI generates when lens blur is turned on. Without it the blur does nothing. |
-| `lensBlurEnabled`           | boolean        | `false`    |              |      |       | Turns lens blur on. Turn it on in the GUI, which also makes the depth map.                 |
-| `lensBlurMaxDepth`          | number         | `100`      |              |      |       | Depth (0–100) up to which the image stays sharp; nearer gets blurred.                      |
-| `lensBlurMaxFade`           | number         | `20`       |              |      |       | Transition width at the near end of the sharp range.                                       |
-| `lensBlurMinDepth`          | number         | `20`       |              |      |       | Depth (0–100) from which the image stays sharp; farther gets blurred.                      |
-| `lensBlurMinFade`           | number         | `20`       |              |      |       | Transition width at the far end of the sharp range.                                        |
-| `lensDistortionParams`      | object \| null | `null`     |              |      |       | Lens profile coefficients, filled by the GUI from the lens database. Leave alone.          |
-| `masks`                     | array          | `[]`       |              |      |       | Mask containers; see [Masks](#masks). Replacing the array replaces every mask.             |
-| `sectionVisibility.basic`   | boolean        | `true`     |              |      | yes   | `false` turns the whole Basic section off (like the eye icon), without losing its values.  |
-| `sectionVisibility.curves`  | boolean        | `true`     |              |      | yes   | `false` turns the curves off without losing them.                                          |
-| `sectionVisibility.color`   | boolean        | `true`     |              |      | yes   | `false` turns the Color section off without losing its values.                             |
-| `sectionVisibility.details` | boolean        | `true`     |              |      | yes   | `false` turns the Details section off without losing its values.                           |
-| `sectionVisibility.effects` | boolean        | `true`     |              |      | yes   | `false` turns the Effects section off without losing its values.                           |
-| `showClipping`              | boolean        | `false`    |              |      |       | Shows the clipping overlay in the editor. Display only; doesn’t change the photo.          |
+| Key                              | Type           | Default    | Slider range | Step | Masks | Notes                                                                                         |
+| -------------------------------- | -------------- | ---------- | ------------ | ---- | ----- | --------------------------------------------------------------------------------------------- |
+| `aiPatches`                      | array          | `[]`       |              |      |       | Generative edits made in the GUI. Leave alone.                                                |
+| `lensBlurAmount`                 | number         | `40`       | 0 to 100     | 1    |       | Strength of the depth-of-field blur. Needs `lensBlurEnabled` and a depth map.                 |
+| `lensBlurDiffusion`              | number         | `0`        | 0 to 100     | 1    |       | Softens the blur discs.                                                                       |
+| `lensBlurShape`                  | string         | `"circle"` |              |      |       | Bokeh shape: `circle`, `hexagon`, `octagon` or `ring`.                                        |
+| `lensBlurDepthMap`               | string \| null | `null`     |              |      |       | Depth map the GUI generates when lens blur is turned on. Without it the blur does nothing.    |
+| `lensBlurEnabled`                | boolean        | `false`    |              |      |       | Turns lens blur on. Turn it on in the GUI, which also makes the depth map.                    |
+| `lensBlurMaxDepth`               | number         | `100`      |              |      |       | Depth (0–100) up to which the image stays sharp; nearer gets blurred.                         |
+| `lensBlurMaxFade`                | number         | `20`       |              |      |       | Transition width at the near end of the sharp range.                                          |
+| `lensBlurMinDepth`               | number         | `20`       |              |      |       | Depth (0–100) from which the image stays sharp; farther gets blurred.                         |
+| `lensBlurMinFade`                | number         | `20`       |              |      |       | Transition width at the far end of the sharp range.                                           |
+| `lensDistortionParams`           | object \| null | `null`     |              |      |       | Lens profile coefficients, filled by the GUI from the lens database. Leave alone.             |
+| `masks`                          | array          | `[]`       |              |      |       | Mask containers; see [Masks](#masks). Replacing the array replaces every mask.                |
+| `sectionVisibility.basic`        | boolean        | `true`     |              |      | yes   | `false` turns the whole Basic section off (like the eye icon), without losing its values.     |
+| `sectionVisibility.curves`       | boolean        | `true`     |              |      | yes   | `false` turns the curves off without losing them.                                             |
+| `sectionVisibility.color`        | boolean        | `true`     |              |      | yes   | `false` turns the Color section off without losing its values.                                |
+| `sectionVisibility.colorGrading` | boolean        | `true`     |              |      | yes   | `false` bypasses Color Grading independently; the parent Color section must also be on.       |
+| `sectionVisibility.colorMixer`   | boolean        | `true`     |              |      | yes   | `false` bypasses the HSL Color Mixer independently; the parent Color section must also be on. |
+| `sectionVisibility.details`      | boolean        | `true`     |              |      | yes   | `false` turns the Details section off without losing its values.                              |
+| `sectionVisibility.effects`      | boolean        | `true`     |              |      | yes   | `false` turns the Effects section off without losing its values.                              |
+| `showClipping`                   | boolean        | `false`    |              |      |       | Shows the clipping overlay in the editor. Display only; doesn’t change the photo.             |
 
 ## Masks
 

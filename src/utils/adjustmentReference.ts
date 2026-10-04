@@ -44,6 +44,7 @@ const VALUE_PATHS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^colorGrading\.(\w+)$/, (m) => `colorGrading.${m[1]}`],
   [/^colorCalibration\.(\w+)$/, (m) => `colorCalibration.${m[1]}`],
   [/^currentHsl\.(\w+)$/, (m) => `hsl.<band>.${m[1]}`],
+  [/^hsl\[color\]\[property\]$/, () => 'hsl.<band>.<property>'],
   [/^currentValues\.(hue|saturation)$/, (m) => `colorCalibration.<primary>${m[1] === 'hue' ? 'Hue' : 'Saturation'}`],
   [/^activeParametricSettings\.(\w+)$/, (m) => `parametricCurve.<channel>.${m[1]}`],
   [/^exposureValue$/, () => 'exposure'],
@@ -139,11 +140,17 @@ export const collectSliderRanges = (sources: Record<string, string>) => {
         step: parseBound(props.step ?? '1').value,
       };
       if (min.maskValue !== undefined) range.maskMin = min.maskValue;
-      const existing = ranges[path];
-      if (existing && JSON.stringify(existing) !== JSON.stringify(range)) {
-        throw new Error(`Two sliders for ${path} disagree: ${JSON.stringify(existing)} vs ${JSON.stringify(range)}`);
+      const paths =
+        path === 'hsl.<band>.<property>'
+          ? ['hue', 'saturation', 'luminance'].map((property) => `hsl.<band>.${property}`)
+          : [path];
+      for (const key of paths) {
+        const existing = ranges[key];
+        if (existing && JSON.stringify(existing) !== JSON.stringify(range)) {
+          throw new Error(`Two sliders for ${key} disagree: ${JSON.stringify(existing)} vs ${JSON.stringify(range)}`);
+        }
+        ranges[key] = range;
       }
-      ranges[path] = range;
     }
   }
   return { ranges, unmapped };

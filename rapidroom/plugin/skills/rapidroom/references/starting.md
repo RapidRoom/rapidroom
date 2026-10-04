@@ -4,7 +4,7 @@ Until RapidRoom has a built-in terminal ([coming](tools.md#coming), #119), the a
 
 ## 1. RapidRoom with the MCP server
 
-The MCP server is only in builds made with the `mcp` cargo feature, from a source checkout:
+The MCP server is only in builds made with the `mcp` cargo feature, from a source checkout that includes the implementation in PR #102. Check that the `mcp` feature and `start:mcp` script exist before using these commands; a checkout without them cannot enable the server:
 
 ```sh
 npm run start:mcp                        # development: tauri dev -- --features mcp
@@ -28,10 +28,13 @@ Or, from a RapidRoom checkout, for one session: `claude --plugin-dir rapidroom/p
 
 ```sh
 codex mcp add rapidroom --url http://127.0.0.1:7790/mcp
-mkdir -p ~/.codex/skills && ln -s "$PWD/rapidroom/plugin/skills/rapidroom" ~/.codex/skills/rapidroom
+mkdir -p ~/.agents/skills
+ln -s "$PWD/rapidroom/plugin/skills/rapidroom" ~/.agents/skills/rapidroom
 ```
 
-If your Codex doesn't load skills, copy `rapidroom/plugin/codex/AGENTS.md` into the photo folder (or `~/.codex/AGENTS.md`) and fix the path in it.
+The [official Codex skills documentation](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) documents user skills in `~/.agents/skills` and supports symlinked folders. Older installations may also use `~/.codex/skills`; use the location supported by your installed version. The [official MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) covers server registration; the HTTP command above was checked with Codex CLI 0.159.3.
+
+If your Codex doesn't load skills, merge the guidance in `rapidroom/plugin/codex/AGENTS.md` into the photo folder's `AGENTS.md` (or `~/.codex/AGENTS.md`) and fix its checkout path. Preserve any existing instructions in that file.
 
 ## 3. Open the assistant where your photos are
 

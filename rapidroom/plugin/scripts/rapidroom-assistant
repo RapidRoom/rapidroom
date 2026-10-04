@@ -12,7 +12,7 @@ if [ -z "$folder" ]; then
   settings="${XDG_DATA_HOME:-$HOME/.local/share}/io.github.CyberTimon.RapidRAW/settings.json"
   if [ -r "$settings" ]; then
     if command -v jq >/dev/null 2>&1; then
-      folder=$(jq -r '.lastFolderState.currentFolderPath // .lastRootPath // empty' "$settings")
+      folder=$(jq -r '(.lastFolderState.currentFolderPath // "") as $current | if $current != "" then $current else .lastRootPath // empty end' "$settings")
     elif command -v python3 >/dev/null 2>&1; then
       folder=$(python3 -c 'import json, sys
 s = json.load(open(sys.argv[1]))

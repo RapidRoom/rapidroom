@@ -1,7 +1,7 @@
 <!--
 RapidRoom assistant instructions for Codex (and other agents that read AGENTS.md).
 Copy this file into your photo folder or to ~/.codex/AGENTS.md, and set SKILL_DIR below to
-where the RapidRoom skill is on your machine. If your Codex loads skills from ~/.codex/skills,
+where the RapidRoom skill is on your machine. If your Codex loads skills from ~/.agents/skills,
 link the skill there instead (see the skill's references/starting.md) and you don't need this file.
 SKILL_DIR=~/src/rapidroom/rapidroom/plugin/skills/rapidroom
 -->

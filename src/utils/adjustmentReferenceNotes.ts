@@ -135,6 +135,10 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
     '`false` turns the whole Basic section off (like the eye icon), without losing its values.',
   'sectionVisibility.curves': '`false` turns the curves off without losing them.',
   'sectionVisibility.color': '`false` turns the Color section off without losing its values.',
+  'sectionVisibility.colorGrading':
+    '`false` bypasses Color Grading independently; the parent Color section must also be on.',
+  'sectionVisibility.colorMixer':
+    '`false` bypasses the HSL Color Mixer independently; the parent Color section must also be on.',
   'sectionVisibility.details': '`false` turns the Details section off without losing its values.',
   'sectionVisibility.effects': '`false` turns the Effects section off without losing its values.',
   showClipping: 'Shows the clipping overlay in the editor. Display only; doesn’t change the photo.',

@@ -10,6 +10,8 @@ When these docs don't answer a question ("what does Centré actually do?", "why 
 
 ## 2. Get the source once
 
+Release builds may be matched to a published `v<version>` tag. A version string alone does not identify a development build: several commits can share it. Prefer the installed build’s known commit or source checkout, and explicitly state uncertainty when neither is known.
+
 Releases are tagged `v<version>` (for example `v2.2.0`). Keep one copy per version in a cache:
 
 ```sh
