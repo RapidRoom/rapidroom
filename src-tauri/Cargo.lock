@@ -13,6 +13,7 @@ dependencies = [
  "chrono",
  "fern",
  "filetime",
+ "flate2",
  "futures",
  "fuzzy-matcher",
  "glam 0.33.5",
@@ -2671,7 +2672,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.56.0",
 ]
 
 [[package]]
@@ -4194,7 +4195,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
 dependencies = [
- "proc-macro-crate 3.5.0",
+ "proc-macro-crate 1.3.1",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -5317,7 +5318,7 @@ dependencies = [
 [[package]]
 name = "rawler"
 version = "0.7.1"
-source = "git+https://github.com/yojen7/RapidRAW-DngLab.git?rev=4c960626978287ab8e4aabe70a6cfa60b4582273#4c960626978287ab8e4aabe70a6cfa60b4582273"
+source = "git+https://github.com/yojen7/RapidRAW-DngLab.git?rev=f13d56ec1ee90d82a23ef9cc58b55cb28418915f#f13d56ec1ee90d82a23ef9cc58b55cb28418915f"
 dependencies = [
  "backtrace",
  "bitstream-io",

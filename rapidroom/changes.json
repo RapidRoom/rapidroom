@@ -2,6 +2,50 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "raw-thumb-previews",
+      "title": "Faster RAW library thumbnails: unedited raws use the smallest sufficient embedded preview, edited linear DNGs render from their embedded proxy",
+      "category": "performance",
+      "landed": "2026-10-04",
+      "authors": ["SebastianEggli"],
+      "source": "SebastianEggli/MyRR",
+      "commits": [
+        "https://github.com/SebastianEggli/MyRR/commit/4a646075d557f6faa5310377f26ae66120af1aa4",
+        "https://github.com/SebastianEggli/MyRR/commit/f0a5c66ccad1e1a82b880dc8e469c6fb21144d66",
+        "https://github.com/SebastianEggli/MyRR/commit/e93c7110b218727ce4fb49c3019415ad0f7e188e",
+        "https://github.com/SebastianEggli/RapidRAW-DngLab/commit/094189d738f30ec8e973b998fc59a84d00d94d8c"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1809", "CyberTimon/RapidRAW-DngLab#10"],
+      "rendering_change": false,
+      "notes": "Exports preserve the preceding full-image decode; library thumbnails may differ because they use smaller embedded JPEGs or correctly normalized DNG proxies. The rawler dependency f13d56ec retains RapidRoom crop, dither and full-image Adobe polynomial fixes alongside Sebastian Eggli's preview paths. Adaptations preserve metadata orientation and parallel conversions, reject real or malformed crops from the unedited-preview gate, and retry the full image if a proxy fails. Native real-file and cold/warm sample-probe results are recorded on the PR."
+    },
+    {
+      "id": "adobe-lossy-dng-map-polynomial",
+      "title": "Apply Adobe lossy DNG polynomial mappings before developing the full image, fixing pink and blown-out photos",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original rawler decoder fix, AI-assisted)",
+      "commits": [],
+      "upstream_issues": ["CyberTimon/RapidRAW#1542"],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Apply validated DNG OpcodeList2 MapPolynomial operations in order, after linearization and black/white normalization and before demosaic. Respect per-plane areas and pitches, clip each mapped result, and prevent converted DNGs replaying already baked mappings. Unknown-only lists keep the existing decoder behavior; required unsupported operations mixed with polynomial mappings report an error. Private real-file before/after evidence and corpus validation are recorded in the PR. Human rendering approval is required."
+    },
+    {
+      "id": "lightroom-catalog-develop-import",
+      "title": "Preview and selectively import Lightroom catalog photo edits, crop, straighten, rotation, star ratings and virtual copies, with unsupported-setting reports and independent replacement choices",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["laurensiusadi", "yojen7"],
+      "source": "laurensiusadi/RapidRAW, adapted in RapidRoom with the shared read-only catalog reader and current image-aware XMP mapper",
+      "commits": ["https://github.com/laurensiusadi/RapidRAW/commit/dda6cc51c69dc6a17906609dbb667eff3507aeeb"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Catalogs and originals are read only. Reuses the collections root resolver and bounded Lua-table parser; caps compressed rows at 4 MiB. Preview lists converted controls, unsupported settings, missing originals and unreadable sidecars before an explicit selection is applied. Existing edits, cleared ratings, keywords, EXIF and other metadata are preserved unless the relevant replacement choice is enabled. Uses atomic sidecars, Card mode guards, stale-preview checks and stable full-ID virtual-copy identities. As-shot white balance requires an explicit history reference; no folder median is estimated. Supported nested profile tone curves use the existing mapper; Adobe profiles, local/AI masks and other unsupported fields are reported. Synthetic native/frontend coverage and private sidecar-derived synthetic-catalog calibration only; real Lightroom catalogs, desktop interaction and other platforms still need human checks. Adobe rendering parity is not promised. Adapted with Codex, with source authorship retained."
+    },
+    {
       "id": "lightroom-collections-import",
       "title": "Import Lightroom Classic collections and collection sets from a .lrcat catalog as albums, with a preview of found and missing photos and relinking of moved root folders",
       "category": "feature",
@@ -726,6 +770,51 @@
       "rendering_change": false,
       "notes": "Hovering a preset previews it on the image without touching the edit, its history or sidecars; only a click applies it. Saved workspaces keep their layout: Presets only moves when it is still in its old default spot on the right. Preset preview thumbnails are gone. Enter/Space apply a focused preset. Scrollbar thumbs across the app are more subtle.",
       "highlight": "**Presets at your fingertips.** Presets sit in the left sidebar as compact rows: hover to preview one on your photo, click to apply, and star favorites to pin them on top."
+    },
+    {
+      "id": "color-tool-visibility",
+      "title": "Color Grading and Color Mixer get their own visibility eye, globally and in masks; the Color panel eye still bypasses every colour tool",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["lalibertemarc"],
+      "source": "lalibertemarc/RapidRAW",
+      "commits": ["https://github.com/lalibertemarc/RapidRAW/commit/879b4146fa4d87ecfa3580261cfc0554ffb1555f"],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1833"],
+      "rendering_change": false,
+      "notes": "New sectionVisibility.colorGrading/colorMixer keys default to on, so existing sidecars and presets render unchanged; turning a tool off intentionally skips it. Resetting or pasting the Color section re-enables both tools."
+    },
+    {
+      "id": "lights-out",
+      "title": "Lights Out viewing in Library and Editor: L cycles Normal → Dim → Black, Shift+L goes back, Escape restores",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["zeromeridian", "yojen7"],
+      "source": "zeromeridian/RapidRAW-Enhanced",
+      "commits": ["https://github.com/zeromeridian/RapidRAW-Enhanced/commit/69bdb283246c7c6746f88c7c0c22d88b7e90ae94"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Only the app chrome around the photo is dimmed or hidden; the preview and exports are untouched. Toggle folder tree moved from L to N to free the key. Black also switches the window to fullscreen and restores it afterwards. Local Codex review integrates Reference View and pick/reject controls, and serializes native fullscreen entry/restore to preserve the original window state during rapid mode changes; six async tests cover cancellation, restore races and native failures.",
+      "highlight": "**Lights Out, Lightroom-style.** Press L to dim everything but the photo, again for pure black, Escape to come back. Good for judging night shots."
+    },
+    {
+      "id": "hsl-mixer-targeted",
+      "title": "Expanded Color Mixer: Hue, Saturation and Luminance tabs with all eight bands, and a pipette that adjusts the bands under the cursor as you drag up or down on the photo",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["lalibertemarc"],
+      "source": "lalibertemarc/RapidRAW",
+      "commits": [
+        "https://github.com/lalibertemarc/RapidRAW/commit/b5475ad8e3176386153d8c3a8fbdc7d21ba7c5a9",
+        "https://github.com/lalibertemarc/RapidRAW/commit/dffc46a161f6a9c35037348d9d62b1a5267a99ac",
+        "https://github.com/lalibertemarc/RapidRAW/commit/17173f2873b44f4f7d5f219df1e5e744b3e0dfa9"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "HSL math and defaults are unchanged; the pipette only sets the existing mixer sliders. Each band moves in proportion to how much of it is in the sampled square (dominant band 0.5 per pixel, Alt for fine steps), weighted by the current shader's perceptual sRGB hue and saturation, with its linear neutral gate. A drag is one undo step. Global mixer only, not masks. Adapted with Claude Code. Local Codex review aligns sampling with the post-sync shader and stops the gesture when the parent Color or Color Mixer eye is off; no render math changes.",
+      "highlight": "**Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains."
     },
     {
       "id": "lensfun-evaluation",
