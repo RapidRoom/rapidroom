@@ -2,6 +2,20 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lensfun-evaluation",
+      "title": "Lens correction evaluates Lensfun profiles the way Lensfun does: right radius per model, rescaled terms instead of ×2.5, calibration that fits the sensor",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": ["beneedict", "yojen7"],
+      "source": "beneedict/RapidRAW (adapted by yojen7 with Claude Code: old edits kept, Lensfun's choice of calibration, vignetting across sensor sizes, Lensfun oracle tests)",
+      "commits": ["https://github.com/beneedict/RapidRAW/commit/99a142e6e7be658c721f5700811199429efb22ee"],
+      "upstream_issues": ["CyberTimon/RapidRAW#1688", "CyberTimon/RapidRAW#1689"],
+      "upstream_prs": ["CyberTimon/RapidRAW#1705"],
+      "rendering_change": true,
+      "notes": "Only images with a Lensfun lens profile change, and only when the lens is chosen or detected again: edits saved by an older version keep their previous lens values and render bit for bit as before. Checked against the Lensfun C++ library on 13 cases (ptlens, poly3, poly5; full frame, APS-C, Micro Four Thirds, compact; 3:2, 4:3, 16:9, portrait). The embedded RAW lens profiles of the source branch (CyberTimon/RapidRAW#1687) are not included.",
+      "highlight": "**Lens profiles that actually fit.** Distortion and vignetting from the Lensfun database are applied the way Lensfun defines them, including full frame lenses on APS-C bodies."
+    },
+    {
       "id": "wb-picker-original",
       "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
       "category": "fix",
