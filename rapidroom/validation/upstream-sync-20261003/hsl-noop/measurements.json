@@ -1,0 +1,2749 @@
+{
+  "validated_native_application_commit": "0bc16e3e33b2e5f1da1d43f383442d5b956d51d4",
+  "validated_rust_tree": "801e47fec802bef67cd0174775de84b7d56fcf17",
+  "fixed_engine": {
+    "validated_commit": "0bc16e3e33b2e5f1da1d43f383442d5b956d51d4",
+    "engine_sha256": "1f7e39494f96f7a416ea3345389df3c134b63ab4d9848ba63a52312d4a2a5311"
+  },
+  "corrected_highlight_engine": {
+    "experimental_commit": "3213888b392c190caaaaa2e326bbd6842ff2bd36",
+    "engine_sha256": "34e22ca3e1a8d0c7cf7c63d8f5edebf51d7bf27d950e2db4f7fb4acf2274cd35"
+  },
+  "legacy_highlight_engine": {
+    "path": "/tmp/rapidroom-codex-sync-72/sync-no-hsl-rapidroom",
+    "sha256": "cd790c6fe26f72ad6db71f9dbb30a4eaef2c301bbdfa847a3802416aa772eb0d",
+    "size": 48386712,
+    "mtime": "2026-10-03T11:35:45"
+  },
+  "unfixed_engine": {
+    "path": "/tmp/rapidroom-codex-sync-72/sync-validated-rapidroom",
+    "sha256": "376d37da93675c213193d751b46740355a716cce2a864767a4d5d2807a9b2c78",
+    "build_info": null,
+    "package": null
+  },
+  "environment": {
+    "hostname": "omarchy",
+    "kernel": "7.2.5-3-omarchy",
+    "cpu_count": 8,
+    "gpus": [
+      {
+        "card": "card0",
+        "driver": "xe",
+        "pci_id": "8086:64A0"
+      }
+    ],
+    "packages": [
+      "mesa 1:26.2.2-1",
+      "vulkan-intel 1:26.2.2-1",
+      "intel-media-driver 26.2.4-1",
+      "vulkan-icd-loader 1.4.357.0-1"
+    ],
+    "python": "3.14.7",
+    "numpy": "2.5.3"
+  },
+  "corpus_sha256": "8bb057ef326c22cfa10fa324e846b5208b64333be48a6bf826a9bd384ed8d55d",
+  "adjustment_sets": {
+    "neutral": {
+      "source": null,
+      "note": "no --adjustments; engine defaults"
+    },
+    "busy-agx-lut-effects": {
+      "source": "baseline/adjustments/busy-agx-lut-effects.json",
+      "sha256": "c6c495efaa8a7b6b922ede3005a9758af777c20a47f9609cb1a9f57b591dc5bb",
+      "resolved": "/home/josh/code/rapidraw-project/samples/baseline-codex-hsl-72/_env/adjustments/busy-agx-lut-effects.json"
+    },
+    "busy-tone-color-detail": {
+      "source": "baseline/adjustments/busy-tone-color-detail.json",
+      "sha256": "8d496c24768c54e7f9276392b0adcdd27e5f2f76400fc6501a9b23722e2bd97d",
+      "resolved": "/home/josh/code/rapidraw-project/samples/baseline-codex-hsl-72/_env/adjustments/busy-tone-color-detail.json"
+    }
+  },
+  "native_checks": {
+    "fmt": 0,
+    "clippy": 0,
+    "validated-commit": "0bc16e3e33b2e5f1da1d43f383442d5b956d51d4",
+    "validated-tree": "9aba5b90a78611b5f1343e7ea4fc935439a3d377",
+    "validated-rust-tree": "801e47fec802bef67cd0174775de84b7d56fcf17",
+    "test-lib": 0,
+    "gpu-colour-tests": 0,
+    "build": 0,
+    "native-complete": true
+  },
+  "corpus_checks": {
+    "render-fixed": 0,
+    "render-corrected-highlight": 0,
+    "render-legacy-highlight": 0,
+    "compare-corrected-highlight": 1,
+    "compare-legacy-highlight": 1,
+    "compare-unfixed-sync": 1,
+    "compare-before-17": 1,
+    "compare-reference": 1
+  },
+  "summaries": {
+    "corrected-highlight": {
+      "identical": 40,
+      "changed": 20,
+      "by_set": {
+        "neutral": {
+          "identical": 20,
+          "changed": 0,
+          "max_abs_16bit": 0,
+          "largest_mean_abs_16bit": 0.0
+        },
+        "busy-agx-lut-effects": {
+          "identical": 20,
+          "changed": 0,
+          "max_abs_16bit": 0,
+          "largest_mean_abs_16bit": 0.0
+        },
+        "busy-tone-color-detail": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 19456,
+          "largest_mean_abs_16bit": 819.3152611851133
+        }
+      }
+    },
+    "legacy-highlight": {
+      "identical": 0,
+      "changed": 60,
+      "by_set": {
+        "neutral": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 477,
+          "largest_mean_abs_16bit": 0.001832
+        },
+        "busy-agx-lut-effects": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 32831,
+          "largest_mean_abs_16bit": 0.08531644444444444
+        },
+        "busy-tone-color-detail": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 50183,
+          "largest_mean_abs_16bit": 819.4769857157704
+        }
+      }
+    },
+    "unfixed-sync": {
+      "identical": 1,
+      "changed": 59,
+      "by_set": {
+        "neutral": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 477,
+          "largest_mean_abs_16bit": 0.0019148055555555557
+        },
+        "busy-agx-lut-effects": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 32831,
+          "largest_mean_abs_16bit": 0.08891229166666667
+        },
+        "busy-tone-color-detail": {
+          "identical": 1,
+          "changed": 19,
+          "max_abs_16bit": 48831,
+          "largest_mean_abs_16bit": 0.3701490138888889
+        }
+      }
+    },
+    "before-17": {
+      "identical": 0,
+      "changed": 60,
+      "by_set": {
+        "neutral": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 16319,
+          "largest_mean_abs_16bit": 18.207239791666666
+        },
+        "busy-agx-lut-effects": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 33399,
+          "largest_mean_abs_16bit": 14.635013722222222
+        },
+        "busy-tone-color-detail": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 50183,
+          "largest_mean_abs_16bit": 819.4769923536506
+        }
+      }
+    },
+    "reference": {
+      "identical": 0,
+      "changed": 60,
+      "by_set": {
+        "neutral": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 16319,
+          "largest_mean_abs_16bit": 18.207239791666666
+        },
+        "busy-agx-lut-effects": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 33399,
+          "largest_mean_abs_16bit": 14.635013722222222
+        },
+        "busy-tone-color-detail": {
+          "identical": 0,
+          "changed": 20,
+          "max_abs_16bit": 50183,
+          "largest_mean_abs_16bit": 819.4769923536506
+        }
+      }
+    }
+  },
+  "zero_hsl_cases_exact_match_corrected_highlight_control": 40,
+  "legacy_highlight_control_reproduces_all60_previous_outputs": true,
+  "images": [
+    {
+      "id": "apple-iphone12pro-proraw",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "ea86c7f6bebfecd7c296ff80c23b65972df7b14205719d3c743c50f109f0b340",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "ea86c7f6bebfecd7c296ff80c23b65972df7b14205719d3c743c50f109f0b340",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "eae7fb3084de94b1ff6d2ade2bf46922e64ed87e0bf9926d4e023d9fa420173b",
+          "identical": false,
+          "max_abs": 2080,
+          "mean_abs": 0.001975870723803925,
+          "pct_over_threshold": 3.2806332409507015e-5
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "0d2457b56bafa1b1e8d6074bf6cdb56ec13d7bb5148b427706328c5855d62677",
+          "identical": false,
+          "max_abs": 617,
+          "mean_abs": 0.0024616231523473587,
+          "pct_over_threshold": 1.6403166204753508e-5
+        },
+        "before-17": {
+          "ref_pixel_sha256": "7f18ede7857bd953afe963e3ec3e52f170dff680ec945afc00ce846d2fb5c7fd",
+          "identical": false,
+          "max_abs": 2080,
+          "mean_abs": 0.0019854392374233643,
+          "pct_over_threshold": 3.2806332409507015e-5
+        },
+        "reference": {
+          "ref_pixel_sha256": "8221d6a6acd11ede0244ae105d4bd2058a0590dae9fd9b191f3875809ee80f77",
+          "identical": false,
+          "max_abs": 2272,
+          "mean_abs": 0.003536522633744856,
+          "pct_over_threshold": 9.841899722852104e-5
+        }
+      }
+    },
+    {
+      "id": "canon-r50-24mp-craw",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "4648a8876142da5b0e2638e37f85f381ba45c58195545b53d2bc6a75aa0bdaa5",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "4648a8876142da5b0e2638e37f85f381ba45c58195545b53d2bc6a75aa0bdaa5",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "0141cf68228947d035fe490cbadfc6776605a2a4ca43f7d99241cd97e848eda9",
+          "identical": false,
+          "max_abs": 30063,
+          "mean_abs": 0.08531644444444444,
+          "pct_over_threshold": 0.0016291666666666666
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "1ac6c6dbcf7e81c816d8af76ea70dac862f43f7018fca18ae393e9c8ad46a9bc",
+          "identical": false,
+          "max_abs": 30255,
+          "mean_abs": 0.08891229166666667,
+          "pct_over_threshold": 0.0017083333333333334
+        },
+        "before-17": {
+          "ref_pixel_sha256": "195d0f422c512360f8a00e2eb1b117c2f2cd0d7b7776217f14867d29905e14b6",
+          "identical": false,
+          "max_abs": 30455,
+          "mean_abs": 14.635013722222222,
+          "pct_over_threshold": 1.9650708333333333
+        },
+        "reference": {
+          "ref_pixel_sha256": "195d0f422c512360f8a00e2eb1b117c2f2cd0d7b7776217f14867d29905e14b6",
+          "identical": false,
+          "max_abs": 30455,
+          "mean_abs": 14.635013722222222,
+          "pct_over_threshold": 1.9650708333333333
+        }
+      }
+    },
+    {
+      "id": "canon-r6m2-24mp-raw",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "955f4a68acf533ed1a1ac62a67b0423a162b3c684233d26a11c7406c1f995e2b",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "955f4a68acf533ed1a1ac62a67b0423a162b3c684233d26a11c7406c1f995e2b",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "6bddaaeccd47789d0449c629adb49318e76cc9b9435e0c591e7a33132a86d308",
+          "identical": false,
+          "max_abs": 32831,
+          "mean_abs": 0.017128625,
+          "pct_over_threshold": 0.0003333333333333333
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "51296b2a685d56be6f2e18e671712d343a2f706aed16e0a9c0d5c32cedcd9be0",
+          "identical": false,
+          "max_abs": 32831,
+          "mean_abs": 0.02056173611111111,
+          "pct_over_threshold": 0.00035
+        },
+        "before-17": {
+          "ref_pixel_sha256": "41c9e3a353e7a21dce122e72ccd0cdc54723dd7b669ce3227a44882ffafab407",
+          "identical": false,
+          "max_abs": 32831,
+          "mean_abs": 0.06557080555555556,
+          "pct_over_threshold": 0.00047916666666666664
+        },
+        "reference": {
+          "ref_pixel_sha256": "41c9e3a353e7a21dce122e72ccd0cdc54723dd7b669ce3227a44882ffafab407",
+          "identical": false,
+          "max_abs": 32831,
+          "mean_abs": 0.06557080555555556,
+          "pct_over_threshold": 0.00047916666666666664
+        }
+      }
+    },
+    {
+      "id": "fuji-xh2-40mp-compressed",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "f471d115cc9e95e8a12775bb5f4a9d86759226ec3af6e41d976ae8888c5dd480",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "f471d115cc9e95e8a12775bb5f4a9d86759226ec3af6e41d976ae8888c5dd480",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "fc99ddacbfa68c102ede169ffb78d7e580738b241daa6cb4f99cd6db7afb3d37",
+          "identical": false,
+          "max_abs": 9249,
+          "mean_abs": 0.001781705711585201,
+          "pct_over_threshold": 4.77211205843396e-5
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "6a1c7cc3a2bd976241971eae68117ba6788f4b8b8f3a9e3bad472f2130c77756",
+          "identical": false,
+          "max_abs": 7256,
+          "mean_abs": 0.0019455314813385971,
+          "pct_over_threshold": 2.7628017180407135e-5
+        },
+        "before-17": {
+          "ref_pixel_sha256": "bdd92e428a09b6fe78b2059c82e059480a7198d88b1b0018dbe470c09e5670d0",
+          "identical": false,
+          "max_abs": 9249,
+          "mean_abs": 1.8295528829048948,
+          "pct_over_threshold": 0.02889388269485488
+        },
+        "reference": {
+          "ref_pixel_sha256": "bdd92e428a09b6fe78b2059c82e059480a7198d88b1b0018dbe470c09e5670d0",
+          "identical": false,
+          "max_abs": 9249,
+          "mean_abs": 1.8295528829048948,
+          "pct_over_threshold": 0.02889388269485488
+        }
+      }
+    },
+    {
+      "id": "fuji-xt4-26mp-lossless",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "ce795fb767fa11eb0b9f49ad29f222807bb64ffc6b8837ee7851961cf567874a",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "ce795fb767fa11eb0b9f49ad29f222807bb64ffc6b8837ee7851961cf567874a",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "7fa4bd395393c1ffa7a319f8c7cdeb29f227c5d347db0d1cc1660edfd2dde1a3",
+          "identical": false,
+          "max_abs": 15582,
+          "mean_abs": 0.004391847468770546,
+          "pct_over_threshold": 0.00015024038461538462
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "e6c73ff29d2ea4ad8300c315733340b94e5236007c83435d77a316ad7a3763de",
+          "identical": false,
+          "max_abs": 15582,
+          "mean_abs": 0.005854264258711374,
+          "pct_over_threshold": 0.0001964681952662722
+        },
+        "before-17": {
+          "ref_pixel_sha256": "55f785a74200210c549819dd9df8b561e578cf98b018c5cc64de9bae2da2502e",
+          "identical": false,
+          "max_abs": 15582,
+          "mean_abs": 0.41705065283941484,
+          "pct_over_threshold": 0.03678578032544379
+        },
+        "reference": {
+          "ref_pixel_sha256": "55f785a74200210c549819dd9df8b561e578cf98b018c5cc64de9bae2da2502e",
+          "identical": false,
+          "max_abs": 15582,
+          "mean_abs": 0.41705065283941484,
+          "pct_over_threshold": 0.03678578032544379
+        }
+      }
+    },
+    {
+      "id": "google-pixel7pro-dng",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "26f939abdf04a4112c7ca89ec046469ccceaa979fb31322aecf4841a1d943d8c",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "26f939abdf04a4112c7ca89ec046469ccceaa979fb31322aecf4841a1d943d8c",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "1285b9d209e4f08596d682ca94fa72472f93f89572dd53cd7672dee3455dda2d",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.0008317079285832376,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "842d99f7b8a22ec9741d731c62b61029c7d6e279bbf0a89662814d4ea8c1e7b3",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.002018472805039431,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "032441c6fed5269e271b44b68edd51ab5fd15af7303f7d7c55b0f534057663a8",
+          "identical": false,
+          "max_abs": 96,
+          "mean_abs": 0.003823525993311468,
+          "pct_over_threshold": 0.0
+        },
+        "reference": {
+          "ref_pixel_sha256": "032441c6fed5269e271b44b68edd51ab5fd15af7303f7d7c55b0f534057663a8",
+          "identical": false,
+          "max_abs": 96,
+          "mean_abs": 0.003823525993311468,
+          "pct_over_threshold": 0.0
+        }
+      }
+    },
+    {
+      "id": "nikon-zf-24mp-compressed",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "eb8ca5aa0c60837676b6cd68ce49ed973caa58f38cd1674d39205356c260cb38",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "eb8ca5aa0c60837676b6cd68ce49ed973caa58f38cd1674d39205356c260cb38",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "0dd3908c1fb97a46b07be6d47d39c3c6b9cb1549678ddeacaca7574b100be840",
+          "identical": false,
+          "max_abs": 25783,
+          "mean_abs": 0.008850724735624703,
+          "pct_over_threshold": 0.0002583498677248677
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "b1000ebd8527cc326f62d4c2ef613b504a199223e5764b0da22b4fdfb1e814bd",
+          "identical": false,
+          "max_abs": 25783,
+          "mean_abs": 0.011132323138874892,
+          "pct_over_threshold": 0.0002624506592760561
+        },
+        "before-17": {
+          "ref_pixel_sha256": "0dd3908c1fb97a46b07be6d47d39c3c6b9cb1549678ddeacaca7574b100be840",
+          "identical": false,
+          "max_abs": 25783,
+          "mean_abs": 0.008850724735624703,
+          "pct_over_threshold": 0.0002583498677248677
+        },
+        "reference": {
+          "ref_pixel_sha256": "0dd3908c1fb97a46b07be6d47d39c3c6b9cb1549678ddeacaca7574b100be840",
+          "identical": false,
+          "max_abs": 25783,
+          "mean_abs": 0.008850724735624703,
+          "pct_over_threshold": 0.0002583498677248677
+        }
+      }
+    },
+    {
+      "id": "nikon-zfc-21mp-lossless",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "316e43472dbb0b292d8b38c8eb109c64dbfb7fb3adfba01f67b786a602bbf61b",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "316e43472dbb0b292d8b38c8eb109c64dbfb7fb3adfba01f67b786a602bbf61b",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "6fbcad9608771fad32ef8429c1ac13c04b549c5b2ef3a6e31dd5b497e95e201f",
+          "identical": false,
+          "max_abs": 30031,
+          "mean_abs": 0.016953774622431958,
+          "pct_over_threshold": 0.0003580342102655569
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "80e0fdd77fa651ae3a18e0624cfedae95949668519c69b7aedc5f0c34e1fbf12",
+          "identical": false,
+          "max_abs": 30031,
+          "mean_abs": 0.01904682326244385,
+          "pct_over_threshold": 0.00036771081054300434
+        },
+        "before-17": {
+          "ref_pixel_sha256": "561b7c1bc135e5bdabd95dc697a544e3b66659ae554c15cef56a69e06fed509e",
+          "identical": false,
+          "max_abs": 30031,
+          "mean_abs": 0.2195527546313499,
+          "pct_over_threshold": 0.03126509549643282
+        },
+        "reference": {
+          "ref_pixel_sha256": "561b7c1bc135e5bdabd95dc697a544e3b66659ae554c15cef56a69e06fed509e",
+          "identical": false,
+          "max_abs": 30031,
+          "mean_abs": 0.2195527546313499,
+          "pct_over_threshold": 0.03126509549643282
+        }
+      }
+    },
+    {
+      "id": "om-om1-20mp",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "859099f3521af2fc5a618a7d689d49b54a46830e3f2529f21dae213b2b883ae6",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "859099f3521af2fc5a618a7d689d49b54a46830e3f2529f21dae213b2b883ae6",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "00eb4e4bcbc8fdfe373f36b9f46d7b4ff84127c9d6f5ffc4d63a80cf18470c2a",
+          "identical": false,
+          "max_abs": 15614,
+          "mean_abs": 0.007252120590526512,
+          "pct_over_threshold": 0.0001885351572422903
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "a5ed81bd2ee7849f91efb8acb5d06918d76e7172f2d5fbe715befd5e6c8e7d89",
+          "identical": false,
+          "max_abs": 15614,
+          "mean_abs": 0.007890609784882046,
+          "pct_over_threshold": 0.00017861225422953817
+        },
+        "before-17": {
+          "ref_pixel_sha256": "01dc4f1af82b6d88008f20f920b15a795f20d8067dc57fa7cf7eaddf20e0a382",
+          "identical": false,
+          "max_abs": 15614,
+          "mean_abs": 0.3267216203650782,
+          "pct_over_threshold": 0.004113043298785754
+        },
+        "reference": {
+          "ref_pixel_sha256": "01dc4f1af82b6d88008f20f920b15a795f20d8067dc57fa7cf7eaddf20e0a382",
+          "identical": false,
+          "max_abs": 15614,
+          "mean_abs": 0.3267216203650782,
+          "pct_over_threshold": 0.004113043298785754
+        }
+      }
+    },
+    {
+      "id": "panasonic-s5m2-24mp",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "74cfa66b3d648f0122089bd6ba38ac025a8fdf95dc42532c88a26270a5fde644",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "74cfa66b3d648f0122089bd6ba38ac025a8fdf95dc42532c88a26270a5fde644",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "716701d48f6ca039a6a00f76fd87029bd716b1645b08002bc383e66855466755",
+          "identical": false,
+          "max_abs": 32679,
+          "mean_abs": 0.03792818055555556,
+          "pct_over_threshold": 0.0006583333333333334
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "1c21a1883ebe3e562bd0b74d7dfda51a1980b99dd27e6a6d1e6e48c1f2a02bca",
+          "identical": false,
+          "max_abs": 32679,
+          "mean_abs": 0.045376930555555556,
+          "pct_over_threshold": 0.0007291666666666667
+        },
+        "before-17": {
+          "ref_pixel_sha256": "173c04dbeae248322c464e29d1d2928fddfdf0622bb945237f0b0e592415145d",
+          "identical": false,
+          "max_abs": 32679,
+          "mean_abs": 0.30129222222222224,
+          "pct_over_threshold": 0.010445833333333333
+        },
+        "reference": {
+          "ref_pixel_sha256": "173c04dbeae248322c464e29d1d2928fddfdf0622bb945237f0b0e592415145d",
+          "identical": false,
+          "max_abs": 32679,
+          "mean_abs": 0.30129222222222224,
+          "pct_over_threshold": 0.010445833333333333
+        }
+      }
+    },
+    {
+      "id": "ricoh-griiix-24mp-dng",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "7a8655105cee65dddad0032d3833bbeb995f6216ae6691f0c2f33fbad70f4b76",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "7a8655105cee65dddad0032d3833bbeb995f6216ae6691f0c2f33fbad70f4b76",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "f3f4ba202f6a21837f9388710eff3e20a10ffe9a8c76aeaf2b40c9ebd36a51d4",
+          "identical": false,
+          "max_abs": 32487,
+          "mean_abs": 0.006890083333333333,
+          "pct_over_threshold": 0.0001625
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "d7df722d9c4a26620b94908788dc69b2bb55fa478c4882d12b6f09198bbdba4b",
+          "identical": false,
+          "max_abs": 32487,
+          "mean_abs": 0.008443361111111112,
+          "pct_over_threshold": 0.00017083333333333333
+        },
+        "before-17": {
+          "ref_pixel_sha256": "68fddff6793c442105b5c458dd1e655499a4112ba4a4460c14de254baac5dac8",
+          "identical": false,
+          "max_abs": 32487,
+          "mean_abs": 0.3013297916666667,
+          "pct_over_threshold": 0.011329166666666666
+        },
+        "reference": {
+          "ref_pixel_sha256": "68fddff6793c442105b5c458dd1e655499a4112ba4a4460c14de254baac5dac8",
+          "identical": false,
+          "max_abs": 32487,
+          "mean_abs": 0.3013297916666667,
+          "pct_over_threshold": 0.011329166666666666
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-15mp-compressed",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "1fd41ad7c2af84898cc8c6917d2c0f2bb6ce591615a8b08f7100e5404315e704",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "1fd41ad7c2af84898cc8c6917d2c0f2bb6ce591615a8b08f7100e5404315e704",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "6ca572a31f0451c3fb78adc8a3741119017c98cda98cabebcd37b12708808fdb",
+          "identical": false,
+          "max_abs": 12177,
+          "mean_abs": 0.0045141526210455245,
+          "pct_over_threshold": 9.183530454282407e-5
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "7fb7a37f5410e7645e61bec280d0bacedbfc8fab70d4ddd4b10b89faaf350971",
+          "identical": false,
+          "max_abs": 12177,
+          "mean_abs": 0.0055654313829210066,
+          "pct_over_threshold": 0.00010596381293402778
+        },
+        "before-17": {
+          "ref_pixel_sha256": "2d4343c8f3ff9953fceaf074bf598b8eb1d72cb537e6c4d941e205d7c0b6a883",
+          "identical": false,
+          "max_abs": 12177,
+          "mean_abs": 0.005871266494562597,
+          "pct_over_threshold": 0.00014834933810763888
+        },
+        "reference": {
+          "ref_pixel_sha256": "2d4343c8f3ff9953fceaf074bf598b8eb1d72cb537e6c4d941e205d7c0b6a883",
+          "identical": false,
+          "max_abs": 12177,
+          "mean_abs": 0.005871266494562597,
+          "pct_over_threshold": 0.00014834933810763888
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-15mp-uncompressed",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "4334acbb2868de12ce218a54e13a1a7be25e8ee1345e55ba7c72de0627a93702",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "4334acbb2868de12ce218a54e13a1a7be25e8ee1345e55ba7c72de0627a93702",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "9f88f8bd9b09e9fdc5fc7a3095f19640b17f14215ab31209d8891bcc8007b454",
+          "identical": false,
+          "max_abs": 6496,
+          "mean_abs": 0.0026531454957561726,
+          "pct_over_threshold": 4.238552517361111e-5
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "dd827d7ad20bb8f5e494e265ad873bf1223dea1010cc0751f8d7b44e599b78a6",
+          "identical": false,
+          "max_abs": 8608,
+          "mean_abs": 0.0036929566183207946,
+          "pct_over_threshold": 5.6514033564814815e-5
+        },
+        "before-17": {
+          "ref_pixel_sha256": "793eaf4e5bf2877d110a9c1f0a94b956fae06cf0b2dc2f9566eee7ad1adbb43d",
+          "identical": false,
+          "max_abs": 6496,
+          "mean_abs": 0.0032824763545283566,
+          "pct_over_threshold": 7.770679615162037e-5
+        },
+        "reference": {
+          "ref_pixel_sha256": "793eaf4e5bf2877d110a9c1f0a94b956fae06cf0b2dc2f9566eee7ad1adbb43d",
+          "identical": false,
+          "max_abs": 6496,
+          "mean_abs": 0.0032824763545283566,
+          "pct_over_threshold": 7.770679615162037e-5
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-33mp-compressed",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "6ad6195fab246eb5f5650f561e89441de87df1992aaae8d9a4b0987e936aa217",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "6ad6195fab246eb5f5650f561e89441de87df1992aaae8d9a4b0987e936aa217",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "6bf3a50ead4dc398ab4f801424af49cd7682a09e4314f45503f9c361d851b387",
+          "identical": false,
+          "max_abs": 12888,
+          "mean_abs": 0.0048189381737244845,
+          "pct_over_threshold": 0.0001618746872458873
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "6a4aa653bf286231747440f5b8d9c42d56f8703f3bc13a69599a1792cdb0cc7e",
+          "identical": false,
+          "max_abs": 12888,
+          "mean_abs": 0.005267717927717312,
+          "pct_over_threshold": 0.00016798316600988303
+        },
+        "before-17": {
+          "ref_pixel_sha256": "b1de9c2284119c3aad15dffde860e3add71ee0e6bed2c3404add02a8a21fa826",
+          "identical": false,
+          "max_abs": 12888,
+          "mean_abs": 0.0048553039839661395,
+          "pct_over_threshold": 0.0001618746872458873
+        },
+        "reference": {
+          "ref_pixel_sha256": "b1de9c2284119c3aad15dffde860e3add71ee0e6bed2c3404add02a8a21fa826",
+          "identical": false,
+          "max_abs": 12888,
+          "mean_abs": 0.0048553039839661395,
+          "pct_over_threshold": 0.0001618746872458873
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-33mp-uncompressed",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "b1701b875bea819f28171149fc700795cbe5d663a822d31bdad8da888021672d",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "b1701b875bea819f28171149fc700795cbe5d663a822d31bdad8da888021672d",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "f9c7b119e322e0c287af3f44c10efe6a885172cac6ac19e3a508eaaa3fde8a24",
+          "identical": false,
+          "max_abs": 14696,
+          "mean_abs": 0.007070309649376577,
+          "pct_over_threshold": 0.0002046340385938575
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "89dfe339fddb074972152c1a8e791aa00a95bd1b1da154e74fae0d00c65eb4be",
+          "identical": false,
+          "max_abs": 14696,
+          "mean_abs": 0.008004204425210066,
+          "pct_over_threshold": 0.000216850996121849
+        },
+        "before-17": {
+          "ref_pixel_sha256": "bb050e20a585ffd533ba14d736878b4a2d7795fbc7231b361118daf2e2279ca7",
+          "identical": false,
+          "max_abs": 14696,
+          "mean_abs": 0.007251487129516691,
+          "pct_over_threshold": 0.00021074251735785326
+        },
+        "reference": {
+          "ref_pixel_sha256": "bb050e20a585ffd533ba14d736878b4a2d7795fbc7231b361118daf2e2279ca7",
+          "identical": false,
+          "max_abs": 14696,
+          "mean_abs": 0.007251487129516691,
+          "pct_over_threshold": 0.00021074251735785326
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-37mp-4x3",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "cab9331cfafcae6aefa150e6c62deb7364d8c6ab5efadba5334cab14553e2b06",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "cab9331cfafcae6aefa150e6c62deb7364d8c6ab5efadba5334cab14553e2b06",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "afc2a84690d2687661fce5deb48e612db1d6f382003418a88520db8773f0664e",
+          "identical": false,
+          "max_abs": 12769,
+          "mean_abs": 0.004828273965435458,
+          "pct_over_threshold": 0.0001740916447738788
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "a6f258e8162f726b867f24c6947bc8cb25d6a1e4788c0dfec4947f02344a8c4b",
+          "identical": false,
+          "max_abs": 12769,
+          "mean_abs": 0.005653987582358583,
+          "pct_over_threshold": 0.0001954713204478639
+        },
+        "before-17": {
+          "ref_pixel_sha256": "6ddd7fe90178120919889a5ad2cbc8a7965f16613e82f80a66b0980cefcac1cc",
+          "identical": false,
+          "max_abs": 12769,
+          "mean_abs": 0.004889144956318676,
+          "pct_over_threshold": 0.00017714588415587666
+        },
+        "reference": {
+          "ref_pixel_sha256": "6ddd7fe90178120919889a5ad2cbc8a7965f16613e82f80a66b0980cefcac1cc",
+          "identical": false,
+          "max_abs": 12769,
+          "mean_abs": 0.004889144956318676,
+          "pct_over_threshold": 0.00017714588415587666
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-18mp-lossless-s",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "5de284273133cd09b51100355ee74ad0412366172c3a3a02f44aafb16bb49153",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "5de284273133cd09b51100355ee74ad0412366172c3a3a02f44aafb16bb49153",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "d4d28710e045aff22637d30a53ae990efa4af7c5cb3ba53420a715788328fe33",
+          "identical": false,
+          "max_abs": 9208,
+          "mean_abs": 0.0011915725365325533,
+          "pct_over_threshold": 1.3285208992279699e-5
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "3a64e0bdaf4e84d243a3dd8974d77a797f2e5c8b8b6f5b14050c18160c6267ac",
+          "identical": false,
+          "max_abs": 9208,
+          "mean_abs": 0.0022864951776462718,
+          "pct_over_threshold": 1.3285208992279699e-5
+        },
+        "before-17": {
+          "ref_pixel_sha256": "dc0d11ad6334d9c35660dd4b95bd0fe82d61796605cece39b52dfce60483af78",
+          "identical": false,
+          "max_abs": 9208,
+          "mean_abs": 0.012302457799090796,
+          "pct_over_threshold": 1.3285208992279699e-5
+        },
+        "reference": {
+          "ref_pixel_sha256": "dc0d11ad6334d9c35660dd4b95bd0fe82d61796605cece39b52dfce60483af78",
+          "identical": false,
+          "max_abs": 9208,
+          "mean_abs": 0.012302457799090796,
+          "pct_over_threshold": 1.3285208992279699e-5
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-26mp-uncompressed",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "fb380ab6314625b29b0d4575dbb41de1c6a96c4d741b791a2039ddca257dd016",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "fb380ab6314625b29b0d4575dbb41de1c6a96c4d741b791a2039ddca257dd016",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "551bb49e3aa4bda55552d2b770775ba890cbe7d1197a736c9805202e145f95e4",
+          "identical": false,
+          "max_abs": 15694,
+          "mean_abs": 0.008400902983234714,
+          "pct_over_threshold": 0.00020417283037475346
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "e28e423afa11b571e3659943bbe8434243e229cae2eb50be3e227d9ffcb3853d",
+          "identical": false,
+          "max_abs": 15694,
+          "mean_abs": 0.00953779893984221,
+          "pct_over_threshold": 0.0001964681952662722
+        },
+        "before-17": {
+          "ref_pixel_sha256": "a5323b195a2403d20eb1a66797ba6bb68b6e6dff7e57f9915eea47b0a4c9d229",
+          "identical": false,
+          "max_abs": 15694,
+          "mean_abs": 0.008401313897107167,
+          "pct_over_threshold": 0.00020417283037475346
+        },
+        "reference": {
+          "ref_pixel_sha256": "a5323b195a2403d20eb1a66797ba6bb68b6e6dff7e57f9915eea47b0a4c9d229",
+          "identical": false,
+          "max_abs": 15694,
+          "mean_abs": 0.008401313897107167,
+          "pct_over_threshold": 0.00020417283037475346
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-61mp-compressed",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "4de383a478a145d7143b22d3bbd082861da2c2a1e746cf0cbe95e66236e58c53",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "4de383a478a145d7143b22d3bbd082861da2c2a1e746cf0cbe95e66236e58c53",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "5a75f8da137471ffbad1b06e6788c91d231224e961090db1f3e4cbb6ac376e7e",
+          "identical": false,
+          "max_abs": 32671,
+          "mean_abs": 0.009850345884844517,
+          "pct_over_threshold": 0.00015277990341121654
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "4d31e1261b656c77d3b6e803465d41e60d3ed23b4df6e523829cecf4c2ff7bfe",
+          "identical": false,
+          "max_abs": 32671,
+          "mean_abs": 0.011645244045746466,
+          "pct_over_threshold": 0.00018765357701595075
+        },
+        "before-17": {
+          "ref_pixel_sha256": "bc065723af2cb473890d64c9f376ca1b2b1a85c393b248c83069c5de263e1a75",
+          "identical": false,
+          "max_abs": 33399,
+          "mean_abs": 0.01757662487848462,
+          "pct_over_threshold": 0.00014945860116314662
+        },
+        "reference": {
+          "ref_pixel_sha256": "bc065723af2cb473890d64c9f376ca1b2b1a85c393b248c83069c5de263e1a75",
+          "identical": false,
+          "max_abs": 33399,
+          "mean_abs": 0.01757662487848462,
+          "pct_over_threshold": 0.00014945860116314662
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-65mp-lossless",
+      "set": "busy-agx-lut-effects",
+      "fixed_pixel_sha256": "d4004a5be602927110e10fd0a2f2c5da817c6a773acdb2574a7a31e582ef3d21",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "d4004a5be602927110e10fd0a2f2c5da817c6a773acdb2574a7a31e582ef3d21",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "1d6feb5c76f88f327c6ecebd8df165168a7717af8f35eb94f6a0855af7830445",
+          "identical": false,
+          "max_abs": 32087,
+          "mean_abs": 0.013613912740267433,
+          "pct_over_threshold": 0.00018765357701595075
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "b8a2f72161ea9bdb827294bc0066ecc53067ee918dc0cb0f17d15430da5f76f7",
+          "identical": false,
+          "max_abs": 32087,
+          "mean_abs": 0.012739103870140801,
+          "pct_over_threshold": 0.0001942961815120906
+        },
+        "before-17": {
+          "ref_pixel_sha256": "ebb21568ea05c1c623c284800475b6dde4c6e76edf301ef94df2e541ebc47aca",
+          "identical": false,
+          "max_abs": 32327,
+          "mean_abs": 0.02838177873360428,
+          "pct_over_threshold": 0.00019097487926402067
+        },
+        "reference": {
+          "ref_pixel_sha256": "ebb21568ea05c1c623c284800475b6dde4c6e76edf301ef94df2e541ebc47aca",
+          "identical": false,
+          "max_abs": 32327,
+          "mean_abs": 0.02838177873360428,
+          "pct_over_threshold": 0.00019097487926402067
+        }
+      }
+    },
+    {
+      "id": "apple-iphone12pro-proraw",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "160303f2ea0c7b45746849b4eb98df056211195404619b144d205b5049f53675",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "ef0752c737761c759f7232c413b8f43e425239e46725e58eedb44b760481c740",
+          "identical": false,
+          "max_abs": 5344,
+          "mean_abs": 441.6973429932673,
+          "pct_over_threshold": 54.1736708186361
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "fef76fff8b62456bb275a57798cc739c5594060061c9947da0f618a986c4d681",
+          "identical": false,
+          "max_abs": 21447,
+          "mean_abs": 441.746990538435,
+          "pct_over_threshold": 54.17468781494079
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "7a0d3150c55c24c31ed1a59f4996096d90272faa976a83fcb0d63db4f985a801",
+          "identical": false,
+          "max_abs": 7200,
+          "mean_abs": 0.01012113628887769,
+          "pct_over_threshold": 0.0010826089695137313
+        },
+        "before-17": {
+          "ref_pixel_sha256": "9942647ad51a1d385808b8f874c6cae85a9711e90db24a0203de230417be6ba6",
+          "identical": false,
+          "max_abs": 21447,
+          "mean_abs": 441.74698796860565,
+          "pct_over_threshold": 54.17468781494079
+        },
+        "reference": {
+          "ref_pixel_sha256": "ee70261aa02b8007e8a8e250b55988797971d7cdff0a8cc12228558372df03b7",
+          "identical": false,
+          "max_abs": 21447,
+          "mean_abs": 441.747753887113,
+          "pct_over_threshold": 54.174704218106996
+        }
+      }
+    },
+    {
+      "id": "canon-r50-24mp-craw",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "d3fbce3ef96621bb62e1fb1b7bb9cc5f4c9d93f1c69f2e3114ea92420d42888b",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "006a4c19a1a3044186b04a14ed757a583eb0ba519e8a8efbe6191755234fcefe",
+          "identical": false,
+          "max_abs": 19456,
+          "mean_abs": 567.6861360694445,
+          "pct_over_threshold": 67.13058333333333
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "6140f2ffdf79d8384a7a799645653617ced317b54694c32e227a2a302ad10dca",
+          "identical": false,
+          "max_abs": 48239,
+          "mean_abs": 569.5726279444444,
+          "pct_over_threshold": 67.13425416666666
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "6f18fd42420511de68e090fe9eb8edf80adc8a2a366c9fcb76d412182f577c5f",
+          "identical": false,
+          "max_abs": 41519,
+          "mean_abs": 0.26302061111111114,
+          "pct_over_threshold": 0.008483333333333334
+        },
+        "before-17": {
+          "ref_pixel_sha256": "e516924b2c1a2de9f48634e35876e2068698457e81e76f431cda15e6eefd0ebb",
+          "identical": false,
+          "max_abs": 49167,
+          "mean_abs": 578.2210078888888,
+          "pct_over_threshold": 67.04867916666667
+        },
+        "reference": {
+          "ref_pixel_sha256": "e516924b2c1a2de9f48634e35876e2068698457e81e76f431cda15e6eefd0ebb",
+          "identical": false,
+          "max_abs": 49167,
+          "mean_abs": 578.2210078888888,
+          "pct_over_threshold": 67.04867916666667
+        }
+      }
+    },
+    {
+      "id": "canon-r6m2-24mp-raw",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "ffee22fe09d45b1b227162fbdc6c715840b65bea0167a422874f7a74bc04c6d8",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "82f370cbbd399a80289e9a96aaef5397bfca888faebdeaf7972c8cd1d5e9acf7",
+          "identical": false,
+          "max_abs": 4464,
+          "mean_abs": 79.71475584722222,
+          "pct_over_threshold": 12.7041875
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "b440dc5c086934301f1e4a68a7cf566f4dc468d3986032840965bceb56a9e14d",
+          "identical": false,
+          "max_abs": 27439,
+          "mean_abs": 79.82055934722223,
+          "pct_over_threshold": 12.704945833333333
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "f137b75f207d4a9036660fe71bd0b5cb4d656a5819c60a4fbdd3726cdb7ec4ac",
+          "identical": false,
+          "max_abs": 21420,
+          "mean_abs": 0.014516194444444444,
+          "pct_over_threshold": 0.0009166666666666666
+        },
+        "before-17": {
+          "ref_pixel_sha256": "e7f922886ad15972e70686f8c17379d9e927d7de615b1a9607493b9df57946af",
+          "identical": false,
+          "max_abs": 27439,
+          "mean_abs": 79.82288098611112,
+          "pct_over_threshold": 12.702729166666666
+        },
+        "reference": {
+          "ref_pixel_sha256": "e7f922886ad15972e70686f8c17379d9e927d7de615b1a9607493b9df57946af",
+          "identical": false,
+          "max_abs": 27439,
+          "mean_abs": 79.82288098611112,
+          "pct_over_threshold": 12.702729166666666
+        }
+      }
+    },
+    {
+      "id": "fuji-xh2-40mp-compressed",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "691a46d3d86df696b2f3cf245e64ff5028c02b2c138293694069c6c4ed985af0",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "c6e923e7685fc3f93775794433db44d87f7c9d2bfd136b1126bade738b61f781",
+          "identical": false,
+          "max_abs": 17967,
+          "mean_abs": 226.98399649616462,
+          "pct_over_threshold": 44.69447130222599
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "f4e92c9433793975d5b0db23d25cbafb4bc05a9616a3e76aadc99728a21a1a0d",
+          "identical": false,
+          "max_abs": 21192,
+          "mean_abs": 226.9846685853571,
+          "pct_over_threshold": 44.69448888369147
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "ac91e8a604c9f8f3252e60268d4de8e6ea4c78853141e39d724f5a64096bcead",
+          "identical": false,
+          "max_abs": 13988,
+          "mean_abs": 0.0005016996756169387,
+          "pct_over_threshold": 2.0093103403932463e-5
+        },
+        "before-17": {
+          "ref_pixel_sha256": "cc5273b86928a477792bbe61dfe74c0d2968f8fc4adbd0030df7b5fe1b2df06f",
+          "identical": false,
+          "max_abs": 21192,
+          "mean_abs": 226.99599642403038,
+          "pct_over_threshold": 44.701790215140875
+        },
+        "reference": {
+          "ref_pixel_sha256": "cc5273b86928a477792bbe61dfe74c0d2968f8fc4adbd0030df7b5fe1b2df06f",
+          "identical": false,
+          "max_abs": 21192,
+          "mean_abs": 226.99599642403038,
+          "pct_over_threshold": 44.701790215140875
+        }
+      }
+    },
+    {
+      "id": "fuji-xt4-26mp-lossless",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "a6a02fc281ef68d27ff10aa939d1187a1067451bc59301ff3dad1fcf96bd798c",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "c8cb0b94f08df8817e9f45509719a0b45f51561029cf89a45f9ae2583159facf",
+          "identical": false,
+          "max_abs": 18152,
+          "mean_abs": 270.2623722571499,
+          "pct_over_threshold": 59.057854105029584
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "f4f006f81d2b41ac04b26678e8c08267cfd37955451cf2b0c732e6a53929a4ec",
+          "identical": false,
+          "max_abs": 50183,
+          "mean_abs": 270.38978299895217,
+          "pct_over_threshold": 59.05832023545365
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "a2a984891d976ebea29e5979a288195c83be180be1b3a1cf0ec1889ca6d046ce",
+          "identical": false,
+          "max_abs": 44447,
+          "mean_abs": 0.09035558175131493,
+          "pct_over_threshold": 0.0009245562130177514
+        },
+        "before-17": {
+          "ref_pixel_sha256": "5da58facd608b42ccf74ccee40b7d6b771cf7d6c2ad086bad7c2ac9ba4f7ffa0",
+          "identical": false,
+          "max_abs": 50183,
+          "mean_abs": 270.77865500184913,
+          "pct_over_threshold": 59.08698918269231
+        },
+        "reference": {
+          "ref_pixel_sha256": "5da58facd608b42ccf74ccee40b7d6b771cf7d6c2ad086bad7c2ac9ba4f7ffa0",
+          "identical": false,
+          "max_abs": 50183,
+          "mean_abs": 270.77865500184913,
+          "pct_over_threshold": 59.08698918269231
+        }
+      }
+    },
+    {
+      "id": "google-pixel7pro-dng",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "fed4a36fa526d7570d05e90ccd329b9e745ccca8c0fa402452792868c8f79f26",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "9818308c7f8f1f398a754316ecd17eb0f0b5e9681d7407bd91e464a678f38cb5",
+          "identical": false,
+          "max_abs": 1840,
+          "mean_abs": 158.33834276435746,
+          "pct_over_threshold": 28.013468384839864
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "9818308c7f8f1f398a754316ecd17eb0f0b5e9681d7407bd91e464a678f38cb5",
+          "identical": false,
+          "max_abs": 1840,
+          "mean_abs": 158.33834276435746,
+          "pct_over_threshold": 28.013468384839864
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "fed4a36fa526d7570d05e90ccd329b9e745ccca8c0fa402452792868c8f79f26",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "2d15ddc5cf624bd61c75525736e238a725fe310017b01269f74bee1ec172018d",
+          "identical": false,
+          "max_abs": 1840,
+          "mean_abs": 158.33851378468944,
+          "pct_over_threshold": 28.013361645381632
+        },
+        "reference": {
+          "ref_pixel_sha256": "2d15ddc5cf624bd61c75525736e238a725fe310017b01269f74bee1ec172018d",
+          "identical": false,
+          "max_abs": 1840,
+          "mean_abs": 158.33851378468944,
+          "pct_over_threshold": 28.013361645381632
+        }
+      }
+    },
+    {
+      "id": "nikon-zf-24mp-compressed",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "8890983b4b758651b6be71167224f63ec69302abb7075bac2ea35cb443c66de9",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "a59d4886923380382a5981d7b7aa334c3aa337c9ad805b932a27933aec17919d",
+          "identical": false,
+          "max_abs": 4720,
+          "mean_abs": 165.61031205820805,
+          "pct_over_threshold": 39.614109773925
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "d73657621bf857785e6539bff3efe2253649eec3ce2c4dd88eca9fcb5073a408",
+          "identical": false,
+          "max_abs": 16816,
+          "mean_abs": 165.6275249667125,
+          "pct_over_threshold": 39.61434761983497
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "dd6eb8c0f7e2d982bc32b50cce4621f8140dad6a3a503a22d86be20053b63343",
+          "identical": false,
+          "max_abs": 12028,
+          "mean_abs": 0.011417205127935948,
+          "pct_over_threshold": 0.0004633894452842866
+        },
+        "before-17": {
+          "ref_pixel_sha256": "d73657621bf857785e6539bff3efe2253649eec3ce2c4dd88eca9fcb5073a408",
+          "identical": false,
+          "max_abs": 16816,
+          "mean_abs": 165.6275249667125,
+          "pct_over_threshold": 39.61434761983497
+        },
+        "reference": {
+          "ref_pixel_sha256": "d73657621bf857785e6539bff3efe2253649eec3ce2c4dd88eca9fcb5073a408",
+          "identical": false,
+          "max_abs": 16816,
+          "mean_abs": 165.6275249667125,
+          "pct_over_threshold": 39.61434761983497
+        }
+      }
+    },
+    {
+      "id": "nikon-zfc-21mp-lossless",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "6c12615f0fd69730550349a9482d28021ad3aec4a4e198dba7ae675b46e808a7",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "bbf22329c019340d467cbc92806622019593667dc583fb26732a2498b298bdb9",
+          "identical": false,
+          "max_abs": 12255,
+          "mean_abs": 244.87777771649263,
+          "pct_over_threshold": 52.63416412752675
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "a21e0de0cdf05a7c182f30d0a5266a422875cf7b58d240d82d0c41845d8738fe",
+          "identical": false,
+          "max_abs": 49919,
+          "mean_abs": 245.26516481314613,
+          "pct_over_threshold": 52.63456086813813
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "0e9c75639c6da6711bcc5cd83f72049deffa6e9564748fac3b650cda456bf12a",
+          "identical": false,
+          "max_abs": 48343,
+          "mean_abs": 0.10253369198684602,
+          "pct_over_threshold": 0.001930481755350773
+        },
+        "before-17": {
+          "ref_pixel_sha256": "87e9a19b6da7a7b30dfd8a41bb4daadf7b7a8a52a58a8d276f5dad596e20701a",
+          "identical": false,
+          "max_abs": 49919,
+          "mean_abs": 245.31445373785135,
+          "pct_over_threshold": 52.64244245906411
+        },
+        "reference": {
+          "ref_pixel_sha256": "87e9a19b6da7a7b30dfd8a41bb4daadf7b7a8a52a58a8d276f5dad596e20701a",
+          "identical": false,
+          "max_abs": 49919,
+          "mean_abs": 245.31445373785135,
+          "pct_over_threshold": 52.64244245906411
+        }
+      }
+    },
+    {
+      "id": "om-om1-20mp",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "447d2f63a2586b07fd35ab1fab442608e491a169891e0ef0d51adc8cfd42244b",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "02638808617768d7bee341b32cb48cf4f4d952fcc90ad38e288cdb7eb62f2df7",
+          "identical": false,
+          "max_abs": 9980,
+          "mean_abs": 225.66041009439724,
+          "pct_over_threshold": 46.58900705081796
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "053790e91bc250a37393b2f18969408432f98beba0c925c58ff69abcd23daae8",
+          "identical": false,
+          "max_abs": 25303,
+          "mean_abs": 225.67505104010547,
+          "pct_over_threshold": 46.58902193517248
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "be2a80d0338d8ce20772cf4f7cf357653b2ddc821d2be32a9dd76104aa4b9573",
+          "identical": false,
+          "max_abs": 21120,
+          "mean_abs": 0.0026152637798692612,
+          "pct_over_threshold": 7.44217725956409e-5
+        },
+        "before-17": {
+          "ref_pixel_sha256": "4c6e377982c71484b9bd6f3e7dae853f9c5a09ee8ed1b65e73596d402ef8497b",
+          "identical": false,
+          "max_abs": 30695,
+          "mean_abs": 225.66293858239027,
+          "pct_over_threshold": 46.58325672852207
+        },
+        "reference": {
+          "ref_pixel_sha256": "4c6e377982c71484b9bd6f3e7dae853f9c5a09ee8ed1b65e73596d402ef8497b",
+          "identical": false,
+          "max_abs": 30695,
+          "mean_abs": 225.66293858239027,
+          "pct_over_threshold": 46.58325672852207
+        }
+      }
+    },
+    {
+      "id": "panasonic-s5m2-24mp",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "44db19c0d27a4bb0f52c3b67f23f45cd12c600502c0cc394854fa225bfcd68aa",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "3865bc8bc4330f69a03e6eb2bf24a542d8fff7e944706b0d60441a1850fe126e",
+          "identical": false,
+          "max_abs": 16911,
+          "mean_abs": 401.1835178472222,
+          "pct_over_threshold": 69.33055833333333
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "2d13bb048b1833f92473cee255abd6ca467376bbdb9a19265303f4f3a178ae58",
+          "identical": false,
+          "max_abs": 50031,
+          "mean_abs": 402.5517449027778,
+          "pct_over_threshold": 69.33251666666666
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "33afc6cfd8ed052a19b00d6b3b41ea4bb362af1cb416c095f659e088922804e3",
+          "identical": false,
+          "max_abs": 48831,
+          "mean_abs": 0.3701490138888889,
+          "pct_over_threshold": 0.0084125
+        },
+        "before-17": {
+          "ref_pixel_sha256": "fc480fec11404c833edf6eafe96eef0601e5ee80500324ab0cddc2f46bcf4657",
+          "identical": false,
+          "max_abs": 50031,
+          "mean_abs": 402.6492240555556,
+          "pct_over_threshold": 69.33804166666667
+        },
+        "reference": {
+          "ref_pixel_sha256": "fc480fec11404c833edf6eafe96eef0601e5ee80500324ab0cddc2f46bcf4657",
+          "identical": false,
+          "max_abs": 50031,
+          "mean_abs": 402.6492240555556,
+          "pct_over_threshold": 69.33804166666667
+        }
+      }
+    },
+    {
+      "id": "ricoh-griiix-24mp-dng",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "6103a700f2e169d3ede01ac9f8a01002bfaae4fa1621682250aa4a71380e8de1",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "20f699c001947b492386f27f447aa04b72774100e4a3646f70c2d96de82f4b7a",
+          "identical": false,
+          "max_abs": 13504,
+          "mean_abs": 184.39230920833333,
+          "pct_over_threshold": 26.0471375
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "2d6f87421fd659d8c07e84c7d74f036200fe15adff70ab33f7e7cd687e30526b",
+          "identical": false,
+          "max_abs": 49015,
+          "mean_abs": 186.3792395,
+          "pct_over_threshold": 26.047654166666668
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "3f194731eb8a69b39461c9cb643e9939c81ec8018fa52e1aabb15eac669274c7",
+          "identical": false,
+          "max_abs": 46967,
+          "mean_abs": 0.008933722222222221,
+          "pct_over_threshold": 6.25e-5
+        },
+        "before-17": {
+          "ref_pixel_sha256": "db53c4e38f6a3f914fb99a4f0a236fcfda6e278ff5bb3db3c90ebf6a35c96883",
+          "identical": false,
+          "max_abs": 49015,
+          "mean_abs": 186.54995272222223,
+          "pct_over_threshold": 26.028079166666668
+        },
+        "reference": {
+          "ref_pixel_sha256": "db53c4e38f6a3f914fb99a4f0a236fcfda6e278ff5bb3db3c90ebf6a35c96883",
+          "identical": false,
+          "max_abs": 49015,
+          "mean_abs": 186.54995272222223,
+          "pct_over_threshold": 26.028079166666668
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-15mp-compressed",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "e166a65746de3abcbf01b03ac4333c37d0ebfdaf770d27817812f9aadd5b4874",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "8a50e4ab87be6cbec0f04cb4fe5c45f9383fba2c8de84c694834e8f8a010a43b",
+          "identical": false,
+          "max_abs": 7752,
+          "mean_abs": 796.1811764328568,
+          "pct_over_threshold": 76.33962984438296
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "cda69423a29aa6f44156cdda58c52405571f22faf9ef4a4a740b11d720009082",
+          "identical": false,
+          "max_abs": 21191,
+          "mean_abs": 796.3504203513817,
+          "pct_over_threshold": 76.34137471516927
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "a585ecfbccf40b45a4f905c6bab6827f18ff07e1fc4cf82721bbd44c8fd7a7c9",
+          "identical": false,
+          "max_abs": 15392,
+          "mean_abs": 0.09145498864444686,
+          "pct_over_threshold": 0.00435158058449074
+        },
+        "before-17": {
+          "ref_pixel_sha256": "9bb43ef73e447c48551182550d072d38c2be8665dcfc76a237c574e5aed3fb14",
+          "identical": false,
+          "max_abs": 21191,
+          "mean_abs": 796.3518207926809,
+          "pct_over_threshold": 76.34151600025318
+        },
+        "reference": {
+          "ref_pixel_sha256": "9bb43ef73e447c48551182550d072d38c2be8665dcfc76a237c574e5aed3fb14",
+          "identical": false,
+          "max_abs": 21191,
+          "mean_abs": 796.3518207926809,
+          "pct_over_threshold": 76.34151600025318
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-15mp-uncompressed",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "211297f0c112e13b1669b4a27b97d95ca68fba92c73aaff1ffca9a9c2fe4c509",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "09d77e3735c6ac6661c8c9734b1282f8bff5c3f93802ca3c9bc08cf0ec6cddc2",
+          "identical": false,
+          "max_abs": 7984,
+          "mean_abs": 656.8863621229007,
+          "pct_over_threshold": 74.36001389114945
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "24605c4b30bd3f5e58ba8a30e1c470bc076979b81dc8e680e0bf07fb984911e9",
+          "identical": false,
+          "max_abs": 19384,
+          "mean_abs": 656.9449091546329,
+          "pct_over_threshold": 74.36040948938441
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "51995f89cb4f0082e1c4ee1ed79e86dcfcf5320f853a3b1876f166ddae479c6a",
+          "identical": false,
+          "max_abs": 12208,
+          "mean_abs": 0.035117914647231865,
+          "pct_over_threshold": 0.0014623006184895833
+        },
+        "before-17": {
+          "ref_pixel_sha256": "0f9bb8500b55fa0f123f8d55bc27b1fd73b58ee077587567827d6cb9702bff54",
+          "identical": false,
+          "max_abs": 19384,
+          "mean_abs": 656.9454993024284,
+          "pct_over_threshold": 74.36052958170573
+        },
+        "reference": {
+          "ref_pixel_sha256": "0f9bb8500b55fa0f123f8d55bc27b1fd73b58ee077587567827d6cb9702bff54",
+          "identical": false,
+          "max_abs": 19384,
+          "mean_abs": 656.9454993024284,
+          "pct_over_threshold": 74.36052958170573
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-33mp-compressed",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "3f04ad9c953db4f8f3a1c808b1e9463ea1970aa13dc20a2ace73eb9398613f13",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "7b63cdfe4dbb54d82a751d927d8cac0596ab73beba3b04165af15bada9db3f42",
+          "identical": false,
+          "max_abs": 7096,
+          "mean_abs": 819.3152611851133,
+          "pct_over_threshold": 74.66812024027335
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "d797ccf1b4bc32bb18022f010395e68a459acb1198a134346e2db9d00097d6b7",
+          "identical": false,
+          "max_abs": 23375,
+          "mean_abs": 819.4769857157704,
+          "pct_over_threshold": 74.67119891357041
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "312d2ea96673e63d1f078c4babf0061e32e9d7fa250dc66f00db42f4d7be1cb2",
+          "identical": false,
+          "max_abs": 19135,
+          "mean_abs": 0.04944187440381247,
+          "pct_over_threshold": 0.004199579150247075
+        },
+        "before-17": {
+          "ref_pixel_sha256": "74dac4f06bd1cb57e40ed2ba8e05cbc4941bb5b080001074afc1abf7ac0a96f7",
+          "identical": false,
+          "max_abs": 23375,
+          "mean_abs": 819.4769923536506,
+          "pct_over_threshold": 74.67120196780978
+        },
+        "reference": {
+          "ref_pixel_sha256": "74dac4f06bd1cb57e40ed2ba8e05cbc4941bb5b080001074afc1abf7ac0a96f7",
+          "identical": false,
+          "max_abs": 23375,
+          "mean_abs": 819.4769923536506,
+          "pct_over_threshold": 74.67120196780978
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-33mp-uncompressed",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "fa18f57b4ea74a416d83db6c38096b293d7c8d3060234ee9769f32589aba04f8",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "25702fd09543d372b2f0a86c0e3b395a141aacf3696056629b9db7c0f8787f37",
+          "identical": false,
+          "max_abs": 7248,
+          "mean_abs": 796.7868369979319,
+          "pct_over_threshold": 75.76409433739131
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "9c0d6115047a3520fa967038699ec4db84896700938f981c6459998bf044dd39",
+          "identical": false,
+          "max_abs": 23183,
+          "mean_abs": 796.8973436750694,
+          "pct_over_threshold": 75.76667211542973
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "b3693c58c78409616c517b22971c6914dccc2eda3a88b09c6d7468dc7767a56d",
+          "identical": false,
+          "max_abs": 8890,
+          "mean_abs": 0.053731971028544025,
+          "pct_over_threshold": 0.004153765559517107
+        },
+        "before-17": {
+          "ref_pixel_sha256": "c6ea8f0cebace641ef4849426a50be4a04a714909dc4e8fc330169ab712ee6ed",
+          "identical": false,
+          "max_abs": 23183,
+          "mean_abs": 796.897526338946,
+          "pct_over_threshold": 75.76671182054169
+        },
+        "reference": {
+          "ref_pixel_sha256": "c6ea8f0cebace641ef4849426a50be4a04a714909dc4e8fc330169ab712ee6ed",
+          "identical": false,
+          "max_abs": 23183,
+          "mean_abs": 796.897526338946,
+          "pct_over_threshold": 75.76671182054169
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-37mp-4x3",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "1a6499f0d23fc0b6432e5c51e0fb77a755ca207412cd561f60b047ae1299fc6c",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "c55830c920814185b1c07f0a0ae1b7939dacf7ad343637a66d677ba02da2b1bd",
+          "identical": false,
+          "max_abs": 6536,
+          "mean_abs": 773.6758726022999,
+          "pct_over_threshold": 74.1841576847595
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "694f69c22c2e64e30df5628501bd116aa7576c84f0c3e351613cc1a428ee9c6c",
+          "identical": false,
+          "max_abs": 23407,
+          "mean_abs": 773.789281173359,
+          "pct_over_threshold": 74.18669270344655
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "5a3b4e53826757c2d1b418670e446345e7dfb283f731d2121ea4e1111ac252d6",
+          "identical": false,
+          "max_abs": 18559,
+          "mean_abs": 0.039222888290746646,
+          "pct_over_threshold": 0.0034604532198035903
+        },
+        "before-17": {
+          "ref_pixel_sha256": "2e2c211407ce386c6ff13376b4e362a9ad70a69294de9ffab0369a0ebbfd61fe",
+          "identical": false,
+          "max_abs": 23407,
+          "mean_abs": 773.7893356406279,
+          "pct_over_threshold": 74.18669270344655
+        },
+        "reference": {
+          "ref_pixel_sha256": "2e2c211407ce386c6ff13376b4e362a9ad70a69294de9ffab0369a0ebbfd61fe",
+          "identical": false,
+          "max_abs": 23407,
+          "mean_abs": 773.7893356406279,
+          "pct_over_threshold": 74.18669270344655
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-18mp-lossless-s",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "3fdcc3e73c30b76df4f2b6bc07b89a5fb8646d7a32a1cef248d85b75e9c3ae57",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "2f66fa5d50e03580ae2193a268d5601e2ed4f31af8ffd21dfebd3a29dde15647",
+          "identical": false,
+          "max_abs": 1648,
+          "mean_abs": 75.65214978594871,
+          "pct_over_threshold": 8.43608778228412
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "e406b2d7ae233cb1bece733b70aadcd3990f4288aeaa182029dcf428b2831fa9",
+          "identical": false,
+          "max_abs": 2016,
+          "mean_abs": 75.65224101105046,
+          "pct_over_threshold": 8.4361209953066
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "8a4ac97d0a31922a8bb99e9c55fc16d7e06f9ad37762bf929f9c5f7931aa9bd6",
+          "identical": false,
+          "max_abs": 2128,
+          "mean_abs": 0.00013006219603441826,
+          "pct_over_threshold": 1.3285208992279699e-5
+        },
+        "before-17": {
+          "ref_pixel_sha256": "9d07eff881c16bb7d11e6830699dae93d23ca1e27eecdc847172ee38059afaa4",
+          "identical": false,
+          "max_abs": 2016,
+          "mean_abs": 75.652326036388,
+          "pct_over_threshold": 8.4361209953066
+        },
+        "reference": {
+          "ref_pixel_sha256": "9d07eff881c16bb7d11e6830699dae93d23ca1e27eecdc847172ee38059afaa4",
+          "identical": false,
+          "max_abs": 2016,
+          "mean_abs": 75.652326036388,
+          "pct_over_threshold": 8.4361209953066
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-26mp-uncompressed",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "490358b6022f95d14031b1153eab91cc2b2de926385e8096abca2a1ce5dc9586",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "ac4a9cb6b303764901485d11dd4d651134800790fa058ec90d60a8ebbb717cee",
+          "identical": false,
+          "max_abs": 2576,
+          "mean_abs": 82.88686630660338,
+          "pct_over_threshold": 12.472617726824458
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "ac4a9cb6b303764901485d11dd4d651134800790fa058ec90d60a8ebbb717cee",
+          "identical": false,
+          "max_abs": 2576,
+          "mean_abs": 82.88686630660338,
+          "pct_over_threshold": 12.472617726824458
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "52f90385ef21a60e665cdc2446fa20107b55e82d5d169804f04923dc332719db",
+          "identical": false,
+          "max_abs": 4908,
+          "mean_abs": 0.00010062253451676528,
+          "pct_over_threshold": 3.852317554240631e-6
+        },
+        "before-17": {
+          "ref_pixel_sha256": "ac4a9cb6b303764901485d11dd4d651134800790fa058ec90d60a8ebbb717cee",
+          "identical": false,
+          "max_abs": 2576,
+          "mean_abs": 82.88686630660338,
+          "pct_over_threshold": 12.472617726824458
+        },
+        "reference": {
+          "ref_pixel_sha256": "ac4a9cb6b303764901485d11dd4d651134800790fa058ec90d60a8ebbb717cee",
+          "identical": false,
+          "max_abs": 2576,
+          "mean_abs": 82.88686630660338,
+          "pct_over_threshold": 12.472617726824458
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-61mp-compressed",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "36ad35ec03d3095f42f14ab5f52c5aa16780edd5d0f6461eb3bdc0bd803e3691",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "0a37077971ebb5d8a20d3837aec84981f70cae92457eaaafbfb1bee57b30a10a",
+          "identical": false,
+          "max_abs": 3104,
+          "mean_abs": 79.61975722476235,
+          "pct_over_threshold": 14.361277707631874
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "b3d26ebb5220f01cc5dc7170082aaa021ac1238b7ad451e71533d8d771e4288c",
+          "identical": false,
+          "max_abs": 6934,
+          "mean_abs": 79.61988927973974,
+          "pct_over_threshold": 14.36128767153862
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "6988727fd3e641785fe5311a06f8d88efa814df15f9b6ebc3ed2a77646f7748f",
+          "identical": false,
+          "max_abs": 2306,
+          "mean_abs": 4.377476362956161e-5,
+          "pct_over_threshold": 9.963906744209774e-6
+        },
+        "before-17": {
+          "ref_pixel_sha256": "f39c8087795f626f93d00f72b85c85e5fa6720455715c471478d01705f2bea5f",
+          "identical": false,
+          "max_abs": 6934,
+          "mean_abs": 79.62757131898744,
+          "pct_over_threshold": 14.36128767153862
+        },
+        "reference": {
+          "ref_pixel_sha256": "f39c8087795f626f93d00f72b85c85e5fa6720455715c471478d01705f2bea5f",
+          "identical": false,
+          "max_abs": 6934,
+          "mean_abs": 79.62757131898744,
+          "pct_over_threshold": 14.36128767153862
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-65mp-lossless",
+      "set": "busy-tone-color-detail",
+      "fixed_pixel_sha256": "634fa126501d63beef0d9fac222021e0ae0998706729009cd103a80abc683658",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "35916a782c00e48edf2e4c6ee597f194ade6f16321fa5dee11fbd53f6a03440c",
+          "identical": false,
+          "max_abs": 3104,
+          "mean_abs": 80.14517232222443,
+          "pct_over_threshold": 14.098428187068496
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "f60b2317b60c0f131b3004762cadcfbd45d080fb6291d1487f74049f7c0e4a11",
+          "identical": false,
+          "max_abs": 6290,
+          "mean_abs": 80.14527947297044,
+          "pct_over_threshold": 14.098434829672993
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "c5afd3649cd3239561a7ab6e687d39838931b3c48fee3a71b371eca809791b7f",
+          "identical": false,
+          "max_abs": 5160,
+          "mean_abs": 5.4568995935788866e-5,
+          "pct_over_threshold": 4.981953372104887e-6
+        },
+        "before-17": {
+          "ref_pixel_sha256": "b3ef64bb6e3f5ade23a2853a4a1115410d0e16ea7eb143f2b8da19051e968b55",
+          "identical": false,
+          "max_abs": 6290,
+          "mean_abs": 80.15853722586414,
+          "pct_over_threshold": 14.098434829672993
+        },
+        "reference": {
+          "ref_pixel_sha256": "b3ef64bb6e3f5ade23a2853a4a1115410d0e16ea7eb143f2b8da19051e968b55",
+          "identical": false,
+          "max_abs": 6290,
+          "mean_abs": 80.15853722586414,
+          "pct_over_threshold": 14.098434829672993
+        }
+      }
+    },
+    {
+      "id": "apple-iphone12pro-proraw",
+      "set": "neutral",
+      "fixed_pixel_sha256": "3aba7f16b7d7c54a8afe7567b78ede4cd2616dfe6530d24c5eabbe8dec575762",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "3aba7f16b7d7c54a8afe7567b78ede4cd2616dfe6530d24c5eabbe8dec575762",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "f83ea4beb96ac3df374a3141aa035f1e2c48fb48a37f3ff20911a8fba88bdbca",
+          "identical": false,
+          "max_abs": 16,
+          "mean_abs": 6.741701310153691e-5,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "8d4f2302e405e6df199967778c14ee9e1cd77f2c02affe8751b52f8ad6e104ed",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00021510018616500097,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "fd2d9cf14cef5a93477ad2e820d64ae50b8e83dfe22694f0f0ed2d607c69f39a",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 7.266602628705803e-5,
+          "pct_over_threshold": 0.0
+        },
+        "reference": {
+          "ref_pixel_sha256": "59aa07e3e929a9a2b0c7ca0422558b4920d6cc7f621b1254f52c069e91abe7ef",
+          "identical": false,
+          "max_abs": 160,
+          "mean_abs": 0.000236260270569133,
+          "pct_over_threshold": 0.0
+        }
+      }
+    },
+    {
+      "id": "canon-r50-24mp-craw",
+      "set": "neutral",
+      "fixed_pixel_sha256": "9cac0335dc200d635cc72493d5066682b80dd9c416805cb4cf07e1ab328992da",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "9cac0335dc200d635cc72493d5066682b80dd9c416805cb4cf07e1ab328992da",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "13b9cb4624404dbb09cc54a476828e49c478053875d2a08ddb0066e7c1847a67",
+          "identical": false,
+          "max_abs": 477,
+          "mean_abs": 0.001832,
+          "pct_over_threshold": 0.0009916666666666667
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "7315f54c84a677589a96e9f32dbd4ec9d0c6d0b05792ddd4952bdb2c04628228",
+          "identical": false,
+          "max_abs": 477,
+          "mean_abs": 0.0019148055555555557,
+          "pct_over_threshold": 0.0009916666666666667
+        },
+        "before-17": {
+          "ref_pixel_sha256": "b60e2418cc17dc8b91134b2dc8f0a8be3ad3bcea2e51657e12e9a71ad77bb692",
+          "identical": false,
+          "max_abs": 16264,
+          "mean_abs": 18.207239791666666,
+          "pct_over_threshold": 2.9205833333333335
+        },
+        "reference": {
+          "ref_pixel_sha256": "b60e2418cc17dc8b91134b2dc8f0a8be3ad3bcea2e51657e12e9a71ad77bb692",
+          "identical": false,
+          "max_abs": 16264,
+          "mean_abs": 18.207239791666666,
+          "pct_over_threshold": 2.9205833333333335
+        }
+      }
+    },
+    {
+      "id": "canon-r6m2-24mp-raw",
+      "set": "neutral",
+      "fixed_pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "f4505c94f8d240838eeef454dd73a72b66a1661f2d0eb634f79582e9296ec7cb",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 9.05e-5,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "e5d01efe817c5ffe0d0154bb70bf0f593ea925e97c577c55c910c33b34e1a2da",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 0.00026915277777777777,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "a8c7c8932846387916bec07e24b2b91ad9bad64fa1541f35657732b97c9744bc",
+          "identical": false,
+          "max_abs": 1248,
+          "mean_abs": 0.045393027777777775,
+          "pct_over_threshold": 0.00010833333333333333
+        },
+        "reference": {
+          "ref_pixel_sha256": "a8c7c8932846387916bec07e24b2b91ad9bad64fa1541f35657732b97c9744bc",
+          "identical": false,
+          "max_abs": 1248,
+          "mean_abs": 0.045393027777777775,
+          "pct_over_threshold": 0.00010833333333333333
+        }
+      }
+    },
+    {
+      "id": "fuji-xh2-40mp-compressed",
+      "set": "neutral",
+      "fixed_pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "b8a33208880a476115dc8cf079e1a0a5c3a603d66c356236aa1c6e3942c4c583",
+          "identical": false,
+          "max_abs": 16,
+          "mean_abs": 0.00011569441497455946,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "04dec56c3d35e6149aa23795e1d701abc16a9e4a93ffeefdaf6a9e16524f9b24",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00043913477489294396,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "da1440b7bc30b6dde51749fda87c8f0477799590bc381a7d1b047fcfb2de5a3a",
+          "identical": false,
+          "max_abs": 4688,
+          "mean_abs": 2.189050911302612,
+          "pct_over_threshold": 0.3987853116199221
+        },
+        "reference": {
+          "ref_pixel_sha256": "da1440b7bc30b6dde51749fda87c8f0477799590bc381a7d1b047fcfb2de5a3a",
+          "identical": false,
+          "max_abs": 4688,
+          "mean_abs": 2.189050911302612,
+          "pct_over_threshold": 0.3987853116199221
+        }
+      }
+    },
+    {
+      "id": "fuji-xt4-26mp-lossless",
+      "set": "neutral",
+      "fixed_pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "565e09484af852164fc89a00cee6a9e68dd0efcb2c9303086af5d851eec05743",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00018507817636423407,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "22d9a2a7e6488b6ef87d6f74ce0a4a3a5f74048c50499030f1bd45163672e392",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.0004568334976988823,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "f6f655f4ce14c6ff7336311893eaa2cd1f2ae44476ad8ad4d942ca23a912f97d",
+          "identical": false,
+          "max_abs": 9344,
+          "mean_abs": 0.35519436226166995,
+          "pct_over_threshold": 0.0336576984714004
+        },
+        "reference": {
+          "ref_pixel_sha256": "f6f655f4ce14c6ff7336311893eaa2cd1f2ae44476ad8ad4d942ca23a912f97d",
+          "identical": false,
+          "max_abs": 9344,
+          "mean_abs": 0.35519436226166995,
+          "pct_over_threshold": 0.0336576984714004
+        }
+      }
+    },
+    {
+      "id": "google-pixel7pro-dng",
+      "set": "neutral",
+      "fixed_pixel_sha256": "57b52ae6385ce1f15086b542e904c3dc24090514e364460841861908dd0def61",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "57b52ae6385ce1f15086b542e904c3dc24090514e364460841861908dd0def61",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "f30d05c5b7aa387a718ae28b30468aeaedcc86a417e897d1de62cf26f5cef779",
+          "identical": false,
+          "max_abs": 4,
+          "mean_abs": 8.331607712091897e-6,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "1795f2f7665d382ee3d8fecbfdf6e7a03bff802ea06eec28bb961cd8efb72d26",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 0.00014460231605648464,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "69308ad880f65f6c7e126462f63528166c4bff4eb36a8598eee32283ade4844f",
+          "identical": false,
+          "max_abs": 128,
+          "mean_abs": 0.001765500289026733,
+          "pct_over_threshold": 0.0
+        },
+        "reference": {
+          "ref_pixel_sha256": "69308ad880f65f6c7e126462f63528166c4bff4eb36a8598eee32283ade4844f",
+          "identical": false,
+          "max_abs": 128,
+          "mean_abs": 0.001765500289026733,
+          "pct_over_threshold": 0.0
+        }
+      }
+    },
+    {
+      "id": "nikon-zf-24mp-compressed",
+      "set": "neutral",
+      "fixed_pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "68a588390a2f8f58f3dfd05838e731b01c3c5c1f029ba07c1e01497da821bf50",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 6.676088645334677e-5,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "da23942385e2464d30f96e75bc9109b8f61d55e5377117257d420f668fcb54aa",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 0.00023788691788443773,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "68a588390a2f8f58f3dfd05838e731b01c3c5c1f029ba07c1e01497da821bf50",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 6.676088645334677e-5,
+          "pct_over_threshold": 0.0
+        },
+        "reference": {
+          "ref_pixel_sha256": "68a588390a2f8f58f3dfd05838e731b01c3c5c1f029ba07c1e01497da821bf50",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 6.676088645334677e-5,
+          "pct_over_threshold": 0.0
+        }
+      }
+    },
+    {
+      "id": "nikon-zfc-21mp-lossless",
+      "set": "neutral",
+      "fixed_pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "1b1dccbc9e0424fd42b122c2c1aea7120e12c67a0a47be60ac7f85b8269a1e7c",
+          "identical": false,
+          "max_abs": 16,
+          "mean_abs": 9.984638719612895e-5,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "3816a9928fe0ab84e8cdbe7de585f4c6dad7ba1d11e3fa3f4fb1fa366b8e7ecf",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00025172062855066717,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "58ea02d681686166abd72b789cf046eb6ab5be39765ec2384068e6a720f8ac94",
+          "identical": false,
+          "max_abs": 5424,
+          "mean_abs": 0.23246235544449398,
+          "pct_over_threshold": 0.048697490896254456
+        },
+        "reference": {
+          "ref_pixel_sha256": "58ea02d681686166abd72b789cf046eb6ab5be39765ec2384068e6a720f8ac94",
+          "identical": false,
+          "max_abs": 5424,
+          "mean_abs": 0.23246235544449398,
+          "pct_over_threshold": 0.048697490896254456
+        }
+      }
+    },
+    {
+      "id": "om-om1-20mp",
+      "set": "neutral",
+      "fixed_pixel_sha256": "ba1de500310d45641789422f002738ff4a2d14b1ec54682656f1e0a36bb9c93c",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "ba1de500310d45641789422f002738ff4a2d14b1ec54682656f1e0a36bb9c93c",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "5abf8a310eed99a7ed3f0ae280447ef90334405cf8f15fcda1feebeccee9cb9e",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 3.8533940032854073e-5,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "750dc6c11fbb943fe20045995db578c6e700879022e0411af9fef2b8cca9573d",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00012719507845179427,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "66411cff9c924bcdf8b6e6c46a6d3d0bc33ac447f54dff0ced71b910b7d7ac6e",
+          "identical": false,
+          "max_abs": 4064,
+          "mean_abs": 0.07318789268234856,
+          "pct_over_threshold": 0.002609723492353808
+        },
+        "reference": {
+          "ref_pixel_sha256": "66411cff9c924bcdf8b6e6c46a6d3d0bc33ac447f54dff0ced71b910b7d7ac6e",
+          "identical": false,
+          "max_abs": 4064,
+          "mean_abs": 0.07318789268234856,
+          "pct_over_threshold": 0.002609723492353808
+        }
+      }
+    },
+    {
+      "id": "panasonic-s5m2-24mp",
+      "set": "neutral",
+      "fixed_pixel_sha256": "fdd2af5c67eb87e201dbb52ee4db2b3d2e72dcede8a4b46ce9a8e3090282e62a",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "fdd2af5c67eb87e201dbb52ee4db2b3d2e72dcede8a4b46ce9a8e3090282e62a",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "1eae1af90699dfc4267ddc07909f87d6890dadb86774e9ef1ee3c4d622cffb25",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00014705555555555555,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "d25db1a81ffb3b5893693b335a7e9aec92e23ec53f2eede0f73583d5bca1595a",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.0004167361111111111,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "ff25daab1c25bb67e6d46b55ab7310829b7e176cd83c76646bae7d9be9bc1805",
+          "identical": false,
+          "max_abs": 6804,
+          "mean_abs": 0.07179298611111111,
+          "pct_over_threshold": 0.0044375
+        },
+        "reference": {
+          "ref_pixel_sha256": "ff25daab1c25bb67e6d46b55ab7310829b7e176cd83c76646bae7d9be9bc1805",
+          "identical": false,
+          "max_abs": 6804,
+          "mean_abs": 0.07179298611111111,
+          "pct_over_threshold": 0.0044375
+        }
+      }
+    },
+    {
+      "id": "ricoh-griiix-24mp-dng",
+      "set": "neutral",
+      "fixed_pixel_sha256": "eb4cf3cdbce65fb3e05ea5a0767529f0c405ffd58e13ae3d450bd67fe81e8b6b",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "eb4cf3cdbce65fb3e05ea5a0767529f0c405ffd58e13ae3d450bd67fe81e8b6b",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "992be6d39b8a12253f5f93aad7eb6a8ded26df3f878d34435117a5a862d9a6ef",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00023798611111111112,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "c850ab4511d381744c359efaa903556994f0665b333ea0028d06157e78a1999c",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.0004938333333333333,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "53735ab5d3d991660b18f5ddc1fa58cf761360951e5fdeb350d3c999f0a4294f",
+          "identical": false,
+          "max_abs": 16319,
+          "mean_abs": 0.2072445138888889,
+          "pct_over_threshold": 0.010216666666666667
+        },
+        "reference": {
+          "ref_pixel_sha256": "53735ab5d3d991660b18f5ddc1fa58cf761360951e5fdeb350d3c999f0a4294f",
+          "identical": false,
+          "max_abs": 16319,
+          "mean_abs": 0.2072445138888889,
+          "pct_over_threshold": 0.010216666666666667
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-15mp-compressed",
+      "set": "neutral",
+      "fixed_pixel_sha256": "73226330bbef50a0c4ae4dc01d5a67d1a6b9797ac35cde3c19aced4c60befaf3",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "73226330bbef50a0c4ae4dc01d5a67d1a6b9797ac35cde3c19aced4c60befaf3",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "4d4191820ea6adc658faa828a693158ddf111695e6353eca9e46be6ef18ef217",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00017808984827112268,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "e64c3166bc7ff2ba787880616385c4e185aa25a78bd3bb9ad7feef4f8e37df8e",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00042387879925009643,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "bf28b40d41d010dd8775ccb5e3f3c1be2590d7709b9004d25ddb7af749dcc148",
+          "identical": false,
+          "max_abs": 1856,
+          "mean_abs": 0.0013876079041280863,
+          "pct_over_threshold": 6.357828776041667e-5
+        },
+        "reference": {
+          "ref_pixel_sha256": "bf28b40d41d010dd8775ccb5e3f3c1be2590d7709b9004d25ddb7af749dcc148",
+          "identical": false,
+          "max_abs": 1856,
+          "mean_abs": 0.0013876079041280863,
+          "pct_over_threshold": 6.357828776041667e-5
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-15mp-uncompressed",
+      "set": "neutral",
+      "fixed_pixel_sha256": "fb4b99e2e742b2f7212a2e314151584d427eb82baa1fd141d31ec186c50c8ae7",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "fb4b99e2e742b2f7212a2e314151584d427eb82baa1fd141d31ec186c50c8ae7",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "5c0e802fb9bdff69f19156c845230ee126b9376cf5931e735cb108b759f398bb",
+          "identical": false,
+          "max_abs": 16,
+          "mean_abs": 0.0001547307143976659,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "2b8fb674abe1dfe5cf65e872d21f6ff60e0da3f29827640cb7f3fcde94433325",
+          "identical": false,
+          "max_abs": 16,
+          "mean_abs": 0.00039359669626494985,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "144d3683496c07b1b034183903b17250cf7f697e4239da32a8a93a5538899309",
+          "identical": false,
+          "max_abs": 288,
+          "mean_abs": 0.0006569520926769869,
+          "pct_over_threshold": 2.1192762586805555e-5
+        },
+        "reference": {
+          "ref_pixel_sha256": "144d3683496c07b1b034183903b17250cf7f697e4239da32a8a93a5538899309",
+          "identical": false,
+          "max_abs": 288,
+          "mean_abs": 0.0006569520926769869,
+          "pct_over_threshold": 2.1192762586805555e-5
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-33mp-compressed",
+      "set": "neutral",
+      "fixed_pixel_sha256": "5617fa6a9aa773d42e5cd127215a60f9527dda346b1dc33a9cee1fc33d521824",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "5617fa6a9aa773d42e5cd127215a60f9527dda346b1dc33a9cee1fc33d521824",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "86383ce33f82deca44f6f1c69e2fe01e72d00fa571cf8f86d282a73b040d7ff5",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00028183502937282375,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "7a2c865fae66f89f19c87f1ead2de82d987076be90b2acf27d3aa38e81354ba5",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.0005074211501271867,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "aa77f5cfe83ea3906450ee354a4df234510364e04f5f9997b523fc64cbce0e1e",
+          "identical": false,
+          "max_abs": 224,
+          "mean_abs": 0.0003080607648662455,
+          "pct_over_threshold": 0.0
+        },
+        "reference": {
+          "ref_pixel_sha256": "aa77f5cfe83ea3906450ee354a4df234510364e04f5f9997b523fc64cbce0e1e",
+          "identical": false,
+          "max_abs": 224,
+          "mean_abs": 0.0003080607648662455,
+          "pct_over_threshold": 0.0
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-33mp-uncompressed",
+      "set": "neutral",
+      "fixed_pixel_sha256": "db30f8e897c80a8ff7c7dd0cb5cf629aa982007e90947b067f7f544709590c2d",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "db30f8e897c80a8ff7c7dd0cb5cf629aa982007e90947b067f7f544709590c2d",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "03cf280d5407724ca5a63b1569923602991db64f87b941add0cf0879ac9dad56",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.00021015203107733368,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "c10797ec70cf5962c49c02505cc7b4c3dd74f0e5a50e112419550842fab46236",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.0004436282702351911,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "1655c9fe04b397ad116049cac818f18a7bc17f43e16b7bbf91df3f49b4f9539a",
+          "identical": false,
+          "max_abs": 640,
+          "mean_abs": 0.00036335267847834696,
+          "pct_over_threshold": 6.108478763995747e-6
+        },
+        "reference": {
+          "ref_pixel_sha256": "1655c9fe04b397ad116049cac818f18a7bc17f43e16b7bbf91df3f49b4f9539a",
+          "identical": false,
+          "max_abs": 640,
+          "mean_abs": 0.00036335267847834696,
+          "pct_over_threshold": 6.108478763995747e-6
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-37mp-4x3",
+      "set": "neutral",
+      "fixed_pixel_sha256": "3098d29a48d22ca016a2eeb19d12cf18f3ebbeb7a497e501b485a2a1e6039f32",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "3098d29a48d22ca016a2eeb19d12cf18f3ebbeb7a497e501b485a2a1e6039f32",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "fad85f469cef4aecfa098a8f74cd72974d4f2a8f4c61ad067d5053a09f3d4385",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.0002783531964773462,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "6690478f9cd6edee3d0a94a6d0397cd54ee2ad8ba1a7dab6fae1047dc297b9e4",
+          "identical": false,
+          "max_abs": 32,
+          "mean_abs": 0.0005347464117981276,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "2f9025be351d344ce629afced7d050d85baa3b417d62492523495287f87bcaf5",
+          "identical": false,
+          "max_abs": 384,
+          "mean_abs": 0.0003149429842736807,
+          "pct_over_threshold": 3.0542393819978734e-6
+        },
+        "reference": {
+          "ref_pixel_sha256": "2f9025be351d344ce629afced7d050d85baa3b417d62492523495287f87bcaf5",
+          "identical": false,
+          "max_abs": 384,
+          "mean_abs": 0.0003149429842736807,
+          "pct_over_threshold": 3.0542393819978734e-6
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-18mp-lossless-s",
+      "set": "neutral",
+      "fixed_pixel_sha256": "d9170bf9b8693fb364674b2f619b8a720146d23011bf79563792fead6d56a270",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "d9170bf9b8693fb364674b2f619b8a720146d23011bf79563792fead6d56a270",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "88b7ad135ea8f92e53d3515c6312c9e177d5f7283cba83a6753fc7184f512e48",
+          "identical": false,
+          "max_abs": 417,
+          "mean_abs": 7.630138364565974e-5,
+          "pct_over_threshold": 1.3285208992279699e-5
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "59d5546d27dc47810ecb54f5be003f9b5dc0afba1bb3cd27b230c7518154c84f",
+          "identical": false,
+          "max_abs": 417,
+          "mean_abs": 0.000395722091850038,
+          "pct_over_threshold": 1.3285208992279699e-5
+        },
+        "before-17": {
+          "ref_pixel_sha256": "6cdcfba18e87149e895e898fc672db8331cfd63228113c0af58650c841aa1a82",
+          "identical": false,
+          "max_abs": 417,
+          "mean_abs": 0.009430505603169744,
+          "pct_over_threshold": 1.3285208992279699e-5
+        },
+        "reference": {
+          "ref_pixel_sha256": "6cdcfba18e87149e895e898fc672db8331cfd63228113c0af58650c841aa1a82",
+          "identical": false,
+          "max_abs": 417,
+          "mean_abs": 0.009430505603169744,
+          "pct_over_threshold": 1.3285208992279699e-5
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-26mp-uncompressed",
+      "set": "neutral",
+      "fixed_pixel_sha256": "c95025ad694be3bd8ac5c046673c6ce2ac5776885e4e7733d1a29149bf0ed862",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "c95025ad694be3bd8ac5c046673c6ce2ac5776885e4e7733d1a29149bf0ed862",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "5e759b20a95f069b47dad46e3a00ebf5df6ccde5dd21ea885a593eec802f4d3a",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 5.1428439349112426e-5,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "4d86a6cb5679febffb038d808778c6a6019403f336ea8102d8423819f606639e",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 0.0004497580744575937,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "5e759b20a95f069b47dad46e3a00ebf5df6ccde5dd21ea885a593eec802f4d3a",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 5.1428439349112426e-5,
+          "pct_over_threshold": 0.0
+        },
+        "reference": {
+          "ref_pixel_sha256": "5e759b20a95f069b47dad46e3a00ebf5df6ccde5dd21ea885a593eec802f4d3a",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 5.1428439349112426e-5,
+          "pct_over_threshold": 0.0
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-61mp-compressed",
+      "set": "neutral",
+      "fixed_pixel_sha256": "1d46a837e7ed320b6c95120de015d9ba18853e57de53741af87ad2b90593cbe3",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "1d46a837e7ed320b6c95120de015d9ba18853e57de53741af87ad2b90593cbe3",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "b34d8604078c9986854d288fed9f91ca44b20bbdd2dda8154a312e8b879f3508",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 5.4934339183076556e-5,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "9fa32a8f435b0aee3db0c1b79431059f99752a0f698f41e1f722d1fa6f6f0e8f",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 0.00041986242368975956,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "1d58f471581d985512b93cb08e37381313b3eb6c084ae72e38b8f24cdacaf9f8",
+          "identical": false,
+          "max_abs": 64,
+          "mean_abs": 0.007431059507816663,
+          "pct_over_threshold": 0.0
+        },
+        "reference": {
+          "ref_pixel_sha256": "1d58f471581d985512b93cb08e37381313b3eb6c084ae72e38b8f24cdacaf9f8",
+          "identical": false,
+          "max_abs": 64,
+          "mean_abs": 0.007431059507816663,
+          "pct_over_threshold": 0.0
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-65mp-lossless",
+      "set": "neutral",
+      "fixed_pixel_sha256": "2f363050d8bde49604efee9074068008c8e7a67ba669dc102e3680879be5c3fd",
+      "comparisons": {
+        "corrected-highlight": {
+          "ref_pixel_sha256": "2f363050d8bde49604efee9074068008c8e7a67ba669dc102e3680879be5c3fd",
+          "identical": true,
+          "max_abs": 0,
+          "mean_abs": 0.0,
+          "pct_over_threshold": 0.0
+        },
+        "legacy-highlight": {
+          "ref_pixel_sha256": "1677d3a32749edc52c3b22dca316b8087e36ad9bf9a24ec2c59ff53d7341fe3a",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 5.191195413733292e-5,
+          "pct_over_threshold": 0.0
+        },
+        "unfixed-sync": {
+          "ref_pixel_sha256": "a329921cb9b39acc3e7f100dba83eef0d0b3294aa110956f0c59328b4ecc9155",
+          "identical": false,
+          "max_abs": 8,
+          "mean_abs": 0.00040545350743688283,
+          "pct_over_threshold": 0.0
+        },
+        "before-17": {
+          "ref_pixel_sha256": "93ec9b7b56fef58e87158f225f1eb9316368082258b1344fcbd7ef1848422418",
+          "identical": false,
+          "max_abs": 64,
+          "mean_abs": 0.014716834184295252,
+          "pct_over_threshold": 0.0
+        },
+        "reference": {
+          "ref_pixel_sha256": "93ec9b7b56fef58e87158f225f1eb9316368082258b1344fcbd7ef1848422418",
+          "identical": false,
+          "max_abs": 64,
+          "mean_abs": 0.014716834184295252,
+          "pct_over_threshold": 0.0
+        }
+      }
+    }
+  ],
+  "assets": [
+    {
+      "file": "zero-hsl-canon-r50.png",
+      "caption": "canon-r50-24mp-craw / zero HSL: (4660, 2254), 32 x 32 pixels at 16x; circle marks the largest interior correction",
+      "crop_xy_size": [4660, 2254, 32],
+      "selected_pixel_xy": [4676, 2270],
+      "unfixed_rgb16": [15088, 14528, 16176],
+      "fixed_rgb16": [45151, 5548, 3246],
+      "selected_pixel_max_abs_16bit": 30063
+    },
+    {
+      "file": "active-hsl-full-frame.png",
+      "caption": "sony-a7c2-33mp-compressed / active HSL: actual 16-bit sRGB exports resized to 950 px wide",
+      "crop_xy_size": null
+    }
+  ],
+  "reference_verified": true,
+  "reference_updated": false,
+  "human_visual_approval": "pending",
+  "human_reference_approval": "pending",
+  "control_method": "Two independently compiled engines with the same exact inactive-mixer bypass and positive-vibrance power-domain clamp. Corrected highlight control reverts only the two HSL perceptual conversion lines; the attached patch records its complete shader difference. Legacy control preserves the old non-identity HSV round trip and old vibrance bug and is independently re-rendered; its 60 hashes reproduce the earlier highlight control. No tolerance relaxed."
+}
