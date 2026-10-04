@@ -784,6 +784,18 @@
       "rendering_change": false,
       "notes": "HSL math and defaults are unchanged; the pipette only sets the existing mixer sliders. Each band moves in proportion to how much of it is in the sampled square (dominant band 0.5 per pixel, Alt for fine steps), weighted by the current shader's perceptual sRGB hue and saturation, with its linear neutral gate. A drag is one undo step. Global mixer only, not masks. Adapted with Claude Code. Local Codex review aligns sampling with the post-sync shader and stops the gesture when the parent Color or Color Mixer eye is off; no render math changes.",
       "highlight": "**Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains."
+    },
+    {
+      "id": "open-terminal-here",
+      "title": "Open Terminal Here: open your own terminal in a library folder, with RAPIDROOM_VERSION and RAPIDROOM_FOLDER set, so you can run Claude Code or Codex beside the editor",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Stopgap for the built-in terminal (RapidRoom #119, design note in rapidroom/TERMINAL.md). Folder context menu. Linux tries $TERMINAL, xdg-terminal-exec, then common terminals with their working-directory flags; macOS opens Terminal.app; Windows uses Windows Terminal or cmd. AppImage library paths are removed from the terminal's environment; Flatpak reports that it can't reach the host. The terminal program never comes from settings or the webview. No new dependencies or network connections. Written with Claude Code. Local review adds the explicit xdg-terminal-exec directory argument and preserves sibling environment paths whose names share the AppImage prefix, with regression tests."
     }
   ]
 }
