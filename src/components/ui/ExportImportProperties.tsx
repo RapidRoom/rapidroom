@@ -32,6 +32,22 @@ export const FILENAME_VARIABLES: Array<string> = [
 
 export type TiffBitDepth = 8 | 16;
 
+export enum SharpenTarget {
+  Screen = 'screen',
+  Print = 'print',
+}
+
+export enum SharpenAmount {
+  Low = 'low',
+  Standard = 'standard',
+  High = 'high',
+}
+
+export interface OutputSharpening {
+  target: SharpenTarget;
+  amount: SharpenAmount;
+}
+
 export interface ExportSettings {
   filenameTemplate: string | null;
   jpegQuality: number;
@@ -60,6 +76,7 @@ export interface ExportSettings {
   preserveFolders?: boolean;
   destinationType?: string;
   subfolder?: string;
+  outputSharpening?: OutputSharpening | null;
 }
 
 export enum BorderBasis {
@@ -151,4 +168,5 @@ export interface ExportPreset {
   lastExportPath?: string;
   destinationType?: string;
   subfolder?: string;
+  outputSharpening?: OutputSharpening | null;
 }

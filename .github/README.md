@@ -12,6 +12,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 
 <!-- rapidroom-changes:start -->
 
+- **Export for Instagram and print.** Built-in Instagram 4:5, 1:1 and 1.91:1 presets, optional output sharpening for screen or print, and `--preset` to use any export preset from the command line.
 - **Reference View like Lightroom.** Pin one photo next to the one you are editing, then match the look while you move through the filmstrip.
 - **A white balance picker you can trust.** It reads the untouched raw data, averages a square or a dragged area, and shows a live preview before you click, which helps with mixed-light night shots.
 - **At home on Linux tiling desktops.** The native title bar works with Wayland compositors like Hyprland instead of fighting them.
@@ -27,7 +28,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars.
 - **Bring your Lightroom edits along:** import XMP sidecars
 
-45 improvements on top of RapidRAW so far, including fixes for 17 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+46 improvements on top of RapidRAW so far, including fixes for 17 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Why RapidRoom

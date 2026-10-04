@@ -40,6 +40,7 @@ use crate::lut_processing::{
     convert_image_to_cube_lut, generate_identity_lut_image, get_or_load_lut,
 };
 use crate::mask_generation::{MaskDefinition, build_warped_image_for_masks, generate_mask_bitmap};
+use crate::output_sharpening::{OutputSharpening, apply_output_sharpening};
 
 use crate::cache_utils::{calculate_full_job_hash, calculate_transform_hash};
 use crate::{
@@ -146,6 +147,8 @@ pub struct ExportSettings {
     pub destination_type: Option<String>,
     #[serde(default)]
     pub subfolder: Option<String>,
+    #[serde(default)]
+    pub output_sharpening: Option<OutputSharpening>,
 }
 
 #[derive(Clone)]
@@ -292,6 +295,15 @@ impl ExportGeometry {
     }
 }
 
+fn resize_fixes_width(mode: &ResizeMode, width: u32, height: u32) -> bool {
+    match mode {
+        ResizeMode::LongEdge => width >= height,
+        ResizeMode::ShortEdge => width <= height,
+        ResizeMode::Width => true,
+        ResizeMode::Height => false,
+    }
+}
+
 fn calculate_resize_target(
     current_w: u32,
     current_h: u32,
@@ -309,15 +321,8 @@ fn calculate_resize_target(
         }
     }
 
-    let fix_width = match resize_opts.mode {
-        ResizeMode::LongEdge => current_w >= current_h,
-        ResizeMode::ShortEdge => current_w <= current_h,
-        ResizeMode::Width => true,
-        ResizeMode::Height => false,
-    };
-
     let value = resize_opts.value;
-    if fix_width {
+    if resize_fixes_width(&resize_opts.mode, current_w, current_h) {
         let h = (value as f32 * (current_h as f32 / current_w as f32)).round() as u32;
         (value, h)
     } else {
@@ -481,6 +486,9 @@ fn compute_export_geometry(
     }
 
     let (canvas_w, canvas_h) = pad_target.unwrap_or((bordered_w, bordered_h));
+    let pad_ratio = pad_target
+        .and(settings.pad.as_ref())
+        .map(|pad| pad.ratio_width as f64 / pad.ratio_height as f64);
 
     Some(compute_fused_geometry(
         src_w,
@@ -490,6 +498,7 @@ fn compute_export_geometry(
         canvas_w,
         canvas_h,
         settings.resize.as_ref(),
+        pad_ratio,
     ))
 }
 
@@ -502,8 +511,21 @@ fn compute_fused_geometry(
     canvas_w: u32,
     canvas_h: u32,
     resize_opts: Option<&ResizeOptions>,
+    pad_ratio: Option<f64>,
 ) -> ExportGeometry {
     let (final_w, final_h) = resize_target(canvas_w, canvas_h, resize_opts);
+    // The padded canvas only approximates the ratio in whole pixels; derive the
+    // resized edge from the ratio itself so e.g. 4:5 at 1080 wide is always 1350.
+    let (final_w, final_h) = match (pad_ratio, resize_opts) {
+        (Some(ratio), Some(opts)) if (final_w, final_h) != (canvas_w, canvas_h) => {
+            if resize_fixes_width(&opts.mode, canvas_w, canvas_h) {
+                (final_w, (final_w as f64 / ratio).round() as u32)
+            } else {
+                ((final_h as f64 * ratio).round() as u32, final_h)
+            }
+        }
+        _ => (final_w, final_h),
+    };
     let (final_w, final_h) = (final_w.max(1), final_h.max(1));
 
     let photo_w =
@@ -528,7 +550,11 @@ fn compute_fused_geometry(
     }
 }
 
-fn compute_export_output_size(src_w: u32, src_h: u32, settings: &ExportSettings) -> (u32, u32) {
+pub(crate) fn compute_export_output_size(
+    src_w: u32,
+    src_h: u32,
+    settings: &ExportSettings,
+) -> (u32, u32) {
     match compute_export_geometry(src_w, src_h, settings) {
         Some(geometry) => (geometry.canvas_w, geometry.canvas_h),
         None => resize_target(src_w, src_h, settings.resize.as_ref()),
@@ -780,6 +806,9 @@ fn apply_export_geometry(
             if target_w != src_w || target_h != src_h {
                 image = image.resize(target_w, target_h, imageops::FilterType::Lanczos3);
             }
+            if let Some(sharpening) = &export_settings.output_sharpening {
+                apply_output_sharpening(&mut image, sharpening);
+            }
 
             let (width, height) = image.dimensions();
             Ok((
@@ -803,6 +832,9 @@ fn apply_export_geometry(
                     geometry.photo_h,
                     imageops::FilterType::Lanczos3,
                 );
+            }
+            if let Some(sharpening) = &export_settings.output_sharpening {
+                apply_output_sharpening(&mut image, sharpening);
             }
 
             let pad_color = fill_color(export_settings.pad.as_ref().map(|pad| pad.color.as_str()));
@@ -1966,12 +1998,80 @@ pub async fn export_images(
     .await
 }
 
+// The CLI keeps its own destination rules (folders preserved, timestamps kept);
+// a preset supplies format, size, border, watermark, naming and sharpening.
+fn headless_export_settings(
+    session: &crate::launch_request::HeadlessExportSession,
+    app_handle: &tauri::AppHandle,
+) -> Result<(ExportSettings, String), String> {
+    let (mut settings, preset_format) = match &session.preset {
+        Some(query) => {
+            let user_presets = load_settings(app_handle.clone())
+                .map(|settings| settings.export_presets)
+                .unwrap_or_default();
+            let preset = crate::export_recipes::find_export_preset(&user_presets, query)?;
+            cli_println!("Using export preset \"{}\".", preset.name);
+            let settings = crate::export_recipes::preset_to_export_settings(&preset)?;
+            (
+                settings,
+                Some(crate::export_recipes::preset_output_format(&preset)),
+            )
+        }
+        None => (
+            ExportSettings {
+                jpeg_quality: 90,
+                tiff_bit_depth: TiffBitDepth::default(),
+                resize: None,
+                border: None,
+                pad: None,
+                keep_metadata: false,
+                preserve_timestamps: true,
+                strip_gps: false,
+                filename_template: None,
+                watermark: None,
+                export_masks: false,
+                preserve_folders: true,
+                destination_type: None,
+                subfolder: None,
+                output_sharpening: None,
+            },
+            None,
+        ),
+    };
+
+    settings.preserve_timestamps = true;
+    settings.preserve_folders = true;
+    settings.export_masks = false;
+    settings.destination_type = None;
+    settings.subfolder = None;
+    if let Some(quality) = session.quality {
+        settings.jpeg_quality = quality;
+    }
+    if let Some(depth) = session.tiff_bit_depth {
+        settings.tiff_bit_depth = depth;
+    }
+    if let Some(keep_metadata) = session.keep_metadata {
+        settings.keep_metadata = keep_metadata;
+    }
+    if let Some(sharpening) = session.sharpening {
+        settings.output_sharpening = sharpening;
+    }
+
+    let format = session
+        .format
+        .clone()
+        .or(preset_format)
+        .unwrap_or_else(|| "jpeg".to_string());
+    Ok((settings, format))
+}
+
 pub async fn run_headless_export(
     session: crate::launch_request::HeadlessExportSession,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     cli_println!("Starting headless export...");
     let state = app_handle.state::<crate::AppState>();
+    let (export_settings, output_format) = headless_export_settings(&session, &app_handle)?;
 
     let source_path = std::path::Path::new(&session.source);
     if !source_path.exists() {
@@ -2009,23 +2109,6 @@ pub async fn run_headless_export(
 
     cli_println!("Found {} images to export. Processing...", paths.len());
 
-    let export_settings = ExportSettings {
-        jpeg_quality: session.quality,
-        tiff_bit_depth: session.tiff_bit_depth,
-        resize: None,
-        border: None,
-        pad: None,
-        keep_metadata: session.keep_metadata,
-        preserve_timestamps: true,
-        strip_gps: false,
-        filename_template: None,
-        watermark: None,
-        export_masks: false,
-        preserve_folders: true,
-        destination_type: None,
-        subfolder: None,
-    };
-
     let mut custom_adjustments = None;
     if let Some(adj_path) = &session.adjustments_override {
         let content = std::fs::read_to_string(adj_path)
@@ -2056,7 +2139,7 @@ pub async fn run_headless_export(
         is_explicit_file_path,
         vec![session.source],
         export_settings,
-        session.format,
+        output_format,
         mode,
         state.clone(),
         app_handle.clone(),

@@ -917,6 +917,12 @@ rapidraw export /path/to/photo.raw --output /path/to/output.tiff --format tiff -
 
 # Batch export a folder using a custom adjustments JSON file to override sidecars
 rapidraw export /path/to/photos --output /path/to/output_dir --adjustments /path/to/preset.json
+
+# Export with a saved export preset or a built-in recipe (RapidRoom)
+rapidraw export /path/to/photos --output /path/to/instagram --preset "Instagram Portrait 4:5 (1080×1350)"
+
+# Add output sharpening for print (RapidRoom)
+rapidraw export /path/to/photo.raw --output /path/to/print.tiff --format tiff --sharpen print:standard
 ```
 
 > **Note:** By default, headless export automatically detects and applies edits stored in `.rrdata` sidecar files located alongside your source images. You can override sidecars for all exported images by passing a custom JSON file using the `--adjustments` flag.
@@ -930,6 +936,8 @@ rapidraw export /path/to/photos --output /path/to/output_dir --adjustments /path
 | `--tiff-bit-depth <n>` | TIFF channel depth (`8` or `16`)                                       | `16`              |
 | `--keep-metadata`      | Retain EXIF/capture metadata in exported files                         | `false`           |
 | `--adjustments <path>` | Path to a custom JSON file containing adjustments to override sidecars | _(Auto-detected)_ |
+| `--preset <name>`      | Export preset or built-in recipe (name or id); explicit flags win      | _(None)_          |
+| `--sharpen <target>`   | `none`, `screen` or `print`; amount `:low`, `:standard` or `:high`     | _(Off)_           |
 
 ## System Requirements
 
