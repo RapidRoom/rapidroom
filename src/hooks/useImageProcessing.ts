@@ -199,7 +199,11 @@ export function useImageProcessing(
           if (prefix === 'WGPU_RENDER') {
             setEditor((state) => {
               if (state.interactivePatch && state.interactivePatch.url) URL.revokeObjectURL(state.interactivePatch.url);
-              return { interactivePatch: null };
+              return {
+                interactivePatch: null,
+                previewRenderVersion: state.previewRenderVersion + 1,
+                lastRenderedAdjustments: currentAdjustments,
+              };
             });
             return;
           }
@@ -248,7 +252,11 @@ export function useImageProcessing(
                   }
                 }, 250);
               }
-              return { finalPreviewUrl: url };
+              return {
+                finalPreviewUrl: url,
+                previewRenderVersion: state.previewRenderVersion + 1,
+                lastRenderedAdjustments: currentAdjustments,
+              };
             });
 
             setEditor((state) => {
