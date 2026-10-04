@@ -47,11 +47,15 @@ pub const SHARPEN: Model = Model {
 pub type Models = Vec<Arc<Mutex<Session>>>;
 
 fn cpu_threads() -> usize {
-    std::thread::available_parallelism().map_or(1, usize::from).min(4)
+    std::thread::available_parallelism()
+        .map_or(1, usize::from)
+        .min(4)
 }
 fn cpu_session(path: &Path) -> Result<Session> {
     Ok(Session::builder()?
-        .with_execution_providers([ort::execution_providers::CPUExecutionProvider::default().build()])?
+        .with_execution_providers([
+            ort::execution_providers::CPUExecutionProvider::default().build()
+        ])?
         .with_intra_threads(cpu_threads())?
         .commit_from_file(path)?)
 }
@@ -188,8 +192,10 @@ fn area(raw: &RawImage) -> Result<Area> {
     );
     // Pinned rawler reads repeating DNG black levels relative to the full buffer.
     let (left, top) = raw.active_area.map_or((0, 0), |r| (r.p.x, r.p.y));
-    ensure!(raw.blacklevel.shift(left, top).as_vec() == raw.blacklevel.as_vec(),
-        "This sensor's black-level layout is unsupported by AI raw denoise. Choose More methods.");
+    ensure!(
+        raw.blacklevel.shift(left, top).as_vec() == raw.blacklevel.as_vec(),
+        "This sensor's black-level layout is unsupported by AI raw denoise. Choose More methods."
+    );
     let pixels = match &raw.data {
         RawImageData::Integer(data) => data.len(),
         RawImageData::Float(data) => data.len(),
@@ -759,7 +765,12 @@ mod tests {
         use rawler::imgop::{Dim2, Point, Rect};
         let mut raw = sensor("RGGB");
         raw.active_area = Some(Rect::new(Point::new(1, 1), Dim2::new(257, 257)));
-        assert!(area(&raw).unwrap_err().to_string().contains("black-level layout"));
+        assert!(
+            area(&raw)
+                .unwrap_err()
+                .to_string()
+                .contains("black-level layout")
+        );
         raw.blacklevel = BlackLevel::new(&[100_u16; 4], 2, 2, 1);
         assert!(area(&raw).is_ok());
     }
@@ -904,9 +915,7 @@ mod tests {
         let root = PathBuf::from(std::env::var("RAPIDROOM_TREE_MODELS").unwrap());
         let input = vec![f16::from_f32(0.2); 3 * TILE * TILE];
         for model in [&BEST, &FAST, &SHARPEN] {
-            let session = Arc::new(Mutex::new(
-                cpu_session(&root.join(model.file)).unwrap(),
-            ));
+            let session = Arc::new(Mutex::new(cpu_session(&root.join(model.file)).unwrap()));
             let output = infer(
                 &input,
                 TILE,
@@ -996,11 +1005,7 @@ mod tests {
         }
         let models = wanted
             .into_iter()
-            .map(|m| {
-                Arc::new(Mutex::new(
-                    cpu_session(&root.join(m.file)).unwrap(),
-                ))
-            })
+            .map(|m| Arc::new(Mutex::new(cpu_session(&root.join(m.file)).unwrap())))
             .collect();
         let job = DenoiseJob::testing();
         let started = std::time::Instant::now();
@@ -1033,10 +1038,20 @@ mod tests {
                 .is_some()
         );
         let original_source = RawSource::new_from_slice(&bytes);
-        let original = rawler::get_decoder(&original_source)
-            .unwrap()
+        let original_decoder = rawler::get_decoder(&original_source).unwrap();
+        let original_metadata = original_decoder
+            .raw_metadata(&original_source, &RawDecodeParams::default())
+            .unwrap();
+        let original = original_decoder
             .raw_image(&original_source, &RawDecodeParams::default(), false)
             .unwrap();
+        let iso = |m: &rawler::decoders::RawMetadata| {
+            m.exif.iso_speed.or(m.exif.iso_speed_ratings.map(u32::from))
+        };
+        assert_eq!(iso(&metadata), iso(&original_metadata));
+        assert_eq!(metadata.make, original_metadata.make);
+        assert_eq!(metadata.model, original_metadata.model);
+        assert_eq!(raw.orientation.to_u16(), original.orientation.to_u16());
         assert_eq!((raw.width, raw.height), (original.width, original.height));
         assert_eq!(raw.active_area, original.active_area);
         assert_eq!(raw.crop_area, original.crop_area);

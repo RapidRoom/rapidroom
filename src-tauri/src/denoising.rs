@@ -697,7 +697,7 @@ fn denoise_image(
         let bytes = fs::read(&cached).map_err(|e| e.to_string())?;
         let developed = load_base_image_from_bytes(
             &bytes,
-            "sensor.dng",
+            &cached.to_string_lossy(),
             false,
             &original_settings,
             Some(job.decode_cancel_token()),
@@ -1687,6 +1687,28 @@ mod tests {
                 .iter()
                 .all(|(e, _)| e != "denoise-error")
         );
+    }
+
+    #[test]
+    fn raw_batch_keeps_sensor_bytes_and_cancel_preserves_existing_dng() {
+        let (dir, paths) = batch_dir();
+        let existing = dir.path().join("b_Denoised.dng");
+        fs::write(&existing, b"existing sensor").unwrap();
+        let jobs = Arc::new(DenoiseJobs::default());
+        let (job, _) = job_with_events(&jobs, |event, p| {
+            event == "denoise-batch-progress" && p["current"] == 2
+        });
+        let bytes = b"cached sensor bytes";
+        let saved = run_batch(&job, &paths, |_| {
+            job.check()?;
+            Ok(DenoisedOutput::Raw(bytes.to_vec()))
+        });
+        let first = dir.path().join("a_Denoised.dng");
+        assert_eq!(saved, vec![first.to_string_lossy().to_string()]);
+        assert_eq!(fs::read(first).unwrap(), bytes);
+        assert_eq!(fs::read(existing).unwrap(), b"existing sensor");
+        assert!(!dir.path().join("c_Denoised.dng").exists());
+        assert!(partial_files(dir.path()).is_empty());
     }
 
     #[test]
