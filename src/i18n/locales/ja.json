@@ -55,10 +55,12 @@
         "reds": "レッド",
         "yellows": "イエロー"
       },
+      "mixerPickerTooltip": "カラーミキサーのスポイト：写真をクリックして上下にドラッグ",
       "presence": "外観",
       "saturation": "彩度",
       "temperature": "色温度",
       "tint": "色かぶり補正",
+      "toggleMixerExpanded": "カラーミキサーを展開",
       "toggleSliders": "スライダー切り替え",
       "vibrance": "自然な彩度",
       "wbPickerTooltip": "ホワイトバランススポイト",
@@ -159,13 +161,17 @@
       "confirmDeleteGroupNested": "グループとすべてのネストされたアルバムの削除を確認",
       "deleteAlbum": "アルバムを削除",
       "deleteGroup": "グループを削除",
+      "importLightroom": "Import Lightroom Collections…",
+      "lightroomCatalog": "Lightroom Catalog",
       "moveHere": "ここに移動",
       "moveTo": "移動先...",
       "newAlbum": "新規アルバム",
       "newGroup": "新規グループ",
+      "relinkLightroom": "Relink Lightroom Folders…",
       "renameAlbum": "アルバム名を変更",
       "renameGroup": "グループ名を変更",
-      "rootDir": "ルートディレクトリ"
+      "rootDir": "ルートディレクトリ",
+      "selectLightroomCatalog": "Select Lightroom Catalog"
     },
     "colors": {
       "blue": "ブルー",
@@ -192,6 +198,9 @@
       "denoise": "ノイズ低減を実行",
       "editImage": "画像を編集",
       "exportImage": "画像を書き出し",
+      "flag": "フラグ",
+      "flagPick": "採用",
+      "flagReject": "除外",
       "frameImage": "画像にフレームを追加",
       "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "HDRに統合",
@@ -206,7 +215,8 @@
       "resetAdjustments": "補正設定をリセット",
       "stitchPanorama": "パノラマ写真を作成",
       "tagging": "タグ付け",
-      "undo": "元に戻す"
+      "undo": "元に戻す",
+      "unflagged": "フラグなし"
     },
     "folders": {
       "changeIcon": "アイコンを変更",
@@ -230,6 +240,7 @@
     "library": {
       "addCopiedToAlbum_one": "コピーした画像をアルバムに追加",
       "addCopiedToAlbum_other": "コピーした {{count}} 枚の画像をアルバムに追加",
+      "deleteRejected": "除外した画像を削除",
       "refreshView": "表示を更新"
     },
     "merge": {
@@ -288,10 +299,21 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
     "toasts": {
+      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
       "couldNotShowExplorer": "エクスプローラーでファイルを表示できませんでした: {{err}}",
       "couldNotShowFolder": "フォルダを表示できませんでした: {{err}}",
       "failedAddToAlbum": "アルバムへの追加に失敗しました: {{err}}",
@@ -302,6 +324,7 @@
       "failedDelete": "削除に失敗しました: {{err}}",
       "failedDeleteFolder": "フォルダの削除に失敗しました: {{err}}",
       "failedDuplicate": "ファイルの複製に失敗しました: {{err}}",
+      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
       "failedImportMatchingXmpSidecars": "Failed to import matching XMP sidecars: {{err}}",
       "failedImportXmpAdjustments": "Failed to import XMP adjustments: {{err}}",
       "failedMatchingXmpSidecars_other": "Matching XMP sidecars failed to import: {{count}}.",
@@ -309,6 +332,7 @@
       "failedMoveError": "移動に失敗しました: {{err}}",
       "failedMoveInvalid": "移動に失敗しました: 対象グループが見つからないか無効です。",
       "failedRemoveImages": "画像の削除に失敗しました: {{err}}",
+      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
       "importedMatchingXmpSidecars_other": "Imported matching XMP sidecars: {{count}}.",
       "importedXmpAdjustments": "Imported XMP adjustments.",
       "importingMatchingXmpSidecars": "Importing matching XMP sidecars…",
@@ -740,6 +764,7 @@
         "presetFile": "プリセットファイル",
         "rapidRawPreset": "RapidRAWプリセット"
       },
+      "favorites": "お気に入り",
       "menu": {
         "configurePreset": "プリセットを構成",
         "deleteFolder": "フォルダを削除",
@@ -767,8 +792,10 @@
       "tooltips": {
         "explore": "コミュニティのプリセットを検索",
         "export": "すべてのプリセットを .rrpreset ファイルとして書き出し",
+        "favorite": "お気に入りに追加",
         "import": ".rrpreset ファイルからプリセットをインポート",
-        "saveNew": "新規プリセットとして保存"
+        "saveNew": "新規プリセットとして保存",
+        "unfavorite": "お気に入りから削除"
       },
       "types": {
         "folder": "フォルダ",
@@ -776,6 +803,17 @@
         "style": "スタイル",
         "tool": "ツール"
       }
+    },
+    "referenceView": {
+      "active": "編集中",
+      "cancel": "キャンセル",
+      "chooseHint": "フィルムストリップで写真をクリックして参照に設定します。",
+      "clear": "参照を解除",
+      "close": "参照ビューを閉じる",
+      "readOnly": "読み取り専用",
+      "reference": "参照",
+      "replace": "別の参照を選択",
+      "unavailable": "参照画像を表示できません"
     },
     "switcher": {
       "tooltips": {
@@ -798,6 +836,7 @@
         "fullscreen": "全画面表示切り替え (F)",
         "iso": "ISO感度",
         "redo": "やり直し (Ctrl+Y) または履歴 (右クリック)",
+        "referenceView": "参照ビュー (Shift+R)",
         "showEdited": "編集後を表示 (B)",
         "showOriginal": "オリジナルを表示 (B)",
         "shutterSpeed": "シャッタースピード",
@@ -980,6 +1019,13 @@
         "editedOnly": "編集済みのみ",
         "uneditedOnly": "未編集のみ"
       },
+      "flag": {
+        "all": "すべての画像",
+        "excludeRejected": "除外を非表示",
+        "picked": "採用",
+        "rejected": "除外",
+        "unflagged": "フラグなし"
+      },
       "noMatch": "フィルターに一致する画像が見つかりません。",
       "rating": {
         "all": "すべて表示",
@@ -1067,6 +1113,7 @@
         "filterByColorLabel": "カラーラベルでフィルター",
         "filterByEdited": "編集状態でフィルター",
         "filterByFileType": "ファイル形式でフィルター",
+        "filterByFlag": "フラグでフィルター",
         "filterByRating": "評価でフィルター",
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
@@ -1100,11 +1147,21 @@
       "expandFolder": "フォルダを展開",
       "imagesCount_one": "1 枚の画像",
       "imagesCount_other": "{{count}} 枚の画像",
+      "rejected": "除外",
       "tooltipAperture": "絞り値",
       "tooltipFocalLength": "焦点距離",
       "tooltipIso": "ISO感度",
       "tooltipShutterSpeed": "シャッタースピード",
       "tooltipVirtualCopy": "仮想コピー"
+    },
+    "reject": {
+      "deleteConfirm": "除外した画像を削除",
+      "deleteMessage_one": "除外した画像 {{count}} 枚を削除してもよろしいですか？ゴミ箱に移動されます。",
+      "deleteMessage_other": "除外した画像 {{count}} 枚を削除してもよろしいですか？ゴミ箱に移動されます。",
+      "deleteTitle": "除外した画像を削除",
+      "noneToDelete": "削除する除外画像はありません。",
+      "virtualCopiesWarning_one": "元画像が除外されているため、除外されていない仮想コピー {{count}} 件も削除されます。",
+      "virtualCopiesWarning_other": "元画像が除外されているため、除外されていない仮想コピー {{count}} 件も削除されます。"
     },
     "search": {
       "noResults": "結果が見つかりません",
@@ -1288,7 +1345,7 @@
     "culling": {
       "actionDelete": "ゴミ箱に移動",
       "actionRateZero": "評価を星1に設定",
-      "actionReject": "除外としてマーク (赤ラベル)",
+      "actionReject": "除外としてマーク",
       "applyButton_one": "1 枚の画像に適用",
       "applyButton_other": "{{count}} 枚の画像に適用",
       "bestImage": "ベスト画像",
@@ -1428,6 +1485,36 @@
       "zoomInTooltip": "拡大",
       "zoomOutTooltip": "縮小"
     },
+    "lightroomImport": {
+      "addRootFolders": "Also add the found root folders to Folders",
+      "besideCatalog": "Found next to the catalog",
+      "collectionSets": "Collection sets",
+      "collections": "Collections",
+      "copied": "List copied.",
+      "copyList": "Copy List",
+      "found": "Found",
+      "imagesFound": "Images found",
+      "imagesMissing": "Images missing",
+      "import": "Import",
+      "importing": "Importing…",
+      "missingFiles": "Missing files: {{total}}",
+      "missingFilesHint": "Missing files stay in their albums and show up again once their folder is found or relinked.",
+      "missingFilesMore": "…and {{total}} more",
+      "missingRoots": "Root folders not found: {{total}}. Their images are imported as missing until you relink them.",
+      "notFound": "Not found",
+      "nothingToImport": "This catalog has no collections to import.",
+      "reading": "Reading the catalog…",
+      "relink": "Relink…",
+      "relinkTitle": "Find the folder for {{path}}",
+      "relinked": "Relinked",
+      "replacesPrevious": "This catalog was imported before. Importing again refreshes its albums where you put them; your other albums stay as they are.",
+      "rootFolders": "Root folders",
+      "rootFoldersHint": "Where the catalog's folders are on this computer. Relink a folder that moved or comes from another computer. The catalog itself is only read, never changed.",
+      "rootImages": "Images: {{images}}, missing: {{missing}}",
+      "skippedOther": "Books, slideshows, prints and web galleries, not imported: {{total}}",
+      "smartCollections": "Smart collections, not imported: {{total}}",
+      "title": "Import Lightroom Collections"
+    },
     "negativeConversion": {
       "blueWeight": "ブルー (イエロー)",
       "cancel": "キャンセル",
@@ -1475,13 +1562,31 @@
     },
     "renameFile": {
       "cancel": "キャンセル",
+      "conflictExisting": "名前が使用中",
+      "conflictInBatch": "名前が重複",
+      "conflicts_one": "{{count}} 件のファイル名が重複しています。テンプレートを変更してください。",
+      "conflicts_other": "{{count}} 件のファイル名が重複しています。テンプレートを変更してください。",
       "fileNamingTemplate": "ファイル命名テンプレート",
+      "groupAuto": "自動：間隔が",
+      "groupSeconds": "グループ内の撮影間隔（秒）",
+      "groupSelection": "選択全体を1つのグループにする",
+      "groups": "{group} と {member} のグループ",
       "newName": "新しい名前",
+      "preview": "プレビュー",
+      "renamed_one": "{{count}} 件のファイル名を変更しました",
+      "renamed_other": "{{count}} 件のファイル名を変更しました",
       "save": "保存",
+      "seconds": "秒以内の写真",
+      "summary": "写真：{{photos}} · ファイル：{{files}}",
       "titleMultiple": "{{count}} 件の画像名を変更",
       "titleMultiple_one": "{{count}} 件の画像名を変更",
       "titleMultiple_other": "{{count}} 件の画像名を変更",
-      "titleSingle": "画像名を変更"
+      "titleSingle": "画像名を変更",
+      "undo": "元に戻す",
+      "undoFailed": "名前の変更を元に戻せませんでした：{{err}}",
+      "undoLast_one": "前回の名前の変更を元に戻す（{{count}} 枚）",
+      "undoLast_other": "前回の名前の変更を元に戻す（{{count}} 枚）",
+      "undone": "名前の変更を元に戻しました"
     },
     "renameFolder": {
       "cancel": "キャンセル",
@@ -1650,7 +1755,10 @@
         "copy_files": "選択したファイルをコピー",
         "copy_image_path": "選択した画像のパスをコピー",
         "cycle_zoom": "ズームの切り替え (全体表示、2倍拡大、100%)",
+        "delete_rejected": "除外したファイルを削除",
         "delete_selected": "選択したファイルを削除",
+        "flag_pick": "採用フラグを付ける",
+        "flag_reject": "除外フラグを付ける",
         "focus_search": "検索フィールドにフォーカス",
         "open_image": "選択した画像を開く",
         "open_settings": "設定を開く",
@@ -1678,13 +1786,17 @@
         "toggle_export": "書き出しパネルの表示/非表示",
         "toggle_folder_tree": "フォルダーツリーパネルの切り替え",
         "toggle_fullscreen": "全画面表示の切り替え",
+        "cycle_lights_out": "ライトアウトを切り替え",
+        "cycle_lights_out_reverse": "ライトアウトを逆方向に切り替え",
         "toggle_left_panel": "左パネルの表示/非表示",
         "toggle_library_exif": "EXIF重ね合わせ表示の表示/非表示",
         "toggle_masks": "マスクパネルの表示/非表示",
         "toggle_metadata": "メタデータパネルの表示/非表示",
         "toggle_presets": "プリセットパネルの表示/非表示",
+        "toggle_reference_view": "参照ビューの切り替え",
         "toggle_right_panel": "右パネルの表示/非表示",
         "undo": "操作を元に戻す",
+        "unflag": "フラグを解除",
         "zoom_100": "100%ズーム",
         "zoom_fit": "画面に合わせる",
         "zoom_in": "ズームイン",
@@ -2022,6 +2134,10 @@
         "virtualCopy": "仮想コピー"
       },
       "virtualCopyAbbreviation": "仮想"
+    },
+    "flags": {
+      "togglePick": "採用を切り替え",
+      "toggleReject": "除外を切り替え"
     },
     "imagePicker": {
       "clearImage": "画像をクリア",

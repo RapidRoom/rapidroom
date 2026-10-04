@@ -55,10 +55,12 @@
         "reds": "Vermelhos",
         "yellows": "Amarelos"
       },
+      "mixerPickerTooltip": "Seletor do Misturador de Cores: clique e arraste para cima ou para baixo na foto",
       "presence": "Presença",
       "saturation": "Saturação",
       "temperature": "Temperatura",
       "tint": "Tonalidade",
+      "toggleMixerExpanded": "Misturador de Cores expandido",
       "toggleSliders": "Alternar Controles",
       "vibrance": "Vibração",
       "wbPickerTooltip": "Seletor de Balanço de Branco",
@@ -159,13 +161,17 @@
       "confirmDeleteGroupNested": "Confirmar Exclusão de Grupo e Todos os Álbuns Aninhados",
       "deleteAlbum": "Excluir Álbum",
       "deleteGroup": "Excluir Grupo",
+      "importLightroom": "Import Lightroom Collections…",
+      "lightroomCatalog": "Lightroom Catalog",
       "moveHere": "Mover Para Cá",
       "moveTo": "Mover Para...",
       "newAlbum": "Novo Álbum",
       "newGroup": "Novo Grupo",
+      "relinkLightroom": "Relink Lightroom Folders…",
       "renameAlbum": "Renomear Álbum",
       "renameGroup": "Renomear Grupo",
-      "rootDir": "Diretório Raiz"
+      "rootDir": "Diretório Raiz",
+      "selectLightroomCatalog": "Select Lightroom Catalog"
     },
     "colors": {
       "blue": "Azul",
@@ -192,6 +198,9 @@
       "denoise": "Reduzir Ruído da Imagem",
       "editImage": "Editar Imagem",
       "exportImage": "Exportar Imagem",
+      "flag": "Marca",
+      "flagPick": "Escolhida",
+      "flagReject": "Rejeitada",
       "frameImage": "Emoldurar Imagem",
       "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "Mesclar para HDR",
@@ -207,7 +216,8 @@
       "resetAdjustments": "Redefinir Ajustes",
       "stitchPanorama": "Montar Panorama",
       "tagging": "Etiquetas",
-      "undo": "Desfazer"
+      "undo": "Desfazer",
+      "unflagged": "Sem marca"
     },
     "folders": {
       "changeIcon": "Alterar Ícone",
@@ -234,6 +244,7 @@
       "addCopiedToAlbum_many": "Adicionar {{count}} imagens copiadas ao álbum",
       "addCopiedToAlbum_one": "Adicionar imagem copiada ao álbum",
       "addCopiedToAlbum_other": "Adicionar {{count}} imagens copiadas ao álbum",
+      "deleteRejected": "Excluir imagens rejeitadas",
       "refreshView": "Atualizar Exibição"
     },
     "merge": {
@@ -304,10 +315,21 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
     "toasts": {
+      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
       "couldNotShowExplorer": "Não foi possível mostrar o arquivo no explorador: {{err}}",
       "couldNotShowFolder": "Não foi possível mostrar a pasta: {{err}}",
       "failedAddToAlbum": "Falha ao adicionar ao álbum: {{err}}",
@@ -318,6 +340,7 @@
       "failedDelete": "Falha ao excluir: {{err}}",
       "failedDeleteFolder": "Falha ao excluir pasta: {{err}}",
       "failedDuplicate": "Falha ao duplicar arquivo: {{err}}",
+      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
       "failedImportMatchingXmpSidecars": "Failed to import matching XMP sidecars: {{err}}",
       "failedImportXmpAdjustments": "Failed to import XMP adjustments: {{err}}",
       "failedMatchingXmpSidecars_one": "Matching XMP sidecars failed to import: {{count}}.",
@@ -327,6 +350,7 @@
       "failedMoveError": "Falha ao mover: {{err}}",
       "failedMoveInvalid": "Falha ao mover: Grupo de destino não encontrado ou inválido.",
       "failedRemoveImages": "Falha ao remover imagens: {{err}}",
+      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
       "importedMatchingXmpSidecars_one": "Imported matching XMP sidecars: {{count}}.",
       "importedMatchingXmpSidecars_many": "Imported matching XMP sidecars: {{count}}.",
       "importedMatchingXmpSidecars_other": "Imported matching XMP sidecars: {{count}}.",
@@ -767,6 +791,7 @@
         "presetFile": "Arquivo de Predefinição",
         "rapidRawPreset": "Predefinição RapidRAW"
       },
+      "favorites": "Favoritos",
       "menu": {
         "configurePreset": "Configurar Predefinição",
         "deleteFolder": "Excluir Pasta",
@@ -794,8 +819,10 @@
       "tooltips": {
         "explore": "Explorar Predefinições da Comunidade",
         "export": "Exportar todas as predefinições para arquivo .rrpreset",
+        "favorite": "Adicionar aos favoritos",
         "import": "Importar predefinições do arquivo .rrpreset",
-        "saveNew": "Salvar como nova predefinição"
+        "saveNew": "Salvar como nova predefinição",
+        "unfavorite": "Remover dos favoritos"
       },
       "types": {
         "folder": "Pasta",
@@ -803,6 +830,17 @@
         "style": "Estilo",
         "tool": "Ferramenta"
       }
+    },
+    "referenceView": {
+      "active": "Ativa",
+      "cancel": "Cancelar",
+      "chooseHint": "Clique em uma foto na tira de filme para usá-la como referência.",
+      "clear": "Remover referência",
+      "close": "Fechar vista de referência",
+      "readOnly": "Somente leitura",
+      "reference": "Referência",
+      "replace": "Escolher outra referência",
+      "unavailable": "Imagem de referência indisponível"
     },
     "switcher": {
       "tooltips": {
@@ -825,6 +863,7 @@
         "fullscreen": "Alternar Tela Cheia (F)",
         "iso": "ISO",
         "redo": "Refazer (Ctrl+Y) ou Histórico (Botão Direito)",
+        "referenceView": "Vista de referência (Shift+R)",
         "showEdited": "Mostrar Editado (B)",
         "showOriginal": "Mostrar Original (B)",
         "shutterSpeed": "Velocidade do Obturador",
@@ -1009,6 +1048,13 @@
         "editedOnly": "Apenas Editadas",
         "uneditedOnly": "Apenas Não Editadas"
       },
+      "flag": {
+        "all": "Todas as Imagens",
+        "excludeRejected": "Ocultar Rejeitadas",
+        "picked": "Escolhida",
+        "rejected": "Rejeitada",
+        "unflagged": "Sem marca"
+      },
       "noMatch": "Nenhuma imagem encontrada que corresponda ao seu filtro.",
       "rating": {
         "all": "Mostrar Tudo",
@@ -1096,6 +1142,7 @@
         "filterByColorLabel": "Filtrar por Rótulo de Cor",
         "filterByEdited": "Filtrar por Status de Edição",
         "filterByFileType": "Filtrar por Tipo de Arquivo",
+        "filterByFlag": "Filtrar por Marca",
         "filterByRating": "Filtrar por Avaliação",
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
@@ -1130,11 +1177,23 @@
       "imagesCount_many": "{{count}} imagens",
       "imagesCount_one": "1 imagem",
       "imagesCount_other": "{{count}} imagens",
+      "rejected": "Rejeitada",
       "tooltipAperture": "Abertura",
       "tooltipFocalLength": "Distância Focal",
       "tooltipIso": "ISO",
       "tooltipShutterSpeed": "Velocidade do Obturador",
       "tooltipVirtualCopy": "Cópia Virtual"
+    },
+    "reject": {
+      "deleteConfirm": "Excluir Rejeitadas",
+      "deleteMessage_many": "Tem certeza de que deseja excluir {{count}} imagens rejeitadas? Elas serão movidas para a lixeira.",
+      "deleteMessage_one": "Tem certeza de que deseja excluir {{count}} imagem rejeitada? Ela será movida para a lixeira.",
+      "deleteMessage_other": "Tem certeza de que deseja excluir {{count}} imagens rejeitadas? Elas serão movidas para a lixeira.",
+      "deleteTitle": "Excluir imagens rejeitadas",
+      "noneToDelete": "Não há imagens rejeitadas para excluir.",
+      "virtualCopiesWarning_many": "{{count}} cópias virtuais não rejeitadas também serão excluídas porque seus originais estão rejeitados.",
+      "virtualCopiesWarning_one": "{{count}} cópia virtual não rejeitada também será excluída porque seu original está rejeitado.",
+      "virtualCopiesWarning_other": "{{count}} cópias virtuais não rejeitadas também serão excluídas porque seus originais estão rejeitados."
     },
     "search": {
       "noResults": "Nenhum Resultado Encontrado",
@@ -1318,7 +1377,7 @@
     "culling": {
       "actionDelete": "Mover para a Lixeira",
       "actionRateZero": "Definir Avaliação para 1 Estrela",
-      "actionReject": "Marcar como Rejeitado (Rótulo Vermelho)",
+      "actionReject": "Marcar como Rejeitado",
       "applyButton_many": "Aplicar a {{count}} imagens",
       "applyButton_one": "Aplicar a 1 imagem",
       "applyButton_other": "Aplicar a {{count}} imagens",
@@ -1462,6 +1521,36 @@
       "zoomInTooltip": "Mais Zoom",
       "zoomOutTooltip": "Menos Zoom"
     },
+    "lightroomImport": {
+      "addRootFolders": "Also add the found root folders to Folders",
+      "besideCatalog": "Found next to the catalog",
+      "collectionSets": "Collection sets",
+      "collections": "Collections",
+      "copied": "List copied.",
+      "copyList": "Copy List",
+      "found": "Found",
+      "imagesFound": "Images found",
+      "imagesMissing": "Images missing",
+      "import": "Import",
+      "importing": "Importing…",
+      "missingFiles": "Missing files: {{total}}",
+      "missingFilesHint": "Missing files stay in their albums and show up again once their folder is found or relinked.",
+      "missingFilesMore": "…and {{total}} more",
+      "missingRoots": "Root folders not found: {{total}}. Their images are imported as missing until you relink them.",
+      "notFound": "Not found",
+      "nothingToImport": "This catalog has no collections to import.",
+      "reading": "Reading the catalog…",
+      "relink": "Relink…",
+      "relinkTitle": "Find the folder for {{path}}",
+      "relinked": "Relinked",
+      "replacesPrevious": "This catalog was imported before. Importing again refreshes its albums where you put them; your other albums stay as they are.",
+      "rootFolders": "Root folders",
+      "rootFoldersHint": "Where the catalog's folders are on this computer. Relink a folder that moved or comes from another computer. The catalog itself is only read, never changed.",
+      "rootImages": "Images: {{images}}, missing: {{missing}}",
+      "skippedOther": "Books, slideshows, prints and web galleries, not imported: {{total}}",
+      "smartCollections": "Smart collections, not imported: {{total}}",
+      "title": "Import Lightroom Collections"
+    },
     "negativeConversion": {
       "blueWeight": "Azul (Amarelo)",
       "cancel": "Cancelar",
@@ -1511,14 +1600,35 @@
     },
     "renameFile": {
       "cancel": "Cancelar",
+      "conflictExisting": "nome em uso",
+      "conflictInBatch": "nome repetido",
+      "conflicts_many": "{{count}} nomes de arquivo estão em conflito. Altere o modelo.",
+      "conflicts_one": "{{count}} nome de arquivo está em conflito. Altere o modelo.",
+      "conflicts_other": "{{count}} nomes de arquivo estão em conflito. Altere o modelo.",
       "fileNamingTemplate": "Modelo de Nomeação de Arquivo",
+      "groupAuto": "Automático: fotos com até",
+      "groupSeconds": "Segundos entre fotos de um grupo",
+      "groupSelection": "Toda a seleção é um grupo",
+      "groups": "Grupos para {group} e {member}",
       "newName": "Novo Nome",
+      "preview": "Pré-visualização",
+      "renamed_many": "{{count}} arquivos renomeados",
+      "renamed_one": "{{count}} arquivo renomeado",
+      "renamed_other": "{{count}} arquivos renomeados",
       "save": "Salvar",
+      "seconds": "segundos de intervalo",
+      "summary": "Fotos: {{photos}} · Arquivos: {{files}}",
       "titleMultiple": "Renomear {{count}} Imagens",
       "titleMultiple_many": "Renomear {{count}} Imagens",
       "titleMultiple_one": "Renomear {{count}} Imagem",
       "titleMultiple_other": "Renomear {{count}} Imagens",
-      "titleSingle": "Renomear Imagem"
+      "titleSingle": "Renomear Imagem",
+      "undo": "Desfazer",
+      "undoFailed": "Não foi possível desfazer a renomeação: {{err}}",
+      "undoLast_many": "Desfazer a última renomeação ({{count}} fotos)",
+      "undoLast_one": "Desfazer a última renomeação ({{count}} foto)",
+      "undoLast_other": "Desfazer a última renomeação ({{count}} fotos)",
+      "undone": "Renomeação desfeita"
     },
     "renameFolder": {
       "cancel": "Cancelar",
@@ -1690,7 +1800,10 @@
         "copy_files": "Copiar arquivo(s) selecionado(s)",
         "copy_image_path": "Copiar o caminho da(s) imagem(ns) selecionada(s)",
         "cycle_zoom": "Alternar zoom (Caber, 2x Caber, 100%)",
+        "delete_rejected": "Excluir arquivo(s) rejeitado(s)",
         "delete_selected": "Excluir arquivo(s) selecionado(s)",
+        "flag_pick": "Marcar como Escolhida",
+        "flag_reject": "Marcar como Rejeitada",
         "focus_search": "Focar o campo de pesquisa",
         "open_image": "Abrir imagem selecionada",
         "open_settings": "Abrir configurações",
@@ -1718,13 +1831,17 @@
         "toggle_export": "Alternar painel de Exportação",
         "toggle_folder_tree": "Alternar painel da árvore de pastas",
         "toggle_fullscreen": "Alternar tela cheia",
+        "cycle_lights_out": "Alternar Lights Out",
+        "cycle_lights_out_reverse": "Alternar Lights Out para trás",
         "toggle_left_panel": "Alternar painel esquerdo",
         "toggle_library_exif": "Alternar sobreposição EXIF",
         "toggle_masks": "Alternar painel de Máscaras",
         "toggle_metadata": "Alternar painel de Metadados",
         "toggle_presets": "Alternar painel de Predefinições",
+        "toggle_reference_view": "Alternar vista de referência",
         "toggle_right_panel": "Alternar painel direito",
         "undo": "Desfazer ajuste",
+        "unflag": "Remover marca",
         "zoom_100": "Zoom para 100%",
         "zoom_fit": "Zoom para caber",
         "zoom_in": "Mais zoom",
@@ -2063,6 +2180,10 @@
         "virtualCopy": "Cópia Virtual"
       },
       "virtualCopyAbbreviation": "CV"
+    },
+    "flags": {
+      "togglePick": "Alternar escolha",
+      "toggleReject": "Alternar rejeição"
     },
     "imagePicker": {
       "clearImage": "Limpar Imagem",

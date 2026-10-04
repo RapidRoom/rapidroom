@@ -12,6 +12,7 @@ import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useProcessStore } from '../../store/useProcessStore';
+import { getImageFlag } from '../../utils/imageFlags';
 
 import { ImageFile, Orientation, Panel, ThumbnailAspectRatio } from '../ui/AppProperties';
 
@@ -83,10 +84,11 @@ export default function EditorView({
     })),
   );
 
-  const { multiSelectedPaths, imageRatings, isViewLoading } = useLibraryStore(
+  const { multiSelectedPaths, imageRatings, flag, isViewLoading } = useLibraryStore(
     useShallow((state) => ({
       multiSelectedPaths: state.multiSelectedPaths,
       imageRatings: state.imageRatings,
+      flag: getImageFlag(state.imageList, selectedImage?.path),
       isViewLoading: state.isViewLoading,
     })),
   );
@@ -132,6 +134,7 @@ export default function EditorView({
       onRequestThumbnails={requestThumbnails}
       onZoomChange={handleZoomChange}
       rating={imageRatings[selectedImage?.path || ''] || 0}
+      flag={flag}
       selectedImage={selectedImage ?? undefined}
       showFilmstrip={layoutMode !== 'compact'}
       layoutMode={layoutMode}
@@ -144,7 +147,7 @@ export default function EditorView({
   const editorBottomBarNode = (
     <div
       className={clsx(
-        'flex flex-col w-full overflow-hidden shrink-0',
+        'lights-out-chrome flex flex-col w-full overflow-hidden shrink-0',
         !isResizing && !isInstantTransition && 'transition-all duration-300 ease-in-out',
       )}
       style={{
@@ -167,7 +170,7 @@ export default function EditorView({
     layoutMode === 'compact' ? (
       <div
         className={clsx(
-          'flex overflow-hidden shrink-0 flex-col bg-bg-secondary rounded-lg',
+          'lights-out-chrome flex overflow-hidden shrink-0 flex-col bg-bg-secondary rounded-lg',
           !isResizing && !isInstantTransition && 'transition-all duration-300 ease-in-out',
         )}
         style={{

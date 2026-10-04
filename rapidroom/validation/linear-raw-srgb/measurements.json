@@ -1,0 +1,583 @@
+{
+  "validated_application_commit": "75cd06f0a0376167061f5a158a612dc08f97538a",
+  "before_application_base": "3f0518622acfff4b9be8081f6a3b32e85d938e89",
+  "source_commit": "eb68ee88ba309a6b4e9770046204bc6292f0f1d7",
+  "source_author": "pluja",
+  "environment": {
+    "hostname": "omarchy",
+    "kernel": "7.2.5-3-omarchy",
+    "cpu_count": 8,
+    "gpus": [
+      {
+        "card": "card0",
+        "driver": "xe",
+        "pci_id": "8086:64A0"
+      }
+    ],
+    "packages": [
+      "mesa 1:26.2.2-1",
+      "vulkan-intel 1:26.2.2-1",
+      "intel-media-driver 26.2.4-1",
+      "vulkan-icd-loader 1.4.357.0-1"
+    ],
+    "python": "3.14.7",
+    "numpy": "2.5.3"
+  },
+  "before_engine_sha256": "e8f90b4844a7b1b62f9d6eeb246aba5a04c9d8615c716163dc3babadf794d2f8",
+  "after_engine_sha256": "096039fcbca50a7020796fcaa1114d78dbb2e6304eca3c0b3664def019ed04f7",
+  "checks": {
+    "fmt": 0,
+    "clippy": 0,
+    "test-lib": 0,
+    "build": 0,
+    "linear-after": 0,
+    "render": 0,
+    "compare-before": 0,
+    "compare-reference": 1
+  },
+  "tests": {
+    "passed": 123,
+    "ignored": 1
+  },
+  "old_function_probes": {
+    "before": 101,
+    "after": 0
+  },
+  "frontend_checks": {
+    "base": "f3ec962ce5a23927079fb5c424881a96e6f6f06b",
+    "frontend_tree_identical": true,
+    "typescript_identical_to_validated_17": true,
+    "typescript_errors": 46
+  },
+  "corpus": {
+    "compared": 60,
+    "identical_to_17": 60,
+    "new_changes": 0,
+    "identical_to_original_reference": 57,
+    "known_17_changes": 3,
+    "reference_hashes_verified": true,
+    "reference_updated": false,
+    "images": [
+      {
+        "id": "apple-iphone12pro-proraw",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "7f18ede7857bd953afe963e3ec3e52f170dff680ec945afc00ce846d2fb5c7fd",
+        "after_pixel_sha256": "7f18ede7857bd953afe963e3ec3e52f170dff680ec945afc00ce846d2fb5c7fd",
+        "identical_to_17": true,
+        "different_from_stock_reference": true
+      },
+      {
+        "id": "canon-r50-24mp-craw",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "195d0f422c512360f8a00e2eb1b117c2f2cd0d7b7776217f14867d29905e14b6",
+        "after_pixel_sha256": "195d0f422c512360f8a00e2eb1b117c2f2cd0d7b7776217f14867d29905e14b6",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "canon-r6m2-24mp-raw",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "41c9e3a353e7a21dce122e72ccd0cdc54723dd7b669ce3227a44882ffafab407",
+        "after_pixel_sha256": "41c9e3a353e7a21dce122e72ccd0cdc54723dd7b669ce3227a44882ffafab407",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "fuji-xh2-40mp-compressed",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "bdd92e428a09b6fe78b2059c82e059480a7198d88b1b0018dbe470c09e5670d0",
+        "after_pixel_sha256": "bdd92e428a09b6fe78b2059c82e059480a7198d88b1b0018dbe470c09e5670d0",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "fuji-xt4-26mp-lossless",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "55f785a74200210c549819dd9df8b561e578cf98b018c5cc64de9bae2da2502e",
+        "after_pixel_sha256": "55f785a74200210c549819dd9df8b561e578cf98b018c5cc64de9bae2da2502e",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "google-pixel7pro-dng",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "032441c6fed5269e271b44b68edd51ab5fd15af7303f7d7c55b0f534057663a8",
+        "after_pixel_sha256": "032441c6fed5269e271b44b68edd51ab5fd15af7303f7d7c55b0f534057663a8",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "nikon-zf-24mp-compressed",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "0dd3908c1fb97a46b07be6d47d39c3c6b9cb1549678ddeacaca7574b100be840",
+        "after_pixel_sha256": "0dd3908c1fb97a46b07be6d47d39c3c6b9cb1549678ddeacaca7574b100be840",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "nikon-zfc-21mp-lossless",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "561b7c1bc135e5bdabd95dc697a544e3b66659ae554c15cef56a69e06fed509e",
+        "after_pixel_sha256": "561b7c1bc135e5bdabd95dc697a544e3b66659ae554c15cef56a69e06fed509e",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "om-om1-20mp",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "01dc4f1af82b6d88008f20f920b15a795f20d8067dc57fa7cf7eaddf20e0a382",
+        "after_pixel_sha256": "01dc4f1af82b6d88008f20f920b15a795f20d8067dc57fa7cf7eaddf20e0a382",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "panasonic-s5m2-24mp",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "173c04dbeae248322c464e29d1d2928fddfdf0622bb945237f0b0e592415145d",
+        "after_pixel_sha256": "173c04dbeae248322c464e29d1d2928fddfdf0622bb945237f0b0e592415145d",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "ricoh-griiix-24mp-dng",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "68fddff6793c442105b5c458dd1e655499a4112ba4a4460c14de254baac5dac8",
+        "after_pixel_sha256": "68fddff6793c442105b5c458dd1e655499a4112ba4a4460c14de254baac5dac8",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-15mp-compressed",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "2d4343c8f3ff9953fceaf074bf598b8eb1d72cb537e6c4d941e205d7c0b6a883",
+        "after_pixel_sha256": "2d4343c8f3ff9953fceaf074bf598b8eb1d72cb537e6c4d941e205d7c0b6a883",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-15mp-uncompressed",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "793eaf4e5bf2877d110a9c1f0a94b956fae06cf0b2dc2f9566eee7ad1adbb43d",
+        "after_pixel_sha256": "793eaf4e5bf2877d110a9c1f0a94b956fae06cf0b2dc2f9566eee7ad1adbb43d",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-33mp-compressed",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "b1de9c2284119c3aad15dffde860e3add71ee0e6bed2c3404add02a8a21fa826",
+        "after_pixel_sha256": "b1de9c2284119c3aad15dffde860e3add71ee0e6bed2c3404add02a8a21fa826",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-33mp-uncompressed",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "bb050e20a585ffd533ba14d736878b4a2d7795fbc7231b361118daf2e2279ca7",
+        "after_pixel_sha256": "bb050e20a585ffd533ba14d736878b4a2d7795fbc7231b361118daf2e2279ca7",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-37mp-4x3",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "6ddd7fe90178120919889a5ad2cbc8a7965f16613e82f80a66b0980cefcac1cc",
+        "after_pixel_sha256": "6ddd7fe90178120919889a5ad2cbc8a7965f16613e82f80a66b0980cefcac1cc",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-18mp-lossless-s",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "dc0d11ad6334d9c35660dd4b95bd0fe82d61796605cece39b52dfce60483af78",
+        "after_pixel_sha256": "dc0d11ad6334d9c35660dd4b95bd0fe82d61796605cece39b52dfce60483af78",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-26mp-uncompressed",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "a5323b195a2403d20eb1a66797ba6bb68b6e6dff7e57f9915eea47b0a4c9d229",
+        "after_pixel_sha256": "a5323b195a2403d20eb1a66797ba6bb68b6e6dff7e57f9915eea47b0a4c9d229",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-61mp-compressed",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "bc065723af2cb473890d64c9f376ca1b2b1a85c393b248c83069c5de263e1a75",
+        "after_pixel_sha256": "bc065723af2cb473890d64c9f376ca1b2b1a85c393b248c83069c5de263e1a75",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-65mp-lossless",
+        "set": "busy-agx-lut-effects",
+        "before_pixel_sha256": "ebb21568ea05c1c623c284800475b6dde4c6e76edf301ef94df2e541ebc47aca",
+        "after_pixel_sha256": "ebb21568ea05c1c623c284800475b6dde4c6e76edf301ef94df2e541ebc47aca",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "apple-iphone12pro-proraw",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "9942647ad51a1d385808b8f874c6cae85a9711e90db24a0203de230417be6ba6",
+        "after_pixel_sha256": "9942647ad51a1d385808b8f874c6cae85a9711e90db24a0203de230417be6ba6",
+        "identical_to_17": true,
+        "different_from_stock_reference": true
+      },
+      {
+        "id": "canon-r50-24mp-craw",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "e516924b2c1a2de9f48634e35876e2068698457e81e76f431cda15e6eefd0ebb",
+        "after_pixel_sha256": "e516924b2c1a2de9f48634e35876e2068698457e81e76f431cda15e6eefd0ebb",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "canon-r6m2-24mp-raw",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "e7f922886ad15972e70686f8c17379d9e927d7de615b1a9607493b9df57946af",
+        "after_pixel_sha256": "e7f922886ad15972e70686f8c17379d9e927d7de615b1a9607493b9df57946af",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "fuji-xh2-40mp-compressed",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "cc5273b86928a477792bbe61dfe74c0d2968f8fc4adbd0030df7b5fe1b2df06f",
+        "after_pixel_sha256": "cc5273b86928a477792bbe61dfe74c0d2968f8fc4adbd0030df7b5fe1b2df06f",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "fuji-xt4-26mp-lossless",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "5da58facd608b42ccf74ccee40b7d6b771cf7d6c2ad086bad7c2ac9ba4f7ffa0",
+        "after_pixel_sha256": "5da58facd608b42ccf74ccee40b7d6b771cf7d6c2ad086bad7c2ac9ba4f7ffa0",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "google-pixel7pro-dng",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "2d15ddc5cf624bd61c75525736e238a725fe310017b01269f74bee1ec172018d",
+        "after_pixel_sha256": "2d15ddc5cf624bd61c75525736e238a725fe310017b01269f74bee1ec172018d",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "nikon-zf-24mp-compressed",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "d73657621bf857785e6539bff3efe2253649eec3ce2c4dd88eca9fcb5073a408",
+        "after_pixel_sha256": "d73657621bf857785e6539bff3efe2253649eec3ce2c4dd88eca9fcb5073a408",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "nikon-zfc-21mp-lossless",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "87e9a19b6da7a7b30dfd8a41bb4daadf7b7a8a52a58a8d276f5dad596e20701a",
+        "after_pixel_sha256": "87e9a19b6da7a7b30dfd8a41bb4daadf7b7a8a52a58a8d276f5dad596e20701a",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "om-om1-20mp",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "4c6e377982c71484b9bd6f3e7dae853f9c5a09ee8ed1b65e73596d402ef8497b",
+        "after_pixel_sha256": "4c6e377982c71484b9bd6f3e7dae853f9c5a09ee8ed1b65e73596d402ef8497b",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "panasonic-s5m2-24mp",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "fc480fec11404c833edf6eafe96eef0601e5ee80500324ab0cddc2f46bcf4657",
+        "after_pixel_sha256": "fc480fec11404c833edf6eafe96eef0601e5ee80500324ab0cddc2f46bcf4657",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "ricoh-griiix-24mp-dng",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "db53c4e38f6a3f914fb99a4f0a236fcfda6e278ff5bb3db3c90ebf6a35c96883",
+        "after_pixel_sha256": "db53c4e38f6a3f914fb99a4f0a236fcfda6e278ff5bb3db3c90ebf6a35c96883",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-15mp-compressed",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "9bb43ef73e447c48551182550d072d38c2be8665dcfc76a237c574e5aed3fb14",
+        "after_pixel_sha256": "9bb43ef73e447c48551182550d072d38c2be8665dcfc76a237c574e5aed3fb14",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-15mp-uncompressed",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "0f9bb8500b55fa0f123f8d55bc27b1fd73b58ee077587567827d6cb9702bff54",
+        "after_pixel_sha256": "0f9bb8500b55fa0f123f8d55bc27b1fd73b58ee077587567827d6cb9702bff54",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-33mp-compressed",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "74dac4f06bd1cb57e40ed2ba8e05cbc4941bb5b080001074afc1abf7ac0a96f7",
+        "after_pixel_sha256": "74dac4f06bd1cb57e40ed2ba8e05cbc4941bb5b080001074afc1abf7ac0a96f7",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-33mp-uncompressed",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "c6ea8f0cebace641ef4849426a50be4a04a714909dc4e8fc330169ab712ee6ed",
+        "after_pixel_sha256": "c6ea8f0cebace641ef4849426a50be4a04a714909dc4e8fc330169ab712ee6ed",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-37mp-4x3",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "2e2c211407ce386c6ff13376b4e362a9ad70a69294de9ffab0369a0ebbfd61fe",
+        "after_pixel_sha256": "2e2c211407ce386c6ff13376b4e362a9ad70a69294de9ffab0369a0ebbfd61fe",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-18mp-lossless-s",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "9d07eff881c16bb7d11e6830699dae93d23ca1e27eecdc847172ee38059afaa4",
+        "after_pixel_sha256": "9d07eff881c16bb7d11e6830699dae93d23ca1e27eecdc847172ee38059afaa4",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-26mp-uncompressed",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "ac4a9cb6b303764901485d11dd4d651134800790fa058ec90d60a8ebbb717cee",
+        "after_pixel_sha256": "ac4a9cb6b303764901485d11dd4d651134800790fa058ec90d60a8ebbb717cee",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-61mp-compressed",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "f39c8087795f626f93d00f72b85c85e5fa6720455715c471478d01705f2bea5f",
+        "after_pixel_sha256": "f39c8087795f626f93d00f72b85c85e5fa6720455715c471478d01705f2bea5f",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-65mp-lossless",
+        "set": "busy-tone-color-detail",
+        "before_pixel_sha256": "b3ef64bb6e3f5ade23a2853a4a1115410d0e16ea7eb143f2b8da19051e968b55",
+        "after_pixel_sha256": "b3ef64bb6e3f5ade23a2853a4a1115410d0e16ea7eb143f2b8da19051e968b55",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "apple-iphone12pro-proraw",
+        "set": "neutral",
+        "before_pixel_sha256": "fd2d9cf14cef5a93477ad2e820d64ae50b8e83dfe22694f0f0ed2d607c69f39a",
+        "after_pixel_sha256": "fd2d9cf14cef5a93477ad2e820d64ae50b8e83dfe22694f0f0ed2d607c69f39a",
+        "identical_to_17": true,
+        "different_from_stock_reference": true
+      },
+      {
+        "id": "canon-r50-24mp-craw",
+        "set": "neutral",
+        "before_pixel_sha256": "b60e2418cc17dc8b91134b2dc8f0a8be3ad3bcea2e51657e12e9a71ad77bb692",
+        "after_pixel_sha256": "b60e2418cc17dc8b91134b2dc8f0a8be3ad3bcea2e51657e12e9a71ad77bb692",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "canon-r6m2-24mp-raw",
+        "set": "neutral",
+        "before_pixel_sha256": "a8c7c8932846387916bec07e24b2b91ad9bad64fa1541f35657732b97c9744bc",
+        "after_pixel_sha256": "a8c7c8932846387916bec07e24b2b91ad9bad64fa1541f35657732b97c9744bc",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "fuji-xh2-40mp-compressed",
+        "set": "neutral",
+        "before_pixel_sha256": "da1440b7bc30b6dde51749fda87c8f0477799590bc381a7d1b047fcfb2de5a3a",
+        "after_pixel_sha256": "da1440b7bc30b6dde51749fda87c8f0477799590bc381a7d1b047fcfb2de5a3a",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "fuji-xt4-26mp-lossless",
+        "set": "neutral",
+        "before_pixel_sha256": "f6f655f4ce14c6ff7336311893eaa2cd1f2ae44476ad8ad4d942ca23a912f97d",
+        "after_pixel_sha256": "f6f655f4ce14c6ff7336311893eaa2cd1f2ae44476ad8ad4d942ca23a912f97d",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "google-pixel7pro-dng",
+        "set": "neutral",
+        "before_pixel_sha256": "69308ad880f65f6c7e126462f63528166c4bff4eb36a8598eee32283ade4844f",
+        "after_pixel_sha256": "69308ad880f65f6c7e126462f63528166c4bff4eb36a8598eee32283ade4844f",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "nikon-zf-24mp-compressed",
+        "set": "neutral",
+        "before_pixel_sha256": "68a588390a2f8f58f3dfd05838e731b01c3c5c1f029ba07c1e01497da821bf50",
+        "after_pixel_sha256": "68a588390a2f8f58f3dfd05838e731b01c3c5c1f029ba07c1e01497da821bf50",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "nikon-zfc-21mp-lossless",
+        "set": "neutral",
+        "before_pixel_sha256": "58ea02d681686166abd72b789cf046eb6ab5be39765ec2384068e6a720f8ac94",
+        "after_pixel_sha256": "58ea02d681686166abd72b789cf046eb6ab5be39765ec2384068e6a720f8ac94",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "om-om1-20mp",
+        "set": "neutral",
+        "before_pixel_sha256": "66411cff9c924bcdf8b6e6c46a6d3d0bc33ac447f54dff0ced71b910b7d7ac6e",
+        "after_pixel_sha256": "66411cff9c924bcdf8b6e6c46a6d3d0bc33ac447f54dff0ced71b910b7d7ac6e",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "panasonic-s5m2-24mp",
+        "set": "neutral",
+        "before_pixel_sha256": "ff25daab1c25bb67e6d46b55ab7310829b7e176cd83c76646bae7d9be9bc1805",
+        "after_pixel_sha256": "ff25daab1c25bb67e6d46b55ab7310829b7e176cd83c76646bae7d9be9bc1805",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "ricoh-griiix-24mp-dng",
+        "set": "neutral",
+        "before_pixel_sha256": "53735ab5d3d991660b18f5ddc1fa58cf761360951e5fdeb350d3c999f0a4294f",
+        "after_pixel_sha256": "53735ab5d3d991660b18f5ddc1fa58cf761360951e5fdeb350d3c999f0a4294f",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-15mp-compressed",
+        "set": "neutral",
+        "before_pixel_sha256": "bf28b40d41d010dd8775ccb5e3f3c1be2590d7709b9004d25ddb7af749dcc148",
+        "after_pixel_sha256": "bf28b40d41d010dd8775ccb5e3f3c1be2590d7709b9004d25ddb7af749dcc148",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-15mp-uncompressed",
+        "set": "neutral",
+        "before_pixel_sha256": "144d3683496c07b1b034183903b17250cf7f697e4239da32a8a93a5538899309",
+        "after_pixel_sha256": "144d3683496c07b1b034183903b17250cf7f697e4239da32a8a93a5538899309",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-33mp-compressed",
+        "set": "neutral",
+        "before_pixel_sha256": "aa77f5cfe83ea3906450ee354a4df234510364e04f5f9997b523fc64cbce0e1e",
+        "after_pixel_sha256": "aa77f5cfe83ea3906450ee354a4df234510364e04f5f9997b523fc64cbce0e1e",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-33mp-uncompressed",
+        "set": "neutral",
+        "before_pixel_sha256": "1655c9fe04b397ad116049cac818f18a7bc17f43e16b7bbf91df3f49b4f9539a",
+        "after_pixel_sha256": "1655c9fe04b397ad116049cac818f18a7bc17f43e16b7bbf91df3f49b4f9539a",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7c2-37mp-4x3",
+        "set": "neutral",
+        "before_pixel_sha256": "2f9025be351d344ce629afced7d050d85baa3b417d62492523495287f87bcaf5",
+        "after_pixel_sha256": "2f9025be351d344ce629afced7d050d85baa3b417d62492523495287f87bcaf5",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-18mp-lossless-s",
+        "set": "neutral",
+        "before_pixel_sha256": "6cdcfba18e87149e895e898fc672db8331cfd63228113c0af58650c841aa1a82",
+        "after_pixel_sha256": "6cdcfba18e87149e895e898fc672db8331cfd63228113c0af58650c841aa1a82",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-26mp-uncompressed",
+        "set": "neutral",
+        "before_pixel_sha256": "5e759b20a95f069b47dad46e3a00ebf5df6ccde5dd21ea885a593eec802f4d3a",
+        "after_pixel_sha256": "5e759b20a95f069b47dad46e3a00ebf5df6ccde5dd21ea885a593eec802f4d3a",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-61mp-compressed",
+        "set": "neutral",
+        "before_pixel_sha256": "1d58f471581d985512b93cb08e37381313b3eb6c084ae72e38b8f24cdacaf9f8",
+        "after_pixel_sha256": "1d58f471581d985512b93cb08e37381313b3eb6c084ae72e38b8f24cdacaf9f8",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      },
+      {
+        "id": "sony-a7cr-65mp-lossless",
+        "set": "neutral",
+        "before_pixel_sha256": "93ec9b7b56fef58e87158f225f1eb9316368082258b1344fcbd7ef1848422418",
+        "after_pixel_sha256": "93ec9b7b56fef58e87158f225f1eb9316368082258b1344fcbd7ef1848422418",
+        "identical_to_17": true,
+        "different_from_stock_reference": false
+      }
+    ]
+  },
+  "explicit_linear_modes": [
+    {
+      "mode": "gamma",
+      "sample_sha256": "e91e77a4533ed7cce551d83330676ea5c47dd5e55fb38adda7819366afdbdfc2",
+      "before_engine_sha256": "e8f90b4844a7b1b62f9d6eeb246aba5a04c9d8615c716163dc3babadf794d2f8",
+      "after_engine_sha256": "096039fcbca50a7020796fcaa1114d78dbb2e6304eca3c0b3664def019ed04f7",
+      "size_wh": [3024, 4032],
+      "icc": "sRGB",
+      "pixel_count": 12192768,
+      "pixels_changed": 11908244,
+      "pct_pixels_changed": 97.66645276937935,
+      "max_abs_16bit": 14532,
+      "mean_abs_16bit": 3777.6355889272504,
+      "before_mean_rgb_16bit": 8227.453762153653,
+      "after_mean_rgb_16bit": 11967.504310943448,
+      "before_pixel_sha256": "6f52c287dddafaaa90a3eea80e54a92a474d6b80817245757929456f06d398d4",
+      "after_pixel_sha256": "36632ee48fd1ce1d01e685e1c26be440765be5af5aaaa78d47db732bfd2f197b",
+      "before_differs_from_auto": true
+    },
+    {
+      "mode": "gamma_skip_calib",
+      "sample_sha256": "e91e77a4533ed7cce551d83330676ea5c47dd5e55fb38adda7819366afdbdfc2",
+      "before_engine_sha256": "e8f90b4844a7b1b62f9d6eeb246aba5a04c9d8615c716163dc3babadf794d2f8",
+      "after_engine_sha256": "096039fcbca50a7020796fcaa1114d78dbb2e6304eca3c0b3664def019ed04f7",
+      "size_wh": [3024, 4032],
+      "icc": "sRGB",
+      "pixel_count": 12192768,
+      "pixels_changed": 11692980,
+      "pct_pixels_changed": 95.90094718442933,
+      "max_abs_16bit": 9616,
+      "mean_abs_16bit": 2872.9868916284363,
+      "before_mean_rgb_16bit": 4305.627398607656,
+      "after_mean_rgb_16bit": 7130.326277757438,
+      "before_pixel_sha256": "025e7ecef69ad282ebdd667a62371702c3bd961f971dd0d76e8792b91a16f302",
+      "after_pixel_sha256": "91a7567abd10b13e481a5a6467cd92db14b9c6964e95ee077d89c43ee61e5159",
+      "before_differs_from_auto": true
+    }
+  ],
+  "human_visual_signoff": "pending",
+  "human_reference_approval": "pending"
+}

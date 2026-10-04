@@ -55,10 +55,12 @@
         "reds": "红色",
         "yellows": "黄色"
       },
+      "mixerPickerTooltip": "颜色混合器吸管：在照片上按住并上下拖动",
       "presence": "质感",
       "saturation": "饱和度",
       "temperature": "色温",
       "tint": "色调",
+      "toggleMixerExpanded": "展开颜色混合器",
       "toggleSliders": "切换滑块",
       "vibrance": "鲜艳度",
       "wbPickerTooltip": "白平衡选取器",
@@ -159,13 +161,17 @@
       "confirmDeleteGroupNested": "确认删除组及所有嵌套相册",
       "deleteAlbum": "删除相册",
       "deleteGroup": "删除组",
+      "importLightroom": "Import Lightroom Collections…",
+      "lightroomCatalog": "Lightroom Catalog",
       "moveHere": "移动至此",
       "moveTo": "移动到...",
       "newAlbum": "新建相册",
       "newGroup": "新建组",
+      "relinkLightroom": "Relink Lightroom Folders…",
       "renameAlbum": "重命名相册",
       "renameGroup": "重命名组",
-      "rootDir": "根目录"
+      "rootDir": "根目录",
+      "selectLightroomCatalog": "Select Lightroom Catalog"
     },
     "colors": {
       "blue": "蓝色",
@@ -192,6 +198,9 @@
       "denoise": "降噪图像",
       "editImage": "编辑图像",
       "exportImage": "导出图像",
+      "flag": "标记",
+      "flagPick": "留用",
+      "flagReject": "已拒绝",
       "frameImage": "装裱图像",
       "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "合并为 HDR",
@@ -206,7 +215,8 @@
       "resetAdjustments": "重置调整",
       "stitchPanorama": "拼接全景图",
       "tagging": "标签",
-      "undo": "撤销"
+      "undo": "撤销",
+      "unflagged": "无标记"
     },
     "folders": {
       "changeIcon": "更换图标",
@@ -230,6 +240,7 @@
     "library": {
       "addCopiedToAlbum_one": "将复制的图像添加到相册",
       "addCopiedToAlbum_other": "将 {{count}} 张复制的图像添加到相册",
+      "deleteRejected": "删除已拒绝的图像",
       "refreshView": "刷新视图"
     },
     "merge": {
@@ -288,10 +299,21 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
     "toasts": {
+      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
       "couldNotShowExplorer": "无法在文件资源管理器中显示文件：{{err}}",
       "couldNotShowFolder": "无法显示文件夹：{{err}}",
       "failedAddToAlbum": "添加到相册失败：{{err}}",
@@ -302,6 +324,7 @@
       "failedDelete": "删除失败：{{err}}",
       "failedDeleteFolder": "删除文件夹失败：{{err}}",
       "failedDuplicate": "复制文件失败：{{err}}",
+      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
       "failedImportMatchingXmpSidecars": "Failed to import matching XMP sidecars: {{err}}",
       "failedImportXmpAdjustments": "Failed to import XMP adjustments: {{err}}",
       "failedMatchingXmpSidecars_other": "Matching XMP sidecars failed to import: {{count}}.",
@@ -309,6 +332,7 @@
       "failedMoveError": "移动失败：{{err}}",
       "failedMoveInvalid": "移动失败：未找到目标组或目标组无效。",
       "failedRemoveImages": "移除图像失败：{{err}}",
+      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
       "importedMatchingXmpSidecars_other": "Imported matching XMP sidecars: {{count}}.",
       "importedXmpAdjustments": "Imported XMP adjustments.",
       "importingMatchingXmpSidecars": "Importing matching XMP sidecars…",
@@ -740,6 +764,7 @@
         "presetFile": "预设文件",
         "rapidRawPreset": "RapidRAW 预设"
       },
+      "favorites": "收藏",
       "menu": {
         "configurePreset": "配置预设",
         "deleteFolder": "删除文件夹",
@@ -767,8 +792,10 @@
       "tooltips": {
         "explore": "探索社区预设",
         "export": "将所有预设导出为 .rrpreset 文件",
+        "favorite": "添加到收藏",
         "import": "从 .rrpreset 文件导入预设",
-        "saveNew": "保存为新预设"
+        "saveNew": "保存为新预设",
+        "unfavorite": "从收藏中移除"
       },
       "types": {
         "folder": "文件夹",
@@ -776,6 +803,17 @@
         "style": "风格",
         "tool": "工具"
       }
+    },
+    "referenceView": {
+      "active": "当前",
+      "cancel": "取消",
+      "chooseHint": "在胶片带中点击一张照片，将其用作参考。",
+      "clear": "清除参考",
+      "close": "关闭参考视图",
+      "readOnly": "只读",
+      "reference": "参考",
+      "replace": "选择其他参考",
+      "unavailable": "参考图像不可用"
     },
     "switcher": {
       "tooltips": {
@@ -798,6 +836,7 @@
         "fullscreen": "切换全屏（F）",
         "iso": "ISO",
         "redo": "重做（Ctrl+Y）或历史记录（右键单击）",
+        "referenceView": "参考视图 (Shift+R)",
         "showEdited": "显示编辑后（B）",
         "showOriginal": "显示原始（B）",
         "shutterSpeed": "快门速度",
@@ -980,6 +1019,13 @@
         "editedOnly": "仅已编辑",
         "uneditedOnly": "仅未编辑"
       },
+      "flag": {
+        "all": "所有图像",
+        "excludeRejected": "隐藏已拒绝",
+        "picked": "留用",
+        "rejected": "已拒绝",
+        "unflagged": "未标记"
+      },
       "noMatch": "未找到匹配过滤条件的图像。",
       "rating": {
         "all": "显示全部",
@@ -1067,6 +1113,7 @@
         "filterByColorLabel": "按颜色标签过滤",
         "filterByEdited": "按编辑状态过滤",
         "filterByFileType": "按文件类型过滤",
+        "filterByFlag": "按标记过滤",
         "filterByRating": "按评分过滤",
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
@@ -1100,11 +1147,21 @@
       "expandFolder": "展开文件夹",
       "imagesCount_one": "1 张图像",
       "imagesCount_other": "{{count}} 张图像",
+      "rejected": "已拒绝",
       "tooltipAperture": "光圈",
       "tooltipFocalLength": "焦距",
       "tooltipIso": "ISO",
       "tooltipShutterSpeed": "快门速度",
       "tooltipVirtualCopy": "虚拟副本"
+    },
+    "reject": {
+      "deleteConfirm": "删除已拒绝",
+      "deleteMessage_one": "确定要删除 {{count}} 张已拒绝的图像吗？它们将被移至回收站。",
+      "deleteMessage_other": "确定要删除 {{count}} 张已拒绝的图像吗？它们将被移至回收站。",
+      "deleteTitle": "删除已拒绝的图像",
+      "noneToDelete": "没有可删除的已拒绝图像。",
+      "virtualCopiesWarning_one": "由于原始图像已被拒绝，{{count}} 个未被拒绝的虚拟副本也将被删除。",
+      "virtualCopiesWarning_other": "由于原始图像已被拒绝，{{count}} 个未被拒绝的虚拟副本也将被删除。"
     },
     "search": {
       "noResults": "未找到结果",
@@ -1288,7 +1345,7 @@
     "culling": {
       "actionDelete": "移至回收站",
       "actionRateZero": "将评分设为 1 星",
-      "actionReject": "标记为已拒绝（红色标签）",
+      "actionReject": "标记为已拒绝",
       "applyButton_one": "应用到 1 张图像",
       "applyButton_other": "应用到 {{count}} 张图像",
       "bestImage": "最佳图像",
@@ -1428,6 +1485,36 @@
       "zoomInTooltip": "放大",
       "zoomOutTooltip": "缩小"
     },
+    "lightroomImport": {
+      "addRootFolders": "Also add the found root folders to Folders",
+      "besideCatalog": "Found next to the catalog",
+      "collectionSets": "Collection sets",
+      "collections": "Collections",
+      "copied": "List copied.",
+      "copyList": "Copy List",
+      "found": "Found",
+      "imagesFound": "Images found",
+      "imagesMissing": "Images missing",
+      "import": "Import",
+      "importing": "Importing…",
+      "missingFiles": "Missing files: {{total}}",
+      "missingFilesHint": "Missing files stay in their albums and show up again once their folder is found or relinked.",
+      "missingFilesMore": "…and {{total}} more",
+      "missingRoots": "Root folders not found: {{total}}. Their images are imported as missing until you relink them.",
+      "notFound": "Not found",
+      "nothingToImport": "This catalog has no collections to import.",
+      "reading": "Reading the catalog…",
+      "relink": "Relink…",
+      "relinkTitle": "Find the folder for {{path}}",
+      "relinked": "Relinked",
+      "replacesPrevious": "This catalog was imported before. Importing again refreshes its albums where you put them; your other albums stay as they are.",
+      "rootFolders": "Root folders",
+      "rootFoldersHint": "Where the catalog's folders are on this computer. Relink a folder that moved or comes from another computer. The catalog itself is only read, never changed.",
+      "rootImages": "Images: {{images}}, missing: {{missing}}",
+      "skippedOther": "Books, slideshows, prints and web galleries, not imported: {{total}}",
+      "smartCollections": "Smart collections, not imported: {{total}}",
+      "title": "Import Lightroom Collections"
+    },
     "negativeConversion": {
       "blueWeight": "蓝色（黄色）",
       "cancel": "取消",
@@ -1475,13 +1562,31 @@
     },
     "renameFile": {
       "cancel": "取消",
+      "conflictExisting": "名称已存在",
+      "conflictInBatch": "名称重复",
+      "conflicts_one": "{{count}} 个文件名冲突，请修改模板。",
+      "conflicts_other": "{{count}} 个文件名冲突，请修改模板。",
       "fileNamingTemplate": "文件命名模板",
+      "groupAuto": "自动：间隔不超过",
+      "groupSeconds": "同组照片之间的秒数",
+      "groupSelection": "整个选择为一组",
+      "groups": "{group} 和 {member} 的分组",
       "newName": "新名称",
+      "preview": "预览",
+      "renamed_one": "已重命名 {{count}} 个文件",
+      "renamed_other": "已重命名 {{count}} 个文件",
       "save": "保存",
+      "seconds": "秒的照片",
+      "summary": "照片：{{photos}} · 文件：{{files}}",
       "titleMultiple": "重命名 {{count}} 张图像",
       "titleMultiple_one": "重命名 {{count}} 张图像",
       "titleMultiple_other": "重命名 {{count}} 张图像",
-      "titleSingle": "重命名图像"
+      "titleSingle": "重命名图像",
+      "undo": "撤销",
+      "undoFailed": "无法撤销重命名：{{err}}",
+      "undoLast_one": "撤销上次重命名（{{count}} 张照片）",
+      "undoLast_other": "撤销上次重命名（{{count}} 张照片）",
+      "undone": "已撤销重命名"
     },
     "renameFolder": {
       "cancel": "取消",
@@ -1650,7 +1755,10 @@
         "copy_files": "复制选中的文件",
         "copy_image_path": "复制所选图片的路径",
         "cycle_zoom": "循环缩放（适应、2倍适应、100%）",
+        "delete_rejected": "删除已拒绝的文件",
         "delete_selected": "删除选中的文件",
+        "flag_pick": "标记为留用",
+        "flag_reject": "标记为拒绝",
         "focus_search": "聚焦搜索框",
         "open_image": "打开选中的图像",
         "open_settings": "打开设置",
@@ -1678,13 +1786,17 @@
         "toggle_export": "切换导出面板",
         "toggle_folder_tree": "切换文件夹树面板",
         "toggle_fullscreen": "切换全屏",
+        "cycle_lights_out": "循环切换熄灯模式",
+        "cycle_lights_out_reverse": "反向循环切换熄灯模式",
         "toggle_left_panel": "切换左侧面板",
         "toggle_library_exif": "切换 EXIF 叠加",
         "toggle_masks": "切换蒙版面板",
         "toggle_metadata": "切换元数据面板",
         "toggle_presets": "切换预设面板",
+        "toggle_reference_view": "切换参考视图",
         "toggle_right_panel": "切换右侧面板",
         "undo": "撤销调整",
+        "unflag": "取消标记",
         "zoom_100": "缩放到 100%",
         "zoom_fit": "缩放以适应",
         "zoom_in": "放大",
@@ -2022,6 +2134,10 @@
         "virtualCopy": "虚拟副本"
       },
       "virtualCopyAbbreviation": "VC"
+    },
+    "flags": {
+      "togglePick": "切换留用",
+      "toggleReject": "切换拒绝"
     },
     "imagePicker": {
       "clearImage": "清除图像",
