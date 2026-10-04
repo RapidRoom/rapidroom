@@ -236,6 +236,30 @@ fn import_xmp_crop(
     }
 }
 
+fn import_lens_profile(attrs: &HashMap<String, String>, adjustments: &mut Map<String, Value>) {
+    if !is_xmp_true(attrs.get("LensProfileEnable")) {
+        return;
+    }
+
+    // The lens itself is resolved from EXIF after conversion, the same way as
+    // RapidRAW's own automatic lens correction.
+    adjustments.insert("lensCorrectionMode".to_string(), json!("auto"));
+    adjustments.insert("lensDistortionEnabled".to_string(), json!(true));
+    adjustments.insert("lensVignetteEnabled".to_string(), json!(true));
+    adjustments.insert(
+        "lensTcaEnabled".to_string(),
+        json!(is_xmp_true(attrs.get("AutoLateralCA"))),
+    );
+    for (xmp_key, rapidraw_key) in [
+        ("LensProfileDistortionScale", "lensDistortionAmount"),
+        ("LensProfileVignettingScale", "lensVignetteAmount"),
+    ] {
+        if let Some(value) = get_attr_as_f64(attrs, xmp_key).filter(|value| value.is_finite()) {
+            adjustments.insert(rapidraw_key.to_string(), json!(value.clamp(0.0, 200.0)));
+        }
+    }
+}
+
 fn probe_xmp_crop_image_dimensions(image_path: &Path) -> Option<(f64, f64)> {
     if crate::formats::is_raw_file(image_path) {
         let bytes = fs::read(image_path).ok()?;
@@ -262,6 +286,25 @@ fn probe_xmp_crop_image_dimensions(image_path: &Path) -> Option<(f64, f64)> {
     image::image_dimensions(image_path)
         .ok()
         .map(|(width, height)| (width as f64, height as f64))
+}
+
+/// RapidRAW's exposure slider moves 1.25 EV per unit, so a 1:1 copy of
+/// Lightroom's EV value overshoots (+1.23 EV becomes +1.54 EV). Scaling fixes
+/// that, but on its own it darkens an already too dark midrange. Keep it off
+/// until it can be enabled together with the tone calibration.
+const SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS: bool = false;
+const RAPIDRAW_EV_PER_EXPOSURE_UNIT: f64 = 1.25;
+
+fn scale_lightroom_exposure(adjustments: &mut Map<String, Value>, enabled: bool) {
+    if !enabled {
+        return;
+    }
+    if let Some(ev) = adjustments.get("exposure").and_then(Value::as_f64) {
+        adjustments.insert(
+            "exposure".to_string(),
+            json!(ev / RAPIDRAW_EV_PER_EXPOSURE_UNIT),
+        );
+    }
 }
 
 fn import_legacy_basic_adjustments(
@@ -901,29 +944,9 @@ fn extract_tone_curve_points(xmp_str: &str, curve_name: &str) -> Option<Vec<Valu
         let x: u32 = point_cap.get(1)?.as_str().parse().ok()?;
         let y: u32 = point_cap.get(2)?.as_str().parse().ok()?;
 
-        let mut final_y = y;
-        if curve_name == "ToneCurvePV2012" {
-            const SHADOW_RANGE_END: f64 = 64.0;
-            const SHADOW_DAMPEN_START: f64 = 0.8;
-            const SHADOW_DAMPEN_END: f64 = 1.0;
-
-            let x_f64 = x as f64;
-            let y_f64 = y as f64;
-
-            if y_f64 > x_f64 && x_f64 < SHADOW_RANGE_END {
-                let lift_amount = y_f64 - x_f64;
-                let progress = x_f64 / SHADOW_RANGE_END;
-                let dampening_factor =
-                    SHADOW_DAMPEN_START + (SHADOW_DAMPEN_END - SHADOW_DAMPEN_START) * progress;
-
-                let new_y = x_f64 + (lift_amount * dampening_factor);
-                final_y = new_y.round().clamp(0.0, 255.0) as u32;
-            }
-        }
-
         let mut point = Map::new();
         point.insert("x".to_string(), Value::Number(x.into()));
-        point.insert("y".to_string(), Value::Number(final_y.into()));
+        point.insert("y".to_string(), Value::Number(y.into()));
         points.push(Value::Object(point));
     }
 
@@ -932,6 +955,121 @@ fn extract_tone_curve_points(xmp_str: &str, curve_name: &str) -> Option<Vec<Valu
     } else {
         Some(points)
     }
+}
+
+const MAX_RAPIDRAW_CURVE_POINTS: usize = 16;
+
+fn strip_nested_looks(xmp_content: &str) -> std::borrow::Cow<'_, str> {
+    regex!(r"(?s)<crs:Look>.*?</crs:Look>").replace_all(xmp_content, "")
+}
+
+fn curve_points_as_f64(points: &[Value]) -> Vec<(f64, f64)> {
+    points
+        .iter()
+        .filter_map(|point| Some((point["x"].as_f64()?, point["y"].as_f64()?)))
+        .collect()
+}
+
+// Port of apply_curve in shader.wgsl (monotone cubic Hermite on 0-255), so a
+// composed curve matches what RapidRAW renders for the source curves.
+fn evaluate_rapidraw_curve(points: &[(f64, f64)], x: f64) -> f64 {
+    let count = points.len();
+    if count < 2 {
+        return x;
+    }
+    if x <= points[0].0 {
+        return points[0].1;
+    }
+    if x >= points[count - 1].0 {
+        return points[count - 1].1;
+    }
+    for i in 0..count - 1 {
+        let (p1, p2) = (points[i], points[i + 1]);
+        if x > p2.0 {
+            continue;
+        }
+        let p0 = points[i.max(1) - 1];
+        let p3 = points[(i + 2).min(count - 1)];
+        let delta_before = (p1.1 - p0.1) / (p1.0 - p0.0).max(0.001);
+        let delta_current = (p2.1 - p1.1) / (p2.0 - p1.0).max(0.001);
+        let delta_after = (p3.1 - p2.1) / (p3.0 - p2.0).max(0.001);
+        let mut tangent_at_p1 = if i == 0 {
+            delta_current
+        } else if delta_before * delta_current <= 0.0 {
+            0.0
+        } else {
+            (delta_before + delta_current) / 2.0
+        };
+        let mut tangent_at_p2 = if i + 1 == count - 1 {
+            delta_current
+        } else if delta_current * delta_after <= 0.0 {
+            0.0
+        } else {
+            (delta_current + delta_after) / 2.0
+        };
+        if delta_current != 0.0 {
+            let alpha = tangent_at_p1 / delta_current;
+            let beta = tangent_at_p2 / delta_current;
+            if alpha * alpha + beta * beta > 9.0 {
+                let tau = 3.0 / (alpha * alpha + beta * beta).sqrt();
+                tangent_at_p1 *= tau;
+                tangent_at_p2 *= tau;
+            }
+        }
+        let dx = p2.0 - p1.0;
+        if dx <= 0.0 {
+            return p1.1;
+        }
+        let t = (x - p1.0) / dx;
+        let (t2, t3) = (t * t, t * t * t);
+        let y = (2.0 * t3 - 3.0 * t2 + 1.0) * p1.1
+            + (t3 - 2.0 * t2 + t) * tangent_at_p1 * dx
+            + (-2.0 * t3 + 3.0 * t2) * p2.1
+            + (t3 - t2) * tangent_at_p2 * dx;
+        return y.clamp(0.0, 255.0);
+    }
+    points[count - 1].1
+}
+
+/// Tone curves of nested looks (the Adobe Color profile look, creative
+/// profiles), each scaled by its crs:Amount, in the order Lightroom applies them.
+fn extract_nested_look_luma_curves(xmp_content: &str) -> Vec<(f64, Vec<(f64, f64)>)> {
+    regex!(r"(?s)<crs:Look>(.*?)</crs:Look>")
+        .captures_iter(xmp_content)
+        .filter_map(|captures| {
+            let look = captures.get(1)?.as_str();
+            let amount = extract_namespaced_scalar(look, "crs", "Amount")
+                .and_then(|value| value.parse::<f64>().ok())
+                .filter(|value| value.is_finite())
+                .unwrap_or(1.0)
+                .clamp(0.0, 2.0);
+            let points = curve_points_as_f64(&extract_tone_curve_points(look, "ToneCurvePV2012")?);
+            let is_identity = points.iter().all(|(x, y)| x == y);
+            (amount > 0.0 && !is_identity).then_some((amount, points))
+        })
+        .collect()
+}
+
+/// Lightroom applies the profile look before the user's tone curve. RapidRAW
+/// has one luma curve, so sample the composition at evenly spaced inputs.
+fn compose_luma_curve_with_looks(
+    looks: &[(f64, Vec<(f64, f64)>)],
+    outer: Option<&[(f64, f64)]>,
+) -> Vec<Value> {
+    let step = 255.0 / (MAX_RAPIDRAW_CURVE_POINTS - 1) as f64;
+    (0..MAX_RAPIDRAW_CURVE_POINTS)
+        .map(|index| {
+            let x = (index as f64 * step).round();
+            let mut y = x;
+            for (amount, points) in looks {
+                y += amount * (evaluate_rapidraw_curve(points, y) - y);
+            }
+            if let Some(outer) = outer {
+                y = evaluate_rapidraw_curve(outer, y);
+            }
+            json!({ "x": x as u32, "y": y.round().clamp(0.0, 255.0) as u32 })
+        })
+        .collect()
 }
 
 pub fn convert_xmp_to_preset(xmp_content: &str) -> Result<Preset, String> {
@@ -1003,6 +1141,60 @@ fn convert_xmp_sidecar_to_preset_with_as_shot_temperature(
     convert_xmp_to_preset_with_crop(xmp_content, true, as_shot_temperature, None, None)
 }
 
+/// Lightroom settings in a sidecar that the import could not carry over, as
+/// stable keys for the import report.
+pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) -> Vec<&'static str> {
+    let Ok(attrs) = parse_xmp_attributes(xmp_content) else {
+        return Vec::new();
+    };
+    let mut items = Vec::new();
+
+    // Lightroom Classic sidecars carry no as-shot values, so a custom white
+    // balance often can't be turned into RapidRAW's relative controls.
+    let custom_white_balance = attrs
+        .get("WhiteBalance")
+        .is_some_and(|value| !value.eq_ignore_ascii_case("As Shot"));
+    if custom_white_balance
+        && preset.adjustments.get("temperature").is_none()
+        && preset.adjustments.get("tint").is_none()
+    {
+        items.push("whiteBalance");
+    }
+
+    // Only a look's tone curve is imported, never its colour table.
+    let has_profile_look = regex!(r"(?s)<crs:Look>(.*?)</crs:Look>")
+        .captures_iter(xmp_content)
+        .any(|captures| {
+            extract_namespaced_scalar(&captures[1], "crs", "Amount")
+                .and_then(|value| value.parse::<f64>().ok())
+                .is_none_or(|amount| amount > 0.0)
+        });
+    if has_profile_look {
+        items.push("profileLook");
+    }
+
+    // An already applied AI Denoise lives in the enhanced DNG's pixels.
+    if attrs.keys().any(|key| key.starts_with("EnhanceDenoise"))
+        && !is_xmp_true(attrs.get("EnhanceDenoiseAlreadyApplied"))
+    {
+        items.push("aiDenoise");
+    }
+
+    if regex!(
+        r"(?s)<crs:(?:MaskGroupBasedCorrections|PaintBasedCorrections|GradientBasedCorrections|CircularGradientBasedCorrections)>\s*<rdf:Seq>\s*<rdf:li"
+    )
+    .is_match(xmp_content)
+    {
+        items.push("masks");
+    }
+
+    if regex!(r"(?s)<crs:PointColors>\s*<rdf:Seq>\s*<rdf:li").is_match(xmp_content) {
+        items.push("pointColor");
+    }
+
+    items
+}
+
 fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, String> {
     // Lightroom sidecars can contain nested rdf:Description elements for
     // profiles and looks. Only the outer description represents the image's
@@ -1060,13 +1252,8 @@ fn convert_xmp_to_preset_with_crop(
         ("Vibrance", "vibrance"),
         ("Saturation", "saturation"),
         ("Texture", "structure"),
-        ("SharpenRadius", "sharpenRadius"),
-        ("SharpenDetail", "sharpenDetail"),
-        ("SharpenEdgeMasking", "sharpenMasking"),
         ("LuminanceSmoothing", "lumaNoiseReduction"),
         ("ColorNoiseReduction", "colorNoiseReduction"),
-        ("ColorNoiseReductionDetail", "colorNoiseDetail"),
-        ("ColorNoiseReductionSmoothness", "colorNoiseSmoothness"),
         ("ChromaticAberrationRedCyan", "chromaticAberrationRedCyan"),
         (
             "ChromaticAberrationBlueYellow",
@@ -1096,6 +1283,7 @@ fn convert_xmp_to_preset_with_crop(
     }
 
     import_legacy_basic_adjustments(&attrs, &mut adjustments, image_kind);
+    scale_lightroom_exposure(&mut adjustments, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS);
     apply_rendered_pv5_policy(&attrs, &mut adjustments, image_kind);
     apply_rendered_pv2012_policy(&attrs, &mut adjustments, image_kind);
     if convert_to_grayscale {
@@ -1110,6 +1298,15 @@ fn convert_xmp_to_preset_with_crop(
         adjustments.insert(
             "sharpness".to_string(),
             json!(scaled_sharpness.clamp(0.0, 100.0)),
+        );
+    }
+
+    if let Some(masking) = get_attr_as_f64(&attrs, "SharpenEdgeMasking").filter(|v| v.is_finite()) {
+        // Lightroom's Masking runs 0-100 and RapidRAW's sharpening threshold
+        // slider 0-80; both leave flat areas unsharpened as they rise.
+        adjustments.insert(
+            "sharpnessThreshold".to_string(),
+            json!((masking * 0.8).clamp(0.0, 80.0)),
         );
     }
 
@@ -1314,13 +1511,28 @@ fn convert_xmp_to_preset_with_crop(
         (["ToneCurvePV2012Green", "ToneCurveGreen"], "green"),
         (["ToneCurvePV2012Blue", "ToneCurveBlue"], "blue"),
     ];
+    let outer_content = strip_nested_looks(xmp_content);
     for (xmp_curves, rr_curve) in curve_mappings {
         for xmp_curve in xmp_curves {
-            if let Some(points) = extract_tone_curve_points(xmp_content, xmp_curve) {
+            if let Some(points) = extract_tone_curve_points(&outer_content, xmp_curve) {
                 curves_map.insert(rr_curve.to_string(), Value::Array(points));
                 break;
             }
         }
+    }
+    let look_curves = extract_nested_look_luma_curves(xmp_content);
+    if !look_curves.is_empty() {
+        let outer_luma = curves_map
+            .get("luma")
+            .and_then(Value::as_array)
+            .map(|points| curve_points_as_f64(points));
+        curves_map.insert(
+            "luma".to_string(),
+            Value::Array(compose_luma_curve_with_looks(
+                &look_curves,
+                outer_luma.as_deref(),
+            )),
+        );
     }
     if !curves_map.is_empty() {
         adjustments.insert("curves".to_string(), Value::Object(curves_map));
@@ -1333,6 +1545,7 @@ fn convert_xmp_to_preset_with_crop(
             &mut adjustments,
             fallback_image_dimensions,
         );
+        import_lens_profile(&attrs, &mut adjustments);
     }
 
     let preset_name =
@@ -1708,7 +1921,7 @@ mod tests {
             preset.adjustments["curves"]["luma"],
             json!([
                 { "x": 0, "y": 0 },
-                { "x": 16, "y": 30 },
+                { "x": 16, "y": 32 },
                 { "x": 255, "y": 255 }
             ])
         );
@@ -2253,5 +2466,287 @@ mod tests {
             !adobe_camera_raw_already_applied(r#"<rdf:Description crs:AlreadyApplied="False" />"#)
                 .unwrap()
         );
+    }
+
+    const ADOBE_COLOR_LOOK: &str = r#"<crs:Look>
+                <rdf:Description crs:Name="Adobe Color" crs:Amount="1">
+                  <crs:Parameters>
+                    <rdf:Description crs:ProcessVersion="11.0" crs:LookTable="0000">
+                      <crs:ToneCurvePV2012>
+                        <rdf:Seq>
+                          <rdf:li>0, 0</rdf:li>
+                          <rdf:li>64, 48</rdf:li>
+                          <rdf:li>192, 208</rdf:li>
+                          <rdf:li>255, 255</rdf:li>
+                        </rdf:Seq>
+                      </crs:ToneCurvePV2012>
+                    </rdf:Description>
+                  </crs:Parameters>
+                </rdf:Description>
+              </crs:Look>"#;
+
+    fn luma_at(preset: &Preset, x: u64) -> u64 {
+        preset.adjustments["curves"]["luma"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|point| point["x"].as_u64() == Some(x))
+            .and_then(|point| point["y"].as_u64())
+            .unwrap()
+    }
+
+    #[test]
+    fn evaluates_curves_like_the_shader() {
+        let curve = [(0.0, 0.0), (64.0, 48.0), (192.0, 208.0), (255.0, 255.0)];
+        assert_eq!(evaluate_rapidraw_curve(&curve, 0.0), 0.0);
+        assert_eq!(evaluate_rapidraw_curve(&curve, 64.0), 48.0);
+        assert_eq!(evaluate_rapidraw_curve(&curve, 255.0), 255.0);
+        let identity = [(0.0, 0.0), (255.0, 255.0)];
+        assert!((evaluate_rapidraw_curve(&identity, 100.0) - 100.0).abs() < 1e-9);
+        let mid = evaluate_rapidraw_curve(&curve, 128.0);
+        assert!(mid > 120.0 && mid < 136.0, "{mid}");
+    }
+
+    #[test]
+    fn composes_nested_look_tone_curve_into_luma() {
+        let look_only = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:Exposure2012="0">{ADOBE_COLOR_LOOK}</rdf:Description>"#
+        ))
+        .unwrap();
+        let luma = look_only.adjustments["curves"]["luma"].as_array().unwrap();
+        assert_eq!(luma.len(), MAX_RAPIDRAW_CURVE_POINTS);
+        assert_eq!(luma_at(&look_only, 0), 0);
+        assert_eq!(luma_at(&look_only, 255), 255);
+        assert!(luma_at(&look_only, 51) < 51);
+        assert!(luma_at(&look_only, 204) > 204);
+
+        // The user's curve applies on top of the look: here it inverts it.
+        let with_user_curve = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:Exposure2012="0">
+              <crs:ToneCurvePV2012>
+                <rdf:Seq>
+                  <rdf:li>0, 255</rdf:li>
+                  <rdf:li>255, 0</rdf:li>
+                </rdf:Seq>
+              </crs:ToneCurvePV2012>
+              {ADOBE_COLOR_LOOK}
+            </rdf:Description>"#
+        ))
+        .unwrap();
+        for x in [0, 51, 102, 153, 204, 255] {
+            assert_eq!(
+                luma_at(&with_user_curve, x),
+                255 - luma_at(&look_only, x),
+                "{x}"
+            );
+        }
+    }
+
+    #[test]
+    fn reads_outer_curve_even_when_the_look_comes_first() {
+        let preset = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:Exposure2012="0">
+              {}
+              <crs:ToneCurvePV2012>
+                <rdf:Seq>
+                  <rdf:li>0, 0</rdf:li>
+                  <rdf:li>255, 255</rdf:li>
+                </rdf:Seq>
+              </crs:ToneCurvePV2012>
+            </rdf:Description>"#,
+            ADOBE_COLOR_LOOK.replace("crs:Amount=\"1\"", "crs:Amount=\"0\"")
+        ))
+        .unwrap();
+
+        assert_eq!(
+            preset.adjustments["curves"]["luma"],
+            json!([{ "x": 0, "y": 0 }, { "x": 255, "y": 255 }])
+        );
+    }
+
+    #[test]
+    fn scales_nested_look_curve_by_its_amount() {
+        let full = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:Exposure2012="0">{ADOBE_COLOR_LOOK}</rdf:Description>"#
+        ))
+        .unwrap();
+        let half = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:Exposure2012="0">{}</rdf:Description>"#,
+            ADOBE_COLOR_LOOK.replace("crs:Amount=\"1\"", "crs:Amount=\"0.5\"")
+        ))
+        .unwrap();
+
+        let full_shift = 204 - luma_at(&full, 204) as i64;
+        let half_shift = 204 - luma_at(&half, 204) as i64;
+        assert!(
+            (full_shift - 2 * half_shift).abs() <= 1,
+            "{full_shift} {half_shift}"
+        );
+    }
+
+    fn not_transferred(xmp: &str) -> Vec<&'static str> {
+        let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
+        lightroom_settings_not_transferred(xmp, &preset)
+    }
+
+    #[test]
+    fn reports_lightroom_settings_that_were_not_transferred() {
+        let xmp = format!(
+            r#"<rdf:Description
+                crs:WhiteBalance="Custom"
+                crs:Temperature="5600"
+                crs:Tint="+10"
+                crs:EnhanceDenoiseVersion="1"
+                crs:EnhanceDenoiseLumaAmount="50">
+              {ADOBE_COLOR_LOOK}
+              <crs:MaskGroupBasedCorrections>
+                <rdf:Seq>
+                  <rdf:li><rdf:Description crs:What="Correction" crs:LocalExposure2012="0.5" /></rdf:li>
+                </rdf:Seq>
+              </crs:MaskGroupBasedCorrections>
+              <crs:PointColors>
+                <rdf:Seq>
+                  <rdf:li>3.5, 0.6, 0.5, 0, 0, 0, 0</rdf:li>
+                </rdf:Seq>
+              </crs:PointColors>
+            </rdf:Description>"#
+        );
+
+        assert_eq!(
+            not_transferred(&xmp),
+            vec![
+                "whiteBalance",
+                "profileLook",
+                "aiDenoise",
+                "masks",
+                "pointColor"
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_nothing_for_a_fully_transferred_sidecar() {
+        for xmp in [
+            r#"<rdf:Description crs:WhiteBalance="As Shot" crs:Exposure2012="+0.5" />"#,
+            r#"<rdf:Description
+                crs:WhiteBalance="Custom"
+                crs:Temperature="5068"
+                crs:AsShotTemperature="4440" />"#,
+            r#"<rdf:Description
+                crs:Exposure2012="+0.5"
+                crs:EnhanceDenoiseAlreadyApplied="True"
+                crs:EnhanceDenoiseLumaAmount="50">
+              <crs:MaskGroupBasedCorrections>
+                <rdf:Seq />
+              </crs:MaskGroupBasedCorrections>
+            </rdf:Description>"#,
+        ] {
+            assert!(not_transferred(xmp).is_empty(), "{xmp}");
+        }
+    }
+
+    #[test]
+    fn reports_legacy_local_corrections_as_masks() {
+        let xmp = r#"<rdf:Description crs:Exposure2012="0">
+              <crs:GradientBasedCorrections>
+                <rdf:Seq>
+                  <rdf:li><rdf:Description crs:What="Correction" /></rdf:li>
+                </rdf:Seq>
+              </crs:GradientBasedCorrections>
+            </rdf:Description>"#;
+        assert_eq!(not_transferred(xmp), vec!["masks"]);
+    }
+
+    #[test]
+    fn maps_sharpen_masking_and_drops_keys_nothing_reads() {
+        let preset = convert_adobe_camera_raw_xmp_to_preset(
+            r#"<rdf:Description
+                crs:Sharpness="40"
+                crs:SharpenRadius="+1.0"
+                crs:SharpenDetail="25"
+                crs:SharpenEdgeMasking="50"
+                crs:LuminanceSmoothing="10"
+                crs:ColorNoiseReduction="25"
+                crs:ColorNoiseReductionDetail="50"
+                crs:ColorNoiseReductionSmoothness="50" />"#,
+            XmpImageKind::Raw,
+        )
+        .unwrap();
+
+        assert_eq!(preset.adjustments["sharpnessThreshold"], json!(40.0));
+        assert_eq!(preset.adjustments["lumaNoiseReduction"], json!(10));
+        assert_eq!(preset.adjustments["colorNoiseReduction"], json!(25));
+        for dead_key in [
+            "sharpenRadius",
+            "sharpenDetail",
+            "sharpenMasking",
+            "colorNoiseDetail",
+            "colorNoiseSmoothness",
+        ] {
+            assert!(preset.adjustments.get(dead_key).is_none(), "{dead_key}");
+        }
+    }
+
+    #[test]
+    fn keeps_exposure_one_to_one_while_unit_scaling_is_off() {
+        let preset = convert_adobe_camera_raw_xmp_to_preset(
+            r#"<rdf:Description crs:Exposure2012="+1.25" />"#,
+            XmpImageKind::Raw,
+        )
+        .unwrap();
+
+        assert_eq!(preset.adjustments["exposure"], json!(1.25));
+    }
+
+    #[test]
+    fn scales_lightroom_ev_to_rapidraw_exposure_units_when_enabled() {
+        let mut adjustments = Map::new();
+        adjustments.insert("exposure".to_string(), json!(1.25));
+        scale_lightroom_exposure(&mut adjustments, true);
+        assert_eq!(adjustments["exposure"], json!(1.0));
+
+        let mut legacy = Map::new();
+        legacy.insert("exposure".to_string(), json!(-0.5));
+        scale_lightroom_exposure(&mut legacy, true);
+        assert_eq!(legacy["exposure"], json!(-0.4));
+
+        let mut unchanged = Map::new();
+        unchanged.insert("exposure".to_string(), json!(1.25));
+        scale_lightroom_exposure(&mut unchanged, false);
+        assert_eq!(unchanged["exposure"], json!(1.25));
+    }
+
+    #[test]
+    fn enables_automatic_lens_correction_for_lightroom_lens_profile() {
+        let preset = convert_xmp_sidecar_to_preset(
+            r#"<rdf:Description
+                crs:LensProfileEnable="1"
+                crs:LensProfileDistortionScale="100"
+                crs:LensProfileVignettingScale="80"
+                crs:AutoLateralCA="0" />"#,
+        )
+        .unwrap();
+
+        assert_eq!(preset.adjustments["lensCorrectionMode"], json!("auto"));
+        assert_eq!(preset.adjustments["lensDistortionEnabled"], json!(true));
+        assert_eq!(preset.adjustments["lensVignetteEnabled"], json!(true));
+        assert_eq!(preset.adjustments["lensTcaEnabled"], json!(false));
+        assert_eq!(preset.adjustments["lensDistortionAmount"], json!(100.0));
+        assert_eq!(preset.adjustments["lensVignetteAmount"], json!(80.0));
+    }
+
+    #[test]
+    fn leaves_lens_correction_alone_without_lightroom_lens_profile() {
+        for xmp in [
+            r#"<rdf:Description crs:LensProfileEnable="0" crs:Exposure2012="+0.50" />"#,
+            r#"<rdf:Description crs:Exposure2012="+0.50" />"#,
+        ] {
+            let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
+            assert!(preset.adjustments.get("lensCorrectionMode").is_none());
+        }
+
+        let reusable =
+            convert_xmp_to_preset(r#"<rdf:Description crs:LensProfileEnable="1" />"#).unwrap();
+        assert!(reusable.adjustments.get("lensCorrectionMode").is_none());
     }
 }
