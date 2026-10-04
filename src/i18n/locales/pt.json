@@ -814,6 +814,17 @@
         "tool": "Ferramenta"
       }
     },
+    "referenceView": {
+      "active": "Ativa",
+      "cancel": "Cancelar",
+      "chooseHint": "Clique em uma foto na tira de filme para usá-la como referência.",
+      "clear": "Remover referência",
+      "close": "Fechar vista de referência",
+      "readOnly": "Somente leitura",
+      "reference": "Referência",
+      "replace": "Escolher outra referência",
+      "unavailable": "Imagem de referência indisponível"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Ajustar",
@@ -835,6 +846,7 @@
         "fullscreen": "Alternar Tela Cheia (F)",
         "iso": "ISO",
         "redo": "Refazer (Ctrl+Y) ou Histórico (Botão Direito)",
+        "referenceView": "Vista de referência (Shift+R)",
         "showEdited": "Mostrar Editado (B)",
         "showOriginal": "Mostrar Original (B)",
         "shutterSpeed": "Velocidade do Obturador",
@@ -1733,6 +1745,7 @@
         "toggle_masks": "Alternar painel de Máscaras",
         "toggle_metadata": "Alternar painel de Metadados",
         "toggle_presets": "Alternar painel de Predefinições",
+        "toggle_reference_view": "Alternar vista de referência",
         "toggle_right_panel": "Alternar painel direito",
         "undo": "Desfazer ajuste",
         "zoom_100": "Zoom para 100%",

@@ -787,6 +787,17 @@
         "tool": "ツール"
       }
     },
+    "referenceView": {
+      "active": "編集中",
+      "cancel": "キャンセル",
+      "chooseHint": "フィルムストリップで写真をクリックして参照に設定します。",
+      "clear": "参照を解除",
+      "close": "参照ビューを閉じる",
+      "readOnly": "読み取り専用",
+      "reference": "参照",
+      "replace": "別の参照を選択",
+      "unavailable": "参照画像を表示できません"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "補正",
@@ -808,6 +819,7 @@
         "fullscreen": "全画面表示切り替え (F)",
         "iso": "ISO感度",
         "redo": "やり直し (Ctrl+Y) または履歴 (右クリック)",
+        "referenceView": "参照ビュー (Shift+R)",
         "showEdited": "編集後を表示 (B)",
         "showOriginal": "オリジナルを表示 (B)",
         "shutterSpeed": "シャッタースピード",
@@ -1693,6 +1705,7 @@
         "toggle_masks": "マスクパネルの表示/非表示",
         "toggle_metadata": "メタデータパネルの表示/非表示",
         "toggle_presets": "プリセットパネルの表示/非表示",
+        "toggle_reference_view": "参照ビューの切り替え",
         "toggle_right_panel": "右パネルの表示/非表示",
         "undo": "操作を元に戻す",
         "zoom_100": "100%ズーム",

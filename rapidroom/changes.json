@@ -14,6 +14,20 @@
       "notes": "Follow-up to the Lightroom import (RapidRoom #54). Changes what imported sidecars render: crs:LensProfileEnable=1 now switches lens correction to auto with distortion and vignetting on; the tone curve of a nested look (Adobe Color, creative profiles) is composed under the user's luma curve; ToneCurvePV2012 points are copied without the old shadow-dampening rewrite; SharpenEdgeMasking maps to the sharpening threshold. sharpenRadius, sharpenDetail, sharpenMasking, colorNoiseDetail and colorNoiseSmoothness are no longer written (nothing read them). Exposure scaling to RapidRAW's 1.25 EV unit is in the code but off (SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS) until the tone calibration lands. Single-photo and folder imports now report custom white balance, profile look, AI Denoise, masks and Point Color when they could not be transferred. Written with Claude Code."
     },
     {
+      "id": "reference-view",
+      "title": "Editor Reference View: pin a read-only reference photo beside the image you are editing (Shift+R)",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["cgasgarth"],
+      "source": "cgasgarth/RapidRaw",
+      "commits": ["https://github.com/cgasgarth/RapidRaw/commit/aa0e23573923dfc45c2c5d97b26b4e1e8ee77fdf"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Reference-view state and toolbar UX ported from cgasgarth's Lightroom reference view and adapted to RapidRoom's editor by Claude Code. Pick the reference from the filmstrip. It is rendered from its saved adjustments through the existing read-only preview command, has its own zoom and pan, and never becomes the selected, edited or exported image. Display only: no change to the image pipeline or exports.",
+      "highlight": "**Reference View like Lightroom.** Pin one photo next to the one you are editing, then match the look while you move through the filmstrip."
+    },
+    {
       "id": "wb-picker-original",
       "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
       "category": "fix",

@@ -787,6 +787,17 @@
         "tool": "工具"
       }
     },
+    "referenceView": {
+      "active": "当前",
+      "cancel": "取消",
+      "chooseHint": "在胶片带中点击一张照片，将其用作参考。",
+      "clear": "清除参考",
+      "close": "关闭参考视图",
+      "readOnly": "只读",
+      "reference": "参考",
+      "replace": "选择其他参考",
+      "unavailable": "参考图像不可用"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "调整",
@@ -808,6 +819,7 @@
         "fullscreen": "切换全屏（F）",
         "iso": "ISO",
         "redo": "重做（Ctrl+Y）或历史记录（右键单击）",
+        "referenceView": "参考视图 (Shift+R)",
         "showEdited": "显示编辑后（B）",
         "showOriginal": "显示原始（B）",
         "shutterSpeed": "快门速度",
@@ -1693,6 +1705,7 @@
         "toggle_masks": "切换蒙版面板",
         "toggle_metadata": "切换元数据面板",
         "toggle_presets": "切换预设面板",
+        "toggle_reference_view": "切换参考视图",
         "toggle_right_panel": "切换右侧面板",
         "undo": "撤销调整",
         "zoom_100": "缩放到 100%",
