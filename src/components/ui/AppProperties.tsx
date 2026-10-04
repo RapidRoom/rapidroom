@@ -114,6 +114,7 @@ export enum Invokes {
   SaveFocusStack = 'save_focus_stack',
   MergeHdr = 'merge_hdr',
   TestAIConnectorConnection = 'test_ai_connector_connection',
+  SampleDisplayArea = 'sample_display_area',
   UndoLastRename = 'undo_last_rename',
   UpdateWgpuTransform = 'update_wgpu_transform',
   UpdateExifFields = 'update_exif_fields',

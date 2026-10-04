@@ -55,10 +55,12 @@
         "reds": "Rot",
         "yellows": "Gelb"
       },
+      "mixerPickerTooltip": "Farbmischer-Pipette: Auf das Foto klicken und nach oben oder unten ziehen",
       "presence": "Präsenz",
       "saturation": "Sättigung",
       "temperature": "Temperatur",
       "tint": "Tonung",
+      "toggleMixerExpanded": "Erweiterter Farbmischer",
       "toggleSliders": "Regler umschalten",
       "vibrance": "Dynamik",
       "wbPickerTooltip": "Weißabgleich-Pipette",
