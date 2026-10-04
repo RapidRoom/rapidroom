@@ -405,6 +405,7 @@ function App() {
     handleCreateFolder,
     handleRenameFolder,
     handleSaveRename,
+    handleUndoRename,
     handleRenameFiles,
     handleStartImport,
     handleImportClick,
@@ -1030,6 +1031,7 @@ function App() {
           handleCreateFolder={handleCreateFolder}
           handleRenameFolder={handleRenameFolder}
           handleSaveRename={handleSaveRename}
+          handleUndoRename={handleUndoRename}
           handleStartImport={handleStartImport}
           handleSetColorLabel={handleSetColorLabel}
           handleRate={handleRate}
