@@ -55,10 +55,12 @@
         "reds": "Rouges",
         "yellows": "Jaunes"
       },
+      "mixerPickerTooltip": "Pipette du mélangeur de couleurs : cliquez et faites glisser vers le haut ou le bas sur la photo",
       "presence": "Présence",
       "saturation": "Saturation",
       "temperature": "Température",
       "tint": "Teinte",
+      "toggleMixerExpanded": "Mélangeur de couleurs étendu",
       "toggleSliders": "Basculer les curseurs",
       "vibrance": "Vibrance",
       "wbPickerTooltip": "Pipette de balance des blancs",

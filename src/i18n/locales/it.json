@@ -55,10 +55,12 @@
         "reds": "Rossi",
         "yellows": "Gialli"
       },
+      "mixerPickerTooltip": "Contagocce del Mixer Colori: fai clic e trascina in alto o in basso sulla foto",
       "presence": "Presenza",
       "saturation": "Saturazione",
       "temperature": "Temperatura",
       "tint": "Tinta",
+      "toggleMixerExpanded": "Mixer Colori espanso",
       "toggleSliders": "Attiva/Disattiva Cursori",
       "vibrance": "Vividezza",
       "wbPickerTooltip": "Selettore Bilanciamento del Bianco",

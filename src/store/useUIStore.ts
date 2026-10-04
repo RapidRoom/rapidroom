@@ -260,6 +260,7 @@ export interface UIState {
   renderedPanel: Panel | null;
   slideDirection: number;
   collapsibleSectionsState: CollapsibleSectionsState;
+  isColorMixerExpanded: boolean;
   cropSectionsState: CropSectionsState;
 
   isCreateFolderModalOpen: boolean;
@@ -348,6 +349,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   renderedPanel: Panel.Adjustments,
   slideDirection: 1,
   collapsibleSectionsState: { basic: true, color: false, curves: true, details: false, effects: false },
+  isColorMixerExpanded: false,
   cropSectionsState: { transform: false, lens: false },
 
   isCreateFolderModalOpen: false,

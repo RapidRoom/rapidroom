@@ -55,10 +55,12 @@
         "reds": "Красные",
         "yellows": "Желтые"
       },
+      "mixerPickerTooltip": "Пипетка смешения цветов: нажмите на фото и перетащите вверх или вниз",
       "presence": "Внешний вид",
       "saturation": "Насыщенность",
       "temperature": "Температура",
       "tint": "Оттенок",
+      "toggleMixerExpanded": "Расширенное смешение цветов",
       "toggleSliders": "Переключить ползунки",
       "vibrance": "Красочность",
       "wbPickerTooltip": "Пипетка баланса белого",
