@@ -2428,7 +2428,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
             </svg>
           )}
           {isReferenceViewOn && (
-            <div className="absolute left-2 top-2 z-20 flex max-w-[70%] items-center gap-2 rounded-md bg-surface/90 px-2 py-1 shadow pointer-events-none">
+            <div className="lights-out-chrome absolute left-2 top-2 z-20 flex max-w-[70%] items-center gap-2 rounded-md bg-surface/90 px-2 py-1 shadow pointer-events-none">
               <span className="shrink-0 rounded bg-accent px-1.5 text-[10px] font-semibold uppercase tracking-wide text-button-text">
                 {t('editor.referenceView.active')}
               </span>
