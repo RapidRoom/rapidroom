@@ -3798,6 +3798,79 @@ mod lens_tests {
         );
     }
 
+    /// The evaluation before the radius scale existed, copied from the
+    /// previous version of the warp code.
+    fn previous_scale_and_newton_terms(params: &GeometryParams, ru_norm: f64) -> (f64, f64, f64) {
+        let lk1 = params.lens_dist_k1 as f64;
+        let lk2 = params.lens_dist_k2 as f64;
+        let lk3 = params.lens_dist_k3 as f64;
+        let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+        let ru_norm2 = ru_norm * ru_norm;
+
+        let rd_norm = if params.lens_model == 1 {
+            let a = lk1;
+            let b = lk2;
+            let c = lk3;
+            let d = 1.0 - a - b - c;
+            ru_norm * (a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d)
+        } else {
+            ru_norm
+                * (1.0
+                    + lk1 * ru_norm2
+                    + lk2 * (ru_norm2 * ru_norm2)
+                    + lk3 * (ru_norm2 * ru_norm2 * ru_norm2))
+        };
+        let effective_r_norm = ru_norm + (rd_norm - ru_norm) * lens_dist_amt;
+        let scale = effective_r_norm / ru_norm;
+
+        let (poly, prime) = if params.lens_model == 1 {
+            let a = lk1;
+            let b = lk2;
+            let c = lk3;
+            let d = 1.0 - a - b - c;
+            let poly = a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d;
+            let prime = 4.0 * a * ru_norm2 * ru_norm + 3.0 * b * ru_norm2 + 2.0 * c * ru_norm + d;
+            (poly, prime)
+        } else {
+            let poly = 1.0
+                + lk1 * ru_norm2
+                + lk2 * (ru_norm2 * ru_norm2)
+                + lk3 * (ru_norm2 * ru_norm2 * ru_norm2);
+            let poly_prime = 2.0 * lk1 * ru_norm
+                + 4.0 * lk2 * ru_norm2 * ru_norm
+                + 6.0 * lk3 * (ru_norm2 * ru_norm2) * ru_norm;
+            (poly, poly + ru_norm * poly_prime)
+        };
+        (scale, poly, prime)
+    }
+
+    #[test]
+    fn old_sidecar_values_render_bit_for_bit_as_before() {
+        let mut ptlens = base_params();
+        ptlens.lens_model = 1;
+        ptlens.lens_dist_k1 = 0.0061844;
+        ptlens.lens_dist_k2 = -0.0313122;
+        ptlens.lens_dist_k3 = 0.0314815;
+        ptlens.lens_distortion_amount = 0.73;
+
+        let mut poly = base_params();
+        poly.lens_dist_k1 = -0.0215;
+        poly.lens_dist_k2 = 0.0042;
+        poly.lens_dist_k3 = -0.0007;
+
+        for params in [&ptlens, &poly] {
+            let lens = LensDistortion::new(params);
+            for i in 1..=2000 {
+                let ru_norm = i as f64 / 1700.0;
+                let (scale, factor, slope) = previous_scale_and_newton_terms(params, ru_norm);
+                assert_eq!(lens.scale(ru_norm).to_bits(), scale.to_bits());
+                let (new_factor, new_slope) = lens.factor_and_slope(ru_norm);
+                assert_eq!(new_factor.to_bits(), factor.to_bits());
+                assert_eq!(new_slope.to_bits(), slope.to_bits());
+            }
+        }
+    }
+
     #[test]
     fn old_sidecar_values_keep_the_old_behaviour() {
         // Without a radius scale the values come from an older sidecar file.

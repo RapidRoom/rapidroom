@@ -297,6 +297,32 @@ impl Lens {
         distance: Option<f32>,
         camera_crop: Option<f32>,
     ) -> Option<LensDistortionParams> {
+        let mut params =
+            self.calibration_values(focal_length, aperture, distance, extract_dist_params)?;
+        (params.k1, params.k2, params.k3, params.model) =
+            rescale_dist_params(params.k1, params.k2, params.k3, params.model);
+        params.radius_scale = Some(distortion_radius_scale(self, camera_crop));
+        Some(params)
+    }
+
+    /// Reads the correction values the way older versions did, for an edit
+    /// whose sidecar file carries no radius scale.
+    pub fn get_legacy_distortion_params(
+        &self,
+        focal_length: f32,
+        aperture: Option<f32>,
+        distance: Option<f32>,
+    ) -> Option<LensDistortionParams> {
+        self.calibration_values(focal_length, aperture, distance, extract_legacy_dist_params)
+    }
+
+    fn calibration_values(
+        &self,
+        focal_length: f32,
+        aperture: Option<f32>,
+        distance: Option<f32>,
+        extract_dist_params: fn(&Distortion) -> (f64, f64, f64, u32),
+    ) -> Option<LensDistortionParams> {
         let cal = self.calibration.as_ref()?;
 
         let mut distortions: Vec<&Distortion> = cal
@@ -505,14 +531,12 @@ impl Lens {
             }
         };
 
-        let (k1, k2, k3, model) = rescale_dist_params(k1, k2, k3, model);
-
         Some(LensDistortionParams {
             k1,
             k2,
             k3,
             model,
-            radius_scale: Some(distortion_radius_scale(self, camera_crop)),
+            radius_scale: None,
             tca_vr,
             tca_vb,
             vig_k1,
@@ -557,6 +581,25 @@ fn extract_dist_params(dist: &Distortion) -> (f64, f64, f64, u32) {
             dist.k1.unwrap_or(0.0) as f64,
             dist.k2.unwrap_or(0.0) as f64,
             0.0,
+            0,
+        ),
+        "ptlens" => {
+            let a = dist.a.unwrap_or(0.0) as f64;
+            let b = dist.b.unwrap_or(0.0) as f64;
+            let c = dist.c.unwrap_or(0.0) as f64;
+            (a, b, c, 1)
+        }
+        _ => (0.0, 0.0, 0.0, 0),
+    }
+}
+
+/// Reads the terms of a distortion element the way older versions did.
+fn extract_legacy_dist_params(dist: &Distortion) -> (f64, f64, f64, u32) {
+    match dist.model.as_str() {
+        "poly3" | "poly5" => (
+            dist.k1.unwrap_or(0.0) as f64,
+            dist.k2.unwrap_or(0.0) as f64,
+            dist.k3.unwrap_or(0.0) as f64,
             0,
         ),
         "ptlens" => {
@@ -1103,6 +1146,19 @@ pub fn resolve_lens_params(
     }
 
     Some(merged)
+}
+
+/// Reads the correction values the way older versions did: from the one
+/// entry the lens name points to, without a radius scale.
+pub fn resolve_legacy_lens_params(
+    db: &LensDatabase,
+    maker: &str,
+    model: &str,
+    focal_length: f32,
+    aperture: Option<f32>,
+    distance: Option<f32>,
+) -> Option<LensDistortionParams> {
+    find_lens(db, maker, model)?.get_legacy_distortion_params(focal_length, aperture, distance)
 }
 
 #[cfg(test)]
