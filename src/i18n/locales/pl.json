@@ -55,10 +55,12 @@
         "reds": "Czerwone",
         "yellows": "Żółte"
       },
+      "mixerPickerTooltip": "Pipeta miksera kolorów: kliknij i przeciągnij w górę lub w dół na zdjęciu",
       "presence": "Prezencja",
       "saturation": "Nasycenie",
       "temperature": "Temperatura",
       "tint": "Zabarwienie",
+      "toggleMixerExpanded": "Rozszerzony mikser kolorów",
       "toggleSliders": "Przełącz suwaki",
       "vibrance": "Jaskrawość",
       "wbPickerTooltip": "Próbnik balansu bieli",
