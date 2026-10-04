@@ -4,6 +4,9 @@ import { listen } from '@tauri-apps/api/event';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import {
   Aperture,
+  Ban,
+  Flag,
+  FlagOff,
   Check,
   ClipboardPaste,
   Copy,
@@ -47,6 +50,8 @@ import {
   User,
   Album as AlbumIcon,
   PencilSparkles,
+  Database,
+  FolderSearch,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -56,7 +61,16 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { useUIStore } from '../store/useUIStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { Invokes, Option, OPTION_SEPARATOR, Panel, AlbumItem, Album, AlbumGroup } from '../components/ui/AppProperties';
+import {
+  Invokes,
+  ImageFlag,
+  Option,
+  OPTION_SEPARATOR,
+  Panel,
+  AlbumItem,
+  Album,
+  AlbumGroup,
+} from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
 import {
   Color,
@@ -113,6 +127,7 @@ export interface UseAppContextMenusProps {
   refreshAllFolderTrees: () => Promise<void>;
   refreshImageList: () => Promise<void>;
   executeDelete: (paths: string[], options: any) => Promise<void>;
+  handleDeleteRejected: () => void;
   handleTogglePinFolder: (path: string) => Promise<void>;
 }
 
@@ -143,7 +158,24 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
     handleCopyAdjustments,
     handlePasteAdjustments,
   } = useEditorActions();
-  const { handleRate, handleSetColorLabel, handleTagsChanged } = useLibraryActions();
+  const { handleRate, handleSetFlag, handleSetColorLabel, handleTagsChanged } = useLibraryActions();
+
+  const buildFlagMenu = useCallback(
+    (paths?: string[]) => ({
+      label: t('contextMenus.editor.flag'),
+      icon: Flag,
+      submenu: [
+        { label: t('contextMenus.editor.flagPick'), icon: Flag, onClick: () => handleSetFlag(ImageFlag.Pick, paths) },
+        {
+          label: t('contextMenus.editor.flagReject'),
+          icon: Ban,
+          onClick: () => handleSetFlag(ImageFlag.Reject, paths),
+        },
+        { label: t('contextMenus.editor.unflagged'), icon: FlagOff, onClick: () => handleSetFlag(null, paths) },
+      ],
+    }),
+    [handleSetFlag, t],
+  );
 
   const albumIcons = useMemo(
     () => [
@@ -511,9 +543,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             {
               label: t('contextMenus.editor.denoise'),
               icon: Grip,
-              disabled:
-                useUIStore.getState().pendingDenoiseJob !== null ||
-                useUIStore.getState().denoiseModalState.isProcessing,
+              disabled: useUIStore.getState().denoiseModalState.isProcessing,
               onClick: () => {
                 useUIStore.getState().openDenoiseModal([selectedImage.path], selectedImage?.isRaw || false);
               },
@@ -558,6 +588,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             onClick: () => handleRate(rating),
           })),
         },
+        buildFlagMenu(),
         {
           label: t('contextMenus.editor.colorLabel'),
           icon: Palette,
@@ -618,6 +649,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       importXmpAdjustmentsForImage,
       handleAutoAdjustments,
       handleRate,
+      buildFlagMenu,
       handleSetColorLabel,
       handleTagsChanged,
       showContextMenu,
@@ -869,10 +901,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             {
               label: denoiseLabel,
               icon: Grip,
-              disabled:
-                finalSelection.length === 0 ||
-                useUIStore.getState().pendingDenoiseJob !== null ||
-                useUIStore.getState().denoiseModalState.isProcessing,
+              disabled: finalSelection.length === 0 || useUIStore.getState().denoiseModalState.isProcessing,
               onClick: () => {
                 useUIStore.getState().openDenoiseModal(finalSelection, selectedImage?.isRaw || false);
               },
@@ -1023,6 +1052,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             onClick: () => handleRate(rating, finalSelection),
           })),
         },
+        buildFlagMenu(finalSelection),
         {
           label: t('contextMenus.editor.colorLabel'),
           icon: Palette,
@@ -1109,6 +1139,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       handlePasteAdjustments,
       importXmpAdjustmentsForImage,
       handleRate,
+      buildFlagMenu,
       handleSetColorLabel,
       handleTagsChanged,
       handleResetAdjustments,
@@ -1359,6 +1390,15 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       const { setUI } = useUIStore.getState();
       const { albumTree, setLibrary } = useLibraryStore.getState();
 
+      const importLightroomCollections = async () => {
+        const catalog = await openDialog({
+          multiple: false,
+          filters: [{ name: t('contextMenus.albums.lightroomCatalog'), extensions: ['lrcat'] }],
+          title: t('contextMenus.albums.selectLightroomCatalog'),
+        });
+        if (typeof catalog === 'string') setUI({ lightroomImportCatalog: catalog });
+      };
+
       const findParentId = (
         nodes: AlbumItem[],
         childId: string,
@@ -1470,6 +1510,26 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       const isMoveDisabled = moveOptions.length === 0 && isAtRoot;
 
       const options: Option[] = [
+        ...(item?.id.startsWith('lightroom-import:')
+          ? [
+              {
+                label: t('contextMenus.albums.relinkLightroom'),
+                icon: FolderSearch,
+                onClick: () => void importLightroomCollections().catch((error) => toast.error(String(error))),
+              },
+              { type: OPTION_SEPARATOR },
+            ]
+          : []),
+        ...(!item
+          ? [
+              {
+                label: t('contextMenus.albums.importLightroom'),
+                icon: Database,
+                onClick: () => void importLightroomCollections().catch((error) => toast.error(String(error))),
+              },
+              { type: OPTION_SEPARATOR },
+            ]
+          : []),
         {
           label: t('contextMenus.albums.newAlbum'),
           icon: Images,
@@ -1584,7 +1644,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       event.stopPropagation();
 
       const { copiedFilePaths, setProcess } = useProcessStore.getState();
-      const { currentFolderPath, activeAlbumId, setLibrary } = useLibraryStore.getState();
+      const { currentFolderPath, activeAlbumId, imageList, setLibrary } = useLibraryStore.getState();
 
       const numCopied = copiedFilePaths.length;
       const copyPastedLabel = t('contextMenus.folders.copyHere', { count: numCopied });
@@ -1658,6 +1718,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           label: t('contextMenus.folders.importImages'),
           onClick: () => props.handleImportClick(currentFolderPath as string),
           disabled: !currentFolderPath || isAlbumView,
+        },
+        { type: OPTION_SEPARATOR },
+        {
+          icon: Trash2,
+          label: t('contextMenus.library.deleteRejected'),
+          isDestructive: true,
+          disabled: !imageList.some((image) => image.flag === ImageFlag.Reject),
+          onClick: props.handleDeleteRejected,
         },
       ];
 

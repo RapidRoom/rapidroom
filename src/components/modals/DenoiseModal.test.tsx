@@ -37,8 +37,15 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+let nextJobId = 0;
+
+const calls = (cmd: string) => invoke.mock.calls.filter(([name]) => name === cmd).map(([, args]) => args);
+
 async function mount(paths = ['/photos/a.raw']) {
+  nextJobId = 0;
   mockCommand(Invokes.IsRaw9Available, () => false);
+  mockCommand(Invokes.CreateDenoiseJob, () => ++nextJobId);
+  mockCommand(Invokes.CancelDenoise, () => {});
   const refreshImageList = vi.fn(async () => {});
   const listenerProps = {
     refreshAllFolderTrees: vi.fn(),
@@ -48,13 +55,12 @@ async function mount(paths = ['/photos/a.raw']) {
   };
   let actions!: ReturnType<typeof useProductivityActions>;
   function Harness() {
-    const { denoiseModalState: state, pendingDenoiseJob, closeDenoiseModal } = useUIStore();
+    const { denoiseModalState: state, closeDenoiseModal } = useUIStore();
     actions = useProductivityActions(refreshImageList);
     useTauriListeners(listenerProps);
     return (
       <DenoiseModal
         {...state}
-        isProcessing={state.isProcessing || pendingDenoiseJob !== null}
         originalBase64={state.originalBase64 || null}
         onClose={closeDenoiseModal}
         onDenoise={actions.handleApplyDenoise}
@@ -100,107 +106,108 @@ describe('Denoise dialog cancellation', () => {
     expect(state().denoiseModalState.isOpen).toBe(false);
   });
 
-  it('blocks busy backdrop clicks, enables Cancel, ignores late results and prevents reopening until the command finishes', async () => {
-    const job = deferred<void>();
-    mockCommand(Invokes.ApplyDenoising, () => job.promise);
-    const { actions } = await mount();
+  it("cancels the backend job by ID, allows a new job at once and ignores the old job's events", async () => {
+    const first = deferred<void>();
+    const second = deferred<void>();
+    mockCommand(Invokes.ApplyDenoising, (args) => (args?.jobId === 1 ? first.promise : second.promise));
+    await mount();
     await click(button('btnStart'));
-    expect(state().pendingDenoiseJob).toBe('single');
+    expect(calls(Invokes.ApplyDenoising)).toEqual([{ jobId: 1, path: '/photos/a.raw', intensity: 0.5, method: 'ai' }]);
     await click(backdrop());
     expect(state().denoiseModalState.isOpen).toBe(true);
     expect(button('cancel').disabled).toBe(false);
     expect(button('cancel').closest('.pointer-events-none')).toBeNull();
     await click(button('cancel'));
-    expect(state().denoiseModalState.isOpen).toBe(false);
-    expect(state().pendingDenoiseJob).toBe('single');
+    expect(state().denoiseModalState).toMatchObject({ isOpen: false, isProcessing: false, jobId: null });
+    expect(calls(Invokes.CancelDenoise)).toEqual([{ jobId: 1 }]);
+
+    await act(async () => state().openDenoiseModal(['/photos/b.raw'], true));
+    await click(button('btnStart'));
+    expect(calls(Invokes.ApplyDenoising)[1]).toMatchObject({ jobId: 2, path: '/photos/b.raw' });
 
     await act(async () => {
-      state().openDenoiseModal(['/photos/b.raw'], true);
-      await actions.handleApplyDenoise(0.5, 'ai');
-      await actions.handleBatchDenoise(0.5, 'ai', ['/photos/b.raw', '/photos/c.raw']);
-      await emit('denoise-progress', 'Late progress');
-      await emit('denoise-complete', { denoised: 'late result', original: 'late original' });
-      await emit('denoise-error', 'Late error');
+      await emit('denoise-progress', { jobId: 1, message: 'Late progress' });
+      await emit('denoise-complete', { jobId: 1, denoised: 'late result', original: 'late original' });
+      await emit('denoise-error', { jobId: 1, message: 'Late error' });
+      first.resolve();
     });
-    expect(state().denoiseModalState).toMatchObject({
-      isOpen: false,
-      targetPaths: ['/photos/a.raw'],
-      previewBase64: null,
-      originalBase64: null,
-      error: null,
-      progressMessage: null,
-    });
-    expect(invoke.mock.calls.filter(([cmd]) => cmd === Invokes.ApplyDenoising)).toHaveLength(1);
-    expect(invoke.mock.calls.filter(([cmd]) => cmd === 'batch_denoise_images')).toHaveLength(0);
-    await act(async () => job.resolve());
-    expect(state().pendingDenoiseJob).toBeNull();
-    await act(async () => state().openDenoiseModal(['/photos/b.raw'], true));
     expect(state().denoiseModalState).toMatchObject({
       isOpen: true,
+      isProcessing: true,
+      jobId: 2,
       targetPaths: ['/photos/b.raw'],
       previewBase64: null,
       error: null,
+      progressMessage: 'Starting engine...',
     });
-  });
 
-  it('allows a fresh job after cancellation and accepts its own preview', async () => {
-    const first = deferred<void>();
-    const second = deferred<void>();
-    let count = 0;
-    mockCommand(Invokes.ApplyDenoising, () => (++count === 1 ? first.promise : second.promise));
-    await mount();
-    await click(button('btnStart'));
-    await click(button('cancel'));
-    await act(async () => first.resolve());
-    await act(async () => state().openDenoiseModal(['/photos/b.raw'], true));
-    await click(button('btnStart'));
     await act(async () => {
-      await emit('denoise-complete', { denoised: 'new preview', original: 'new original' });
+      await emit('denoise-progress', { jobId: 2, message: 'Step 1/2 - 50%' });
+    });
+    expect(state().denoiseModalState.progressMessage).toBe('Step 1/2 - 50%');
+    await act(async () => {
+      await emit('denoise-complete', { jobId: 2, denoised: 'new preview', original: 'new original' });
       second.resolve();
     });
     expect(state().denoiseModalState).toMatchObject({
-      isOpen: true,
       isProcessing: false,
       previewBase64: 'new preview',
       originalBase64: 'new original',
     });
-    expect(button('btnSave').disabled).toBe(false);
+    expect(calls(Invokes.CancelDenoise)).toHaveLength(1);
   });
 
-  it('lets batch Cancel stop waiting and prevents its late continuation from closing a reopened dialog', async () => {
+  it('cancels a job that is allocated after the dialog was cancelled', async () => {
+    const allocation = deferred<number>();
+    mockCommand(Invokes.ApplyDenoising, () => {});
+    await mount();
+    mockCommand(Invokes.CreateDenoiseJob, () => allocation.promise);
+    await click(button('btnStart'));
+    await click(button('cancel'));
+    expect(calls(Invokes.CancelDenoise)).toHaveLength(0);
+    await act(async () => allocation.resolve(7));
+    expect(calls(Invokes.CancelDenoise)).toEqual([{ jobId: 7 }]);
+    expect(calls(Invokes.ApplyDenoising)).toHaveLength(0);
+    expect(state().denoiseModalState).toMatchObject({ isOpen: false, jobId: null, error: null });
+  });
+
+  it('cancels a batch by ID, ignores its events and keeps its late continuation away from a reopened dialog', async () => {
     const job = deferred<string[]>();
-    mockCommand('batch_denoise_images', () => job.promise);
+    mockCommand(Invokes.BatchDenoiseImages, () => job.promise);
     const { refreshImageList } = await mount(['/photos/a.raw', '/photos/b.raw']);
     await click(button('btnBatchDenoise'));
-    expect(state().pendingDenoiseJob).toBe('batch');
-    await act(async () => emit('denoise-complete', { denoised: 'intermediate batch image' }));
-    expect(state().denoiseModalState.isProcessing).toBe(true);
-    expect(state().denoiseModalState.previewBase64).toBeNull();
+    expect(calls(Invokes.BatchDenoiseImages)).toEqual([
+      { jobId: 1, paths: ['/photos/a.raw', '/photos/b.raw'], intensity: 0.5, method: 'ai' },
+    ]);
+    await act(async () => emit('denoise-complete', { jobId: 1, denoised: 'intermediate batch image' }));
+    await act(async () => emit('denoise-error', { jobId: 1, message: 'Failed to denoise a.raw' }));
+    expect(state().denoiseModalState).toMatchObject({
+      isProcessing: true,
+      previewBase64: null,
+      error: 'Failed to denoise a.raw',
+    });
     await click(backdrop());
     expect(state().denoiseModalState.isOpen).toBe(true);
-    expect(button('cancel').disabled).toBe(false);
-    await click(button('cancel'));
-    await act(async () => state().openDenoiseModal(['/photos/c.raw'], true));
-    expect(state().denoiseModalState.isOpen).toBe(false);
+    await click(button('close'));
+    expect(calls(Invokes.CancelDenoise)).toEqual([{ jobId: 1 }]);
 
-    const unsubscribe = useUIStore.subscribe((next, previous) => {
-      if (previous.pendingDenoiseJob === 'batch' && next.pendingDenoiseJob === null) {
-        next.openDenoiseModal(['/photos/c.raw'], true);
-      }
+    await act(async () => state().openDenoiseModal(['/photos/c.raw'], true));
+    expect(state().denoiseModalState).toMatchObject({ isOpen: true, targetPaths: ['/photos/c.raw'] });
+    await act(async () => {
+      await emit('denoise-batch-progress', { jobId: 1, current: 2, total: 2, path: '/photos/b.raw' });
+      job.resolve(['/photos/a_Denoised.tiff']);
     });
-    await act(async () => job.resolve(['/photos/a_Denoised.tiff']));
-    unsubscribe();
     expect(refreshImageList).toHaveBeenCalledTimes(1);
     expect(state().denoiseModalState).toMatchObject({
       isOpen: true,
+      isProcessing: false,
       targetPaths: ['/photos/c.raw'],
       previewBase64: null,
       error: null,
     });
-    expect(state().pendingDenoiseJob).toBeNull();
   });
 
-  it('ignores a rejected command after Cancel and releases the pending-job guard', async () => {
+  it('ignores a rejected command after Cancel', async () => {
     const job = deferred<void>();
     mockCommand(Invokes.ApplyDenoising, () => job.promise);
     await mount();
@@ -208,7 +215,6 @@ describe('Denoise dialog cancellation', () => {
     await click(button('cancel'));
     await act(async () => job.reject(new Error('Model unavailable')));
     expect(state().denoiseModalState).toMatchObject({ isOpen: false, error: null });
-    expect(state().pendingDenoiseJob).toBeNull();
   });
 
   it('still displays an active command failure', async () => {
@@ -222,18 +228,18 @@ describe('Denoise dialog cancellation', () => {
       isProcessing: false,
       error: 'Error: Model unavailable',
     });
-    expect(state().pendingDenoiseJob).toBeNull();
   });
 
-  it('accepts a terminal event delivered after the active command promise resolves', async () => {
+  it('accepts its own terminal event delivered after the command promise resolves', async () => {
     mockCommand(Invokes.ApplyDenoising, () => {});
     await mount();
     await click(button('btnStart'));
-    expect(state().pendingDenoiseJob).toBeNull();
-    expect(state().denoiseModalState.isProcessing).toBe(true);
+    expect(state().denoiseModalState).toMatchObject({ isProcessing: true, jobId: 1 });
     await act(async () => state().openDenoiseModal(['/photos/b.raw'], true));
     expect(state().denoiseModalState.targetPaths).toEqual(['/photos/a.raw']);
-    await act(async () => emit('denoise-complete', { denoised: 'preview', original: 'original' }));
+    await act(async () => emit('denoise-complete', { jobId: 99, denoised: 'other', original: 'other' }));
+    expect(state().denoiseModalState.previewBase64).toBeNull();
+    await act(async () => emit('denoise-complete', { jobId: 1, denoised: 'preview', original: 'original' }));
     expect(state().denoiseModalState).toMatchObject({
       isProcessing: false,
       previewBase64: 'preview',
@@ -241,18 +247,20 @@ describe('Denoise dialog cancellation', () => {
     });
   });
 
-  it('continues blocking dismissal while saving a completed preview', async () => {
+  it('saves the shown preview by its job ID and blocks dismissal while saving', async () => {
     mockCommand(Invokes.ApplyDenoising, () => {});
     const save = deferred<string>();
     mockCommand(Invokes.SaveDenoisedImage, () => save.promise);
     await mount();
     await click(button('btnStart'));
-    await act(async () => emit('denoise-complete', { denoised: 'preview', original: 'original' }));
+    await act(async () => emit('denoise-complete', { jobId: 1, denoised: 'preview', original: 'original' }));
     await click(button('btnSave'));
+    expect(calls(Invokes.SaveDenoisedImage)).toEqual([{ jobId: 1, originalPathStr: '/photos/a.raw' }]);
     expect(button('close').disabled).toBe(true);
     await click(backdrop());
     expect(state().denoiseModalState.isOpen).toBe(true);
     await act(async () => save.resolve('/photos/a_Denoised.tiff'));
     expect(button('openInEditor').disabled).toBe(false);
+    expect(calls(Invokes.CancelDenoise)).toHaveLength(0);
   });
 });

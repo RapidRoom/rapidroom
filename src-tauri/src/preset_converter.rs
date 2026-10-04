@@ -933,10 +933,52 @@ fn apply_rendered_pv2012_policy(
     }
 }
 
+fn unescape_xml(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    let mut rest = value;
+    while let Some(start) = rest.find('&') {
+        out.push_str(&rest[..start]);
+        rest = &rest[start..];
+        let decoded = rest.find(';').and_then(|end| {
+            let entity = &rest[1..end];
+            let c = match entity {
+                "amp" => Some('&'),
+                "lt" => Some('<'),
+                "gt" => Some('>'),
+                "quot" => Some('"'),
+                "apos" => Some('\''),
+                _ => entity
+                    .strip_prefix("#x")
+                    .or_else(|| entity.strip_prefix("#X"))
+                    .map(|hex| u32::from_str_radix(hex, 16))
+                    .or_else(|| entity.strip_prefix('#').map(|dec| dec.parse::<u32>()))
+                    .and_then(Result::ok)
+                    .and_then(char::from_u32),
+            };
+            c.map(|c| (c, end))
+        });
+        match decoded {
+            Some((c, end)) => {
+                out.push(c);
+                rest = &rest[end + 1..];
+            }
+            None => {
+                out.push('&');
+                rest = &rest[1..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 fn extract_xmp_name(xmp_content: &str) -> Option<String> {
     regex!(r#"(?s)<crs:Name>.*?<rdf:Alt>.*?<rdf:li[^>]*>([^<]+)</rdf:li>.*?</crs:Name>"#)
         .captures(xmp_content)
-        .and_then(|c| c.get(1).map(|m| m.as_str().trim().to_string()))
+        .and_then(|c| {
+            c.get(1)
+                .map(|m| unescape_xml(m.as_str()).trim().to_string())
+        })
 }
 
 fn extract_tone_curve_points(xmp_str: &str, curve_name: &str) -> Option<Vec<Value>> {
@@ -1608,6 +1650,7 @@ fn convert_xmp_to_preset_with_crop(
         include_masks: Some(false),
         include_crop_transform: Some(include_crop_transform),
         preset_type: Some("style".to_string()),
+        favorite: None,
     })
 }
 
