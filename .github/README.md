@@ -30,8 +30,10 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Bring your Lightroom edits along:** import XMP sidecars
 - **Pick and reject flags for culling,** separate from stars: P, X and U as in Lightroom, a flag filter, and rejects that darktable, Bridge and Lightroom understand.
 - **Presets at your fingertips.** Presets sit in the left sidebar as compact rows: hover to preview one on your photo, click to apply, and star favorites to pin them on top.
+- **Lights Out, Lightroom-style.** Press L to dim everything but the photo, again for pure black, Escape to come back. Good for judging night shots.
+- **Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains.
 
-54 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+59 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Why RapidRoom

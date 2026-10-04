@@ -50,6 +50,7 @@ import {
   User,
   Album as AlbumIcon,
   PencilSparkles,
+  SquareTerminal,
   Database,
   FolderSearch,
 } from 'lucide-react';
@@ -1322,6 +1323,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           onClick: () =>
             invoke(Invokes.ShowInFinder, { path: targetPath }).catch((err) =>
               toast.error(t('contextMenus.toasts.couldNotShowFolder', { err })),
+            ),
+        },
+        {
+          icon: SquareTerminal,
+          label: t('contextMenus.folders.openTerminal'),
+          onClick: () =>
+            invoke(Invokes.OpenTerminalHere, { path: targetPath }).catch((err) =>
+              toast.error(t('contextMenus.toasts.couldNotOpenTerminal', { err })),
             ),
         },
         {

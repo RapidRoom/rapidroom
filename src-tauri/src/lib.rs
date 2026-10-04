@@ -46,6 +46,8 @@ mod formats;
 mod gpu_processing;
 mod guided_perspective;
 mod hdr_deghosting;
+#[cfg(test)]
+mod hdr_fixtures;
 mod image_loader;
 mod image_processing;
 mod inpainting;
@@ -67,6 +69,7 @@ mod preset_converter;
 mod raw_processing;
 mod tagging;
 mod tagging_utils;
+mod terminal;
 #[cfg(test)]
 mod test_support;
 mod two_phase_rename;
@@ -419,6 +422,27 @@ async fn update_wgpu_transform(
     .map_err(|e| format!("Task panicked: {}", e))?;
 
     Ok(())
+}
+
+#[tauri::command]
+async fn sample_display_area(
+    x: f32,
+    y: f32,
+    radius: f32,
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<u8>, String> {
+    tokio::task::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let context = state
+            .gpu_context
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .ok_or("GPU context is not initialized")?;
+        crate::gpu_processing::read_display_area(&context, &state, (x, y), radius)
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {}", e))?
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2337,6 +2361,7 @@ pub fn run() {
             frontend_ready,
             cancel_thumbnail_generation,
             update_wgpu_transform,
+            sample_display_area,
             android_integration::resolve_android_content_uri_name,
             cache_utils::clear_session_caches,
             cache_utils::clear_image_caches,
@@ -2396,6 +2421,7 @@ pub fn run() {
             file_management::generate_export_filename,
             file_management::duplicate_file,
             file_management::show_in_finder,
+            terminal::open_terminal_here,
             file_management::delete_files_from_disk,
             file_management::delete_files_with_associated,
             file_management::save_metadata_and_update_thumbnail,

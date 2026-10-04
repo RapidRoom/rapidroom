@@ -124,6 +124,18 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     section: 'view',
   },
   {
+    action: 'cycle_lights_out',
+    description: 'settings.keybinds.actions.cycle_lights_out',
+    defaultCombo: ['KeyL'],
+    section: 'view',
+  },
+  {
+    action: 'cycle_lights_out_reverse',
+    description: 'settings.keybinds.actions.cycle_lights_out_reverse',
+    defaultCombo: ['shift', 'KeyL'],
+    section: 'view',
+  },
+  {
     action: 'show_original',
     description: 'settings.keybinds.actions.show_original',
     defaultCombo: ['KeyB'],
@@ -234,7 +246,7 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
   {
     action: 'toggle_folder_tree',
     description: 'settings.keybinds.actions.toggle_folder_tree',
-    defaultCombo: ['KeyL'],
+    defaultCombo: ['KeyN'],
     section: 'panels',
   },
   {
