@@ -34,7 +34,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains.
 - **Lens profiles that actually fit.** Distortion and vignetting from the Lensfun database are applied the way Lensfun defines them, including full frame lenses on APS-C bodies.
 
-59 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+60 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Why RapidRoom

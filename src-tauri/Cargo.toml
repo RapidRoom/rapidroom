@@ -142,4 +142,4 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-cli
 # proxies, CR3/ORF previews, zero-copy RawSource; `CyberTimon/RapidRAW-DngLab#10`).
 # Keep this patch until upstream includes these fixes.
 [patch."https://github.com/CyberTimon/RapidRAW-DngLab.git"]
-rawler = { git = "https://github.com/yojen7/RapidRAW-DngLab.git", rev = "f13d56ec1ee90d82a23ef9cc58b55cb28418915f" }
+rawler = { git = "https://github.com/yojen7/RapidRAW-DngLab.git", rev = "a98bd053c4a14c0c1105ee08a8deba8ce5e6ca5d" }
