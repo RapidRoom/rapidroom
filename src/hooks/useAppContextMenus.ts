@@ -47,6 +47,7 @@ import {
   User,
   Album as AlbumIcon,
   PencilSparkles,
+  SquareTerminal,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -1291,6 +1292,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           onClick: () =>
             invoke(Invokes.ShowInFinder, { path: targetPath }).catch((err) =>
               toast.error(t('contextMenus.toasts.couldNotShowFolder', { err })),
+            ),
+        },
+        {
+          icon: SquareTerminal,
+          label: t('contextMenus.folders.openTerminal'),
+          onClick: () =>
+            invoke(Invokes.OpenTerminalHere, { path: targetPath }).catch((err) =>
+              toast.error(t('contextMenus.toasts.couldNotOpenTerminal', { err })),
             ),
         },
         {

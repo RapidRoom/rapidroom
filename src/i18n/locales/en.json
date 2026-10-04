@@ -219,6 +219,7 @@
       "moveHere_one": "Move image here",
       "moveHere_other": "Move {{count}} images here",
       "newFolder": "New Folder",
+      "openTerminal": "Open Terminal Here",
       "paste": "Paste",
       "pin": "Pin Folder",
       "refresh": "Refresh Folders",
@@ -302,6 +303,7 @@
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
     "toasts": {
+      "couldNotOpenTerminal": "Could not open a terminal: {{err}}",
       "couldNotShowExplorer": "Could not show file in explorer: {{err}}",
       "couldNotShowFolder": "Could not show folder: {{err}}",
       "failedAddToAlbum": "Failed to add to album: {{err}}",

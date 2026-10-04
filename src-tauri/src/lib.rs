@@ -59,6 +59,7 @@ mod preset_converter;
 mod raw_processing;
 mod tagging;
 mod tagging_utils;
+mod terminal;
 mod window_customizer;
 
 use std::collections::{HashMap, hash_map::DefaultHasher};
@@ -2300,6 +2301,7 @@ pub fn run() {
             file_management::rename_files,
             file_management::duplicate_file,
             file_management::show_in_finder,
+            terminal::open_terminal_here,
             file_management::delete_files_from_disk,
             file_management::delete_files_with_associated,
             file_management::save_metadata_and_update_thumbnail,
