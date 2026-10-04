@@ -83,6 +83,9 @@ async function waitForAdjustmentRender(
   const expectedKey = JSON.stringify(expected);
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     const editor = useEditorStore.getState();
+    if (editor.selectedImage?.path !== path) {
+      throw new Error('Active image changed while waiting for the MCP edit preview');
+    }
     const rendered = editor.lastRenderedAdjustments;
     if (
       editor.selectedImage?.path === path &&
@@ -115,10 +118,11 @@ async function applyEdit(path: string, nextAdjustments: Adjustments): Promise<bo
 }
 
 async function syncState(path: string): Promise<McpStateResponse> {
-  return invoke<McpStateResponse>('sync_editor_state', {
-    path,
-    adjustments: useEditorStore.getState().adjustments,
-  });
+  const editor = useEditorStore.getState();
+  if (editor.selectedImage?.path !== path || !editor.selectedImage.isReady) {
+    throw new Error('Active image changed before the MCP command completed');
+  }
+  return invoke<McpStateResponse>('sync_editor_state', { path, adjustments: editor.adjustments });
 }
 
 function normalizeMcpAdjustments(adjustments: Adjustments): Adjustments {

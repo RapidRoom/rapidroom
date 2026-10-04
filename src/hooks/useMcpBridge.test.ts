@@ -138,6 +138,28 @@ describe('MCP editor bridge review', () => {
     expect(invoke.mock.calls.some(([name]) => name === 'reset_adjustments_for_paths')).toBe(false);
   });
 
+  it('does not mirror a new photo under the old path when it changes during a render wait', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    await mount();
+    await command('apply-adjustments', { ...INITIAL_ADJUSTMENTS, contrast: 20 });
+    expect(responses).toHaveLength(0);
+    const nextImage = { ...image, path: '/photos/b.raw' };
+    const nextEdit = { ...INITIAL_ADJUSTMENTS, exposure: 2 };
+    await act(async () => {
+      useEditorStore.setState({ selectedImage: nextImage, adjustments: nextEdit });
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    expect(responses).toHaveLength(1);
+    expect(responses[0]).toMatchObject({ error: expect.stringContaining('Active image changed') });
+    expect(useEditorStore.getState().selectedImage?.path).toBe(nextImage.path);
+    expect(useEditorStore.getState().adjustments).toEqual(nextEdit);
+    const writes = invoke.mock.calls.filter(([name]) => name === 'sync_editor_state');
+    expect(writes).not.toContainEqual([
+      'sync_editor_state',
+      expect.objectContaining({ path, adjustments: expect.objectContaining({ exposure: 2 }) }),
+    ]);
+  });
+
   it('reports an applied edit as renderPending at 40 seconds instead of losing it', async () => {
     useEditorStore.setState({ selectedImage: image });
     await mount();
