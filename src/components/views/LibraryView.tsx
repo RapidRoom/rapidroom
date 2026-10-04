@@ -177,30 +177,32 @@ export default function LibraryView({
           />
         )}
         {rootPaths && rootPaths.length > 0 && (
-          <BottomBar
-            isCopied={isCopied}
-            isCopyDisabled={multiSelectedPaths.length !== 1}
-            isExportDisabled={multiSelectedPaths.length === 0}
-            isLibraryView={true}
-            layoutMode={layoutMode}
-            isPasted={isPasted}
-            isPasteDisabled={useEditorStore.getState().copiedAdjustments === null || multiSelectedPaths.length === 0}
-            isRatingDisabled={multiSelectedPaths.length === 0}
-            isResetDisabled={multiSelectedPaths.length === 0}
-            multiSelectedPaths={multiSelectedPaths}
-            onCopy={handleCopyAdjustments}
-            onExportClick={() =>
-              setUI((state) => ({ isLibraryExportPanelVisible: !state.isLibraryExportPanelVisible }))
-            }
-            onOpenCopyPasteSettings={() => setUI({ isCopyPasteSettingsModalOpen: true })}
-            onPaste={() => handlePasteAdjustments()}
-            onRate={handleRate}
-            onReset={() => handleResetAdjustments()}
-            rating={imageRatings[libraryActivePath || ''] || 0}
-            flag={getImageFlag(imageList, libraryActivePath)}
-            thumbnailAspectRatio={thumbnailAspectRatio}
-            totalImages={imageList.length}
-          />
+          <div className="lights-out-chrome shrink-0">
+            <BottomBar
+              isCopied={isCopied}
+              isCopyDisabled={multiSelectedPaths.length !== 1}
+              isExportDisabled={multiSelectedPaths.length === 0}
+              isLibraryView={true}
+              layoutMode={layoutMode}
+              isPasted={isPasted}
+              isPasteDisabled={useEditorStore.getState().copiedAdjustments === null || multiSelectedPaths.length === 0}
+              isRatingDisabled={multiSelectedPaths.length === 0}
+              isResetDisabled={multiSelectedPaths.length === 0}
+              multiSelectedPaths={multiSelectedPaths}
+              onCopy={handleCopyAdjustments}
+              onExportClick={() =>
+                setUI((state) => ({ isLibraryExportPanelVisible: !state.isLibraryExportPanelVisible }))
+              }
+              onOpenCopyPasteSettings={() => setUI({ isCopyPasteSettingsModalOpen: true })}
+              onPaste={() => handlePasteAdjustments()}
+              onRate={handleRate}
+              onReset={() => handleResetAdjustments()}
+              rating={imageRatings[libraryActivePath || ''] || 0}
+              flag={getImageFlag(imageList, libraryActivePath)}
+              thumbnailAspectRatio={thumbnailAspectRatio}
+              totalImages={imageList.length}
+            />
+          </div>
         )}
       </div>
     </div>
