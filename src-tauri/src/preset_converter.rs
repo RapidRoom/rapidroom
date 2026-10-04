@@ -1141,6 +1141,60 @@ fn convert_xmp_sidecar_to_preset_with_as_shot_temperature(
     convert_xmp_to_preset_with_crop(xmp_content, true, as_shot_temperature, None, None)
 }
 
+/// Lightroom settings in a sidecar that the import could not carry over, as
+/// stable keys for the import report.
+pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) -> Vec<&'static str> {
+    let Ok(attrs) = parse_xmp_attributes(xmp_content) else {
+        return Vec::new();
+    };
+    let mut items = Vec::new();
+
+    // Lightroom Classic sidecars carry no as-shot values, so a custom white
+    // balance often can't be turned into RapidRAW's relative controls.
+    let custom_white_balance = attrs
+        .get("WhiteBalance")
+        .is_some_and(|value| !value.eq_ignore_ascii_case("As Shot"));
+    if custom_white_balance
+        && preset.adjustments.get("temperature").is_none()
+        && preset.adjustments.get("tint").is_none()
+    {
+        items.push("whiteBalance");
+    }
+
+    // Only a look's tone curve is imported, never its colour table.
+    let has_profile_look = regex!(r"(?s)<crs:Look>(.*?)</crs:Look>")
+        .captures_iter(xmp_content)
+        .any(|captures| {
+            extract_namespaced_scalar(&captures[1], "crs", "Amount")
+                .and_then(|value| value.parse::<f64>().ok())
+                .is_none_or(|amount| amount > 0.0)
+        });
+    if has_profile_look {
+        items.push("profileLook");
+    }
+
+    // An already applied AI Denoise lives in the enhanced DNG's pixels.
+    if attrs.keys().any(|key| key.starts_with("EnhanceDenoise"))
+        && !is_xmp_true(attrs.get("EnhanceDenoiseAlreadyApplied"))
+    {
+        items.push("aiDenoise");
+    }
+
+    if regex!(
+        r"(?s)<crs:(?:MaskGroupBasedCorrections|PaintBasedCorrections|GradientBasedCorrections|CircularGradientBasedCorrections)>\s*<rdf:Seq>\s*<rdf:li"
+    )
+    .is_match(xmp_content)
+    {
+        items.push("masks");
+    }
+
+    if regex!(r"(?s)<crs:PointColors>\s*<rdf:Seq>\s*<rdf:li").is_match(xmp_content) {
+        items.push("pointColor");
+    }
+
+    items
+}
+
 fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, String> {
     // Lightroom sidecars can contain nested rdf:Description elements for
     // profiles and looks. Only the outer description represents the image's
@@ -2528,6 +2582,79 @@ mod tests {
             (full_shift - 2 * half_shift).abs() <= 1,
             "{full_shift} {half_shift}"
         );
+    }
+
+    fn not_transferred(xmp: &str) -> Vec<&'static str> {
+        let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
+        lightroom_settings_not_transferred(xmp, &preset)
+    }
+
+    #[test]
+    fn reports_lightroom_settings_that_were_not_transferred() {
+        let xmp = format!(
+            r#"<rdf:Description
+                crs:WhiteBalance="Custom"
+                crs:Temperature="5600"
+                crs:Tint="+10"
+                crs:EnhanceDenoiseVersion="1"
+                crs:EnhanceDenoiseLumaAmount="50">
+              {ADOBE_COLOR_LOOK}
+              <crs:MaskGroupBasedCorrections>
+                <rdf:Seq>
+                  <rdf:li><rdf:Description crs:What="Correction" crs:LocalExposure2012="0.5" /></rdf:li>
+                </rdf:Seq>
+              </crs:MaskGroupBasedCorrections>
+              <crs:PointColors>
+                <rdf:Seq>
+                  <rdf:li>3.5, 0.6, 0.5, 0, 0, 0, 0</rdf:li>
+                </rdf:Seq>
+              </crs:PointColors>
+            </rdf:Description>"#
+        );
+
+        assert_eq!(
+            not_transferred(&xmp),
+            vec![
+                "whiteBalance",
+                "profileLook",
+                "aiDenoise",
+                "masks",
+                "pointColor"
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_nothing_for_a_fully_transferred_sidecar() {
+        for xmp in [
+            r#"<rdf:Description crs:WhiteBalance="As Shot" crs:Exposure2012="+0.5" />"#,
+            r#"<rdf:Description
+                crs:WhiteBalance="Custom"
+                crs:Temperature="5068"
+                crs:AsShotTemperature="4440" />"#,
+            r#"<rdf:Description
+                crs:Exposure2012="+0.5"
+                crs:EnhanceDenoiseAlreadyApplied="True"
+                crs:EnhanceDenoiseLumaAmount="50">
+              <crs:MaskGroupBasedCorrections>
+                <rdf:Seq />
+              </crs:MaskGroupBasedCorrections>
+            </rdf:Description>"#,
+        ] {
+            assert!(not_transferred(xmp).is_empty(), "{xmp}");
+        }
+    }
+
+    #[test]
+    fn reports_legacy_local_corrections_as_masks() {
+        let xmp = r#"<rdf:Description crs:Exposure2012="0">
+              <crs:GradientBasedCorrections>
+                <rdf:Seq>
+                  <rdf:li><rdf:Description crs:What="Correction" /></rdf:li>
+                </rdf:Seq>
+              </crs:GradientBasedCorrections>
+            </rdf:Description>"#;
+        assert_eq!(not_transferred(xmp), vec!["masks"]);
     }
 
     #[test]
