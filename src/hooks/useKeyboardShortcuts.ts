@@ -331,14 +331,14 @@ export const useKeyboardShortcuts = ({
         },
       },
       cycle_lights_out: {
-        shouldFire: (s: any) => s.ui.activeView === 'library' || s.ui.activeView === 'editor',
+        shouldFire: (s: StoreState) => s.ui.activeView === 'library' || s.ui.activeView === 'editor',
         execute: (e: KeyboardEvent, s: ReturnType<typeof getStoreState>) => {
           e.preventDefault();
           s.ui.cycleLightsOut(1);
         },
       },
       cycle_lights_out_reverse: {
-        shouldFire: (s: any) => s.ui.activeView === 'library' || s.ui.activeView === 'editor',
+        shouldFire: (s: StoreState) => s.ui.activeView === 'library' || s.ui.activeView === 'editor',
         execute: (e: KeyboardEvent, s: ReturnType<typeof getStoreState>) => {
           e.preventDefault();
           s.ui.cycleLightsOut(-1);
