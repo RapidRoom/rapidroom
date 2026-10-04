@@ -46,6 +46,10 @@ export function useAndroidBackHandler() {
         ui.setUI({ isRenameAlbumModalOpen: false });
         return;
       }
+      if (ui.lightroomImportCatalog) {
+        ui.setUI({ lightroomImportCatalog: null });
+        return;
+      }
       if (ui.panoramaModalState.isOpen) {
         ui.setUI({
           panoramaModalState: {

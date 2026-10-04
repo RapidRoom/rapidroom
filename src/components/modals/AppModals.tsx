@@ -19,6 +19,7 @@ import ConfirmModal from './ConfirmModal';
 import ImportSettingsModal from './ImportSettingsModal';
 import CullingModal from './CullingModal';
 import CollageModal from './CollageModal';
+import LightroomImportModal from './LightroomImportModal';
 import { AppSettings, Invokes, AlbumItem, Album, AlbumGroup } from '../ui/AppProperties';
 import { CopyPasteSettings } from '../../utils/adjustments';
 
@@ -44,6 +45,7 @@ export interface AppModalsProps {
   handleSaveCollage: (base64Data: string, firstPath: string) => Promise<string>;
   handleCreateAlbumItem: (name: string, type: 'album' | 'group') => Promise<void>;
   handleRenameAlbumItem: (newName: string) => Promise<void>;
+  refreshAllFolderTrees: () => Promise<void>;
 }
 
 export default function AppModals(props: AppModalsProps) {
@@ -68,6 +70,7 @@ export default function AppModals(props: AppModalsProps) {
     isCreateAlbumGroupModalOpen,
     isRenameAlbumModalOpen,
     albumActionTarget,
+    lightroomImportCatalog,
     confirmModalState,
     panoramaModalState,
     hdrModalState,
@@ -93,6 +96,7 @@ export default function AppModals(props: AppModalsProps) {
       isCreateAlbumGroupModalOpen: state.isCreateAlbumGroupModalOpen,
       isRenameAlbumModalOpen: state.isRenameAlbumModalOpen,
       albumActionTarget: state.albumActionTarget,
+      lightroomImportCatalog: state.lightroomImportCatalog,
       confirmModalState: state.confirmModalState,
       panoramaModalState: state.panoramaModalState,
       hdrModalState: state.hdrModalState,
@@ -313,6 +317,11 @@ export default function AppModals(props: AppModalsProps) {
         onSave={props.handleRenameAlbumItem}
         title={isAlbumGroup ? t('contextMenus.albums.renameGroup') : t('contextMenus.albums.renameAlbum')}
         placeholder={isAlbumGroup ? t('modals.renameGroup.placeholder') : t('modals.renameAlbum.placeholder')}
+      />
+      <LightroomImportModal
+        catalogPath={lightroomImportCatalog}
+        onClose={() => setUI({ lightroomImportCatalog: null })}
+        refreshAllFolderTrees={props.refreshAllFolderTrees}
       />
       <RenameFileModal
         filesToRename={renameTargetPaths}
