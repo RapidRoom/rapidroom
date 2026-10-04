@@ -110,7 +110,7 @@ export default function Controls() {
         ...prev,
         sectionVisibility: {
           ...currentVisibility,
-          [sectionName]: !currentVisibility[sectionName],
+          [sectionName]: !(currentVisibility[sectionName] ?? true),
         },
       };
     });

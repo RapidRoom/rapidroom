@@ -2032,7 +2032,7 @@ function SettingsPanel({
     const cur = container.adjustments;
     const vis = cur.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility;
     updateContainer(container.id, {
-      adjustments: { ...cur, sectionVisibility: { ...vis, [sectionName]: !vis[sectionName] } },
+      adjustments: { ...cur, sectionVisibility: { ...vis, [sectionName]: !(vis[sectionName] ?? true) } },
     });
   };
 
