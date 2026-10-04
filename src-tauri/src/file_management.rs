@@ -41,6 +41,7 @@ use crate::image_processing::{
     get_all_adjustments_from_json, perform_auto_analysis,
 };
 
+use crate::lrtemplate;
 use crate::mask_generation::MaskDefinition;
 use crate::preset_converter;
 use crate::tagging::COLOR_TAG_PREFIX;
@@ -351,9 +352,17 @@ pub struct PresetImportFailure {
 
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct PresetImportWarning {
+    pub file_name: String,
+    pub message: String,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct PresetImportResult {
     pub presets: Vec<PresetItem>,
     pub failures: Vec<PresetImportFailure>,
+    pub warnings: Vec<PresetImportWarning>,
 }
 
 #[derive(Debug)]
@@ -3628,7 +3637,7 @@ fn collect_top_level_preset_names(items: &[PresetItem]) -> HashSet<String> {
         .collect()
 }
 
-fn parse_preset_file(file_path: &str) -> Result<Vec<PresetItem>, String> {
+fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), String> {
     let lower_path = file_path.to_lowercase();
     let is_legacy = lower_path.ends_with(".xmp") || lower_path.ends_with(".lrtemplate");
 
@@ -3637,26 +3646,34 @@ fn parse_preset_file(file_path: &str) -> Result<Vec<PresetItem>, String> {
             .map_err(|e| format!("Failed to read preset file: {}", e))?;
         let preset_file: PresetFile = serde_json::from_str(&content)
             .map_err(|e| format!("Failed to parse preset file: {}", e))?;
-        return Ok(preset_file.presets);
+        return Ok((preset_file.presets, Vec::new()));
     }
 
     let content = fs::read_to_string(file_path)
         .map_err(|e| format!("Failed to read legacy preset file: {}", e))?;
 
+    let mut warnings = Vec::new();
     let xmp_content = if lower_path.ends_with(".lrtemplate") {
         if let Some(caps) = regex!(r#"(?s)s.xmp = "(.*)""#).captures(&content) {
             caps.get(1)
                 .map(|m| m.as_str().replace(r#"\""#, r#"""#))
                 .unwrap_or(content)
         } else {
-            content
+            let converted = lrtemplate::lrtemplate_to_xmp(&content)?;
+            if !converted.unsupported.is_empty() {
+                warnings.push(format!(
+                    "Settings not imported: {}",
+                    converted.unsupported.join(", ")
+                ));
+            }
+            converted.xmp
         }
     } else {
         content
     };
 
     let converted_preset = preset_converter::convert_xmp_to_preset(&xmp_content)?;
-    Ok(vec![PresetItem::Preset(converted_preset)])
+    Ok((vec![PresetItem::Preset(converted_preset)], warnings))
 }
 
 fn merge_imported_items(
@@ -3700,7 +3717,10 @@ fn import_preset_file_into_library(
     file_path: &str,
     app_handle: AppHandle,
 ) -> Result<Vec<PresetItem>, String> {
-    let imported = parse_preset_file(file_path)?;
+    let (imported, warnings) = parse_preset_file(file_path)?;
+    for warning in warnings {
+        log::warn!("{}: {}", preset_file_display_name(file_path), warning);
+    }
 
     let mut current_presets = load_presets(app_handle.clone())?;
     let mut taken_names = collect_top_level_preset_names(&current_presets);
@@ -3735,11 +3755,20 @@ pub fn handle_import_presets_from_files(
     let mut taken_names = collect_top_level_preset_names(&current_presets);
 
     let mut failures: Vec<PresetImportFailure> = Vec::new();
+    let mut warnings: Vec<PresetImportWarning> = Vec::new();
     let mut library_changed = false;
 
     for file_path in &file_paths {
         match parse_preset_file(file_path) {
-            Ok(imported) => {
+            Ok((imported, file_warnings)) => {
+                warnings.extend(
+                    file_warnings
+                        .into_iter()
+                        .map(|message| PresetImportWarning {
+                            file_name: preset_file_display_name(file_path),
+                            message,
+                        }),
+                );
                 library_changed |= !imported.is_empty();
                 merge_imported_items(&mut current_presets, &mut taken_names, imported);
             }
@@ -3757,6 +3786,7 @@ pub fn handle_import_presets_from_files(
     Ok(PresetImportResult {
         presets: current_presets,
         failures,
+        warnings,
     })
 }
 
