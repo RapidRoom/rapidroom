@@ -108,6 +108,11 @@ pub struct GeometryParams {
     pub vig_k1: f32,
     pub vig_k2: f32,
     pub vig_k3: f32,
+    /// Factor between the radius normalized to the half diagonal and the
+    /// radius that the Lensfun models expect. A value of 0.0 marks values
+    /// from an older sidecar file, which are evaluated the old way.
+    #[serde(default)]
+    pub lens_radius_scale: f32,
     #[serde(default)]
     pub guided_lines: Vec<GuideLine>,
     #[serde(default)]
@@ -140,6 +145,7 @@ impl Default for GeometryParams {
             vig_k1: 0.0,
             vig_k2: 0.0,
             vig_k3: 0.0,
+            lens_radius_scale: 0.0,
             guided_lines: Vec::new(),
             guided_perspective_enabled: false,
         }
@@ -210,6 +216,9 @@ pub fn get_geometry_params_from_json(adjustments: &serde_json::Value) -> Geometr
             .unwrap_or(0.0) as f32,
         vig_k3: lens_params
             .and_then(|p| p.get("vig_k3").and_then(|k| k.as_f64()))
+            .unwrap_or(0.0) as f32,
+        lens_radius_scale: lens_params
+            .and_then(|p| p.get("radius_scale").and_then(|k| k.as_f64()))
             .unwrap_or(0.0) as f32,
         guided_lines,
         guided_perspective_enabled,
@@ -602,22 +611,103 @@ fn solve_generic_distortion_inv(r_target: f64, k_scaled: f64) -> f64 {
     r
 }
 
+/// Distortion values of a Lensfun profile, read from `lensDistortionParams`.
+struct LensDistortion {
+    k1: f64,
+    k2: f64,
+    k3: f64,
+    is_ptlens: bool,
+    /// 0.0 marks values from an older sidecar file.
+    radius_scale: f64,
+    amount: f64,
+    enabled: bool,
+}
+
+impl LensDistortion {
+    fn new(params: &GeometryParams) -> Self {
+        let k1 = params.lens_dist_k1 as f64;
+        let k2 = params.lens_dist_k2 as f64;
+        let k3 = params.lens_dist_k3 as f64;
+        let radius_scale = params.lens_radius_scale as f64;
+        let amount = if radius_scale > 0.0 {
+            params.lens_distortion_amount as f64
+        } else {
+            // Values from an older sidecar file keep the old behaviour, so
+            // that an existing edit does not change.
+            (params.lens_distortion_amount as f64) * 2.5
+        };
+        Self {
+            k1,
+            k2,
+            k3,
+            is_ptlens: params.lens_model == 1,
+            radius_scale,
+            amount,
+            enabled: params.lens_distortion_enabled
+                && (k1.abs() > 1e-6 || k2.abs() > 1e-6 || k3.abs() > 1e-6),
+        }
+    }
+
+    /// Factor from the output radius to the source radius, with the amount
+    /// applied. The radius is normalized to the half diagonal.
+    fn scale(&self, ru_norm: f64) -> f64 {
+        let rd_norm = ru_norm * self.factor_and_slope(ru_norm).0;
+        let effective_r_norm = ru_norm + (rd_norm - ru_norm) * self.amount;
+        effective_r_norm / ru_norm
+    }
+
+    /// The ratio and the derivative of the distorted radius.
+    fn factor_and_slope(&self, ru_norm: f64) -> (f64, f64) {
+        let (k1, k2, k3) = (self.k1, self.k2, self.k3);
+        if self.radius_scale > 0.0 {
+            // Lensfun defines r = 1 at the middle of the long edge. The
+            // scale also carries the crop factor of the calibration.
+            let t = ru_norm * self.radius_scale;
+            if self.is_ptlens {
+                let factor = 1.0 + k1 * t + k2 * t * t + k3 * t * t * t;
+                let slope = 1.0 + 2.0 * k1 * t + 3.0 * k2 * t * t + 4.0 * k3 * t * t * t;
+                (factor, slope)
+            } else {
+                let t2 = t * t;
+                let factor = 1.0 + k1 * t2 + k2 * (t2 * t2);
+                let slope = 1.0 + 3.0 * k1 * t2 + 5.0 * k2 * (t2 * t2);
+                (factor, slope)
+            }
+        } else {
+            // Values from an older sidecar file, evaluated the old way.
+            let ru_norm2 = ru_norm * ru_norm;
+            if self.is_ptlens {
+                let (a, b, c) = (k1, k2, k3);
+                let d = 1.0 - a - b - c;
+                let factor = a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d;
+                let slope =
+                    4.0 * a * ru_norm2 * ru_norm + 3.0 * b * ru_norm2 + 2.0 * c * ru_norm + d;
+                (factor, slope)
+            } else {
+                let factor = 1.0
+                    + k1 * ru_norm2
+                    + k2 * (ru_norm2 * ru_norm2)
+                    + k3 * (ru_norm2 * ru_norm2 * ru_norm2);
+                let factor_prime = 2.0 * k1 * ru_norm
+                    + 4.0 * k2 * ru_norm2 * ru_norm
+                    + 6.0 * k3 * (ru_norm2 * ru_norm2) * ru_norm;
+                (factor, factor + ru_norm * factor_prime)
+            }
+        }
+    }
+}
+
 fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32) -> f64 {
     let cx = (width / 2.0) as f64;
     let cy = (height / 2.0) as f64;
     let half_diagonal = (cx * cx + cy * cy).sqrt();
     let max_radius_sq_inv = 1.0 / (cx * cx + cy * cy);
 
-    let lk1 = params.lens_dist_k1 as f64;
-    let lk2 = params.lens_dist_k2 as f64;
-    let lk3 = params.lens_dist_k3 as f64;
-    let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+    let lens = LensDistortion::new(params);
 
     let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
 
-    let has_lens_correction = params.lens_distortion_enabled
-        && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
-    let is_ptlens = params.lens_model == 1;
+    let has_lens_correction = lens.enabled;
 
     let sample_points: [(f64, f64); 8] = [
         (cx, 0.0),
@@ -644,25 +734,7 @@ fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32
         let mut mapped_dy = dy;
 
         if has_lens_correction {
-            let ru_norm = ru / half_diagonal;
-            let ru_norm2 = ru_norm * ru_norm;
-
-            let rd_norm = if is_ptlens {
-                let a = lk1;
-                let b = lk2;
-                let c = lk3;
-                let d = 1.0 - a - b - c;
-                ru_norm * (a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d)
-            } else {
-                ru_norm
-                    * (1.0
-                        + lk1 * ru_norm2
-                        + lk2 * (ru_norm2 * ru_norm2)
-                        + lk3 * (ru_norm2 * ru_norm2 * ru_norm2))
-            };
-
-            let effective_r_norm = ru_norm + (rd_norm - ru_norm) * lens_dist_amt;
-            let scale = effective_r_norm / ru_norm;
+            let scale = lens.scale(ru / half_diagonal);
 
             mapped_dx *= scale;
             mapped_dy *= scale;
@@ -709,14 +781,9 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
     let hd = half_diagonal;
 
     let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
-    let lk1 = params.lens_dist_k1 as f64;
-    let lk2 = params.lens_dist_k2 as f64;
-    let lk3 = params.lens_dist_k3 as f64;
-    let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+    let lens = LensDistortion::new(&params);
 
-    let has_lens_correction = params.lens_distortion_enabled
-        && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
-    let is_ptlens = params.lens_model == 1;
+    let has_lens_correction = lens.enabled;
 
     let auto_crop_scale = if has_lens_correction || k_distortion.abs() > 1e-5 {
         compute_lens_auto_crop_scale(&params, width as f32, height as f32) as f32
@@ -779,25 +846,7 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
                         let ru = (dx * dx + dy * dy).sqrt();
 
                         if ru > 1e-6 {
-                            let ru_norm = ru / hd;
-                            let ru_norm2 = ru_norm * ru_norm;
-
-                            let rd_norm = if is_ptlens {
-                                let a = lk1;
-                                let b = lk2;
-                                let c = lk3;
-                                let d = 1.0 - a - b - c;
-                                ru_norm * (a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d)
-                            } else {
-                                ru_norm
-                                    * (1.0
-                                        + lk1 * ru_norm2
-                                        + lk2 * (ru_norm2 * ru_norm2)
-                                        + lk3 * (ru_norm2 * ru_norm2 * ru_norm2))
-                            };
-
-                            let effective_r_norm = ru_norm + (rd_norm - ru_norm) * lens_dist_amt;
-                            let scale = effective_r_norm / ru_norm;
+                            let scale = lens.scale(ru / hd);
 
                             src_x = cx + (dx * scale) as f32;
                             src_y = cy + (dy * scale) as f32;
@@ -861,14 +910,9 @@ pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams
     let hd = half_diagonal;
 
     let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
-    let lk1 = params.lens_dist_k1 as f64;
-    let lk2 = params.lens_dist_k2 as f64;
-    let lk3 = params.lens_dist_k3 as f64;
-    let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+    let lens = LensDistortion::new(&params);
 
-    let has_lens_correction = params.lens_distortion_enabled
-        && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
-    let is_ptlens = params.lens_model == 1;
+    let has_lens_correction = lens.enabled;
 
     let auto_crop_scale = if has_lens_correction || k_distortion.abs() > 1e-5 {
         compute_lens_auto_crop_scale(&params, width as f32, height as f32) as f32
@@ -916,36 +960,11 @@ pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams
 
                         for _ in 0..8 {
                             let ru_norm = ru / hd;
-                            let ru_norm2 = ru_norm * ru_norm;
+                            let (factor, f_prime) = lens.factor_and_slope(ru_norm);
+                            let f_val = ru * factor;
 
-                            let (f_val, f_prime) = if is_ptlens {
-                                let a = lk1;
-                                let b = lk2;
-                                let c = lk3;
-                                let d = 1.0 - a - b - c;
-                                let poly = a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d;
-
-                                let val = ru * poly;
-                                let prime = 4.0 * a * ru_norm2 * ru_norm
-                                    + 3.0 * b * ru_norm2
-                                    + 2.0 * c * ru_norm
-                                    + d;
-                                (val, prime)
-                            } else {
-                                let poly = 1.0
-                                    + lk1 * ru_norm2
-                                    + lk2 * (ru_norm2 * ru_norm2)
-                                    + lk3 * (ru_norm2 * ru_norm2 * ru_norm2);
-                                let val = ru * poly;
-                                let poly_prime = 2.0 * lk1 * ru_norm
-                                    + 4.0 * lk2 * ru_norm2 * ru_norm
-                                    + 6.0 * lk3 * (ru_norm2 * ru_norm2) * ru_norm;
-                                let prime = poly + ru_norm * poly_prime;
-                                (val, prime)
-                            };
-
-                            let g_val = ru + (f_val - ru) * lens_dist_amt - rd;
-                            let g_prime = 1.0 + (f_prime - 1.0) * lens_dist_amt;
+                            let g_val = ru + (f_val - ru) * lens.amount - rd;
+                            let g_prime = 1.0 + (f_prime - 1.0) * lens.amount;
 
                             if g_prime.abs() < 1e-7 {
                                 break;
@@ -1093,14 +1112,9 @@ pub fn inverse_transform_point(
         let mut src_y = (vec.y as f64) * inv_z;
 
         let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
-        let lk1 = params.lens_dist_k1 as f64;
-        let lk2 = params.lens_dist_k2 as f64;
-        let lk3 = params.lens_dist_k3 as f64;
-        let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+        let lens = LensDistortion::new(&params);
 
-        let has_lens_correction = params.lens_distortion_enabled
-            && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
-        let is_ptlens = params.lens_model == 1;
+        let has_lens_correction = lens.enabled;
 
         let auto_crop_scale = if has_lens_correction || k_distortion.abs() > 1e-5 {
             compute_lens_auto_crop_scale(&params, width, height)
@@ -1119,25 +1133,7 @@ pub fn inverse_transform_point(
             let ru = (dx * dx + dy * dy).sqrt();
 
             if ru > 1e-6 {
-                let ru_norm = ru / hd;
-                let ru_norm2 = ru_norm * ru_norm;
-
-                let rd_norm = if is_ptlens {
-                    let a = lk1;
-                    let b = lk2;
-                    let c = lk3;
-                    let d = 1.0 - a - b - c;
-                    ru_norm * (a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d)
-                } else {
-                    ru_norm
-                        * (1.0
-                            + lk1 * ru_norm2
-                            + lk2 * (ru_norm2 * ru_norm2)
-                            + lk3 * (ru_norm2 * ru_norm2 * ru_norm2))
-                };
-
-                let effective_r_norm = ru_norm + (rd_norm - ru_norm) * lens_dist_amt;
-                let scale = effective_r_norm / ru_norm;
+                let scale = lens.scale(ru / hd);
 
                 src_x = cx + (dx * scale);
                 src_y = cy + (dy * scale);
@@ -3735,5 +3731,89 @@ mod white_balance_sample_tests {
         let s = compute_white_balance_sample(&img, true, &diamond).unwrap();
         assert!(s.count < 16);
         assert!(s.temperature.abs() < 1e-4);
+    }
+}
+
+#[cfg(test)]
+mod lens_tests {
+    use super::*;
+
+    fn base_params() -> GeometryParams {
+        GeometryParams {
+            lens_distortion_amount: 1.0,
+            lens_tca_amount: 1.0,
+            lens_vignette_amount: 1.0,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn lensfun_poly_model_uses_the_radius_scale() {
+        // m(t) = 1 + k1*t^2 + k2*t^4 with t = r * radius_scale.
+        let mut params = base_params();
+        params.lens_dist_k1 = -0.02;
+        params.lens_radius_scale = 1.8028;
+        let lens = LensDistortion::new(&params);
+        assert!(lens.enabled);
+
+        // The scale is stored as f32, so the test uses the stored value.
+        let t = params.lens_radius_scale as f64;
+        let expected = 1.0 + (params.lens_dist_k1 as f64) * t * t;
+        assert!(
+            (lens.scale(1.0) - expected).abs() < 1e-9,
+            "{} instead of {}",
+            lens.scale(1.0),
+            expected
+        );
+
+        // The amount blends between 1.0 and the model value, without the
+        // amplification that the old code applied.
+        params.lens_distortion_amount = 0.5;
+        let lens = LensDistortion::new(&params);
+        let half = 1.0 + (expected - 1.0) * 0.5;
+        assert!((lens.scale(1.0) - half).abs() < 1e-9);
+    }
+
+    #[test]
+    fn lensfun_ptlens_model_uses_the_radius_scale() {
+        // m(t) = 1 + k1*t + k2*t^2 + k3*t^3.
+        let mut params = base_params();
+        params.lens_model = 1;
+        params.lens_dist_k1 = -0.004;
+        params.lens_dist_k2 = -0.089;
+        params.lens_dist_k3 = 0.025;
+        params.lens_radius_scale = 1.8028;
+        let lens = LensDistortion::new(&params);
+
+        let t = params.lens_radius_scale as f64;
+        let expected = 1.0
+            + (params.lens_dist_k1 as f64) * t
+            + (params.lens_dist_k2 as f64) * t * t
+            + (params.lens_dist_k3 as f64) * t * t * t;
+        assert!(
+            (lens.scale(1.0) - expected).abs() < 1e-9,
+            "{} instead of {}",
+            lens.scale(1.0),
+            expected
+        );
+    }
+
+    #[test]
+    fn old_sidecar_values_keep_the_old_behaviour() {
+        // Without a radius scale the values come from an older sidecar file.
+        // They keep the old evaluation, amplified by 2.5.
+        let mut params = base_params();
+        params.lens_dist_k1 = -0.02;
+        params.lens_radius_scale = 0.0;
+        let lens = LensDistortion::new(&params);
+        assert!(lens.enabled);
+
+        let expected = 1.0 + (params.lens_dist_k1 as f64) * 2.5;
+        assert!(
+            (lens.scale(1.0) - expected).abs() < 1e-9,
+            "{} instead of {}",
+            lens.scale(1.0),
+            expected
+        );
     }
 }
