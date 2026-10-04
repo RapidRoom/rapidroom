@@ -745,13 +745,13 @@
       "title": "Lights Out viewing in Library and Editor: L cycles Normal → Dim → Black, Shift+L goes back, Escape restores",
       "category": "feature",
       "landed": "2026-10-04",
-      "authors": ["zeromeridian"],
+      "authors": ["zeromeridian", "yojen7"],
       "source": "zeromeridian/RapidRAW-Enhanced",
       "commits": ["https://github.com/zeromeridian/RapidRAW-Enhanced/commit/69bdb283246c7c6746f88c7c0c22d88b7e90ae94"],
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Only the app chrome around the photo is dimmed or hidden; the preview and exports are untouched. Toggle folder tree moved from L to N to free the key. Black also switches the window to fullscreen and restores it afterwards.",
+      "notes": "Only the app chrome around the photo is dimmed or hidden; the preview and exports are untouched. Toggle folder tree moved from L to N to free the key. Black also switches the window to fullscreen and restores it afterwards. Local Codex review integrates Reference View and pick/reject controls, and serializes native fullscreen entry/restore to preserve the original window state during rapid mode changes; six async tests cover cancellation, restore races and native failures.",
       "highlight": "**Lights Out, Lightroom-style.** Press L to dim everything but the photo, again for pure black, Escape to come back. Good for judging night shots."
     }
   ]

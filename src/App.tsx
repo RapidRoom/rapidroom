@@ -1,3 +1,4 @@
+import { createLightsOutFullscreenController } from './utils/lightsOutFullscreen';
 import { type PointerEvent as ReactPointerEvent, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -663,41 +664,14 @@ function App() {
     };
   }, [setUI]);
 
-  const wasWindowFullscreenBeforeBlackRef = useRef<boolean | null>(null);
-  const lightsOutFullscreenTransitionRef = useRef(0);
+  const lightsOutFullscreenRef = useRef<ReturnType<typeof createLightsOutFullscreenController> | null>(null);
   useEffect(() => {
     if (isAndroid) return;
-    const transition = ++lightsOutFullscreenTransitionRef.current;
-    const appWindow = getCurrentWindow();
-
-    const synchronizeBlackFullscreen = async () => {
-      if (lightsOutMode === 'black') {
-        if (wasWindowFullscreenBeforeBlackRef.current !== null) return;
-
-        const wasFullscreen = await appWindow.isFullscreen();
-        if (transition !== lightsOutFullscreenTransitionRef.current) return;
-
-        wasWindowFullscreenBeforeBlackRef.current = wasFullscreen;
-        if (!wasFullscreen) {
-          await appWindow.setFullscreen(true);
-          if (useUIStore.getState().lightsOutMode !== 'black') {
-            await appWindow.setFullscreen(false);
-          }
-        }
-        return;
-      }
-
-      const wasFullscreen = wasWindowFullscreenBeforeBlackRef.current;
-      if (wasFullscreen === null) return;
-
-      wasWindowFullscreenBeforeBlackRef.current = null;
-      if (!wasFullscreen && (await appWindow.isFullscreen())) {
-        if (transition !== lightsOutFullscreenTransitionRef.current) return;
-        await appWindow.setFullscreen(false);
-      }
-    };
-
-    synchronizeBlackFullscreen().catch((err) => console.error('Failed to sync Lights Out fullscreen:', err));
+    const controller = lightsOutFullscreenRef.current ?? createLightsOutFullscreenController(getCurrentWindow());
+    lightsOutFullscreenRef.current = controller;
+    controller
+      .setBlack(lightsOutMode === 'black')
+      .catch((err) => console.error('Failed to sync Lights Out fullscreen:', err));
   }, [lightsOutMode, isAndroid]);
 
   const handlePanelSelect = useCallback(
