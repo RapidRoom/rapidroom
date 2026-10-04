@@ -944,29 +944,9 @@ fn extract_tone_curve_points(xmp_str: &str, curve_name: &str) -> Option<Vec<Valu
         let x: u32 = point_cap.get(1)?.as_str().parse().ok()?;
         let y: u32 = point_cap.get(2)?.as_str().parse().ok()?;
 
-        let mut final_y = y;
-        if curve_name == "ToneCurvePV2012" {
-            const SHADOW_RANGE_END: f64 = 64.0;
-            const SHADOW_DAMPEN_START: f64 = 0.8;
-            const SHADOW_DAMPEN_END: f64 = 1.0;
-
-            let x_f64 = x as f64;
-            let y_f64 = y as f64;
-
-            if y_f64 > x_f64 && x_f64 < SHADOW_RANGE_END {
-                let lift_amount = y_f64 - x_f64;
-                let progress = x_f64 / SHADOW_RANGE_END;
-                let dampening_factor =
-                    SHADOW_DAMPEN_START + (SHADOW_DAMPEN_END - SHADOW_DAMPEN_START) * progress;
-
-                let new_y = x_f64 + (lift_amount * dampening_factor);
-                final_y = new_y.round().clamp(0.0, 255.0) as u32;
-            }
-        }
-
         let mut point = Map::new();
         point.insert("x".to_string(), Value::Number(x.into()));
-        point.insert("y".to_string(), Value::Number(final_y.into()));
+        point.insert("y".to_string(), Value::Number(y.into()));
         points.push(Value::Object(point));
     }
 
@@ -1103,13 +1083,8 @@ fn convert_xmp_to_preset_with_crop(
         ("Vibrance", "vibrance"),
         ("Saturation", "saturation"),
         ("Texture", "structure"),
-        ("SharpenRadius", "sharpenRadius"),
-        ("SharpenDetail", "sharpenDetail"),
-        ("SharpenEdgeMasking", "sharpenMasking"),
         ("LuminanceSmoothing", "lumaNoiseReduction"),
         ("ColorNoiseReduction", "colorNoiseReduction"),
-        ("ColorNoiseReductionDetail", "colorNoiseDetail"),
-        ("ColorNoiseReductionSmoothness", "colorNoiseSmoothness"),
         ("ChromaticAberrationRedCyan", "chromaticAberrationRedCyan"),
         (
             "ChromaticAberrationBlueYellow",
@@ -1154,6 +1129,15 @@ fn convert_xmp_to_preset_with_crop(
         adjustments.insert(
             "sharpness".to_string(),
             json!(scaled_sharpness.clamp(0.0, 100.0)),
+        );
+    }
+
+    if let Some(masking) = get_attr_as_f64(&attrs, "SharpenEdgeMasking").filter(|v| v.is_finite()) {
+        // Lightroom's Masking runs 0-100 and RapidRAW's sharpening threshold
+        // slider 0-80; both leave flat areas unsharpened as they rise.
+        adjustments.insert(
+            "sharpnessThreshold".to_string(),
+            json!((masking * 0.8).clamp(0.0, 80.0)),
         );
     }
 
@@ -1753,7 +1737,7 @@ mod tests {
             preset.adjustments["curves"]["luma"],
             json!([
                 { "x": 0, "y": 0 },
-                { "x": 16, "y": 30 },
+                { "x": 16, "y": 32 },
                 { "x": 255, "y": 255 }
             ])
         );
@@ -2298,6 +2282,36 @@ mod tests {
             !adobe_camera_raw_already_applied(r#"<rdf:Description crs:AlreadyApplied="False" />"#)
                 .unwrap()
         );
+    }
+
+    #[test]
+    fn maps_sharpen_masking_and_drops_keys_nothing_reads() {
+        let preset = convert_adobe_camera_raw_xmp_to_preset(
+            r#"<rdf:Description
+                crs:Sharpness="40"
+                crs:SharpenRadius="+1.0"
+                crs:SharpenDetail="25"
+                crs:SharpenEdgeMasking="50"
+                crs:LuminanceSmoothing="10"
+                crs:ColorNoiseReduction="25"
+                crs:ColorNoiseReductionDetail="50"
+                crs:ColorNoiseReductionSmoothness="50" />"#,
+            XmpImageKind::Raw,
+        )
+        .unwrap();
+
+        assert_eq!(preset.adjustments["sharpnessThreshold"], json!(40.0));
+        assert_eq!(preset.adjustments["lumaNoiseReduction"], json!(10));
+        assert_eq!(preset.adjustments["colorNoiseReduction"], json!(25));
+        for dead_key in [
+            "sharpenRadius",
+            "sharpenDetail",
+            "sharpenMasking",
+            "colorNoiseDetail",
+            "colorNoiseSmoothness",
+        ] {
+            assert!(preset.adjustments.get(dead_key).is_none(), "{dead_key}");
+        }
     }
 
     #[test]
