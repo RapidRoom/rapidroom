@@ -2,6 +2,23 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lightroom-collections-import",
+      "title": "Import Lightroom Classic collections and collection sets from a .lrcat catalog as albums, with a preview of found and missing photos and relinking of moved root folders",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["Bennyyy27"],
+      "source": "Bennyyy27/RapidRAW, branch scs/compact-ui (adapted in RapidRoom: shared read-only catalog reader, preview dialog)",
+      "commits": [
+        "https://github.com/Bennyyy27/RapidRAW/commit/3bd74e26c6424d57daa8d404eb32fc8157de8b27",
+        "https://github.com/Bennyyy27/RapidRAW/commit/0cfa8dd9426fb5f86a3c0781b2f8c6f18083dbab"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Right-click an empty spot under Albums and choose Import Lightroom Collections. The catalog is only read: a closed catalog is opened as an immutable SQLite file, one with a leftover -wal or -journal file is read from a temporary copy, and a catalog that Lightroom Classic has open (.lock file) is refused. A preview lists collection sets, collections, found and missing photos, skipped smart collections, and each root folder with where it was found, so roots from a Windows or macOS catalog can be relinked before importing. Missing photos stay in their albums. Importing the same catalog again refreshes its group in place. Smart collections, books, slideshows, prints, web galleries and develop settings are not imported. Album saves are now atomic. Adds the rusqlite dependency (MIT; bundled SQLite is public domain). Not yet tested against a real Lightroom catalog in RapidRoom. Harvested with Claude Code.",
+      "highlight": "**Bring your Lightroom collections along:** import collection sets and collections from a catalog"
+    },
+    {
       "id": "wb-picker-original",
       "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
       "category": "fix",
