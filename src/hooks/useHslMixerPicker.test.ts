@@ -159,4 +159,27 @@ describe('useHslMixerPicker', () => {
     expect(useEditorStore.getState().isSliderDragging).toBe(false);
     await unmount();
   });
+  it.each(['color', 'colorMixer'] as const)('stops a drag when %s is bypassed', async (section) => {
+    const { setAdjustments, press, unmount } = await mountPicker();
+    await press(100);
+    await move(80);
+    await act(async () => {
+      useEditorStore.setState((state) => ({
+        adjustments: {
+          ...state.adjustments,
+          sectionVisibility: { ...state.adjustments.sectionVisibility, [section]: false },
+        },
+      }));
+    });
+    await move(40);
+    expect(redSaturation()).toBe(20);
+    expect(setAdjustments).toHaveBeenCalledTimes(1);
+    expect(useEditorStore.getState().mixerPickerProperty).toBeNull();
+    expect(useEditorStore.getState().isSliderDragging).toBe(false);
+    await press(100);
+    await move(60);
+    expect(redSaturation()).toBe(20);
+    expect(useEditorStore.getState().isSliderDragging).toBe(false);
+    await unmount();
+  });
 });

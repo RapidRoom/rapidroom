@@ -58,7 +58,12 @@ export function useHslMixerPicker({
   zoomScale,
   setAdjustments,
 }: HslMixerPickerOptions) {
-  const property = useEditorStore((state) => state.mixerPickerProperty);
+  const selectedProperty = useEditorStore((state) => state.mixerPickerProperty);
+  const mixerVisible = useEditorStore(
+    (state) =>
+      (state.adjustments.sectionVisibility?.color ?? true) && (state.adjustments.sectionVisibility?.colorMixer ?? true),
+  );
+  const property = mixerVisible ? selectedProperty : null;
   const setEditor = useEditorStore((state) => state.setEditor);
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<PickerDrag | null>(null);
@@ -221,7 +226,8 @@ export function useHslMixerPicker({
 
   useEffect(() => {
     if (!property) end();
-  }, [property, end]);
+    if (!mixerVisible && selectedProperty !== null) setEditor({ mixerPickerProperty: null });
+  }, [property, mixerVisible, selectedProperty, setEditor, end]);
 
   useEffect(
     () => () => {
