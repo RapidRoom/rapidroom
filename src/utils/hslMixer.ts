@@ -57,14 +57,21 @@ const bandInfluence = (hue: number, center: number, width: number) => {
 
 export const hslBandWeights = (r: number, g: number, b: number, property: HslMixerProperty): number[] => {
   if (Math.abs(r - g) < 0.001 && Math.abs(g - b) < 0.001) return HSL_RANGES.map(() => 0);
-  const [hue, saturation] = rgbToHueSat(Math.max(r, 0), Math.max(g, 0), Math.max(b, 0));
+  // Match apply_hsl_panel: neutral detection is in linear RGB, while hue
+  // and saturation are computed after linear_to_srgb_extended.
+  const encode = (channel: number) => {
+    const value = Math.max(channel, 0);
+    return value <= 0.0031308 ? 12.92 * value : 1.055 * value ** (1 / 2.4) - 0.055;
+  };
+  const [hue, saturation] = rgbToHueSat(encode(r), encode(g), encode(b));
   const gate = property === 'luminance' ? smoothstep(0, 1, saturation) : smoothstep(0.05, 0.2, saturation);
   const raw = HSL_RANGES.map(([center, width]) => bandInfluence(hue, center, width));
   const total = raw.reduce((sum, v) => sum + v, 0);
   return raw.map((v) => (v / total) * gate);
 };
 
-// The preview is sRGB-encoded; the shader's mixer weights bands by hue and saturation in linear RGB.
+// Decode preview bytes for the shader's linear neutral gate; hslBandWeights
+// then uses the current shader's perceptual sRGB hue and saturation.
 export const sampleHslPresence = (rgba: Uint8ClampedArray, property: HslMixerProperty): HslPresence => {
   const totals = HSL_RANGES.map(() => 0);
   const count = rgba.length / 4;
