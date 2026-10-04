@@ -15,6 +15,7 @@ import type { DenoiseMethod } from './DenoiseModal';
 import CreateFolderModal from './CreateFolderModal';
 import RenameFolderModal from './RenameFolderModal';
 import RenameFileModal from './RenameFileModal';
+import { RenameOptions } from '../../utils/batchRename';
 import ConfirmModal from './ConfirmModal';
 import ImportSettingsModal from './ImportSettingsModal';
 import CullingModal from './CullingModal';
@@ -36,7 +37,8 @@ export interface AppModalsProps {
   handleSaveDenoisedImage: () => Promise<string>;
   handleCreateFolder: (folderName: string) => Promise<void>;
   handleRenameFolder: (newName: string) => Promise<void>;
-  handleSaveRename: (nameTemplate: string) => Promise<void>;
+  handleSaveRename: (nameTemplate: string, options: RenameOptions) => Promise<void>;
+  handleUndoRename: () => Promise<void>;
   handleStartImport: (settings: any) => Promise<void>;
   handleSetColorLabel: (color: string | null, paths?: string[]) => Promise<void>;
   handleRate: (rating: number, paths?: string[]) => void;
@@ -74,7 +76,6 @@ export default function AppModals(props: AppModalsProps) {
     focusStackModalState,
     negativeModalState,
     denoiseModalState,
-    pendingDenoiseJob,
     closeDenoiseModal,
     cullingModalState,
     collageModalState,
@@ -99,7 +100,6 @@ export default function AppModals(props: AppModalsProps) {
       focusStackModalState: state.focusStackModalState,
       negativeModalState: state.negativeModalState,
       denoiseModalState: state.denoiseModalState,
-      pendingDenoiseJob: state.pendingDenoiseJob,
       closeDenoiseModal: state.closeDenoiseModal,
       cullingModalState: state.cullingModalState,
       collageModalState: state.collageModalState,
@@ -266,7 +266,8 @@ export default function AppModals(props: AppModalsProps) {
         onOpenFile={props.handleImageSelect}
         previewBase64={denoiseModalState.previewBase64}
         originalBase64={denoiseModalState.originalBase64 || null}
-        isProcessing={denoiseModalState.isProcessing || pendingDenoiseJob !== null}
+        isProcessing={denoiseModalState.isProcessing}
+        jobId={denoiseModalState.jobId}
         error={denoiseModalState.error}
         progressMessage={denoiseModalState.progressMessage}
         aiModelDownloadStatus={aiModelDownloadStatus}
@@ -319,6 +320,7 @@ export default function AppModals(props: AppModalsProps) {
         isOpen={isRenameFileModalOpen}
         onClose={() => setUI({ isRenameFileModalOpen: false })}
         onSave={props.handleSaveRename}
+        onUndo={props.handleUndoRename}
       />
       <ConfirmModal {...confirmModalState} onClose={closeConfirmModal} />
       <ImportSettingsModal
