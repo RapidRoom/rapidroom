@@ -2,6 +2,24 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "hsl-mixer-targeted",
+      "title": "Expanded Color Mixer: Hue, Saturation and Luminance tabs with all eight bands, and a pipette that adjusts the bands under the cursor as you drag up or down on the photo",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["lalibertemarc"],
+      "source": "lalibertemarc/RapidRAW",
+      "commits": [
+        "https://github.com/lalibertemarc/RapidRAW/commit/b5475ad8e3176386153d8c3a8fbdc7d21ba7c5a9",
+        "https://github.com/lalibertemarc/RapidRAW/commit/dffc46a161f6a9c35037348d9d62b1a5267a99ac",
+        "https://github.com/lalibertemarc/RapidRAW/commit/17173f2873b44f4f7d5f219df1e5e744b3e0dfa9"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "HSL math and defaults are unchanged; the pipette only sets the existing mixer sliders. Each band moves in proportion to how much of it is in the sampled square (dominant band 0.5 per pixel, Alt for fine steps), weighted in linear RGB like RapidRoom's shader. A drag is one undo step. Global mixer only, not masks. Adapted with Claude Code.",
+      "highlight": "**Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains."
+    },
+    {
       "id": "wb-picker-original",
       "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
       "category": "fix",
