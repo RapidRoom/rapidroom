@@ -1668,14 +1668,14 @@ mod tests {
         use rawler::decoders::Orientation;
 
         let marker = Rgba([255, 0, 0, 255]);
-        let mut image = RgbaImage::new(5, 3);
+        let mut image = RgbaImage::new(8, 4);
         image.put_pixel(1, 0, marker);
         let corrections = r#"<rdf:li crs:What="Correction" crs:CorrectionAmount="1"
             crs:CorrectionActive="true" crs:LocalExposure2012="0.1">
             <crs:CorrectionMasks><rdf:Seq><rdf:li crs:What="Mask/CircularGradient"
             crs:MaskActive="true" crs:MaskBlendMode="0" crs:MaskInverted="false"
-            crs:MaskValue="1" crs:Left="0.2" crs:Right="0.4"
-            crs:Top="0" crs:Bottom="0.3333333333333333" crs:Angle="0"
+            crs:MaskValue="1" crs:Left="0.125" crs:Right="0.25"
+            crs:Top="0" crs:Bottom="0.25" crs:Angle="0"
             crs:Feather="0" crs:Flipped="true"/></rdf:Seq></crs:CorrectionMasks></rdf:li>"#;
 
         for orientation in 1..=8 {
@@ -1690,12 +1690,12 @@ mod tests {
                 .unwrap();
             let attributes = format!(
                 r#"tiff:Orientation="{orientation}" crs:HasCrop="True"
-                crs:CropLeft="0.2" crs:CropRight="0.4"
-                crs:CropTop="0" crs:CropBottom="0.3333333333333333""#
+                crs:CropLeft="0.125" crs:CropRight="0.25"
+                crs:CropTop="0" crs:CropBottom="0.25""#
             );
             let xmp = sidecar_with_corrections(&attributes, corrections)
-                .replace(r#"tiff:ImageWidth="6000""#, r#"tiff:ImageWidth="5""#)
-                .replace(r#"tiff:ImageLength="4000""#, r#"tiff:ImageLength="3""#);
+                .replace(r#"tiff:ImageWidth="6000""#, r#"tiff:ImageWidth="8""#)
+                .replace(r#"tiff:ImageLength="4000""#, r#"tiff:ImageLength="4""#);
             let preset = convert_xmp_sidecar_to_preset(&xmp).unwrap();
             let crop = &preset.adjustments["crop"];
             for (key, expected) in [
