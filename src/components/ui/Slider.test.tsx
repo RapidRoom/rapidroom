@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, type ReactNode } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import Slider, { SliderDensity, SliderDensityScope } from './Slider';
@@ -29,13 +29,17 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mount(density: SliderDensity | undefined, value = 0) {
+function mount(
+  density: SliderDensity | undefined,
+  value = 0,
+  label: ReactNode = createElement('span', null, 'Exposure'),
+) {
   const onChange = vi.fn();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
   const slider = createElement(Slider, {
-    label: 'Exposure',
+    label,
     min: -100,
     max: 100,
     step: 1,
@@ -88,12 +92,21 @@ describe('Slider density', () => {
   });
 
   it('puts label, track and value on one row when compact', () => {
-    const { range, row } = mount('compact');
+    const { range, row } = mount('compact', 0, 'Exposure');
     expect(row.children).toHaveLength(3);
     expect(row.children[0].textContent).toContain('Exposure');
     expect(row.children[1].contains(range)).toBe(true);
     expect(row.children[2].textContent).toBe('0');
     expect(range.getAttribute('aria-label')).toBe('Exposure');
+  });
+
+  it('names a compact range and typed field when the visible label is a React node', () => {
+    const { range, row } = mount('compact');
+    const labelId = range.getAttribute('aria-labelledby');
+    expect(labelId).toBeTruthy();
+    expect(document.getElementById(labelId!)?.textContent).toBe('Exposure');
+    act(() => row.children[2].querySelector('span')!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(row.children[2].querySelector('input')?.getAttribute('aria-labelledby')).toBe(labelId);
   });
 
   it('gears a drag to the track width in the stacked layout', () => {
@@ -111,8 +124,8 @@ describe('Slider density', () => {
     expect(lastValue(onChange)).toBe(20);
   });
 
-  it('accepts typed values and double-click reset in compact mode', () => {
-    const { row, onChange } = mount('compact', 30);
+  it('opens the typed field and accepts double-click reset in compact mode', () => {
+    const { row, onChange } = mount('compact', 30, 'Exposure');
     const valueSpan = row.children[2].querySelector('span')!;
     act(() => valueSpan.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     const input = row.children[2].querySelector('input')!;

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useId, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GLOBAL_KEYS } from './AppProperties';
 
@@ -83,6 +83,7 @@ const Slider = ({
 }: SliderProps) => {
   const { t } = useTranslation();
   const contextDensity = useContext(SliderDensityContext);
+  const labelId = useId();
   const isCompact = (densityProp ?? contextDensity) === 'compact';
   const [displayValue, setDisplayValue] = useState<number>(value);
   const [isDragging, setIsDragging] = useState(false);
@@ -593,6 +594,7 @@ const Slider = ({
     <>
       <span
         ref={labelTextRef}
+        id={isCompact ? labelId : undefined}
         aria-hidden={isLabelHovered && isStringLabel}
         className={`col-start-1 row-start-1 text-sm font-medium text-text-secondary select-none ${
           isCompact ? 'truncate ' : ''
@@ -626,6 +628,7 @@ const Slider = ({
     <input
       className="w-full text-sm text-right bg-card-active border border-gray-500 rounded-sm px-1 py-0 outline-none focus:ring-1 focus:ring-blue-500 text-text-primary"
       disabled={disabled}
+      aria-labelledby={isCompact ? labelId : undefined}
       max={max}
       min={min}
       onBlur={handleInputCommit}
@@ -677,6 +680,7 @@ const Slider = ({
       <input
         ref={rangeInputRef}
         aria-label={isCompact && isStringLabel ? label : undefined}
+        aria-labelledby={isCompact && !isStringLabel ? labelId : undefined}
         className={`absolute top-1/2 left-0 w-full ${
           isCompact ? 'h-6' : 'h-7'
         } -translate-y-1/2 appearance-none bg-transparent cursor-pointer m-0 p-0 slider-input z-10 ${

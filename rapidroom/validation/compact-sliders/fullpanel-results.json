@@ -1,0 +1,4268 @@
+{
+  "scenarios": [
+    {
+      "dpi": 1,
+      "density": "comfortable",
+      "width": 240,
+      "subMask": false,
+      "theme": "dark",
+      "language": "de",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 160,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "comfortable",
+      "width": 240,
+      "subMask": true,
+      "theme": "light",
+      "language": "de",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 160,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "comfortable",
+      "width": 320,
+      "subMask": false,
+      "theme": "dark",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 240,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "comfortable",
+      "width": 320,
+      "subMask": true,
+      "theme": "light",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 240,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "comfortable",
+      "width": 420,
+      "subMask": false,
+      "theme": "dark",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 340,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "comfortable",
+      "width": 420,
+      "subMask": true,
+      "theme": "light",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 340,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "compact",
+      "width": 240,
+      "subMask": false,
+      "theme": "dark",
+      "language": "de",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Belichtung"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Kontrast"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Lichter"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Tiefen"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Weiß"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Schwarz"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Helligkeit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schärfe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schwellenwert"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Klarheit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Dunst entfernen"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Struktur"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Zentriert"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Luminanz"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Farbe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Rot/Cyan"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Blau/Gelb"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Deckkraft"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Belichtung"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Kontrast"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Lichter"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Tiefen"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Weiß"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Schwarz"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Helligkeit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schärfe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Klarheit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Dunst entfernen"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Struktur"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Luminanz"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Farbe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "compact",
+      "width": 240,
+      "subMask": true,
+      "theme": "light",
+      "language": "de",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Belichtung"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Kontrast"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Lichter"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Tiefen"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Weiß"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Schwarz"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Helligkeit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schärfe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schwellenwert"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Klarheit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Dunst entfernen"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Struktur"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Zentriert"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Luminanz"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Farbe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Rot/Cyan"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Blau/Gelb"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Deckkraft"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Weiche Kante"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Belichtung"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Kontrast"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Lichter"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Tiefen"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Weiß"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Schwarz"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Helligkeit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schärfe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Klarheit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Dunst entfernen"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Struktur"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Luminanz"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Farbe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "compact",
+      "width": 320,
+      "subMask": false,
+      "theme": "dark",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 94.40625,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Threshold"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Centré"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Color"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Red/Cyan"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Blue/Yellow"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Opacity"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Color"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "compact",
+      "width": 320,
+      "subMask": true,
+      "theme": "light",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 94.40625,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Threshold"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Centré"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Color"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Red/Cyan"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Blue/Yellow"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Opacity"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Feather"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Color"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "compact",
+      "width": 420,
+      "subMask": false,
+      "theme": "dark",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 164,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Threshold"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Centré"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Color"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Red/Cyan"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Blue/Yellow"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Opacity"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Color"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 1,
+      "density": "compact",
+      "width": 420,
+      "subMask": true,
+      "theme": "light",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 164,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Threshold"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Centré"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Color"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Red/Cyan"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Blue/Yellow"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Opacity"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Feather"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Color"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "comfortable",
+      "width": 240,
+      "subMask": false,
+      "theme": "dark",
+      "language": "de",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 160,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "comfortable",
+      "width": 240,
+      "subMask": true,
+      "theme": "light",
+      "language": "de",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 160,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 184,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 176,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "comfortable",
+      "width": 320,
+      "subMask": false,
+      "theme": "dark",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 240,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "comfortable",
+      "width": 320,
+      "subMask": true,
+      "theme": "light",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 240,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 264,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 256,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "comfortable",
+      "width": 420,
+      "subMask": false,
+      "theme": "dark",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 340,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "comfortable",
+      "width": 420,
+      "subMask": true,
+      "theme": "light",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 340,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 364,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            },
+            {
+              "width": 356,
+              "height": 28,
+              "aria": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "compact",
+      "width": 240,
+      "subMask": false,
+      "theme": "dark",
+      "language": "de",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Belichtung"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Kontrast"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Lichter"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Tiefen"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Weiß"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Schwarz"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Helligkeit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schärfe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schwellenwert"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Klarheit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Dunst entfernen"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Struktur"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Zentriert"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Luminanz"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Farbe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Rot/Cyan"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Blau/Gelb"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Deckkraft"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Belichtung"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Kontrast"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Lichter"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Tiefen"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Weiß"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Schwarz"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Helligkeit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schärfe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Klarheit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Dunst entfernen"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Struktur"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Luminanz"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Farbe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "compact",
+      "width": 240,
+      "subMask": true,
+      "theme": "light",
+      "language": "de",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Belichtung"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Kontrast"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Lichter"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Tiefen"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Weiß"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Schwarz"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Helligkeit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schärfe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schwellenwert"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Klarheit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Dunst entfernen"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Struktur"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Zentriert"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Luminanz"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Farbe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Rot/Cyan"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Blau/Gelb"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Deckkraft"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Weiche Kante"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Belichtung"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Kontrast"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Lichter"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Tiefen"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Weiß"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Schwarz"
+            },
+            {
+              "width": 56,
+              "height": 24,
+              "aria": "Helligkeit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Schärfe"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Klarheit"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Dunst entfernen"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Struktur"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Luminanz"
+            },
+            {
+              "width": 48,
+              "height": 24,
+              "aria": "Farbe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "compact",
+      "width": 320,
+      "subMask": false,
+      "theme": "dark",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 94.40625,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Threshold"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Centré"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Color"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Red/Cyan"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Blue/Yellow"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Opacity"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Color"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "compact",
+      "width": 320,
+      "subMask": true,
+      "theme": "light",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 94.40625,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Threshold"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Centré"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Color"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Red/Cyan"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Blue/Yellow"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Opacity"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Feather"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 110.25,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 104.96875,
+              "height": 24,
+              "aria": "Color"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "compact",
+      "width": 420,
+      "subMask": false,
+      "theme": "dark",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 164,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Threshold"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Centré"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Color"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Red/Cyan"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Blue/Yellow"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Opacity"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Color"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dpi": 2,
+      "density": "compact",
+      "width": 420,
+      "subMask": true,
+      "theme": "light",
+      "language": "en",
+      "panels": [
+        {
+          "panel": "controls",
+          "ranges": [
+            {
+              "width": 164,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Threshold"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Centré"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Color"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Red/Cyan"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Blue/Yellow"
+            }
+          ]
+        },
+        {
+          "panel": "masks",
+          "ranges": [
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Opacity"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Feather"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Exposure"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Contrast"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Highlights"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Shadows"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Whites"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Blacks"
+            },
+            {
+              "width": 188,
+              "height": 24,
+              "aria": "Brightness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Sharpness"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Clarity"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Dehaze"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Structure"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Luminance"
+            },
+            {
+              "width": 180,
+              "height": 24,
+              "aria": "Color"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Headless Chromium, synthetic store state, native preset loading mocked. No photo rendering or native desktop test."
+  ],
+  "complete": true
+}
