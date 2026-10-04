@@ -41,7 +41,7 @@ pub fn mcp_status(state: State<'_, AppState>) -> Value {
 
 use std::time::Duration;
 
-pub(crate) const PROTOCOL_VERSION: &str = "2026-07-28";
+pub(crate) const PROTOCOL_VERSION: rmcp::model::ProtocolVersion = rmcp::model::ProtocolVersion::LATEST;
 pub(crate) const DEFAULT_PORT: u16 = 7790;
 pub(crate) const MAX_HEADER_BYTES: usize = 32 * 1024;
 pub(crate) const MAX_BODY_BYTES: usize = 12 * 1024 * 1024;
