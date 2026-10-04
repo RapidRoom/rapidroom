@@ -1045,6 +1045,20 @@
       "highlight": "**Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains."
     },
     {
+      "id": "open-terminal-here",
+      "title": "Open Terminal Here: open your own terminal in a library folder, with RAPIDROOM_VERSION and RAPIDROOM_FOLDER set, so you can run Claude Code or Codex beside the editor",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Stopgap for the built-in terminal (RapidRoom #119, design note in rapidroom/TERMINAL.md). Folder context menu. Linux tries $TERMINAL, xdg-terminal-exec, then common terminals with their working-directory flags; macOS opens Terminal.app; Windows uses Windows Terminal or cmd. AppImage library paths are removed from the terminal's environment; Flatpak reports that it can't reach the host. The terminal program never comes from settings or the webview. No new dependencies or network connections. Written with Claude Code. Local review adds the explicit xdg-terminal-exec directory argument and preserves sibling environment paths whose names share the AppImage prefix, with regression tests."
+    },
+    {
       "id": "assistant-skill-plugin",
       "title": "RapidRoom skill and Claude Code plugin: editing workflow, adjustment reference generated from the code, tutor mode, source lookup and assistant-drafted issues",
       "category": "feature",

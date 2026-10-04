@@ -4,11 +4,13 @@ Issue #87, phase 1. This is a proposal for maintainer review. Nothing here chang
 
 The goal is Lightroom-level HDR merge for handheld brackets: motion deghosting, and a result that is a **linear DNG** you edit like any raw.
 
+Code facts below were checked against the current integration; prior-fork evaluations retain their recorded source commits. Phase 2, dependencies and rendering changes still need the maintainer decisions in §6.
+
 ## 1. What RapidRoom does today
 
 `merge_hdr` and `save_hdr` in `src-tauri/src/lib.rs`, plus `src-tauri/src/hdr_deghosting.rs`:
 
-1. **Load:** `load_hdr_frames` fully develops each frame, exactly like opening it in the editor. That covers demosaic, white balance, the camera-to-linear-sRGB matrix (rawler's `Calibrate` step), `recover_clipped_pixel` (which desaturates everything above 0.5 of white), and the raw colour-NR and sharpening pre-pass. ISO and exposure time come from EXIF; a frame without them is rejected.
+1. **Load:** `load_hdr_frames` fully develops each frame, exactly like opening it in the editor. That covers demosaic, white balance, the camera-to-linear-sRGB matrix (rawler's `Calibrate` step), `recover_clipped_pixel` (smooth magenta repair and color/brightness-dependent desaturation above 0.5 of white), and the raw colour-NR and sharpening pre-pass. ISO and exposure time come from EXIF; a frame without them is rejected.
 2. **Align:** `align_hdr_frames` uses FAST+BRIEF features on a downscaled grey proxy, then RANSAC for inliers, then a rigid (rotation + translation) fit. Every frame is warped to the middle frame. This came from upstream `CyberTimon/RapidRAW#1329` by alexdhill and is byte-identical to that PR. **Despite the module name, there is no per-pixel deghosting.**
 3. **Merge:** `image_hdr::hdr_merge_images` from the `image-hdr` 0.6 crate (Apache-2.0). Each frame is divided by `exposure_time × ISO`, then averaged with weights proportional to exposure time. There is no clipping handling, so clipped pixels from long frames are averaged in and pull the highlights down. There is no noise model either.
 4. **Finish:** `apply_histogram_stretch` maps the global min and max to 0..1 (it builds no histogram, so one hot pixel sets white). The result is then sRGB-encoded and saved as a 32-bit float TIFF, `<stem>_Hdr.tiff`. That is display-referred data in a float container: RapidRoom treats it as a non-raw image, so white balance and highlight latitude are gone.
@@ -40,7 +42,7 @@ Add a "merge input" develop mode next to `develop_raw_image`. It uses rawler's `
 - **No `WhiteBalance` or `Calibrate`.** The data stays in the camera's own RGB, so the DNG can carry the camera's `ColorMatrix` and `AsShotNeutral`. RapidRoom then applies white balance and calibration exactly as for the source raws, which gives full white-balance latitude, DCP profile lookup by make and model, and so on. (In rawler, white balance is applied inside `Calibrate`, so leaving out both keeps the data neutral.)
 - **No `recover_clipped_pixel`, colour NR or sharpening.** These are look decisions. The DNG gets them once, when it is opened. Applying them before the merge would bake them in, and they would then run a second time.
 - **Full demosaic** (`DemosaicAlgorithm::Quality`), not the fast path.
-- **A clipping map** comes from the mosaic _before_ demosaic. A pixel counts as clipped if any CFA sample in its 3×3 (Bayer) or 6×6 (X-Trans) neighbourhood is ≥ 0.98 of `white − black`. Demosaic spreads clipped values sideways, so the map is dilated by 2 px.
+- **Sensor headroom and clipping maps** come from the mosaic _before_ demosaic. Retain a continuous map of the maximum black-subtracted sensor level, divided by `white − black`, alongside the binary clipping mask. A pixel counts as clipped if any CFA sample in its 3×3 (Bayer) or 6×6 (X-Trans) neighbourhood is ≥ 0.98 of `white − black`. Demosaic spreads clipped values sideways, so maximum-filter the continuous map over the same neighbourhood and 2 px dilation used for the binary mask.
 - Orientation is applied to pixels and clipping map alike; the DNG is written upright with `Orientation = 1`.
 - Frames are stored as **f16** (6 bytes per pixel): 3 × 45 MP is about 0.8 GB instead of 1.6 GB.
 
@@ -73,7 +75,7 @@ Per pixel and channel, the estimate is `X = Σ w_i x̂_i / Σ w_i`, using invers
 
 - **Noise model.** In normalised sensor units the variance is `var(x_i) = a·x_i + b`: shot noise plus read noise. After scaling by `g_i = k_i / k_ref`, `var(x̂_i) = (a·x_i + b) / g_i²`. The optimal weight is therefore `w_i = g_i² / (a·g_i·Z + b)`, where Z is a **first-pass estimate** of the radiance. It is not computed from the frame's own noisy value, because weights computed from it are biased toward low samples. Z comes from the longest unclipped frame at each pixel, box-blurred over 5 px.
 - **What this means in practice:** wherever it isn't clipped, the long exposure dominates (`g²` grows faster than the shot-noise term). Short exposures only contribute where the longer ones are clipped. That is exactly "trust short exposures in the highlights and long exposures in the shadows", derived from the noise model rather than from a hat function.
-- **Clipping.** `w_i` tapers smoothly to 0 as the pixel's clipping value in frame i goes from 0.85 to 0.95 of white. That value is the max channel of the dilated map from §3.1, and using it tapers all three channels together so colour can't shift from mixing a clipped channel of one frame with an unclipped channel of another. The weight maps are then box-blurred over 3 px so clip boundaries don't produce seams.
+- **Clipping.** `w_i` tapers smoothly to 0 as the pixel's clipping value in frame i goes from 0.85 to 0.95 of white. That value is the continuous sensor-level map from §3.1, not the binary clipping mask, and using it tapers all three channels together so colour can't shift from mixing a clipped channel of one frame with an unclipped channel of another. The weight maps are then box-blurred over 3 px so clip boundaries don't produce seams.
 - **Noise parameters a and b** come from the frame when rawler exposes masked black pixels: b is their variance, and a is fitted from flat patches. Otherwise they come from defaults scaled by ISO (a = ISO/100 / 4000, b = (2/(white − black))²). Weights only need _relative_ accuracy, so the defaults are safe. They are tuned against the fixtures.
 - **Clipped in every frame:** use the shortest frame's value. That region is marked so the auto-tone (§3.7) knows it is real clipping.
 - **Memory:** the merge is an accumulation (`Σ w x̂`, `Σ w`), so it runs one frame at a time, in strips, from the f16 frames.
@@ -121,7 +123,7 @@ Outside the ghost regions the merge is the normal weighted one; the feathered ma
 - **Proposed (phase 2):** extend the writer in `yojen7/RapidRAW-DngLab` (already patched in `Cargo.toml`) with f16 output and Deflate tiles with predictor 34894. rawler already _reads_ exactly this (`decompressors/deflate.rs`, which also opens Lightroom HDR DNGs) and depends on `libflate`, which has an encoder. Expected size is roughly 2–3× the source raw (an estimate, to be measured).
 - **Fallback if the patch is unwanted:** uncompressed f16, which is about 145 MB for 24 MP. That needs only the sample-format part of the patch.
 
-**Pixel values:** camera-native RGB from §3.4, in reference-frame units, with black = 0. They are then scaled LR-style so the brightest unclipped value is 1.0, and the scale is stored as `BaselineExposure = log2(scale)`. Values in the file therefore stay in [0, 1], which other raw editors expect.
+**Pixel values:** camera-native RGB from §3.4, in reference-frame units, with black = 0. Let `M > 0` be the brightest unclipped merged value in reference-frame units. Store `pixel = merged / M`, with `WhiteLevel = 1` and `BaselineExposure = log2(M)`, so an exposure scale of `2^BaselineExposure` restores those reference-frame units. For example, M = 4 stores a merged value of 2 as 0.5 and records +2 EV. Do not use `log2(1/M)`, which would darken the image again. Already clipped fallback values and any outliers must be handled explicitly in phase 2; this note does not establish Adobe parity.
 
 **Tags** (the writer covers some itself, the rest go through `root_ifd_mut().add_tag`):
 
@@ -144,7 +146,7 @@ Outside the ghost regions the merge is the normal weighted one; the feathered ma
 **Pipeline changes needed to open the file correctly.** These are rendering changes for _existing_ float `LinearRaw` DNGs too, such as Lightroom HDR merges opened in RapidRoom. They go in their own PR with the `rendering-change` label and need maintainer sign-off:
 
 1. **Honour `BaselineExposure`** for float `LinearRaw` DNGs, as a scale at load, so "Exposure 0" looks like the reference frame. RapidRoom reads it nowhere today.
-2. **Skip `recover_clipped_pixel`** for float `LinearRaw` DNGs. It desaturates everything above 0.5 of white, which is right for clipped sensor data but wrong for merged highlights, which are real colour.
+2. **Skip `recover_clipped_pixel`** for float `LinearRaw` DNGs. The current function repairs magenta and progressively desaturates bright pixels above 0.5 of white; merged highlights carry real color and must not inherit this sensor-clipping heuristic.
 3. Values above 1.0 after the BaselineExposure scale already survive: `develop_internal` clamps at 1000.
 
 **Name and place:** `<first frame stem>-HDR.dng` next to the first frame, then `-HDR-2.dng` and so on, never overwriting. That replaces `_Hdr.tiff`. Card mode is respected through `ensure_card_writable_for_paths`, as `save_hdr` does now. RapidRoom's `.rrexif` sidecar is written as today.
@@ -153,13 +155,13 @@ Outside the ghost regions the merge is the normal weighted one; the feathered ma
 
 On save, RapidRoom writes a sidecar for the new DNG with **ordinary slider values**. Nothing is baked into the pixels, so everything stays editable. They are computed on a 1/4-scale preview of the DNG after white balance and calibration:
 
-| Slider                       | How it is set                                                                                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Exposure                     | Puts the log-average luminance (excluding the 0.5 % brightest and darkest pixels) at 18 % grey, clamped to ±2 EV around the reference frame's look. |
-| Highlights                   | Negative, −20 to −70, scaled by how many stops of data sit above 1.0 after Exposure.                                                                |
-| Shadows                      | Positive, +10 to +40, scaled by the fraction of pixels below −5 stops.                                                                              |
-| Whites / Blacks              | Small, so the 0.1 % points land near clipping without crossing it.                                                                                  |
-| Clarity, Texture, Saturation | Unchanged, so the result is "not crunchy".                                                                                                          |
+| Slider                       | How it is set                                                                                                                                                                                                                          |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Exposure                     | Puts the log-average luminance (excluding the 0.5 % brightest and darkest pixels) at 18 % grey, clamped to ±2 EV around the reference frame's look. Store `exposure = 0.8 × desired EV`, matching the current slider-to-EV conversion. |
+| Highlights                   | Negative, −20 to −70, scaled by how many stops of data sit above 1.0 after Exposure.                                                                                                                                                   |
+| Shadows                      | Positive, +10 to +40, scaled by the fraction of pixels below −5 stops.                                                                                                                                                                 |
+| Whites / Blacks              | Small, so the 0.1 % points land near clipping without crossing it.                                                                                                                                                                     |
+| Clarity, Texture, Saturation | Unchanged, so the result is "not crunchy".                                                                                                                                                                                             |
 
 `perform_auto_analysis` in `image_processing.rs` (the editor's Auto button) is reused where it fits, but it works on display-referred images; the HDR version needs the scene-linear statistics above. The dialog gets an "Auto tone" checkbox (on by default). Off gives the reference frame's look.
 
@@ -200,11 +202,11 @@ They keep working, with the same merge, linearised from sRGB and clipped at 1.0.
 | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Exposure ratio, with EXIF rounded to 1/3 stop                              | recovered to within 0.03 EV                                                                                                                                                              |
 | Alignment on the proxy                                                     | recovered shift within 0.25 px                                                                                                                                                           |
-| Static merge (no mover), outside areas clipped in every frame              | mean error < 0.05 stops; the sun region, recovered from −2 EV, within 0.05 stops                                                                                                         |
+| Static merge (no mover), outside areas clipped in every frame              | mean error < 0.05 stops; recoverable highlights (valid in −2 EV), within 0.05 stops; the default sun clips in every frame and belongs to the fallback test, not a recovery gate          |
 | Shadow noise                                                               | in a flat dark patch, std below 0.6 × the reference frame's                                                                                                                              |
 | Ghosts without deghosting                                                  | Off produces visible ghosts (error > 0.5 stops in the motion mask), which proves the fixture catches them                                                                                |
 | Deghosting at Low/Medium/High                                              | mask recall ≥ 0.95 and precision ≥ 0.9 against the true motion mask; error in the motion mask < 0.1 stops; outside it no worse than Off. Gates borrowed from cgasgarth's fixture smokes. |
-| Clipped reference with a mover (disc over the sun)                         | the region comes from one frame; no mixed-frame pixels                                                                                                                                   |
+| Clipped reference with a mover (bright region valid in a shorter frame)    | the region comes from one frame; no mixed-frame pixels                                                                                                                                   |
 | DNG round trip: write, read with rawler, develop with RapidRoom's pipeline | pixels match the merge within f16 precision; `WhiteLevel`, colour matrices, `AsShotNeutral`, `BaselineExposure` and make/model are present                                               |
 | Cancel                                                                     | a set token stops the merge between strips and writes no file                                                                                                                            |
 
@@ -245,7 +247,7 @@ One PR each, in this order:
 ## 6. Questions for maintainers
 
 1. **Output:** f16 + Deflate, which needs the rawler patch (step 1), or uncompressed f16 to start?
-2. Is it OK to make **`BaselineExposure`** and **skipping clipped-highlight recovery** apply to _all_ float `LinearRaw` DNGs (§3.6)? It improves Lightroom HDR DNGs too, but it is a rendering change.
+2. Is it OK to make **`BaselineExposure`** and **skipping clipped-highlight recovery** apply to _all_ float `LinearRaw` DNGs (§3.6)? It can affect Lightroom HDR DNGs too, but it is a rendering change.
 3. **Auto reference:** the well-exposed fraction (proposed) or "fewest clipped pixels" (the issue's wording)?
 4. Should RapidRoom keep a legacy "merged TIFF" output, or only DNG?
 5. **Later features:** a deghost brush (#1734's idea), manual pre-alignment (upstream `CyberTimon/RapidRAW#1774`) and HDR panoramas (upstream `CyberTimon/RapidRAW#1316`). Separate issues?

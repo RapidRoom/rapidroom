@@ -86,7 +86,7 @@ pub struct SyntheticBracket {
     pub motion_mask: GrayImage,
 }
 
-/// A deterministic scene with ~16 stops of range: a horizontal log ramp,
+/// A deterministic scene with more than 14 stops of range: a horizontal log ramp,
 /// textured rectangles for feature matching, colour patches and a small
 /// very bright "sun".
 pub fn synthetic_scene(width: u32, height: u32, seed: u64) -> Rgb32FImage {
