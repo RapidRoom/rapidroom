@@ -320,6 +320,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -827,6 +837,17 @@
         "tool": "Narzędzie"
       }
     },
+    "referenceView": {
+      "active": "Aktywne",
+      "cancel": "Anuluj",
+      "chooseHint": "Kliknij zdjęcie na taśmie filmowej, aby użyć go jako referencji.",
+      "clear": "Usuń referencję",
+      "close": "Zamknij widok referencyjny",
+      "readOnly": "Tylko do odczytu",
+      "reference": "Referencja",
+      "replace": "Wybierz inną referencję",
+      "unavailable": "Obraz referencyjny niedostępny"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Dopasuj",
@@ -848,6 +869,7 @@
         "fullscreen": "Przełącz pełny ekran (F)",
         "iso": "ISO",
         "redo": "Ponów (Ctrl+Y) lub Historia (Prawy przycisk)",
+        "referenceView": "Widok referencyjny (Shift+R)",
         "showEdited": "Pokaż po edycji (B)",
         "showOriginal": "Pokaż oryginał (B)",
         "shutterSpeed": "Czas otwarcia migawki",
@@ -1543,15 +1565,39 @@
     },
     "renameFile": {
       "cancel": "Anuluj",
+      "conflictExisting": "nazwa zajęta",
+      "conflictInBatch": "powtórzona nazwa",
+      "conflicts_few": "{{count}} nazwy plików kolidują. Zmień szablon.",
+      "conflicts_many": "{{count}} nazw plików koliduje. Zmień szablon.",
+      "conflicts_one": "{{count}} nazwa pliku koliduje. Zmień szablon.",
+      "conflicts_other": "{{count}} nazwy plików kolidują. Zmień szablon.",
       "fileNamingTemplate": "Szablon nazywania plików",
+      "groupAuto": "Automatycznie: zdjęcia w odstępie do",
+      "groupSeconds": "Sekundy między zdjęciami w grupie",
+      "groupSelection": "Całe zaznaczenie to jedna grupa",
+      "groups": "Grupy dla {group} i {member}",
       "newName": "Nowa nazwa",
+      "preview": "Podgląd",
+      "renamed_few": "Zmieniono nazwy {{count}} plików",
+      "renamed_many": "Zmieniono nazwy {{count}} plików",
+      "renamed_one": "Zmieniono nazwę {{count}} pliku",
+      "renamed_other": "Zmieniono nazwy {{count}} pliku",
       "save": "Zapisz",
+      "seconds": "s",
+      "summary": "Zdjęcia: {{photos}} · Pliki: {{files}}",
       "titleMultiple": "Zmień nazwę {{count}} obrazów",
       "titleMultiple_few": "Zmień nazwy {{count}} obrazów",
       "titleMultiple_many": "Zmień nazwy {{count}} obrazów",
       "titleMultiple_one": "Zmień nazwę {{count}} obrazu",
       "titleMultiple_other": "Zmień nazwę {{count}} obrazów",
-      "titleSingle": "Zmień nazwę obrazu"
+      "titleSingle": "Zmień nazwę obrazu",
+      "undo": "Cofnij",
+      "undoFailed": "Nie udało się cofnąć zmiany nazw: {{err}}",
+      "undoLast_few": "Cofnij ostatnią zmianę nazw ({{count}} zdjęcia)",
+      "undoLast_many": "Cofnij ostatnią zmianę nazw ({{count}} zdjęć)",
+      "undoLast_one": "Cofnij ostatnią zmianę nazw ({{count}} zdjęcie)",
+      "undoLast_other": "Cofnij ostatnią zmianę nazw ({{count}} zdjęcia)",
+      "undone": "Cofnięto zmianę nazw"
     },
     "renameFolder": {
       "cancel": "Anuluj",
@@ -1759,6 +1805,7 @@
         "toggle_masks": "Przełącz panel Maski",
         "toggle_metadata": "Przełącz panel Metadane",
         "toggle_presets": "Przełącz panel Presety",
+        "toggle_reference_view": "Przełącz widok referencyjny",
         "toggle_right_panel": "Przełącz prawy panel",
         "undo": "Cofnij korektę",
         "zoom_100": "Powiększ do 100%",

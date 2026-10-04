@@ -304,6 +304,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -804,6 +814,17 @@
         "tool": "Outil"
       }
     },
+    "referenceView": {
+      "active": "Active",
+      "cancel": "Annuler",
+      "chooseHint": "Cliquez sur une photo du film fixe pour l’utiliser comme référence.",
+      "clear": "Retirer la référence",
+      "close": "Fermer la vue de référence",
+      "readOnly": "Lecture seule",
+      "reference": "Référence",
+      "replace": "Choisir une autre référence",
+      "unavailable": "Image de référence indisponible"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Ajuster",
@@ -825,6 +846,7 @@
         "fullscreen": "Basculer en plein écran (F)",
         "iso": "ISO",
         "redo": "Rétablir (Ctrl+Y) ou Historique (Clic-droit)",
+        "referenceView": "Vue de référence (Maj+R)",
         "showEdited": "Afficher l'image modifiée (B)",
         "showOriginal": "Afficher l'original (B)",
         "shutterSpeed": "Vitesse d'obturation",
@@ -1510,14 +1532,35 @@
     },
     "renameFile": {
       "cancel": "Annuler",
+      "conflictExisting": "nom déjà pris",
+      "conflictInBatch": "nom en double",
+      "conflicts_many": "{{count}} noms de fichiers entrent en conflit. Modifiez le modèle.",
+      "conflicts_one": "{{count}} nom de fichier entre en conflit. Modifiez le modèle.",
+      "conflicts_other": "{{count}} noms de fichiers entrent en conflit. Modifiez le modèle.",
       "fileNamingTemplate": "Modèle de nommage de fichier",
+      "groupAuto": "Auto : photos à moins de",
+      "groupSeconds": "Secondes entre les photos d’un groupe",
+      "groupSelection": "Toute la sélection forme un groupe",
+      "groups": "Groupes pour {group} et {member}",
       "newName": "Nouveau nom",
+      "preview": "Aperçu",
+      "renamed_many": "{{count}} fichiers renommés",
+      "renamed_one": "{{count}} fichier renommé",
+      "renamed_other": "{{count}} fichiers renommés",
       "save": "Enregistrer",
+      "seconds": "secondes d’intervalle",
+      "summary": "Photos : {{photos}} · Fichiers : {{files}}",
       "titleMultiple": "Renommer {{count}} images",
       "titleMultiple_many": "Renommer {{count}} images",
       "titleMultiple_one": "Renommer {{count}} image",
       "titleMultiple_other": "Renommer {{count}} images",
-      "titleSingle": "Renommer l'image"
+      "titleSingle": "Renommer l'image",
+      "undo": "Annuler",
+      "undoFailed": "Impossible d’annuler le renommage : {{err}}",
+      "undoLast_many": "Annuler le dernier renommage ({{count}} photos)",
+      "undoLast_one": "Annuler le dernier renommage ({{count}} photo)",
+      "undoLast_other": "Annuler le dernier renommage ({{count}} photos)",
+      "undone": "Renommage annulé"
     },
     "renameFolder": {
       "cancel": "Annuler",
@@ -1722,6 +1765,7 @@
         "toggle_masks": "Basculer le panneau des masques",
         "toggle_metadata": "Basculer le panneau des métadonnées",
         "toggle_presets": "Basculer le panneau des paramètres prédéfinis",
+        "toggle_reference_view": "Afficher/masquer la vue de référence",
         "toggle_right_panel": "Afficher/Masquer le panneau droit",
         "undo": "Annuler l'ajustement",
         "zoom_100": "Zoomer à 100%",

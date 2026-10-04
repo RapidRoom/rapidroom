@@ -16,6 +16,7 @@ use little_exif::ifd::ExifTagGroup;
 use little_exif::metadata::Metadata;
 use little_exif::rational::{iR64, uR64};
 use rawler::decoders::RawMetadata;
+use rawler::lens::LensDescription;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -187,6 +188,37 @@ fn save_exif_to_rrcache(image_path: &Path, exif: HashMap<String, String>) {
         },
     );
     state.dirty.insert(folder.to_path_buf());
+}
+
+/// Keeps the cached EXIF of a renamed file, so it is not read again.
+pub fn rename_cached_exif(old_path: &Path, new_path: &Path) {
+    let (Some(old_folder), Some(old_name), Some(new_folder), Some(new_name)) = (
+        old_path.parent(),
+        old_path.file_name(),
+        new_path.parent(),
+        new_path.file_name(),
+    ) else {
+        return;
+    };
+    load_rrcache_for_folder(old_folder);
+    load_rrcache_for_folder(new_folder);
+    let Ok(mut state) = get_exif_cache().lock() else {
+        return;
+    };
+    let Some(entry) = state
+        .cache
+        .get_mut(old_folder)
+        .and_then(|folder| folder.remove(old_name.to_string_lossy().as_ref()))
+    else {
+        return;
+    };
+    state.dirty.insert(old_folder.to_path_buf());
+    state
+        .cache
+        .entry(new_folder.to_path_buf())
+        .or_default()
+        .insert(new_name.to_string_lossy().into_owned(), entry);
+    state.dirty.insert(new_folder.to_path_buf());
 }
 
 pub fn truncate_large_exif(value: &str) -> String {
@@ -402,27 +434,25 @@ fn format_min_max(min: f32, max: f32, tolerance: f32) -> String {
     }
 }
 
+fn format_lens_spec(focal_min: f32, focal_max: f32, aperture: Option<(f32, f32)>) -> String {
+    let mut spec = format!("{} mm", format_min_max(focal_min, focal_max, 0.01));
+    if let Some((amin, amax)) = aperture {
+        spec.push_str(&format!(", f/{}", format_min_max(amin, amax, 0.01)));
+    }
+    spec
+}
+
 fn format_lens_specification(components: &[exif::Rational]) -> Option<String> {
     if components.len() < 4 {
         return None;
     }
 
-    let focal_min = rational_to_f32_checked(&components[0]);
-    let focal_max = rational_to_f32_checked(&components[1]);
-    let (focal_min, focal_max) = match (focal_min, focal_max) {
-        (Some(min), Some(max)) => (min, max),
-        _ => return None,
-    };
+    let focal_min = rational_to_f32_checked(&components[0])?;
+    let focal_max = rational_to_f32_checked(&components[1])?;
+    let aperture =
+        rational_to_f32_checked(&components[2]).zip(rational_to_f32_checked(&components[3]));
 
-    let mut spec = format!("{} mm", format_min_max(focal_min, focal_max, 0.01));
-
-    let aperture_min = rational_to_f32_checked(&components[2]);
-    let aperture_max = rational_to_f32_checked(&components[3]);
-    if let (Some(amin), Some(amax)) = (aperture_min, aperture_max) {
-        spec.push_str(&format!(", f/{}", format_min_max(amin, amax, 0.01)));
-    }
-
-    Some(spec)
+    Some(format_lens_spec(focal_min, focal_max, aperture))
 }
 
 pub fn read_exif(file_bytes: &[u8]) -> Option<Exif> {
@@ -652,6 +682,30 @@ fn bmff_rating<R: Read + Seek>(reader: &mut R) -> Option<u8> {
     None
 }
 
+fn insert_missing_lens_fields(map: &mut HashMap<String, String>, lens: &LensDescription) {
+    let rat =
+        |r: &rawler::formats::tiff::Rational| rawler_rational_to_f32_checked(r).unwrap_or(0.0);
+
+    let aperture = (rat(&lens.aperture_range[0]), rat(&lens.aperture_range[1]));
+    let spec = format_lens_spec(
+        rat(&lens.focal_range[0]),
+        rat(&lens.focal_range[1]),
+        Some(aperture).filter(|(amin, amax)| *amin > 0.0 || *amax > 0.0),
+    );
+
+    for (key, val) in [
+        ("LensModel", lens.lens_model.as_str()),
+        ("LensMake", lens.lens_make.as_str()),
+        ("LensSpecification", spec.as_str()),
+    ] {
+        let trimmed = val.trim();
+        if !trimmed.is_empty() {
+            map.entry(key.to_string())
+                .or_insert_with(|| truncate_large_exif(trimmed));
+        }
+    }
+}
+
 pub fn read_exposure_time_secs(path: &str, file_bytes: &[u8]) -> Option<f32> {
     if let Some(map) = read_rrexif_sidecar(Path::new(path))
         && let Some(val_str) = map.get("ExposureTime").or(map.get("ShutterSpeedValue"))
@@ -846,8 +900,6 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
                             rational_to_f32_checked(&v[1]),
                         )
                     {
-                        let mut spec = format!("{} mm", format_min_max(focal_min, focal_max, 0.01));
-
                         let aperture = match (
                             rational_to_f32_checked(&v[2]),
                             rational_to_f32_checked(&v[3]),
@@ -863,13 +915,12 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
                             }),
                         };
 
-                        if let Some((amin, amax)) = aperture
-                            && (amin > 0.0 || amax > 0.0)
-                        {
-                            spec.push_str(&format!(", f/{}", format_min_max(amin, amax, 0.01)));
-                        }
+                        let aperture = aperture.filter(|(amin, amax)| *amin > 0.0 || *amax > 0.0);
 
-                        map.insert("LensSpecification".to_string(), spec);
+                        map.insert(
+                            "LensSpecification".to_string(),
+                            format_lens_spec(focal_min, focal_max, aperture),
+                        );
                     }
                 }
                 _ => match &field.value {
@@ -890,6 +941,11 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
     }
 
     if !map.is_empty() {
+        if !map.contains_key("LensModel")
+            && let Some(lens) = read_raw_metadata(file_bytes).and_then(|meta| meta.lens)
+        {
+            insert_missing_lens_fields(&mut map, &lens);
+        }
         return Some(map);
     }
 
@@ -973,35 +1029,14 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
 
     if let Some(v) = exif.lens_model {
         insert_if_present("LensModel", v);
-    } else if let Some(lens_desc) = &metadata.lens {
-        insert_if_present("LensModel", lens_desc.lens_model.clone());
     }
 
     if let Some(v) = exif.lens_make {
         insert_if_present("LensMake", v);
-    } else if let Some(lens_desc) = &metadata.lens {
-        insert_if_present("LensMake", lens_desc.lens_make.clone());
     }
 
     if let Some(v) = exif.lens_serial_number {
         insert_if_present("LensSerialNumber", v);
-    }
-
-    if let Some(lens_desc) = &metadata.lens {
-        let focal_min = fmt_rat(&lens_desc.focal_range[0]);
-        let focal_max = fmt_rat(&lens_desc.focal_range[1]);
-        let mut spec = format!("{} mm", format_min_max(focal_min, focal_max, 0.01));
-
-        let aperture_min = fmt_rat(&lens_desc.aperture_range[0]);
-        let aperture_max = fmt_rat(&lens_desc.aperture_range[1]);
-        if aperture_min > 0.0 || aperture_max > 0.0 {
-            spec.push_str(&format!(
-                ", f/{}",
-                format_min_max(aperture_min, aperture_max, 0.01)
-            ));
-        }
-
-        insert_if_present("LensSpecification", spec);
     }
 
     if let Some(v) = exif.orientation {
@@ -1154,6 +1189,10 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
         if let Some(v) = gps.gps_map_datum {
             insert_if_present("GPSMapDatum", v);
         }
+    }
+
+    if let Some(lens) = &metadata.lens {
+        insert_missing_lens_fields(&mut map, lens);
     }
 
     Some(map)

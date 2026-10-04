@@ -288,6 +288,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -777,6 +787,17 @@
         "tool": "도구"
       }
     },
+    "referenceView": {
+      "active": "편집 중",
+      "cancel": "취소",
+      "chooseHint": "필름 스트립에서 사진을 클릭해 참조로 사용하세요.",
+      "clear": "참조 해제",
+      "close": "참조 보기 닫기",
+      "readOnly": "읽기 전용",
+      "reference": "참조",
+      "replace": "다른 참조 선택",
+      "unavailable": "참조 이미지를 사용할 수 없음"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "조정",
@@ -798,6 +819,7 @@
         "fullscreen": "전체 화면 전환 (F)",
         "iso": "ISO",
         "redo": "다시 실행 (Ctrl+Y) 또는 기록 (우클릭)",
+        "referenceView": "참조 보기 (Shift+R)",
         "showEdited": "편집본 표시 (B)",
         "showOriginal": "원본 표시 (B)",
         "shutterSpeed": "셔터 속도",
@@ -1475,13 +1497,31 @@
     },
     "renameFile": {
       "cancel": "취소",
+      "conflictExisting": "이미 있는 이름",
+      "conflictInBatch": "중복된 이름",
+      "conflicts_one": "파일 이름 {{count}}개가 충돌합니다. 템플릿을 바꾸세요.",
+      "conflicts_other": "파일 이름 {{count}}개가 충돌합니다. 템플릿을 바꾸세요.",
       "fileNamingTemplate": "파일 이름 템플릿",
+      "groupAuto": "자동: 촬영 간격",
+      "groupSeconds": "그룹 내 촬영 간격(초)",
+      "groupSelection": "전체 선택을 한 그룹으로",
+      "groups": "{group} 및 {member} 그룹",
       "newName": "새 이름",
+      "preview": "미리 보기",
+      "renamed_one": "파일 {{count}}개의 이름을 바꿨습니다",
+      "renamed_other": "파일 {{count}}개의 이름을 바꿨습니다",
       "save": "저장",
+      "seconds": "초 이내",
+      "summary": "사진: {{photos}} · 파일: {{files}}",
       "titleMultiple": "이미지 {{count}}개 이름 변경",
       "titleMultiple_one": "이미지 {{count}}개 이름 변경",
       "titleMultiple_other": "이미지 {{count}}개 이름 변경",
-      "titleSingle": "이미지 이름 변경"
+      "titleSingle": "이미지 이름 변경",
+      "undo": "실행 취소",
+      "undoFailed": "이름 변경을 취소할 수 없습니다: {{err}}",
+      "undoLast_one": "마지막 이름 변경 취소 (사진 {{count}}장)",
+      "undoLast_other": "마지막 이름 변경 취소 (사진 {{count}}장)",
+      "undone": "이름 변경을 취소했습니다"
     },
     "renameFolder": {
       "cancel": "취소",
@@ -1683,6 +1723,7 @@
         "toggle_masks": "마스크 패널 전환",
         "toggle_metadata": "메타데이터 패널 전환",
         "toggle_presets": "프리셋 패널 전환",
+        "toggle_reference_view": "참조 보기 전환",
         "toggle_right_panel": "오른쪽 패널 토글",
         "undo": "조정 실행 취소",
         "zoom_100": "100%로 확대/축소",

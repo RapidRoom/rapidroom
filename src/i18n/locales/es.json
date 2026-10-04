@@ -304,6 +304,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -804,6 +814,17 @@
         "tool": "Herramienta"
       }
     },
+    "referenceView": {
+      "active": "Activa",
+      "cancel": "Cancelar",
+      "chooseHint": "Haz clic en una foto de la tira de imágenes para usarla como referencia.",
+      "clear": "Quitar referencia",
+      "close": "Cerrar vista de referencia",
+      "readOnly": "Solo lectura",
+      "reference": "Referencia",
+      "replace": "Elegir otra referencia",
+      "unavailable": "Imagen de referencia no disponible"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Ajustar",
@@ -825,6 +846,7 @@
         "fullscreen": "Alternar pantalla completa (F)",
         "iso": "ISO",
         "redo": "Rehacer (Ctrl+Y) o Historial (Clic derecho)",
+        "referenceView": "Vista de referencia (Mayús+R)",
         "showEdited": "Mostrar editado (B)",
         "showOriginal": "Mostrar original (B)",
         "shutterSpeed": "Velocidad de obturación",
@@ -1510,14 +1532,35 @@
     },
     "renameFile": {
       "cancel": "Cancelar",
+      "conflictExisting": "nombre ocupado",
+      "conflictInBatch": "nombre repetido",
+      "conflicts_many": "{{count}} nombres de archivo coinciden. Cambia la plantilla.",
+      "conflicts_one": "{{count}} nombre de archivo coincide con otro. Cambia la plantilla.",
+      "conflicts_other": "{{count}} nombres de archivo coinciden. Cambia la plantilla.",
       "fileNamingTemplate": "Plantilla de nombre de archivo",
+      "groupAuto": "Automático: fotos a menos de",
+      "groupSeconds": "Segundos entre fotos de un grupo",
+      "groupSelection": "Toda la selección es un grupo",
+      "groups": "Grupos para {group} y {member}",
       "newName": "Nuevo nombre",
+      "preview": "Vista previa",
+      "renamed_many": "{{count}} archivos renombrados",
+      "renamed_one": "{{count}} archivo renombrado",
+      "renamed_other": "{{count}} archivos renombrados",
       "save": "Guardar",
+      "seconds": "segundos entre sí",
+      "summary": "Fotos: {{photos}} · Archivos: {{files}}",
       "titleMultiple": "Renombrar {{count}} imágenes",
       "titleMultiple_many": "Renombrar {{count}} imágenes",
       "titleMultiple_one": "Renombrar {{count}} imagen",
       "titleMultiple_other": "Renombrar {{count}} imágenes",
-      "titleSingle": "Renombrar imagen"
+      "titleSingle": "Renombrar imagen",
+      "undo": "Deshacer",
+      "undoFailed": "No se pudo deshacer el cambio de nombre: {{err}}",
+      "undoLast_many": "Deshacer el último cambio de nombre ({{count}} fotos)",
+      "undoLast_one": "Deshacer el último cambio de nombre ({{count}} foto)",
+      "undoLast_other": "Deshacer el último cambio de nombre ({{count}} fotos)",
+      "undone": "Cambio de nombre deshecho"
     },
     "renameFolder": {
       "cancel": "Cancelar",
@@ -1722,6 +1765,7 @@
         "toggle_masks": "Alternar panel de Máscaras",
         "toggle_metadata": "Alternar panel de Metadatos",
         "toggle_presets": "Alternar panel de Ajustes preestablecidos",
+        "toggle_reference_view": "Alternar vista de referencia",
         "toggle_right_panel": "Alternar panel derecho",
         "undo": "Deshacer ajuste",
         "zoom_100": "Hacer zoom al 100%",

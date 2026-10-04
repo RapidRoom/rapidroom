@@ -320,6 +320,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -827,6 +837,17 @@
         "tool": "Инструмент"
       }
     },
+    "referenceView": {
+      "active": "Текущее",
+      "cancel": "Отмена",
+      "chooseHint": "Щёлкните фото на ленте, чтобы использовать его как эталон.",
+      "clear": "Убрать эталон",
+      "close": "Закрыть эталонный вид",
+      "readOnly": "Только чтение",
+      "reference": "Эталон",
+      "replace": "Выбрать другой эталон",
+      "unavailable": "Эталонное изображение недоступно"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Коррекция",
@@ -848,6 +869,7 @@
         "fullscreen": "Полноэкранный режим (F)",
         "iso": "ISO",
         "redo": "Повторить (Ctrl+Y) или история (правый клик)",
+        "referenceView": "Эталонный вид (Shift+R)",
         "showEdited": "Показать измененное (B)",
         "showOriginal": "Показать оригинал (B)",
         "shutterSpeed": "Выдержка",
@@ -1543,15 +1565,39 @@
     },
     "renameFile": {
       "cancel": "Отмена",
+      "conflictExisting": "имя занято",
+      "conflictInBatch": "повторяющееся имя",
+      "conflicts_few": "{{count}} имени файлов совпадают. Измените шаблон.",
+      "conflicts_many": "{{count}} имён файлов совпадают. Измените шаблон.",
+      "conflicts_one": "{{count}} имя файла совпадает с другим. Измените шаблон.",
+      "conflicts_other": "{{count}} имени файлов совпадают. Измените шаблон.",
       "fileNamingTemplate": "Шаблон именования файлов",
+      "groupAuto": "Авто: снимки с интервалом до",
+      "groupSeconds": "Секунды между снимками в группе",
+      "groupSelection": "Всё выделение — одна группа",
+      "groups": "Группы для {group} и {member}",
       "newName": "Новое имя",
+      "preview": "Предпросмотр",
+      "renamed_few": "Переименовано {{count}} файла",
+      "renamed_many": "Переименовано {{count}} файлов",
+      "renamed_one": "Переименован {{count}} файл",
+      "renamed_other": "Переименовано {{count}} файла",
       "save": "Сохранить",
+      "seconds": "с",
+      "summary": "Фото: {{photos}} · Файлы: {{files}}",
       "titleMultiple": "Переименовать {{count}} изобр.",
       "titleMultiple_few": "Переименовать {{count}} изобр.",
       "titleMultiple_many": "Переименовать {{count}} изобр.",
       "titleMultiple_one": "Переименовать {{count}} изображение",
       "titleMultiple_other": "Переименовать {{count}} изображений",
-      "titleSingle": "Переименовать изображение"
+      "titleSingle": "Переименовать изображение",
+      "undo": "Отменить",
+      "undoFailed": "Не удалось отменить переименование: {{err}}",
+      "undoLast_few": "Отменить последнее переименование ({{count}} фото)",
+      "undoLast_many": "Отменить последнее переименование ({{count}} фото)",
+      "undoLast_one": "Отменить последнее переименование ({{count}} фото)",
+      "undoLast_other": "Отменить последнее переименование ({{count}} фото)",
+      "undone": "Переименование отменено"
     },
     "renameFolder": {
       "cancel": "Отмена",
@@ -1759,6 +1805,7 @@
         "toggle_masks": "Панель масок",
         "toggle_metadata": "Панель метаданных",
         "toggle_presets": "Панель пресетов",
+        "toggle_reference_view": "Переключить эталонный вид",
         "toggle_right_panel": "Показать/скрыть правую панель",
         "undo": "Отменить действие",
         "zoom_100": "Масштаб 100%",
