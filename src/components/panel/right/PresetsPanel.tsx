@@ -533,9 +533,10 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
 
   useEffect(() => clearPresetHoverPreview, []);
 
+  // Rows can unmount under the pointer without a mouseleave, so any of these changes ends the preview.
   useEffect(() => {
     clearPresetHoverPreview();
-  }, [adjustments, activeView, selectedImage?.path, selectedImage?.isReady]);
+  }, [adjustments, activeView, presets, selectedImage?.path, selectedImage?.isReady]);
 
   useEffect(() => {
     if (configureModalState.isOpen || isAddFolderModalOpen || renameFolderState.isOpen) clearPresetHoverPreview();
