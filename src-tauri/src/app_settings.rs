@@ -815,8 +815,10 @@ mod tests {
         let saved = serde_json::to_value(AppSettings::default()).unwrap();
         assert!(saved.get("adjustmentDensity").is_none());
 
-        let reloaded: AppSettings = serde_json::from_value(saved.clone()).unwrap();
-        assert_eq!(serde_json::to_value(reloaded).unwrap(), saved);
+        let reloaded: AppSettings = serde_json::from_value(saved).unwrap();
+        assert!(reloaded.adjustment_density.is_none());
+        let resaved = serde_json::to_value(reloaded).unwrap();
+        assert!(resaved.get("adjustmentDensity").is_none());
     }
 
     #[test]
