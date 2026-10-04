@@ -125,7 +125,7 @@ fn load_adjustments(session: &BenchSession) -> Result<Value, String> {
     let text = match std::fs::read_to_string(&path) {
         Ok(t) => t,
         Err(_) if session.adjustments.is_none() => {
-            println!("No sidecar at {}, using default adjustments.", path);
+            cli_println!("No sidecar at {}, using default adjustments.", path);
             return Ok(json!({}));
         }
         Err(e) => return Err(format!("Failed to read {}: {}", path, e)),
@@ -181,16 +181,17 @@ pub async fn run_headless_bench(
     let n = session.iters;
     let wants = |p: &str| session.phases.iter().any(|x| x == p);
 
-    println!("RapidRAW pipeline bench");
-    println!("  image        {}", session.source);
-    println!(
+    cli_println!("RapidRAW pipeline bench");
+    cli_println!("  image        {}", session.source);
+    cli_println!(
         "  preview dim  {} px   live quality {}",
         preview_dim,
         settings.live_preview_quality.as_deref().unwrap_or("high")
     );
-    println!(
+    cli_println!(
         "  iterations   {}   gpu-sync attribution {}",
-        n, session.gpu_sync
+        n,
+        session.gpu_sync
     );
 
     let mut phases: Vec<(&'static str, Phase)> = Vec::new();
@@ -386,7 +387,7 @@ pub async fn run_headless_bench(
         doc.insert("_meta".to_string(), meta);
         std::fs::write(out, serde_json::to_string_pretty(&doc).unwrap())
             .map_err(|e| e.to_string())?;
-        println!("\nWrote {}", out);
+        cli_println!("\nWrote {}", out);
     }
     Ok(())
 }
@@ -415,7 +416,7 @@ fn report(phases: &[(&'static str, Phase)]) {
     for (name, phase) in phases {
         let mut totals: Vec<f64> = phase.iterations.iter().map(|i| ms(i.total)).collect();
         totals.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        println!(
+        cli_println!(
             "\n== {:<9} n={:<3} median {:>9.1} ms   p90 {:>9.1} ms   min {:>9.1} ms   max {:>9.1} ms",
             name,
             totals.len(),
@@ -425,10 +426,10 @@ fn report(phases: &[(&'static str, Phase)]) {
             totals.last().copied().unwrap_or(0.0)
         );
         for e in &phase.extra {
-            println!("   {}", e);
+            cli_println!("   {}", e);
         }
         if let Some(h) = &phase.output_hash {
-            println!("   output blake3 {}", h);
+            cli_println!("   output blake3 {}", h);
         }
         let mut names: Vec<&'static str> = phase
             .iterations
@@ -461,12 +462,15 @@ fn report(phases: &[(&'static str, Phase)]) {
             .collect();
         rows.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
         if !rows.is_empty() {
-            println!(
+            cli_println!(
                 "   {:<34} {:>10} {:>10} {:>6}",
-                "stage", "median ms", "mean ms", "hits"
+                "stage",
+                "median ms",
+                "mean ms",
+                "hits"
             );
             for (n, med, mean, hits) in rows {
-                println!("   {:<34} {:>10.2} {:>10.2} {:>6}", n, med, mean, hits);
+                cli_println!("   {:<34} {:>10.2} {:>10.2} {:>6}", n, med, mean, hits);
             }
         }
     }

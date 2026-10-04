@@ -1805,7 +1805,7 @@ pub fn run() {
         std::process::exit(2);
     }
     if let LaunchRequest::InvalidBench(error) = &launch_req {
-        eprintln!("Invalid bench arguments: {}", error);
+        cli_eprintln!("Invalid bench arguments: {}", error);
         std::process::exit(2);
     }
     let is_headless = matches!(
@@ -2047,15 +2047,22 @@ pub fn run() {
                 }
                 LaunchRequest::HeadlessBench(session) => {
                     let app_handle_clone = app_handle.clone();
+                    let bench = tauri::async_runtime::spawn(crate::bench::run_headless_bench(
+                        session,
+                        app_handle.clone(),
+                    ));
                     tauri::async_runtime::spawn(async move {
-                        let code = match crate::bench::run_headless_bench(session, app_handle_clone.clone()).await {
-                            Ok(_) => 0,
+                        let result = bench
+                            .await
+                            .unwrap_or_else(|e| Err(format!("Bench task panicked: {}", e)));
+                        match result {
+                            Ok(_) => app_handle_clone.exit(0),
                             Err(e) => {
-                                eprintln!("Bench failed: {}", e);
-                                1
+                                cli_eprintln!("Bench failed: {}", e);
+                                set_process_exit_code(1);
+                                app_handle_clone.exit(1);
                             }
-                        };
-                        app_handle_clone.exit(code);
+                        }
                     });
 
                     return Ok(());

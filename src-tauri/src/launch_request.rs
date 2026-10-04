@@ -215,7 +215,7 @@ pub fn emit_launch_request(app_handle: &tauri::AppHandle, request: LaunchRequest
             );
         }
         LaunchRequest::HeadlessBench(_) => {
-            println!("Error: bench cannot be attached to an already running GUI instance.");
+            cli_println!("Error: bench cannot be attached to an already running GUI instance.");
         }
         LaunchRequest::InvalidHeadless(error) => {
             log::error!("Invalid headless export request: {}", error);
