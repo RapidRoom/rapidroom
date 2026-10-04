@@ -82,7 +82,12 @@ async function mount() {
   root = createRoot(container);
   await act(async () =>
     root?.render(
-      <LightroomImportModal catalogPath={CATALOG} onClose={onClose} refreshAllFolderTrees={refreshAllFolderTrees} />,
+      <LightroomImportModal
+        catalogPath={CATALOG}
+        onClose={onClose}
+        refreshAllFolderTrees={refreshAllFolderTrees}
+        refreshImageList={async () => {}}
+      />,
     ),
   );
   return { handleSettingsChange, onClose, refreshAllFolderTrees, importedTree };
@@ -138,6 +143,31 @@ describe('LightroomImportModal', () => {
     expect(useLibraryStore.getState().rootPaths).toEqual(['/photos', '/mnt/pictures']);
     expect(refreshAllFolderTrees).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shares relinked roots with the photo-edit preview without writing during preview', async () => {
+    const { handleSettingsChange } = await mount();
+    mockCommand(Invokes.PreviewLightroomDevelop, () => ({
+      catalogName: 'Catalog',
+      fingerprint: 'preview',
+      photos: [],
+    }));
+    const tab = Array.from(document.body.querySelectorAll('button')).find(
+      (item) => item.textContent === 'modals.lightroomDevelop.title',
+    )!;
+    await act(async () => tab.click());
+    expect(calls(Invokes.PreviewLightroomDevelop)[0]).toEqual({
+      path: CATALOG,
+      mappings: { '/Volumes/Old/': '/mnt/old' },
+    });
+    pickFolder.mockResolvedValue('/mnt/pictures');
+    await act(async () => button('relink').click());
+    expect(calls(Invokes.PreviewLightroomDevelop)[1]).toEqual({
+      path: CATALOG,
+      mappings: { '/Volumes/Old/': '/mnt/old', 'C:/Users/Benny/Pictures/': '/mnt/pictures' },
+    });
+    expect(calls(Invokes.ImportLightroomDevelop)).toEqual([]);
+    expect(handleSettingsChange).not.toHaveBeenCalled();
   });
 
   it('cancels without importing or saving anything', async () => {

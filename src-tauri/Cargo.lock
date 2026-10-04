@@ -13,6 +13,7 @@ dependencies = [
  "chrono",
  "fern",
  "filetime",
+ "flate2",
  "futures",
  "fuzzy-matcher",
  "glam 0.33.5",

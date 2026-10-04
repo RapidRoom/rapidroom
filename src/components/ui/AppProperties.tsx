@@ -125,6 +125,8 @@ export enum Invokes {
   SaveAlbums = 'save_albums',
   AddToAlbum = 'add_to_album',
   GetAlbumImages = 'get_album_images',
+  PreviewLightroomDevelop = 'preview_lightroom_develop',
+  ImportLightroomDevelop = 'import_lightroom_develop',
   PreviewLightroomCollections = 'preview_lightroom_collections',
   ImportLightroomCollections = 'import_lightroom_collections',
   TetherListCameras = 'tether_list_cameras',
