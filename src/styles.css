@@ -142,13 +142,13 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background-color: var(--color-text-secondary);
+    background-color: color-mix(in srgb, var(--color-text-secondary) 18%, transparent);
     border-radius: 10px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: theme('colors.hover-color');
+    background-color: color-mix(in srgb, var(--color-text-secondary) 35%, transparent);
   }
 
   .macos-window-shell {

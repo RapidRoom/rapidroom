@@ -944,6 +944,37 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Rewritten from the fork's regex converter as a bounded Lua-table parser that feeds the existing XMP preset mapping, so values match .xmp presets. Settings nested in Looks or local corrections are not read. Batch preset import lists what was not imported (profile look, masks, Point Color, camera or lens profile, custom white balance) using the same identifiers as the XMP sidecar report; malformed files or curves are rejected with a reason. Importing only adds a preset; photos change only when you apply it. Harvested with Claude Code."
+    },
+    {
+      "id": "pick-reject-flags",
+      "title": "Pick and reject flags, separate from star ratings: P / X / U shortcuts, badges, a flag filter (picked, unflagged, hide rejected, rejected) and Delete rejected",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["lalibertemarc", "yojen7"],
+      "source": "lalibertemarc/RapidRAW (adapted by yojen7)",
+      "commits": ["https://github.com/lalibertemarc/RapidRAW/commit/1b4b9db115f0c1aa6f12e2b4bc0515ffb7fb0eb6"],
+      "upstream_issues": ["CyberTimon/RapidRAW#1599", "CyberTimon/RapidRAW#994", "CyberTimon/RapidRAW#1057"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The flag is its own `flag` field in the sidecar, so a reject keeps the stars and older builds ignore it. With XMP sync on, a reject is written as xmp:Rating=\"-1\" (darktable, Bridge and Lightroom use the same value) and read back from it; a flag you set or remove in RapidRoom wins over the .xmp, and a virtual copy never changes the original's reject. A Lightroom XMP import brings rejects in. The Presets panel shortcut moves from P to Shift+P. Upstream has two other designs for this, PRs 1075 (reject as rating -1) and 1272 (flags as tags); the PR for RapidRoom #32 explains the choice. Harvested with Claude Code. Local Codex review propagates sidecar save failures, keeps XMP unchanged when saving fails, and serializes optimistic rating/flag writes so a refused write restores the saved state without discarding later actions.",
+      "highlight": "**Pick and reject flags for culling,** separate from stars: P, X and U as in Lightroom, a flag filter, and rejects that darktable, Bridge and Lightroom understand."
+    },
+    {
+      "id": "presets-left-sidebar",
+      "title": "Presets move to the left sidebar with compact rows, hover previews, favorites and folder reordering",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["laurensiusadi"],
+      "source": "laurensiusadi/RapidRAW",
+      "commits": [
+        "https://github.com/laurensiusadi/RapidRAW/commit/953588443099def3fd0c5e92a55e1966d994e385",
+        "https://github.com/laurensiusadi/RapidRAW/commit/9e478b66eeee63be3e79238af708916655f52125"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Hovering a preset previews it on the image without touching the edit, its history or sidecars; only a click applies it. Saved workspaces keep their layout: Presets only moves when it is still in its old default spot on the right. Preset preview thumbnails are gone. Enter/Space apply a focused preset. Scrollbar thumbs across the app are more subtle.",
+      "highlight": "**Presets at your fingertips.** Presets sit in the left sidebar as compact rows: hover to preview one on your photo, click to apply, and star favorites to pin them on top."
     }
   ]
 }

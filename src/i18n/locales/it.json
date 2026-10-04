@@ -198,6 +198,9 @@
       "denoise": "Riduci Rumore Immagine",
       "editImage": "Modifica Immagine",
       "exportImage": "Esporta Immagine",
+      "flag": "Flag",
+      "flagPick": "Scelta",
+      "flagReject": "Rifiutata",
       "frameImage": "Incornicia Immagine",
       "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "Unisci in HDR",
@@ -213,7 +216,8 @@
       "resetAdjustments": "Ripristina Regolazioni",
       "stitchPanorama": "Unisci Panorama",
       "tagging": "Tagging",
-      "undo": "Annulla"
+      "undo": "Annulla",
+      "unflagged": "Senza flag"
     },
     "folders": {
       "changeIcon": "Cambia Icona",
@@ -240,6 +244,7 @@
       "addCopiedToAlbum_many": "Aggiungi {{count}} immagini copiate all'album",
       "addCopiedToAlbum_one": "Aggiungi l'immagine copiata all'album",
       "addCopiedToAlbum_other": "Aggiungi {{count}} immagini copiate all'album",
+      "deleteRejected": "Elimina immagini rifiutate",
       "refreshView": "Aggiorna Visualizzazione"
     },
     "merge": {
@@ -786,6 +791,7 @@
         "presetFile": "File Predefinito",
         "rapidRawPreset": "Predefinito RapidRAW"
       },
+      "favorites": "Preferiti",
       "menu": {
         "configurePreset": "Configura Predefinito",
         "deleteFolder": "Elimina Cartella",
@@ -813,8 +819,10 @@
       "tooltips": {
         "explore": "Esplora i Predefiniti della Community",
         "export": "Esporta tutti i predefiniti in un file .rrpreset",
+        "favorite": "Aggiungi ai preferiti",
         "import": "Importa predefiniti da un file .rrpreset",
-        "saveNew": "Salva come nuovo predefinito"
+        "saveNew": "Salva come nuovo predefinito",
+        "unfavorite": "Rimuovi dai preferiti"
       },
       "types": {
         "folder": "Cartella",
@@ -1040,6 +1048,13 @@
         "editedOnly": "Solo Modificate",
         "uneditedOnly": "Solo Non Modificate"
       },
+      "flag": {
+        "all": "Tutte le Immagini",
+        "excludeRejected": "Nascondi Rifiutate",
+        "picked": "Scelta",
+        "rejected": "Rifiutata",
+        "unflagged": "Senza flag"
+      },
       "noMatch": "Nessuna immagine trovata corrispondente al tuo filtro.",
       "rating": {
         "all": "Mostra Tutto",
@@ -1127,6 +1142,7 @@
         "filterByColorLabel": "Filtra per Etichetta Colore",
         "filterByEdited": "Filtra per Stato Modifica",
         "filterByFileType": "Filtra per Tipo di File",
+        "filterByFlag": "Filtra per Flag",
         "filterByRating": "Filtra per Valutazione",
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
@@ -1161,11 +1177,23 @@
       "imagesCount_many": "{{count}} immagini",
       "imagesCount_one": "1 immagine",
       "imagesCount_other": "{{count}} immagini",
+      "rejected": "Rifiutata",
       "tooltipAperture": "Apertura",
       "tooltipFocalLength": "Lunghezza Focale",
       "tooltipIso": "ISO",
       "tooltipShutterSpeed": "Tempo di Esposizione",
       "tooltipVirtualCopy": "Copia Virtuale"
+    },
+    "reject": {
+      "deleteConfirm": "Elimina Rifiutate",
+      "deleteMessage_many": "Vuoi davvero eliminare {{count}} immagini rifiutate? Verranno spostate nel cestino.",
+      "deleteMessage_one": "Vuoi davvero eliminare {{count}} immagine rifiutata? Verrà spostata nel cestino.",
+      "deleteMessage_other": "Vuoi davvero eliminare {{count}} immagini rifiutate? Verranno spostate nel cestino.",
+      "deleteTitle": "Elimina immagini rifiutate",
+      "noneToDelete": "Non ci sono immagini rifiutate da eliminare.",
+      "virtualCopiesWarning_many": "Verranno eliminate anche {{count}} copie virtuali non rifiutate perché i loro originali sono rifiutati.",
+      "virtualCopiesWarning_one": "Verrà eliminata anche {{count}} copia virtuale non rifiutata perché il suo originale è rifiutato.",
+      "virtualCopiesWarning_other": "Verranno eliminate anche {{count}} copie virtuali non rifiutate perché i loro originali sono rifiutati."
     },
     "search": {
       "noResults": "Nessun Risultato Trovato",
@@ -1349,7 +1377,7 @@
     "culling": {
       "actionDelete": "Sposta nel Cestino",
       "actionRateZero": "Imposta Valutazione a 1 Stella",
-      "actionReject": "Segna come Rifiutata (Etichetta Rossa)",
+      "actionReject": "Segna come Rifiutata",
       "applyButton_many": "Applica a {{count}} immagini",
       "applyButton_one": "Applica a 1 immagine",
       "applyButton_other": "Applica a {{count}} immagini",
@@ -1779,7 +1807,10 @@
         "copy_files": "Copia file selezionati",
         "copy_image_path": "Copia il percorso delle immagini selezionate",
         "cycle_zoom": "Ruota zoom (Adatta, Adatta 2x, 100%)",
+        "delete_rejected": "Elimina file rifiutati",
         "delete_selected": "Elimina file selezionati",
+        "flag_pick": "Contrassegna come Scelta",
+        "flag_reject": "Contrassegna come Rifiutata",
         "focus_search": "Attiva il campo di ricerca",
         "open_image": "Apri immagine selezionata",
         "open_settings": "Apri le impostazioni",
@@ -1815,6 +1846,7 @@
         "toggle_reference_view": "Attiva/disattiva vista di riferimento",
         "toggle_right_panel": "Mostra/Nascondi pannello destro",
         "undo": "Annulla modifica",
+        "unflag": "Rimuovi flag",
         "zoom_100": "Zoom al 100%",
         "zoom_fit": "Zoom per adattare",
         "zoom_in": "Ingrandisci",
@@ -2153,6 +2185,10 @@
         "virtualCopy": "Copia Virtuale"
       },
       "virtualCopyAbbreviation": "CV"
+    },
+    "flags": {
+      "togglePick": "Attiva/disattiva scelta",
+      "toggleReject": "Attiva/disattiva rifiuto"
     },
     "imagePicker": {
       "clearImage": "Cancella Immagine",

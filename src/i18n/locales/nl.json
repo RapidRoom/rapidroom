@@ -720,6 +720,7 @@
         "presetFile": "Voorinstellingsbestand",
         "rapidRawPreset": "RapidRAW-voorinstelling"
       },
+      "favorites": "Favorieten",
       "menu": {
         "configurePreset": "Voorinstelling configureren",
         "deleteFolder": "Map verwijderen",
@@ -747,8 +748,10 @@
       "tooltips": {
         "explore": "Community-voorinstellingen verkennen",
         "export": "Alle voorinstellingen exporteren naar .rrpreset-bestand",
+        "favorite": "Toevoegen aan favorieten",
         "import": "Voorinstellingen importeren uit .rrpreset-bestand",
-        "saveNew": "Opslaan als nieuwe voorinstelling"
+        "saveNew": "Opslaan als nieuwe voorinstelling",
+        "unfavorite": "Verwijderen uit favorieten"
       },
       "types": {
         "folder": "Map",

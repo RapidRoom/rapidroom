@@ -1600,6 +1600,7 @@ fn convert_xmp_to_preset_with_crop(
         include_masks: Some(false),
         include_crop_transform: Some(include_crop_transform),
         preset_type: Some("style".to_string()),
+        favorite: None,
     })
 }
 
