@@ -22,10 +22,26 @@ use tauri::{AppHandle, Emitter};
 pub const DENOISE_CANCELLED: &str = "Denoise cancelled";
 
 type EventSink = Arc<dyn Fn(&str, serde_json::Value) + Send + Sync>;
-pub type DenoiseResult = Arc<Mutex<Option<(u64, DynamicImage)>>>;
+pub enum DenoisedOutput {
+    Image(DynamicImage),
+    Raw(Vec<u8>),
+}
+
+impl DenoisedOutput {
+    fn extension(&self, is_raw: bool) -> &'static str {
+        match self {
+            Self::Raw(_) => "dng",
+            Self::Image(_) if is_raw => "tiff",
+            Self::Image(_) => "png",
+        }
+    }
+}
+
+pub type DenoiseResult = Arc<Mutex<Option<(u64, DenoisedOutput)>>>;
 
 #[derive(Default)]
 struct CancelToken {
+    decode_cancel: Arc<AtomicUsize>,
     started: AtomicBool,
     cancelled: AtomicBool,
     run_options: Mutex<Option<Arc<RunOptions>>>,
@@ -34,6 +50,7 @@ struct CancelToken {
 impl CancelToken {
     fn cancel(&self) {
         self.cancelled.store(true, AtomicOrdering::SeqCst);
+        self.decode_cancel.fetch_add(1, AtomicOrdering::SeqCst);
         if let Some(run_options) = self.run_options.lock().unwrap().as_ref() {
             let _ = run_options.terminate();
         }
@@ -79,6 +96,34 @@ pub struct DenoiseJob {
 }
 
 impl DenoiseJob {
+    #[cfg(test)]
+    pub(crate) fn testing() -> Self {
+        Self {
+            id: 1,
+            token: Arc::default(),
+            sink: None,
+        }
+    }
+    #[cfg(test)]
+    pub(crate) fn testing_cancel_on_progress() -> Self {
+        let token = Arc::new(CancelToken::default());
+        let cancellation = token.clone();
+        Self {
+            id: 1,
+            token,
+            sink: Some(Arc::new(move |_, _| cancellation.cancel())),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn cancel_for_test(&self) {
+        self.token.cancel();
+    }
+
+    pub fn decode_cancel_token(&self) -> (Arc<AtomicUsize>, usize) {
+        (self.token.decode_cancel.clone(), 0)
+    }
+
     pub fn is_cancelled(&self) -> bool {
         self.token.cancelled.load(AtomicOrdering::SeqCst)
     }
@@ -162,14 +207,43 @@ fn event_sink(app_handle: &AppHandle) -> EventSink {
     })
 }
 
+#[derive(Clone)]
+enum DenoiseModels {
+    Basic,
+    LegacyAi(Arc<Mutex<Session>>),
+    Tree {
+        sessions: crate::tree_denoise::Models,
+        fast: bool,
+        sharpen: bool,
+    },
+}
+
+struct DenoiseOptions {
+    intensity: f32,
+    method: String,
+    sharpen: bool,
+}
+
 async fn denoise_session(
     method: &str,
+    sharpen: bool,
     job: &DenoiseJob,
     app_handle: &AppHandle,
     state: &AppState,
-) -> Result<Option<Arc<Mutex<Session>>>, String> {
+) -> Result<DenoiseModels, String> {
+    if matches!(method, "tree_best" | "tree_fast") {
+        let fast = method == "tree_fast";
+        let sessions = crate::tree_denoise::models(app_handle, state, fast, sharpen, job)
+            .await
+            .map_err(|e| e.to_string())?;
+        return Ok(DenoiseModels::Tree {
+            sessions,
+            fast,
+            sharpen,
+        });
+    }
     if method != "ai" {
-        return Ok(None);
+        return Ok(DenoiseModels::Basic);
     }
     let session = crate::ai_processing::get_or_init_denoise_model(
         app_handle,
@@ -179,10 +253,14 @@ async fn denoise_session(
     .await
     .map_err(|e| e.to_string())?;
     job.check()?;
-    Ok(Some(session))
+    Ok(DenoiseModels::LegacyAi(session))
 }
 
-fn store_result(slot: &DenoiseResult, job: &DenoiseJob, image: DynamicImage) -> Result<(), String> {
+fn store_result(
+    slot: &DenoiseResult,
+    job: &DenoiseJob,
+    image: DenoisedOutput,
+) -> Result<(), String> {
     let mut slot = slot.lock().unwrap();
     job.check()?;
     if slot.as_ref().is_some_and(|(id, _)| *id > job.id) {
@@ -208,6 +286,7 @@ pub async fn apply_denoising(
     path: String,
     intensity: f32,
     method: String,
+    sharpen: Option<bool>,
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -217,7 +296,18 @@ pub async fn apply_denoising(
     else {
         return Ok(());
     };
-    let result = run_single_denoise(job, path, intensity, method, app_handle, &state).await;
+    let result = run_single_denoise(
+        job,
+        path,
+        DenoiseOptions {
+            intensity,
+            method,
+            sharpen: sharpen.unwrap_or(true),
+        },
+        app_handle,
+        &state,
+    )
+    .await;
     state.denoise_jobs.finish(job_id);
     match result {
         Err(e) if e == DENOISE_CANCELLED => Ok(()),
@@ -228,24 +318,29 @@ pub async fn apply_denoising(
 async fn run_single_denoise(
     job: DenoiseJob,
     path: String,
-    intensity: f32,
-    method: String,
+    options: DenoiseOptions,
     app_handle: AppHandle,
     state: &AppState,
 ) -> Result<(), String> {
-    let ai_session = denoise_session(&method, &job, &app_handle, state).await?;
+    let ai_session =
+        denoise_session(&options.method, options.sharpen, &job, &app_handle, state).await?;
     let (source_path, _) = parse_virtual_path(&path);
     let path_str = source_path.to_string_lossy().to_string();
     let denoise_result_handle = state.denoise_result.clone();
 
     tokio::task::spawn_blocking(move || {
-        let outcome = denoise_image(&path_str, intensity, &method, &app_handle, ai_session, &job)
-            .and_then(|(image, original)| {
+        let outcome = denoise_image(&path_str, &options, &app_handle, ai_session, &job).and_then(
+            |(image, original, raw)| {
                 let payload = build_previews(&image, original, is_raw_file(&path_str), &job)?;
-                store_result(&denoise_result_handle, &job, image)?;
+                store_result(
+                    &denoise_result_handle,
+                    &job,
+                    raw.map_or_else(|| DenoisedOutput::Image(image), DenoisedOutput::Raw),
+                )?;
                 job.emit("denoise-complete", payload);
                 Ok(())
-            });
+            },
+        );
         if let Err(e) = outcome
             && e != DENOISE_CANCELLED
         {
@@ -262,6 +357,7 @@ pub async fn batch_denoise_images(
     paths: Vec<String>,
     intensity: f32,
     method: String,
+    sharpen: Option<bool>,
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
@@ -271,7 +367,18 @@ pub async fn batch_denoise_images(
     else {
         return Ok(Vec::new());
     };
-    let result = run_batch_denoise(job, paths, intensity, method, app_handle, &state).await;
+    let result = run_batch_denoise(
+        job,
+        paths,
+        DenoiseOptions {
+            intensity,
+            method,
+            sharpen: sharpen.unwrap_or(true),
+        },
+        app_handle,
+        &state,
+    )
+    .await;
     state.denoise_jobs.finish(job_id);
     match result {
         Err(e) if e == DENOISE_CANCELLED => Ok(Vec::new()),
@@ -282,25 +389,21 @@ pub async fn batch_denoise_images(
 async fn run_batch_denoise(
     job: DenoiseJob,
     paths: Vec<String>,
-    intensity: f32,
-    method: String,
+    options: DenoiseOptions,
     app_handle: AppHandle,
     state: &AppState,
 ) -> Result<Vec<String>, String> {
     crate::file_management::ensure_card_writable_for_paths(&paths)?;
-    let ai_session = denoise_session(&method, &job, &app_handle, state).await?;
+    let ai_session =
+        denoise_session(&options.method, options.sharpen, &job, &app_handle, state).await?;
 
     tokio::task::spawn_blocking(move || {
         run_batch(&job, &paths, |path| {
-            denoise_image(
-                path,
-                intensity,
-                &method,
-                &app_handle,
-                ai_session.clone(),
-                &job,
+            denoise_image(path, &options, &app_handle, ai_session.clone(), &job).map(
+                |(image, _, raw)| {
+                    raw.map_or_else(|| DenoisedOutput::Image(image), DenoisedOutput::Raw)
+                },
             )
-            .map(|(image, _)| image)
         })
     })
     .await
@@ -312,7 +415,7 @@ async fn run_batch_denoise(
 fn run_batch(
     job: &DenoiseJob,
     paths: &[String],
-    mut denoise: impl FnMut(&str) -> Result<DynamicImage, String>,
+    mut denoise: impl FnMut(&str) -> Result<DenoisedOutput, String>,
 ) -> Vec<String> {
     let mut results = Vec::new();
 
@@ -347,22 +450,9 @@ fn run_batch(
             .unwrap_or_default()
             .to_string_lossy();
 
-        let (output_filename, format, image_to_save) = if is_raw_file(&real_path) {
-            (
-                format!("{}_Denoised.tiff", stem),
-                ImageFormat::Tiff,
-                DynamicImage::ImageRgb16(image.to_rgb16()),
-            )
-        } else {
-            (
-                format!("{}_Denoised.png", stem),
-                ImageFormat::Png,
-                DynamicImage::ImageRgb8(image.to_rgb8()),
-            )
-        };
-
-        let output_path = parent_dir.join(output_filename);
-        match write_output(&image_to_save, &output_path, format, job) {
+        let is_raw = is_raw_file(&real_path);
+        let output_path = parent_dir.join(format!("{}_Denoised.{}", stem, image.extension(is_raw)));
+        match write_denoised_output(&image, &output_path, is_raw, job.id, Some(job)) {
             Ok(()) => {}
             Err(e) if e == DENOISE_CANCELLED => break,
             Err(e) => {
@@ -388,22 +478,42 @@ fn run_batch(
     results
 }
 
-fn write_output(
-    image: &DynamicImage,
+fn write_denoised_output(
+    output: &DenoisedOutput,
     output_path: &Path,
-    format: ImageFormat,
-    job: &DenoiseJob,
+    is_raw: bool,
+    job_id: u64,
+    job: Option<&DenoiseJob>,
 ) -> Result<(), String> {
     let file_name = output_path
         .file_name()
         .unwrap_or_default()
         .to_string_lossy();
-    let partial_path = output_path.with_file_name(format!(".{}.{}.partial", file_name, job.id));
-    let result = image
-        .save_with_format(&partial_path, format)
-        .map_err(|e| e.to_string())
-        .and_then(|_| job.check())
-        .and_then(|_| fs::rename(&partial_path, output_path).map_err(|e| e.to_string()));
+    let partial_path = output_path.with_file_name(format!(".{}.{}.partial", file_name, job_id));
+    let result = (|| {
+        match output {
+            DenoisedOutput::Raw(bytes) => {
+                fs::write(&partial_path, bytes).map_err(|e| e.to_string())?
+            }
+            DenoisedOutput::Image(image) => {
+                let (image, format) = if is_raw {
+                    (
+                        DynamicImage::ImageRgb16(image.to_rgb16()),
+                        ImageFormat::Tiff,
+                    )
+                } else {
+                    (DynamicImage::ImageRgb8(image.to_rgb8()), ImageFormat::Png)
+                };
+                image
+                    .save_with_format(&partial_path, format)
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+        if let Some(job) = job {
+            job.check()?;
+        }
+        fs::rename(&partial_path, output_path).map_err(|e| e.to_string())
+    })();
     if result.is_err() {
         let _ = fs::remove_file(&partial_path);
     }
@@ -443,22 +553,12 @@ pub async fn save_denoised_image(
         .and_then(|s| s.to_str())
         .unwrap_or("denoised");
 
-    let (output_filename, image_to_save): (String, DynamicImage) = if is_raw {
-        let filename = format!("{}_Denoised.tiff", stem);
-        (
-            filename,
-            DynamicImage::ImageRgb16(denoised_image.to_rgb16()),
-        )
-    } else {
-        let filename = format!("{}_Denoised.png", stem);
-        (filename, DynamicImage::ImageRgb8(denoised_image.to_rgb8()))
-    };
-
-    let output_path = parent_dir.join(output_filename);
-
-    image_to_save
-        .save(&output_path)
-        .map_err(|e| format!("Failed to save image: {}", e))?;
+    let output_path = parent_dir.join(format!(
+        "{}_Denoised.{}",
+        stem,
+        denoised_image.extension(is_raw)
+    ));
+    write_denoised_output(&denoised_image, &output_path, is_raw, job_id, None)?;
 
     let (real_path, _) = crate::file_management::parse_virtual_path(&original_path_str);
     let _ =
@@ -535,12 +635,13 @@ fn bm3d_denoise(
 
 fn denoise_image(
     path_str: &str,
-    intensity: f32,
-    method: &str,
+    options: &DenoiseOptions,
     app_handle: &AppHandle,
-    ai_session: Option<Arc<Mutex<Session>>>,
+    ai_session: DenoiseModels,
     job: &DenoiseJob,
-) -> Result<(DynamicImage, Rgb32FImage), String> {
+) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
+    let method = options.method.as_str();
+    let intensity = options.intensity;
     let path = Path::new(path_str);
     if !path.exists() {
         return Err("File not found".to_string());
@@ -555,19 +656,65 @@ fn denoise_image(
     job.check()?;
 
     let mut original_settings = settings.clone();
-    if method == "raw9" {
+    if method == "raw9" || matches!(ai_session, DenoiseModels::Tree { .. }) {
         original_settings.use_apple_raw9 = Some(false);
     }
 
-    let dynamic_img =
-        load_base_image_from_bytes(&file_bytes, path_str, false, &original_settings, None)
-            .map_err(|e| e.to_string())?;
+    let dynamic_img = load_base_image_from_bytes(
+        &file_bytes,
+        path_str,
+        false,
+        &original_settings,
+        Some(job.decode_cancel_token()),
+    )
+    .map_err(|e| e.to_string())?;
     job.check()?;
 
     let rgb_img_for_denoiser = dynamic_img.to_rgb32f();
 
-    let mut out_dynamic = if method == "ai" {
-        let session_arc = ai_session.ok_or_else(|| "AI Session not provided".to_string())?;
+    let mut raw_output = None;
+    let mut out_dynamic = if let DenoiseModels::Tree {
+        sessions,
+        fast,
+        sharpen,
+    } = &ai_session
+    {
+        let cached = crate::tree_denoise::cached_sensor(
+            &file_bytes,
+            app_handle,
+            *fast,
+            *sharpen,
+            sessions,
+            job,
+        )
+        .map_err(|e| {
+            if job.is_cancelled() {
+                DENOISE_CANCELLED.to_string()
+            } else {
+                e.to_string()
+            }
+        })?;
+        let bytes = fs::read(&cached).map_err(|e| e.to_string())?;
+        let developed = load_base_image_from_bytes(
+            &bytes,
+            "sensor.dng",
+            false,
+            &original_settings,
+            Some(job.decode_cancel_token()),
+        )
+        .map_err(|e| {
+            if job.is_cancelled() {
+                DENOISE_CANCELLED.to_string()
+            } else {
+                e.to_string()
+            }
+        })?;
+        raw_output = Some(bytes);
+        developed
+    } else if method == "ai" {
+        let DenoiseModels::LegacyAi(session_arc) = ai_session else {
+            return Err("AI Session not provided".to_string());
+        };
         crate::ai_processing::run_ai_denoise(&rgb_img_for_denoiser, intensity, &session_arc, job)?
     } else if method == "raw9" {
         if !is_raw {
@@ -585,7 +732,7 @@ fn denoise_image(
         apply_cpu_default_raw_processing(&mut out_dynamic);
     }
 
-    Ok((out_dynamic, rgb_img_for_denoiser))
+    Ok((out_dynamic, rgb_img_for_denoiser, raw_output))
 }
 
 fn build_previews(
@@ -1470,7 +1617,7 @@ mod tests {
         let jobs = Arc::new(DenoiseJobs::default());
         let (old, _) = job_with_events(&jobs, |_, _| false);
         let (new, _) = job_with_events(&jobs, |_, _| false);
-        let image = || DynamicImage::new_rgb8(1, 1);
+        let image = || DenoisedOutput::Image(DynamicImage::new_rgb8(1, 1));
 
         store_result(&slot, &new, image()).unwrap();
         assert_eq!(
@@ -1523,7 +1670,7 @@ mod tests {
         let saved = run_batch(&job, &paths, |_| {
             calls += 1;
             job.check()?;
-            Ok(DynamicImage::new_rgb8(4, 4))
+            Ok(DenoisedOutput::Image(DynamicImage::new_rgb8(4, 4)))
         });
 
         let first = dir.path().join("a_Denoised.png");
@@ -1552,7 +1699,7 @@ mod tests {
         let (job, _) = job_with_events(&jobs, |_, _| false);
         let saved = run_batch(&job, &paths, |_| {
             jobs.cancel(job.id);
-            Ok(DynamicImage::new_rgb8(4, 4))
+            Ok(DenoisedOutput::Image(DynamicImage::new_rgb8(4, 4)))
         });
 
         assert!(saved.is_empty());

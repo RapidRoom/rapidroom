@@ -65,6 +65,7 @@ mod tagging;
 mod tagging_utils;
 #[cfg(test)]
 mod test_support;
+mod tree_denoise;
 mod two_phase_rename;
 mod window_customizer;
 

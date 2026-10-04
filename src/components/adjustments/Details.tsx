@@ -1,6 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import Slider from '../ui/Slider';
-import { Adjustments, DetailsAdjustment, getAdjustmentToolOrder, getHiddenAdjustmentTools } from '../../utils/adjustments';
+import {
+  Adjustments,
+  DetailsAdjustment,
+  getAdjustmentToolOrder,
+  getHiddenAdjustmentTools,
+} from '../../utils/adjustments';
 import { AppSettings } from '../ui/AppProperties';
 import AdjustmentSubSection from './AdjustmentSubSection';
 
@@ -113,8 +118,10 @@ export default function DetailsPanel({
         <AdjustmentSubSection
           id="noiseReduction"
           order={toolOrder.indexOf('noiseReduction')}
-          title={t('adjustments.details.noiseReduction')}
+          title={t('adjustments.details.quickNoiseReduction')}
+          initiallyCollapsed
         >
+          <p className="text-xs text-text-secondary px-1 py-2">{t('adjustments.details.aiDenoiseHint')}</p>
           <Slider
             label={t('adjustments.details.luminance')}
             max={100}
