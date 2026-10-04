@@ -46,10 +46,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -91,20 +88,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping",
-            "Sharpness",
-            "Luminance"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping", "Sharpness", "Luminance"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -152,10 +139,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -197,18 +181,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -256,10 +232,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -301,18 +274,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -360,10 +325,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -405,18 +367,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -548,12 +502,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -684,12 +633,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -820,12 +764,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -955,12 +894,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -1094,12 +1028,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -1232,12 +1161,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -1367,12 +1291,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -1501,12 +1420,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -1554,10 +1468,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -1599,20 +1510,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping",
-            "Sharpness",
-            "Luminance"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping", "Sharpness", "Luminance"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -1660,10 +1561,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -1705,18 +1603,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -1764,10 +1654,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -1809,18 +1696,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -1868,10 +1747,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -1913,18 +1789,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -2056,12 +1924,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -2192,12 +2055,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -2328,12 +2186,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -2463,12 +2316,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -2602,12 +2450,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -2740,12 +2583,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -2875,12 +2713,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 1,
@@ -3009,12 +2842,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -3062,10 +2890,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -3107,20 +2932,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping",
-            "Sharpness",
-            "Luminance"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping", "Sharpness", "Luminance"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -3168,10 +2983,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -3213,18 +3025,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -3272,10 +3076,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -3317,18 +3118,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -3376,10 +3169,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -3421,18 +3211,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -3564,12 +3346,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -3700,12 +3477,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -3836,12 +3608,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -3971,12 +3738,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -4110,12 +3872,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -4248,12 +4005,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -4383,12 +4135,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -4517,12 +4264,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -4570,10 +4312,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -4615,20 +4354,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping",
-            "Sharpness",
-            "Luminance"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping", "Sharpness", "Luminance"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -4676,10 +4405,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -4721,18 +4447,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -4780,10 +4498,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -4825,18 +4540,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -4884,10 +4591,7 @@
               "height": 28
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         },
         {
           "density": "compact",
@@ -4929,18 +4633,10 @@
               "height": 24
             }
           ],
-          "labels": [
-            "Standard Tonemapping",
-            "Film-like Tonemapping"
-          ]
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -5072,12 +4768,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -5208,12 +4899,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -5344,12 +5030,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -5479,12 +5160,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -5618,12 +5294,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -5756,12 +5427,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -5891,12 +5557,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     },
     {
       "dpi": 2,
@@ -6025,12 +5686,7 @@
           ]
         }
       ],
-      "domEqual": [
-        true,
-        true,
-        true,
-        true
-      ]
+      "domEqual": [true, true, true, true]
     }
   ],
   "interactions": [
