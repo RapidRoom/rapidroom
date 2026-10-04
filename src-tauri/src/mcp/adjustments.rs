@@ -5,7 +5,12 @@ use crate::guided_perspective::{GuideLine, GuideOrientation};
 pub(super) fn adjustments_schema() -> Value {
     let mut properties = Map::new();
     for (key, min, max, description) in [
-        ("exposure", -5.0, 5.0, "EV shift."),
+        (
+            "exposure",
+            -5.0,
+            5.0,
+            "Exposure slider; one unit is 1.25 EV.",
+        ),
         ("brightness", -5.0, 5.0, "Brightness."),
         ("contrast", -100.0, 100.0, "Contrast."),
         ("highlights", -100.0, 100.0, "Highlights."),

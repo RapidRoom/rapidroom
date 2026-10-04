@@ -39,7 +39,7 @@ An agent can start from the library: `open_image` opens a photo in the editor. T
 - **It listens on a loopback TCP port** (`127.0.0.1` only). Nothing outside the machine can reach it, and it makes no outgoing connections.
 - **There is no authentication.** Any program running on the same machine can connect while the app is running, including programs run by other users. Only build with `mcp` on a machine you trust. A token and a stdio proxy are tracked in #116.
 - **Browsers can't drive it.** Requests carrying an `Origin` header are refused. rmcp also rejects any `Host` other than `localhost`, `127.0.0.1` or `::1`, which blocks DNS rebinding, and it only accepts `application/json`, so a web page can't send a "simple" cross-site request either.
-- **Protocol:** one JSON response per POST to `/mcp` (no event stream; GET gets `405`), `Content-Length` or chunked request bodies, and `Connection: close` on every response.
+- **Protocol:** one JSON response per POST to `/mcp` (no event stream; GET gets `405`), `Content-Length` or chunked request bodies, and `Connection: close` on every response. Chunked decoding enforces the body/size-line limits without overflowing the accumulated length, validates each data terminator and discards consumed framing buffers.
 - **Reach:** edits only apply to the image open in the editor. `list_images` and `export_images` can read and write any folder the user can.
 
 ## The two candidates

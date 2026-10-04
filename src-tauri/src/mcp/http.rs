@@ -236,17 +236,13 @@ async fn read_chunked_body<S: AsyncRead + Unpin>(
     mut buffer: Vec<u8>,
 ) -> Result<Vec<u8>, String> {
     let mut body = Vec::new();
-    let mut position = 0;
     let mut chunk = [0_u8; 4096];
     loop {
         let size_line_end = loop {
-            if let Some(offset) = buffer[position..]
-                .windows(2)
-                .position(|window| window == b"\r\n")
-            {
-                break position + offset;
+            if let Some(offset) = buffer.windows(2).position(|window| window == b"\r\n") {
+                break offset;
             }
-            if buffer.len() - position > MAX_HEADER_BYTES {
+            if buffer.len() > MAX_HEADER_BYTES {
                 return Err("invalid chunked HTTP body".to_string());
             }
             let read = stream
@@ -258,7 +254,10 @@ async fn read_chunked_body<S: AsyncRead + Unpin>(
             }
             buffer.extend_from_slice(&chunk[..read]);
         };
-        let size_text = std::str::from_utf8(&buffer[position..size_line_end])
+        if size_line_end > MAX_HEADER_BYTES {
+            return Err("invalid chunked HTTP body".to_string());
+        }
+        let size_text = std::str::from_utf8(&buffer[..size_line_end])
             .map_err(|_| "invalid chunk size".to_string())?;
         let size_text = size_text.split(';').next().unwrap_or_default().trim();
         let size = usize::from_str_radix(size_text, 16)
@@ -268,7 +267,7 @@ async fn read_chunked_body<S: AsyncRead + Unpin>(
             // Trailers are not used by MCP clients; the body ends here.
             return Ok(body);
         }
-        if body.len() + size > MAX_BODY_BYTES {
+        if size > MAX_BODY_BYTES - body.len() {
             return Err("MCP request body exceeds the limit".to_string());
         }
         while buffer.len() < data_start + size + 2 {
@@ -281,8 +280,11 @@ async fn read_chunked_body<S: AsyncRead + Unpin>(
             }
             buffer.extend_from_slice(&chunk[..read]);
         }
+        if &buffer[data_start + size..data_start + size + 2] != b"\r\n" {
+            return Err("invalid chunk terminator".to_string());
+        }
         body.extend_from_slice(&buffer[data_start..data_start + size]);
-        position = data_start + size + 2;
+        buffer.drain(..data_start + size + 2);
     }
 }
 
@@ -350,10 +352,13 @@ mod tests {
         let (mut client, mut server) = tokio::io::duplex(64);
         let writer = tokio::spawn(async move {
             for piece in raw.chunks(7) {
-                client.write_all(piece).await.unwrap();
+                if client.write_all(piece).await.is_err() {
+                    break;
+                }
             }
         });
         let request = read_request(&mut server).await;
+        drop(server);
         writer.await.unwrap();
         request
     }
@@ -379,6 +384,29 @@ mod tests {
         assert_eq!(request.body, b"hello, MCP world");
         assert!(!request.headers.contains_key("transfer-encoding"));
         assert_eq!(request.headers.get("content-length").unwrap(), "16");
+    }
+
+    #[tokio::test]
+    async fn rejects_chunk_size_that_would_overflow_the_accumulated_length() {
+        let raw = format!(
+            "POST /mcp HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nx\r\n{:X}\r\n",
+            usize::MAX
+        );
+        let mut stream = raw.as_bytes();
+        assert!(
+            read_request(&mut stream)
+                .await
+                .unwrap_err()
+                .contains("exceeds the limit")
+        );
+    }
+
+    #[tokio::test]
+    async fn rejects_chunk_data_without_a_crlf_terminator() {
+        let request =
+            parse(b"POST /mcp HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nx!!0\r\n\r\n")
+                .await;
+        assert!(request.unwrap_err().contains("chunk terminator"));
     }
 
     #[tokio::test]
