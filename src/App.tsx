@@ -1037,6 +1037,7 @@ function App() {
           handleSaveCollage={handleSaveCollage}
           handleCreateAlbumItem={handleCreateAlbumItem}
           handleRenameAlbumItem={handleRenameAlbumItem}
+          refreshAllFolderTrees={refreshAllFolderTrees}
         />
         <ToastContainer
           position="bottom-right"

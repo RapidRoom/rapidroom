@@ -11,7 +11,13 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
-import { PresetImportFailure, PresetListType, usePresets, UserPreset } from '../../../hooks/usePresets';
+import {
+  PresetImportFailure,
+  PresetImportWarning,
+  PresetListType,
+  usePresets,
+  UserPreset,
+} from '../../../hooks/usePresets';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import {
   CopyPlus,
@@ -1052,7 +1058,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
         return;
       }
 
-      const { failures } = await importPresetsFromFiles(paths);
+      const { failures, warnings } = await importPresetsFromFiles(paths);
 
       setFolderPreviewsGenerated(new Set<string>());
       setPreviews({});
@@ -1060,6 +1066,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
       failures.forEach((failure: PresetImportFailure) =>
         console.error(`Failed to import ${failure.fileName}: ${failure.error}`),
       );
+      warnings.forEach((warning: PresetImportWarning) => console.warn(`${warning.fileName}: ${warning.message}`));
     } catch (error) {
       console.error('Failed to import presets:', error);
     }

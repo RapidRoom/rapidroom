@@ -21,9 +21,15 @@ export interface PresetImportFailure {
   error: string;
 }
 
+export interface PresetImportWarning {
+  fileName: string;
+  message: string;
+}
+
 export interface PresetImportResult {
   presets: Array<UserPreset>;
   failures: Array<PresetImportFailure>;
+  warnings: Array<PresetImportWarning>;
 }
 
 function arrayMove(array: any, from: any, to: any) {
