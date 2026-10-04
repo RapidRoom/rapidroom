@@ -33,6 +33,7 @@ import {
   ThumbnailAspectRatio,
   RawStatus,
   EditedStatus,
+  FlagStatus,
   LibraryDisplayMode,
 } from '../ui/AppProperties';
 import { GroupBadgeInfo, GroupId } from '../../utils/imageGrouping';
@@ -45,7 +46,7 @@ import SettingsPanel from './SettingsPanel';
 
 import LibraryGrid from './library/LibraryGrid';
 import { SearchInput, ViewOptionsDropdown } from './library/LibraryHeader';
-import { RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
+import { RAPIDRAW_BASE_VERSION, RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
 import { isPathInCardRoot } from '../../utils/cardMode';
 
 export interface ColumnWidths {
@@ -223,6 +224,17 @@ export default function MainLibrary(props: MainLibraryProps) {
     [t],
   );
 
+  const translatedFlagStatusOptions = useMemo(
+    () => [
+      { key: FlagStatus.All, label: t('library.filters.flag.all') },
+      { key: FlagStatus.Picked, label: t('library.filters.flag.picked') },
+      { key: FlagStatus.Unflagged, label: t('library.filters.flag.unflagged') },
+      { key: FlagStatus.ExcludeRejected, label: t('library.filters.flag.excludeRejected') },
+      { key: FlagStatus.Rejected, label: t('library.filters.flag.rejected') },
+    ],
+    [t],
+  );
+
   const translatedThumbnailSizeOptions = useMemo(
     () => [
       { id: ThumbnailSize.Small, label: t('library.thumbnailSize.small'), size: 160 },
@@ -296,8 +308,7 @@ export default function MainLibrary(props: MainLibraryProps) {
     const checkVersion = async () => {
       try {
         const currentVersion = await getVersion();
-        // Release builds carry the RapidRoom version as build metadata (1.6.4+rr.0.1.0); show the RapidRAW base.
-        setAppVersion(currentVersion.split('+')[0]);
+        setAppVersion(currentVersion);
 
         const response = await fetch('https://api.github.com/repos/RapidRoom/rapidroom/releases/latest');
         if (!response.ok) {
@@ -480,7 +491,7 @@ export default function MainLibrary(props: MainLibraryProps) {
                             }
                           >
                             <span className={isUpdateAvailable ? 'group-hover:hidden' : ''}>
-                              {t('library.splash.rapidroomVersion', { version: RAPIDROOM_VERSION })}
+                              {t('library.splash.rapidroomVersion', { version: appVersion })}
                             </span>
                             {isUpdateAvailable && (
                               <span className="hidden group-hover:inline text-yellow-400">
@@ -498,7 +509,7 @@ export default function MainLibrary(props: MainLibraryProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            RapidRAW {appVersion}
+                            RapidRAW {RAPIDRAW_BASE_VERSION}
                           </a>{' '}
                           {t('library.splash.upstreamBy')}{' '}
                           <a
@@ -640,6 +651,7 @@ export default function MainLibrary(props: MainLibraryProps) {
               ratingFilterOptions={translatedRatingFilterOptions}
               rawStatusOptions={translatedRawStatusOptions}
               editedStatusOptions={translatedEditedStatusOptions}
+              flagStatusOptions={translatedFlagStatusOptions}
               sortOptions={translatedSortOptions}
             />
             {!props.isAndroid && !props.cardBrowseRoot && (
