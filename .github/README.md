@@ -37,6 +37,18 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Friendly with upstream.** We merge RapidRAW regularly and offer our fixes back as pull requests.
 - **Credit where it's due.** Original authors stay on the commits and are listed in [CREDITS.md](../CREDITS.md).
 
+## Where RapidRoom is heading: an editor you can talk to
+
+We're building RapidRoom so that an AI assistant like Claude can do everything the interface can: move any slider, make masks, try different looks on virtual copies, build and apply presets, and export for Instagram or print. You describe what you want ("too cold and flat, I'd like it moodier with warm highlights"), and the assistant makes the edit and explains what it did.
+
+Because the full interface stays in front of you, you see every change as it happens: the sliders move and the masks appear. That makes it a tutor as well as an assistant.
+
+- **In a hurry?** Ask it to get the photo as good as possible, then approve or tweak the result.
+- **Learning?** Ask it to walk you through it: which slider to reach for first, what it does, and why. Then try it yourself and ask for feedback.
+- **Exploring?** Ask for five or six different looks as virtual copies, and pick your favourite.
+
+You stay in charge. Every AI change shows up in the history and can be undone, and control stays on your machine. This is work in progress: an MCP server for agents is being brought in now, followed by live control of the open photo, a RapidRoom editing skill, and an optional built-in terminal for starting an assistant right inside the app. Follow along on the [project board](https://github.com/orgs/RapidRoom/projects/1).
+
 ## Install
 
 There are no RapidRoom release builds yet, so build from source. You need [Rust](https://www.rust-lang.org/tools/install) and [Node.js](https://nodejs.org/), and on Linux the [Tauri prerequisites](https://tauri.app/start/prerequisites/):
