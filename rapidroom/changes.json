@@ -2,6 +2,23 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "pipeline-bench-parallel-conversions",
+      "title": "Faster raw decoding: highlight recovery and pixel-format conversions run on all CPU cores; the GPU adapter is logged; `rapidraw bench` measures the image pipeline without a window",
+      "category": "performance",
+      "landed": "2026-10-04",
+      "authors": ["elhigu"],
+      "source": "CyberTimon/RapidRAW",
+      "commits": [
+        "https://github.com/CyberTimon/RapidRAW/commit/d2e9351d48eadef1662affdc2a21d82e26debe04",
+        "https://github.com/CyberTimon/RapidRAW/commit/0cd9d875f0dd2a8ac6c29f87ec8ea288812a297b",
+        "https://github.com/CyberTimon/RapidRAW/commit/f52b75a81f993b68b1f303e898bc54dba2f76c75"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1790"],
+      "rendering_change": false,
+      "notes": "The parallel conversions are per-pixel and tested bit for bit against the serial code. The bench command follows RapidRoom's headless CLI rules: no window, closed-pipe-safe output, exit 1 on failure and 2 on bad arguments. Upstream's speed-up figures are not yet measured on RapidRoom."
+    },
+    {
       "id": "wb-picker-original",
       "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
       "category": "fix",
