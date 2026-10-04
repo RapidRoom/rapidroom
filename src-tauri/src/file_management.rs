@@ -1646,19 +1646,16 @@ pub fn generate_thumbnail_data(
 
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
     let always_decode_raw = settings.always_decode_raw_thumbnails.unwrap_or(false);
+    let medium_res = settings.medium_thumbnail_resolution.unwrap_or(1280);
 
     if is_raw
         && preloaded_image.is_none()
         && !always_decode_raw
         && let Ok(mmap) = read_file_mapped(&source_path)
         && can_use_embedded_preview(&adjustments, &settings, &mmap)
-        && let Some(preview) = image_loader::safe_embedded_preview(
-            &mmap,
-            &source_path_str,
-            Some(settings.medium_thumbnail_resolution.unwrap_or(1280)),
-        )
-        && preview.width().max(preview.height())
-            >= (settings.small_thumbnail_resolution.unwrap_or(480) as f32 * 0.95) as u32
+        && let Some(preview) =
+            image_loader::safe_embedded_preview(&mmap, &source_path_str, Some(medium_res))
+        && preview.width().max(preview.height()) >= (medium_res as f32 * 0.95) as u32
     {
         return Ok(preview);
     }
@@ -2085,9 +2082,7 @@ fn prefetch_source_file(path_str: &str, is_edited: bool, always_decode_raw: bool
         }
         let is_dng = source_path_str.to_lowercase().ends_with(".dng");
         let is_linear_dng = is_dng
-            && std::panic::catch_unwind(|| crate::raw_processing::get_raw_dimensions(&head))
-                .ok()
-                .flatten()
+            && crate::raw_processing::get_raw_dimensions(&head)
                 .is_some_and(|(_, _, is_linear)| is_linear);
         if is_linear_dng && !always_decode_raw {
             return;

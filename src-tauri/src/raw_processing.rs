@@ -290,15 +290,19 @@ fn develop_internal(
 }
 
 pub fn get_raw_dimensions(file_bytes: &[u8]) -> Option<(u32, u32, bool)> {
-    let source = borrowed_raw_source(file_bytes);
-    let decoder = rawler::get_decoder(&source).ok()?;
-    let raw_img = decoder
-        .raw_image(&source, &RawDecodeParams::default(), true)
-        .ok()?;
-    let (w, h) = raw_img
-        .crop_area
-        .map_or((raw_img.width, raw_img.height), |r| (r.d.w, r.d.h));
-    Some((w as u32, h as u32, is_linear_raw_format(&raw_img)))
+    std::panic::catch_unwind(|| {
+        let source = borrowed_raw_source(file_bytes);
+        let decoder = rawler::get_decoder(&source).ok()?;
+        let raw_img = decoder
+            .raw_image(&source, &RawDecodeParams::default(), true)
+            .ok()?;
+        let (w, h) = raw_img
+            .crop_area
+            .map_or((raw_img.width, raw_img.height), |r| (r.d.w, r.d.h));
+        Some((w as u32, h as u32, is_linear_raw_format(&raw_img)))
+    })
+    .ok()
+    .flatten()
 }
 
 pub fn get_fast_demosaic_scale_factor(
@@ -334,4 +338,20 @@ pub fn get_fast_demosaic_scale_factor(
         }
     }
     1.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn raw_dimensions_of_corrupt_input_is_none() {
+        let mut tiff_header = b"II*\0".to_vec();
+        tiff_header.extend_from_slice(&8u32.to_le_bytes());
+        tiff_header.extend_from_slice(&u16::MAX.to_le_bytes());
+        let cases: [&[u8]; 4] = [b"", b"II*\0", b"not a raw file", &tiff_header];
+        for case in cases {
+            assert_eq!(get_raw_dimensions(case), None);
+        }
+    }
 }
