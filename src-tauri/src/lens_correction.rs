@@ -302,6 +302,15 @@ impl Lens {
         (params.k1, params.k2, params.k3, params.model) =
             rescale_dist_params(params.k1, params.k2, params.k3, params.model);
         params.radius_scale = Some(distortion_radius_scale(self, camera_crop));
+
+        // The vignetting model "pa" has r = 1 at the corner of the sensor the
+        // calibration was made on. See `rescale_polynomial_coefficients` in
+        // `mod-color.cpp` of Lensfun. The pipeline measures r at the corner of
+        // the image, so a calibration from another sensor size is rescaled.
+        let s = vignetting_radius_scale(self, camera_crop);
+        params.vig_k1 *= s.powi(2);
+        params.vig_k2 *= s.powi(4);
+        params.vig_k3 *= s.powi(6);
         Some(params)
     }
 
@@ -679,6 +688,16 @@ fn distortion_radius_scale(lens: &Lens, camera_crop: Option<f32>) -> f64 {
         return aspect.hypot(1.0);
     }
     aspect.hypot(1.0) * lens_crop / camera_crop
+}
+
+/// Factor between the image radius, normalized to the half diagonal, and the
+/// radius of the vignetting model: `lens_crop / camera_crop`.
+fn vignetting_radius_scale(lens: &Lens, camera_crop: Option<f32>) -> f64 {
+    let lens_crop = lens.cropfactor.unwrap_or(1.0) as f64;
+    match camera_crop {
+        Some(c) if c.abs() > 1e-6 => lens_crop / c as f64,
+        _ => 1.0,
+    }
 }
 
 fn extract_tca_params(tca: &Tca) -> (f64, f64) {
@@ -1080,11 +1099,28 @@ fn find_lens<'a>(db: &'a LensDatabase, maker: &str, model: &str) -> Option<&'a L
         .copied()
 }
 
+/// Sort key for the entries of one lens, best first.
+///
+/// Lensfun takes, for each correction type, the calibration with the
+/// smallest ratio `camera_crop / calibration_crop` that is at least 0.96.
+/// A calibration made on a smaller sensor does not cover the corners of a
+/// larger one, so Lensfun skips it. See `lfLens::InterpolateDistortion` in
+/// `lens.cpp`. Lensfun then applies no correction of that type; RapidRoom
+/// takes the closest of the smaller calibrations instead, as before.
+fn calibration_preference(lens: &Lens, camera_crop: f32) -> (bool, f32) {
+    let ratio = camera_crop / lens.cropfactor.unwrap_or(1.0);
+    if ratio >= 0.96 {
+        (false, ratio)
+    } else {
+        (true, -ratio)
+    }
+}
+
 /// Reads the correction values for one lens on one camera.
 ///
 /// A lens can have several entries, one per calibration sensor size. Each
-/// correction type is taken from the entry whose crop factor is closest to
-/// the camera. This is what Lensfun does. Without it a full frame lens on a
+/// correction type is taken from the entry that Lensfun would use, see
+/// `calibration_preference`. Without it a full frame lens on a
 /// crop body can lose its distortion data, because the entry that matches
 /// the sensor may hold vignetting only.
 pub fn resolve_lens_params(
@@ -1103,13 +1139,15 @@ pub fn resolve_lens_params(
         group.push(primary);
     }
 
-    if let Some(target) = camera_crop {
-        group.sort_by(|a, b| {
-            let da = (a.cropfactor.unwrap_or(1.0) - target).abs();
-            let db_ = (b.cropfactor.unwrap_or(1.0) - target).abs();
-            da.partial_cmp(&db_).unwrap_or(Ordering::Equal)
-        });
-    }
+    // Without a known camera the entry the lens name points to counts as
+    // matching the sensor.
+    let target = camera_crop.unwrap_or_else(|| primary.cropfactor.unwrap_or(1.0));
+    group.sort_by(|a, b| {
+        calibration_preference(a, target)
+            .partial_cmp(&calibration_preference(b, target))
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| std::ptr::eq(*b, primary).cmp(&std::ptr::eq(*a, primary)))
+    });
 
     let params_of =
         |lens: &Lens| lens.get_distortion_params(focal_length, aperture, distance, camera_crop);
@@ -1159,6 +1197,27 @@ pub fn resolve_legacy_lens_params(
     distance: Option<f32>,
 ) -> Option<LensDistortionParams> {
     find_lens(db, maker, model)?.get_legacy_distortion_params(focal_length, aperture, distance)
+}
+
+/// The bundled database, read without the app, for tests.
+#[cfg(test)]
+pub fn load_bundled_db() -> LensDatabase {
+    let mut db = LensDatabase {
+        cameras: Vec::new(),
+        lenses: Vec::new(),
+    };
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/lensfun_db");
+    for entry in WalkDir::new(dir)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "xml"))
+    {
+        let xml = fs::read_to_string(entry.path()).expect("readable");
+        let mut part: LensDatabase = quick_xml::de::from_str(&xml).expect("parses");
+        db.cameras.append(&mut part.cameras);
+        db.lenses.append(&mut part.lenses);
+    }
+    db
 }
 
 #[cfg(test)]
@@ -1322,6 +1381,94 @@ mod tests {
                 error * 100.0
             );
         }
+    }
+
+    /// The entry of the Sony E 10-18mm f/4 OSS for one crop factor.
+    fn e_10_18(db: &LensDatabase, crop: f32) -> &Lens {
+        db.lenses
+            .iter()
+            .find(|l| {
+                l.get_canonical_model_name() == "E 10-18mm f/4 OSS" && l.cropfactor == Some(crop)
+            })
+            .expect("entry in mil-sony.xml")
+    }
+
+    fn e_10_18_on(db: &LensDatabase, camera_crop: Option<f32>) -> LensDistortionParams {
+        let sony = lenses_for_maker(db, "Sony");
+        let name = e_10_18(db, 1.534).get_display_name(&sony);
+        resolve_lens_params(db, "Sony", &name, 10.0, None, None, camera_crop)
+            .expect("the lens resolves")
+    }
+
+    #[test]
+    fn entries_are_picked_the_way_lensfun_picks_them() {
+        // Two calibrations of the same lens, on full frame and on APS-C.
+        let db = load_bundled_db();
+        let k1_of = |crop: f32| {
+            e_10_18(&db, crop)
+                .get_distortion_params(10.0, None, None, None)
+                .unwrap()
+                .k1
+        };
+        let (full_frame, aps_c) = (k1_of(1.0), k1_of(1.534));
+        assert!((full_frame - aps_c).abs() > 1e-4);
+
+        // Each sensor gets its own calibration.
+        assert_eq!(e_10_18_on(&db, Some(1.0)).k1, full_frame);
+        assert_eq!(e_10_18_on(&db, Some(1.534)).k1, aps_c);
+
+        // APS-H (1.3) is closer to 1.534, but that calibration does not cover
+        // the corners of the larger sensor. Lensfun takes the full frame one.
+        assert_eq!(e_10_18_on(&db, Some(1.3)).k1, full_frame);
+
+        // Without a known camera the chosen entry is used.
+        assert_eq!(e_10_18_on(&db, None).k1, aps_c);
+    }
+
+    #[test]
+    fn a_smaller_calibration_is_still_used_when_there_is_no_other() {
+        // Sigma E 30mm f/2.8 is calibrated on APS-C only. Lensfun would skip
+        // it on full frame; RapidRoom keeps the correction, as before.
+        let db = load_bundled_db();
+        let sigma = lenses_for_maker(&db, "Sigma");
+        let lens = sigma
+            .iter()
+            .find(|l| l.get_canonical_model_name() == "E 30mm f/2.8")
+            .unwrap();
+        let params = resolve_lens_params(
+            &db,
+            "Sigma",
+            &lens.get_display_name(&sigma),
+            30.0,
+            Some(2.8),
+            Some(1000.0),
+            Some(1.0),
+        )
+        .unwrap();
+        assert!(params.k1.abs() > 1e-4);
+        assert!(params.vig_k1.abs() > 1e-4);
+    }
+
+    #[test]
+    fn vignetting_follows_the_crop_factor_of_its_calibration() {
+        // r = 1 is the corner of the calibration sensor. On a smaller sensor
+        // the image corner sits at lens_crop / camera_crop of that radius.
+        let db = load_bundled_db();
+        let sony = lenses_for_maker(&db, "Sony");
+        let lens = sony
+            .iter()
+            .find(|l| l.get_canonical_model_name() == "FE 28-70mm f/3.5-5.6 OSS")
+            .unwrap();
+        let same = lens
+            .get_distortion_params(28.0, Some(3.5), Some(1000.0), Some(1.0))
+            .unwrap();
+        let crop = lens
+            .get_distortion_params(28.0, Some(3.5), Some(1000.0), Some(1.534))
+            .unwrap();
+        let s = 1.0 / (1.534f32 as f64);
+        assert!((crop.vig_k1 - same.vig_k1 * s.powi(2)).abs() < 1e-12);
+        assert!((crop.vig_k2 - same.vig_k2 * s.powi(4)).abs() < 1e-12);
+        assert!((crop.vig_k3 - same.vig_k3 * s.powi(6)).abs() < 1e-12);
     }
 
     /// A full frame lens on a crop body, mounted through an adapter.

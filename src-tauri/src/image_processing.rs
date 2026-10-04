@@ -697,6 +697,13 @@ impl LensDistortion {
     }
 }
 
+/// Darkening of the Lensfun model "pa" at a radius normalized to the half
+/// diagonal.
+fn lens_vignetting_factor(vk1: f64, vk2: f64, vk3: f64, ru_norm: f64) -> f64 {
+    let ru_norm2 = ru_norm * ru_norm;
+    1.0 + vk1 * ru_norm2 + vk2 * (ru_norm2 * ru_norm2) + vk3 * (ru_norm2 * ru_norm2 * ru_norm2)
+}
+
 fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32) -> f64 {
     let cx = (width / 2.0) as f64;
     let cy = (height / 2.0) as f64;
@@ -873,13 +880,7 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
                         let dx = (src_x - cx) as f64;
                         let dy = (src_y - cy) as f64;
                         let ru = (dx * dx + dy * dy).sqrt();
-                        let ru_norm = ru / hd;
-                        let ru_norm2 = ru_norm * ru_norm;
-
-                        let v_factor = 1.0
-                            + vk1 * ru_norm2
-                            + vk2 * (ru_norm2 * ru_norm2)
-                            + vk3 * (ru_norm2 * ru_norm2 * ru_norm2);
+                        let v_factor = lens_vignetting_factor(vk1, vk2, vk3, ru / hd);
 
                         if v_factor > 1e-6 {
                             let correction_gain = 1.0 / v_factor;
@@ -3796,6 +3797,128 @@ mod lens_tests {
             lens.scale(1.0),
             expected
         );
+    }
+
+    #[derive(serde::Deserialize)]
+    struct OracleCase {
+        label: String,
+        lens_maker: String,
+        lens_model: String,
+        lens_crop: f32,
+        camera_maker: String,
+        camera_model: String,
+        camera_crop: f32,
+        focal: f32,
+        aperture: f32,
+        distance: f32,
+        distortion: Vec<[f64; 2]>,
+        vignetting: Vec<[f64; 2]>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Oracle {
+        cases: Vec<OracleCase>,
+    }
+
+    fn oracle_cases() -> Vec<OracleCase> {
+        let json = include_str!("../tests/lensfun_oracle/expected.json");
+        serde_json::from_str::<Oracle>(json)
+            .expect("expected.json parses")
+            .cases
+    }
+
+    /// Resolves a case the way the app does and reads the values back from
+    /// the sidecar JSON.
+    fn oracle_params(
+        db: &crate::lens_correction::LensDatabase,
+        case: &OracleCase,
+    ) -> GeometryParams {
+        let camera_crop =
+            crate::lens_correction::camera_crop_factor(db, &case.camera_maker, &case.camera_model)
+                .unwrap_or_else(|| panic!("{}: camera not found", case.label));
+        assert!(
+            (camera_crop - case.camera_crop).abs() < 1e-6,
+            "{}: camera crop {} instead of {}",
+            case.label,
+            camera_crop,
+            case.camera_crop
+        );
+
+        let maker_lenses: Vec<&crate::lens_correction::Lens> = db
+            .lenses
+            .iter()
+            .filter(|l| l.get_maker() == case.lens_maker)
+            .collect();
+        let lens = maker_lenses
+            .iter()
+            .find(|l| {
+                l.get_canonical_model_name() == case.lens_model
+                    && (l.cropfactor.unwrap_or(1.0) - case.lens_crop).abs() < 1e-3
+            })
+            .unwrap_or_else(|| panic!("{}: lens not found", case.label));
+
+        let (aperture, distance) = if case.aperture > 0.0 {
+            (Some(case.aperture), Some(case.distance))
+        } else {
+            (None, None)
+        };
+        let params = crate::lens_correction::resolve_lens_params(
+            db,
+            &case.lens_maker,
+            &lens.get_display_name(&maker_lenses),
+            case.focal,
+            aperture,
+            distance,
+            Some(camera_crop),
+        )
+        .unwrap_or_else(|| panic!("{}: no profile", case.label));
+
+        let adjustments = serde_json::json!({ "lensDistortionParams": params });
+        get_geometry_params_from_json(&adjustments)
+    }
+
+    #[test]
+    fn lensfun_oracle_distortion() {
+        let db = crate::lens_correction::load_bundled_db();
+        for case in oracle_cases().iter().filter(|c| !c.distortion.is_empty()) {
+            let lens = LensDistortion::new(&oracle_params(&db, case));
+            for [r, expected] in &case.distortion {
+                let actual = lens.scale(*r);
+                assert!(
+                    (actual - expected).abs() < 2e-5,
+                    "{} at r = {:.3}: {} instead of {}",
+                    case.label,
+                    r,
+                    actual,
+                    expected
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn lensfun_oracle_vignetting() {
+        let db = crate::lens_correction::load_bundled_db();
+        for case in oracle_cases().iter().filter(|c| !c.vignetting.is_empty()) {
+            let params = oracle_params(&db, case);
+            for [r, expected] in &case.vignetting {
+                let factor = lens_vignetting_factor(
+                    params.vig_k1 as f64,
+                    params.vig_k2 as f64,
+                    params.vig_k3 as f64,
+                    *r,
+                );
+                let actual = 1.0 / factor;
+                assert!(
+                    (actual / expected - 1.0).abs() < 2e-5,
+                    "{} at r = {:.3}: gain {} instead of {}",
+                    case.label,
+                    r,
+                    actual,
+                    expected
+                );
+            }
+        }
     }
 
     /// The evaluation before the radius scale existed, copied from the
