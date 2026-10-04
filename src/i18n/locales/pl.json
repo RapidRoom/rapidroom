@@ -320,6 +320,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -830,6 +840,17 @@
         "tool": "Narzędzie"
       }
     },
+    "referenceView": {
+      "active": "Aktywne",
+      "cancel": "Anuluj",
+      "chooseHint": "Kliknij zdjęcie na taśmie filmowej, aby użyć go jako referencji.",
+      "clear": "Usuń referencję",
+      "close": "Zamknij widok referencyjny",
+      "readOnly": "Tylko do odczytu",
+      "reference": "Referencja",
+      "replace": "Wybierz inną referencję",
+      "unavailable": "Obraz referencyjny niedostępny"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "Dopasuj",
@@ -851,6 +872,7 @@
         "fullscreen": "Przełącz pełny ekran (F)",
         "iso": "ISO",
         "redo": "Ponów (Ctrl+Y) lub Historia (Prawy przycisk)",
+        "referenceView": "Widok referencyjny (Shift+R)",
         "showEdited": "Pokaż po edycji (B)",
         "showOriginal": "Pokaż oryginał (B)",
         "shutterSpeed": "Czas otwarcia migawki",
@@ -1762,6 +1784,7 @@
         "toggle_masks": "Przełącz panel Maski",
         "toggle_metadata": "Przełącz panel Metadane",
         "toggle_presets": "Przełącz panel Presety",
+        "toggle_reference_view": "Przełącz widok referencyjny",
         "toggle_right_panel": "Przełącz prawy panel",
         "undo": "Cofnij korektę",
         "zoom_100": "Powiększ do 100%",

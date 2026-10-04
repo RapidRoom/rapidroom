@@ -288,6 +288,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -780,6 +790,17 @@
         "tool": "도구"
       }
     },
+    "referenceView": {
+      "active": "편집 중",
+      "cancel": "취소",
+      "chooseHint": "필름 스트립에서 사진을 클릭해 참조로 사용하세요.",
+      "clear": "참조 해제",
+      "close": "참조 보기 닫기",
+      "readOnly": "읽기 전용",
+      "reference": "참조",
+      "replace": "다른 참조 선택",
+      "unavailable": "참조 이미지를 사용할 수 없음"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "조정",
@@ -801,6 +822,7 @@
         "fullscreen": "전체 화면 전환 (F)",
         "iso": "ISO",
         "redo": "다시 실행 (Ctrl+Y) 또는 기록 (우클릭)",
+        "referenceView": "참조 보기 (Shift+R)",
         "showEdited": "편집본 표시 (B)",
         "showOriginal": "원본 표시 (B)",
         "shutterSpeed": "셔터 속도",
@@ -1686,6 +1708,7 @@
         "toggle_masks": "마스크 패널 전환",
         "toggle_metadata": "메타데이터 패널 전환",
         "toggle_presets": "프리셋 패널 전환",
+        "toggle_reference_view": "참조 보기 전환",
         "toggle_right_panel": "오른쪽 패널 토글",
         "undo": "조정 실행 취소",
         "zoom_100": "100%로 확대/축소",

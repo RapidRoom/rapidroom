@@ -288,6 +288,16 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
@@ -780,6 +790,17 @@
         "tool": "工具"
       }
     },
+    "referenceView": {
+      "active": "目前",
+      "cancel": "取消",
+      "chooseHint": "在底片帶中點選一張相片，將其用作參考。",
+      "clear": "清除參考",
+      "close": "關閉參考檢視",
+      "readOnly": "唯讀",
+      "reference": "參考",
+      "replace": "選擇其他參考",
+      "unavailable": "參考影像無法使用"
+    },
     "switcher": {
       "tooltips": {
         "adjust": "調整",
@@ -801,6 +822,7 @@
         "fullscreen": "切換全屏（F）",
         "iso": "ISO",
         "redo": "重做（Ctrl+Y）或歷史記錄（右鍵單擊）",
+        "referenceView": "參考檢視 (Shift+R)",
         "showEdited": "顯示編輯後（B）",
         "showOriginal": "顯示原始（B）",
         "shutterSpeed": "快門速度",
@@ -1686,6 +1708,7 @@
         "toggle_masks": "切換遮色片面板",
         "toggle_metadata": "切換後設資料面板",
         "toggle_presets": "切換預設面板",
+        "toggle_reference_view": "切換參考檢視",
         "toggle_right_panel": "切換右側面板",
         "undo": "復原調整",
         "zoom_100": "縮放到 100%",
