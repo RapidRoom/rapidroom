@@ -30,6 +30,7 @@ use crate::PendingMetadata;
 #[cfg(target_os = "android")]
 use crate::android_integration::*;
 use crate::app_settings::*;
+use crate::batch_rename::{RenameOptions, RenameOutcome, RenamePreview, UndoInfo, plan_rename};
 use crate::exif_processing;
 use crate::formats::{is_raw_file, is_supported_image_file};
 use crate::gpu_processing;
@@ -165,20 +166,40 @@ fn emit_thumbnail_cache_setup_error(app_handle: &AppHandle, path: &str, reason: 
 
 fn compute_thumbnail_cache_hash(path_str: &str, adjustments_bytes: &[u8]) -> Option<String> {
     let (source_path, _) = parse_virtual_path(path_str);
+    let img_mod_time = thumbnail_mtime(&source_path)?;
+    Some(thumbnail_cache_hash(
+        path_str,
+        img_mod_time,
+        adjustments_bytes,
+    ))
+}
 
-    let img_mod_time = fs::metadata(&source_path)
-        .ok()?
-        .modified()
-        .ok()?
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()?
-        .as_secs();
+fn thumbnail_mtime(source_path: &Path) -> Option<u64> {
+    Some(
+        fs::metadata(source_path)
+            .ok()?
+            .modified()
+            .ok()?
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()?
+            .as_secs(),
+    )
+}
 
+fn thumbnail_cache_hash(path_str: &str, img_mod_time: u64, adjustments_bytes: &[u8]) -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(path_str.as_bytes());
     hasher.update(&img_mod_time.to_le_bytes());
     hasher.update(adjustments_bytes);
-    Some(hasher.finalize().to_hex().to_string())
+    hasher.finalize().to_hex().to_string()
+}
+
+fn thumbnail_adjustment_bytes(sidecar_path: &Path) -> Vec<u8> {
+    fs::read_to_string(sidecar_path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<ImageMetadata>(&content).ok())
+        .map(|meta| serde_json::to_vec(&meta.adjustments).unwrap_or_default())
+        .unwrap_or_default()
 }
 
 struct ImageFileMetadata {
@@ -1033,7 +1054,7 @@ pub fn save_albums(mut tree: Vec<AlbumItem>, app_handle: AppHandle) -> Result<()
     let path = get_albums_path(&app_handle)?;
     sort_album_tree(&mut tree);
     let json_string = serde_json::to_string_pretty(&tree).map_err(|e| e.to_string())?;
-    fs::write(path, json_string).map_err(|e| e.to_string())
+    write_file_atomically(path, json_string).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1618,21 +1639,14 @@ fn apply_exif_orientation(img: DynamicImage, orientation: u32) -> DynamicImage {
     }
 }
 
-fn try_load_embedded_raw_preview(source_path: &Path, target_res: u32) -> Option<DynamicImage> {
-    let mmap = read_file_mapped(source_path).ok()?;
-    let exif = exif_processing::read_exif(&mmap)?;
-
-    let (jpeg_bytes, ifd) = find_embedded_jpeg(&exif, exif::In::PRIMARY)
+fn exif_embedded_preview(exif: &exif::Exif) -> Option<DynamicImage> {
+    let (jpeg_bytes, ifd) = find_embedded_jpeg(exif, exif::In::PRIMARY)
         .map(|b| (b, exif::In::PRIMARY))
         .or_else(|| {
-            find_embedded_jpeg(&exif, exif::In::THUMBNAIL).map(|b| (b, exif::In::THUMBNAIL))
+            find_embedded_jpeg(exif, exif::In::THUMBNAIL).map(|b| (b, exif::In::THUMBNAIL))
         })?;
 
     let img = image::load_from_memory_with_format(jpeg_bytes, image::ImageFormat::Jpeg).ok()?;
-
-    if img.width().max(img.height()) < (target_res as f32 * 0.95) as u32 {
-        return None;
-    }
 
     let orientation = exif
         .get_field(exif::Tag::Orientation, ifd)
@@ -1640,6 +1654,19 @@ fn try_load_embedded_raw_preview(source_path: &Path, target_res: u32) -> Option<
         .unwrap_or(1);
 
     Some(apply_exif_orientation(img, orientation))
+}
+
+fn try_load_embedded_raw_preview(source_path: &Path, target_res: u32) -> Option<DynamicImage> {
+    let mmap = read_file_mapped(source_path).ok()?;
+
+    let preview = match exif_processing::read_exif(&mmap) {
+        Some(exif) => exif_embedded_preview(&exif)?,
+        None => {
+            image_loader::safe_embedded_preview_fallback(&mmap, &source_path.to_string_lossy())?
+        }
+    };
+
+    (preview.width().max(preview.height()) >= (target_res as f32 * 0.95) as u32).then_some(preview)
 }
 
 pub fn generate_thumbnail_data(
@@ -4203,18 +4230,7 @@ pub fn get_thumb_cache_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
 
 pub fn get_cache_key_hash(path_str: &str) -> Option<String> {
     let (_, sidecar_path) = parse_virtual_path(path_str);
-
-    let adjustments_bytes = if let Ok(content) = fs::read_to_string(&sidecar_path) {
-        if let Ok(meta) = serde_json::from_str::<ImageMetadata>(&content) {
-            serde_json::to_vec(&meta.adjustments).unwrap_or_default()
-        } else {
-            Vec::new()
-        }
-    } else {
-        Vec::new()
-    };
-
-    compute_thumbnail_cache_hash(path_str, &adjustments_bytes)
+    compute_thumbnail_cache_hash(path_str, &thumbnail_adjustment_bytes(&sidecar_path))
 }
 
 pub fn get_cached_or_generate_thumbnail_image(
@@ -4480,157 +4496,138 @@ pub fn generate_filename_from_template(
     total: usize,
     file_date: &DateTime<Utc>,
 ) -> String {
-    let stem = original_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("image");
-    let sequence_str = format!(
-        "{:0width$}",
-        sequence,
-        width = total.to_string().len().max(1)
-    );
-    let local_date = file_date.with_timezone(&chrono::Local);
+    let facts = crate::file_naming::PhotoFacts::new(original_path);
+    crate::file_naming::render_lenient(
+        template,
+        &crate::file_naming::NamingContext {
+            source_path: original_path,
+            sequence,
+            total,
+            date: *file_date,
+            group: None,
+            group_count: 0,
+            member_count: 0,
+            facts: &facts,
+        },
+    )
+}
 
-    let mut result = template.to_string();
-    result = result.replace("{original_filename}", stem);
-    result = result.replace("{sequence}", &sequence_str);
-    result = result.replace("{YYYY}", &local_date.format("%Y").to_string());
-    result = result.replace("{MM}", &local_date.format("%m").to_string());
-    result = result.replace("{DD}", &local_date.format("%d").to_string());
-    result = result.replace("{hh}", &local_date.format("%H").to_string());
-    result = result.replace("{mm}", &local_date.format("%M").to_string());
+/// Resolve a single export filename stem from a template for one image. Used by
+/// the export panel to build the suggested name shown in the save dialog, so the
+/// same tokens (dates, metadata, original filename) work for single-image export
+/// as for batch export. Falls back to the original stem if the result is empty.
+#[tauri::command]
+pub fn generate_export_filename(path: String, template: String) -> String {
+    let (source_path, _) = parse_virtual_path(&path);
+    let file_date = crate::exif_processing::get_creation_date_from_path(&source_path);
+    let stem = generate_filename_from_template(&template, &source_path, 1, 1, &file_date);
+    let trimmed = stem.trim();
+    if trimmed.is_empty() {
+        source_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("image")
+            .to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
 
-    result
+#[tauri::command]
+pub fn preview_rename_files(
+    paths: Vec<String>,
+    name_template: String,
+    options: Option<RenameOptions>,
+) -> Result<RenamePreview, String> {
+    Ok(plan_rename(&paths, &name_template, &options.unwrap_or_default())?.preview)
 }
 
 #[tauri::command]
 pub fn rename_files(
     paths: Vec<String>,
     name_template: String,
+    options: Option<RenameOptions>,
     app_handle: AppHandle,
-) -> Result<Vec<String>, String> {
-    let (final_new_paths, renames) = rename_files_on_disk(&paths, &name_template)?;
-    if !paths.is_empty() {
-        sync_album_path_changes(&app_handle, Some(&renames), None, None);
+) -> Result<RenameOutcome, String> {
+    let outcome = rename_files_on_disk(&paths, &name_template, &options.unwrap_or_default())?;
+    match rename_journal_path(&app_handle)
+        .and_then(|journal| crate::batch_rename::save_journal(&journal, &outcome))
+    {
+        Ok(()) => {}
+        Err(e) => log::warn!("Could not save the rename for undo: {}", e),
     }
-    Ok(final_new_paths)
+    update_references_after_rename(&app_handle, &outcome);
+    Ok(outcome)
 }
 
+#[tauri::command]
+pub fn get_last_rename(app_handle: AppHandle) -> Option<UndoInfo> {
+    crate::batch_rename::undo_info(&rename_journal_path(&app_handle).ok()?)
+}
+
+#[tauri::command]
+pub fn undo_last_rename(app_handle: AppHandle) -> Result<RenameOutcome, String> {
+    let outcome = crate::batch_rename::undo_from_journal(&rename_journal_path(&app_handle)?)?;
+    update_references_after_rename(&app_handle, &outcome);
+    Ok(outcome)
+}
+
+fn rename_journal_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
+    Ok(app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("last_rename.json"))
+}
+
+fn update_references_after_rename(app_handle: &AppHandle, outcome: &RenameOutcome) {
+    if outcome.files.is_empty() {
+        return;
+    }
+    sync_album_path_changes(app_handle, Some(&outcome.image_map()), None, None);
+    for change in &outcome.files {
+        exif_processing::rename_cached_exif(Path::new(&change.from), Path::new(&change.to));
+    }
+    if let Ok(thumb_cache_dir) = get_thumb_cache_dir(app_handle) {
+        migrate_thumbnail_cache(&thumb_cache_dir, &outcome.images);
+    }
+}
+
+/// Cached thumbnails are keyed by path, so move them to the new names instead
+/// of regenerating every renamed image.
+fn migrate_thumbnail_cache(thumb_cache_dir: &Path, images: &[crate::batch_rename::PathChange]) {
+    for change in images {
+        let (source_path, sidecar_path) = parse_virtual_path(&change.to);
+        let Some(mtime) = thumbnail_mtime(&source_path) else {
+            continue;
+        };
+        let adjustments = thumbnail_adjustment_bytes(&sidecar_path);
+        let old_hash = thumbnail_cache_hash(&change.from, mtime, &adjustments);
+        let new_hash = thumbnail_cache_hash(&change.to, mtime, &adjustments);
+        for size in ["small", "medium"] {
+            let old = thumb_cache_dir.join(format!("{}_{}.jpg", old_hash, size));
+            if old.exists() {
+                let _ = fs::rename(
+                    &old,
+                    thumb_cache_dir.join(format!("{}_{}.jpg", new_hash, size)),
+                );
+            }
+        }
+    }
+}
+
+/// The single entry point for renaming images on disk: plans the rename (pairs,
+/// sidecars, tokens, collisions) and carries it out in two phases.
 fn rename_files_on_disk(
     paths: &[String],
     name_template: &str,
-) -> Result<(Vec<String>, HashMap<String, String>), String> {
+    options: &RenameOptions,
+) -> Result<RenameOutcome, String> {
     ensure_card_writable_for_paths(paths)?;
     if paths.is_empty() {
-        return Ok((Vec::new(), HashMap::new()));
+        return Ok(RenameOutcome::default());
     }
-
-    let mut operations: Vec<(PathBuf, PathBuf)> = Vec::new();
-    let mut final_new_paths = Vec::with_capacity(paths.len());
-    let mut renames = HashMap::new();
-
-    for (i, path_str) in paths.iter().enumerate() {
-        let (original_path, _) = parse_virtual_path(path_str);
-        if !original_path.exists() {
-            return Err(format!("File not found: {}", path_str));
-        }
-
-        let parent = original_path
-            .parent()
-            .ok_or("Could not get parent directory")?;
-        let extension = original_path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
-
-        let file_date = exif_processing::get_creation_date_from_path(&original_path);
-
-        let new_stem = generate_filename_from_template(
-            name_template,
-            &original_path,
-            i + 1,
-            paths.len(),
-            &file_date,
-        );
-        let new_filename = format!("{}.{}", new_stem, extension);
-        let new_path = parent.join(new_filename);
-
-        if new_path.exists() && new_path != original_path {
-            return Err(format!(
-                "A file with the name {} already exists.",
-                new_path.display()
-            ));
-        }
-
-        operations.push((original_path, new_path));
-    }
-
-    let mut sidecar_operations: Vec<(PathBuf, PathBuf)> = Vec::new();
-    for (original_path, new_path) in &operations {
-        let parent = original_path
-            .parent()
-            .ok_or("Could not get parent directory")?;
-        let original_filename_str = original_path.file_name().unwrap().to_string_lossy();
-        let new_filename_str = new_path.file_name().unwrap().to_string_lossy();
-
-        if let Ok(entries) = fs::read_dir(parent) {
-            for entry in entries.filter_map(Result::ok) {
-                let entry_path = entry.path();
-                let entry_os_filename = entry.file_name();
-                let entry_filename = entry_os_filename.to_string_lossy();
-
-                if entry_filename.starts_with(&format!("{}.", original_filename_str))
-                    && entry_filename.ends_with(".rrdata")
-                {
-                    let new_sidecar_filename =
-                        entry_filename.replacen(&*original_filename_str, &new_filename_str, 1);
-                    let new_sidecar_path = parent.join(new_sidecar_filename);
-                    sidecar_operations.push((entry_path, new_sidecar_path));
-                } else if entry_filename == format!("{}.rrdata", original_filename_str) {
-                    let mut new_sidecar_name = new_path.file_name().unwrap().to_os_string();
-                    new_sidecar_name.push(".rrdata");
-                    let new_sidecar_path = new_path.with_file_name(new_sidecar_name);
-
-                    sidecar_operations.push((entry_path, new_sidecar_path));
-                }
-            }
-        }
-
-        let mut old_rrexif_name = original_path.file_name().unwrap().to_os_string();
-        old_rrexif_name.push(".rrexif");
-        let old_rrexif = original_path.with_file_name(old_rrexif_name);
-
-        if old_rrexif.exists() {
-            let mut new_rrexif_name = new_path.file_name().unwrap().to_os_string();
-            new_rrexif_name.push(".rrexif");
-            let new_rrexif = new_path.with_file_name(new_rrexif_name);
-            sidecar_operations.push((old_rrexif, new_rrexif));
-        }
-    }
-    operations.extend(sidecar_operations);
-
-    for (old_path, new_path) in operations {
-        if let Err(e) = fs::rename(&old_path, &new_path) {
-            log::warn!(
-                "Failed to rename {} to {}: {}",
-                old_path.display(),
-                new_path.display(),
-                e
-            );
-            continue;
-        }
-
-        let old_str = old_path.to_string_lossy().into_owned();
-        let new_str = new_path.to_string_lossy().into_owned();
-
-        renames.insert(old_str, new_str.clone());
-
-        if is_supported_image_file(&new_path) {
-            final_new_paths.push(new_str);
-        }
-    }
-
-    Ok((final_new_paths, renames))
+    crate::batch_rename::apply_plan(&plan_rename(paths, name_template, options)?)
 }
 
 #[tauri::command]
@@ -5378,13 +5375,18 @@ mod card_mode_tests {
             assert_read_only(rename_files_on_disk(
                 &[path_str(&f.dcim.join("IMG_0001.jpg"))],
                 "trip_{sequence}",
+                &RenameOptions::default(),
             ));
             assert_eq!(snapshot(&f.card), before);
         }
         let _mode = CardMode::off();
-        let (new_paths, _) =
-            rename_files_on_disk(&[path_str(&f.library.join("IMG_0001.jpg"))], "trip").unwrap();
-        assert_eq!(new_paths, vec![path_str(&f.library.join("trip.jpg"))]);
+        let outcome = rename_files_on_disk(
+            &[path_str(&f.library.join("IMG_0001.jpg"))],
+            "trip",
+            &RenameOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(outcome.images[0].to, path_str(&f.library.join("trip.jpg")));
         assert!(f.library.join("trip.jpg.rrdata").is_file());
     }
 
@@ -5998,5 +6000,65 @@ mod embedded_rating_tests {
 
         fs::remove_file(&shot.raw).unwrap();
         assert_eq!(shown_rating(&shot, false), 0);
+    }
+}
+
+#[cfg(test)]
+mod rename_cache_tests {
+    use super::*;
+    use crate::batch_rename::PathChange;
+
+    #[test]
+    fn renamed_thumbnails_are_found_under_the_new_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let photos = dir.path().join("photos");
+        let cache = dir.path().join("thumbs");
+        fs::create_dir_all(&photos).unwrap();
+        fs::create_dir_all(&cache).unwrap();
+        let old = photos.join("IMG_1.jpg");
+        fs::write(&old, "jpg").unwrap();
+        fs::write(
+            photos.join("IMG_1.jpg.abc.rrdata"),
+            r#"{"version":1,"rating":0,"adjustments":{"exposure":1.0}}"#,
+        )
+        .unwrap();
+        let old_paths = [
+            old.to_string_lossy().into_owned(),
+            format!("{}?vc=abc", old.to_string_lossy()),
+        ];
+        for path in &old_paths {
+            let hash = get_cache_key_hash(path).unwrap();
+            fs::write(cache.join(format!("{}_small.jpg", hash)), path).unwrap();
+            fs::write(cache.join(format!("{}_medium.jpg", hash)), path).unwrap();
+        }
+
+        let new = photos.join("trip_1.jpg");
+        fs::rename(&old, &new).unwrap();
+        fs::rename(
+            photos.join("IMG_1.jpg.abc.rrdata"),
+            photos.join("trip_1.jpg.abc.rrdata"),
+        )
+        .unwrap();
+        let new_paths = [
+            new.to_string_lossy().into_owned(),
+            format!("{}?vc=abc", new.to_string_lossy()),
+        ];
+        let changes: Vec<PathChange> = old_paths
+            .iter()
+            .zip(&new_paths)
+            .map(|(from, to)| PathChange {
+                from: from.clone(),
+                to: to.clone(),
+            })
+            .collect();
+        migrate_thumbnail_cache(&cache, &changes);
+
+        for (old_path, new_path) in old_paths.iter().zip(&new_paths) {
+            let hash = get_cache_key_hash(new_path).unwrap();
+            for size in ["small", "medium"] {
+                let cached = cache.join(format!("{}_{}.jpg", hash, size));
+                assert_eq!(fs::read_to_string(cached).unwrap(), *old_path);
+            }
+        }
     }
 }

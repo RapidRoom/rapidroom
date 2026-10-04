@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { invoke } from '@tauri-apps/api/core';
 import {
   ImageFile,
   Panel,
@@ -7,6 +8,7 @@ import {
   PanelRegion,
   WorkspaceState,
   CollapsibleSectionsState,
+  Invokes,
 } from '../components/ui/AppProperties';
 import { useEditorStore } from './useEditorStore';
 
@@ -69,6 +71,7 @@ interface DenoiseModalState {
   targetPaths: string[];
   progressMessage: string | null;
   isRaw: boolean;
+  jobId: number | null;
 }
 
 interface NegativeConversionModalState {
@@ -251,6 +254,7 @@ export interface UIState {
   isCreateAlbumGroupModalOpen: boolean;
   isRenameAlbumModalOpen: boolean;
   albumActionTarget: string | null;
+  lightroomImportCatalog: string | null;
 
   confirmModalState: ConfirmModalState;
   panoramaModalState: PanoramaModalState;
@@ -258,7 +262,7 @@ export interface UIState {
   hdrModalState: HdrModalState;
   negativeModalState: NegativeConversionModalState;
   denoiseModalState: DenoiseModalState;
-  pendingDenoiseJob: 'single' | 'batch' | null;
+  denoiseRun: number;
   openDenoiseModal: (paths: string[], isRaw: boolean) => void;
   closeDenoiseModal: () => void;
   cullingModalState: CullingModalState;
@@ -335,6 +339,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   isCreateAlbumGroupModalOpen: false,
   isRenameAlbumModalOpen: false,
   albumActionTarget: null,
+  lightroomImportCatalog: null,
 
   confirmModalState: { isOpen: false },
   panoramaModalState: {
@@ -371,11 +376,12 @@ export const useUIStore = create<UIState>((set, get) => ({
     targetPaths: [],
     progressMessage: null,
     isRaw: false,
+    jobId: null,
   },
-  pendingDenoiseJob: null,
+  denoiseRun: 0,
   openDenoiseModal: (paths, isRaw) =>
     set((state) => {
-      if (state.pendingDenoiseJob || state.denoiseModalState.isProcessing) return state;
+      if (state.denoiseModalState.isProcessing) return state;
       return {
         denoiseModalState: {
           isOpen: true,
@@ -386,21 +392,27 @@ export const useUIStore = create<UIState>((set, get) => ({
           targetPaths: paths,
           progressMessage: null,
           isRaw,
+          jobId: null,
         },
       };
     }),
   closeDenoiseModal: () =>
-    set((state) => ({
-      denoiseModalState: {
-        ...state.denoiseModalState,
-        isOpen: false,
-        isProcessing: false,
-        previewBase64: null,
-        originalBase64: null,
-        error: null,
-        progressMessage: null,
-      },
-    })),
+    set((state) => {
+      const { isProcessing, jobId } = state.denoiseModalState;
+      if (isProcessing && jobId !== null) invoke(Invokes.CancelDenoise, { jobId }).catch(console.error);
+      return {
+        denoiseModalState: {
+          ...state.denoiseModalState,
+          isOpen: false,
+          isProcessing: false,
+          previewBase64: null,
+          originalBase64: null,
+          error: null,
+          progressMessage: null,
+          jobId: null,
+        },
+      };
+    }),
   cullingModalState: { isOpen: false, suggestions: null, progress: null, error: null, pathsToCull: [] },
   collageModalState: { isOpen: false, sourceImages: [] },
 
@@ -562,3 +574,15 @@ export const useUIStore = create<UIState>((set, get) => ({
   searchFocusRequest: 0,
   requestSearchFocus: () => set((state) => ({ searchFocusRequest: state.searchFocusRequest + 1 })),
 }));
+
+export function isActiveDenoiseEvent(payload: unknown) {
+  const { isOpen, isProcessing, jobId } = useUIStore.getState().denoiseModalState;
+  return (
+    isOpen &&
+    isProcessing &&
+    jobId !== null &&
+    typeof payload === 'object' &&
+    payload !== null &&
+    (payload as { jobId?: unknown }).jobId === jobId
+  );
+}

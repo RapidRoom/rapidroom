@@ -47,6 +47,8 @@ import {
   User,
   Album as AlbumIcon,
   PencilSparkles,
+  Database,
+  FolderSearch,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -508,9 +510,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             {
               label: t('contextMenus.editor.denoise'),
               icon: Grip,
-              disabled:
-                useUIStore.getState().pendingDenoiseJob !== null ||
-                useUIStore.getState().denoiseModalState.isProcessing,
+              disabled: useUIStore.getState().denoiseModalState.isProcessing,
               onClick: () => {
                 useUIStore.getState().openDenoiseModal([selectedImage.path], selectedImage?.isRaw || false);
               },
@@ -866,10 +866,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             {
               label: denoiseLabel,
               icon: Grip,
-              disabled:
-                finalSelection.length === 0 ||
-                useUIStore.getState().pendingDenoiseJob !== null ||
-                useUIStore.getState().denoiseModalState.isProcessing,
+              disabled: finalSelection.length === 0 || useUIStore.getState().denoiseModalState.isProcessing,
               onClick: () => {
                 useUIStore.getState().openDenoiseModal(finalSelection, selectedImage?.isRaw || false);
               },
@@ -1356,6 +1353,15 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       const { setUI } = useUIStore.getState();
       const { albumTree, setLibrary } = useLibraryStore.getState();
 
+      const importLightroomCollections = async () => {
+        const catalog = await openDialog({
+          multiple: false,
+          filters: [{ name: t('contextMenus.albums.lightroomCatalog'), extensions: ['lrcat'] }],
+          title: t('contextMenus.albums.selectLightroomCatalog'),
+        });
+        if (typeof catalog === 'string') setUI({ lightroomImportCatalog: catalog });
+      };
+
       const findParentId = (
         nodes: AlbumItem[],
         childId: string,
@@ -1467,6 +1473,26 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       const isMoveDisabled = moveOptions.length === 0 && isAtRoot;
 
       const options: Option[] = [
+        ...(item?.id.startsWith('lightroom-import:')
+          ? [
+              {
+                label: t('contextMenus.albums.relinkLightroom'),
+                icon: FolderSearch,
+                onClick: () => void importLightroomCollections().catch((error) => toast.error(String(error))),
+              },
+              { type: OPTION_SEPARATOR },
+            ]
+          : []),
+        ...(!item
+          ? [
+              {
+                label: t('contextMenus.albums.importLightroom'),
+                icon: Database,
+                onClick: () => void importLightroomCollections().catch((error) => toast.error(String(error))),
+              },
+              { type: OPTION_SEPARATOR },
+            ]
+          : []),
         {
           label: t('contextMenus.albums.newAlbum'),
           icon: Images,
