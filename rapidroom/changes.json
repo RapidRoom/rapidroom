@@ -525,6 +525,19 @@
       "upstream_prs": [],
       "rendering_change": true,
       "notes": "Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only."
+    },
+    {
+      "id": "color-tool-visibility",
+      "title": "Color Grading and Color Mixer get their own visibility eye, globally and in masks; the Color panel eye still bypasses every colour tool",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["lalibertemarc"],
+      "source": "lalibertemarc/RapidRAW",
+      "commits": ["https://github.com/lalibertemarc/RapidRAW/commit/879b4146fa4d87ecfa3580261cfc0554ffb1555f"],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1833"],
+      "rendering_change": false,
+      "notes": "New sectionVisibility.colorGrading/colorMixer keys default to on, so existing sidecars and presets render unchanged; turning a tool off intentionally skips it. Resetting or pasting the Color section re-enables both tools."
     }
   ]
 }

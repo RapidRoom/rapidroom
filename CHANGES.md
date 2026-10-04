@@ -4,7 +4,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**38 changes on top of RapidRAW.** 18 fix upstream issues that had been open a median of 68 days when RapidRoom shipped the fix; 17 of them still open upstream. 13 offered upstream as PRs, 3 merged so far.
+**39 changes on top of RapidRAW.** 18 fix upstream issues that had been open a median of 68 days when RapidRoom shipped the fix; 17 of them still open upstream. 13 offered upstream as PRs, 3 merged so far.
 
 | Change                                                                                                                                                                             | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                                                           |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -49,6 +49,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Linux release packaging: a .deb and an AppImage named RapidRoom that install side by side with RapidRAW                                                                            | platform    | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
 | Denoise dialogs stay open on busy backdrop clicks; Cancel stops waiting and discards the eventual UI result                                                                        | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1697](https://github.com/CyberTimon/RapidRAW/issues/1697) open 28 d                                                                                                                                                                                                              |
 | DxO compressed DNG highlights no longer wrap to black dots when lookup-table dithering exceeds 16 bits ⚑                                                                           | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1119](https://github.com/CyberTimon/RapidRAW/issues/1119) open 156 d                                                                                                                                                                                                             |
+| Color Grading and Color Mixer get their own visibility eye, globally and in masks; the Color panel eye still bypasses every colour tool                                            | feature     | [@lalibertemarc](https://github.com/lalibertemarc)                                                                       | PR [#1833](https://github.com/CyberTimon/RapidRAW/issues/1833)                                                                                                                                                                                                                     |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-04.
 
@@ -383,3 +384,12 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** [#1119](https://github.com/CyberTimon/RapidRAW/issues/1119) open 156 d
 - **Commits:** [5a44585](https://github.com/yojen7/RapidRAW-DngLab/commit/5a44585da25c7ff783c83a4bff25281f0cf28159), [4c96062](https://github.com/yojen7/RapidRAW-DngLab/commit/4c960626978287ab8e4aabe70a6cfa60b4582273)
 - **Notes:** Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only.
+
+### Color Grading and Color Mixer get their own visibility eye, globally and in masks; the Color panel eye still bypasses every colour tool
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@lalibertemarc](https://github.com/lalibertemarc), from lalibertemarc/RapidRAW
+- **Upstream:** PR [#1833](https://github.com/CyberTimon/RapidRAW/issues/1833)
+- **Commits:** [879b414](https://github.com/lalibertemarc/RapidRAW/commit/879b4146fa4d87ecfa3580261cfc0554ffb1555f)
+- **Notes:** New sectionVisibility.colorGrading/colorMixer keys default to on, so existing sidecars and presets render unchanged; turning a tool off intentionally skips it. Resetting or pasting the Color section re-enables both tools.
