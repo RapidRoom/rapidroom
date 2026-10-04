@@ -37,7 +37,11 @@ All four combinations ran on a local Sony A7C II (ILCE-7CM2), ISO 12800, 7040 ×
 | Fast   | On      |      271.6 s |   0.100 s |
 | Fast   | Off     |       63.7 s |   0.083 s |
 
-These are single local runs in the optimized Rust test profile with four CPU threads per session. They include decoding, preprocessing, tiled inference, CFA restoration and cache publication, but exclude model initialization, source-file reading and developed previews. They are not end-to-end dialog timings or a quality-equivalence claim. The earlier private RawForge review used OpenVINO CPU and is not an interchangeable runtime benchmark.
+These are single local runs before the DNG write-buffer fix, in the optimized Rust test profile with four CPU threads per session. They include decoding, preprocessing, tiled inference, CFA restoration and cache publication, but exclude model initialization, source-file reading and developed previews. They are not end-to-end dialog timings or a quality-equivalence claim. The earlier private RawForge review used OpenVINO CPU and is not an interchangeable runtime benchmark.
+
+The pinned DNG writer emits Float32 samples individually. A 1 MiB buffer reduced a standalone 33 MP DNG rewrite from 27.45 s to 0.134 s, with identical bytes and checksum; the implementation now buffers those writes and flushes before syncing the file. This changes neither model precision nor the Sharpen default. Provider/precision acceleration remains a separate investigation.
+
+A full Fast + Sharpen check after that fix took 236.4 s (cache hit 0.088 s), with the same sensor/metadata/cache assertions passing. Timings remain single runs; the standalone byte-identical rewrite isolates the buffering improvement from run-to-run inference variation.
 
 Before merge, also require fmt, strict Clippy, library tests, Vitest, generated status checks, a locked release build and the 60-image default regression. Final evidence belongs in the PR.
 

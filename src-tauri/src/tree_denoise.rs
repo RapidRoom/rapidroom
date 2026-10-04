@@ -13,6 +13,7 @@ use rawler::{
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
+    io::{BufWriter, Write},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -555,7 +556,9 @@ fn write_dng(path: &Path, raw: &RawImage, metadata: &rawler::decoders::RawMetada
         tags::{ExifTag, TiffCommonTag},
     };
     let mut file = fs::File::create(path)?;
-    let mut writer = DngWriter::new(&mut file, DNG_VERSION_V1_4)?;
+    // rawler writes Float32 samples individually; buffer those tiny writes.
+    let mut buffered = BufWriter::with_capacity(1024 * 1024, &mut file);
+    let mut writer = DngWriter::new(&mut buffered, DNG_VERSION_V1_4)?;
     let mut frame = writer.subframe_on_root(0);
     frame.raw_image(
         raw,
@@ -592,6 +595,8 @@ fn write_dng(path: &Path, raw: &RawImage, metadata: &rawler::decoders::RawMetada
     );
     writer.exif_ifd_mut().remove_tag(ExifTag::MakerNotes);
     writer.close()?;
+    buffered.flush()?;
+    drop(buffered);
     file.sync_all()?;
     Ok(())
 }
