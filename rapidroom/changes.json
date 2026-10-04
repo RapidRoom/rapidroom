@@ -565,7 +565,7 @@
       "upstream_issues": ["CyberTimon/RapidRAW#1697"],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Another denoise cannot start while a command is pending. Cancellation does not interrupt the backend: single processing may continue and batch work may still write files. Real interruption and job IDs are tracked in RapidRoom #68."
+      "notes": "Another denoise cannot start while a command is pending. Cancellation does not interrupt the backend: single processing may continue and batch work may still write files. Superseded by `denoise-backend-cancel` (RapidRoom #68), which adds real interruption and job IDs."
     },
     {
       "id": "dxo-dng-highlight-dither",
@@ -582,6 +582,18 @@
       "upstream_prs": [],
       "rendering_change": true,
       "notes": "Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only."
+    },
+    {
+      "id": "denoise-backend-cancel",
+      "title": "Cancelling a denoise stops the backend work, and each job's progress, preview and saved result are tied to its own job ID",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": ["CyberTimon/RapidRAW#1697"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The backend hands out a job ID; progress, preview, error and batch events carry it, and Save only takes the result of the job whose preview is shown. `cancel_denoise` sets a flag checked between BM3D patches, between AI tiles and between batch files, and terminates an ONNX tile already running. Not interruptible: the AI model download, the Apple RAW 9 develop call, image decoding and preview/file encoding. A cancelled batch keeps the files it already finished; the file being written goes to a hidden partial file that is deleted, and existing files are never removed. A new denoise can start right after Cancel. Denoise output is unchanged. Written with Claude Code."
     },
     {
       "id": "linear-raw-srgb-exponent",
