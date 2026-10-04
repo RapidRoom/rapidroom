@@ -100,8 +100,8 @@ async function waitForAdjustmentRender(
 }
 
 // Applies an MCP edit as one undoable step, after any pending GUI history push,
-// so a slider drag in progress can't land on top of it. Returns whether a new
-// preview was rendered for it.
+// so an older queued snapshot cannot land on top of it. Returns whether a new
+// preview was rendered for it; ongoing user gestures remain a live-test case.
 async function applyEdit(path: string, nextAdjustments: Adjustments): Promise<boolean> {
   debouncedSetHistory.flush();
   const editor = useEditorStore.getState();
