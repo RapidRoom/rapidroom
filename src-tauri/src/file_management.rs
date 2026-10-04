@@ -497,6 +497,7 @@ struct ImportedXmpSidecar {
     source_path: PathBuf,
     sidecar_path: PathBuf,
     metadata: ImageMetadata,
+    not_transferred: Vec<&'static str>,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -513,6 +514,22 @@ pub struct XmpSidecarImportResult {
     pub failures: Vec<String>,
     pub imported_paths: Vec<String>,
     pub unchanged_paths: Vec<String>,
+    pub not_transferred: Vec<XmpNotTransferred>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct XmpNotTransferred {
+    pub path: String,
+    pub items: Vec<&'static str>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct XmpImageImportResult {
+    #[serde(flatten)]
+    pub metadata: ImageMetadata,
+    pub not_transferred: Vec<&'static str>,
 }
 
 pub fn parse_virtual_path(virtual_path: &str) -> (PathBuf, PathBuf) {
@@ -2891,6 +2908,8 @@ fn import_xmp_adjustments_to_sidecar(
         return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
     }
 
+    let not_transferred =
+        preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
     metadata.adjustments = converted_preset.adjustments;
     resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
@@ -2903,6 +2922,7 @@ fn import_xmp_adjustments_to_sidecar(
         source_path,
         sidecar_path,
         metadata,
+        not_transferred,
     })
 }
 
@@ -2912,7 +2932,7 @@ pub fn import_xmp_adjustments_for_image(
     xmp_path: Option<String>,
     app_handle: AppHandle,
     state: tauri::State<AppState>,
-) -> Result<ImageMetadata, String> {
+) -> Result<XmpImageImportResult, String> {
     ensure_card_writable_for_paths(&[&path])?;
     let xmp_path = xmp_path
         .map(PathBuf::from)
@@ -2922,6 +2942,7 @@ pub fn import_xmp_adjustments_for_image(
     let imported = import_xmp_adjustments_to_sidecar(&path, &xmp_path, lens_db.as_deref())?;
     let imported_adjustments = imported.metadata.adjustments.clone();
     let sidecar_path = imported.sidecar_path.clone();
+    let not_transferred = imported.not_transferred;
 
     save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
 
@@ -2931,7 +2952,10 @@ pub fn import_xmp_adjustments_for_image(
         sidecar_path.display()
     );
 
-    Ok(crate::exif_processing::load_sidecar(&sidecar_path))
+    Ok(XmpImageImportResult {
+        metadata: crate::exif_processing::load_sidecar(&sidecar_path),
+        not_transferred,
+    })
 }
 
 #[tauri::command]
@@ -2967,6 +2991,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
             failures: traversal_failures,
             imported_paths: Vec::new(),
             unchanged_paths: Vec::new(),
+            not_transferred: Vec::new(),
         };
 
         let emit_progress = |current: usize, result: &XmpSidecarImportResult| {
@@ -2996,6 +3021,12 @@ pub async fn import_matching_xmp_sidecars_in_folder(
                         );
                     }
                     result.imported += 1;
+                    if !imported.not_transferred.is_empty() {
+                        result.not_transferred.push(XmpNotTransferred {
+                            path: path_string.clone(),
+                            items: imported.not_transferred,
+                        });
+                    }
                     result.imported_paths.push(path_string);
                 }
                 Err(error) if error == NO_SUPPORTED_XMP_CONTENT_ERROR => {
@@ -3652,7 +3683,7 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
     let content = fs::read_to_string(file_path)
         .map_err(|e| format!("Failed to read legacy preset file: {}", e))?;
 
-    let mut warnings = Vec::new();
+    let mut not_imported = Vec::new();
     let xmp_content = if lower_path.ends_with(".lrtemplate") {
         if let Some(caps) = regex!(r#"(?s)s.xmp = "(.*)""#).captures(&content) {
             caps.get(1)
@@ -3660,12 +3691,7 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
                 .unwrap_or(content)
         } else {
             let converted = lrtemplate::lrtemplate_to_xmp(&content)?;
-            if !converted.unsupported.is_empty() {
-                warnings.push(format!(
-                    "Settings not imported: {}",
-                    converted.unsupported.join(", ")
-                ));
-            }
+            not_imported = converted.unsupported;
             converted.xmp
         }
     } else {
@@ -3673,6 +3699,21 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
     };
 
     let converted_preset = preset_converter::convert_xmp_to_preset(&xmp_content)?;
+    for item in
+        preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset)
+    {
+        if !not_imported.iter().any(|existing| existing == item) {
+            not_imported.push(item.to_string());
+        }
+    }
+    let warnings = if not_imported.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!(
+            "Settings not imported: {}",
+            not_imported.join(", ")
+        )]
+    };
     Ok((vec![PresetItem::Preset(converted_preset)], warnings))
 }
 

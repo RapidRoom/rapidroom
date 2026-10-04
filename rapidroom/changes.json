@@ -12,7 +12,33 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Rewritten from the fork's regex converter as a bounded Lua-table parser that feeds the existing XMP preset mapping, so values (including Shadows2012 1:1) match .xmp presets. Settings nested in Looks or local corrections are ignored, camera/lens profiles and local corrections are reported as not imported, and malformed files or curves are rejected with a reason. Importing only adds a preset; photos change only when you apply it. Harvested with Claude Code."
+      "notes": "Rewritten from the fork's regex converter as a bounded Lua-table parser that feeds the existing XMP preset mapping, so values match .xmp presets. Settings nested in Looks or local corrections are not read. Batch preset import lists what was not imported (profile look, masks, Point Color, camera or lens profile, custom white balance) using the same identifiers as the XMP sidecar report; malformed files or curves are rejected with a reason. Importing only adds a preset; photos change only when you apply it. Harvested with Claude Code."
+    },
+    {
+      "id": "lightroom-xmp-import-fixes",
+      "title": "Lightroom XMP import: lens profile turns on lens correction, profile-look tone curves are kept, dead keys are dropped, and an import report lists what was not transferred",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Follow-up to the Lightroom import (RapidRoom #54). Changes what imported sidecars render: crs:LensProfileEnable=1 now switches lens correction to auto with distortion and vignetting on; the tone curve of a nested look (Adobe Color, creative profiles) is composed under the user's luma curve; ToneCurvePV2012 points are copied without the old shadow-dampening rewrite; SharpenEdgeMasking maps to the sharpening threshold. sharpenRadius, sharpenDetail, sharpenMasking, colorNoiseDetail and colorNoiseSmoothness are no longer written (nothing read them). Exposure scaling to RapidRAW's 1.25 EV unit is in the code but off (SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS) until the tone calibration lands. Single-photo and folder imports now report custom white balance, profile look, AI Denoise, masks and Point Color when they could not be transferred. Written with Claude Code."
+    },
+    {
+      "id": "reference-view",
+      "title": "Editor Reference View: pin a read-only reference photo beside the image you are editing (Shift+R)",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["cgasgarth"],
+      "source": "cgasgarth/RapidRaw",
+      "commits": ["https://github.com/cgasgarth/RapidRaw/commit/aa0e23573923dfc45c2c5d97b26b4e1e8ee77fdf"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Reference-view state and toolbar UX ported from cgasgarth's Lightroom reference view and adapted to RapidRoom's editor by Claude Code. Pick the reference from the filmstrip. It is rendered from its saved adjustments through the existing read-only preview command, has its own zoom and pan, and never becomes the selected, edited or exported image. Display only: no change to the image pipeline or exports.",
+      "highlight": "**Reference View like Lightroom.** Pin one photo next to the one you are editing, then match the look while you move through the filmstrip."
     },
     {
       "id": "wb-picker-original",
@@ -538,6 +564,19 @@
       "upstream_prs": [],
       "rendering_change": true,
       "notes": "Dither values above 65535 now saturate instead of wrapping. Unsaturated values and the random-state update are preserved. The fork retains Kheil-Z's Sony/Canon default-crop fixes; the extra tile-fixture change is test-only."
+    },
+    {
+      "id": "linear-raw-srgb-exponent",
+      "title": "LinearRaw gamma modes use the sRGB exponent 2.4 when removing gamma",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["pluja"],
+      "source": "pluja/RapidRAW-Fork",
+      "commits": ["https://github.com/pluja/RapidRAW-Fork/commit/eb68ee88ba309a6b4e9770046204bc6292f0f1d7"],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1633"],
+      "rendering_change": true,
+      "notes": "Correct the power from 3.0 to 2.4 in the optional gamma and gamma_skip_calib modes for LinearRaw files. Auto/skip_calib modes, Bayer and X-Trans files do not use this inverse transfer function."
     }
   ]
 }

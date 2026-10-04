@@ -18,8 +18,12 @@ const CURVE_KEYS: [&str; 8] = [
     "ToneCurveBlue",
 ];
 
-const UNSUPPORTED_SCALAR_KEYS: [&str; 3] =
-    ["CameraProfile", "LensProfileEnable", "LensProfileName"];
+const MASK_KEYS: [&str; 4] = [
+    "MaskGroupBasedCorrections",
+    "PaintBasedCorrections",
+    "GradientBasedCorrections",
+    "CircularGradientBasedCorrections",
+];
 
 #[derive(Debug, Clone, PartialEq)]
 enum LuaValue {
@@ -396,8 +400,8 @@ fn curve_points(key: &str, table: &LuaTable) -> Result<Vec<(u32, u32)>, String> 
 
 /// Converts the Lua-table form of a `.lrtemplate` into XMP text readable by
 /// `preset_converter::convert_xmp_to_preset`. Settings the converter cannot
-/// represent (profiles, local corrections, other nested tables) are listed in
-/// `unsupported` instead of being written.
+/// represent are listed in `unsupported`, using the identifiers of
+/// `preset_converter::lightroom_settings_not_transferred` where one exists.
 pub fn lrtemplate_to_xmp(source: &str) -> Result<LrtemplateXmp, String> {
     if source.len() > MAX_INPUT_BYTES {
         return Err("Malformed .lrtemplate: file is too large".to_string());
@@ -424,23 +428,27 @@ pub fn lrtemplate_to_xmp(source: &str) -> Result<LrtemplateXmp, String> {
     let mut curves = String::new();
     let mut unsupported = Vec::new();
 
+    let mut report = |item: &str| {
+        if !unsupported.iter().any(|existing| existing == item) {
+            unsupported.push(item.to_string());
+        }
+    };
+
     for (key, val) in &settings.fields {
         let valid_name = !key.is_empty() && key.bytes().all(|b| b.is_ascii_alphanumeric());
         if !valid_name {
-            unsupported.push(key.clone());
+            report(key);
             continue;
         }
-        if UNSUPPORTED_SCALAR_KEYS.contains(&key.as_str()) {
-            let in_use = match val {
-                LuaValue::Str(s) => !s.is_empty(),
-                LuaValue::Num(n) => *n != 0.0,
-                LuaValue::Bool(b) => *b,
-                _ => false,
-            };
-            if in_use {
-                unsupported.push(key.clone());
+        match (key.as_str(), val) {
+            ("CameraProfile", LuaValue::Str(profile))
+                if !profile.is_empty() && profile != "Adobe Standard" =>
+            {
+                report("cameraProfile")
             }
-            continue;
+            ("LensProfileEnable", LuaValue::Num(n)) if *n != 0.0 => report("lensProfile"),
+            ("LensProfileEnable", LuaValue::Bool(true)) => report("lensProfile"),
+            _ => {}
         }
         let scalar = match val {
             LuaValue::Nil => continue,
@@ -457,8 +465,19 @@ pub fn lrtemplate_to_xmp(source: &str) -> Result<LrtemplateXmp, String> {
                         }
                         curves.push_str(&format!("</rdf:Seq></crs:{}>", key));
                     }
-                } else if !table.is_empty() {
-                    unsupported.push(key.clone());
+                } else if table.is_empty() {
+                } else if key == "Look" {
+                    let disabled =
+                        matches!(table.get("Amount"), Some(LuaValue::Num(n)) if *n <= 0.0);
+                    if !disabled {
+                        report("profileLook");
+                    }
+                } else if MASK_KEYS.contains(&key.as_str()) {
+                    report("masks");
+                } else if key == "PointColors" {
+                    report("pointColor");
+                } else {
+                    report(key);
                 }
                 continue;
             }
@@ -550,7 +569,7 @@ mod tests {
         assert_eq!(a["hsl"]["greens"], json!({"hue": 15.0, "saturation": -55}));
         assert_eq!(
             a["curves"]["luma"],
-            json!([{"x": 0, "y": 5}, {"x": 255, "y": 255}])
+            json!([{"x": 0, "y": 6}, {"x": 255, "y": 255}])
         );
         assert_eq!(a["curves"]["red"][1], json!({"x": 116, "y": 133}));
         assert!(a.get("saturation").is_none());
@@ -608,6 +627,9 @@ mod tests {
                         { CorrectionAmount = 1, LocalExposure2012 = 1 },
                     },
                     PaintBasedCorrections = {},
+                    CircularGradientBasedCorrections = { { CorrectionAmount = 1 } },
+                    PointColors = { { SrcHue = 0.5 } },
+                    RetouchInfo = { "x" },
                     CameraProfile = "Camera Standard",
                     LensProfileEnable = 1,
                 },
@@ -619,12 +641,24 @@ mod tests {
         assert_eq!(
             unsupported,
             vec![
-                "Look",
-                "GradientBasedCorrections",
-                "CameraProfile",
-                "LensProfileEnable"
+                "profileLook",
+                "masks",
+                "pointColor",
+                "RetouchInfo",
+                "cameraProfile",
+                "lensProfile"
             ]
         );
+    }
+
+    #[test]
+    fn skips_disabled_looks_and_adobe_standard() {
+        let source = r#"s = { value = { settings = {
+            CameraProfile = "Adobe Standard",
+            LensProfileEnable = 0,
+            Look = { Amount = 0, Name = "Off" },
+        } } }"#;
+        assert!(lrtemplate_to_xmp(source).unwrap().unsupported.is_empty());
     }
 
     #[test]
