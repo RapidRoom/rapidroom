@@ -97,7 +97,7 @@ impl SharpenChannel for f32 {
     }
 }
 
-// Unsharp mask on luminance only, so edges get no colour fringes. Alpha is untouched.
+// Unsharp mask using output-luma detail. Alpha is untouched.
 fn sharpen_buffer<P>(src: &mut ImageBuffer<P, Vec<P::Subpixel>>, params: SharpenParams)
 where
     P: Pixel + 'static,
@@ -208,7 +208,7 @@ mod tests {
         }
         let dark = out.get_pixel(15, 4);
         let light = out.get_pixel(16, 4);
-        // Luminance sharpening shifts every channel by the same delta.
+        // Output-luma sharpening shifts every channel by the same delta before clipping.
         assert_eq!(100 - dark[0] as i32, 40 - dark[1] as i32);
         assert_eq!(light[0] as i32 - 200, light[1] as i32 - 80);
     }
@@ -229,6 +229,25 @@ mod tests {
         };
         assert!(out.get_pixel(15, 4)[0] < 20_000);
         assert!(out.get_pixel(16, 4)[0] > 40_000);
+    }
+
+    #[test]
+    fn float_images_keep_precision_and_alpha() {
+        let src = ImageBuffer::<Rgba<f32>, Vec<f32>>::from_fn(32, 8, |x, _| {
+            let value = if x < 16 { 0.2 } else { 0.6 };
+            Rgba([value, value, value, 0.37123])
+        });
+        let mut image = DynamicImage::ImageRgba32F(src);
+        apply_output_sharpening(&mut image, &STANDARD_SCREEN);
+        let DynamicImage::ImageRgba32F(out) = image else {
+            panic!("float pixel type changed");
+        };
+        assert!(out.get_pixel(15, 4)[0] < 0.2);
+        assert!(out.get_pixel(16, 4)[0] > 0.6);
+        for pixel in out.pixels() {
+            assert_eq!(pixel[3], 0.37123);
+            assert!(pixel.0.iter().all(|value| value.is_finite()));
+        }
     }
 
     #[test]
