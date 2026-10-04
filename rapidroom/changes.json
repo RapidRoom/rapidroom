@@ -23,6 +23,19 @@
       "notes": "Only in builds with `--features mcp`. Listens on 127.0.0.1:7790 without authentication while the app runs; requests from browsers are refused. The default build has no MCP code and no listener. Comparison with sheldonxxxx's headless MCP and the security notes are in rapidroom/MCP.md."
     },
     {
+      "id": "adobe-lossy-dng-map-polynomial",
+      "title": "Apply Adobe lossy DNG polynomial mappings before developing the full image, fixing pink and blown-out photos",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original rawler decoder fix, AI-assisted)",
+      "commits": [],
+      "upstream_issues": ["CyberTimon/RapidRAW#1542"],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Apply validated DNG OpcodeList2 MapPolynomial operations in order, after linearization and black/white normalization and before demosaic. Respect per-plane areas and pitches, clip each mapped result, and prevent converted DNGs replaying already baked mappings. Unknown-only lists keep the existing decoder behavior; required unsupported operations mixed with polynomial mappings report an error. Private real-file before/after evidence and corpus validation are recorded in the PR. Human rendering approval is required."
+    },
+    {
       "id": "lightroom-catalog-develop-import",
       "title": "Preview and selectively import Lightroom catalog photo edits, crop, straighten, rotation, star ratings and virtual copies, with unsupported-setting reports and independent replacement choices",
       "category": "feature",
