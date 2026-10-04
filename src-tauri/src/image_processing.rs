@@ -3743,3 +3743,92 @@ mod white_balance_sample_tests {
         assert!(s.temperature.abs() < 1e-4);
     }
 }
+
+#[cfg(test)]
+mod color_tool_visibility_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn edited(visibility: Option<serde_json::Value>) -> serde_json::Value {
+        let mut adj = json!({
+            "saturation": 20,
+            "colorGrading": {
+                "shadows": { "hue": 200, "saturation": 40, "luminance": 0 },
+                "midtones": { "hue": 30, "saturation": 10, "luminance": 5 },
+                "highlights": { "hue": 60, "saturation": 25, "luminance": 0 },
+                "global": { "hue": 0, "saturation": 0, "luminance": 0 },
+                "blending": 70,
+                "balance": 15
+            },
+            "hsl": { "reds": { "hue": 10, "saturation": -20, "luminance": 5 } }
+        });
+        if let Some(v) = visibility {
+            adj["sectionVisibility"] = v;
+        }
+        adj
+    }
+
+    fn global(adj: &serde_json::Value) -> GlobalAdjustments {
+        get_global_adjustments_from_json(adj, true, None)
+    }
+
+    fn has_grading(a: &GlobalAdjustments) -> bool {
+        a.color_grading_shadows.saturation != 0.0 && a.color_grading_balance != 0.0
+    }
+
+    fn has_mixer(a: &GlobalAdjustments) -> bool {
+        a.hsl[0].hue != 0.0
+    }
+
+    #[test]
+    fn absent_tool_keys_render_like_all_visible() {
+        let all_on = global(&edited(Some(json!({
+            "basic": true, "curves": true, "color": true,
+            "colorGrading": true, "colorMixer": true, "details": true, "effects": true
+        }))));
+        for vis in [None, Some(json!({})), Some(json!({ "color": true }))] {
+            let a = global(&edited(vis));
+            assert_eq!(bytemuck::bytes_of(&a), bytemuck::bytes_of(&all_on));
+        }
+        assert!(has_grading(&all_on) && has_mixer(&all_on));
+    }
+
+    #[test]
+    fn tools_toggle_independently() {
+        let no_grading = global(&edited(Some(json!({ "colorGrading": false }))));
+        assert!(!has_grading(&no_grading) && has_mixer(&no_grading));
+        assert_eq!(no_grading.color_grading_blending, 0.5);
+
+        let no_mixer = global(&edited(Some(json!({ "colorMixer": false }))));
+        assert!(has_grading(&no_mixer) && !has_mixer(&no_mixer));
+        assert!(no_mixer.saturation != 0.0);
+    }
+
+    #[test]
+    fn color_panel_eye_bypasses_both_tools() {
+        let a = global(&edited(Some(json!({
+            "color": false, "colorGrading": true, "colorMixer": true
+        }))));
+        assert!(!has_grading(&a) && !has_mixer(&a));
+        assert_eq!(a.saturation, 0.0);
+    }
+
+    #[test]
+    fn mask_tools_follow_the_same_rules() {
+        let on = get_mask_adjustments_from_json(&edited(None));
+        let explicit = get_mask_adjustments_from_json(&edited(Some(json!({ "color": true }))));
+        assert_eq!(bytemuck::bytes_of(&on), bytemuck::bytes_of(&explicit));
+        assert!(on.color_grading_shadows.saturation != 0.0 && on.hsl[0].hue != 0.0);
+
+        let no_grading =
+            get_mask_adjustments_from_json(&edited(Some(json!({ "colorGrading": false }))));
+        assert!(no_grading.color_grading_shadows.saturation == 0.0 && no_grading.hsl[0].hue != 0.0);
+
+        let no_mixer =
+            get_mask_adjustments_from_json(&edited(Some(json!({ "colorMixer": false }))));
+        assert!(no_mixer.color_grading_shadows.saturation != 0.0 && no_mixer.hsl[0].hue == 0.0);
+
+        let parent_off = get_mask_adjustments_from_json(&edited(Some(json!({ "color": false }))));
+        assert!(parent_off.color_grading_shadows.saturation == 0.0 && parent_off.hsl[0].hue == 0.0);
+    }
+}
