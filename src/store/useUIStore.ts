@@ -158,7 +158,13 @@ export function reconcileWorkspace(
   }
 
   // v1 moved Presets to the left sidebar; dropping its saved spot lets it land in its default region below.
-  const movedPanels = new Set<Panel>((savedWorkspace.layoutVersion ?? 0) < 1 ? [Panel.Presets] : []);
+  // Only a Presets panel still in its old default region moves, so a deliberate placement elsewhere is kept.
+  const savedRightTop = savedWorkspace.panelLayout.rightTop;
+  const movedPanels = new Set<Panel>(
+    (savedWorkspace.layoutVersion ?? 0) < 1 && Array.isArray(savedRightTop) && savedRightTop.includes(Panel.Presets)
+      ? [Panel.Presets]
+      : [],
+  );
 
   const seenPanels = new Set<Panel>();
   const sanitizedLayout: Record<PanelRegion, Panel[]> = {

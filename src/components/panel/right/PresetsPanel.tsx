@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
 import {
   DndContext,
@@ -45,6 +45,7 @@ import { OPTION_SEPARATOR, Panel, Preset, SelectedImage } from '../../ui/AppProp
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useUIStore } from '../../../store/useUIStore';
 import { useEditorActions } from '../../../hooks/useEditorActions';
+import { clearPresetHoverPreview, showPresetHoverPreview } from '../../../utils/presetHoverPreview';
 
 interface DroppableFolderItemProps {
   children: any;
@@ -109,6 +110,14 @@ const itemVariants = {
     },
   }),
   exit: { opacity: 0, x: -15, transition: { duration: 0.2 } },
+};
+
+// Rows are dnd-kit drag handles without a keyboard sensor, so Enter and Space activate them instead.
+const handleActivationKey = (event: React.KeyboardEvent, activate: () => void) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  if ((event.target as HTMLElement).closest('button, input, textarea, select')) return;
+  event.preventDefault();
+  activate();
 };
 
 const evaluateCurveY = (curve: Array<{ x: number; y: number }>, targetX: number): number => {
@@ -353,6 +362,7 @@ function DraggablePresetItem({
   return (
     <div
       onClick={() => onApply(preset)}
+      onKeyDown={(e) => handleActivationKey(e, () => onApply(preset))}
       onContextMenu={(e: any) => onContextMenu(e, { preset })}
       onMouseEnter={() => onHoverChange?.(preset)}
       onMouseLeave={() => onHoverChange?.(null)}
@@ -421,6 +431,7 @@ function DroppableFolderItem({
       <div
         className={`flex items-center gap-2 p-2 rounded-lg bg-surface ${isVirtual ? 'cursor-pointer' : 'cursor-grab'}`}
         onClick={() => onToggle(folder.id)}
+        onKeyDown={(e) => handleActivationKey(e, () => onToggle(folder.id))}
         onContextMenu={isVirtual ? undefined : (e: any) => onContextMenu(e, { folder })}
         ref={setDraggableNodeRef}
         {...listeners}
@@ -507,28 +518,33 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
   const [isActivePresetExpanded, setIsActivePresetExpanded] = useState(true);
 
   const activeView = useUIStore((s) => s.activeView);
-  const isHoverPreviewingRef = useRef(false);
 
   // Hovering a preset renders it on the editor image via previewOverride, leaving adjustments untouched.
   const setHoverPreview = useCallback(
     (preset: Preset | null) => {
-      const shouldPreview =
-        !!preset && preset.id !== activePresetId && activeView === 'editor' && !!selectedImage?.isReady;
-      if (!shouldPreview && !isHoverPreviewingRef.current) return;
-      isHoverPreviewingRef.current = shouldPreview;
-      setEditor((state) => ({
-        previewOverride: shouldPreview && preset ? { ...state.adjustments, ...preset.adjustments } : null,
-      }));
+      if (preset && preset.id !== activePresetId && activeView === 'editor' && selectedImage?.isReady) {
+        showPresetHoverPreview(preset.adjustments);
+      } else {
+        clearPresetHoverPreview();
+      }
     },
-    [activePresetId, activeView, selectedImage?.isReady, setEditor],
+    [activePresetId, activeView, selectedImage?.isReady],
   );
 
-  useEffect(
-    () => () => {
-      if (isHoverPreviewingRef.current) setEditor({ previewOverride: null });
-    },
-    [setEditor],
-  );
+  useEffect(() => clearPresetHoverPreview, []);
+
+  useEffect(() => {
+    clearPresetHoverPreview();
+  }, [adjustments, activeView, selectedImage?.path, selectedImage?.isReady]);
+
+  useEffect(() => {
+    if (configureModalState.isOpen || isAddFolderModalOpen || renameFolderState.isOpen) clearPresetHoverPreview();
+  }, [configureModalState.isOpen, isAddFolderModalOpen, renameFolderState.isOpen]);
+
+  useEffect(() => {
+    window.addEventListener('blur', clearPresetHoverPreview);
+    return () => window.removeEventListener('blur', clearPresetHoverPreview);
+  }, []);
 
   const handleDragStateChange = useCallback(
     (isDragging: boolean) => {
@@ -798,6 +814,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
 
   const handleContextMenu = (event: any, item: UserPreset) => {
     event.preventDefault();
+    clearPresetHoverPreview();
     event.stopPropagation();
 
     const isFolder = !!item.folder;
@@ -865,6 +882,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
       return;
     }
     event.preventDefault();
+    clearPresetHoverPreview();
     const options = [
       {
         icon: Plus,

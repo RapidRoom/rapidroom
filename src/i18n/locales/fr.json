@@ -767,6 +767,7 @@
         "presetFile": "Fichier de paramètre prédéfini",
         "rapidRawPreset": "Paramètre prédéfini RapidRAW"
       },
+      "favorites": "Favoris",
       "menu": {
         "configurePreset": "Configurer le paramètre prédéfini",
         "deleteFolder": "Supprimer le dossier",
@@ -794,8 +795,10 @@
       "tooltips": {
         "explore": "Explorer les paramètres prédéfinis de la communauté",
         "export": "Exporter tous les paramètres prédéfinis vers un fichier .rrpreset",
+        "favorite": "Ajouter aux favoris",
         "import": "Importer des paramètres prédéfinis à partir d'un fichier .rrpreset",
-        "saveNew": "Enregistrer comme nouveau paramètre prédéfini"
+        "saveNew": "Enregistrer comme nouveau paramètre prédéfini",
+        "unfavorite": "Retirer des favoris"
       },
       "types": {
         "folder": "Dossier",

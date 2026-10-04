@@ -790,6 +790,7 @@
         "presetFile": "Plik presetu",
         "rapidRawPreset": "Preset RapidRAW"
       },
+      "favorites": "Ulubione",
       "menu": {
         "configurePreset": "Konfiguruj preset",
         "deleteFolder": "Usuń folder",
@@ -817,8 +818,10 @@
       "tooltips": {
         "explore": "Odkryj presety społeczności",
         "export": "Eksportuj wszystkie presety do pliku .rrpreset",
+        "favorite": "Dodaj do ulubionych",
         "import": "Importuj presety z pliku .rrpreset",
-        "saveNew": "Zapisz jako nowy preset"
+        "saveNew": "Zapisz jako nowy preset",
+        "unfavorite": "Usuń z ulubionych"
       },
       "types": {
         "folder": "Folder",

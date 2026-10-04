@@ -740,6 +740,7 @@
         "presetFile": "預設檔案",
         "rapidRawPreset": "RapidRAW 預設"
       },
+      "favorites": "收藏",
       "menu": {
         "configurePreset": "配置預設",
         "deleteFolder": "刪除資料夾",
@@ -767,8 +768,10 @@
       "tooltips": {
         "explore": "探索社群預設",
         "export": "將所有預設匯出為 .rrpreset 檔案",
+        "favorite": "加入收藏",
         "import": "從 .rrpreset 檔案匯入預設",
-        "saveNew": "儲存為新預設"
+        "saveNew": "儲存為新預設",
+        "unfavorite": "從收藏中移除"
       },
       "types": {
         "folder": "資料夾",

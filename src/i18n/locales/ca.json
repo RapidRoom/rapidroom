@@ -746,6 +746,7 @@
         "presetFile": "Fitxer d'ajust preestablert",
         "rapidRawPreset": "Ajust preestablert de RapidRAW"
       },
+      "favorites": "Preferits",
       "menu": {
         "configurePreset": "Configurar ajust preestablert",
         "deleteFolder": "Eliminar carpeta",
@@ -773,8 +774,10 @@
       "tooltips": {
         "explore": "Explorar ajustos de la comunitat",
         "export": "Exportar tots els ajustos preestablerts a un fitxer .rrpreset",
+        "favorite": "Afegeix als preferits",
         "import": "Importar ajustos preestablerts des d'un fitxer .rrpreset",
-        "saveNew": "Desar com a nou ajust preestablert"
+        "saveNew": "Desar com a nou ajust preestablert",
+        "unfavorite": "Treu dels preferits"
       },
       "types": {
         "folder": "Carpeta",

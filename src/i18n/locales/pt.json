@@ -767,6 +767,7 @@
         "presetFile": "Arquivo de Predefinição",
         "rapidRawPreset": "Predefinição RapidRAW"
       },
+      "favorites": "Favoritos",
       "menu": {
         "configurePreset": "Configurar Predefinição",
         "deleteFolder": "Excluir Pasta",
@@ -794,8 +795,10 @@
       "tooltips": {
         "explore": "Explorar Predefinições da Comunidade",
         "export": "Exportar todas as predefinições para arquivo .rrpreset",
+        "favorite": "Adicionar aos favoritos",
         "import": "Importar predefinições do arquivo .rrpreset",
-        "saveNew": "Salvar como nova predefinição"
+        "saveNew": "Salvar como nova predefinição",
+        "unfavorite": "Remover dos favoritos"
       },
       "types": {
         "folder": "Pasta",

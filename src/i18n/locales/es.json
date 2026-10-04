@@ -767,6 +767,7 @@
         "presetFile": "Archivo de ajuste preestablecido",
         "rapidRawPreset": "Ajuste preestablecido de RapidRAW"
       },
+      "favorites": "Favoritos",
       "menu": {
         "configurePreset": "Configurar ajuste preestablecido",
         "deleteFolder": "Eliminar carpeta",
@@ -794,8 +795,10 @@
       "tooltips": {
         "explore": "Explorar ajustes de la comunidad",
         "export": "Exportar todos los ajustes a un archivo .rrpreset",
+        "favorite": "Añadir a favoritos",
         "import": "Importar ajustes desde un archivo .rrpreset",
-        "saveNew": "Guardar como nuevo ajuste preestablecido"
+        "saveNew": "Guardar como nuevo ajuste preestablecido",
+        "unfavorite": "Quitar de favoritos"
       },
       "types": {
         "folder": "Carpeta",

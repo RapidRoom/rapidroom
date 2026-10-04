@@ -744,6 +744,7 @@
         "presetFile": "Vorgabendatei",
         "rapidRawPreset": "RapidRAW Vorgabe"
       },
+      "favorites": "Favoriten",
       "menu": {
         "configurePreset": "Vorgabe konfigurieren",
         "deleteFolder": "Ordner löschen",
@@ -771,8 +772,10 @@
       "tooltips": {
         "explore": "Community-Vorgaben entdecken",
         "export": "Alle Vorgaben als .rrpreset exportieren",
+        "favorite": "Zu Favoriten hinzufügen",
         "import": "Vorgaben aus .rrpreset importieren",
-        "saveNew": "Als neue Vorgabe speichern"
+        "saveNew": "Als neue Vorgabe speichern",
+        "unfavorite": "Aus Favoriten entfernen"
       },
       "types": {
         "folder": "Ordner",

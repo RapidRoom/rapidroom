@@ -740,6 +740,7 @@
         "presetFile": "프리셋 파일",
         "rapidRawPreset": "RapidRAW 프리셋"
       },
+      "favorites": "즐겨찾기",
       "menu": {
         "configurePreset": "프리셋 구성",
         "deleteFolder": "폴더 삭제",
@@ -767,8 +768,10 @@
       "tooltips": {
         "explore": "커뮤니티 프리셋 둘러보기",
         "export": "모든 프리셋을 .rrpreset 파일로 내보내기",
+        "favorite": "즐겨찾기에 추가",
         "import": ".rrpreset 파일에서 프리셋 가져오기",
-        "saveNew": "새 프리셋으로 저장"
+        "saveNew": "새 프리셋으로 저장",
+        "unfavorite": "즐겨찾기에서 제거"
       },
       "types": {
         "folder": "폴더",

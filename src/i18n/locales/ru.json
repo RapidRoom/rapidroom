@@ -790,6 +790,7 @@
         "presetFile": "Файл пресета",
         "rapidRawPreset": "Пресет RapidRAW"
       },
+      "favorites": "Избранное",
       "menu": {
         "configurePreset": "Настроить пресет",
         "deleteFolder": "Удалить папку",
@@ -817,8 +818,10 @@
       "tooltips": {
         "explore": "Обзор пресетов сообщества",
         "export": "Экспортировать все пресеты в файл .rrpreset",
+        "favorite": "Добавить в избранное",
         "import": "Импортировать пресеты из файла .rrpreset",
-        "saveNew": "Сохранить как новый пресет"
+        "saveNew": "Сохранить как новый пресет",
+        "unfavorite": "Удалить из избранного"
       },
       "types": {
         "folder": "Папка",

@@ -767,6 +767,7 @@
         "presetFile": "File Predefinito",
         "rapidRawPreset": "Predefinito RapidRAW"
       },
+      "favorites": "Preferiti",
       "menu": {
         "configurePreset": "Configura Predefinito",
         "deleteFolder": "Elimina Cartella",
@@ -794,8 +795,10 @@
       "tooltips": {
         "explore": "Esplora i Predefiniti della Community",
         "export": "Esporta tutti i predefiniti in un file .rrpreset",
+        "favorite": "Aggiungi ai preferiti",
         "import": "Importa predefiniti da un file .rrpreset",
-        "saveNew": "Salva come nuovo predefinito"
+        "saveNew": "Salva come nuovo predefinito",
+        "unfavorite": "Rimuovi dai preferiti"
       },
       "types": {
         "folder": "Cartella",
