@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useShallow } from 'zustand/react/shallow';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { useUIStore, reconcileWorkspace } from '../store/useUIStore';
+import { useUIStore, reconcileWorkspace, WORKSPACE_LAYOUT_VERSION } from '../store/useUIStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useEditorStore } from '../store/useEditorStore';
 import { useProcessStore } from '../store/useProcessStore';
@@ -14,6 +14,7 @@ import {
   LibraryViewMode,
   RawStatus,
   EditedStatus,
+  FlagStatus,
   Theme,
   ThumbnailSize,
   ThumbnailAspectRatio,
@@ -97,6 +98,7 @@ export const useAppInitialization = ({
       panelLayout: state.panelLayout,
       activePanels: state.activePanels,
       panelSwitcherPlacement: state.panelSwitcherPlacement,
+      layoutVersion: WORKSPACE_LAYOUT_VERSION,
     })),
   );
 
@@ -183,6 +185,7 @@ export const useAppInitialization = ({
             ...settings.filterCriteria,
             rawStatus: settings.filterCriteria.rawStatus || RawStatus.All,
             editedStatus: settings.filterCriteria.editedStatus || EditedStatus.All,
+            flagStatus: settings.filterCriteria.flagStatus || FlagStatus.All,
             colors: settings.filterCriteria.colors || [],
           }));
         }

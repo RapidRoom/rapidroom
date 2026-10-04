@@ -45,7 +45,7 @@ fn get_attr_as_f64(attrs: &HashMap<String, String>, key: &str) -> Option<f64> {
         .and_then(|s| s.trim_start_matches('+').parse::<f64>().ok())
 }
 
-fn extract_namespaced_scalar(content: &str, prefix: &str, key: &str) -> Option<String> {
+pub(crate) fn extract_namespaced_scalar(content: &str, prefix: &str, key: &str) -> Option<String> {
     let prefix = regex::escape(prefix);
     let key = regex::escape(key);
     let attr_pattern = format!(r#"{}:{}="([^"]*)""#, prefix, key);
@@ -922,10 +922,52 @@ fn apply_rendered_pv2012_policy(
     }
 }
 
+fn unescape_xml(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    let mut rest = value;
+    while let Some(start) = rest.find('&') {
+        out.push_str(&rest[..start]);
+        rest = &rest[start..];
+        let decoded = rest.find(';').and_then(|end| {
+            let entity = &rest[1..end];
+            let c = match entity {
+                "amp" => Some('&'),
+                "lt" => Some('<'),
+                "gt" => Some('>'),
+                "quot" => Some('"'),
+                "apos" => Some('\''),
+                _ => entity
+                    .strip_prefix("#x")
+                    .or_else(|| entity.strip_prefix("#X"))
+                    .map(|hex| u32::from_str_radix(hex, 16))
+                    .or_else(|| entity.strip_prefix('#').map(|dec| dec.parse::<u32>()))
+                    .and_then(Result::ok)
+                    .and_then(char::from_u32),
+            };
+            c.map(|c| (c, end))
+        });
+        match decoded {
+            Some((c, end)) => {
+                out.push(c);
+                rest = &rest[end + 1..];
+            }
+            None => {
+                out.push('&');
+                rest = &rest[1..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 fn extract_xmp_name(xmp_content: &str) -> Option<String> {
     regex!(r#"(?s)<crs:Name>.*?<rdf:Alt>.*?<rdf:li[^>]*>([^<]+)</rdf:li>.*?</crs:Name>"#)
         .captures(xmp_content)
-        .and_then(|c| c.get(1).map(|m| m.as_str().trim().to_string()))
+        .and_then(|c| {
+            c.get(1)
+                .map(|m| unescape_xml(m.as_str()).trim().to_string())
+        })
 }
 
 fn extract_tone_curve_points(xmp_str: &str, curve_name: &str) -> Option<Vec<Value>> {
@@ -1225,6 +1267,107 @@ fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, St
     Ok(attrs)
 }
 
+const BASIC_MAPPINGS: &[(&str, &str)] = &[
+    ("Exposure2012", "exposure"),
+    ("Contrast2012", "contrast"),
+    ("Highlights2012", "highlights"),
+    ("Shadows2012", "shadows"),
+    ("Whites2012", "whites"),
+    ("Blacks2012", "blacks"),
+    ("Clarity2012", "clarity"),
+    ("Dehaze", "dehaze"),
+    ("Vibrance", "vibrance"),
+    ("Saturation", "saturation"),
+    ("Texture", "structure"),
+    ("LuminanceSmoothing", "lumaNoiseReduction"),
+    ("ColorNoiseReduction", "colorNoiseReduction"),
+    ("ChromaticAberrationRedCyan", "chromaticAberrationRedCyan"),
+    (
+        "ChromaticAberrationBlueYellow",
+        "chromaticAberrationBlueYellow",
+    ),
+    ("PostCropVignetteAmount", "vignetteAmount"),
+    ("PostCropVignetteMidpoint", "vignetteMidpoint"),
+    ("PostCropVignetteFeather", "vignetteFeather"),
+    ("PostCropVignetteRoundness", "vignetteRoundness"),
+    ("GrainAmount", "grainAmount"),
+    ("GrainSize", "grainSize"),
+    ("GrainFrequency", "grainRoughness"),
+    ("ColorGradeBlending", "blending"),
+];
+
+pub(crate) fn is_mapped_xmp_scalar(key: &str) -> bool {
+    if BASIC_MAPPINGS.iter().any(|(name, _)| *name == key) {
+        return true;
+    }
+    for prefix in [
+        "HueAdjustment",
+        "SaturationAdjustment",
+        "LuminanceAdjustment",
+        "GrayMixer",
+    ] {
+        if let Some(color) = key.strip_prefix(prefix)
+            && [
+                "Red", "Orange", "Yellow", "Green", "Aqua", "Blue", "Purple", "Magenta",
+            ]
+            .contains(&color)
+        {
+            return true;
+        }
+    }
+    matches!(
+        key,
+        "Sharpness"
+            | "SharpenEdgeMasking"
+            | "Exposure"
+            | "Brightness"
+            | "Contrast"
+            | "Recovery"
+            | "FillLight"
+            | "Shadows"
+            | "Clarity"
+            | "Temperature"
+            | "Tint"
+            | "AsShotTemperature"
+            | "AsShotTint"
+            | "WhiteBalance"
+            | "IncrementalTemperature"
+            | "IncrementalTint"
+            | "ConvertToGrayscale"
+            | "HasCrop"
+            | "CropLeft"
+            | "CropRight"
+            | "CropTop"
+            | "CropBottom"
+            | "CropAngle"
+            | "CropConstrainAspectRatio"
+            | "LensProfileEnable"
+            | "LensProfileDistortionScale"
+            | "LensProfileVignettingScale"
+            | "AutoLateralCA"
+            | "SplitToningShadowHue"
+            | "SplitToningShadowSaturation"
+            | "SplitToningHighlightHue"
+            | "SplitToningHighlightSaturation"
+            | "SplitToningBalance"
+            | "ColorGradeMidtoneHue"
+            | "ColorGradeMidtoneSat"
+            | "ColorGradeShadowLum"
+            | "ColorGradeMidtoneLum"
+            | "ColorGradeHighlightLum"
+            | "ColorGradeGlobalHue"
+            | "ColorGradeGlobalSat"
+            | "ColorGradeGlobalLum"
+            | "Version"
+            | "ProcessVersion"
+            | "HasSettings"
+            | "AlreadyApplied"
+            | "CameraProfile"
+            | "ToneCurveName"
+            | "ToneCurveName2012"
+    )
+}
+
 fn convert_xmp_to_preset_with_crop(
     xmp_content: &str,
     include_crop_transform: bool,
@@ -1240,36 +1383,7 @@ fn convert_xmp_to_preset_with_crop(
     let mut color_grading_map = Map::new();
     let mut curves_map = Map::new();
 
-    let mappings = vec![
-        ("Exposure2012", "exposure"),
-        ("Contrast2012", "contrast"),
-        ("Highlights2012", "highlights"),
-        ("Shadows2012", "shadows"),
-        ("Whites2012", "whites"),
-        ("Blacks2012", "blacks"),
-        ("Clarity2012", "clarity"),
-        ("Dehaze", "dehaze"),
-        ("Vibrance", "vibrance"),
-        ("Saturation", "saturation"),
-        ("Texture", "structure"),
-        ("LuminanceSmoothing", "lumaNoiseReduction"),
-        ("ColorNoiseReduction", "colorNoiseReduction"),
-        ("ChromaticAberrationRedCyan", "chromaticAberrationRedCyan"),
-        (
-            "ChromaticAberrationBlueYellow",
-            "chromaticAberrationBlueYellow",
-        ),
-        ("PostCropVignetteAmount", "vignetteAmount"),
-        ("PostCropVignetteMidpoint", "vignetteMidpoint"),
-        ("PostCropVignetteFeather", "vignetteFeather"),
-        ("PostCropVignetteRoundness", "vignetteRoundness"),
-        ("GrainAmount", "grainAmount"),
-        ("GrainSize", "grainSize"),
-        ("GrainFrequency", "grainRoughness"),
-        ("ColorGradeBlending", "blending"),
-    ];
-
-    for (xmp_key, rr_key) in mappings {
+    for &(xmp_key, rr_key) in BASIC_MAPPINGS {
         if let Some(raw_val) = attrs.get(xmp_key)
             && let Some(num) = parse_num(raw_val.trim_start_matches('+'))
             && let Some(json_val) = num_to_json(num)
@@ -1558,6 +1672,7 @@ fn convert_xmp_to_preset_with_crop(
         include_masks: Some(false),
         include_crop_transform: Some(include_crop_transform),
         preset_type: Some("style".to_string()),
+        favorite: None,
     })
 }
 
