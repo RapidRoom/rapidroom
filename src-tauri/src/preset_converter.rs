@@ -236,6 +236,30 @@ fn import_xmp_crop(
     }
 }
 
+fn import_lens_profile(attrs: &HashMap<String, String>, adjustments: &mut Map<String, Value>) {
+    if !is_xmp_true(attrs.get("LensProfileEnable")) {
+        return;
+    }
+
+    // The lens itself is resolved from EXIF after conversion, the same way as
+    // RapidRAW's own automatic lens correction.
+    adjustments.insert("lensCorrectionMode".to_string(), json!("auto"));
+    adjustments.insert("lensDistortionEnabled".to_string(), json!(true));
+    adjustments.insert("lensVignetteEnabled".to_string(), json!(true));
+    adjustments.insert(
+        "lensTcaEnabled".to_string(),
+        json!(is_xmp_true(attrs.get("AutoLateralCA"))),
+    );
+    for (xmp_key, rapidraw_key) in [
+        ("LensProfileDistortionScale", "lensDistortionAmount"),
+        ("LensProfileVignettingScale", "lensVignetteAmount"),
+    ] {
+        if let Some(value) = get_attr_as_f64(attrs, xmp_key).filter(|value| value.is_finite()) {
+            adjustments.insert(rapidraw_key.to_string(), json!(value.clamp(0.0, 200.0)));
+        }
+    }
+}
+
 fn probe_xmp_crop_image_dimensions(image_path: &Path) -> Option<(f64, f64)> {
     if crate::formats::is_raw_file(image_path) {
         let bytes = fs::read(image_path).ok()?;
@@ -1333,6 +1357,7 @@ fn convert_xmp_to_preset_with_crop(
             &mut adjustments,
             fallback_image_dimensions,
         );
+        import_lens_profile(&attrs, &mut adjustments);
     }
 
     let preset_name =
@@ -2253,5 +2278,39 @@ mod tests {
             !adobe_camera_raw_already_applied(r#"<rdf:Description crs:AlreadyApplied="False" />"#)
                 .unwrap()
         );
+    }
+
+    #[test]
+    fn enables_automatic_lens_correction_for_lightroom_lens_profile() {
+        let preset = convert_xmp_sidecar_to_preset(
+            r#"<rdf:Description
+                crs:LensProfileEnable="1"
+                crs:LensProfileDistortionScale="100"
+                crs:LensProfileVignettingScale="80"
+                crs:AutoLateralCA="0" />"#,
+        )
+        .unwrap();
+
+        assert_eq!(preset.adjustments["lensCorrectionMode"], json!("auto"));
+        assert_eq!(preset.adjustments["lensDistortionEnabled"], json!(true));
+        assert_eq!(preset.adjustments["lensVignetteEnabled"], json!(true));
+        assert_eq!(preset.adjustments["lensTcaEnabled"], json!(false));
+        assert_eq!(preset.adjustments["lensDistortionAmount"], json!(100.0));
+        assert_eq!(preset.adjustments["lensVignetteAmount"], json!(80.0));
+    }
+
+    #[test]
+    fn leaves_lens_correction_alone_without_lightroom_lens_profile() {
+        for xmp in [
+            r#"<rdf:Description crs:LensProfileEnable="0" crs:Exposure2012="+0.50" />"#,
+            r#"<rdf:Description crs:Exposure2012="+0.50" />"#,
+        ] {
+            let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
+            assert!(preset.adjustments.get("lensCorrectionMode").is_none());
+        }
+
+        let reusable =
+            convert_xmp_to_preset(r#"<rdf:Description crs:LensProfileEnable="1" />"#).unwrap();
+        assert!(reusable.adjustments.get("lensCorrectionMode").is_none());
     }
 }
