@@ -98,6 +98,13 @@ async fn run_server(app_handle: AppHandle) -> Result<(), String> {
 async fn handle_connection(mut stream: TcpStream, service: McpHttpService) -> Result<(), String> {
     let request = read_request(&mut stream).await?;
 
+    // MCP clients are local processes, not web pages. Refusing anything a
+    // browser sent keeps websites from driving the editor.
+    if request.headers.contains_key("origin") {
+        write_basic_response(&mut stream, 403, "forbidden", "text/plain").await?;
+        return Ok(());
+    }
+
     if request.method == "OPTIONS" {
         write_basic_response(&mut stream, 204, "", "text/plain").await?;
         return Ok(());
