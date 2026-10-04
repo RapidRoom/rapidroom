@@ -96,6 +96,7 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 
 | Lightroom catalog photo-edit previews and selective develop/virtual-copy import | [@laurensiusadi](https://github.com/laurensiusadi) (Laurensius Adi), adapted by yojen7 with Codex | [laurensiusadi/RapidRAW@dda6cc5](https://github.com/laurensiusadi/RapidRAW/commit/dda6cc51c69dc6a17906609dbb667eff3507aeeb); shares the existing catalog reader and XMP mapper |
 | Embedded-preview and DNG-proxy RAW thumbnails | [@SebastianEggli](https://github.com/SebastianEggli) (Sebastian Eggli) | [4a64607](https://github.com/SebastianEggli/MyRR/commit/4a646075d557f6faa5310377f26ae66120af1aa4), [f0a5c66](https://github.com/SebastianEggli/MyRR/commit/f0a5c66ccad1e1a82b880dc8e469c6fb21144d66), [e93c711](https://github.com/SebastianEggli/MyRR/commit/e93c7110b218727ce4fb49c3019415ad0f7e188e) in SebastianEggli/MyRR; rawler half [094189d](https://github.com/SebastianEggli/RapidRAW-DngLab/commit/094189d738f30ec8e973b998fc59a84d00d94d8c) (upstream PRs `CyberTimon/RapidRAW#1809`, `CyberTimon/RapidRAW-DngLab#10`) |
+| Expanded Color Mixer with a targeted pipette | [@lalibertemarc](https://github.com/lalibertemarc), adapted with Claude Code | [lalibertemarc/RapidRAW@b5475ad](https://github.com/lalibertemarc/RapidRAW/commit/b5475ad8e3176386153d8c3a8fbdc7d21ba7c5a9), [@dffc46a](https://github.com/lalibertemarc/RapidRAW/commit/dffc46a161f6a9c35037348d9d62b1a5267a99ac), [@17173f2](https://github.com/lalibertemarc/RapidRAW/commit/17173f2873b44f4f7d5f219df1e5e744b3e0dfa9) |
 
 ## RapidRoom changes
 

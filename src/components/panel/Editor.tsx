@@ -117,6 +117,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const overlayRotation = useEditorStore((s) => s.overlayRotation);
   const isStraightenActive = useEditorStore((s) => s.isStraightenActive);
   const isWbPickerActive = useEditorStore((s) => s.isWbPickerActive);
+  const isMixerPickerActive = useEditorStore((s) => s.mixerPickerProperty !== null);
   const liveRotation = useEditorStore((s) => s.liveRotation);
   const brushSettings = useEditorStore((s) => s.brushSettings);
   const activeMaskContainerId = useEditorStore((s) => s.activeMaskContainerId);
@@ -736,7 +737,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         activeSubMask?.type === Mask.Color ||
         activeSubMask?.type === Mask.Luminance ||
         activeSubMask?.parameters?.isInitialDraw)) ||
-    isWbPickerActive;
+    isWbPickerActive ||
+    isMixerPickerActive;
 
   useEffect(() => {
     const container = imageContainerRef.current;
