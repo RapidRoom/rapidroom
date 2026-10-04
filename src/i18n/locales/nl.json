@@ -15,7 +15,7 @@
       "reset": "Opnieuw instellen",
       "shadows": "Schaduwen",
       "toneMapper": "Toonmapping",
-      "whites": "Wittinten"   
+      "whites": "Wittinten"
     },
     "color": {
       "ariaSelectColor": "Selecteer {{name}} kleur",
@@ -718,6 +718,7 @@
         "presetFile": "Voorinstellingsbestand",
         "rapidRawPreset": "RapidRAW-voorinstelling"
       },
+      "favorites": "Favorieten",
       "menu": {
         "configurePreset": "Voorinstelling configureren",
         "deleteFolder": "Map verwijderen",
@@ -745,8 +746,10 @@
       "tooltips": {
         "explore": "Community-voorinstellingen verkennen",
         "export": "Alle voorinstellingen exporteren naar .rrpreset-bestand",
+        "favorite": "Toevoegen aan favorieten",
         "import": "Voorinstellingen importeren uit .rrpreset-bestand",
-        "saveNew": "Opslaan als nieuwe voorinstelling"
+        "saveNew": "Opslaan als nieuwe voorinstelling",
+        "unfavorite": "Verwijderen uit favorieten"
       },
       "types": {
         "folder": "Map",
@@ -754,6 +757,17 @@
         "style": "Stijl",
         "tool": "Gereedschap"
       }
+    },
+    "referenceView": {
+      "active": "Actief",
+      "cancel": "Annuleren",
+      "chooseHint": "Klik op een foto in de filmstrip om die als referentie te gebruiken.",
+      "clear": "Referentie wissen",
+      "close": "Referentieweergave sluiten",
+      "readOnly": "Alleen-lezen",
+      "reference": "Referentie",
+      "replace": "Andere referentie kiezen",
+      "unavailable": "Referentiebeeld niet beschikbaar"
     },
     "switcher": {
       "tooltips": {
@@ -776,6 +790,7 @@
         "fullscreen": "Volledig scherm aan/uit (F)",
         "iso": "ISO",
         "redo": "Opnieuw (Ctrl+Y) of geschiedenis (rechtermuisknop)",
+        "referenceView": "Referentieweergave (Shift+R)",
         "showEdited": "Bewerkt weergeven (B)",
         "showOriginal": "Origineel weergeven (B)",
         "shutterSpeed": "Sluitertijd",
@@ -1582,7 +1597,7 @@
       "enableFocusMode": "Focusmodus inschakelen",
       "enableNeutralGreyCanvas": "Neutrale grijze achtergrond inschakelen",
       "enableOsTitlebar": "OS-titelbalk inschakelen",
-      "enableToolFocusMode": "Toolfocusmodus inschakelen",      
+      "enableToolFocusMode": "Toolfocusmodus inschakelen",
       "enableXmpSync": "XMP-synchronisatie inschakelen",
       "focusMode": "Focusmodus",
       "focusModeDesc": "Helpt u te concentreren door andere panelen automatisch te sluiten wanneer u een nieuw paneel opent.",
@@ -1652,6 +1667,7 @@
         "toggle_masks": "Maskerpaneel aan/uit",
         "toggle_metadata": "Metadatapaneel aan/uit",
         "toggle_presets": "Voorinstellingspaneel aan/uit",
+        "toggle_reference_view": "Referentieweergave aan/uit",
         "toggle_right_panel": "Rechterpaneel aan/uit",
         "undo": "Aanpassing ongedaan maken",
         "zoom_100": "Zoomen naar 100%",

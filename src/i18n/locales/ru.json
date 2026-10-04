@@ -159,13 +159,17 @@
       "confirmDeleteGroupNested": "Удалить группу и все вложенные альбомы",
       "deleteAlbum": "Удалить альбом",
       "deleteGroup": "Удалить группу",
+      "importLightroom": "Import Lightroom Collections…",
+      "lightroomCatalog": "Lightroom Catalog",
       "moveHere": "Переместить сюда",
       "moveTo": "Переместить в...",
       "newAlbum": "Новый альбом",
       "newGroup": "Новая группа",
+      "relinkLightroom": "Relink Lightroom Folders…",
       "renameAlbum": "Переименовать альбом",
       "renameGroup": "Переименовать группу",
-      "rootDir": "Корневой каталог"
+      "rootDir": "Корневой каталог",
+      "selectLightroomCatalog": "Select Lightroom Catalog"
     },
     "colors": {
       "blue": "Синий",
@@ -192,6 +196,9 @@
       "denoise": "Шумоподавление",
       "editImage": "Редактировать изображение",
       "exportImage": "Экспортировать изображение",
+      "flag": "Отметка",
+      "flagPick": "Выбрано",
+      "flagReject": "Отклонено",
       "frameImage": "Добавить рамку",
       "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "Объединить в HDR",
@@ -208,7 +215,8 @@
       "resetAdjustments": "Сбросить настройки",
       "stitchPanorama": "Сшить панораму",
       "tagging": "Теги",
-      "undo": "Отменить"
+      "undo": "Отменить",
+      "unflagged": "Без отметки"
     },
     "folders": {
       "changeIcon": "Изменить значок",
@@ -238,6 +246,7 @@
       "addCopiedToAlbum_many": "Добавить {{count}} скопированных изображений в альбом",
       "addCopiedToAlbum_one": "Добавить скопированное изображение в альбом",
       "addCopiedToAlbum_other": "Добавить {{count}} скопированных изображений в альбом",
+      "deleteRejected": "Удалить отклоненные снимки",
       "refreshView": "Обновить вид"
     },
     "merge": {
@@ -320,10 +329,21 @@
       "copy": "Copy Report",
       "failed": "Failed ({{total}})",
       "folder": "Folder: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "aiDenoise": "AI Denoise",
+        "masks": "masks and local adjustments",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
     "toasts": {
+      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
       "couldNotShowExplorer": "Не удалось показать файл в проводнике: {{err}}",
       "couldNotShowFolder": "Не удалось показать папку: {{err}}",
       "failedAddToAlbum": "Не удалось добавить в альбом: {{err}}",
@@ -334,6 +354,7 @@
       "failedDelete": "Не удалось удалить: {{err}}",
       "failedDeleteFolder": "Не удалось удалить папку: {{err}}",
       "failedDuplicate": "Не удалось дублировать файл: {{err}}",
+      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
       "failedImportMatchingXmpSidecars": "Failed to import matching XMP sidecars: {{err}}",
       "failedImportXmpAdjustments": "Failed to import XMP adjustments: {{err}}",
       "failedMatchingXmpSidecars_one": "Matching XMP sidecars failed to import: {{count}}.",
@@ -344,6 +365,7 @@
       "failedMoveError": "Не удалось переместить: {{err}}",
       "failedMoveInvalid": "Не удалось переместить: целевая группа не найдена или недействительна.",
       "failedRemoveImages": "Не удалось удалить изображения: {{err}}",
+      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
       "importedMatchingXmpSidecars_one": "Imported matching XMP sidecars: {{count}}.",
       "importedMatchingXmpSidecars_few": "Imported matching XMP sidecars: {{count}}.",
       "importedMatchingXmpSidecars_many": "Imported matching XMP sidecars: {{count}}.",
@@ -790,6 +812,7 @@
         "presetFile": "Файл пресета",
         "rapidRawPreset": "Пресет RapidRAW"
       },
+      "favorites": "Избранное",
       "menu": {
         "configurePreset": "Настроить пресет",
         "deleteFolder": "Удалить папку",
@@ -817,8 +840,10 @@
       "tooltips": {
         "explore": "Обзор пресетов сообщества",
         "export": "Экспортировать все пресеты в файл .rrpreset",
+        "favorite": "Добавить в избранное",
         "import": "Импортировать пресеты из файла .rrpreset",
-        "saveNew": "Сохранить как новый пресет"
+        "saveNew": "Сохранить как новый пресет",
+        "unfavorite": "Удалить из избранного"
       },
       "types": {
         "folder": "Папка",
@@ -826,6 +851,17 @@
         "style": "Стиль",
         "tool": "Инструмент"
       }
+    },
+    "referenceView": {
+      "active": "Текущее",
+      "cancel": "Отмена",
+      "chooseHint": "Щёлкните фото на ленте, чтобы использовать его как эталон.",
+      "clear": "Убрать эталон",
+      "close": "Закрыть эталонный вид",
+      "readOnly": "Только чтение",
+      "reference": "Эталон",
+      "replace": "Выбрать другой эталон",
+      "unavailable": "Эталонное изображение недоступно"
     },
     "switcher": {
       "tooltips": {
@@ -848,6 +884,7 @@
         "fullscreen": "Полноэкранный режим (F)",
         "iso": "ISO",
         "redo": "Повторить (Ctrl+Y) или история (правый клик)",
+        "referenceView": "Эталонный вид (Shift+R)",
         "showEdited": "Показать измененное (B)",
         "showOriginal": "Показать оригинал (B)",
         "shutterSpeed": "Выдержка",
@@ -1034,6 +1071,13 @@
         "editedOnly": "Только измененные",
         "uneditedOnly": "Только исходные"
       },
+      "flag": {
+        "all": "Все изображения",
+        "excludeRejected": "Скрыть отклоненные",
+        "picked": "Выбрано",
+        "rejected": "Отклонено",
+        "unflagged": "Без отметки"
+      },
       "noMatch": "Нет изображений, соответствующих фильтру.",
       "rating": {
         "all": "Показать все",
@@ -1121,6 +1165,7 @@
         "filterByColorLabel": "Фильтр по цвету",
         "filterByEdited": "Фильтр по редактированию",
         "filterByFileType": "Фильтр по формату",
+        "filterByFlag": "Фильтр по отметке",
         "filterByRating": "Фильтр по рейтингу",
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
@@ -1156,11 +1201,25 @@
       "imagesCount_many": "{{count}} изображений",
       "imagesCount_one": "1 изображение",
       "imagesCount_other": "{{count}} изображений",
+      "rejected": "Отклонено",
       "tooltipAperture": "Диафрагма",
       "tooltipFocalLength": "Фокусное расстояние",
       "tooltipIso": "ISO",
       "tooltipShutterSpeed": "Выдержка",
       "tooltipVirtualCopy": "Виртуальная копия"
+    },
+    "reject": {
+      "deleteConfirm": "Удалить отклоненные",
+      "deleteMessage_few": "Удалить {{count}} отклоненных снимка? Они будут перемещены в корзину.",
+      "deleteMessage_many": "Удалить {{count}} отклоненных снимков? Они будут перемещены в корзину.",
+      "deleteMessage_one": "Удалить {{count}} отклоненный снимок? Он будет перемещен в корзину.",
+      "deleteMessage_other": "Удалить {{count}} отклоненных снимков? Они будут перемещены в корзину.",
+      "deleteTitle": "Удалить отклоненные снимки",
+      "noneToDelete": "Нет отклоненных снимков для удаления.",
+      "virtualCopiesWarning_few": "Также будут удалены {{count}} неотклоненные виртуальные копии, так как их оригиналы отклонены.",
+      "virtualCopiesWarning_many": "Также будут удалены {{count}} неотклоненных виртуальных копий, так как их оригиналы отклонены.",
+      "virtualCopiesWarning_one": "Также будет удалена {{count}} неотклоненная виртуальная копия, так как ее оригинал отклонен.",
+      "virtualCopiesWarning_other": "Также будут удалены {{count}} неотклоненных виртуальных копий, так как их оригиналы отклонены."
     },
     "search": {
       "noResults": "Результатов не найдено",
@@ -1344,7 +1403,7 @@
     "culling": {
       "actionDelete": "Переместить в корзину",
       "actionRateZero": "Установить оценку 1 звезда",
-      "actionReject": "Пометить как отклоненное (красная метка)",
+      "actionReject": "Пометить как отклоненное",
       "applyButton_few": "Применить к {{count}} изображениям",
       "applyButton_many": "Применить к {{count}} изображениям",
       "applyButton_one": "Применить к 1 изображению",
@@ -1492,6 +1551,36 @@
       "zoomInTooltip": "Увеличить",
       "zoomOutTooltip": "Уменьшить"
     },
+    "lightroomImport": {
+      "addRootFolders": "Also add the found root folders to Folders",
+      "besideCatalog": "Found next to the catalog",
+      "collectionSets": "Collection sets",
+      "collections": "Collections",
+      "copied": "List copied.",
+      "copyList": "Copy List",
+      "found": "Found",
+      "imagesFound": "Images found",
+      "imagesMissing": "Images missing",
+      "import": "Import",
+      "importing": "Importing…",
+      "missingFiles": "Missing files: {{total}}",
+      "missingFilesHint": "Missing files stay in their albums and show up again once their folder is found or relinked.",
+      "missingFilesMore": "…and {{total}} more",
+      "missingRoots": "Root folders not found: {{total}}. Their images are imported as missing until you relink them.",
+      "notFound": "Not found",
+      "nothingToImport": "This catalog has no collections to import.",
+      "reading": "Reading the catalog…",
+      "relink": "Relink…",
+      "relinkTitle": "Find the folder for {{path}}",
+      "relinked": "Relinked",
+      "replacesPrevious": "This catalog was imported before. Importing again refreshes its albums where you put them; your other albums stay as they are.",
+      "rootFolders": "Root folders",
+      "rootFoldersHint": "Where the catalog's folders are on this computer. Relink a folder that moved or comes from another computer. The catalog itself is only read, never changed.",
+      "rootImages": "Images: {{images}}, missing: {{missing}}",
+      "skippedOther": "Books, slideshows, prints and web galleries, not imported: {{total}}",
+      "smartCollections": "Smart collections, not imported: {{total}}",
+      "title": "Import Lightroom Collections"
+    },
     "negativeConversion": {
       "blueWeight": "Синий (желтизна)",
       "cancel": "Отмена",
@@ -1543,15 +1632,39 @@
     },
     "renameFile": {
       "cancel": "Отмена",
+      "conflictExisting": "имя занято",
+      "conflictInBatch": "повторяющееся имя",
+      "conflicts_few": "{{count}} имени файлов совпадают. Измените шаблон.",
+      "conflicts_many": "{{count}} имён файлов совпадают. Измените шаблон.",
+      "conflicts_one": "{{count}} имя файла совпадает с другим. Измените шаблон.",
+      "conflicts_other": "{{count}} имени файлов совпадают. Измените шаблон.",
       "fileNamingTemplate": "Шаблон именования файлов",
+      "groupAuto": "Авто: снимки с интервалом до",
+      "groupSeconds": "Секунды между снимками в группе",
+      "groupSelection": "Всё выделение — одна группа",
+      "groups": "Группы для {group} и {member}",
       "newName": "Новое имя",
+      "preview": "Предпросмотр",
+      "renamed_few": "Переименовано {{count}} файла",
+      "renamed_many": "Переименовано {{count}} файлов",
+      "renamed_one": "Переименован {{count}} файл",
+      "renamed_other": "Переименовано {{count}} файла",
       "save": "Сохранить",
+      "seconds": "с",
+      "summary": "Фото: {{photos}} · Файлы: {{files}}",
       "titleMultiple": "Переименовать {{count}} изобр.",
       "titleMultiple_few": "Переименовать {{count}} изобр.",
       "titleMultiple_many": "Переименовать {{count}} изобр.",
       "titleMultiple_one": "Переименовать {{count}} изображение",
       "titleMultiple_other": "Переименовать {{count}} изображений",
-      "titleSingle": "Переименовать изображение"
+      "titleSingle": "Переименовать изображение",
+      "undo": "Отменить",
+      "undoFailed": "Не удалось отменить переименование: {{err}}",
+      "undoLast_few": "Отменить последнее переименование ({{count}} фото)",
+      "undoLast_many": "Отменить последнее переименование ({{count}} фото)",
+      "undoLast_one": "Отменить последнее переименование ({{count}} фото)",
+      "undoLast_other": "Отменить последнее переименование ({{count}} фото)",
+      "undone": "Переименование отменено"
     },
     "renameFolder": {
       "cancel": "Отмена",
@@ -1726,7 +1839,10 @@
         "copy_files": "Копировать выбранные файлы",
         "copy_image_path": "Копировать путь к выбранным изображениям",
         "cycle_zoom": "Режимы масштаба (По экрану, 2x, 100%)",
+        "delete_rejected": "Удалить отклоненные файлы",
         "delete_selected": "Удалить выбранные файлы",
+        "flag_pick": "Отметить как «выбрано»",
+        "flag_reject": "Отметить как «отклонено»",
         "focus_search": "Перейти к полю поиска",
         "open_image": "Открыть выбранное изображение",
         "open_settings": "Открыть настройки",
@@ -1759,8 +1875,10 @@
         "toggle_masks": "Панель масок",
         "toggle_metadata": "Панель метаданных",
         "toggle_presets": "Панель пресетов",
+        "toggle_reference_view": "Переключить эталонный вид",
         "toggle_right_panel": "Показать/скрыть правую панель",
         "undo": "Отменить действие",
+        "unflag": "Снять отметку",
         "zoom_100": "Масштаб 100%",
         "zoom_fit": "Уместить по размеру окна",
         "zoom_in": "Приблизить",
@@ -2100,6 +2218,10 @@
         "virtualCopy": "Виртуальная копия"
       },
       "virtualCopyAbbreviation": "ВК"
+    },
+    "flags": {
+      "togglePick": "Переключить выбор",
+      "toggleReject": "Переключить отклонение"
     },
     "imagePicker": {
       "clearImage": "Очистить изображение",

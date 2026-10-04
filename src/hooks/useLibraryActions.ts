@@ -4,52 +4,112 @@ import { toast } from 'react-toastify';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
-import { Invokes, ImageFile, AlbumItem, Album, AlbumGroup } from '../components/ui/AppProperties';
+import { Invokes, ImageFile, ImageFlag, AlbumItem, Album, AlbumGroup } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { computeSortedLibrary } from './useSortedLibrary';
 import { expandGroupedPaths } from '../utils/imageGrouping';
+import { getReferenceLabel, isReferenceCandidate } from '../utils/referenceView';
 import type { FolderTree } from '../components/panel/right/FolderTree';
+import { getImageFlag, restoreFlags, toggledFlag, withFlag } from '../utils/imageFlags';
+import { enqueueLibraryMetadataWrite } from '../utils/libraryMetadataWrites';
+
+const resolveTargetPaths = (paths?: string[]) => {
+  const { multiSelectedPaths, imageList } = useLibraryStore.getState();
+  const { selectedImage } = useEditorStore.getState();
+
+  const selectedPaths =
+    paths || (multiSelectedPaths.length > 0 ? multiSelectedPaths : selectedImage ? [selectedImage.path] : []);
+
+  const groupingMode = useSettingsStore.getState().appSettings?.grouping ?? 'off';
+  return { selectedPaths, expandedPaths: expandGroupedPaths(imageList, selectedPaths, groupingMode) };
+};
 
 export function useLibraryActions(handleImageSelect?: (path: string, openInEditor?: boolean) => void) {
   const handleRate = useCallback((newRating: number, paths?: string[]) => {
-    const { multiSelectedPaths, imageList, imageRatings, setLibrary } = useLibraryStore.getState();
-    const { selectedImage } = useEditorStore.getState();
+    const { imageRatings, imageList, setLibrary } = useLibraryStore.getState();
 
-    const selectedPaths =
-      paths || (multiSelectedPaths.length > 0 ? multiSelectedPaths : selectedImage ? [selectedImage.path] : []);
+    const { selectedPaths, expandedPaths: pathsToRate } = resolveTargetPaths(paths);
     if (selectedPaths.length === 0) return;
 
-    const groupingMode = useSettingsStore.getState().appSettings?.grouping ?? 'off';
-    const pathsToRate = expandGroupedPaths(imageList, selectedPaths, groupingMode);
-
+    const isRejected = getImageFlag(imageList, selectedPaths[0]) === ImageFlag.Reject;
     const currentRating = imageRatings[selectedPaths[0]] || 0;
-    const finalRating = newRating === currentRating ? 0 : newRating;
+    const finalRating = newRating === currentRating && !isRejected ? 0 : newRating;
 
-    setLibrary((state) => {
-      const newRatings = { ...state.imageRatings };
-      pathsToRate.forEach((p) => {
-        newRatings[p] = finalRating;
-      });
-      return { imageRatings: newRatings };
-    });
-
-    invoke(Invokes.SetRatingForPaths, { paths: pathsToRate, rating: finalRating }).catch((err) => {
-      console.error(err);
-      toast.error(`Failed to apply rating: ${err}`);
+    enqueueLibraryMetadataWrite({
+      apply: () => {
+        const previous = useLibraryStore.getState();
+        setLibrary((state) => {
+          const newRatings = { ...state.imageRatings };
+          pathsToRate.forEach((p) => {
+            newRatings[p] = finalRating;
+          });
+          if (finalRating > 0) {
+            return {
+              imageRatings: newRatings,
+              imageList: withFlag(state.imageList, pathsToRate, null, ImageFlag.Reject),
+            };
+          }
+          return { imageRatings: newRatings };
+        });
+        return () => {
+          setLibrary((state) => {
+            const ratings = { ...state.imageRatings };
+            for (const path of pathsToRate) {
+              if (Object.hasOwn(previous.imageRatings, path)) ratings[path] = previous.imageRatings[path];
+              else delete ratings[path];
+            }
+            return {
+              imageRatings: ratings,
+              imageList: restoreFlags(state.imageList, previous.imageList, pathsToRate),
+            };
+          });
+        };
+      },
+      save: () => invoke(Invokes.SetRatingForPaths, { paths: pathsToRate, rating: finalRating }),
+      onError: (err) => {
+        console.error(err);
+        toast.error(`Failed to apply rating: ${err}`);
+      },
     });
   }, []);
 
+  const handleSetFlag = useCallback((flag: ImageFlag | null, paths?: string[]) => {
+    const { expandedPaths } = resolveTargetPaths(paths);
+    if (expandedPaths.length === 0) return;
+
+    const { setLibrary } = useLibraryStore.getState();
+    enqueueLibraryMetadataWrite({
+      apply: () => {
+        const { imageList: previous } = useLibraryStore.getState();
+        setLibrary((state) => ({ imageList: withFlag(state.imageList, expandedPaths, flag) }));
+        return () => setLibrary((state) => ({ imageList: restoreFlags(state.imageList, previous, expandedPaths) }));
+      },
+      save: () => invoke(Invokes.SetFlagForPaths, { paths: expandedPaths, flag }),
+      onError: (err) => {
+        console.error(err);
+        toast.error(`Failed to update flag: ${err}`);
+      },
+    });
+  }, []);
+
+  const handleToggleFlag = useCallback(
+    (flag: ImageFlag, paths?: string[]) => {
+      const { selectedPaths } = resolveTargetPaths(paths);
+      if (selectedPaths.length === 0) return;
+
+      const { imageList } = useLibraryStore.getState();
+      handleSetFlag(toggledFlag(getImageFlag(imageList, selectedPaths[0]), flag), selectedPaths);
+    },
+    [handleSetFlag],
+  );
+
   const handleSetColorLabel = useCallback(async (color: string | null, paths?: string[]) => {
-    const { multiSelectedPaths, libraryActivePath, imageList, setLibrary } = useLibraryStore.getState();
+    const { libraryActivePath, imageList, setLibrary } = useLibraryStore.getState();
     const { selectedImage } = useEditorStore.getState();
 
-    const selectedPaths =
-      paths || (multiSelectedPaths.length > 0 ? multiSelectedPaths : selectedImage ? [selectedImage.path] : []);
+    const { selectedPaths, expandedPaths: pathsToUpdate } = resolveTargetPaths(paths);
     if (selectedPaths.length === 0) return;
-
-    const groupingMode = useSettingsStore.getState().appSettings?.grouping ?? 'off';
-    const pathsToUpdate = expandGroupedPaths(imageList, selectedPaths, groupingMode);
 
     const primaryPath = selectedImage?.path || libraryActivePath;
     const primaryImage = imageList.find((img: ImageFile) => img.path === primaryPath);
@@ -253,8 +313,15 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
   const handleImageClick = useCallback(
     (path: string, event: any) => {
       const { selectionAnchorPath, libraryActivePath, setLibrary } = useLibraryStore.getState();
-      const { selectedImage } = useEditorStore.getState();
+      const { selectedImage, referenceView, dispatchReferenceView } = useEditorStore.getState();
       const inEditor = !!selectedImage;
+
+      if (inEditor && referenceView.isChooserOpen) {
+        if (isReferenceCandidate(referenceView, path, selectedImage.path)) {
+          dispatchReferenceView({ image: { label: getReferenceLabel(path), path }, type: 'set-reference' });
+        }
+        return;
+      }
 
       handleMultiSelectClick(path, event, {
         shiftAnchor: selectionAnchorPath ?? (inEditor ? selectedImage.path : libraryActivePath),
@@ -437,6 +504,8 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
 
   return {
     handleRate,
+    handleSetFlag,
+    handleToggleFlag,
     handleSetColorLabel,
     handleTagsChanged,
     handleUpdateExif,
