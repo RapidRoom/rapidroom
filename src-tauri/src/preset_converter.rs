@@ -100,7 +100,7 @@ fn orient_crop_bounds(
     }
 }
 
-fn rotate_point_clockwise(
+pub(crate) fn rotate_point_clockwise(
     x: f64,
     y: f64,
     center_x: f64,
@@ -115,6 +115,26 @@ fn rotate_point_clockwise(
         center_x + cos * translated_x - sin * translated_y,
         center_y + sin * translated_x + cos * translated_y,
     )
+}
+
+/// Unoriented image size in pixels, from the sidecar or the image itself.
+fn xmp_image_dimensions(
+    xmp_content: &str,
+    fallback_image_dimensions: Option<(f64, f64)>,
+) -> Option<(f64, f64)> {
+    let image_width = get_namespaced_f64(xmp_content, "tiff", "ImageWidth")
+        .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelXDimension"))
+        .or_else(|| fallback_image_dimensions.map(|dimensions| dimensions.0))?;
+    let image_height = get_namespaced_f64(xmp_content, "tiff", "ImageLength")
+        .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelYDimension"))
+        .or_else(|| fallback_image_dimensions.map(|dimensions| dimensions.1))?;
+    (image_width >= 1.0 && image_height >= 1.0).then_some((image_width, image_height))
+}
+
+fn xmp_orientation(xmp_content: &str) -> u16 {
+    extract_namespaced_scalar(xmp_content, "tiff", "Orientation")
+        .and_then(|value| value.parse::<u16>().ok())
+        .unwrap_or(1)
 }
 
 fn import_xmp_crop(
@@ -149,22 +169,13 @@ fn import_xmp_crop(
         return;
     }
 
-    let image_width = get_namespaced_f64(xmp_content, "tiff", "ImageWidth")
-        .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelXDimension"))
-        .or_else(|| fallback_image_dimensions.map(|dimensions| dimensions.0));
-    let image_height = get_namespaced_f64(xmp_content, "tiff", "ImageLength")
-        .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelYDimension"))
-        .or_else(|| fallback_image_dimensions.map(|dimensions| dimensions.1));
-    let (Some(image_width), Some(image_height)) = (image_width, image_height) else {
+    let Some((image_width, image_height)) =
+        xmp_image_dimensions(xmp_content, fallback_image_dimensions)
+    else {
         return;
     };
-    if image_width < 1.0 || image_height < 1.0 {
-        return;
-    }
 
-    let orientation = extract_namespaced_scalar(xmp_content, "tiff", "Orientation")
-        .and_then(|value| value.parse::<u16>().ok())
-        .unwrap_or(1);
+    let orientation = xmp_orientation(xmp_content);
     let (left, top, right, bottom) = orient_crop_bounds(left, top, right, bottom, orientation);
     let (oriented_width, oriented_height) = if (5..=8).contains(&orientation) {
         (image_height, image_width)
@@ -1097,16 +1108,17 @@ pub fn convert_xmp_sidecar_to_preset_for_image(
         } else {
             XmpImageKind::Rendered
         };
-    let crop_needs_image_dimensions = parse_xmp_attributes(xmp_content)
+    let geometry_needs_image_dimensions = (parse_xmp_attributes(xmp_content)
         .ok()
         .is_some_and(|attrs| is_xmp_true(attrs.get("HasCrop")))
+        || crate::lightroom_masks::has_mask_group_corrections(xmp_content))
         && (get_namespaced_f64(xmp_content, "tiff", "ImageWidth")
             .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelXDimension"))
             .is_none()
             || get_namespaced_f64(xmp_content, "tiff", "ImageLength")
                 .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelYDimension"))
                 .is_none());
-    let fallback_image_dimensions = crop_needs_image_dimensions
+    let fallback_image_dimensions = geometry_needs_image_dimensions
         .then(|| probe_xmp_crop_image_dimensions(image_path))
         .flatten();
     convert_xmp_to_preset_with_crop(
@@ -1180,12 +1192,28 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
         items.push("aiDenoise");
     }
 
-    if regex!(
-        r"(?s)<crs:(?:MaskGroupBasedCorrections|PaintBasedCorrections|GradientBasedCorrections|CircularGradientBasedCorrections)>\s*<rdf:Seq>\s*<rdf:li"
-    )
-    .is_match(xmp_content)
+    // Only crs:MaskGroupBasedCorrections are imported; the older per-tool
+    // lists are reported as they are.
+    let (_, masks) = crate::lightroom_masks::import_lightroom_masks(xmp_content, None, |_| {});
+    let imported_masks = preset
+        .adjustments
+        .get("masks")
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len);
+    if masks.skipped_unsupported > 0
+        || imported_masks < masks.convertible
+        || regex!(
+            r"(?s)<crs:(?:PaintBasedCorrections|GradientBasedCorrections|CircularGradientBasedCorrections)>\s*<rdf:Seq>\s*<rdf:li"
+        )
+        .is_match(xmp_content)
     {
         items.push("masks");
+    }
+    if masks.skipped_ai > 0 {
+        items.push("aiMasks");
+    }
+    if masks.with_unmapped_adjustments > 0 && imported_masks > 0 {
+        items.push("localAdjustments");
     }
 
     if regex!(r"(?s)<crs:PointColors>\s*<rdf:Seq>\s*<rdf:li").is_match(xmp_content) {
@@ -1546,6 +1574,28 @@ fn convert_xmp_to_preset_with_crop(
             fallback_image_dimensions,
         );
         import_lens_profile(&attrs, &mut adjustments);
+
+        // Masks live in the same space as the crop: oriented and rotated by
+        // the imported rotation, before cropping.
+        let frame =
+            xmp_image_dimensions(xmp_content, fallback_image_dimensions).map(|(width, height)| {
+                crate::lightroom_masks::ImageFrame {
+                    width,
+                    height,
+                    orientation: xmp_orientation(xmp_content),
+                    rotation: adjustments
+                        .get("rotation")
+                        .and_then(Value::as_f64)
+                        .unwrap_or(0.0),
+                }
+            });
+        let (masks, _) =
+            crate::lightroom_masks::import_lightroom_masks(xmp_content, frame.as_ref(), |mask| {
+                scale_lightroom_exposure(mask, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS)
+            });
+        if !masks.is_empty() {
+            adjustments.insert("masks".to_string(), Value::Array(masks));
+        }
     }
 
     let preset_name =
