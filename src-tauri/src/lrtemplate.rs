@@ -378,7 +378,7 @@ fn curve_points(key: &str, table: &LuaTable) -> Result<Vec<(u32, u32)>, String> 
     if !table.fields.is_empty() {
         return malformed("has named entries; expected a flat list of x, y numbers");
     }
-    if table.items.len() % 2 != 0 {
+    if !table.items.len().is_multiple_of(2) {
         return malformed("has an odd number of values; expected x, y pairs");
     }
     let mut coords = Vec::with_capacity(table.items.len());
