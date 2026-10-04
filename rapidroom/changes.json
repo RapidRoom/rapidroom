@@ -2,6 +2,20 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "batch-rename-photos",
+      "title": "Batch rename treats a photo as one unit: RAW+JPEG/HEIF pairs and every sidecar (.rrdata incl. virtual copies, both XMP styles, .acr, .dop, .pp3) move together, with metadata, burst and group tokens, a preview with collision checks, a rollback-safe two-phase rename and undo",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["yojen7", "SandeepSubba"],
+      "source": "rapidroom; metadata tokens from SandeepSubba/RapidRAW (upstream PR 1309)",
+      "commits": ["https://github.com/SandeepSubba/RapidRAW/commit/12b3c5e52eb1574fa8ef06ab3d32867d415a946f"],
+      "upstream_issues": [],
+      "upstream_prs": ["CyberTimon/RapidRAW#1309"],
+      "rendering_change": false,
+      "notes": "New tokens: {rating}, {stars}, {camera}, {lens}, {iso}, {focal}, {folder}, {label}, {title}, {author}, {copyright}, {comments}, and for rename {group} and {member}. Export and import use the same token engine. {sequence} follows capture time (DateTimeOriginal plus SubSecTimeOriginal), so bursts and brackets number in shooting order. Unknown tokens are an error in the rename preview. Undo covers the last rename and survives a restart. Albums, cached thumbnails and EXIF, the selection and the editor follow the new names. Still refused in Card mode. Written with Claude Code.",
+      "highlight": "**Rename photos, not just files.** RAW+JPEG pairs and all their sidecars move together, bursts number in shooting order, and you see every new name before anything changes, with undo."
+    },
+    {
       "id": "wb-picker-original",
       "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
       "category": "fix",

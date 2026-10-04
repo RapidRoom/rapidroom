@@ -189,6 +189,37 @@ fn save_exif_to_rrcache(image_path: &Path, exif: HashMap<String, String>) {
     state.dirty.insert(folder.to_path_buf());
 }
 
+/// Keeps the cached EXIF of a renamed file, so it is not read again.
+pub fn rename_cached_exif(old_path: &Path, new_path: &Path) {
+    let (Some(old_folder), Some(old_name), Some(new_folder), Some(new_name)) = (
+        old_path.parent(),
+        old_path.file_name(),
+        new_path.parent(),
+        new_path.file_name(),
+    ) else {
+        return;
+    };
+    load_rrcache_for_folder(old_folder);
+    load_rrcache_for_folder(new_folder);
+    let Ok(mut state) = get_exif_cache().lock() else {
+        return;
+    };
+    let Some(entry) = state
+        .cache
+        .get_mut(old_folder)
+        .and_then(|folder| folder.remove(old_name.to_string_lossy().as_ref()))
+    else {
+        return;
+    };
+    state.dirty.insert(old_folder.to_path_buf());
+    state
+        .cache
+        .entry(new_folder.to_path_buf())
+        .or_default()
+        .insert(new_name.to_string_lossy().into_owned(), entry);
+    state.dirty.insert(new_folder.to_path_buf());
+}
+
 pub fn truncate_large_exif(value: &str) -> String {
     if value.len() <= 500 {
         return value.to_string();

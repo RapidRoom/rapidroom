@@ -27,12 +27,23 @@ export const FILENAME_VARIABLES: Array<string> = [
   '{author}',
   '{copyright}',
   '{comments}',
+  '{rating}',
+  '{stars}',
+  '{camera}',
+  '{lens}',
+  '{iso}',
+  '{focal}',
+  '{folder}',
+  '{label}',
   '{YYYY}',
   '{MM}',
   '{DD}',
   '{hh}',
   '{mm}',
 ];
+
+// Rename numbers bursts and brackets as groups; export and import have no groups.
+export const RENAME_VARIABLES: Array<string> = [...FILENAME_VARIABLES, '{group}', '{member}'];
 
 export type TiffBitDepth = 8 | 16;
 
