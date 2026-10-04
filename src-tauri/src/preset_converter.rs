@@ -288,6 +288,25 @@ fn probe_xmp_crop_image_dimensions(image_path: &Path) -> Option<(f64, f64)> {
         .map(|(width, height)| (width as f64, height as f64))
 }
 
+/// RapidRAW's exposure slider moves 1.25 EV per unit, so a 1:1 copy of
+/// Lightroom's EV value overshoots (+1.23 EV becomes +1.54 EV). Scaling fixes
+/// that, but on its own it darkens an already too dark midrange. Keep it off
+/// until it can be enabled together with the tone calibration.
+const SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS: bool = false;
+const RAPIDRAW_EV_PER_EXPOSURE_UNIT: f64 = 1.25;
+
+fn scale_lightroom_exposure(adjustments: &mut Map<String, Value>, enabled: bool) {
+    if !enabled {
+        return;
+    }
+    if let Some(ev) = adjustments.get("exposure").and_then(Value::as_f64) {
+        adjustments.insert(
+            "exposure".to_string(),
+            json!(ev / RAPIDRAW_EV_PER_EXPOSURE_UNIT),
+        );
+    }
+}
+
 fn import_legacy_basic_adjustments(
     attrs: &HashMap<String, String>,
     adjustments: &mut Map<String, Value>,
@@ -1120,6 +1139,7 @@ fn convert_xmp_to_preset_with_crop(
     }
 
     import_legacy_basic_adjustments(&attrs, &mut adjustments, image_kind);
+    scale_lightroom_exposure(&mut adjustments, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS);
     apply_rendered_pv5_policy(&attrs, &mut adjustments, image_kind);
     apply_rendered_pv2012_policy(&attrs, &mut adjustments, image_kind);
     if convert_to_grayscale {
@@ -2278,6 +2298,35 @@ mod tests {
             !adobe_camera_raw_already_applied(r#"<rdf:Description crs:AlreadyApplied="False" />"#)
                 .unwrap()
         );
+    }
+
+    #[test]
+    fn keeps_exposure_one_to_one_while_unit_scaling_is_off() {
+        let preset = convert_adobe_camera_raw_xmp_to_preset(
+            r#"<rdf:Description crs:Exposure2012="+1.25" />"#,
+            XmpImageKind::Raw,
+        )
+        .unwrap();
+
+        assert_eq!(preset.adjustments["exposure"], json!(1.25));
+    }
+
+    #[test]
+    fn scales_lightroom_ev_to_rapidraw_exposure_units_when_enabled() {
+        let mut adjustments = Map::new();
+        adjustments.insert("exposure".to_string(), json!(1.25));
+        scale_lightroom_exposure(&mut adjustments, true);
+        assert_eq!(adjustments["exposure"], json!(1.0));
+
+        let mut legacy = Map::new();
+        legacy.insert("exposure".to_string(), json!(-0.5));
+        scale_lightroom_exposure(&mut legacy, true);
+        assert_eq!(legacy["exposure"], json!(-0.4));
+
+        let mut unchanged = Map::new();
+        unchanged.insert("exposure".to_string(), json!(1.25));
+        scale_lightroom_exposure(&mut unchanged, false);
+        assert_eq!(unchanged["exposure"], json!(1.25));
     }
 
     #[test]
