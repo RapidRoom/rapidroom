@@ -464,7 +464,12 @@ fn modify_tags_for_path(
         .map_err(|e| e.to_string())?;
 
     if let Some(create_if_missing) = xmp_sync {
-        file_management::sync_metadata_to_xmp(&source_path, &metadata, create_if_missing);
+        file_management::sync_metadata_to_xmp(
+            &source_path,
+            &sidecar_path,
+            &metadata,
+            create_if_missing,
+        );
     }
 
     Ok(())
@@ -528,7 +533,12 @@ fn rrdata_source_path(rrdata: &Path) -> Option<PathBuf> {
 
 fn sync_xmp_for_rrdata(rrdata_path: &Path, metadata: &ImageMetadata, create_xmp_if_missing: bool) {
     if let Some(source_path) = rrdata_source_path(rrdata_path) {
-        file_management::sync_metadata_to_xmp(&source_path, metadata, create_xmp_if_missing);
+        file_management::sync_metadata_to_xmp(
+            &source_path,
+            rrdata_path,
+            metadata,
+            create_xmp_if_missing,
+        );
     }
 }
 

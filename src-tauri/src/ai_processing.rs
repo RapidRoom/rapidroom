@@ -9,7 +9,7 @@ use image::{
     DynamicImage, GenericImageView, GrayImage, ImageBuffer, Luma, Rgb, Rgb32FImage, Rgba, RgbaImage,
 };
 use ndarray::{Array, Array4, IxDyn};
-use ort::session::Session;
+use ort::session::{RunOptions, Session};
 use ort::value::Tensor;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,8 @@ use tauri::Emitter;
 use tauri::Manager;
 use tokenizers::Tokenizer;
 use tokio::sync::Mutex as TokioMutex;
+
+use crate::denoising::DenoiseJob;
 
 const ENCODER_URL: &str = "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/sam_vit_b_01ec64_encoder.onnx?download=true";
 const DECODER_URL: &str = "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/sam_vit_b_01ec64_decoder.onnx?download=true";
@@ -882,9 +884,12 @@ fn run_native_denoise(
     accumulator: &mut [f32],
     width: usize,
     height: usize,
-    app_handle: &tauri::AppHandle,
+    job: &DenoiseJob,
     params: TileParams,
-) -> Result<()> {
+) -> std::result::Result<(), String> {
+    let run_options = Arc::new(RunOptions::new().map_err(|e| e.to_string())?);
+    job.attach_run_options(run_options.clone())?;
+
     let w = width as i32;
     let h = height as i32;
     let step = params.ucs.saturating_sub(params.overlap).max(1);
@@ -893,6 +898,7 @@ fn run_native_denoise(
     let total = (iperhl + 1) * (ipervl + 1);
 
     for i in 0..total {
+        job.check()?;
         let yi = i / (iperhl + 1);
         let xi = i % (iperhl + 1);
         let x0 =
@@ -902,19 +908,28 @@ fn run_native_denoise(
 
         if i % 10 == 0 {
             let pct = (i as f32 / total as f32) * 100.0;
-            let _ = app_handle.emit("denoise-progress", format!("Denoising… {:.0}%", pct));
+            job.progress(format!("Denoising… {:.0}%", pct));
         }
 
         let crop = extract_tile_mirror(img, x0, y0, params.cs);
         let input_values = crop.as_standard_layout().to_owned();
-        let t_input = Tensor::from_array(input_values)?;
+        let t_input = Tensor::from_array(input_values).map_err(|e| e.to_string())?;
 
         let out = {
             let mut sess = session.lock().unwrap();
-            let outputs = sess.run(ort::inputs![t_input])?;
-            let arr = outputs[0].try_extract_array::<f32>()?.to_owned();
+            let outputs = match sess.run_with_options(ort::inputs![t_input], &*run_options) {
+                Ok(outputs) => outputs,
+                Err(e) => {
+                    job.check()?;
+                    return Err(e.to_string());
+                }
+            };
+            let arr = outputs[0]
+                .try_extract_array::<f32>()
+                .map_err(|e| e.to_string())?
+                .to_owned();
             arr.into_dimensionality::<ndarray::Ix4>()
-                .map_err(|e| anyhow::anyhow!("Unexpected output shape: {}", e))?
+                .map_err(|e| format!("Unexpected output shape: {}", e))?
         };
 
         let x1pad = (0i32).max(x0 + params.cs as i32 - w) as usize;
@@ -975,12 +990,12 @@ pub fn run_ai_denoise(
     rgb_img: &Rgb32FImage,
     intensity: f32,
     session: &Mutex<Session>,
-    app_handle: &tauri::AppHandle,
-) -> Result<DynamicImage> {
+    job: &DenoiseJob,
+) -> std::result::Result<DynamicImage, String> {
     let (width, height) = rgb_img.dimensions();
     let params = select_tile_params(intensity);
 
-    let _ = app_handle.emit("denoise-progress", "Denoising (AI NIND)...");
+    job.progress("Denoising (AI NIND)...");
     let mut accumulator = vec![0.0f32; width as usize * height as usize * 3];
     run_native_denoise(
         rgb_img,
@@ -988,7 +1003,7 @@ pub fn run_ai_denoise(
         &mut accumulator,
         width as usize,
         height as usize,
-        app_handle,
+        job,
         params,
     )?;
 

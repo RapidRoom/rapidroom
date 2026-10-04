@@ -49,12 +49,34 @@ impl<'a> IntoCowImage<'a> for &'a std::sync::Arc<DynamicImage> {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageFlag {
+    Pick,
+    Reject,
+}
+
+fn deserialize_image_flag<'de, D>(deserializer: D) -> Result<Option<ImageFlag>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(serde_json::from_value(Value::deserialize(deserializer)?).unwrap_or(None))
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImageMetadata {
     pub version: u32,
     pub rating: u8,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub rating_is_explicit: bool,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_image_flag",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub flag: Option<ImageFlag>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub flag_is_explicit: bool,
     pub adjustments: Value,
     #[serde(default)]
     pub tags: Option<Vec<String>>,
@@ -68,6 +90,8 @@ impl Default for ImageMetadata {
             version: 1,
             rating: 0,
             rating_is_explicit: false,
+            flag: None,
+            flag_is_explicit: false,
             adjustments: Value::Null,
             tags: None,
             exif: None,
@@ -2557,6 +2581,7 @@ pub struct GpuContext {
     pub device: Arc<wgpu::Device>,
     pub queue: Arc<wgpu::Queue>,
     pub limits: wgpu::Limits,
+    pub adapter_info: wgpu::AdapterInfo,
     pub display: Arc<std::sync::Mutex<Option<WgpuDisplay>>>,
     /// Latest window size seen by the resize handler, not yet applied to the
     /// swapchain. Kept off the `display` mutex so the UI thread can always
@@ -2580,15 +2605,32 @@ fn yc_to_rgb(y: f32, cb: f32, cr: f32) -> (f32, f32, f32) {
     (r, g, b)
 }
 
+fn to_rgb32f_parallel(image: &DynamicImage) -> image::Rgb32FImage {
+    match image {
+        DynamicImage::ImageRgba32F(rgba) => {
+            let (w, h) = rgba.dimensions();
+            let mut rgb = vec![0.0f32; (w as usize) * (h as usize) * 3];
+            rgb.par_chunks_exact_mut(3)
+                .zip(rgba.as_raw().par_chunks_exact(4))
+                .for_each(|(dst, src)| dst.copy_from_slice(&src[..3]));
+            image::ImageBuffer::from_raw(w, h, rgb).expect("RGB buffer matches image dimensions")
+        }
+        other => other.to_rgb32f(),
+    }
+}
+
 pub fn remove_raw_artifacts_and_enhance(
     image: &mut DynamicImage,
     color_nr_inv_sigma: f32,
     sharpening_amount: f32,
 ) {
-    let mut buffer = image.to_rgb32f();
+    let convert_span = crate::perf_trace::span("enhance.to_rgb32f");
+    let mut buffer = to_rgb32f_parallel(image);
+    drop(convert_span);
     let w = buffer.width() as usize;
     let h = buffer.height() as usize;
 
+    let ycc_span = crate::perf_trace::span("enhance.ycbcr");
     let mut ycbcr_buffer = vec![0.0f32; w * h * 3];
 
     let src = buffer.as_raw();
@@ -2603,7 +2645,9 @@ pub fn remove_raw_artifacts_and_enhance(
             dest[2] = cr;
         });
 
+    drop(ycc_span);
     if color_nr_inv_sigma > 0.0 {
+        let _nr_span = crate::perf_trace::span("enhance.color_nr");
         let base_inv_sigma = color_nr_inv_sigma;
         const OFFSETS: [isize; 3] = [-5, -1, 3];
         const OFFSET_SQUARES: [f32; 3] = [25.0, 1.0, 9.0];
@@ -2688,6 +2732,7 @@ pub fn remove_raw_artifacts_and_enhance(
     }
 
     if sharpening_amount > 0.0 {
+        let _span = crate::perf_trace::span("enhance.detail");
         apply_gentle_detail_enhance(&mut buffer, &ycbcr_buffer, sharpening_amount);
     }
 
@@ -3830,5 +3875,48 @@ mod color_tool_visibility_tests {
 
         let parent_off = get_mask_adjustments_from_json(&edited(Some(json!({ "color": false }))));
         assert!(parent_off.color_grading_shadows.saturation == 0.0 && parent_off.hsl[0].hue == 0.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::{assert_bits_eq, sample_values};
+    use image::{ImageBuffer, Luma, Rgb, Rgba};
+
+    const W: u32 = 41;
+    const H: u32 = 19;
+
+    fn rgba32f_image() -> DynamicImage {
+        let values = sample_values((W * H * 4) as usize);
+        DynamicImage::ImageRgba32F(ImageBuffer::from_raw(W, H, values).unwrap())
+    }
+
+    #[test]
+    fn to_rgb32f_parallel_matches_image_crate_for_rgba_f32() {
+        let image = rgba32f_image();
+        assert_bits_eq(
+            image.to_rgb32f().as_raw(),
+            to_rgb32f_parallel(&image).as_raw(),
+        );
+    }
+
+    #[test]
+    fn to_rgb32f_parallel_matches_image_crate_for_other_formats() {
+        let images = [
+            DynamicImage::ImageRgb8(ImageBuffer::from_fn(W, H, |x, y| {
+                Rgb([(x * 7) as u8, (y * 11) as u8, (x + y) as u8])
+            })),
+            DynamicImage::ImageRgba16(ImageBuffer::from_fn(W, H, |x, y| {
+                Rgba([(x * 997) as u16, (y * 1553) as u16, 40000, (x * y) as u16])
+            })),
+            DynamicImage::ImageLuma8(ImageBuffer::from_fn(W, H, |x, y| Luma([(x ^ y) as u8]))),
+        ];
+        for image in images {
+            assert_bits_eq(
+                image.to_rgb32f().as_raw(),
+                to_rgb32f_parallel(&image).as_raw(),
+            );
+        }
     }
 }

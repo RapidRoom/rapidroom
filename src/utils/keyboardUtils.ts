@@ -2,6 +2,7 @@ export interface KeybindDefinition {
   action: string;
   description: string;
   defaultCombo: string[];
+  macDefaultCombo?: string[];
   section: 'library' | 'view' | 'rating' | 'panels' | 'editing';
 }
 
@@ -53,6 +54,13 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     action: 'delete_selected',
     description: 'settings.keybinds.actions.delete_selected',
     defaultCombo: ['Delete'],
+    section: 'library',
+  },
+  {
+    action: 'delete_rejected',
+    description: 'settings.keybinds.actions.delete_rejected',
+    defaultCombo: ['ctrl', 'Backspace'],
+    macDefaultCombo: ['alt', 'Delete'],
     section: 'library',
   },
   {
@@ -121,12 +129,36 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     defaultCombo: ['KeyB'],
     section: 'view',
   },
+  {
+    action: 'toggle_reference_view',
+    description: 'settings.keybinds.actions.toggle_reference_view',
+    defaultCombo: ['shift', 'KeyR'],
+    section: 'view',
+  },
   { action: 'rate_0', description: 'settings.keybinds.actions.rate_0', defaultCombo: ['Digit0'], section: 'rating' },
   { action: 'rate_1', description: 'settings.keybinds.actions.rate_1', defaultCombo: ['Digit1'], section: 'rating' },
   { action: 'rate_2', description: 'settings.keybinds.actions.rate_2', defaultCombo: ['Digit2'], section: 'rating' },
   { action: 'rate_3', description: 'settings.keybinds.actions.rate_3', defaultCombo: ['Digit3'], section: 'rating' },
   { action: 'rate_4', description: 'settings.keybinds.actions.rate_4', defaultCombo: ['Digit4'], section: 'rating' },
   { action: 'rate_5', description: 'settings.keybinds.actions.rate_5', defaultCombo: ['Digit5'], section: 'rating' },
+  {
+    action: 'flag_pick',
+    description: 'settings.keybinds.actions.flag_pick',
+    defaultCombo: ['KeyP'],
+    section: 'rating',
+  },
+  {
+    action: 'flag_reject',
+    description: 'settings.keybinds.actions.flag_reject',
+    defaultCombo: ['KeyX'],
+    section: 'rating',
+  },
+  {
+    action: 'unflag',
+    description: 'settings.keybinds.actions.unflag',
+    defaultCombo: ['KeyU'],
+    section: 'rating',
+  },
   {
     action: 'color_label_none',
     description: 'settings.keybinds.actions.color_label_none',
@@ -190,7 +222,7 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
   {
     action: 'toggle_presets',
     description: 'settings.keybinds.actions.toggle_presets',
-    defaultCombo: ['KeyP'],
+    defaultCombo: ['shift', 'KeyP'],
     section: 'panels',
   },
   {
@@ -337,6 +369,10 @@ const symMap: Record<string, string> = {
   CapsLock: 'Caps Lock',
   PrintScreen: 'PrtSc',
 };
+
+export function getDefaultCombo(def: KeybindDefinition, osPlatform?: string): string[] {
+  return (osPlatform === 'macos' && def.macDefaultCombo) || def.defaultCombo;
+}
 
 export function normalizeCombo(event: KeyboardEvent, osPlatform?: string): string[] {
   const isMacDelete = osPlatform === 'macos' && event.code === 'Backspace' && (event.ctrlKey || event.metaKey);

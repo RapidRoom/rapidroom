@@ -40,10 +40,14 @@ jobs:
             echo "::error::Tag '$tag' does not match RAPIDROOM_VERSION '$rr' (expected 'v$rr')."
             exit 1
           fi
-          upstream="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          app="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          if [[ "$app" != "$rr" ]]; then
+            echo "::error::tauri.conf.json version '$app' does not match RAPIDROOM_VERSION '$rr'."
+            exit 1
+          fi
           echo "rapidroom=$rr" >> "$GITHUB_OUTPUT"
-          echo "bundle=${upstream}+rr.${rr}" >> "$GITHUB_OUTPUT"
-          echo "RapidRoom $rr on RapidRAW $upstream; package version ${upstream}+rr.${rr}"
+          echo "bundle=${rr}" >> "$GITHUB_OUTPUT"
+          echo "RapidRoom $rr; package version $rr"
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
