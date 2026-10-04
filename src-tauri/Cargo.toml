@@ -137,4 +137,4 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-cli
 # (rebased onto 934af4b), plus saturating lookup-table highlight dithering
 # for DxO compressed DNGs and editable Sony aspect crops. Keep until upstream includes these fixes.
 [patch."https://github.com/CyberTimon/RapidRAW-DngLab.git"]
-rawler = { git = "https://github.com/yojen7/RapidRAW-DngLab.git", rev = "bca09813d1a0973d9a66e51bc1a52d47669227e6" }
+rawler = { git = "https://github.com/yojen7/RapidRAW-DngLab.git", rev = "b84ca29b143c62f920361081b058c77e4d73faa5" }

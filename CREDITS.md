@@ -36,7 +36,7 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 | sRGB ICC profile in exports          | @yojen7 (AI-assisted)                              | [#1820](https://github.com/CyberTimon/RapidRAW/pull/1820); TIFF part to follow [#1752](https://github.com/CyberTimon/RapidRAW/pull/1752) by [@FabianWeiss90](https://github.com/FabianWeiss90) |
 | Bundled Poppins font                 | @yojen7 (AI-assisted)                              | not yet proposed                                                                                                                                                                               |
 | Clerk loaded only for cloud features | @yojen7 (AI-assisted)                              | not yet proposed                                                                                                                                                                               |
-| Editable Sony in-camera aspect crop  | @yojen7 (AI-assisted with Codex)                   | [rawler bca0981](https://github.com/yojen7/RapidRAW-DngLab/commit/bca09813d1a0973d9a66e51bc1a52d47669227e6); original RapidRoom work                                                           |
+| Editable Sony in-camera aspect crop  | @yojen7 (AI-assisted with Codex)                   | [rawler b84ca29](https://github.com/yojen7/RapidRAW-DngLab/commit/b84ca29b143c62f920361081b058c77e4d73faa5); original RapidRoom work                                                           |
 
 ## Third-party assets
 

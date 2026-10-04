@@ -376,6 +376,7 @@ pub fn apply_camera_crop_default_from_path(
     if adjustments.get("crop").is_some()
         || !source_path
             .extension()
+            .and_then(|ext| ext.to_str())
             .is_some_and(|ext| ext.eq_ignore_ascii_case("arw"))
     {
         return;

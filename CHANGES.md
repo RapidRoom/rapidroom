@@ -61,7 +61,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Landed in RapidRoom:** 2026-10-03
 - **By:** [@yojen7](https://github.com/yojen7)
 - **Upstream:** not yet offered
-- **Commits:** [bca0981](https://github.com/yojen7/RapidRAW-DngLab/commit/bca09813d1a0973d9a66e51bc1a52d47669227e6)
+- **Commits:** [b84ca29](https://github.com/yojen7/RapidRAW-DngLab/commit/b84ca29b143c62f920361081b058c77e4d73faa5)
 - **Notes:** Reads SonyCropTopLeft/SonyCropSize in the rawler fork, retains the full DefaultCrop image for crop expansion/reset, and preserves existing sidecar framing. The M/S crop and saturating highlight dither fixes remain. AI-assisted with Codex; maintainer visual review required.
 
 ### White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct
