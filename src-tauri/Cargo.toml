@@ -137,7 +137,8 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-cli
 
 # Carry Kheil-Z's Sony lossless M/S and Canon mRAW/sRAW default-crop fix
 # (rebased onto 934af4b), saturating lookup-table highlight dithering for DxO
-# compressed DNGs, and SebastianEggli's fast preview paths (DNG LinearRaw
+# compressed DNGs, Adobe stage-2 polynomial mappings, and SebastianEggli's
+# fast preview paths (DNG LinearRaw
 # proxies, CR3/ORF previews, zero-copy RawSource; `CyberTimon/RapidRAW-DngLab#10`).
 # Keep this patch until upstream includes these fixes.
 [patch."https://github.com/CyberTimon/RapidRAW-DngLab.git"]

@@ -5690,6 +5690,15 @@ mod tests {
     #[ignore = "requires RAPIDROOM_THUMBNAIL_QA_INPUT pointing to a local sample"]
     fn real_raw_thumbnail_probe() {
         let path = std::env::var("RAPIDROOM_THUMBNAIL_QA_INPUT").unwrap();
+        let io_read_bytes = || {
+            fs::read_to_string("/proc/self/io").ok().and_then(|s| {
+                s.lines().find_map(|line| {
+                    line.strip_prefix("read_bytes: ")
+                        .and_then(|v| v.parse::<u64>().ok())
+                })
+            })
+        };
+        let io_before = io_read_bytes();
         let _file = fs::File::open(&path).unwrap();
         #[cfg(target_os = "linux")]
         if std::env::var("RAPIDROOM_THUMBNAIL_QA_COLD").as_deref() == Ok("1") {
@@ -5737,9 +5746,16 @@ mod tests {
                 .is_none()
         );
         let fraction = std::env::var("RAPIDROOM_THUMBNAIL_QA_CROP_FRACTION")
-            .ok().map(|v| v.parse::<f64>().unwrap()).unwrap_or(1.0);
+            .ok()
+            .map(|v| v.parse::<f64>().unwrap())
+            .unwrap_or(1.0);
         assert!(fraction > 0.0 && fraction <= 1.0);
-        let crop = Crop { x: 0.0, y: 0.0, width: f64::from(input_dimensions.0) * fraction, height: f64::from(input_dimensions.1) * fraction };
+        let crop = Crop {
+            x: 0.0,
+            y: 0.0,
+            width: f64::from(input_dimensions.0) * fraction,
+            height: f64::from(input_dimensions.1) * fraction,
+        };
         let proxy_min = thumbnail_proxy_min_dim(&mmap, 1280, Some(&crop));
         let proxy = if input_dimensions.2 && proxy_min.is_some() {
             let image = crate::raw_processing::develop_raw_image(
@@ -5752,8 +5768,13 @@ mod tests {
             )
             .unwrap();
             assert!(image.to_rgb32f().as_raw().iter().all(|v| v.is_finite()));
-            let scale = crate::raw_processing::get_fast_demosaic_scale_factor(&mmap, image.width(), image.height());
-            let ratio = image.width().max(image.height()) as f32 / input_dimensions.0.max(input_dimensions.1) as f32;
+            let scale = crate::raw_processing::get_fast_demosaic_scale_factor(
+                &mmap,
+                image.width(),
+                image.height(),
+            );
+            let ratio = image.width().max(image.height()) as f32
+                / input_dimensions.0.max(input_dimensions.1) as f32;
             assert!((scale - if ratio > 0.97 { 1.0 } else { ratio }).abs() < 1e-5);
             Some((image.width(), image.height()))
         } else {
@@ -5761,7 +5782,7 @@ mod tests {
         };
         println!(
             "THUMBNAIL_QA {}",
-            serde_json::json!({"input": input_dimensions, "preview": dimensions, "preview_seconds": seconds, "proxy_min_dim": proxy_min, "crop_fraction": fraction, "proxy": proxy})
+            serde_json::json!({"input": input_dimensions, "preview": dimensions, "preview_seconds": seconds, "physical_read_bytes": io_read_bytes().zip(io_before).map(|(a,b)| a.saturating_sub(b)), "proxy_min_dim": proxy_min, "crop_fraction": fraction, "proxy": proxy})
         );
     }
 

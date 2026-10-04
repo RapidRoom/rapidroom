@@ -17,7 +17,7 @@
       "upstream_issues": [],
       "upstream_prs": ["CyberTimon/RapidRAW#1809", "CyberTimon/RapidRAW-DngLab#10"],
       "rendering_change": false,
-      "notes": "Exports are unchanged; library thumbnails of unedited raws may differ slightly because they come from a smaller embedded JPEG. The rawler half (DNG proxies, CR3/ORF previews, zero-copy RawSource) is carried on top of RapidRoom's existing rawler patches."
+      "notes": "Exports preserve the preceding full-image decode; library thumbnails may differ because they use smaller embedded JPEGs or correctly normalized DNG proxies. The rawler dependency f13d56ec retains RapidRoom crop, dither and full-image Adobe polynomial fixes alongside Sebastian Eggli's preview paths. Adaptations preserve metadata orientation and parallel conversions, reject real or malformed crops from the unedited-preview gate, and retry the full image if a proxy fails. Native real-file and cold/warm sample-probe results are recorded on the PR."
     },
     {
       "id": "lightroom-catalog-develop-import",
