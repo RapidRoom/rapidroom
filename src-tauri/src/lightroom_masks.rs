@@ -83,16 +83,7 @@ impl ImageFrame {
 
     /// Maps a Lightroom point (0..1 of the unoriented image) into mask space.
     fn map_normalized(&self, u: f64, v: f64) -> (f64, f64) {
-        let (u, v) = match self.orientation {
-            2 => (1.0 - u, v),
-            3 => (1.0 - u, 1.0 - v),
-            4 => (u, 1.0 - v),
-            5 => (1.0 - v, 1.0 - u),
-            6 => (1.0 - v, u),
-            7 => (v, u),
-            8 => (v, 1.0 - u),
-            _ => (u, v),
-        };
+        let (u, v) = crate::preset_converter::orient_normalized_point(u, v, self.orientation);
         let (width, height) = self.oriented_size();
         let (x, y) = (u * width, v * height);
         if self.rotation.abs() > f64::EPSILON {
