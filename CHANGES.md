@@ -95,7 +95,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Landed in RapidRoom:** 2026-10-05
 - **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex, retaining the cgasgarth MCP server authorship)
 - **Upstream:** not yet offered
-- **Notes:** Optional MCP feature: undo/redo use the editor store and preserve labelled AI entries; reads do not change edits or history. Schema defaults and UI ranges come from source and have a drift test. Original and comparison previews use generated neutral defaults, fraction regions are validated before rendering, and JPEG payload/long edge are bounded. Native real-client validation and the required human live check remain pending before merge.
+- **Notes:** Optional MCP feature: undo/redo use the editor store and preserve labelled AI entries; reads do not change edits or history. Schema defaults and UI ranges come from source and have a drift test. Original and comparison previews use generated neutral defaults, fraction regions are validated before rendering, and JPEG payload/long edge are bounded. The 11-step Linux native scenario verifies actual Claude Code three edits, labelled GUI history and undo twice, generated schema/bounded previews, and independent Codex read-only tools with unchanged state/history. The required human live check remains pending before merge; macOS/Windows and packaged runtime are untested.
 
 ### Movable terminal panel with persistent tabs, bounded PTY output, shell/font preferences and built-in/external assistant launch controls
 
