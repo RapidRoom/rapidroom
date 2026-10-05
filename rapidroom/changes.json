@@ -160,7 +160,7 @@
     },
     {
       "id": "closed-pipe",
-      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw \u2026 | head`)",
+      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw … | head`)",
       "category": "fix",
       "landed": "2026-10-02",
       "authors": ["yojen7"],
@@ -546,8 +546,8 @@
       "upstream_issues": ["CyberTimon/RapidRAW#1749", "CyberTimon/RapidRAW#1583"],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Auto-advance is off by default (Settings \u2192 General) and only moves on when a single image is rated with the 0\u20135 keys; it stops at the last image. The \u2265/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
-      "highlight": "**Faster culling:** rate with 0\u20135 and jump straight to the next photo, and filter for exactly N stars."
+      "notes": "Auto-advance is off by default (Settings → General) and only moves on when a single image is rated with the 0–5 keys; it stops at the last image. The ≥/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
+      "highlight": "**Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars."
     },
     {
       "id": "lightroom-xmp-import",
@@ -799,7 +799,7 @@
     },
     {
       "id": "lights-out",
-      "title": "Lights Out viewing in Library and Editor: L cycles Normal \u2192 Dim \u2192 Black, Shift+L goes back, Escape restores",
+      "title": "Lights Out viewing in Library and Editor: L cycles Normal → Dim → Black, Shift+L goes back, Escape restores",
       "category": "feature",
       "landed": "2026-10-04",
       "authors": ["zeromeridian", "yojen7"],
@@ -887,7 +887,7 @@
     },
     {
       "id": "lensfun-evaluation",
-      "title": "Lens correction evaluates Lensfun profiles the way Lensfun does: right radius per model, rescaled terms instead of \u00d72.5, calibration that fits the sensor",
+      "title": "Lens correction evaluates Lensfun profiles the way Lensfun does: right radius per model, rescaled terms instead of ×2.5, calibration that fits the sensor",
       "category": "fix",
       "landed": "2026-10-04",
       "authors": ["beneedict", "yojen7"],
