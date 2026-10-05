@@ -1,0 +1,168 @@
+{
+  "issue": 134,
+  "main_base": "c8b58802d1bc47cd6f8a39ffbf34b27b0519bc6f",
+  "platform": "Arch Linux; WebKitGTK 2.52.6; GTK 3.24.52; Intel LNL; Mesa 26.2.2",
+  "environment": {
+    "engine_sha256": "af57b8922024764a87e7400b52dec67cb73623ae57e7b0d15111e3366f23dccf",
+    "fixture": "sony-a7c2-15mp-uncompressed.ARW",
+    "compositor": "Weston headless GL",
+    "weston_version": "weston 15.0.1",
+    "driver": "tauri-plugin-wdio-webdriver 1.4.0",
+    "viewport": [1680, 1050],
+    "harness_sha256": "fb6374e396b2e969a0114c08be1d3236672acaaa89fe56c7f6c65242f99acfdc"
+  },
+  "fixture_sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+  "native_ui": {
+    "passed": true,
+    "steps": [
+      {
+        "name": "library thumbnail",
+        "evidence": [
+          {
+            "complete": true,
+            "height": 321,
+            "width": 480
+          }
+        ]
+      },
+      {
+        "name": "native preview",
+        "evidence": {
+          "roi": [336, 141, 1344, 813],
+          "capture": "captures/preview-1/wayland-screenshot-2026-10-04_16-18-53.png"
+        }
+      },
+      {
+        "name": "edits change preview",
+        "evidence": {
+          "edits": [
+            {
+              "label": "Exposure",
+              "requested": 1,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.1,
+                "width": 171
+              }
+            },
+            {
+              "label": "Contrast",
+              "requested": 20,
+              "before": {
+                "height": 28,
+                "max": 100,
+                "min": -100,
+                "step": 1,
+                "value": 0,
+                "width": 195
+              },
+              "after": {
+                "height": 28,
+                "max": 100,
+                "min": -100,
+                "step": 1,
+                "value": 22,
+                "width": 195
+              }
+            }
+          ],
+          "mean_absolute_difference": [55.973826943972036, 58.453833616780045, 31.822366012377174]
+        }
+      },
+      {
+        "name": "Undo restores preview exactly",
+        "evidence": {
+          "undo_clicks": 1
+        }
+      },
+      {
+        "name": "Compact enabled and persisted",
+        "evidence": {
+          "height": 24,
+          "max": 5,
+          "min": -5,
+          "step": 0.01,
+          "value": 0,
+          "width": 48
+        }
+      },
+      {
+        "name": "GUI JPEG export",
+        "evidence": {
+          "file": "input/smoke_edited.jpg",
+          "sha256": "c03b401dea6f174ca5c912b4668814ba27147bfd4e7077302ac81ccc6e81a035"
+        }
+      },
+      {
+        "name": "clean exit and no frontend/native errors",
+        "evidence": {
+          "exit_code": 0
+        }
+      }
+    ]
+  },
+  "source_guards": {
+    "fixture_unchanged": true,
+    "engine_unchanged": true
+  },
+  "negative_control": {
+    "engine": "prototype before release-info 404 fix",
+    "all_interaction_steps_passed": true,
+    "passed": false,
+    "failure": "Frontend errors: Failed to fetch latest release info from GitHub."
+  },
+  "default_dependency_graph": {
+    "base": "c8b58802",
+    "default_graph_identical": true,
+    "driver_excluded": true,
+    "tree_sha256": "f4ad314a6e410fc8b23e19b5d3efb8b7befa0989de5f9461250f5a915dd6af8f",
+    "lines": 1765
+  },
+  "lockfile": {
+    "base": "c8b58802",
+    "all_existing_package_versions_retained": true,
+    "added_package_versions": 28,
+    "added": [
+      ["axum", "0.8.9", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["axum-core", "0.5.6", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["cfg-expr", "0.20.10", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["gio-sys", "0.21.5", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["glib", "0.21.5", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["glib-macros", "0.21.5", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["glib-sys", "0.21.5", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["gobject-sys", "0.21.5", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["httpdate", "1.0.3", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["matchit", "0.8.4", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["objc2-javascript-core", "0.3.2", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["objc2-security", "0.3.2", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["serde_path_to_error", "0.1.20", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["serde_urlencoded", "0.7.1", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["system-deps", "7.0.8", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["target-lexicon", "0.13.5", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["tauri-plugin-wdio-webdriver", "1.4.0", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["webview2-com", "0.38.2", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["webview2-com-sys", "0.38.2", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["windows", "0.61.3", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["windows-collections", "0.2.0", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["windows-core", "0.61.2", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["windows-future", "0.2.1", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["windows-link", "0.1.3", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["windows-numerics", "0.2.0", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["windows-result", "0.3.4", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["windows-strings", "0.4.2", "registry+https://github.com/rust-lang/crates.io-index"],
+      ["windows-threading", "0.1.0", "registry+https://github.com/rust-lang/crates.io-index"]
+    ]
+  },
+  "untested": ["hosted native UI CI", "Windows", "macOS", "Android", "physical touch", "native file-picker dialogs"]
+}
