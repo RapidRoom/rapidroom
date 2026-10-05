@@ -157,3 +157,5 @@ Read-only MCP measurement/comparison tools: original implementation by yojen7 wi
 MCP contact-sheet captions embed unmodified Poppins Regular from [google/fonts@9710da1](https://github.com/google/fonts/commit/9710da1eacb3be272583c3224dcb70f9da6eadbb), Copyright 2020 The Poppins Project Authors, SIL Open Font License 1.1. The complete licence and pinned asset provenance are retained under `rapidroom/assets/poppins/`. The optional direct `ab_glyph` 0.2.32 dependency is an existing app dependency version, Apache-2.0 (Alex Butler and contributors); its complete licence is retained in the same directory. Neither the font nor new optional dependency edge is included by the default MCP-disabled path.
 
 Terminal dock containment, compact header and stepped native layout checks: original work by yojen7 with Codex. Existing terminal, PTY, xterm and native-driver authorship and notices are retained; no new dependency or licence.
+
+- No-op full-frame Crop initialization/completion and unchanged-action history fix (#149): original RapidRoom work by Yojen with Codex; existing crop/editor authorship and licences retained.

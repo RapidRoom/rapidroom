@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "crop-noop-full-frame",
+      "title": "Opening a full-frame Crop view keeps edits, history and sidecars unchanged",
+      "category": "fix",
+      "landed": "2026-10-05",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "A full-frame crop matching the oriented image is treated as the existing crop. The crop overlay is kept locally without persisting an equivalent full-frame rectangle; unchanged adjustment callbacks do not queue history or switch Original off. Real crops, aspect-ratio changes and straightening remain edits. Unit and native history/revision/sidecar checks in progress."
+    },
+    {
       "id": "terminal-dock-layout-header",
       "title": "Keep Library and Editor content inside resized docks and give the terminal one compact header",
       "category": "fix",

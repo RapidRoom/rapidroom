@@ -378,6 +378,9 @@ class Smoke:
         if ImageChops.difference(self.crop(baseline), self.crop(restored)).getbbox() is not None:
             raise RuntimeError("Undo did not restore exact native preview pixels")
         self.step("Undo restores preview exactly", {"undo_clicks": undo_count})
+        if (self.case / "crop-noop-test.json").exists():
+            from crop_noop import run_crop_checks
+            run_crop_checks(self.case, self, restored)
         self.key("Comma", ",", True)
         wait_for(lambda: self.execute("return !!document.querySelector('#switch-enable-compact-sliders');"), "settings")
         self.execute("""const e=document.querySelector('#switch-enable-compact-sliders');
@@ -477,7 +480,7 @@ def launch(args):
         raise RuntimeError("Fixture differs from the published CC0 corpus")
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
-    if args.mcp_clients:
+    if args.mcp_clients and not args.crop_noop:
         # Resolve version-manager wrappers before isolating the app's XDG paths.
         for name in ("claude", "codex"):
             binary = shutil.which(name)
@@ -513,8 +516,11 @@ def launch(args):
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_packaging:
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
+    if args.crop_noop:
+        save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
-        save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
+        if not args.crop_noop:
+            save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             env["RAPIDRAW_MCP_PORT"] = str(sock.getsockname()[1])
@@ -615,13 +621,14 @@ def main():
     parser.add_argument("--mcp-history", action="store_true", help="Run actual-client labelled history/schema/preview scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-packaging", action="store_true", help="Verify default-off, launch consent, runtime toggle and real registered clients")
     parser.add_argument("--mcp-measure", action="store_true", help="Run read-only measurement/comparison scenario (implies --mcp-clients)")
+    parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     global WIDTH, HEIGHT
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_history or args.mcp_measure:
+    if args.mcp_history or args.mcp_measure or args.crop_noop:
         args.mcp_clients = True
     if args.mcp_packaging:
         args.terminal_clients = True

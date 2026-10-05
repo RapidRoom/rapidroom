@@ -12,6 +12,46 @@ export function getOrientedDimensions(
   };
 }
 
+export function normalizeCropChange(
+  current: Crop | null,
+  next: Crop | null,
+  imageWidth: number,
+  imageHeight: number,
+  orientationSteps: number = 0,
+  rotation: number = 0,
+): Crop | null {
+  const { width, height } = getOrientedDimensions(imageWidth, imageHeight, orientationSteps);
+  const normalize = (crop: Crop | null): Crop | null =>
+    crop &&
+    (crop.unit === 'px' || crop.unit === undefined) &&
+    rotation === 0 &&
+    Number.isFinite(width) &&
+    Number.isFinite(height) &&
+    width > 0 &&
+    height > 0 &&
+    crop.x === 0 &&
+    crop.y === 0 &&
+    crop.width === width &&
+    crop.height === height
+      ? null
+      : crop;
+  const before = normalize(current);
+  const after = normalize(next);
+  if (
+    before === after ||
+    (before &&
+      after &&
+      (before.unit ?? 'px') === (after.unit ?? 'px') &&
+      before.x === after.x &&
+      before.y === after.y &&
+      before.width === after.width &&
+      before.height === after.height)
+  ) {
+    return current;
+  }
+  return after;
+}
+
 export function calculateCenteredCrop(
   imageWidth: number,
   imageHeight: number,

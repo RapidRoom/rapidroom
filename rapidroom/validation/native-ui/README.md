@@ -164,3 +164,16 @@ The negative baseline catches an 11px toolbar/dock overlap and an 86px header;
 intermediate controls/scrollbar failures are retained. Four bottom/narrow/wide
 compositor captures were visually inspected. Subsequent changes only record
 measurements and documentation; photos and captures remain under samples/.
+
+## Optional no-op crop scenario
+
+Build with `--mcp-clients`, then run `smoke.py --crop-noop`. This mode uses
+private authenticated MCP reads to guard revision and labelled history; it
+makes no real model requests. After the normal preview/edit/Undo steps, it
+opens and closes the real Crop view, completes a corner click without movement,
+and requires unchanged adjustment state/revision, history and sidecar bytes
+and mtime. A real keyboard corner resize must record exactly one user Crop
+step; Undo must restore the uncropped state and exact native preview pixels.
+Compact, full-size JPEG export and clean exit then complete the normal smoke.
+Photos and captures remain under the owned case. Physical input devices,
+other compositors, Windows and macOS are untested.
