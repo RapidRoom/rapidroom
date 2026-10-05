@@ -28,7 +28,7 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 import { useUIStore } from '../../store/useUIStore';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useAiMasking } from '../../hooks/useAiMasking';
-import { debouncedSetHistory, useEditorActions } from '../../hooks/useEditorActions';
+import { useEditorActions } from '../../hooks/useEditorActions';
 import { getReferenceLabel, isReferenceViewActive } from '../../utils/referenceView';
 
 const parseRgb = (rgbStr: string): [number, number, number, number] => {
@@ -137,23 +137,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const isAndroid = osPlatform === 'android';
 
-  const setAdjustments = useCallback(
-    (value: Partial<Adjustments> | ((prev: Adjustments) => Adjustments)) => {
-      setEditor((state) => {
-        const prevAdjustments = state.adjustments;
-        const newAdjustments = typeof value === 'function' ? value(prevAdjustments) : { ...prevAdjustments, ...value };
-        debouncedSetHistory(newAdjustments);
-        return {
-          adjustments: newAdjustments,
-          ...(state.showOriginal ? { showOriginal: false, previewOverride: null } : {}),
-        };
-      });
-    },
-    [setEditor],
-  );
-
   const { handleGenerateAiMask, handleQuickErase, handleDirectPatch } = useAiMasking();
-  const { toggleShowOriginal } = useEditorActions();
+  const { setAdjustments, toggleShowOriginal } = useEditorActions();
 
   const [crop, setCrop] = useState<Crop | null>(null);
   const prevCropParams = useRef<any>(null);
