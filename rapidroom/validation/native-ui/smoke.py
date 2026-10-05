@@ -317,6 +317,17 @@ def launch(args):
         raise RuntimeError("Fixture differs from the published CC0 corpus")
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
+    if args.mcp_clients:
+        # Resolve version-manager wrappers before isolating the app's XDG paths.
+        for name in ("claude", "codex"):
+            binary = shutil.which(name)
+            if shutil.which("mise"):
+                resolved = subprocess.run(["mise", "which", name], capture_output=True, text=True)
+                if resolved.returncode == 0:
+                    binary = resolved.stdout.strip()
+            if not binary or not Path(binary).is_file() or not os.access(binary, os.X_OK):
+                raise RuntimeError("Installed client unavailable: " + name)
+            env["RAPIDROOM_TEST_" + name.upper() + "_BIN"] = str(Path(binary).resolve())
     for key, folder in (("XDG_DATA_HOME", "data"), ("XDG_CONFIG_HOME", "config"),
                         ("XDG_CACHE_HOME", "cache"), ("XDG_STATE_HOME", "state")):
         (case / folder).mkdir(mode=0o700)

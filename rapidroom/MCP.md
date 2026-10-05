@@ -36,7 +36,7 @@ An agent can start from the library: `open_image` opens a photo in the editor. T
 
 ## Real-client regression
 
-Tool discovery includes `ttlMs: 0` and `cacheScope: "private"`, required by MCP `2026-07-28`. The SDK remains pinned at rmcp 3.1.2. Zero TTL disables discovery caching; older supported protocol versions retain the same tools.
+Tool discovery includes `ttlMs: 0` and `cacheScope: "private"`, required by MCP `2026-07-28`. Tool-call results include `resultType: "complete"`; the SDK removes it for older negotiated versions. The SDK remains pinned at rmcp 3.1.2. Zero TTL disables discovery caching; older supported protocol versions retain the same tools.
 
 The optional native Linux regression runs the installed Claude Code and Codex clients against an isolated CC0 photo. It requires a recorded MCP editing call, a new revision, the exact Exposure value in the native slider, and a changed preview for each client. It also validates discovery at `2025-06-18` and `2026-07-28`. See [`validation/native-ui/README.md`](validation/native-ui/README.md). These opt-in checks use the clients’ existing login and make real model requests; they do not change client configuration or touch the user’s library.
 

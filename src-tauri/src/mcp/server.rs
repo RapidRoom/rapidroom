@@ -9,7 +9,7 @@ use rmcp::{
     },
     model::{
         CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, Implementation,
-        ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool,
+        ListToolsResult, PaginatedRequestParams, ResultType, ServerCapabilities, ServerInfo, Tool,
     },
     service::{MaybeSendFuture, RequestContext},
     transport::streamable_http_server::{
@@ -85,15 +85,21 @@ fn tool_route(definition: Value) -> ToolRoute<McpServer> {
             let value = tools::call_tool(&app_handle, &name, arguments)
                 .await
                 .map_err(|(_, message)| ErrorData::invalid_params(message, None))?;
-            let result = serde_json::from_value::<CallToolResult>(value).map_err(|error| {
-                ErrorData::internal_error(
-                    "RapidRAW returned an invalid MCP tool result",
-                    Some(json!({ "reason": error.to_string() })),
-                )
-            })?;
+            let result = complete_tool_result(value)?;
             Ok(result.into())
         })
     })
+}
+
+fn complete_tool_result(value: Value) -> Result<CallToolResult, ErrorData> {
+    let mut result = serde_json::from_value::<CallToolResult>(value).map_err(|error| {
+        ErrorData::internal_error(
+            "RapidRAW returned an invalid MCP tool result",
+            Some(json!({ "reason": error.to_string() })),
+        )
+    })?;
+    result.result_type = Some(ResultType::COMPLETE);
+    Ok(result)
 }
 
 fn tool_list_result(tools: Vec<Tool>) -> ListToolsResult {
@@ -154,5 +160,20 @@ mod tests {
             tool["name"] == "update_adjustments"
                 && tool["inputSchema"]["properties"]["imagePath"]["type"] == "string"
         }));
+    }
+
+    #[test]
+    fn completed_tool_results_preserve_content_and_errors() {
+        for is_error in [false, true] {
+            let value = json!({
+                "content": [{ "type": "text", "text": "result" }],
+                "isError": is_error,
+            });
+            let result =
+                serde_json::to_value(complete_tool_result(value.clone()).unwrap()).unwrap();
+            assert_eq!(result["resultType"], "complete");
+            assert_eq!(result["content"], value["content"]);
+            assert_eq!(result["isError"], is_error);
+        }
     }
 }

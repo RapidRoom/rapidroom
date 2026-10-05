@@ -6,27 +6,37 @@ from pathlib import Path
 import signal
 import subprocess
 import tomllib
+import urllib.error
 import urllib.request
 
 from PIL import ImageChops
 
 
 def rpc(url, method, params, version="2026-07-28"):
+    params = dict(params)
+    if version >= "2026-07-28" and method != "initialize":
+        params["_meta"] = {"io.modelcontextprotocol/protocolVersion": version,
+                           "io.modelcontextprotocol/clientCapabilities": {}}
     headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream",
                "Mcp-Protocol-Version": version, "Mcp-Method": method}
     if method == "tools/call":
         headers["Mcp-Name"] = params["name"]
     body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
     request = urllib.request.Request(url, json.dumps(body).encode(), headers)
-    with urllib.request.urlopen(request, timeout=90) as response:
-        value = json.load(response)
+    try:
+        with urllib.request.urlopen(request, timeout=90) as response:
+            value = json.load(response)
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(f"{method} ({version}): HTTP {error.code}: {error.read().decode()}") from error
     if "error" in value:
         raise RuntimeError("MCP error: " + str(value["error"]))
     return value["result"]
 
 
-def image_state(url, image):
-    result = rpc(url, "tools/call", {"name": "get_image_state", "arguments": {"imagePath": image}})
+def image_state(url, image, version="2026-07-28"):
+    result = rpc(url, "tools/call", {"name": "get_image_state", "arguments": {"imagePath": image}}, version)
+    if version >= "2026-07-28" and result.get("resultType") != "complete":
+        raise RuntimeError("Tool result lacks the required complete discriminator")
     if result.get("isError"):
         raise RuntimeError("get_image_state failed: " + str(result))
     return json.loads(next(content["text"] for content in result["content"] if content["type"] == "text"))
@@ -85,12 +95,16 @@ def run_client_checks(case, smoke):
         if not any(tool["name"] == "update_adjustments" for tool in listed["tools"]):
             raise RuntimeError("Editing tool missing from discovery")
         results["wire_protocols"][version] = {"tools": len(listed["tools"]), "ttlMs": 0, "cacheScope": "private"}
+        if image_state(url, image, version)["imagePath"] != image:
+            raise RuntimeError("Wire state read returned another image")
+        results["wire_protocols"][version]["state_read"] = True
     config = folder / "claude-mcp.json"
     config.write_text(json.dumps({"mcpServers": {"rapidroom": {"type": "http", "url": url}}}))
     user_config = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "config.toml"
     settings = tomllib.loads(user_config.read_text()) if user_config.exists() else {}
     allowed = ["get_image_state", "update_adjustments"]
     for name, exposure in (("claude", 0.5), ("codex", 1.0)):
+        binary = os.environ["RAPIDROOM_TEST_" + name.upper() + "_BIN"]
         before = image_state(url, image)
         before_pixels = smoke.crop(smoke.stable_preview(name + "-before"))
         prompt = ("Perform this regression check using only the rapidroom MCP tools. "
@@ -99,14 +113,14 @@ def run_client_checks(case, smoke):
                   "from the state you just read. Do not change any other field. Do not use shell, files, "
                   "other servers, or other tools. Finish after the successful edit with a short confirmation.")
         if name == "claude":
-            command = ["claude", "-p", "--strict-mcp-config", "--mcp-config", str(config),
+            command = [binary, "-p", "--strict-mcp-config", "--mcp-config", str(config),
                        "--tools", "", "--allowedTools", ",".join("mcp__rapidroom__" + tool for tool in allowed),
                        "--setting-sources", "", "--settings", '{"disableAllHooks":true}',
                        "--disable-slash-commands", "--no-session-persistence", "--max-turns", "6",
                        "--output-format", "stream-json", "--verbose", "--debug-file", str(folder / "claude-debug.log"),
                        "--system-prompt", "You are an MCP interoperability regression client. Follow the requested tool calls exactly.", prompt]
         else:
-            command = ["codex", "exec", "--ignore-user-config", "--ignore-rules", "--ephemeral",
+            command = [binary, "exec", "--ignore-user-config", "--ignore-rules", "--ephemeral",
                        "--skip-git-repo-check", "--sandbox", "read-only", "--json", "--color", "never",
                        "-c", 'approval_policy="never"', "-c", "mcp_servers.rapidroom.url=" + json.dumps(url),
                        "-c", "mcp_servers.rapidroom.enabled_tools=" + json.dumps(allowed),
@@ -115,7 +129,7 @@ def run_client_checks(case, smoke):
             if settings.get("model"):
                 command += ["--model", settings["model"]]
             command += [prompt]
-        version = subprocess.check_output([name, "--version"], text=True).strip()
+        version = subprocess.check_output([binary, "--version"], text=True).strip()
         events = execute_client(command, folder, name)
         if name == "claude":
             called = any(value.get("type") == "tool_use" and value.get("name") == "mcp__rapidroom__update_adjustments"
