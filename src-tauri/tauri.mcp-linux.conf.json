@@ -1,5 +1,6 @@
 {
   "bundle": {
-    "externalBin": ["../rapidroom/mcp-client/binaries/rapidroom-mcp-stdio"]
+    "externalBin": ["../rapidroom/mcp-client/binaries/rapidroom-mcp-stdio"],
+    "resources": ["resources", "lensfun_db", "../rapidroom/LICENSES/*.txt", "../rapidroom/assets/poppins/*.txt"]
   }
 }

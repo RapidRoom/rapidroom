@@ -81,7 +81,7 @@ Tauri's resource directory on Linux is `<exe dir>/../lib/<productName>`, falling
 
 ## MCP in Linux packages
 
-`python3 rapidroom/build-linux-packages.py` builds the existing stdio adapter, stages the host-suffixed sidecar, and builds both bundles with `terminal,mcp` under the shared build lock and four Cargo jobs. The official workflow uses this helper. `tauri.mcp-linux.conf.json` adds only the adapter; package names, desktop identity and resource paths remain as above. No dependency or licence is added by this packaging change.
+`python3 rapidroom/build-linux-packages.py` builds the existing stdio adapter, stages the host-suffixed sidecar, and builds both bundles with `terminal,mcp` under the shared build lock and four Cargo jobs. The official workflow uses this helper. `tauri.mcp-linux.conf.json` adds only the adapter; package names, desktop identity and resource paths remain as above. The existing Poppins OFL 1.1 and ab_glyph Apache-2.0 notices are retained in both packages and checked by the helper. No dependency or licence is added by this packaging change.
 
 Both packages contain `usr/bin/rapidroom-mcp-stdio`. AI control is off by default, with no listener or endpoint file. Settings **Let AI assistants control RapidRoom** and the first assistant launch offer enable control; disabling stops it and removes the endpoint. Each enable/start uses a fresh private key. See [MCP.md](MCP.md) for per-launch registration and external-plugin setup. Keep the adapter with the app when making a user-local install.
 

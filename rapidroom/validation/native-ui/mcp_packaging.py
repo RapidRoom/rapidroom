@@ -47,6 +47,7 @@ def run_packaging_checks(case, smoke):
           input.closest('label').scrollIntoView({block:'center'});
           if(input.checked!==arguments[0])input.click();return true;""", [enabled])
         wait_for(lambda: status()['enabled'] == enabled, 'AI control toggle completes')
+        wait_for(lambda: smoke.execute("return document.querySelector('[data-mcp-control] input').checked===arguments[0] && !document.querySelector('[data-mcp-control] input').disabled;", [enabled]), 'AI control switch reflects runtime')
         wait_for(lambda: json.loads(settings_path.read_text()).get('mcpEnabled') == enabled, 'AI control preference persists')
         settings = json.loads(settings_path.read_text())
         if settings['adjustmentDensity'] != 'compact' or settings['rootFolders'] != [str(case / 'input')]:
