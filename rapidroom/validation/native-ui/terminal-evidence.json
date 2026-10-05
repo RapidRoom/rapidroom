@@ -1,0 +1,36 @@
+{
+  "issue": 119,
+  "passed": true,
+  "application_source": {
+    "head": "4e500c54909d6247f20376e06dbf529b2ed5677c",
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": ""
+  },
+  "engine_sha256": "b37f202ff1a0103af3fd57086334c3cb67c11ee2d3e7f0c1511439664d411b7e",
+  "harness_sha256": "4ac798df2daf38f93474a65228095f17eafcdab6b24084286b73d097fcfef4b1",
+  "features": ["native-ui-test", "terminal"],
+  "case": "samples/terminal-ui-119/native-stage2",
+  "steps": [
+    "library thumbnail",
+    "native preview",
+    "edits change preview",
+    "Undo restores preview exactly",
+    "Compact enabled and persisted",
+    "GUI JPEG export",
+    "native strict CSP",
+    "PTY input/output, docking, resize and collapse",
+    "built-in and external shell-typed assistant launch",
+    "PTY background process removed on app quit",
+    "clean exit and no frontend/native errors"
+  ],
+  "real_pty": true,
+  "real_assistants_started": false,
+  "built_in_and_external_launch_records": 4,
+  "same_folder_environment": true,
+  "mcp_parity": "pending #102 live approval and #116 integration",
+  "fixture_and_engine_unchanged": true,
+  "exit_code": 0,
+  "frontend_and_native_errors": 0,
+  "default_dependency_graph_unchanged": true,
+  "screenshots_visually_inspected": ["terminal-left", "terminal-final"]
+}

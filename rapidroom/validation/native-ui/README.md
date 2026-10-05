@@ -100,3 +100,5 @@ dialogs remain untested. The opt-in driver build supplements the default release
 checks and the pixel-exact full60 regression; it does not replace either.
 
 For the optional terminal extension, pass `--terminal` to both `build.py` and `smoke.py`. The test uses owned shell/CLI/external-terminal stubs, drives xterm keyboard and existing docking callbacks, checks real PTY folder/environment, output preservation across docking/collapse, external starts with the built-in panel closed, and background-process cleanup on app quit. It never starts actual Claude/Codex agents. Authenticated MCP endpoint/stdio parity remains a separate pending #116 integration gate.
+
+[`terminal-evidence.json`](terminal-evidence.json) records the successful 11-step Linux terminal extension, including enforced response-header CSP and a blocked data-script control. The engine was built from clean application source `4e500c54`; the corrected docking harness is hashed separately. This result covers the stub launch commands and real PTY flow. Authenticated discovery/stdio and actual assistant interoperability are still pending.

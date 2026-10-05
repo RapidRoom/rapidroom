@@ -190,8 +190,9 @@ class Smoke:
         points = self.execute("""const a=document.querySelector('[data-tab-id=layout-tab-terminal]'),
           b=document.querySelector('[data-layout-region="'+arguments[0]+'"]');
           if(!a||!b)throw Error('Dock target missing');const r=a.getBoundingClientRect(),s=b.getBoundingClientRect();
-          // A single populated sidebar splits into upper/lower drop zones during dragging.
-          const y=arguments[0].endsWith('Top') ? s.top+s.height/4 : s.top+s.height/2;
+          // Bottom-positioned sidebar tabs offer the upper half as the empty lower region.
+          // Aim below that split overlay to retain the existing top region.
+          const y=arguments[0].endsWith('Top') ? s.top+s.height*0.75 : s.top+s.height/2;
           return [r.left+r.width/2,r.top+r.height/2,s.left+s.width/2,y];""", [region])
         self.execute("""const e=document.querySelector('[data-tab-id=layout-tab-terminal]');
           e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,
