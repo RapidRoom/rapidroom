@@ -231,7 +231,8 @@ export default function PanelSwitcher({
               placement === 'left' ? 'border-r border-surface' : 'border-l border-surface',
             )
           : clsx(
-              'flex-row overflow-x-auto w-full',
+              'flex-row overflow-x-auto',
+              compact ? 'w-auto' : 'w-full',
               placement === 'top' ? 'border-b border-surface' : 'border-t border-surface',
             ),
       )}
