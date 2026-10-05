@@ -88,19 +88,20 @@ fn orient_crop_bounds(
     bottom: f64,
     orientation: u16,
 ) -> (f64, f64, f64, f64) {
-    match orientation {
-        2 => (1.0 - right, top, 1.0 - left, bottom),
-        3 => (1.0 - right, 1.0 - bottom, 1.0 - left, 1.0 - top),
-        4 => (left, 1.0 - bottom, right, 1.0 - top),
-        5 => (1.0 - bottom, 1.0 - right, 1.0 - top, 1.0 - left),
-        6 => (1.0 - bottom, left, 1.0 - top, right),
-        7 => (top, left, bottom, right),
-        8 => (top, 1.0 - right, bottom, 1.0 - left),
-        _ => (left, top, right, bottom),
-    }
+    let (x1, y1) = orient_normalized_point(left, top, orientation);
+    let (x2, y2) = orient_normalized_point(right, bottom, orientation);
+    (x1.min(x2), y1.min(y2), x1.max(x2), y1.max(y2))
 }
 
-fn rotate_point_clockwise(
+pub(crate) fn orient_normalized_point(x: f64, y: f64, orientation: u16) -> (f64, f64) {
+    let (transpose, flip_x, flip_y) =
+        rawler::decoders::Orientation::from_u16(orientation).to_flips();
+    let x = if flip_x { 1.0 - x } else { x };
+    let y = if flip_y { 1.0 - y } else { y };
+    if transpose { (y, x) } else { (x, y) }
+}
+
+pub(crate) fn rotate_point_clockwise(
     x: f64,
     y: f64,
     center_x: f64,
@@ -115,6 +116,26 @@ fn rotate_point_clockwise(
         center_x + cos * translated_x - sin * translated_y,
         center_y + sin * translated_x + cos * translated_y,
     )
+}
+
+/// Unoriented image size in pixels, from the sidecar or the image itself.
+fn xmp_image_dimensions(
+    xmp_content: &str,
+    fallback_image_dimensions: Option<(f64, f64)>,
+) -> Option<(f64, f64)> {
+    let image_width = get_namespaced_f64(xmp_content, "tiff", "ImageWidth")
+        .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelXDimension"))
+        .or_else(|| fallback_image_dimensions.map(|dimensions| dimensions.0))?;
+    let image_height = get_namespaced_f64(xmp_content, "tiff", "ImageLength")
+        .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelYDimension"))
+        .or_else(|| fallback_image_dimensions.map(|dimensions| dimensions.1))?;
+    (image_width >= 1.0 && image_height >= 1.0).then_some((image_width, image_height))
+}
+
+fn xmp_orientation(xmp_content: &str) -> u16 {
+    extract_namespaced_scalar(xmp_content, "tiff", "Orientation")
+        .and_then(|value| value.parse::<u16>().ok())
+        .unwrap_or(1)
 }
 
 fn import_xmp_crop(
@@ -149,22 +170,13 @@ fn import_xmp_crop(
         return;
     }
 
-    let image_width = get_namespaced_f64(xmp_content, "tiff", "ImageWidth")
-        .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelXDimension"))
-        .or_else(|| fallback_image_dimensions.map(|dimensions| dimensions.0));
-    let image_height = get_namespaced_f64(xmp_content, "tiff", "ImageLength")
-        .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelYDimension"))
-        .or_else(|| fallback_image_dimensions.map(|dimensions| dimensions.1));
-    let (Some(image_width), Some(image_height)) = (image_width, image_height) else {
+    let Some((image_width, image_height)) =
+        xmp_image_dimensions(xmp_content, fallback_image_dimensions)
+    else {
         return;
     };
-    if image_width < 1.0 || image_height < 1.0 {
-        return;
-    }
 
-    let orientation = extract_namespaced_scalar(xmp_content, "tiff", "Orientation")
-        .and_then(|value| value.parse::<u16>().ok())
-        .unwrap_or(1);
+    let orientation = xmp_orientation(xmp_content);
     let (left, top, right, bottom) = orient_crop_bounds(left, top, right, bottom, orientation);
     let (oriented_width, oriented_height) = if (5..=8).contains(&orientation) {
         (image_height, image_width)
@@ -1140,16 +1152,17 @@ pub fn convert_xmp_sidecar_to_preset_for_image(
         } else {
             XmpImageKind::Rendered
         };
-    let crop_needs_image_dimensions = parse_xmp_attributes(xmp_content)
+    let geometry_needs_image_dimensions = (parse_xmp_attributes(xmp_content)
         .ok()
         .is_some_and(|attrs| is_xmp_true(attrs.get("HasCrop")))
+        || crate::lightroom_masks::has_mask_group_corrections(xmp_content))
         && (get_namespaced_f64(xmp_content, "tiff", "ImageWidth")
             .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelXDimension"))
             .is_none()
             || get_namespaced_f64(xmp_content, "tiff", "ImageLength")
                 .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelYDimension"))
                 .is_none());
-    let fallback_image_dimensions = crop_needs_image_dimensions
+    let fallback_image_dimensions = geometry_needs_image_dimensions
         .then(|| probe_xmp_crop_image_dimensions(image_path))
         .flatten();
     convert_xmp_to_preset_with_crop(
@@ -1223,12 +1236,28 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
         items.push("aiDenoise");
     }
 
-    if regex!(
-        r"(?s)<crs:(?:MaskGroupBasedCorrections|PaintBasedCorrections|GradientBasedCorrections|CircularGradientBasedCorrections)>\s*<rdf:Seq>\s*<rdf:li"
-    )
-    .is_match(xmp_content)
+    // Only crs:MaskGroupBasedCorrections are imported; the older per-tool
+    // lists are reported as they are.
+    let (_, masks) = crate::lightroom_masks::import_lightroom_masks(xmp_content, None, |_| {});
+    let imported_masks = preset
+        .adjustments
+        .get("masks")
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len);
+    if masks.skipped_unsupported > 0
+        || imported_masks < masks.convertible
+        || regex!(
+            r"(?s)<crs:(?:PaintBasedCorrections|GradientBasedCorrections|CircularGradientBasedCorrections)>\s*<rdf:Seq>\s*<rdf:li"
+        )
+        .is_match(xmp_content)
     {
         items.push("masks");
+    }
+    if masks.skipped_ai > 0 {
+        items.push("aiMasks");
+    }
+    if masks.with_unmapped_adjustments > 0 && imported_masks > 0 {
+        items.push("localAdjustments");
     }
 
     if regex!(r"(?s)<crs:PointColors>\s*<rdf:Seq>\s*<rdf:li").is_match(xmp_content) {
@@ -1661,6 +1690,28 @@ fn convert_xmp_to_preset_with_crop(
             fallback_image_dimensions,
         );
         import_lens_profile(&attrs, &mut adjustments);
+
+        // Masks live in the same space as the crop: oriented and rotated by
+        // the imported rotation, before cropping.
+        let frame =
+            xmp_image_dimensions(xmp_content, fallback_image_dimensions).map(|(width, height)| {
+                crate::lightroom_masks::ImageFrame {
+                    width,
+                    height,
+                    orientation: xmp_orientation(xmp_content),
+                    rotation: adjustments
+                        .get("rotation")
+                        .and_then(Value::as_f64)
+                        .unwrap_or(0.0),
+                }
+            });
+        let (masks, _) =
+            crate::lightroom_masks::import_lightroom_masks(xmp_content, frame.as_ref(), |mask| {
+                scale_lightroom_exposure(mask, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS)
+            });
+        if !masks.is_empty() {
+            adjustments.insert("masks".to_string(), Value::Array(masks));
+        }
     }
 
     let preset_name =
@@ -1681,6 +1732,68 @@ fn convert_xmp_to_preset_with_crop(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn imported_crops_and_masks_follow_image_pixels_in_all_exif_orientations() {
+        use crate::image_processing::apply_orientation;
+        use crate::lightroom_masks::tests::sidecar_with_corrections;
+        use image::{DynamicImage, Rgba, RgbaImage};
+        use rawler::decoders::Orientation;
+
+        let marker = Rgba([255, 0, 0, 255]);
+        let mut image = RgbaImage::new(8, 4);
+        image.put_pixel(1, 0, marker);
+        let corrections = r#"<rdf:li crs:What="Correction" crs:CorrectionAmount="1"
+            crs:CorrectionActive="true" crs:LocalExposure2012="0.1">
+            <crs:CorrectionMasks><rdf:Seq><rdf:li crs:What="Mask/CircularGradient"
+            crs:MaskActive="true" crs:MaskBlendMode="0" crs:MaskInverted="false"
+            crs:MaskValue="1" crs:Left="0.125" crs:Right="0.25"
+            crs:Top="0" crs:Bottom="0.25" crs:Angle="0"
+            crs:Feather="0" crs:Flipped="true"/></rdf:Seq></crs:CorrectionMasks></rdf:li>"#;
+
+        for orientation in 1..=8 {
+            let oriented = apply_orientation(
+                DynamicImage::ImageRgba8(image.clone()),
+                Orientation::from_u16(orientation),
+            )
+            .to_rgba8();
+            let (x, y, _) = oriented
+                .enumerate_pixels()
+                .find(|(_, _, pixel)| **pixel == marker)
+                .unwrap();
+            let attributes = format!(
+                r#"tiff:Orientation="{orientation}" crs:HasCrop="True"
+                crs:CropLeft="0.125" crs:CropRight="0.25"
+                crs:CropTop="0" crs:CropBottom="0.25""#
+            );
+            let xmp = sidecar_with_corrections(&attributes, corrections)
+                .replace(r#"tiff:ImageWidth="6000""#, r#"tiff:ImageWidth="8""#)
+                .replace(r#"tiff:ImageLength="4000""#, r#"tiff:ImageLength="4""#);
+            let preset = convert_xmp_sidecar_to_preset(&xmp).unwrap();
+            let crop = &preset.adjustments["crop"];
+            for (key, expected) in [
+                ("x", f64::from(x)),
+                ("y", f64::from(y)),
+                ("width", 1.0),
+                ("height", 1.0),
+            ] {
+                assert!(
+                    (crop[key].as_f64().unwrap() - expected).abs() < 1e-6,
+                    "orientation {orientation}, crop {key}: {crop}"
+                );
+            }
+            let mask = &preset.adjustments["masks"][0]["subMasks"][0]["parameters"];
+            for (key, expected) in [
+                ("centerX", f64::from(x) + 0.5),
+                ("centerY", f64::from(y) + 0.5),
+            ] {
+                assert!(
+                    (mask[key].as_f64().unwrap() - expected).abs() < 1e-6,
+                    "orientation {orientation}, mask {key}: {mask}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn converts_attribute_based_xmp_adjustments() {

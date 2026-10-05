@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import { useShallow } from 'zustand/react/shallow';
@@ -11,6 +11,7 @@ import { ADJUSTMENT_SECTION_TOOLS, getAdjustmentSectionToolIds, withAdjustmentLa
 
 interface AdjustmentSubSectionProps {
   actions?: ReactNode;
+  initiallyCollapsed?: boolean;
   children: ReactNode;
   id: string;
   isContentVisible?: boolean;
@@ -23,6 +24,7 @@ export default function AdjustmentSubSection({
   actions,
   children,
   id,
+  initiallyCollapsed = false,
   isContentVisible = true,
   onToggleVisibility,
   order,
@@ -35,14 +37,16 @@ export default function AdjustmentSubSection({
     })),
   );
 
+  const [wasToggled, setWasToggled] = useState(false);
   const collapsedTools = appSettings?.adjustmentLayout?.collapsedTools ?? [];
-  const isCollapsed = collapsedTools.includes(id);
+  const isCollapsed = collapsedTools.includes(id) || (initiallyCollapsed && !wasToggled);
   const { contentRef, wrapperRef } = useCollapsibleHeight(!isCollapsed);
 
   const handleToggle = () => {
     if (!appSettings) {
       return;
     }
+    setWasToggled(true);
     const siblingTools = appSettings.enableToolFocusMode
       ? (Object.keys(ADJUSTMENT_SECTION_TOOLS)
           .map(getAdjustmentSectionToolIds)
