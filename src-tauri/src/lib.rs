@@ -56,6 +56,7 @@ mod launch_request;
 mod lens_blur;
 mod lens_correction;
 mod lightroom;
+mod lightroom_masks;
 mod lrtemplate;
 mod lut_processing;
 mod mask_generation;
@@ -74,6 +75,7 @@ mod tagging_utils;
 mod terminal;
 #[cfg(test)]
 mod test_support;
+mod tree_denoise;
 mod two_phase_rename;
 mod window_customizer;
 

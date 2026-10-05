@@ -141,7 +141,7 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
   }, [refreshImageList, setUI]);
 
   const handleApplyDenoise = useCallback(
-    async (intensity: number, method: DenoiseMethod) => {
+    async (intensity: number, method: DenoiseMethod, sharpen = true) => {
       const { denoiseModalState, denoiseRun } = useUIStore.getState();
       if (!denoiseModalState.isOpen || denoiseModalState.isProcessing || denoiseModalState.targetPaths.length === 0)
         return;
@@ -168,6 +168,7 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
           path: denoiseModalState.targetPaths[0],
           intensity: intensity,
           method: method,
+          sharpen,
         });
       } catch (err) {
         if (isCurrentDenoiseRun(run))
@@ -180,7 +181,7 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
   );
 
   const handleBatchDenoise = useCallback(
-    async (intensity: number, method: DenoiseMethod, paths: string[]) => {
+    async (intensity: number, method: DenoiseMethod, paths: string[], sharpen = true) => {
       const { denoiseModalState, denoiseRun } = useUIStore.getState();
       if (!denoiseModalState.isOpen || denoiseModalState.isProcessing || paths.length === 0) return [];
       const run = denoiseRun + 1;
@@ -191,7 +192,13 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
       try {
         const jobId = await createDenoiseJob(run);
         if (jobId === null) return [];
-        const savedPaths: string[] = await invoke(Invokes.BatchDenoiseImages, { jobId, paths, intensity, method });
+        const savedPaths: string[] = await invoke(Invokes.BatchDenoiseImages, {
+          jobId,
+          paths,
+          intensity,
+          method,
+          sharpen,
+        });
         await refreshImageList();
         return savedPaths;
       } catch (err) {
