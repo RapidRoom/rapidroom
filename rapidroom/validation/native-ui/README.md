@@ -68,6 +68,15 @@ blankness checks apply to the photo rectangle, not merely a nonempty window.
 Actions are DOM mouse/keyboard events sent through the embedded driver; this
 does not test physical input devices or every compositor focus behavior.
 
+## Recorded native result
+
+[`evidence.json`](evidence.json) records the successful local release-profile run,
+including exact Undo restoration, Compact persistence, full-size JPEG export,
+clean exit and zero frontend/native errors. A prototype before the release-info
+404 fix completes all interactions but is correctly rejected by the error gate.
+Photos and screenshots remain under `samples/`; only measurements and hashes
+are committed.
+
 ## Isolation, cleanup and extension
 
 Each run has fresh data/config/cache/state directories, a short private
