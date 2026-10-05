@@ -21,7 +21,7 @@ Or for one session from a checkout: `claude --plugin-dir rapidroom/plugin`. Code
 | `skills/rapidroom/references/`               | Workflow, tools (now and coming), adjustment reference, direction, looks, tutor mode, source, issues |
 | `skills/rapidroom/references/adjustments.md` | **Generated** from the code. Don't edit it by hand (see below)                                       |
 | `commands/`                                  | `/rapidroom:edit`, `:tutor`, `:looks`, `:instagram`, `:explain`, `:report`                           |
-| `.mcp.json`                                  | Connects to `http://127.0.0.1:7790/mcp` (or `RAPIDRAW_MCP_PORT`)                                     |
+| `.mcp.json`                                  | Runs `rapidroom-mcp-stdio`, which discovers and authenticates to the running editor                  |
 | `codex/AGENTS.md`                            | For Codex without skill support                                                                      |
 | `scripts/rapidroom-assistant`                | Starts Claude Code or Codex in the folder RapidRoom has open                                         |
 

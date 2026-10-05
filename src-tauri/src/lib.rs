@@ -60,6 +60,8 @@ mod lightroom_masks;
 mod lrtemplate;
 mod lut_processing;
 mod mask_generation;
+#[cfg(feature = "mcp")]
+mod mcp;
 mod multi_exposure;
 mod negative_conversion;
 mod output_sharpening;
@@ -1450,6 +1452,17 @@ async fn generate_preview_for_path(
     js_adjustments: Value,
     app_handle: tauri::AppHandle,
 ) -> Result<Response, String> {
+    Ok(Response::new(
+        generate_preview_bytes_for_path(path, js_adjustments, 0, app_handle).await?,
+    ))
+}
+
+pub async fn generate_preview_bytes_for_path(
+    path: String,
+    js_adjustments: Value,
+    target_resolution: u32,
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<u8>, String> {
     // Culling fires one of these per image and nothing here is cancellable, so
     // without a permit a burst of navigation stacks up full decodes — each
     // holding the source image plus its f16 RGBA upload buffer (~190 MB for a
@@ -1548,6 +1561,13 @@ async fn generate_preview_for_path(
         )?;
 
         let (width, height) = final_image.dimensions();
+        let final_image =
+            if target_resolution > 0 && (width > target_resolution || height > target_resolution) {
+                downscale_f32_image(&final_image, target_resolution, target_resolution)
+            } else {
+                final_image
+            };
+        let (width, height) = final_image.dimensions();
         let _encode_span = perf_trace::span("full.jpeg_encode");
         let rgb_pixels = final_image.to_rgb8().into_vec();
 
@@ -1556,7 +1576,7 @@ async fn generate_preview_for_path(
             .encode_rgb(&rgb_pixels, width, height)
             .map_err(|e| format!("Failed to encode with mozjpeg-rs: {}", e))?;
 
-        Ok(Response::new(bytes))
+        Ok(bytes)
     })
     .await
     .map_err(|e| format!("Task execution failed: {}", e))?
@@ -2146,6 +2166,15 @@ pub fn run() {
                 _ => {}
             }
 
+            #[cfg(feature = "mcp")]
+            {
+                if let Err(error) = mcp::initialize_runtime(&app_handle) {
+                    log::warn!("Unable to initialize MCP runtime: {}", error);
+                } else {
+                    mcp::start_server(app_handle.clone());
+                }
+            }
+
             start_preview_worker(app_handle.clone());
             start_analytics_worker(app_handle.clone());
             file_management::start_thumbnail_workers(app_handle.clone());
@@ -2353,6 +2382,8 @@ pub fn run() {
             disks_cache: Mutex::new(None),
             disks_cache_refreshing: AtomicBool::new(false),
             camera_session: Mutex::new(camera_tethering::CameraSession::new()),
+            #[cfg(feature = "mcp")]
+            mcp: McpRuntime::new(),
         })
         .invoke_handler(tauri::generate_handler![
             apply_adjustments,
@@ -2507,6 +2538,14 @@ pub fn run() {
             camera_tethering::tether_get_preview,
             camera_tethering::tether_autofocus,
             guided_perspective::calculate_guided_perspective,
+            #[cfg(feature = "mcp")]
+            mcp::ui_response,
+            #[cfg(feature = "mcp")]
+            mcp::sync_editor_state,
+            #[cfg(feature = "mcp")]
+            mcp::clear_editor_session,
+            #[cfg(feature = "mcp")]
+            mcp::mcp_status,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

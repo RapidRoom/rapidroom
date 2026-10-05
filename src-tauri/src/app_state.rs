@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use sysinfo::Disks;
 use tokio::sync::Mutex as TokioMutex;
 use tokio::sync::Notify;
+#[cfg(feature = "mcp")]
+use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use wgpu::{Texture, TextureView};
 
@@ -210,6 +212,40 @@ impl MetadataManager {
 pub type ThumbnailGeometryEntry = (u64, Arc<DynamicImage>, f32);
 pub type TransformedImageCache = (u64, Arc<DynamicImage>, (f32, f32));
 
+#[cfg(feature = "mcp")]
+#[derive(Clone)]
+pub struct McpEditorState {
+    pub path: String,
+    pub adjustments: serde_json::Value,
+    pub revision: String,
+    pub validation_error: Option<String>,
+}
+
+#[cfg(feature = "mcp")]
+pub struct McpRuntime {
+    pub port: Mutex<u16>,
+    pub editor_state: Mutex<Option<McpEditorState>>,
+    pub ui_waiters: Mutex<HashMap<String, oneshot::Sender<Result<serde_json::Value, String>>>>,
+}
+
+#[cfg(feature = "mcp")]
+impl McpRuntime {
+    pub fn new() -> Self {
+        Self {
+            port: Mutex::new(0),
+            editor_state: Mutex::new(None),
+            ui_waiters: Mutex::new(HashMap::new()),
+        }
+    }
+}
+
+#[cfg(feature = "mcp")]
+impl Default for McpRuntime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct AppState {
     pub window_setup_complete: AtomicBool,
     pub gpu_crash_flag_path: Mutex<Option<PathBuf>>,
@@ -256,4 +292,6 @@ pub struct AppState {
     pub disks_cache: Mutex<Option<Disks>>,
     pub disks_cache_refreshing: AtomicBool,
     pub camera_session: Mutex<CameraSession>,
+    #[cfg(feature = "mcp")]
+    pub mcp: McpRuntime,
 }

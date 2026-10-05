@@ -20,6 +20,8 @@ import urllib.request
 
 from PIL import Image, ImageChops, ImageStat
 
+sys.dont_write_bytecode = True
+
 
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURE = "sony-a7c2-15mp-uncompressed.ARW"
@@ -407,6 +409,9 @@ class Smoke:
         self.step("GUI JPEG export", {"file": str(files[0].relative_to(self.case)), "sha256": sha(files[0])})
         if (self.case / "terminal-test.json").exists():
             self.terminal_flow()
+        if (self.case / "mcp-clients-test.json").exists():
+            from mcp_clients import run_client_checks
+            self.step("real Claude Code and Codex edit the open photo", run_client_checks(self.case, self))
         final = self.snapshot("final")
         if final["errors"]:
             raise RuntimeError("Frontend errors: " + str(final["errors"]))
@@ -450,6 +455,18 @@ def launch(args):
     if guard["sha256"] != expected:
         raise RuntimeError("Fixture differs from the published CC0 corpus")
     env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    if args.mcp_clients:
+        # Resolve version-manager wrappers before isolating the app's XDG paths.
+        for name in ("claude", "codex"):
+            binary = shutil.which(name)
+            if shutil.which("mise"):
+                resolved = subprocess.run(["mise", "which", name], capture_output=True, text=True)
+                if resolved.returncode == 0:
+                    binary = resolved.stdout.strip()
+            if not binary or not Path(binary).is_file() or not os.access(binary, os.X_OK):
+                raise RuntimeError("Installed client unavailable: " + name)
+            env["RAPIDROOM_TEST_" + name.upper() + "_BIN"] = str(Path(binary).resolve())
     for key, folder in (("XDG_DATA_HOME", "data"), ("XDG_CONFIG_HOME", "config"),
                         ("XDG_CACHE_HOME", "cache"), ("XDG_STATE_HOME", "state")):
         (case / folder).mkdir(mode=0o700)
@@ -465,6 +482,11 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.mcp_clients:
+        save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            env["RAPIDRAW_MCP_PORT"] = str(sock.getsockname()[1])
     settings = case / "data/io.github.CyberTimon.RapidRAW"
     settings.mkdir()
     save(settings / "settings.json", {"rootFolders": [str(case / "input")],
@@ -501,6 +523,14 @@ def launch(args):
             engine = args.engine.resolve()
             source_hash = sha(engine)
             shutil.copy2(engine, case / "engine/rapidroom")
+            if args.mcp_clients:
+                adapter = engine.parent / "rapidroom-mcp-stdio"
+                if not adapter.is_file():
+                    raise RuntimeError("Authenticated real-client test requires the pinned stdio adapter")
+                shutil.copy2(adapter, case / "engine/rapidroom-mcp-stdio")
+                adapter_hash = sha(adapter)
+                if sha(case / "engine/rapidroom-mcp-stdio") != adapter_hash:
+                    raise RuntimeError("Pinned stdio adapter copy differs")
             if sha(case / "engine/rapidroom") != source_hash:
                 raise RuntimeError("Engine changed while pinning")
             for name in ("resources", "lensfun_db"):
@@ -520,6 +550,8 @@ def launch(args):
                 raise RuntimeError("Original fixture was changed")
             if sha(engine) != source_hash:
                 raise RuntimeError("Source engine changed during the locked test")
+            if args.mcp_clients and (sha(adapter) != adapter_hash or sha(case / "engine/rapidroom-mcp-stdio") != adapter_hash):
+                raise RuntimeError("Source stdio adapter changed during the locked test")
             save(case / "source-guards.json", {"fixture_unchanged": True, "engine_unchanged": True})
             print("Native UI result: " + str(case / "result.json"), flush=True)
             return result.returncode
@@ -536,6 +568,7 @@ def main():
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
+    parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.inside:
