@@ -19,6 +19,8 @@ import urllib.request
 
 from PIL import Image, ImageChops, ImageStat
 
+sys.dont_write_bytecode = True
+
 
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURE = "sony-a7c2-15mp-uncompressed.ARW"
@@ -274,6 +276,9 @@ class Smoke:
                 raise RuntimeError("Incorrect JPEG format or dimensions")
         self.capture("export-done")
         self.step("GUI JPEG export", {"file": str(files[0].relative_to(self.case)), "sha256": sha(files[0])})
+        if (self.case / "mcp-clients-test.json").exists():
+            from mcp_clients import run_client_checks
+            self.step("real Claude Code and Codex edit the open photo", run_client_checks(self.case, self))
         final = self.snapshot("final")
         if final["errors"]:
             raise RuntimeError("Frontend errors: " + str(final["errors"]))
@@ -311,6 +316,7 @@ def launch(args):
     if guard["sha256"] != expected:
         raise RuntimeError("Fixture differs from the published CC0 corpus")
     env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     for key, folder in (("XDG_DATA_HOME", "data"), ("XDG_CONFIG_HOME", "config"),
                         ("XDG_CACHE_HOME", "cache"), ("XDG_STATE_HOME", "state")):
         (case / folder).mkdir(mode=0o700)
@@ -326,6 +332,11 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.mcp_clients:
+        save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            env["RAPIDRAW_MCP_PORT"] = str(sock.getsockname()[1])
     settings = case / "data/io.github.CyberTimon.RapidRAW"
     settings.mkdir()
     save(settings / "settings.json", {"rootFolders": [str(case / "input")],
@@ -373,6 +384,7 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.inside:

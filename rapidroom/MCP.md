@@ -34,6 +34,12 @@ An agent can start from the library: `open_image` opens a photo in the editor. T
 | `calculate_guided_perspective`                | Perspective transform and crop for guide lines, without changing the edit                                            |
 | `export_images`                               | Export with the export panel's settings and wait until it finishes; no image needs to be open                        |
 
+## Real-client regression
+
+Tool discovery includes `ttlMs: 0` and `cacheScope: "private"`, required by MCP `2026-07-28`. The SDK remains pinned at rmcp 3.1.2. Zero TTL disables discovery caching; older supported protocol versions retain the same tools.
+
+The optional native Linux regression runs the installed Claude Code and Codex clients against an isolated CC0 photo. It requires a recorded MCP editing call, a new revision, the exact Exposure value in the native slider, and a changed preview for each client. It also validates discovery at `2025-06-18` and `2026-07-28`. See [`validation/native-ui/README.md`](validation/native-ui/README.md). These opt-in checks use the clients’ existing login and make real model requests; they do not change client configuration or touch the user’s library.
+
 ## Security
 
 - **It listens on a loopback TCP port** (`127.0.0.1` only). Nothing outside the machine can reach it, and it makes no outgoing connections.

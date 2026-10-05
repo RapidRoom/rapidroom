@@ -8,8 +8,8 @@ use rmcp::{
         tool::{ToolCallContext, ToolRouter},
     },
     model::{
-        CallToolRequestParams, CallToolResponse, CallToolResult, Implementation, ListToolsResult,
-        PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool,
+        CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, Implementation,
+        ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool,
     },
     service::{MaybeSendFuture, RequestContext},
     transport::streamable_http_server::{
@@ -96,6 +96,13 @@ fn tool_route(definition: Value) -> ToolRoute<McpServer> {
     })
 }
 
+fn tool_list_result(tools: Vec<Tool>) -> ListToolsResult {
+    // Required by protocol 2026-07-28; zero TTL keeps discovery uncached.
+    ListToolsResult::with_all_items(tools)
+        .with_ttl_ms(0)
+        .with_cache_scope(CacheScope::Private)
+}
+
 impl ServerHandler for McpServer {
     fn call_tool(
         &self,
@@ -111,10 +118,7 @@ impl ServerHandler for McpServer {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<ListToolsResult, ErrorData>> + MaybeSendFuture + '_ {
-        std::future::ready(Ok(ListToolsResult {
-            tools: self.tool_router.list_all(),
-            ..Default::default()
-        }))
+        std::future::ready(Ok(tool_list_result(self.tool_router.list_all())))
     }
 
     fn get_tool(&self, name: &str) -> Option<Tool> {
@@ -127,5 +131,28 @@ impl ServerHandler for McpServer {
             .with_instructions(
                 "Use imagePath explicitly on every RapidRAW operation. Mutations return an editRevision; pass it back as expectedRevision to avoid overwriting newer edits.",
             )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tool_discovery_serializes_required_protocol_cache_hints() {
+        let tools = tools::tool_definitions()
+            .into_iter()
+            .map(tool_route)
+            .map(|route| route.attr)
+            .collect();
+        let result = serde_json::to_value(tool_list_result(tools)).unwrap();
+        assert_eq!(result["ttlMs"], 0);
+        assert_eq!(result["cacheScope"], "private");
+        assert_eq!(result["resultType"], "complete");
+        assert!(result["tools"].as_array().unwrap().len() > 1);
+        assert!(result["tools"].as_array().unwrap().iter().any(|tool| {
+            tool["name"] == "update_adjustments"
+                && tool["inputSchema"]["properties"]["imagePath"]["type"] == "string"
+        }));
     }
 }
