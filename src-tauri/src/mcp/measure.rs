@@ -169,13 +169,13 @@ fn contact_sheet(
     labels: &[String],
     bound: u32,
 ) -> Result<DynamicImage, String> {
+    let first = images.first().ok_or("Contact sheet needs images")?;
     let font = FontRef::try_from_slice(FONT).map_err(|e| e.to_string())?;
     let columns = if matches!(images.len(), 2 | 4) { 2 } else { 3 };
     let rows = (images.len() as u32).div_ceil(columns);
     let max_width = bound / columns;
     let max_height = bound / rows;
     let label_height = (max_width / 5).clamp(16, 48).min(max_height / 2);
-    let first = images.first().ok_or("Contact sheet needs images")?;
     let thumbnail = first.thumbnail(max_width, max_height - label_height);
     let cell_width = thumbnail.width();
     let image_height = thumbnail.height();

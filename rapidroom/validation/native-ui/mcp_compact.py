@@ -2,6 +2,7 @@
 
 import copy
 import json
+import math
 import time
 from pathlib import Path
 
@@ -130,7 +131,11 @@ def run_compact_checks(case, smoke):
     _, _, separate = images(url, token, "render_compare", {**arguments, "separateImages": True})
     if len(separate) != 4 or any(frame.tobytes() != separate[0].tobytes() for frame in separate[1:]):
         raise RuntimeError("Presentation comparison changed variant pixels")
-    if not baseline and sheets[0].size != (1000, 762):
+    source_width, source_height = separate[0].size
+    scale = min(500 / source_width, 452 / source_height)
+    expected_sheet = (2 * max(1, math.floor(source_width * scale + 0.5)),
+                      2 * (max(1, math.floor(source_height * scale + 0.5)) + 48))
+    if not baseline and sheets[0].size != expected_sheet:
         raise RuntimeError("Four landscape variants still have square padding")
     (case / "captures/mcp-tight-comparison.png").write_bytes(payloads[0])
     result["comparison"] = {"sheet_dimensions": list(sheets[0].size), "variant_dimensions": [list(v.size) for v in separate],
