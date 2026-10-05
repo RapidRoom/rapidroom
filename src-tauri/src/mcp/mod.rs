@@ -1,5 +1,6 @@
 mod adjustments;
 mod http;
+mod measure;
 mod preview;
 mod server;
 mod tools;

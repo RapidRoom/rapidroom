@@ -1457,12 +1457,65 @@ async fn generate_preview_for_path(
     ))
 }
 
+enum RenderedPreview {
+    Jpeg(Vec<u8>),
+    #[cfg(feature = "mcp")]
+    Pixels(DynamicImage),
+}
+
 pub async fn generate_preview_bytes_for_path(
     path: String,
     js_adjustments: Value,
     target_resolution: u32,
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<u8>, String> {
+    match render_preview_for_path(
+        path,
+        js_adjustments,
+        target_resolution,
+        None,
+        false,
+        app_handle,
+    )
+    .await?
+    {
+        RenderedPreview::Jpeg(bytes) => Ok(bytes),
+        #[cfg(feature = "mcp")]
+        RenderedPreview::Pixels(_) => Err("Expected encoded preview".into()),
+    }
+}
+
+#[cfg(feature = "mcp")]
+pub(crate) async fn generate_measurement_pixels_for_path(
+    path: String,
+    js_adjustments: Value,
+    target_resolution: u32,
+    native_region: Option<(u32, u32, u32, u32)>,
+    app_handle: tauri::AppHandle,
+) -> Result<DynamicImage, String> {
+    match render_preview_for_path(
+        path,
+        js_adjustments,
+        target_resolution,
+        native_region,
+        true,
+        app_handle,
+    )
+    .await?
+    {
+        RenderedPreview::Pixels(image) => Ok(image),
+        RenderedPreview::Jpeg(_) => Err("Expected uncompressed rendered pixels".into()),
+    }
+}
+
+async fn render_preview_for_path(
+    path: String,
+    js_adjustments: Value,
+    target_resolution: u32,
+    native_region: Option<(u32, u32, u32, u32)>,
+    raw_pixels: bool,
+    app_handle: tauri::AppHandle,
+) -> Result<RenderedPreview, String> {
     // Culling fires one of these per image and nothing here is cancellable, so
     // without a permit a burst of navigation stacks up full decodes — each
     // holding the source image plus its f16 RGBA upload buffer (~190 MB for a
@@ -1519,6 +1572,22 @@ pub async fn generate_preview_bytes_for_path(
             apply_all_transformations(Cow::Borrowed(&base_image), &js_adjustments);
         drop(transform_span);
         let (img_w, img_h) = transformed_image.dimensions();
+        if raw_pixels && u64::from(img_w) * u64::from(img_h) > 100_000_000 {
+            return Err("Measurement source exceeds 100 million rendered pixels".into());
+        }
+        if let Some((x, y, width, height)) = native_region
+            && (width == 0
+                || height == 0
+                || width > 2048
+                || height > 2048
+                || x.checked_add(width).is_none_or(|end| end > img_w)
+                || y.checked_add(height).is_none_or(|end| end > img_h))
+        {
+            return Err(
+                "Native region must fit the rendered image and be at most 2048 pixels per edge"
+                    .into(),
+            );
+        }
         let mask_definitions: Vec<MaskDefinition> =
             mask_generation::parse_mask_definitions(&js_adjustments);
 
@@ -1561,12 +1630,20 @@ pub async fn generate_preview_bytes_for_path(
         )?;
 
         let (width, height) = final_image.dimensions();
-        let final_image =
-            if target_resolution > 0 && (width > target_resolution || height > target_resolution) {
-                downscale_f32_image(&final_image, target_resolution, target_resolution)
-            } else {
-                final_image
-            };
+        let final_image = if let Some((x, y, width, height)) = native_region {
+            final_image.crop_imm(x, y, width, height)
+        } else if target_resolution > 0 && (width > target_resolution || height > target_resolution)
+        {
+            downscale_f32_image(&final_image, target_resolution, target_resolution)
+        } else {
+            final_image
+        };
+        #[cfg(feature = "mcp")]
+        if raw_pixels {
+            return Ok(RenderedPreview::Pixels(DynamicImage::ImageRgb8(
+                final_image.to_rgb8(),
+            )));
+        }
         let (width, height) = final_image.dimensions();
         let _encode_span = perf_trace::span("full.jpeg_encode");
         let rgb_pixels = final_image.to_rgb8().into_vec();
@@ -1576,7 +1653,7 @@ pub async fn generate_preview_bytes_for_path(
             .encode_rgb(&rgb_pixels, width, height)
             .map_err(|e| format!("Failed to encode with mozjpeg-rs: {}", e))?;
 
-        Ok(bytes)
+        Ok(RenderedPreview::Jpeg(bytes))
     })
     .await
     .map_err(|e| format!("Task execution failed: {}", e))?

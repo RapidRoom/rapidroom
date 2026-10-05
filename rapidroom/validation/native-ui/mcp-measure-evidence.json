@@ -1,0 +1,38 @@
+{
+  "issue": 117,
+  "passed": true,
+  "native_steps": 12,
+  "case": "samples/mcp-measure-117/native-stage1",
+  "application_source": "b9ea429e0396981eacad3c9d7375c40176f8c412",
+  "harness_source": "b9ea429e0396981eacad3c9d7375c40176f8c412",
+  "engine_sha256": "2fbaf7c629e96029cfcace904219e25f9d8cc91e9c276403ef3818befd183e9e",
+  "adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
+  "harness_sha256": {
+    "smoke.py": "ee26d94326a9f25713841c3775871537cc324a58027a5f965ce94058f309dc14",
+    "mcp_measure.py": "6141ffe73d68387d2c7dfbc2f769a16b0cb356d73756ca1ea5cfa388572faaf8",
+    "mcp_clients.py": "6ecc0d9310f972529497a331368495fb44abff00bd21326376338545a22e5e78",
+    "mcp_history.py": "ac80c78d9028308a3305c86ae625b0d1a3733344608541dcba818299f8343f72"
+  },
+  "actual_claude_version": "2.1.289",
+  "tools_called": ["get_image_state", "analyze", "sample_region", "render_region", "render_compare"],
+  "protocols": ["2025-06-18", "2026-07-28"],
+  "discovery_tools": 21,
+  "tool_readonly_annotations": true,
+  "known_image_rust_tests": 7,
+  "independent_decoded_png_statistics": true,
+  "identical_variants_replays_byte_stable": true,
+  "native_nested_crops_byte_identical": true,
+  "virtual_copy_labels": ["Current", "smoke.ARW (VC)"],
+  "contact_sheet_dimensions": [512, 256],
+  "contact_sheet_sha256": "8e5db215769fe0cda478518fffcd8e4aaa3bd6baa8886560e850f1b4dc41ad8c",
+  "contact_sheet_visually_inspected": true,
+  "invalid_limits_refused": 6,
+  "edits_revision_history_sidecar_bytes_mtime_unchanged": true,
+  "exit_code": 0,
+  "frontend_native_errors": 0,
+  "source_guards": {
+    "fixture_unchanged": true,
+    "engine_unchanged": true
+  },
+  "untested": ["macOS", "Windows", "packaged runtime", "physical user interaction"]
+}

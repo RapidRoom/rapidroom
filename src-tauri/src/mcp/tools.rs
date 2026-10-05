@@ -72,7 +72,7 @@ fn export_settings_schema() -> Value {
 }
 
 pub(super) fn tool_definitions() -> Vec<Value> {
-    vec![
+    let mut definitions = vec![
         json!({
             "name": "list_images",
             "description": "List a page of supported images in a directory.",
@@ -213,7 +213,9 @@ pub(super) fn tool_definitions() -> Vec<Value> {
                 "baseOriginFolders": { "type": "array", "items": { "type": "string" }, "description": "Optional source roots used when preserveFolders is true." }
             }, "required": ["imagePaths"] }
         }),
-    ]
+    ];
+    definitions.extend(super::measure::tool_definitions());
+    definitions
 }
 
 pub(super) async fn call_tool(
@@ -239,6 +241,9 @@ pub(super) async fn call_tool(
         "reset_adjustments" => reset_adjustments(app_handle, &arguments).await,
         "apply_auto_adjustments" => apply_auto_adjustments(app_handle, &arguments).await,
         "get_preview" => get_preview(app_handle, &arguments).await,
+        "analyze" | "sample_region" | "render_region" | "render_compare" => {
+            super::measure::call(app_handle, name, &arguments).await
+        }
         "calculate_guided_perspective" => calculate_guided_perspective(app_handle, &arguments),
         "export_images" => export_images(app_handle, &arguments).await,
         _ => Err("unknown RapidRAW tool".to_string()),
@@ -289,7 +294,7 @@ async fn select_image(app_handle: &AppHandle, arguments: &Value) -> Result<Value
     ui::request_ui(app_handle, "select-image", json!({ "path": path })).await
 }
 
-fn get_image_state(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
+pub(super) fn get_image_state(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
     let path = required_image_path(arguments)?;
     ui::require_active_session(app_handle, Some(&path)).map(|state| ui::editor_state_value(&state))
 }
@@ -396,7 +401,7 @@ async fn apply_auto_adjustments(
     .await
 }
 
-fn original_adjustments() -> Result<Value, String> {
+pub(super) fn original_adjustments() -> Result<Value, String> {
     let schema: Value =
         serde_json::from_str(include_str!("../../../rapidroom/adjustment-schema.json"))
             .map_err(|error| error.to_string())?;
@@ -947,7 +952,7 @@ fn required_string(arguments: &Value, key: &str) -> Result<String, String> {
         .ok_or_else(|| format!("{key} is required"))
 }
 
-fn required_image_path(arguments: &Value) -> Result<String, String> {
+pub(super) fn required_image_path(arguments: &Value) -> Result<String, String> {
     let path = required_string(arguments, "imagePath")?;
     ui::ensure_path_exists(&path, false)?;
     Ok(path)
