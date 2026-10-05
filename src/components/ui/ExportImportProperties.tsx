@@ -47,6 +47,22 @@ export const RENAME_VARIABLES: Array<string> = [...FILENAME_VARIABLES, '{group}'
 
 export type TiffBitDepth = 8 | 16;
 
+export enum SharpenTarget {
+  Screen = 'screen',
+  Print = 'print',
+}
+
+export enum SharpenAmount {
+  Low = 'low',
+  Standard = 'standard',
+  High = 'high',
+}
+
+export interface OutputSharpening {
+  target: SharpenTarget;
+  amount: SharpenAmount;
+}
+
 // The original author's default export filename template.
 export const DEFAULT_FILENAME_TEMPLATE = '{original_filename}_edited';
 
@@ -92,6 +108,7 @@ export interface ExportSettings {
   preserveFolders?: boolean;
   destinationType?: string;
   subfolder?: string;
+  outputSharpening?: OutputSharpening | null;
 }
 
 export enum BorderBasis {
@@ -183,4 +200,5 @@ export interface ExportPreset {
   lastExportPath?: string;
   destinationType?: string;
   subfolder?: string;
+  outputSharpening?: OutputSharpening | null;
 }

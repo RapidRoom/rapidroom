@@ -20,6 +20,8 @@ import {
   Status,
   ExportState,
   FileFormats,
+  SharpenAmount,
+  SharpenTarget,
   TiffBitDepth,
   WatermarkAnchor,
 } from '../../ui/ExportImportProperties';
@@ -306,6 +308,23 @@ export default function ExportPanel({
     [t],
   );
 
+  const sharpenTargetOptions = useMemo(
+    () => [
+      { label: t('export.sharpening.targets.screen'), value: SharpenTarget.Screen },
+      { label: t('export.sharpening.targets.print'), value: SharpenTarget.Print },
+    ],
+    [t],
+  );
+
+  const sharpenAmountOptions = useMemo(
+    () => [
+      { label: t('export.sharpening.amounts.low'), value: SharpenAmount.Low },
+      { label: t('export.sharpening.amounts.standard'), value: SharpenAmount.Standard },
+      { label: t('export.sharpening.amounts.high'), value: SharpenAmount.High },
+    ],
+    [t],
+  );
+
   const borderBasisOptions = useMemo(
     () => [
       { label: t('export.border.bases.longEdge'), value: BorderBasis.LongEdge },
@@ -386,6 +405,8 @@ export default function ExportPanel({
     setDestinationType,
     subfolder,
     setSubfolder,
+    outputSharpening,
+    setOutputSharpening,
   } = useExportSettings();
 
   const adjustmentsRef = useRef(useEditorStore.getState().adjustments);
@@ -569,6 +590,7 @@ export default function ExportPanel({
       pad: padSettings,
       stripGps,
       exportMasks: exportMasks,
+      outputSharpening,
       watermark:
         enableWatermark && watermarkPath
           ? {
@@ -632,6 +654,7 @@ export default function ExportPanel({
     debouncedEstimateSize,
     exportMasks,
     preserveFolders,
+    outputSharpening,
     isLibraryContext,
   ]);
 
@@ -666,6 +689,7 @@ export default function ExportPanel({
       pad: padSettings,
       stripGps,
       exportMasks: exportMasks,
+      outputSharpening,
       watermark:
         enableWatermark && watermarkPath
           ? {
@@ -1041,6 +1065,45 @@ export default function ExportPanel({
                         onChange={setDontEnlarge}
                         trackClassName="bg-surface"
                       />
+                    </div>
+                  )}
+                  <Switch
+                    label={t('export.sharpening.outputSharpening')}
+                    checked={outputSharpening !== null}
+                    onChange={(checked: boolean) =>
+                      setOutputSharpening(
+                        checked ? { target: SharpenTarget.Screen, amount: SharpenAmount.Standard } : null,
+                      )
+                    }
+                    disabled={isExporting}
+                    trackClassName="bg-surface"
+                  />
+                  {outputSharpening && (
+                    <div className="space-y-4 pl-2 border-l-2 border-surface">
+                      <div className="flex items-center gap-2">
+                        <Text variant={TextVariants.label} className="w-20 shrink-0">
+                          {t('export.sharpening.target')}
+                        </Text>
+                        <Dropdown
+                          options={sharpenTargetOptions}
+                          value={outputSharpening.target}
+                          onChange={(target: SharpenTarget) => setOutputSharpening({ ...outputSharpening, target })}
+                          disabled={isExporting}
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Text variant={TextVariants.label} className="w-20 shrink-0">
+                          {t('export.sharpening.amount')}
+                        </Text>
+                        <Dropdown
+                          options={sharpenAmountOptions}
+                          value={outputSharpening.amount}
+                          onChange={(amount: SharpenAmount) => setOutputSharpening({ ...outputSharpening, amount })}
+                          disabled={isExporting}
+                          className="w-full"
+                        />
+                      </div>
                     </div>
                   )}
                 </Section>
