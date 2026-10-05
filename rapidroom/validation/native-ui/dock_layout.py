@@ -49,7 +49,7 @@ def run_layout_checks(case, smoke):
           const header=document.querySelector('[data-terminal-header]');
           const headerHeight=rect(screen).top-(arguments[1]==='bottom'?dockRect.top+4:rect(terminal).top);
           return {view:arguments[0],region:arguments[1],requested_size:arguments[2],viewport,toolbar:bar,dock:dockRect,
-            terminal:rect(terminal),header_height:headerHeight,header:header?rect(header):null,painted_thumbnails:painted,violations,
+            terminal:rect(terminal),resized_bounds:rect(arguments[1]==='bottom'?dock:terminal.closest('[data-side-panel]')),header_height:headerHeight,header:header?rect(header):null,painted_thumbnails:painted,violations,
             controls:header?[...header.querySelectorAll('button')].filter(e=>!e.closest('[role=tablist]')).map(e=>({label:e.getAttribute('aria-label')||e.getAttribute('data-tooltip'),bounds:rect(e)})):[],
             agent_labels:header?[...header.querySelectorAll('[data-start-agent] span')].map(e=>({text:e.textContent,visible:rect(e).width>0})):[]};
         """, [view, region, size])
@@ -58,7 +58,7 @@ def run_layout_checks(case, smoke):
         save(case / (name+'.json'),data)
         if not 28 <= data['header_height'] <= 33:
             data['violations'].append('terminal header is not one 28–32px row')
-        actual=data['dock']['height'] if region=='bottom' else data['dock']['width']
+        actual=data['resized_bounds']['height'] if region=='bottom' else data['resized_bounds']['width']
         if abs(actual-size)>11:
             data['violations'].append('resize did not reach requested step within keyboard quantization')
         if data['header']:
