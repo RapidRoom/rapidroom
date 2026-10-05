@@ -39,6 +39,7 @@ mod dcp;
 mod denoising;
 mod exif_processing;
 mod export_processing;
+mod export_recipes;
 mod file_management;
 mod file_naming;
 mod focus_stacking;
@@ -62,6 +63,7 @@ mod mask_generation;
 mod mcp;
 mod multi_exposure;
 mod negative_conversion;
+mod output_sharpening;
 mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
@@ -2396,6 +2398,7 @@ pub fn run() {
             export_processing::export_images,
             export_processing::cancel_export,
             export_processing::estimate_export_sizes,
+            export_recipes::get_export_recipes,
             image_processing::calculate_auto_adjustments,
             image_processing::sample_white_balance,
             mask_generation::generate_mask_overlay,

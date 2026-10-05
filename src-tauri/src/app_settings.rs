@@ -7,6 +7,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
 use crate::app_state::AppState;
+use crate::output_sharpening::OutputSharpening;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -283,6 +284,8 @@ pub struct ExportPreset {
     pub tiff_bit_depth: Option<u8>,
     #[serde(default)]
     pub preserve_timestamps: Option<bool>,
+    #[serde(default)]
+    pub output_sharpening: Option<OutputSharpening>,
 }
 
 pub fn default_export_presets() -> Vec<ExportPreset> {
@@ -321,6 +324,7 @@ pub fn default_export_presets() -> Vec<ExportPreset> {
             subfolder: Some("".to_string()),
             tiff_bit_depth: Some(16),
             preserve_timestamps: Some(false),
+            output_sharpening: None,
         },
         ExportPreset {
             id: "default-fast".to_string(),
@@ -356,6 +360,7 @@ pub fn default_export_presets() -> Vec<ExportPreset> {
             subfolder: Some("".to_string()),
             tiff_bit_depth: Some(16),
             preserve_timestamps: Some(false),
+            output_sharpening: None,
         },
     ]
 }

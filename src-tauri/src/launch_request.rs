@@ -4,8 +4,9 @@ use std::sync::atomic::{AtomicI32, Ordering};
 use tauri::Emitter;
 
 use crate::export_processing::TiffBitDepth;
+use crate::output_sharpening::{OutputSharpening, SharpenAmount, SharpenTarget};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalEditSession {
     pub source: String,
@@ -14,15 +15,19 @@ pub struct ExternalEditSession {
     pub jpeg_quality: u8,
 }
 
-#[derive(Clone, Debug)]
+// Format, quality, bit depth and metadata are `None` when not given, so an
+// export preset can supply them; explicit flags win over the preset.
+#[derive(Clone, Debug, PartialEq)]
 pub struct HeadlessExportSession {
     pub source: String,
     pub output: String,
-    pub format: String,
-    pub quality: u8,
-    pub tiff_bit_depth: TiffBitDepth,
-    pub keep_metadata: bool,
+    pub format: Option<String>,
+    pub quality: Option<u8>,
+    pub tiff_bit_depth: Option<TiffBitDepth>,
+    pub keep_metadata: Option<bool>,
     pub adjustments_override: Option<String>,
+    pub preset: Option<String>,
+    pub sharpening: Option<Option<OutputSharpening>>,
 }
 
 #[derive(Clone, Debug)]
@@ -62,6 +67,33 @@ pub struct LaunchPayload {
     pub edit_session: Option<ExternalEditSession>,
 }
 
+// `none`, `screen`, `print`, optionally with `:low`, `:standard` or `:high`.
+fn parse_sharpen_arg(value: &str) -> Result<Option<OutputSharpening>, String> {
+    let invalid = || {
+        format!(
+            "Invalid --sharpen value '{}'; expected none, screen or print, optionally followed by :low, :standard or :high.",
+            value
+        )
+    };
+    let lower = value.to_lowercase();
+    let (target, amount) = lower
+        .split_once(':')
+        .unwrap_or((lower.as_str(), "standard"));
+    let target = match target {
+        "none" if amount == "standard" && !lower.contains(':') => return Ok(None),
+        "screen" => SharpenTarget::Screen,
+        "print" => SharpenTarget::Print,
+        _ => return Err(invalid()),
+    };
+    let amount = match amount {
+        "low" => SharpenAmount::Low,
+        "standard" => SharpenAmount::Standard,
+        "high" => SharpenAmount::High,
+        _ => return Err(invalid()),
+    };
+    Ok(Some(OutputSharpening { target, amount }))
+}
+
 pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
     if args.first().map(|s| s.as_str()) == Some("bench") {
         return match crate::bench::parse_bench_args(&args[1..]) {
@@ -75,11 +107,13 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
 
         let mut source = String::new();
         let mut output = String::new();
-        let mut format = String::from("jpeg");
-        let mut quality = 90;
-        let mut tiff_bit_depth = TiffBitDepth::default();
-        let mut keep_metadata = false;
+        let mut format = None;
+        let mut quality = None;
+        let mut tiff_bit_depth = None;
+        let mut keep_metadata = None;
         let mut adjustments_override = None;
+        let mut preset = None;
+        let mut sharpening = None;
 
         if let Some(src) = iter.next()
             && !src.starts_with('-')
@@ -96,12 +130,12 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
                 }
                 "--format" => {
                     if let Some(fmt) = iter.next() {
-                        format = fmt.clone();
+                        format = Some(fmt.clone());
                     }
                 }
                 "--quality" => {
                     if let Some(q) = iter.next() {
-                        quality = q.parse().unwrap_or(90);
+                        quality = Some(q.parse().unwrap_or(90));
                     }
                 }
                 "--tiff-bit-depth" => {
@@ -122,9 +156,30 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
                             value
                         ));
                     };
-                    tiff_bit_depth = value;
+                    tiff_bit_depth = Some(value);
                 }
-                "--keep-metadata" => keep_metadata = true,
+                "--keep-metadata" => keep_metadata = Some(true),
+                "--preset" => {
+                    let Some(name) = iter.next() else {
+                        return LaunchRequest::InvalidHeadless(
+                            "Missing value for --preset; expected an export preset name or id."
+                                .to_string(),
+                        );
+                    };
+                    preset = Some(name.clone());
+                }
+                "--sharpen" => {
+                    let Some(value) = iter.next() else {
+                        return LaunchRequest::InvalidHeadless(
+                            "Missing value for --sharpen; expected none, screen or print."
+                                .to_string(),
+                        );
+                    };
+                    match parse_sharpen_arg(value) {
+                        Ok(value) => sharpening = Some(value),
+                        Err(error) => return LaunchRequest::InvalidHeadless(error),
+                    }
+                }
                 "--adjustments" => {
                     if let Some(adj) = iter.next() {
                         adjustments_override = Some(adj.clone());
@@ -142,6 +197,8 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
             tiff_bit_depth,
             keep_metadata,
             adjustments_override,
+            preset,
+            sharpening,
         });
     }
 
@@ -230,6 +287,88 @@ pub fn emit_launch_request(app_handle: &tauri::AppHandle, request: LaunchRequest
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn parse(args: &[&str]) -> LaunchRequest {
+        let owned: Vec<String> = args.iter().map(|arg| arg.to_string()).collect();
+        parse_launch_args(&owned)
+    }
+
+    fn headless(args: &[&str]) -> HeadlessExportSession {
+        match parse(args) {
+            LaunchRequest::HeadlessExport(session) => session,
+            other => panic!("expected a headless export, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn plain_export_leaves_preset_fields_unset() {
+        let session = headless(&["export", "in.dng", "--output", "out"]);
+        assert_eq!(session.format, None);
+        assert_eq!(session.quality, None);
+        assert_eq!(session.tiff_bit_depth, None);
+        assert_eq!(session.keep_metadata, None);
+        assert_eq!(session.preset, None);
+        assert_eq!(session.sharpening, None);
+    }
+
+    #[test]
+    fn preset_and_explicit_flags_are_parsed() {
+        let session = headless(&[
+            "export",
+            "in.dng",
+            "--preset",
+            "Instagram Portrait 4:5 (1080×1350)",
+            "--output",
+            "out",
+            "--quality",
+            "85",
+            "--keep-metadata",
+        ]);
+        assert_eq!(
+            session.preset.as_deref(),
+            Some("Instagram Portrait 4:5 (1080×1350)")
+        );
+        assert_eq!(session.quality, Some(85));
+        assert_eq!(session.keep_metadata, Some(true));
+        assert_eq!(session.format, None);
+    }
+
+    #[test]
+    fn sharpen_flag_accepts_targets_and_amounts() {
+        let sharpen = |value: &str| headless(&["export", "in.dng", "--sharpen", value]).sharpening;
+        assert_eq!(
+            sharpen("screen"),
+            Some(Some(OutputSharpening {
+                target: SharpenTarget::Screen,
+                amount: SharpenAmount::Standard,
+            }))
+        );
+        assert_eq!(
+            sharpen("Print:High"),
+            Some(Some(OutputSharpening {
+                target: SharpenTarget::Print,
+                amount: SharpenAmount::High,
+            }))
+        );
+        assert_eq!(sharpen("none"), Some(None));
+    }
+
+    #[test]
+    fn bad_preset_or_sharpen_values_are_rejected() {
+        for args in [
+            &["export", "in.dng", "--preset"][..],
+            &["export", "in.dng", "--sharpen"][..],
+            &["export", "in.dng", "--sharpen", "web"][..],
+            &["export", "in.dng", "--sharpen", "screen:max"][..],
+            &["export", "in.dng", "--sharpen", "none:low"][..],
+        ] {
+            assert!(
+                matches!(parse(args), LaunchRequest::InvalidHeadless(_)),
+                "{:?} should be rejected",
+                args
+            );
+        }
+    }
 
     #[test]
     fn failed_exit_request_keeps_its_code() {
