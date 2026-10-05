@@ -222,19 +222,25 @@ class Smoke:
         if max(difference.mean) < 5:
             raise RuntimeError("Slider edits did not change the native preview")
         self.step("edits change preview", {"edits": edits, "mean_absolute_difference": difference.mean})
-        for label in ("Contrast", "Exposure"):
+        undo_count = 0
+        while self.slider("Exposure")["value"] or self.slider("Contrast")["value"]:
+            if undo_count >= 4:
+                raise RuntimeError("Undo did not restore the edited sliders")
+            before_undo = [self.slider(label)["value"] for label in ("Exposure", "Contrast")]
             self.execute("""const e=document.querySelector('button[data-tooltip^="Undo ("]');
               if(!e||e.disabled)throw Error('Undo unavailable');e.click();return true;""")
-            wait_for(lambda: self.slider(label)["value"] == 0, "Undo " + label)
+            wait_for(lambda: [self.slider(label)["value"] for label in ("Exposure", "Contrast")] != before_undo,
+                     "Undo changes edited sliders")
+            undo_count += 1
             time.sleep(0.3)
         restored = self.stable_preview("restored")
         if ImageChops.difference(self.crop(baseline), self.crop(restored)).getbbox() is not None:
             raise RuntimeError("Undo did not restore exact native preview pixels")
-        self.step("Undo restores preview exactly")
+        self.step("Undo restores preview exactly", {"undo_clicks": undo_count})
         self.key("Comma", ",", True)
-        wait_for(lambda: self.execute("return !!document.querySelector('#compact-adjustments-toggle');"), "settings")
-        self.execute("""const e=document.querySelector('#compact-adjustments-toggle');
-          if(!e.checked)e.click();return true;""")
+        wait_for(lambda: self.execute("return !!document.querySelector('#switch-enable-compact-sliders');"), "settings")
+        self.execute("""const e=document.querySelector('#switch-enable-compact-sliders');
+          e.closest('label').scrollIntoView({block:'center'});if(!e.checked)e.click();return true;""")
         self.capture("settings-compact")
         self.key("Escape", "Escape")
         wait_for(lambda: self.execute("return !!document.querySelector('input[type=range][aria-label=Exposure]');"),

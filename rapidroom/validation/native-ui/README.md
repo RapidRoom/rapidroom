@@ -51,7 +51,8 @@ the commit, working diff hash, release profile and feature set inside the lock.
 2. Open that photo and verify a nonblank, settled native preview at 1680×1050.
 3. Move Exposure and Contrast through their real mouse handlers. Check the
    displayed values and that compositor preview pixels change.
-4. Click Undo twice and require zero Exposure/Contrast and exact restoration of
+4. Click Undo until both edits are restored (the app may group quick edits), and
+   require zero Exposure/Contrast and exact restoration of
    the preview rectangle's pixels.
 5. Open General settings, enable Compact, check its real accessible slider
    layout, and verify the setting was persisted to the isolated settings file.
