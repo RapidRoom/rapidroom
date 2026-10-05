@@ -24,6 +24,8 @@ def rpc(url, method, params, version="2026-07-28", token=None):
         headers["Authorization"] = "Bearer " + token
     if method == "tools/call":
         headers["Mcp-Name"] = params["name"]
+    elif method == "resources/read":
+        headers["Mcp-Name"] = params["uri"]
     body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
     request = urllib.request.Request(url, json.dumps(body).encode(), headers)
     try:
