@@ -25,6 +25,23 @@
       "notes": "Only in builds with `--features mcp`. Listens on 127.0.0.1:7790 without authentication while the app runs; requests from browsers are refused. The default build has no MCP code and no listener. Comparison with sheldonxxxx's headless MCP and the security notes are in rapidroom/MCP.md."
     },
     {
+      "id": "orf-scoped-image-processing",
+      "title": "Fix intermittent green OM System/Olympus RAW exports by reading image metadata from its correct directory",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original rawler decoder fix, AI-assisted)",
+      "commits": [
+        "https://github.com/yojen7/RapidRAW-DngLab/commit/a98bd053c4a14c0c1105ee08a8deba8ce5e6ca5d"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Scope ORF white balance, black levels, valid bits and crop to the ImageProcessing maker-note IFD, rejecting truncated fields. CameraSettings preview tags can no longer shadow image metadata through unordered traversal. Preserve legacy root white balance, RAW thumbnails, DNG proxies and Adobe lossy-DNG corrections. Restores the approved reference output without changing render settings."
+    },
+    {
       "id": "raw-thumb-previews",
       "title": "Faster RAW library thumbnails: unedited raws use the smallest sufficient embedded preview, edited linear DNGs render from their embedded proxy",
       "category": "performance",
