@@ -2292,6 +2292,9 @@
     "claude": "Claude Code",
     "codex": "Codex",
     "loading": "Loading terminal…",
-    "enableAndStart": "Enable and start"
+    "enableAndStart": "Enable and start",
+    "resizeLeftDock": "Resize left panel",
+    "resizeRightDock": "Resize right panel",
+    "collapsePanel": "Collapse terminal panel"
   }
 }

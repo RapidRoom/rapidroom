@@ -45,7 +45,17 @@ const PANEL_TITLES: Record<Panel, string> = {
   [Panel.Terminal]: 'terminal.title',
 };
 
-function PanelTab({ panel, region, side }: { panel: Panel; region: PanelRegion; side: 'left' | 'right' | 'bottom' }) {
+function PanelTab({
+  panel,
+  region,
+  side,
+  compact = false,
+}: {
+  panel: Panel;
+  region: PanelRegion;
+  side: 'left' | 'right' | 'bottom';
+  compact?: boolean;
+}) {
   const { t } = useTranslation();
   const activePanels = useUIStore((s) => s.activePanels);
   const setActivePanel = useUIStore((s) => s.setActivePanel);
@@ -80,7 +90,8 @@ function PanelTab({ panel, region, side }: { panel: Panel; region: PanelRegion; 
       {...listeners}
       {...attributes}
       className={clsx(
-        'relative rounded-md transition-colors duration-200 p-2 shrink-0 cursor-grab active:cursor-grabbing',
+        'relative rounded-md transition-colors duration-200 shrink-0 cursor-grab active:cursor-grabbing',
+        compact ? 'p-1' : 'p-2',
         isActive ? 'text-text-primary' : 'text-text-secondary hover:bg-surface hover:text-text-primary',
         isDragging && 'opacity-30',
       )}
@@ -95,7 +106,7 @@ function PanelTab({ panel, region, side }: { panel: Panel; region: PanelRegion; 
           transition={isInstantTransition ? { duration: 0 } : { type: 'spring', bounce: 0.2, duration: 0.4 }}
         />
       )}
-      <Icon size={20} className="relative z-10 pointer-events-none" />
+      <Icon size={compact ? 16 : 20} className="relative z-10 pointer-events-none" />
     </button>
   );
 }
@@ -104,10 +115,12 @@ export default function PanelSwitcher({
   region,
   side,
   placement,
+  compact = false,
 }: {
   region: PanelRegion;
   side: 'left' | 'right' | 'bottom';
   placement: SwitcherPlacement;
+  compact?: boolean;
 }) {
   const panelLayout = useUIStore((s) => s.panelLayout);
   const panels = panelLayout[region];
@@ -210,16 +223,19 @@ export default function PanelSwitcher({
     <div
       ref={setRefs}
       className={clsx(
-        'flex items-center p-1.5 gap-1 shrink-0 transition-colors z-10 custom-scrollbar relative',
+        'flex items-center gap-1 shrink-0 transition-colors z-10 custom-scrollbar relative',
+        compact ? 'p-0' : 'p-1.5',
         isVertical
           ? clsx(
               'flex-col overflow-y-auto h-full',
               placement === 'left' ? 'border-r border-surface' : 'border-l border-surface',
             )
-          : clsx(
-              'flex-row overflow-x-auto w-full',
-              placement === 'top' ? 'border-b border-surface' : 'border-t border-surface',
-            ),
+          : compact
+            ? 'flex-row h-6'
+            : clsx(
+                'flex-row overflow-x-auto w-full',
+                placement === 'top' ? 'border-b border-surface' : 'border-t border-surface',
+              ),
       )}
     >
       <AnimatePresence>
@@ -236,7 +252,7 @@ export default function PanelSwitcher({
 
       <LayoutGroup id={`switcher-${region}`}>
         {panels.map((id) => (
-          <PanelTab key={id} panel={id} region={region} side={side} />
+          <PanelTab key={id} panel={id} region={region} side={side} compact={compact} />
         ))}
       </LayoutGroup>
     </div>

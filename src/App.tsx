@@ -946,7 +946,7 @@ function App() {
                   isResizing={isResizing}
                 />
               )}
-              <div className="relative flex-1 flex flex-col min-w-0">
+              <div className="relative flex-1 flex flex-col min-w-0 min-h-0">
                 {selectedImage && externalEditSession && (
                   <div className="lights-out-chrome">
                     <ExternalEditBar
@@ -959,7 +959,7 @@ function App() {
                 )}
                 <div
                   className={clsx(
-                    'flex-1 flex flex-col min-w-0 h-full',
+                    'flex-1 flex flex-col min-w-0 min-h-0 h-full',
                     activeView === 'editor' && selectedImage ? 'flex' : 'hidden',
                   )}
                 >
@@ -993,7 +993,7 @@ function App() {
                 </div>
                 <div
                   className={clsx(
-                    'flex-1 flex flex-col min-w-0 h-full',
+                    'flex-1 flex flex-col min-w-0 min-h-0 h-full',
                     activeView === 'editor' && selectedImage ? 'hidden' : 'flex',
                   )}
                 >

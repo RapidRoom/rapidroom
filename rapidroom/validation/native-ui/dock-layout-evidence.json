@@ -1,0 +1,851 @@
+{
+  "issues": [145, 146],
+  "passed": true,
+  "application_source": {
+    "head": "8855d8ae1463b91beeb9c40686d2ad7c19f2c691",
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": ""
+  },
+  "engine_sha256": "848ab147d99e77f20c2a16e7846a07cecba71a194fb9df12ce49e00baeb2107e",
+  "features": ["native-ui-test", "terminal"],
+  "harness_source": "8855d8ae1463b91beeb9c40686d2ad7c19f2c691",
+  "harness_sha256": "a8cd5a55f1bd8c227e1f4c77ff9542df7bdab5ef78cc33ce01b9d140bfd55091",
+  "dock_helper_sha256": "33ee308ce7684df3998a3fda4318bea1eb900daa776de015d606dee345154d3e",
+  "case": "samples/terminal-dock-145/after-stage5",
+  "viewport": [1800, 1048],
+  "compositor": "Weston headless GL",
+  "fixture": "sony-a7c2-15mp-uncompressed.ARW",
+  "fixture_guard": {
+    "sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+    "mtime_ns": 1790835857568261641
+  },
+  "steps": [
+    "library thumbnail",
+    "dock-library-bottom-0-120",
+    "dock-library-bottom-1-260",
+    "dock-library-bottom-2-420",
+    "dock-library-bottom-3-620",
+    "dock-library-bottom-4-260",
+    "dock-library-leftTop-0-240",
+    "dock-library-leftTop-1-400",
+    "dock-library-leftTop-2-560",
+    "dock-library-leftTop-3-320",
+    "dock-library-rightTop-0-240",
+    "dock-library-rightTop-1-400",
+    "dock-library-rightTop-2-560",
+    "dock-library-rightTop-3-320",
+    "dock-editor-bottom-0-120",
+    "dock-editor-bottom-1-260",
+    "dock-editor-bottom-2-420",
+    "dock-editor-bottom-3-620",
+    "dock-editor-bottom-4-260",
+    "dock-editor-leftTop-0-240",
+    "dock-editor-leftTop-1-400",
+    "dock-editor-leftTop-2-560",
+    "dock-editor-leftTop-3-320",
+    "dock-editor-rightTop-0-240",
+    "dock-editor-rightTop-1-400",
+    "dock-editor-rightTop-2-560",
+    "dock-editor-rightTop-3-320",
+    "compact header tab, gear launch mode and both assistant controls",
+    "compact header collapse/reopen preserves PTY",
+    "native preview",
+    "edits change preview",
+    "Undo restores preview exactly",
+    "Compact enabled and persisted",
+    "GUI JPEG export",
+    "native strict CSP",
+    "PTY input/output, docking, resize and collapse",
+    "built-in and external shell-typed assistant launch",
+    "PTY background process removed on app quit",
+    "clean exit and no frontend/native errors"
+  ],
+  "measurements": [
+    {
+      "view": "library",
+      "region": "bottom",
+      "requested_size": 120,
+      "resized_bounds": {
+        "bottom": 1040,
+        "height": 120,
+        "left": 8,
+        "right": 1792,
+        "top": 920,
+        "width": 1784
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-bottom-0-120/wayland-screenshot-2026-10-05_11-37-25.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 12,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "bottom",
+      "requested_size": 260,
+      "resized_bounds": {
+        "bottom": 1040,
+        "height": 260,
+        "left": 8,
+        "right": 1792,
+        "top": 780,
+        "width": 1784
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-bottom-1-260/wayland-screenshot-2026-10-05_11-37-27.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 8,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "bottom",
+      "requested_size": 420,
+      "resized_bounds": {
+        "bottom": 1040,
+        "height": 420,
+        "left": 8,
+        "right": 1792,
+        "top": 620,
+        "width": 1784
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-bottom-2-420/wayland-screenshot-2026-10-05_11-37-28.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 8,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "bottom",
+      "requested_size": 620,
+      "resized_bounds": {
+        "bottom": 1040,
+        "height": 620,
+        "left": 8,
+        "right": 1792,
+        "top": 420,
+        "width": 1784
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-bottom-3-620/wayland-screenshot-2026-10-05_11-37-30.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 4,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "bottom",
+      "requested_size": 260,
+      "resized_bounds": {
+        "bottom": 1040,
+        "height": 260,
+        "left": 8,
+        "right": 1792,
+        "top": 780,
+        "width": 1784
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-bottom-4-260/wayland-screenshot-2026-10-05_11-37-33.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 8,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "leftTop",
+      "requested_size": 240,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 8,
+        "right": 248,
+        "top": 56,
+        "width": 240
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-leftTop-0-240/wayland-screenshot-2026-10-05_11-37-36.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 12,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "leftTop",
+      "requested_size": 400,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 8,
+        "right": 408,
+        "top": 56,
+        "width": 400
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-leftTop-1-400/wayland-screenshot-2026-10-05_11-37-38.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 12,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "leftTop",
+      "requested_size": 560,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 8,
+        "right": 568,
+        "top": 56,
+        "width": 560
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-leftTop-2-560/wayland-screenshot-2026-10-05_11-37-40.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 9,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "leftTop",
+      "requested_size": 320,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 8,
+        "right": 328,
+        "top": 56,
+        "width": 320
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-leftTop-3-320/wayland-screenshot-2026-10-05_11-37-42.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 12,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "rightTop",
+      "requested_size": 240,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 1552,
+        "right": 1792,
+        "top": 56,
+        "width": 240
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-rightTop-0-240/wayland-screenshot-2026-10-05_11-37-46.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 12,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "rightTop",
+      "requested_size": 400,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 1392,
+        "right": 1792,
+        "top": 56,
+        "width": 400
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-rightTop-1-400/wayland-screenshot-2026-10-05_11-37-48.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 12,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "rightTop",
+      "requested_size": 560,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 1232,
+        "right": 1792,
+        "top": 56,
+        "width": 560
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-rightTop-2-560/wayland-screenshot-2026-10-05_11-37-50.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 9,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "library",
+      "region": "rightTop",
+      "requested_size": 320,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 1472,
+        "right": 1792,
+        "top": 56,
+        "width": 320
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-library-rightTop-3-320/wayland-screenshot-2026-10-05_11-37-53.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 12,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "bottom",
+      "requested_size": 120,
+      "resized_bounds": {
+        "bottom": 1040,
+        "height": 120,
+        "left": 8,
+        "right": 1792,
+        "top": 920,
+        "width": 1784
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-bottom-0-120/wayland-screenshot-2026-10-05_11-38-01.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "bottom",
+      "requested_size": 260,
+      "resized_bounds": {
+        "bottom": 1040,
+        "height": 260,
+        "left": 8,
+        "right": 1792,
+        "top": 780,
+        "width": 1784
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-bottom-1-260/wayland-screenshot-2026-10-05_11-38-03.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "bottom",
+      "requested_size": 420,
+      "resized_bounds": {
+        "bottom": 1040,
+        "height": 420,
+        "left": 8,
+        "right": 1792,
+        "top": 620,
+        "width": 1784
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-bottom-2-420/wayland-screenshot-2026-10-05_11-38-04.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "bottom",
+      "requested_size": 620,
+      "resized_bounds": {
+        "bottom": 1040,
+        "height": 620,
+        "left": 8,
+        "right": 1792,
+        "top": 420,
+        "width": 1784
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-bottom-3-620/wayland-screenshot-2026-10-05_11-38-06.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "bottom",
+      "requested_size": 260,
+      "resized_bounds": {
+        "bottom": 1040,
+        "height": 260,
+        "left": 8,
+        "right": 1792,
+        "top": 780,
+        "width": 1784
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-bottom-4-260/wayland-screenshot-2026-10-05_11-38-08.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "leftTop",
+      "requested_size": 240,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 8,
+        "right": 248,
+        "top": 56,
+        "width": 240
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-leftTop-0-240/wayland-screenshot-2026-10-05_11-38-11.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "leftTop",
+      "requested_size": 400,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 8,
+        "right": 408,
+        "top": 56,
+        "width": 400
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-leftTop-1-400/wayland-screenshot-2026-10-05_11-38-14.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "leftTop",
+      "requested_size": 560,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 8,
+        "right": 568,
+        "top": 56,
+        "width": 560
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-leftTop-2-560/wayland-screenshot-2026-10-05_11-38-16.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "leftTop",
+      "requested_size": 320,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 8,
+        "right": 328,
+        "top": 56,
+        "width": 320
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-leftTop-3-320/wayland-screenshot-2026-10-05_11-38-19.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "rightTop",
+      "requested_size": 240,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 1552,
+        "right": 1792,
+        "top": 56,
+        "width": 240
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-rightTop-0-240/wayland-screenshot-2026-10-05_11-38-23.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "rightTop",
+      "requested_size": 400,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 1392,
+        "right": 1792,
+        "top": 56,
+        "width": 400
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-rightTop-1-400/wayland-screenshot-2026-10-05_11-38-26.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "rightTop",
+      "requested_size": 560,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 1232,
+        "right": 1792,
+        "top": 56,
+        "width": 560
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": true
+        },
+        {
+          "text": "Codex",
+          "visible": true
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-rightTop-2-560/wayland-screenshot-2026-10-05_11-38-28.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    },
+    {
+      "view": "editor",
+      "region": "rightTop",
+      "requested_size": 320,
+      "resized_bounds": {
+        "bottom": 980,
+        "height": 924,
+        "left": 1472,
+        "right": 1792,
+        "top": 56,
+        "width": 320
+      },
+      "header_height": 32,
+      "agent_labels": [
+        {
+          "text": "Claude Code",
+          "visible": false
+        },
+        {
+          "text": "Codex",
+          "visible": false
+        }
+      ],
+      "violations": [],
+      "capture": "captures/dock-editor-rightTop-3-320/wayland-screenshot-2026-10-05_11-38-31.png",
+      "labelled_controls_inside_header": true,
+      "painted_thumbnail_count": 0,
+      "viewport_clear_of_chrome": true
+    }
+  ],
+  "source_guards": {
+    "fixture_unchanged": true,
+    "engine_unchanged": true
+  },
+  "negative_baseline": {
+    "case": "samples/terminal-dock-145/before-overlap",
+    "application_source": "cedd0a63",
+    "failure": "toolbar overlaps dock",
+    "toolbar_dock_overlap_pixels": 11,
+    "terminal_header_height": 86
+  },
+  "negative_compact_controls": {
+    "case": "samples/terminal-dock-145/after-stage1",
+    "application_source": "fdc2c2ad",
+    "failure": "panel switcher used full width; header controls outside the row"
+  },
+  "negative_editor_scrollbar": {
+    "case": "samples/terminal-dock-145/after-stage4",
+    "application_source": "f63dda2f",
+    "failure": "compact switcher became 35px tall inside a 32px header"
+  },
+  "real_assistants_started": false,
+  "real_pty": true,
+  "frontend_and_native_errors": 0,
+  "exit_code": 0,
+  "physical_pointer_and_fractional_desktop_scale": "untested",
+  "screenshots_visually_inspected": [
+    "dock-library-bottom-3-620",
+    "dock-editor-bottom-3-620",
+    "dock-editor-leftTop-0-240",
+    "dock-editor-rightTop-2-560"
+  ]
+}
