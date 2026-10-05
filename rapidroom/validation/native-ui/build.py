@@ -43,6 +43,12 @@ def main():
             subprocess.run(["nice", "-n", "10", "npm", "run", "tauri", "build", "--", "--no-bundle",
                             "--features", "native-ui-test,mcp" if args.mcp_clients else "native-ui-test", "--", "--locked"],
                            cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
+        if args.mcp_clients:
+            with (out / "stdio-build.log").open("w") as log:
+                subprocess.run(["nice", "-n", "10", "cargo", "build", "--manifest-path",
+                                "rapidroom/mcp-client/Cargo.toml", "--release", "--locked"],
+                               cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
+            shutil.copy2(target / "release/rapidroom-mcp-stdio", out / "rapidroom-mcp-stdio")
         if source(root) != before:
             raise RuntimeError("Source changed during the build")
         shutil.copy2(target / "release/rapidroom", out / "rapidroom")
@@ -50,7 +56,12 @@ def main():
             (out / name).symlink_to(root / "src-tauri" / name)
         with (out / "rapidroom").open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        adapter_digest = None
+        if args.mcp_clients:
+            with (out / "rapidroom-mcp-stdio").open("rb") as stream:
+                adapter_digest = hashlib.file_digest(stream, "sha256").hexdigest()
         (out / "build.json").write_text(json.dumps({"source": before, "engine_sha256": digest,
+              "stdio_adapter_sha256": adapter_digest,
               "profile": "release", "features": ["native-ui-test"] + (["mcp"] if args.mcp_clients else []), "cargo_locked": True,
               "jobs": 4, "resources": "symlinked source resources; no AI operation in minimum smoke"}, indent=2) + "\n")
     print("Pinned native UI release: " + str(out / "rapidroom"), flush=True)

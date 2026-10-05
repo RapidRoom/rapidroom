@@ -13,26 +13,51 @@ npm run start:mcp                        # tauri dev -- --features mcp
 npm run tauri build -- --features mcp    # release build
 ```
 
-While the app is running, the server listens on `http://127.0.0.1:7790/mcp`. If that port is taken it tries the next ten ports. Set `RAPIDRAW_MCP_PORT` to pin a port; then it fails instead of moving. The URL in use is written to `mcp-endpoint.json` in the app's config directory.
+While the app is running, its HTTP listener binds to `127.0.0.1:7790` (or the next ten ports). `RAPIDRAW_MCP_PORT` pins a port and fails if it is occupied. Each app start creates a fresh random 256-bit bearer token. The URL, token and supported protocol hint are atomically written to `mcp-endpoint.json` in the app's per-user config directory, with mode 0600 on Unix. Publishing the endpoint must succeed before the listener accepts requests.
+
+Build the separate adapter alongside the MCP-enabled app:
 
 ```sh
-claude mcp add --transport http rapidroom http://127.0.0.1:7790/mcp   # Claude Code
-codex mcp add rapidroom --url http://127.0.0.1:7790/mcp               # Codex
+cargo build --manifest-path rapidroom/mcp-client/Cargo.toml --release --locked
+# Put rapidroom/mcp-client/target/release/rapidroom-mcp-stdio on your PATH,
+# or use its absolute path in the client configuration below.
 ```
 
-An agent can start from the library: `open_image` opens a photo in the editor. The editing tools work on the image open in the editor. Every change goes through the editor, so you see it happen, each MCP edit is one step you can undo with Ctrl+Z, and autosave writes it like a click. An edit that changes nothing returns at once. If the preview takes longer than 40 seconds, the edit is still applied and the result says `renderPending: true`. If the editor's current state doesn't fit the MCP schema (for example an out-of-range value from an imported sidecar), the state is still returned, with the problem in `validationError`.
+The adapter discovers the endpoint under the standard per-user config directory (`$XDG_CONFIG_HOME/io.github.CyberTimon.RapidRAW` or `~/.config/io.github.CyberTimon.RapidRAW` on Linux). It checks ownership and private permissions on Unix, permits only the app's IPv4 loopback URL, and sends the bearer header internally. No token, URL or `RAPIDROOM_MCP_ENDPOINT` environment variable belongs in client configuration. Start the editor first; after restarting it, restart the MCP connection so the proxy reads the new token. The adapter never starts or links the GUI and never adds its own filesystem tools. `--help` is safe; unknown arguments exit with an error.
 
-| Tool                                          | What it does                                                                                                         |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `list_images`                                 | List supported images in a folder (paged, optionally recursive)                                                      |
-| `open_image` (alias `select_image`)           | Open an image in the editor, also when none is open yet                                                              |
-| `get_image_state`, `get_active_image_state`   | Current adjustments and an `editRevision`                                                                            |
-| `set_adjustments`, `update_adjustments`       | Replace or merge adjustments; validated against a strict schema. Pass `expectedRevision` to avoid overwriting edits. |
-| `reset_adjustments`, `apply_auto_adjustments` | Reset everything (one undoable step) or apply auto adjustments                                                       |
-| `get_preview`                                 | JPEG render of the current or a proposed edit (128–4096 px)                                                          |
-| `get_histogram_data`                          | The editor's 256-bin RGB and luma histogram                                                                          |
-| `calculate_guided_perspective`                | Perspective transform and crop for guide lines, without changing the edit                                            |
-| `export_images`                               | Export with the export panel's settings and wait until it finishes; no image needs to be open                        |
+Claude Code MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "rapidroom": { "command": "rapidroom-mcp-stdio" }
+  }
+}
+```
+
+Equivalent command:
+
+```sh
+claude mcp add --transport stdio rapidroom -- rapidroom-mcp-stdio
+```
+
+Codex configuration (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.rapidroom]
+command = "rapidroom-mcp-stdio"
+env_vars = ["XDG_CONFIG_HOME"]
+```
+
+Equivalent command:
+
+```sh
+codex mcp add rapidroom -- rapidroom-mcp-stdio
+```
+
+Codex filters the environment it passes to stdio children. The `env_vars` entry forwards the standard config-directory variable when set; it contains no credentials and needs no endpoint-specific variable. See the [official MCP environment forwarding documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli). If you register the command with `codex mcp add`, retain that `env_vars` entry for a custom XDG directory.
+
+Both clients use the same tools and running editor as authenticated HTTP clients. The plugin MCP configuration also uses this adapter. The optional thin `rapidroom-agent` command-line interface is not implemented in this change.
 
 ## Real-client regression
 
@@ -43,8 +68,8 @@ The optional native Linux regression runs the installed Claude Code and Codex cl
 ## Security
 
 - **It listens on a loopback TCP port** (`127.0.0.1` only). Nothing outside the machine can reach it, and it makes no outgoing connections.
-- **There is no authentication.** Any program running on the same machine can connect while the app is running, including programs run by other users. Only build with `mcp` on a machine you trust. A token and a stdio proxy are tracked in #116.
-- **Browsers can't drive it.** Requests carrying an `Origin` header are refused. rmcp also rejects any `Host` other than `localhost`, `127.0.0.1` or `::1`, which blocks DNS rebinding, and it only accepts `application/json`, so a web page can't send a "simple" cross-site request either.
+- **Per-session authentication.** Missing or incorrect bearer headers receive HTTP 401. The listener retains a SHA-256 token verifier and compares fixed-size hashes in constant time with `subtle`; it does not expose the token through editor state, MCP status or client configuration. A fresh token is generated every app start; there is no pinned-token setting.
+- **Browser requests are refused.** Requests carrying an `Origin` header are refused. rmcp also rejects any `Host` other than `localhost`, `127.0.0.1` or `::1`, which blocks DNS rebinding, and it only accepts `application/json`, so a web page can't send a "simple" cross-site request either.
 - **Protocol:** one JSON response per POST to `/mcp` (no event stream; GET gets `405`), `Content-Length` or chunked request bodies, and `Connection: close` on every response. Chunked decoding enforces the body/size-line limits without overflowing the accumulated length, validates each data terminator and discards consumed framing buffers.
 - **Reach:** edits only apply to the image open in the editor. `list_images` and `export_images` can read and write any folder the user can.
 
@@ -68,8 +93,7 @@ It is small, it uses the official SDK, it fits RapidRoom as it is now, and it ca
 
 Ideas from sheldonxxxx's design worth bringing over later, each as its own issue:
 
-- **stdio transport.** For example, a small `--mcp-stdio` proxy that forwards to the running app, so MCP clients can use stdio and no TCP port is needed.
-- **Authentication:** a token in `mcp-endpoint.json` (readable only by the user) that clients send as a header.
+- **Thin terminal CLI.** A `rapidroom-agent` wrapper could reuse the same authenticated client for terminal operations.
 - **Working on copies:** an option to edit copies in a workspace instead of the library's originals.
 - **Comparison reviews** (before/after, A/B crops) for the agent.
 
@@ -78,9 +102,16 @@ Ideas from sheldonxxxx's design worth bringing over later, each as its own issue
 The harvest is cgasgarth's latest MCP code (`cgasgarth/RapidRaw@a5a01cc`, after `4a5c14e`, `c0f079d`, `b2b9abf`, `9a70a3c`, `0a5e71f` and `c8d6ec6`), with these changes:
 
 - **Feature flag.** Everything is behind the cargo feature `mcp`: the module, the rmcp and HTTP dependencies, the Tauri commands, the state and the server start. The React bridge asks the backend for `mcp_status` once at startup and stays idle if the command doesn't exist.
+- **Authenticated stdio adapter.** Fresh per-start bearers, a private per-user endpoint, and a separate GUI-free proxy were added in #116.
 - **No tone-mapper override.** cgasgarth's version made the GUI preview and exports use the editor's tone mapper even when the user's "override tone mapper" setting is on. That changes what the editor renders, so it was left out. MCP previews follow the same setting as the GUI.
 - **Render wait.** cgasgarth's version stored a JSON copy of the adjustments after every preview render. RapidRoom stores a reference instead and only serialises in the bridge, so normal editing does no extra work.
 - **`Origin` check.** Requests with an `Origin` header are refused (see Security).
 - **Curve helper.** The parametric-curve function moved from `Curves.tsx` to `utils/adjustments.ts` unchanged, so curves render exactly as before. cgasgarth had rewritten it.
 - **Export errors.** `export_images` reports each failed file, using RapidRoom's existing error list.
 - cgasgarth's README section is replaced by this note.
+
+### Threat model and implementation provenance
+
+The token blocks unauthenticated local processes, including other users who cannot read the endpoint file, while Origin/Host checks reject browser-origin traffic. The trusted boundary is the operating-system user: processes already running as that user can read the token and drive the editor, and privileged administrators can access it. Authentication does not protect against compromise of that account or guarantee availability against local connection flooding. The proxy accesses only its own endpoint file and forwards the editor's existing tool set; tool access still grants the editor's existing local-image/export capabilities. Unix ownership/0600 behavior is tested on Linux; native macOS and Windows permission and client behavior remain unverified locally.
+
+The adapter and endpoint code are fresh AGPL-3.0 implementations. The stdio-adapter and hashed-bearer ideas came from 1tuz's `rapidraw-mcp`/external-control work; no code was copied, and the adapter was written fresh without relying on an unconfirmed source licence. Irvingouj informed the optional CLI shape, and ssarangi informed the separate-binary pattern. Source ideas are credited in CREDITS.md. AI assistance: implementation and local tests by yojen7 with Codex.

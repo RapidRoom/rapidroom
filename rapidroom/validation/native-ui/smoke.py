@@ -361,6 +361,14 @@ def launch(args):
             engine = args.engine.resolve()
             source_hash = sha(engine)
             shutil.copy2(engine, case / "engine/rapidroom")
+            if args.mcp_clients:
+                adapter = engine.parent / "rapidroom-mcp-stdio"
+                if not adapter.is_file():
+                    raise RuntimeError("Authenticated real-client test requires the pinned stdio adapter")
+                shutil.copy2(adapter, case / "engine/rapidroom-mcp-stdio")
+                adapter_hash = sha(adapter)
+                if sha(case / "engine/rapidroom-mcp-stdio") != adapter_hash:
+                    raise RuntimeError("Pinned stdio adapter copy differs")
             if sha(case / "engine/rapidroom") != source_hash:
                 raise RuntimeError("Engine changed while pinning")
             for name in ("resources", "lensfun_db"):
@@ -380,6 +388,8 @@ def launch(args):
                 raise RuntimeError("Original fixture was changed")
             if sha(engine) != source_hash:
                 raise RuntimeError("Source engine changed during the locked test")
+            if args.mcp_clients and (sha(adapter) != adapter_hash or sha(case / "engine/rapidroom-mcp-stdio") != adapter_hash):
+                raise RuntimeError("Source stdio adapter changed during the locked test")
             save(case / "source-guards.json", {"fixture_unchanged": True, "engine_unchanged": True})
             print("Native UI result: " + str(case / "result.json"), flush=True)
             return result.returncode

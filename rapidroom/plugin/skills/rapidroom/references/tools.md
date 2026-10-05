@@ -1,6 +1,6 @@
 # RapidRoom's MCP tools
 
-RapidRoom's MCP server runs inside the app and drives the editor the user is looking at. It exists only in builds made with the `mcp` cargo feature (`npm run start:mcp`, or `npm run tauri build -- --features mcp`), and it listens on `http://127.0.0.1:7790/mcp` (the next free port up to 7800 if 7790 is taken; `RAPIDRAW_MCP_PORT` pins it, and the URL in use is in `mcp-endpoint.json` in the app's config directory). The plugin's `.mcp.json` connects to it; Codex users run `codex mcp add rapidroom --url http://127.0.0.1:7790/mcp`.
+RapidRoom's MCP server runs inside the app and drives the editor the user is looking at. It exists only in builds made with the `mcp` cargo feature. The separate `rapidroom-mcp-stdio` adapter discovers a private per-user endpoint and authenticates to the loopback listener. The plugin's `.mcp.json` uses that adapter; Codex users configure the same command, with `env_vars = ["XDG_CONFIG_HOME"]` for a custom config directory. See [starting.md](starting.md) for setup; no hardcoded URL, bearer token or endpoint environment variable is needed.
 
 **Trust `tools/list`, not this page.** If a tool listed under "Coming" shows up, use it. If a tool listed under "Now" is missing, the build is older or different: say so, and don't call it.
 

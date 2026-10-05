@@ -29,14 +29,17 @@
       "native_slider_and_preview_changed": true
     }
   },
-  "application_head": "a854016e5857887b8a067280fd0e97c85fa411cb",
-  "engine_sha256": "685bac54c72e2657dccbe37678372624e2648e200e18d1ae44bc2be7fd3f8347",
-  "harness_sha256": "3a357f9ca3d0717f86728b12d1a21ff804d89d40521ee61152c05e6b67940dae",
-  "client_check_sha256": "18759d68e673648005310ace7711943e7049292d173768603948e7c174bbccc4",
+  "unauthenticated_and_wrong_token_refused": true,
+  "endpoint_mode": "0600",
+  "authenticated_origin_refused": true,
+  "transport": "stdio with automatic per-user endpoint discovery",
+  "application_source_head": "3c187d19f2e23c3d3dfa17288eedeaff8ad1edd4",
+  "engine_sha256": "9203a7e36841fc34577ec126a969f7f31f79adc681c37cb2cc2be96a4d69b4f6",
+  "stdio_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
+  "harness_sha256": "98fe386bf7070a2558c1cdea1b022de59c34b20541547ee66e0aa79a08b546b2",
+  "case": "samples/mcp-auth-116/native-stage2",
   "native_steps_passed": 8,
   "exit_code": 0,
-  "frontend_and_native_errors": 0,
-  "fixture_and_engine_unchanged": true,
-  "case": "samples/mcp-clients-102/native-protocol-complete-approved-tools",
-  "visual_capture_reviewed": true
+  "frontend_native_errors": 0,
+  "notes": "Actual installed clients over stdio; Codex forwards only the standard private XDG_CONFIG_HOME. No persistent client settings, endpoint URL or bearer env var. Application and adapter code unchanged by the subsequent docs/CI/evidence commit."
 }

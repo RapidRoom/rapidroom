@@ -1,7 +1,9 @@
+use rapidroom_mcp_client::{BearerVerifier, Endpoint, write_endpoint};
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Display;
 use std::fs;
+use std::sync::Arc;
 
 use ::http::{
     HeaderName, HeaderValue, Method, Request,
@@ -23,6 +25,12 @@ struct HttpRequest {
     path: String,
     headers: HashMap<String, String>,
     body: Vec<u8>,
+}
+
+fn fresh_token() -> String {
+    let mut random = [0u8; 32];
+    rand::fill(&mut random);
+    hex::encode(random)
 }
 
 pub fn start_server(app_handle: AppHandle) {
@@ -65,43 +73,60 @@ async fn run_server(app_handle: AppHandle) -> Result<(), String> {
 
     let listener = listener.ok_or_else(|| "no available MCP port found".to_string())?;
     let state = app_handle.state::<crate::AppState>();
+
+    let token = fresh_token();
+    let verifier = Arc::new(BearerVerifier::new(&token));
+    let config_dir = app_handle
+        .path()
+        .app_config_dir()
+        .map_err(|error| error.to_string())?;
+    let endpoint = Endpoint {
+        url: format!("http://127.0.0.1:{bound_port}/mcp"),
+        token,
+        protocol_version: PROTOCOL_VERSION.to_string(),
+    };
+    write_endpoint(&config_dir.join("mcp-endpoint.json"), &endpoint)?;
     *state.mcp.port.lock().unwrap() = bound_port;
-
-    if let Ok(config_dir) = app_handle.path().app_config_dir() {
-        let _ = fs::create_dir_all(&config_dir);
-        let _ = fs::write(
-            config_dir.join("mcp-endpoint.json"),
-            serde_json::to_string_pretty(&serde_json::json!({
-                "url": format!("http://127.0.0.1:{bound_port}/mcp"),
-                "protocolVersion": PROTOCOL_VERSION,
-            }))
-            .unwrap_or_default(),
-        );
-    }
-
+    // Keep only the verifier in the listener; the plaintext is in its private endpoint file.
+    drop(endpoint);
     log::info!(
-        "MCP server listening on http://127.0.0.1:{bound_port}/mcp (loopback-only, no auth)"
+        "MCP server listening on http://127.0.0.1:{bound_port}/mcp (authenticated loopback)"
     );
 
     let service = create_http_service(app_handle);
     loop {
         let (stream, _) = listener.accept().await.map_err(|error| error.to_string())?;
         let service_for_connection = service.clone();
+        let verifier = verifier.clone();
         tauri::async_runtime::spawn(async move {
-            if let Err(error) = handle_connection(stream, service_for_connection).await {
+            if let Err(error) = handle_connection(stream, service_for_connection, verifier).await {
                 log::debug!("MCP connection closed: {}", error);
             }
         });
     }
 }
 
-async fn handle_connection(mut stream: TcpStream, service: McpHttpService) -> Result<(), String> {
-    let request = read_request(&mut stream).await?;
+async fn handle_connection(
+    mut stream: TcpStream,
+    service: McpHttpService,
+    verifier: Arc<BearerVerifier>,
+) -> Result<(), String> {
+    let request = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        read_request(&mut stream),
+    )
+    .await
+    .map_err(|_| "MCP request read timed out")??;
 
     // MCP clients are local processes, not web pages. Refusing anything a
     // browser sent keeps websites from driving the editor.
     if request.headers.contains_key("origin") {
         write_basic_response(&mut stream, 403, "forbidden", "text/plain").await?;
+        return Ok(());
+    }
+
+    if !verifier.accepts(request.headers.get("authorization").map(String::as_str)) {
+        write_basic_response(&mut stream, 401, "authentication required", "text/plain").await?;
         return Ok(());
     }
 
@@ -347,6 +372,15 @@ where
 mod tests {
     use super::*;
     use tokio::io::AsyncWriteExt;
+
+    #[test]
+    fn sessions_generate_distinct_full_length_tokens() {
+        let first = fresh_token();
+        let second = fresh_token();
+        assert_eq!(first.len(), 64);
+        assert_eq!(second.len(), 64);
+        assert_ne!(first, second);
+    }
 
     async fn parse(raw: &'static [u8]) -> Result<HttpRequest, String> {
         let (mut client, mut server) = tokio::io::duplex(64);
