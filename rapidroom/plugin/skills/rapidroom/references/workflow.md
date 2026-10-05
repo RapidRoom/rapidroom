@@ -6,7 +6,7 @@ Connect, inspect, change, render, measure, compare, save, export. The user watch
 
 - Call `get_active_image_state`. If it fails because nothing is open, ask which photo, or find it with `list_images` and open it with `open_image`.
 - If the MCP tools aren't there at all, RapidRoom isn't running, isn't an `mcp` build, or is on another port. Say which, and point to [starting.md](starting.md). Don't fall back to editing sidecar files by hand.
-- Note the `imagePath` and `editRevision`. Keep a copy of the starting `adjustments`: it is your way back until undo over MCP exists.
+- Note the `imagePath` and `editRevision`. Keep a copy of the starting `adjustments` for comparison; `history_list`, `undo` and `redo` share the GUI history when this build exposes them.
 
 ## 2. Inspect
 
@@ -28,7 +28,7 @@ Typical order. Skip what the photo doesn't need.
 
 Each change is one `update_adjustments` call with the related keys together (for example the four tone sliders of one decision), passing `expectedRevision`. Tell the user in one line what you changed and why: "Exposure +0.4 and Shadows +25: the face was underexposed."
 
-Use only key names from [adjustments.md](adjustments.md). Stay inside the slider range there, so the user can see your value on the slider and adjust it.
+Read `rapidroom://schema/adjustments` when the server offers it, and use only keys in it or [adjustments.md](adjustments.md). Stay inside the generated UI slider ranges, so the user can see your value on the slider and adjust it.
 
 ## 4. Check after every step
 
@@ -50,7 +50,7 @@ What you can measure today, until the measuring tools in #117 exist:
 
 ## 5. Compare
 
-- Before/after: preview the starting adjustments you saved as a proposed edit, next to the current preview.
+- Before/after: use `get_preview` with `side_by_side: true` for neutral original/current edit, or preview the starting adjustments you saved separately as a proposed edit. Use fractional `region` for a bounded detail crop. These reads do not apply edits.
 - Alternatives: preview two or three proposed edits, describe each by its idea ("warmer and darker", "clean and neutral"), and let the user choose. Apply only the chosen one. With virtual copies (#120) each alternative will be a real copy; until then, see [recipes.md](recipes.md#explore-looks).
 
 ## 6. Save

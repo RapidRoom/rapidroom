@@ -413,7 +413,10 @@ class Smoke:
         self.step("GUI JPEG export", {"file": str(files[0].relative_to(self.case)), "sha256": sha(files[0])})
         if (self.case / "terminal-test.json").exists():
             self.terminal_flow()
-        if (self.case / "mcp-clients-test.json").exists() and not (self.case / "terminal-test.json").exists():
+        if (self.case / "mcp-history-test.json").exists():
+            from mcp_history import run_history_checks
+            run_history_checks(self.case, self)
+        elif (self.case / "mcp-clients-test.json").exists() and not (self.case / "terminal-test.json").exists():
             from mcp_clients import run_client_checks
             self.step("real Claude Code and Codex edit the open photo", run_client_checks(self.case, self))
         final = self.snapshot("final")
@@ -486,6 +489,8 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.mcp_history:
+        save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_clients:
         save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
@@ -579,8 +584,11 @@ def main():
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
     parser.add_argument("--terminal-clients", action="store_true", help="Use real clients from both terminal launch paths (implies --terminal --mcp-clients)")
+    parser.add_argument("--mcp-history", action="store_true", help="Run actual-client labelled history/schema/preview scenario (implies --mcp-clients)")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.mcp_history:
+        args.mcp_clients = True
     if args.terminal_clients:
         args.terminal = args.mcp_clients = True
     if args.inside:

@@ -139,6 +139,7 @@ const ToneMapperSwitch = ({
         </div>
         <div className="mt-2.5 px-1">
           <Slider
+            data-adjustment-key="exposure"
             label={t('adjustments.basic.exposure')}
             max={5}
             min={-5}

@@ -1,0 +1,151 @@
+{
+  "issue": 115,
+  "passed": true,
+  "native_steps_passed": 11,
+  "exit_code": 0,
+  "frontend_native_errors": 0,
+  "application_source": {
+    "head": "fedd5e28b624b1b77f31a8236115b3740df64ecb",
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": ""
+  },
+  "engine_sha256": "ef0fdc5be61a429d3835a3950557ecb72ff5f2616870acb9137b02160a7a8ec4",
+  "stdio_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
+  "features": ["native-ui-test", "mcp"],
+  "harness_source": "178ac3e3833b2525819d525fb3afc519a0744d5d",
+  "harness_sha256": "16eab7be1f6e2eef99b618b93dcfec24883a8632f5ad96c93255e65cde76381c",
+  "client_helpers_sha256": {
+    "mcp_clients.py": "6ecc0d9310f972529497a331368495fb44abff00bd21326376338545a22e5e78",
+    "mcp_history.py": "ac80c78d9028308a3305c86ae625b0d1a3733344608541dcba818299f8343f72"
+  },
+  "case": "samples/mcp-history-115/native-stage5",
+  "fixture_and_engine_unchanged": {
+    "fixture_unchanged": true,
+    "engine_unchanged": true
+  },
+  "scenario": [
+    {
+      "name": "authenticated endpoint and MCP discovery",
+      "evidence": {
+        "wire_protocols": {
+          "2025-06-18": {
+            "tools": 17,
+            "ttlMs": 0,
+            "cacheScope": "private",
+            "state_read": true
+          },
+          "2026-07-28": {
+            "tools": 17,
+            "ttlMs": 0,
+            "cacheScope": "private",
+            "state_read": true
+          }
+        },
+        "clients": {},
+        "unauthenticated_and_wrong_token_refused": true,
+        "endpoint_mode": "0600",
+        "authenticated_origin_refused": true,
+        "transport": "stdio with automatic per-user endpoint discovery"
+      }
+    },
+    {
+      "name": "actual Claude three edits, labelled history and undo twice",
+      "evidence": {
+        "version": "2.1.289 (Claude Code)",
+        "calls": [
+          "get_image_state",
+          "update_adjustments",
+          "update_adjustments",
+          "update_adjustments",
+          "history_list",
+          "undo",
+          "undo",
+          "history_list",
+          "get_preview",
+          "get_preview",
+          "get_preview",
+          "get_editor_context",
+          "get_image_state"
+        ],
+        "exposure": 0.2,
+        "ai_entries": [
+          {
+            "active": true,
+            "actor": "assistant",
+            "changedKeys": ["exposure"],
+            "index": 1,
+            "label": "AI: Exposure +0.2",
+            "timestamp": 1791205790184,
+            "undone": false
+          },
+          {
+            "active": false,
+            "actor": "assistant",
+            "changedKeys": ["exposure"],
+            "index": 2,
+            "label": "AI: Exposure +0.2",
+            "timestamp": 1791205792822,
+            "undone": true
+          },
+          {
+            "active": false,
+            "actor": "assistant",
+            "changedKeys": ["exposure"],
+            "index": 3,
+            "label": "AI: Exposure +0.2",
+            "timestamp": 1791205795388,
+            "undone": true
+          }
+        ],
+        "native_history_labels": true
+      }
+    },
+    {
+      "name": "generated schema and bounded read-only original/comparison/region previews",
+      "evidence": {
+        "keys": 199,
+        "controls": 62,
+        "previews": [
+          {
+            "options": {
+              "original": true
+            },
+            "dimensions": [256, 171],
+            "jpeg_bytes": 14088
+          },
+          {
+            "options": {
+              "side_by_side": true
+            },
+            "dimensions": [256, 128],
+            "jpeg_bytes": 10727
+          },
+          {
+            "options": {
+              "region": {
+                "x": 0.25,
+                "y": 0.25,
+                "width": 0.5,
+                "height": 0.5
+              }
+            },
+            "dimensions": [128, 87],
+            "jpeg_bytes": 4808
+          }
+        ],
+        "state_revision_history_unchanged": true
+      }
+    },
+    {
+      "name": "actual Codex context/history/comparison reads preserve state",
+      "evidence": {
+        "version": "codex-cli 0.160.0",
+        "called": ["get_editor_context", "get_preview", "history_list"],
+        "state_revision_history_unchanged": true
+      }
+    }
+  ],
+  "screenshot_visually_inspected": "mcp-ai-labelled-history",
+  "human_live_check": "Still required by issue #115; automated evidence is not human testing",
+  "notes": "Actual installed Claude Code/Codex, restricted per-invocation stdio tools and private XDG config; global settings/login preserved. App/adapter source unchanged through evidence commit. Initial metadata bug and harness-only failures are retained locally."
+}

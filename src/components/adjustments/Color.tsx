@@ -380,6 +380,7 @@ const ColorCalibrationPanel = ({ adjustments, setAdjustments, onDragStateChange 
           {t('adjustments.color.calibration.shadows')}
         </Text>
         <Slider
+          data-adjustment-key="colorCalibration.shadowsTint"
           label={t('adjustments.color.calibration.tint')}
           min={-100}
           max={100}
@@ -408,6 +409,7 @@ const ColorCalibrationPanel = ({ adjustments, setAdjustments, onDragStateChange 
           ))}
         </div>
         <Slider
+          data-adjustment-key="colorCalibration.*Hue"
           label={t('adjustments.color.calibration.hue')}
           min={-100}
           max={100}
@@ -419,6 +421,7 @@ const ColorCalibrationPanel = ({ adjustments, setAdjustments, onDragStateChange 
           trackClassName={`hue-slider-${trackSuffix}`}
         />
         <Slider
+          data-adjustment-key="colorCalibration.*Saturation"
           label={t('adjustments.color.calibration.saturation')}
           min={-100}
           max={100}

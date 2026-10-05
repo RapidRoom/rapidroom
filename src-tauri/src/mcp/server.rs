@@ -9,7 +9,9 @@ use rmcp::{
     },
     model::{
         CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, Implementation,
-        ListToolsResult, PaginatedRequestParams, ResultType, ServerCapabilities, ServerInfo, Tool,
+        ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
+        ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, ResultType,
+        ServerCapabilities, ServerInfo, Tool,
     },
     service::{MaybeSendFuture, RequestContext},
     transport::streamable_http_server::{
@@ -21,6 +23,9 @@ use serde_json::{Value, json};
 use tauri::AppHandle;
 
 use super::{MAX_BODY_BYTES, tools};
+
+const SCHEMA_URI: &str = "rapidroom://schema/adjustments";
+const ADJUSTMENT_SCHEMA: &str = include_str!("../../../rapidroom/adjustment-schema.json");
 
 pub(crate) type McpHttpService = StreamableHttpService<McpServer, NeverSessionManager>;
 
@@ -131,8 +136,48 @@ impl ServerHandler for McpServer {
         self.tool_router.get(name).cloned()
     }
 
+    fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListResourcesResult, ErrorData>> + MaybeSendFuture + '_ {
+        std::future::ready(Ok(ListResourcesResult::with_all_items(vec![
+            Resource::new(SCHEMA_URI, "adjustment-schema")
+                .with_description(
+                    "Generated native adjustment defaults and source UI ranges/sign conventions",
+                )
+                .with_mime_type("application/json")
+                .with_size(ADJUSTMENT_SCHEMA.len() as u64),
+        ])
+        .with_ttl_ms(0)
+        .with_cache_scope(CacheScope::Private)))
+    }
+
+    fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ReadResourceResponse, ErrorData>> + MaybeSendFuture + '_ {
+        let result = if request.uri == SCHEMA_URI {
+            let mut content = ResourceContents::text(ADJUSTMENT_SCHEMA, SCHEMA_URI);
+            if let ResourceContents::TextResourceContents { mime_type, .. } = &mut content {
+                *mime_type = Some("application/json".into());
+            }
+            Ok(ReadResourceResult::new(vec![content])
+                .with_ttl_ms(0)
+                .with_cache_scope(CacheScope::Private)
+                .into())
+        } else {
+            Err(ErrorData::invalid_params(
+                "Unknown RapidRoom resource",
+                None,
+            ))
+        };
+        std::future::ready(result)
+    }
+
     fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().enable_resources().build())
             .with_server_info(Implementation::new("RapidRAW", env!("CARGO_PKG_VERSION")))
             .with_instructions(
                 "Use imagePath explicitly on every RapidRAW operation. Mutations return an editRevision; pass it back as expectedRevision to avoid overwriting newer edits.",

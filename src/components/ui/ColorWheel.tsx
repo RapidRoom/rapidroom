@@ -268,6 +268,7 @@ const ColorWheel = ({
           >
             <div className="w-full">
               <Slider
+                data-adjustment-key="colorGrading.*.hue"
                 defaultValue={defaultValue.hue}
                 label={t('ui.colorWheel.hue')}
                 max={360}
@@ -282,6 +283,7 @@ const ColorWheel = ({
 
             <div className="w-full" style={satWrapperStyle}>
               <Slider
+                data-adjustment-key="colorGrading.*.saturation"
                 defaultValue={defaultValue.saturation}
                 label={t('ui.colorWheel.saturation')}
                 max={100}
@@ -300,6 +302,7 @@ const ColorWheel = ({
 
       <div className="w-full" style={lumWrapperStyle}>
         <Slider
+          data-adjustment-key="colorGrading.*.luminance"
           defaultValue={defaultValue.luminance}
           label={isExpanded ? t('ui.colorWheel.luminance') : <Sun size={16} className="text-text-secondary" />}
           max={100}

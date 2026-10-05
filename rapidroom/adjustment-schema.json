@@ -1,0 +1,2719 @@
+{
+  "version": 1,
+  "generatedFrom": [
+    "src/utils/adjustments.ts",
+    "src/components/adjustments/AdjustmentSubSection.tsx",
+    "src/components/adjustments/Basic.tsx",
+    "src/components/adjustments/Color.tsx",
+    "src/components/adjustments/Curves.tsx",
+    "src/components/adjustments/Details.tsx",
+    "src/components/adjustments/Effects.tsx",
+    "src/components/panel/right/CropPanel.tsx",
+    "src/components/ui/ColorWheel.tsx"
+  ],
+  "conventions": {
+    "values": "Native RapidRoom adjustment values, identical to the editor controls. Ranges below are UI limits; MCP validation may accept other finite values.",
+    "crop": "Crop coordinates retain their explicit unit (% or px).",
+    "controls": "All slider props are recorded. Where a dynamic component binding is unresolved, consult its recorded value/change expression rather than inventing a range."
+  },
+  "parameters": {
+    "aiPatches": { "defaultType": "array", "default": [] },
+    "aspectRatio": { "defaultType": "null", "default": null },
+    "blacks": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Basic.tsx",
+          "valueExpression": "adjustments.blacks"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "brightness": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -5,
+          "maximum": 5,
+          "step": 0.01,
+          "source": "src/components/adjustments/Basic.tsx",
+          "valueExpression": "adjustments.brightness"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "centré": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.centré"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "clarity": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.clarity"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "chromaticAberrationBlueYellow": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.chromaticAberrationBlueYellow"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "chromaticAberrationRedCyan": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.chromaticAberrationRedCyan"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorCalibration": {
+      "defaultType": "object",
+      "default": {
+        "shadowsTint": 0,
+        "redHue": 0,
+        "redSaturation": 0,
+        "greenHue": 0,
+        "greenSaturation": 0,
+        "blueHue": 0,
+        "blueSaturation": 0
+      }
+    },
+    "colorCalibration.shadowsTint": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "colorCalibration.shadowsTint"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorCalibration.redHue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "currentValues.hue"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorCalibration.redSaturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "currentValues.saturation"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorCalibration.greenHue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "currentValues.hue"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorCalibration.greenSaturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "currentValues.saturation"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorCalibration.blueHue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "currentValues.hue"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorCalibration.blueSaturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "currentValues.saturation"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorGrading": {
+      "defaultType": "object",
+      "default": {
+        "balance": 0,
+        "blending": 50,
+        "global": { "hue": 0, "saturation": 0, "luminance": 0 },
+        "highlights": { "hue": 0, "saturation": 0, "luminance": 0 },
+        "midtones": { "hue": 0, "saturation": 0, "luminance": 0 },
+        "shadows": { "hue": 0, "saturation": 0, "luminance": 0 }
+      }
+    },
+    "colorGrading.balance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "colorGrading.balance"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorGrading.blending": {
+      "defaultType": "number",
+      "default": 50,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "colorGrading.blending"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "colorGrading.global": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "colorGrading.global.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 360,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "hue"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "colorGrading.global.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "saturation"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "colorGrading.global.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "luminance"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorGrading.highlights": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "colorGrading.highlights.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 360,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "hue"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "colorGrading.highlights.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "saturation"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "colorGrading.highlights.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "luminance"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorGrading.midtones": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "colorGrading.midtones.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 360,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "hue"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "colorGrading.midtones.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "saturation"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "colorGrading.midtones.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "luminance"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorGrading.shadows": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "colorGrading.shadows.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 360,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "hue"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "colorGrading.shadows.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "saturation"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "colorGrading.shadows.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/ui/ColorWheel.tsx",
+          "valueExpression": "luminance"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "colorNoiseReduction": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": null,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.colorNoiseReduction"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "contrast": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Basic.tsx",
+          "valueExpression": "adjustments.contrast"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "crop": { "defaultType": "null", "default": null },
+    "curves": {
+      "defaultType": "object",
+      "default": {
+        "blue": [
+          { "x": 0, "y": 0 },
+          { "x": 255, "y": 255 }
+        ],
+        "green": [
+          { "x": 0, "y": 0 },
+          { "x": 255, "y": 255 }
+        ],
+        "luma": [
+          { "x": 0, "y": 0 },
+          { "x": 255, "y": 255 }
+        ],
+        "red": [
+          { "x": 0, "y": 0 },
+          { "x": 255, "y": 255 }
+        ]
+      }
+    },
+    "curves.blue": {
+      "defaultType": "array",
+      "default": [
+        { "x": 0, "y": 0 },
+        { "x": 255, "y": 255 }
+      ]
+    },
+    "curves.green": {
+      "defaultType": "array",
+      "default": [
+        { "x": 0, "y": 0 },
+        { "x": 255, "y": 255 }
+      ]
+    },
+    "curves.luma": {
+      "defaultType": "array",
+      "default": [
+        { "x": 0, "y": 0 },
+        { "x": 255, "y": 255 }
+      ]
+    },
+    "curves.red": {
+      "defaultType": "array",
+      "default": [
+        { "x": 0, "y": 0 },
+        { "x": 255, "y": 255 }
+      ]
+    },
+    "pointCurves": {
+      "defaultType": "object",
+      "default": {
+        "blue": [
+          { "x": 0, "y": 0 },
+          { "x": 255, "y": 255 }
+        ],
+        "green": [
+          { "x": 0, "y": 0 },
+          { "x": 255, "y": 255 }
+        ],
+        "luma": [
+          { "x": 0, "y": 0 },
+          { "x": 255, "y": 255 }
+        ],
+        "red": [
+          { "x": 0, "y": 0 },
+          { "x": 255, "y": 255 }
+        ]
+      }
+    },
+    "pointCurves.blue": {
+      "defaultType": "array",
+      "default": [
+        { "x": 0, "y": 0 },
+        { "x": 255, "y": 255 }
+      ]
+    },
+    "pointCurves.green": {
+      "defaultType": "array",
+      "default": [
+        { "x": 0, "y": 0 },
+        { "x": 255, "y": 255 }
+      ]
+    },
+    "pointCurves.luma": {
+      "defaultType": "array",
+      "default": [
+        { "x": 0, "y": 0 },
+        { "x": 255, "y": 255 }
+      ]
+    },
+    "pointCurves.red": {
+      "defaultType": "array",
+      "default": [
+        { "x": 0, "y": 0 },
+        { "x": 255, "y": 255 }
+      ]
+    },
+    "parametricCurve": {
+      "defaultType": "object",
+      "default": {
+        "luma": {
+          "darks": 0,
+          "shadows": 0,
+          "highlights": 0,
+          "lights": 0,
+          "whiteLevel": 0,
+          "blackLevel": 0,
+          "split1": 25,
+          "split2": 50,
+          "split3": 75
+        },
+        "red": {
+          "darks": 0,
+          "shadows": 0,
+          "highlights": 0,
+          "lights": 0,
+          "whiteLevel": 0,
+          "blackLevel": 0,
+          "split1": 25,
+          "split2": 50,
+          "split3": 75
+        },
+        "green": {
+          "darks": 0,
+          "shadows": 0,
+          "highlights": 0,
+          "lights": 0,
+          "whiteLevel": 0,
+          "blackLevel": 0,
+          "split1": 25,
+          "split2": 50,
+          "split3": 75
+        },
+        "blue": {
+          "darks": 0,
+          "shadows": 0,
+          "highlights": 0,
+          "lights": 0,
+          "whiteLevel": 0,
+          "blackLevel": 0,
+          "split1": 25,
+          "split2": 50,
+          "split3": 75
+        }
+      }
+    },
+    "parametricCurve.luma": {
+      "defaultType": "object",
+      "default": {
+        "darks": 0,
+        "shadows": 0,
+        "highlights": 0,
+        "lights": 0,
+        "whiteLevel": 0,
+        "blackLevel": 0,
+        "split1": 25,
+        "split2": 50,
+        "split3": 75
+      }
+    },
+    "parametricCurve.luma.darks": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.darks"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.luma.shadows": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.shadows"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.luma.highlights": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.highlights"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.luma.lights": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.lights"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.luma.whiteLevel": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 0,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.whiteLevel"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.luma.blackLevel": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.blackLevel"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "parametricCurve.luma.split1": { "defaultType": "number", "default": 25 },
+    "parametricCurve.luma.split2": { "defaultType": "number", "default": 50 },
+    "parametricCurve.luma.split3": { "defaultType": "number", "default": 75 },
+    "parametricCurve.red": {
+      "defaultType": "object",
+      "default": {
+        "darks": 0,
+        "shadows": 0,
+        "highlights": 0,
+        "lights": 0,
+        "whiteLevel": 0,
+        "blackLevel": 0,
+        "split1": 25,
+        "split2": 50,
+        "split3": 75
+      }
+    },
+    "parametricCurve.red.darks": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.darks"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.red.shadows": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.shadows"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.red.highlights": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.highlights"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.red.lights": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.lights"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.red.whiteLevel": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 0,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.whiteLevel"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.red.blackLevel": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.blackLevel"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "parametricCurve.red.split1": { "defaultType": "number", "default": 25 },
+    "parametricCurve.red.split2": { "defaultType": "number", "default": 50 },
+    "parametricCurve.red.split3": { "defaultType": "number", "default": 75 },
+    "parametricCurve.green": {
+      "defaultType": "object",
+      "default": {
+        "darks": 0,
+        "shadows": 0,
+        "highlights": 0,
+        "lights": 0,
+        "whiteLevel": 0,
+        "blackLevel": 0,
+        "split1": 25,
+        "split2": 50,
+        "split3": 75
+      }
+    },
+    "parametricCurve.green.darks": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.darks"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.green.shadows": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.shadows"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.green.highlights": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.highlights"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.green.lights": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.lights"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.green.whiteLevel": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 0,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.whiteLevel"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.green.blackLevel": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.blackLevel"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "parametricCurve.green.split1": { "defaultType": "number", "default": 25 },
+    "parametricCurve.green.split2": { "defaultType": "number", "default": 50 },
+    "parametricCurve.green.split3": { "defaultType": "number", "default": 75 },
+    "parametricCurve.blue": {
+      "defaultType": "object",
+      "default": {
+        "darks": 0,
+        "shadows": 0,
+        "highlights": 0,
+        "lights": 0,
+        "whiteLevel": 0,
+        "blackLevel": 0,
+        "split1": 25,
+        "split2": 50,
+        "split3": 75
+      }
+    },
+    "parametricCurve.blue.darks": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.darks"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.blue.shadows": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.shadows"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.blue.highlights": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.highlights"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.blue.lights": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.lights"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.blue.whiteLevel": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 0,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.whiteLevel"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "parametricCurve.blue.blackLevel": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Curves.tsx",
+          "valueExpression": "activeParametricSettings.blackLevel"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "parametricCurve.blue.split1": { "defaultType": "number", "default": 25 },
+    "parametricCurve.blue.split2": { "defaultType": "number", "default": 50 },
+    "parametricCurve.blue.split3": { "defaultType": "number", "default": 75 },
+    "curveMode": { "defaultType": "string", "default": "point" },
+    "dehaze": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.dehaze"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "exposure": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -5,
+          "maximum": 5,
+          "step": 0.01,
+          "source": "src/components/adjustments/Basic.tsx",
+          "valueExpression": "exposureValue"
+        },
+        {
+          "minimum": -5,
+          "maximum": 5,
+          "step": 0.01,
+          "source": "src/components/adjustments/Basic.tsx",
+          "valueExpression": "adjustments.exposure"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "flipHorizontal": { "defaultType": "boolean", "default": false },
+    "flipVertical": { "defaultType": "boolean", "default": false },
+    "flareAmount": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.flareAmount"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "glowAmount": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.glowAmount"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "grainAmount": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.grainAmount"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "grainRoughness": {
+      "defaultType": "number",
+      "default": 50,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.grainRoughness"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "grainSize": {
+      "defaultType": "number",
+      "default": 25,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.grainSize"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "guidedPerspective": { "defaultType": "object", "default": { "enabled": false, "lines": [], "autoCrop": true } },
+    "guidedPerspective.enabled": { "defaultType": "boolean", "default": false },
+    "guidedPerspective.lines": { "defaultType": "array", "default": [] },
+    "guidedPerspective.autoCrop": { "defaultType": "boolean", "default": true },
+    "halationAmount": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.halationAmount"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "highlights": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Basic.tsx",
+          "valueExpression": "adjustments.highlights"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl": {
+      "defaultType": "object",
+      "default": {
+        "aquas": { "hue": 0, "saturation": 0, "luminance": 0 },
+        "blues": { "hue": 0, "saturation": 0, "luminance": 0 },
+        "greens": { "hue": 0, "saturation": 0, "luminance": 0 },
+        "magentas": { "hue": 0, "saturation": 0, "luminance": 0 },
+        "oranges": { "hue": 0, "saturation": 0, "luminance": 0 },
+        "purples": { "hue": 0, "saturation": 0, "luminance": 0 },
+        "reds": { "hue": 0, "saturation": 0, "luminance": 0 },
+        "yellows": { "hue": 0, "saturation": 0, "luminance": 0 }
+      }
+    },
+    "hsl.aquas": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "hsl.aquas.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.aquas.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.aquas.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.blues": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "hsl.blues.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.blues.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.blues.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.greens": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "hsl.greens.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.greens.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.greens.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.magentas": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "hsl.magentas.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.magentas.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.magentas.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.oranges": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "hsl.oranges.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.oranges.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.oranges.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.purples": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "hsl.purples.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.purples.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.purples.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.reds": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "hsl.reds.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.reds.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.reds.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.yellows": { "defaultType": "object", "default": { "hue": 0, "saturation": 0, "luminance": 0 } },
+    "hsl.yellows.hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.yellows.saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hsl.yellows.luminance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "hsl[color][property]"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "hue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -180,
+          "maximum": 180,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "adjustments.hue || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "lensBlurAmount": {
+      "defaultType": "number",
+      "default": 40,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.lensBlurAmount ?? 50"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "lensBlurDiffusion": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.lensBlurDiffusion ?? 0"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "lensBlurShape": { "defaultType": "string", "default": "circle" },
+    "lensBlurDepthMap": { "defaultType": "null", "default": null },
+    "lensBlurEnabled": { "defaultType": "boolean", "default": false },
+    "lensBlurMaxDepth": { "defaultType": "number", "default": 100 },
+    "lensBlurMaxFade": { "defaultType": "number", "default": 20 },
+    "lensBlurMinDepth": { "defaultType": "number", "default": 20 },
+    "lensBlurMinFade": { "defaultType": "number", "default": 20 },
+    "lensCorrectionMode": { "defaultType": "string", "default": "manual" },
+    "lensDistortionAmount": {
+      "defaultType": "number",
+      "default": 100,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 200,
+          "step": 1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.lensDistortionAmount ?? 100"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "lensVignetteAmount": {
+      "defaultType": "number",
+      "default": 100,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 200,
+          "step": 1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.lensVignetteAmount ?? 100"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "lensTcaAmount": {
+      "defaultType": "number",
+      "default": 100,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 200,
+          "step": 1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.lensTcaAmount ?? 100"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "lensDistortionEnabled": { "defaultType": "boolean", "default": true },
+    "lensTcaEnabled": { "defaultType": "boolean", "default": true },
+    "lensVignetteEnabled": { "defaultType": "boolean", "default": true },
+    "lensDistortionParams": { "defaultType": "null", "default": null },
+    "lensMaker": { "defaultType": "null", "default": null },
+    "lensModel": { "defaultType": "null", "default": null },
+    "lumaNoiseReduction": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": null,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.lumaNoiseReduction"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "lutData": { "defaultType": "null", "default": null },
+    "lutIntensity": { "defaultType": "number", "default": 100 },
+    "lutName": { "defaultType": "null", "default": null },
+    "lutPath": { "defaultType": "null", "default": null },
+    "lutSize": { "defaultType": "number", "default": 0 },
+    "lutIsSceneReferred": { "defaultType": "boolean", "default": false },
+    "masks": { "defaultType": "array", "default": [] },
+    "orientationSteps": { "defaultType": "number", "default": 0 },
+    "rotation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -45,
+          "maximum": 45,
+          "step": 0.1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "displayRotation"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "saturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "adjustments.saturation || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "sectionVisibility": {
+      "defaultType": "object",
+      "default": {
+        "basic": true,
+        "curves": true,
+        "color": true,
+        "colorGrading": true,
+        "colorMixer": true,
+        "details": true,
+        "effects": true
+      }
+    },
+    "sectionVisibility.basic": { "defaultType": "boolean", "default": true },
+    "sectionVisibility.curves": { "defaultType": "boolean", "default": true },
+    "sectionVisibility.color": { "defaultType": "boolean", "default": true },
+    "sectionVisibility.colorGrading": { "defaultType": "boolean", "default": true },
+    "sectionVisibility.colorMixer": { "defaultType": "boolean", "default": true },
+    "sectionVisibility.details": { "defaultType": "boolean", "default": true },
+    "sectionVisibility.effects": { "defaultType": "boolean", "default": true },
+    "shadows": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Basic.tsx",
+          "valueExpression": "adjustments.shadows"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "sharpness": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.sharpness"
+        },
+        {
+          "minimum": 0,
+          "maximum": 80,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.sharpnessThreshold ?? 15"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "sharpnessThreshold": {
+      "defaultType": "number",
+      "default": 15,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 80,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.sharpnessThreshold ?? 15"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "showClipping": { "defaultType": "boolean", "default": false },
+    "structure": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Details.tsx",
+          "valueExpression": "adjustments.structure"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "temperature": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "adjustments.temperature || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "tint": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "adjustments.tint || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "toneMapper": { "defaultType": "string", "default": "basic" },
+    "transformDistortion": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.transformDistortion || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "transformVertical": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.transformVertical || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "transformHorizontal": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.transformHorizontal || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "transformRotate": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -45,
+          "maximum": 45,
+          "step": 0.1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.transformRotate || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "transformAspect": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.transformAspect || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "transformScale": {
+      "defaultType": "number",
+      "default": 100,
+      "uiRanges": [
+        {
+          "minimum": 50,
+          "maximum": 150,
+          "step": 1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.transformScale || 100"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "transformXOffset": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.transformXOffset || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "transformYOffset": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/panel/right/CropPanel.tsx",
+          "valueExpression": "adjustments.transformYOffset || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "vibrance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "adjustments.vibrance || 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "vignetteAmount": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.vignetteAmount"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "vignetteFeather": {
+      "defaultType": "number",
+      "default": 50,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.vignetteFeather"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "vignetteMidpoint": {
+      "defaultType": "number",
+      "default": 50,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.vignetteMidpoint"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "vignetteRoundness": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx",
+          "valueExpression": "adjustments.vignetteRoundness"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "whites": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Basic.tsx",
+          "valueExpression": "adjustments.whites"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    }
+  },
+  "controls": [
+    {
+      "source": "src/components/adjustments/Basic.tsx",
+      "line": 141,
+      "valueExpression": "exposureValue",
+      "changeExpression": "(e: any) => onExposureChange(parseFloat(e.target.value))",
+      "labelExpression": "t('adjustments.basic.exposure')",
+      "minimum": -5,
+      "maximum": 5,
+      "step": 0.01,
+      "adjustmentKeys": ["exposure"]
+    },
+    {
+      "source": "src/components/adjustments/Basic.tsx",
+      "line": 184,
+      "valueExpression": "adjustments.exposure",
+      "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Exposure, e.target.value)",
+      "labelExpression": "t('adjustments.basic.exposure')",
+      "minimum": -5,
+      "maximum": 5,
+      "step": 0.01,
+      "adjustmentKeys": ["exposure"]
+    },
+    {
+      "source": "src/components/adjustments/Basic.tsx",
+      "line": 202,
+      "valueExpression": "adjustments.contrast",
+      "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Contrast, e.target.value)",
+      "labelExpression": "t('adjustments.basic.contrast')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["contrast"]
+    },
+    {
+      "source": "src/components/adjustments/Basic.tsx",
+      "line": 211,
+      "valueExpression": "adjustments.highlights",
+      "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Highlights, e.target.value)",
+      "labelExpression": "t('adjustments.basic.highlights')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["highlights"]
+    },
+    {
+      "source": "src/components/adjustments/Basic.tsx",
+      "line": 220,
+      "valueExpression": "adjustments.shadows",
+      "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Shadows, e.target.value)",
+      "labelExpression": "t('adjustments.basic.shadows')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["shadows"]
+    },
+    {
+      "source": "src/components/adjustments/Basic.tsx",
+      "line": 229,
+      "valueExpression": "adjustments.whites",
+      "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Whites, e.target.value)",
+      "labelExpression": "t('adjustments.basic.whites')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["whites"]
+    },
+    {
+      "source": "src/components/adjustments/Basic.tsx",
+      "line": 238,
+      "valueExpression": "adjustments.blacks",
+      "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Blacks, e.target.value)",
+      "labelExpression": "t('adjustments.basic.blacks')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["blacks"]
+    },
+    {
+      "source": "src/components/adjustments/Basic.tsx",
+      "line": 247,
+      "valueExpression": "adjustments.brightness",
+      "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Brightness, e.target.value)",
+      "labelExpression": "t('adjustments.basic.brightness')",
+      "minimum": -5,
+      "maximum": 5,
+      "step": 0.01,
+      "adjustmentKeys": ["brightness"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 309,
+      "valueExpression": "colorGrading.blending",
+      "changeExpression": "(e: any) => handleColorGradingSliderChange(ColorGrading.Blending, e.target.value)",
+      "labelExpression": "t('adjustments.color.grading.blending')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["colorGrading.blending"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 319,
+      "valueExpression": "colorGrading.balance",
+      "changeExpression": "(e: any) => handleColorGradingSliderChange(ColorGrading.Balance, e.target.value)",
+      "labelExpression": "t('adjustments.color.grading.balance')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["colorGrading.balance"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 382,
+      "valueExpression": "colorCalibration.shadowsTint",
+      "changeExpression": "(e: any) => handleShadowsChange(e.target.value)",
+      "labelExpression": "t('adjustments.color.calibration.tint')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["colorCalibration.shadowsTint"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 411,
+      "valueExpression": "currentValues.hue",
+      "changeExpression": "(e: any) => handlePrimaryChange('Hue', e.target.value)",
+      "labelExpression": "t('adjustments.color.calibration.hue')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["colorCalibration.blueHue", "colorCalibration.greenHue", "colorCalibration.redHue"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 423,
+      "valueExpression": "currentValues.saturation",
+      "changeExpression": "(e: any) => handlePrimaryChange('Saturation', e.target.value)",
+      "labelExpression": "t('adjustments.color.calibration.saturation')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": [
+        "colorCalibration.blueSaturation",
+        "colorCalibration.greenSaturation",
+        "colorCalibration.redSaturation"
+      ]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 531,
+      "valueExpression": "hsl[color][property]",
+      "changeExpression": "(e: any) => handleHslChange(color, property, e.target.value)",
+      "labelExpression": "label",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": [
+        "hsl.aquas.hue",
+        "hsl.aquas.luminance",
+        "hsl.aquas.saturation",
+        "hsl.blues.hue",
+        "hsl.blues.luminance",
+        "hsl.blues.saturation",
+        "hsl.greens.hue",
+        "hsl.greens.luminance",
+        "hsl.greens.saturation",
+        "hsl.magentas.hue",
+        "hsl.magentas.luminance",
+        "hsl.magentas.saturation",
+        "hsl.oranges.hue",
+        "hsl.oranges.luminance",
+        "hsl.oranges.saturation",
+        "hsl.purples.hue",
+        "hsl.purples.luminance",
+        "hsl.purples.saturation",
+        "hsl.reds.hue",
+        "hsl.reds.luminance",
+        "hsl.reds.saturation",
+        "hsl.yellows.hue",
+        "hsl.yellows.luminance",
+        "hsl.yellows.saturation"
+      ]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 565,
+      "valueExpression": "adjustments.temperature || 0",
+      "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Temperature, e.target.value)",
+      "labelExpression": "t('adjustments.color.temperature')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["temperature"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 575,
+      "valueExpression": "adjustments.tint || 0",
+      "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Tint, e.target.value)",
+      "labelExpression": "t('adjustments.color.tint')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["tint"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 594,
+      "valueExpression": "adjustments.vibrance || 0",
+      "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Vibrance, e.target.value)",
+      "labelExpression": "t('adjustments.color.vibrance')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["vibrance"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 603,
+      "valueExpression": "adjustments.saturation || 0",
+      "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Saturation, e.target.value)",
+      "labelExpression": "t('adjustments.color.saturation')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["saturation"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 621,
+      "valueExpression": "adjustments.hue || 0",
+      "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Hue, e.target.value)",
+      "labelExpression": "t('adjustments.color.hue')",
+      "minimum": -180,
+      "maximum": 180,
+      "step": 1,
+      "adjustmentKeys": ["hue"]
+    },
+    {
+      "source": "src/components/adjustments/Curves.tsx",
+      "line": 925,
+      "valueExpression": "activeParametricSettings.whiteLevel",
+      "changeExpression": "(e: any) => updateParametricValue('whiteLevel', parseFloat(e.target.value))",
+      "labelExpression": "t('adjustments.curves.params.whiteLevel')",
+      "minimum": -100,
+      "maximum": 0,
+      "step": 1,
+      "adjustmentKeys": [
+        "parametricCurve.blue.whiteLevel",
+        "parametricCurve.green.whiteLevel",
+        "parametricCurve.luma.whiteLevel",
+        "parametricCurve.red.whiteLevel"
+      ]
+    },
+    {
+      "source": "src/components/adjustments/Curves.tsx",
+      "line": 937,
+      "valueExpression": "activeParametricSettings.highlights",
+      "changeExpression": "(e: any) => updateParametricValue('highlights', parseFloat(e.target.value))",
+      "labelExpression": "t('adjustments.curves.params.highlights')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": [
+        "parametricCurve.blue.highlights",
+        "parametricCurve.green.highlights",
+        "parametricCurve.luma.highlights",
+        "parametricCurve.red.highlights"
+      ]
+    },
+    {
+      "source": "src/components/adjustments/Curves.tsx",
+      "line": 949,
+      "valueExpression": "activeParametricSettings.lights",
+      "changeExpression": "(e: any) => updateParametricValue('lights', parseFloat(e.target.value))",
+      "labelExpression": "t('adjustments.curves.params.lights')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": [
+        "parametricCurve.blue.lights",
+        "parametricCurve.green.lights",
+        "parametricCurve.luma.lights",
+        "parametricCurve.red.lights"
+      ]
+    },
+    {
+      "source": "src/components/adjustments/Curves.tsx",
+      "line": 961,
+      "valueExpression": "activeParametricSettings.darks",
+      "changeExpression": "(e: any) => updateParametricValue('darks', parseFloat(e.target.value))",
+      "labelExpression": "t('adjustments.curves.params.darks')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": [
+        "parametricCurve.blue.darks",
+        "parametricCurve.green.darks",
+        "parametricCurve.luma.darks",
+        "parametricCurve.red.darks"
+      ]
+    },
+    {
+      "source": "src/components/adjustments/Curves.tsx",
+      "line": 973,
+      "valueExpression": "activeParametricSettings.shadows",
+      "changeExpression": "(e: any) => updateParametricValue('shadows', parseFloat(e.target.value))",
+      "labelExpression": "t('adjustments.curves.params.shadows')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": [
+        "parametricCurve.blue.shadows",
+        "parametricCurve.green.shadows",
+        "parametricCurve.luma.shadows",
+        "parametricCurve.red.shadows"
+      ]
+    },
+    {
+      "source": "src/components/adjustments/Curves.tsx",
+      "line": 985,
+      "valueExpression": "activeParametricSettings.blackLevel",
+      "changeExpression": "(e: any) => updateParametricValue('blackLevel', parseFloat(e.target.value))",
+      "labelExpression": "t('adjustments.curves.params.blackLevel')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": [
+        "parametricCurve.blue.blackLevel",
+        "parametricCurve.green.blackLevel",
+        "parametricCurve.luma.blackLevel",
+        "parametricCurve.red.blackLevel"
+      ]
+    },
+    {
+      "source": "src/components/adjustments/Details.tsx",
+      "line": 45,
+      "valueExpression": "adjustments.sharpness",
+      "changeExpression": "(e: any) => handleAdjustmentChange(DetailsAdjustment.Sharpness, e.target.value)",
+      "labelExpression": "t('adjustments.details.sharpness')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["sharpness"]
+    },
+    {
+      "source": "src/components/adjustments/Details.tsx",
+      "line": 55,
+      "valueExpression": "adjustments.sharpnessThreshold ?? 15",
+      "changeExpression": "(e: any) => handleAdjustmentChange(DetailsAdjustment.SharpnessThreshold, e.target.value)",
+      "labelExpression": "t('adjustments.details.threshold')",
+      "minimum": 0,
+      "maximum": 80,
+      "step": 1,
+      "adjustmentKeys": ["sharpness", "sharpnessThreshold"]
+    },
+    {
+      "source": "src/components/adjustments/Details.tsx",
+      "line": 76,
+      "valueExpression": "adjustments.clarity",
+      "changeExpression": "(e: any) => handleAdjustmentChange(DetailsAdjustment.Clarity, e.target.value)",
+      "labelExpression": "t('adjustments.details.clarity')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["clarity"]
+    },
+    {
+      "source": "src/components/adjustments/Details.tsx",
+      "line": 85,
+      "valueExpression": "adjustments.dehaze",
+      "changeExpression": "(e: any) => handleAdjustmentChange(DetailsAdjustment.Dehaze, e.target.value)",
+      "labelExpression": "t('adjustments.details.dehaze')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["dehaze"]
+    },
+    {
+      "source": "src/components/adjustments/Details.tsx",
+      "line": 94,
+      "valueExpression": "adjustments.structure",
+      "changeExpression": "(e: any) => handleAdjustmentChange(DetailsAdjustment.Structure, e.target.value)",
+      "labelExpression": "t('adjustments.details.structure')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["structure"]
+    },
+    {
+      "source": "src/components/adjustments/Details.tsx",
+      "line": 104,
+      "valueExpression": "adjustments.centré",
+      "changeExpression": "(e: any) => handleAdjustmentChange(DetailsAdjustment.Centré, e.target.value)",
+      "labelExpression": "t('adjustments.details.centre')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["centré"]
+    },
+    {
+      "source": "src/components/adjustments/Details.tsx",
+      "line": 125,
+      "valueExpression": "adjustments.lumaNoiseReduction",
+      "changeExpression": "(e: any) => handleAdjustmentChange(DetailsAdjustment.LumaNoiseReduction, e.target.value)",
+      "labelExpression": "t('adjustments.details.luminance')",
+      "minimum": null,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["lumaNoiseReduction"]
+    },
+    {
+      "source": "src/components/adjustments/Details.tsx",
+      "line": 134,
+      "valueExpression": "adjustments.colorNoiseReduction",
+      "changeExpression": "(e: any) => handleAdjustmentChange(DetailsAdjustment.ColorNoiseReduction, e.target.value)",
+      "labelExpression": "t('adjustments.details.color')",
+      "minimum": null,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["colorNoiseReduction"]
+    },
+    {
+      "source": "src/components/adjustments/Details.tsx",
+      "line": 152,
+      "valueExpression": "adjustments.chromaticAberrationRedCyan",
+      "changeExpression": "(e: any) => handleAdjustmentChange(DetailsAdjustment.ChromaticAberrationRedCyan, e.target.value)",
+      "labelExpression": "t('adjustments.details.redCyan')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["chromaticAberrationRedCyan"]
+    },
+    {
+      "source": "src/components/adjustments/Details.tsx",
+      "line": 161,
+      "valueExpression": "adjustments.chromaticAberrationBlueYellow",
+      "changeExpression": "(e: any) =>\n              handleAdjustmentChange(DetailsAdjustment.ChromaticAberrationBlueYellow, e.target.value)",
+      "labelExpression": "t('adjustments.details.blueYellow')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["chromaticAberrationBlueYellow"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 208,
+      "valueExpression": "adjustments.glowAmount",
+      "changeExpression": "(e: any) => handleAdjustmentChange(CreativeAdjustment.GlowAmount, e.target.value)",
+      "labelExpression": "t('adjustments.effects.glow')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["glowAmount"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 218,
+      "valueExpression": "adjustments.halationAmount",
+      "changeExpression": "(e: any) => handleAdjustmentChange(CreativeAdjustment.HalationAmount, e.target.value)",
+      "labelExpression": "t('adjustments.effects.halation')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["halationAmount"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 229,
+      "valueExpression": "adjustments.flareAmount",
+      "changeExpression": "(e: any) => handleAdjustmentChange(CreativeAdjustment.FlareAmount, e.target.value)",
+      "labelExpression": "t('adjustments.effects.lightFlares')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["flareAmount"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 281,
+      "valueExpression": "adjustments.lensBlurAmount ?? 50",
+      "changeExpression": "(e: any) => handleAdjustmentChange(Effect.LensBlurAmount, e.target.value)",
+      "labelExpression": "t('adjustments.effects.amount')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["lensBlurAmount"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 293,
+      "valueExpression": "adjustments.lensBlurDiffusion ?? 0",
+      "changeExpression": "(e: any) => handleAdjustmentChange(Effect.lensBlurDiffusion, e.target.value)",
+      "labelExpression": "t('adjustments.effects.lensDiffusion')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["lensBlurDiffusion"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 368,
+      "valueExpression": "adjustments.vignetteAmount",
+      "changeExpression": "(e: any) => handleAdjustmentChange(Effect.VignetteAmount, e.target.value)",
+      "labelExpression": "t('adjustments.effects.amount')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["vignetteAmount"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 377,
+      "valueExpression": "adjustments.vignetteMidpoint",
+      "changeExpression": "(e: any) => handleAdjustmentChange(Effect.VignetteMidpoint, e.target.value)",
+      "labelExpression": "t('adjustments.effects.midpoint')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["vignetteMidpoint"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 388,
+      "valueExpression": "adjustments.vignetteRoundness",
+      "changeExpression": "(e: any) => handleAdjustmentChange(Effect.VignetteRoundness, e.target.value)",
+      "labelExpression": "t('adjustments.effects.roundness')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["vignetteRoundness"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 397,
+      "valueExpression": "adjustments.vignetteFeather",
+      "changeExpression": "(e: any) => handleAdjustmentChange(Effect.VignetteFeather, e.target.value)",
+      "labelExpression": "t('adjustments.effects.feather')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["vignetteFeather"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 413,
+      "valueExpression": "adjustments.grainAmount",
+      "changeExpression": "(e: any) => handleAdjustmentChange(Effect.GrainAmount, e.target.value)",
+      "labelExpression": "t('adjustments.effects.amount')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["grainAmount"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 422,
+      "valueExpression": "adjustments.grainSize",
+      "changeExpression": "(e: any) => handleAdjustmentChange(Effect.GrainSize, e.target.value)",
+      "labelExpression": "t('adjustments.effects.size')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["grainSize"]
+    },
+    {
+      "source": "src/components/adjustments/Effects.tsx",
+      "line": 433,
+      "valueExpression": "adjustments.grainRoughness",
+      "changeExpression": "(e: any) => handleAdjustmentChange(Effect.GrainRoughness, e.target.value)",
+      "labelExpression": "t('adjustments.effects.roughness')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["grainRoughness"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 987,
+      "valueExpression": "displayRotation",
+      "changeExpression": "handleFineRotationChange",
+      "labelExpression": "<div className=\"flex items-center gap-2\">\n                      <button\n                        onClick={() => {\n                          setEditor((state) => ({\n                            isStraightenActive: !state.isStraightenActive,\n                          }));\n                        }}\n                        className={clsx(\n                          'p-1.5 rounded-md transition-colors',\n                          isStraightenActive\n                            ? 'bg-accent text-button-text'\n                            : 'text-text-secondary hover:bg-card-active hover:text-text-primary',\n                        )}\n                        data-tooltip={t('editor.crop.tooltips.straighten')}\n                      >\n                        <Ruler size={14} />\n                      </button>\n                      <button\n                        className=\"p-1.5 rounded-md text-text-secondary transition-colors cursor-pointer hover:bg-card-active hover:text-text-primary\"\n                        onClick={resetFineRotation}\n                        data-tooltip={t('editor.crop.tooltips.resetFineRotation')}\n                        disabled={displayRotation === 0}\n                      >\n                        <RotateCcw size={14} />\n                      </button>\n                    </div>",
+      "minimum": -45,
+      "maximum": 45,
+      "step": 0.1,
+      "adjustmentKeys": ["rotation"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1225,
+      "valueExpression": "adjustments.transformDistortion || 0",
+      "changeExpression": "(e) =>\n                                setAdjustments((prev) => ({\n                                  ...prev,\n                                  transformDistortion: Number(e.target.value),\n                                }))",
+      "labelExpression": "t('modals.transform.amount')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["transformDistortion"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1247,
+      "valueExpression": "adjustments.transformVertical || 0",
+      "changeExpression": "(e) =>\n                                setAdjustments((prev) => ({\n                                  ...prev,\n                                  transformVertical: Number(e.target.value),\n                                }))",
+      "labelExpression": "t('modals.transform.vertical')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["transformVertical"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1261,
+      "valueExpression": "adjustments.transformHorizontal || 0",
+      "changeExpression": "(e) =>\n                                setAdjustments((prev) => ({\n                                  ...prev,\n                                  transformHorizontal: Number(e.target.value),\n                                }))",
+      "labelExpression": "t('modals.transform.horizontal')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["transformHorizontal"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1283,
+      "valueExpression": "adjustments.transformRotate || 0",
+      "changeExpression": "(e) =>\n                                setAdjustments((prev) => ({\n                                  ...prev,\n                                  transformRotate: Number(e.target.value),\n                                }))",
+      "labelExpression": "t('modals.transform.rotate')",
+      "minimum": -45,
+      "maximum": 45,
+      "step": 0.1,
+      "adjustmentKeys": ["transformRotate"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1297,
+      "valueExpression": "adjustments.transformAspect || 0",
+      "changeExpression": "(e) =>\n                                setAdjustments((prev) => ({\n                                  ...prev,\n                                  transformAspect: Number(e.target.value),\n                                }))",
+      "labelExpression": "t('modals.transform.aspect')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["transformAspect"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1311,
+      "valueExpression": "adjustments.transformScale || 100",
+      "changeExpression": "(e) =>\n                                setAdjustments((prev) => ({\n                                  ...prev,\n                                  transformScale: Number(e.target.value),\n                                }))",
+      "labelExpression": "t('modals.transform.scale')",
+      "minimum": 50,
+      "maximum": 150,
+      "step": 1,
+      "adjustmentKeys": ["transformScale"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1333,
+      "valueExpression": "adjustments.transformXOffset || 0",
+      "changeExpression": "(e) =>\n                                setAdjustments((prev) => ({\n                                  ...prev,\n                                  transformXOffset: Number(e.target.value),\n                                }))",
+      "labelExpression": "t('modals.transform.xAxis')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["transformXOffset"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1347,
+      "valueExpression": "adjustments.transformYOffset || 0",
+      "changeExpression": "(e) =>\n                                setAdjustments((prev) => ({\n                                  ...prev,\n                                  transformYOffset: Number(e.target.value),\n                                }))",
+      "labelExpression": "t('modals.transform.yAxis')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["transformYOffset"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1507,
+      "valueExpression": "adjustments.lensDistortionAmount ?? 100",
+      "changeExpression": "(e) =>\n                                      setAdjustments((prev) => ({\n                                        ...prev,\n                                        lensDistortionAmount: Number(e.target.value),\n                                      }))",
+      "labelExpression": "t('modals.lensCorrection.amount')",
+      "minimum": 0,
+      "maximum": 200,
+      "step": 1,
+      "adjustmentKeys": ["lensDistortionAmount"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1550,
+      "valueExpression": "adjustments.lensTcaAmount ?? 100",
+      "changeExpression": "(e) =>\n                                      setAdjustments((prev) => ({\n                                        ...prev,\n                                        lensTcaAmount: Number(e.target.value),\n                                      }))",
+      "labelExpression": "t('modals.lensCorrection.amount')",
+      "minimum": 0,
+      "maximum": 200,
+      "step": 1,
+      "adjustmentKeys": ["lensTcaAmount"]
+    },
+    {
+      "source": "src/components/panel/right/CropPanel.tsx",
+      "line": 1593,
+      "valueExpression": "adjustments.lensVignetteAmount ?? 100",
+      "changeExpression": "(e) =>\n                                      setAdjustments((prev) => ({\n                                        ...prev,\n                                        lensVignetteAmount: Number(e.target.value),\n                                      }))",
+      "labelExpression": "t('modals.lensCorrection.amount')",
+      "minimum": 0,
+      "maximum": 200,
+      "step": 1,
+      "adjustmentKeys": ["lensVignetteAmount"]
+    },
+    {
+      "source": "src/components/ui/ColorWheel.tsx",
+      "line": 270,
+      "valueExpression": "hue",
+      "changeExpression": "handleHueChange",
+      "labelExpression": "t('ui.colorWheel.hue')",
+      "minimum": 0,
+      "maximum": 360,
+      "step": 1,
+      "adjustmentKeys": [
+        "colorGrading.global.hue",
+        "colorGrading.highlights.hue",
+        "colorGrading.midtones.hue",
+        "colorGrading.shadows.hue"
+      ]
+    },
+    {
+      "source": "src/components/ui/ColorWheel.tsx",
+      "line": 285,
+      "valueExpression": "saturation",
+      "changeExpression": "handleSaturationChange",
+      "labelExpression": "t('ui.colorWheel.saturation')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": [
+        "colorGrading.global.saturation",
+        "colorGrading.highlights.saturation",
+        "colorGrading.midtones.saturation",
+        "colorGrading.shadows.saturation"
+      ]
+    },
+    {
+      "source": "src/components/ui/ColorWheel.tsx",
+      "line": 304,
+      "valueExpression": "luminance",
+      "changeExpression": "handleLumChange",
+      "labelExpression": "isExpanded ? t('ui.colorWheel.luminance') : <Sun size={16} className=\"text-text-secondary\" />",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": [
+        "colorGrading.global.luminance",
+        "colorGrading.highlights.luminance",
+        "colorGrading.midtones.luminance",
+        "colorGrading.shadows.luminance"
+      ]
+    }
+  ]
+}
