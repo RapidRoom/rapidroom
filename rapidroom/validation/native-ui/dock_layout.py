@@ -26,7 +26,7 @@ def run_layout_checks(case, smoke):
             r.width=Math.max(0,r.right-r.left);r.height=Math.max(0,r.bottom-r.top);return r};
           const intersects=(a,b)=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>1 && Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1;
           const terminal=document.querySelector('[data-terminal-panel]'),screen=terminal.querySelector('[data-terminal-screen]');
-          const toolbar=[...document.querySelectorAll('div.shrink-0.h-12.flex.items-center.justify-between.px-3')].find(visible);
+          const toolbar=[...document.querySelectorAll('div.shrink-0.h-12.flex.items-center.justify-between.px-3')].filter(visible).sort((a,b)=>rect(b).top-rect(a).top)[0];
           if(!toolbar||!screen)throw Error('Layout bounds missing');
           const dock=terminal.closest('[data-layout-region]'),dockRect=rect(dock),bar=rect(toolbar),violations=[];
           if(intersects(bar,dockRect))violations.push('toolbar overlaps dock');
@@ -46,11 +46,12 @@ def run_layout_checks(case, smoke):
             if(viewport.width<=0||viewport.height<=0)violations.push('editor viewport collapsed');
             if(intersects(viewport,bar)||intersects(viewport,dockRect))violations.push('editor viewport overlaps chrome');
           }
-          const header=document.querySelector('[data-terminal-header]');
+          const header=document.querySelector('[data-terminal-header]'),switcher=header?.querySelector('[data-layout-tab]')?.parentElement;
           const headerHeight=rect(screen).top-(arguments[1]==='bottom'?dockRect.top+4:rect(terminal).top);
           return {view:arguments[0],region:arguments[1],requested_size:arguments[2],viewport,toolbar:bar,dock:dockRect,
             terminal:rect(terminal),resized_bounds:rect(arguments[1]==='bottom'?dock:terminal.closest('[data-side-panel]')),header_height:headerHeight,header:header?rect(header):null,painted_thumbnails:painted,violations,
             controls:header?[...header.querySelectorAll('button')].filter(e=>!e.closest('[role=tablist]')).map(e=>({label:e.getAttribute('aria-label')||e.getAttribute('data-tooltip'),bounds:rect(e)})):[],
+            switcher:switcher?{bounds:rect(switcher),scroll_top:switcher.scrollTop,scroll_height:switcher.scrollHeight,client_height:switcher.clientHeight,indicator_transform:getComputedStyle(switcher.querySelector('[data-layout-tab] > div')||switcher).transform}:null,
             agent_labels:header?[...header.querySelectorAll('[data-start-agent] span')].map(e=>({text:e.textContent,visible:rect(e).width>0})):[]};
         """, [view, region, size])
         name=f'dock-{view}-{region}-{index}-{size}'
@@ -84,6 +85,15 @@ def run_layout_checks(case, smoke):
             smoke.execute("const e=document.querySelector(arguments[0]);if(!e)throw Error('Resize control missing');e.focus();e.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,key:arguments[1]}));return true;",[selector,key])
             time.sleep(0.02)
         time.sleep(0.7)
+        last=None
+        since=time.monotonic()
+        def stable_header():
+            nonlocal last,since
+            bounds=smoke.execute("return [...document.querySelectorAll('[data-terminal-header] button')].map(e=>{const r=e.getBoundingClientRect();return [r.left,r.top,r.right,r.bottom].map(v=>Math.round(v*10)/10)});")
+            if bounds!=last:
+                last=bounds;since=time.monotonic();return False
+            return time.monotonic()-since>=0.4
+        wait_for(stable_header,'header layout settles after resize',10)
 
     for view in ('library','editor'):
         if view=='editor':
