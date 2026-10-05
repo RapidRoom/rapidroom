@@ -74,11 +74,11 @@ def run_crop_checks(case, smoke, baseline):
     # The library's actual keyboard handler commits this corner resize once.
     smoke.execute("const e=document.querySelector('.ReactCrop [data-ord=se]');e.focus();e.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'ArrowLeft',ctrlKey:true}));return true;")
     changed = wait_for(lambda: (value if (value := state())["editRevision"] != initial["editRevision"] else None), "real crop changes revision")
-    changed_history = history()
     crop = changed["adjustments"]["crop"]
     if not crop or crop["width"] >= 4608 or crop["height"] >= 3072:
         raise RuntimeError("Actual corner resize did not crop the photo")
     expected_index = initial_history["historyIndex"] + 1
+    changed_history = wait_for(lambda: (value if (value := history())["historyIndex"] == expected_index else None), "debounced real crop history step")
     if changed_history["historyIndex"] != expected_index or len(changed_history["entries"]) != expected_index + 1:
         raise RuntimeError("Real crop did not record exactly one history step")
     entry = changed_history["entries"][expected_index]
