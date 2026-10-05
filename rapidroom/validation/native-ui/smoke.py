@@ -192,9 +192,10 @@ class Smoke:
         points = self.execute("""const a=document.querySelector('[data-tab-id=layout-tab-terminal]'),
           b=document.querySelector('[data-layout-region="'+arguments[0]+'"]');
           if(!a||!b)throw Error('Dock target missing');const r=a.getBoundingClientRect(),s=b.getBoundingClientRect();
-          // Bottom-positioned sidebar tabs offer the upper half as the empty lower region.
-          // Aim below that split overlay to retain the existing top region.
-          const y=arguments[0].endsWith('Top') ? s.top+s.height*0.75 : s.top+s.height/2;
+          // The empty split overlay depends on the existing switcher's placement.
+          const switcher=b.querySelector('[data-layout-tab]')?.parentElement;
+          const tabsAtBottom=switcher?.classList.contains('border-t');
+          const y=arguments[0].endsWith('Top') ? s.top+s.height*(tabsAtBottom?0.75:0.25) : s.top+s.height/2;
           return [r.left+r.width/2,r.top+r.height/2,s.left+s.width/2,y];""", [region])
         self.execute("""const e=document.querySelector('[data-tab-id=layout-tab-terminal]');
           e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,
