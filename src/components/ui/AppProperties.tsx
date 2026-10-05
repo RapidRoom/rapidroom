@@ -246,6 +246,7 @@ export interface AppSettings {
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
   adjustmentLayout?: AdjustmentLayout;
+  adjustmentDensity?: 'comfortable' | 'compact';
   enableFolderImageCounts?: boolean;
   displayEditIcon?: boolean;
   linearRawMode?: string;
