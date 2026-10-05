@@ -1,0 +1,38 @@
+name: MCP stdio client
+
+on:
+  pull_request:
+    paths:
+      - 'rapidroom/mcp-client/**'
+      - '.github/workflows/mcp-client.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'rapidroom/mcp-client/**'
+      - '.github/workflows/mcp-client.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  client:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: rapidroom/mcp-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: '1.98.1'
+      - run: cargo fmt -- --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked
+      - name: CLI arguments never launch the GUI
+        run: |
+          cargo run --locked -- --help
+          if target/debug/rapidroom-mcp-stdio --unknown-argument; then
+            echo 'Unknown argument unexpectedly succeeded'
+            exit 1
+          fi

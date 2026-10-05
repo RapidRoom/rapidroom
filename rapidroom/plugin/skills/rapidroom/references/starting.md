@@ -11,7 +11,13 @@ npm run start:mcp                        # development: tauri dev -- --features 
 npm run tauri build -- --features mcp    # a release build with MCP
 ```
 
-Release packages don't include it yet. While the app runs, it listens on `http://127.0.0.1:7790/mcp` (see [tools.md](tools.md)). If the tools don't show up in the assistant: is RapidRoom running, is it an `mcp` build, and is the port 7790 (otherwise set `RAPIDRAW_MCP_PORT` for both)?
+Release packages don't include it yet. Build the separate `rapidroom-mcp-stdio` adapter and put it on `PATH` (or configure its absolute path):
+
+```sh
+cargo build --manifest-path rapidroom/mcp-client/Cargo.toml --release --locked
+```
+
+The adapter reads the private per-user endpoint file and authenticates to the running editor. It discovers the actual port automatically; no endpoint or bearer token belongs in the assistant configuration. See [MCP.md](../../../../MCP.md) for the full configuration and security notes. If tools are missing, check that the app is running with `mcp` enabled and that the adapter is installed. Restart the assistant's MCP connection after restarting the editor.
 
 ## 2. The assistant
 
@@ -27,12 +33,12 @@ Or, from a RapidRoom checkout, for one session: `claude --plugin-dir rapidroom/p
 **Codex**: connect the server and give Codex the skill.
 
 ```sh
-codex mcp add rapidroom --url http://127.0.0.1:7790/mcp
+codex mcp add rapidroom -- rapidroom-mcp-stdio
 mkdir -p ~/.agents/skills
 ln -s "$PWD/rapidroom/plugin/skills/rapidroom" ~/.agents/skills/rapidroom
 ```
 
-The [official Codex skills documentation](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) documents user skills in `~/.agents/skills` and supports symlinked folders. Older installations may also use `~/.codex/skills`; use the location supported by your installed version. The [official MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) covers server registration; the HTTP command above was checked with Codex CLI 0.159.3.
+The [official Codex skills documentation](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) documents user skills in `~/.agents/skills` and supports symlinked folders. Older installations may also use `~/.codex/skills`; use the location supported by your installed version. The [official MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) covers server registration; the stdio configuration was checked with real Claude Code 2.1.289 and Codex CLI 0.160.0 editing a CC0 photo in the native editor. Add `env_vars = ["XDG_CONFIG_HOME"]` under `[mcp_servers.rapidroom]` when using a custom XDG config directory, so Codex forwards that standard directory variable to the adapter. No bearer or endpoint environment variable is needed.
 
 If your Codex doesn't load skills, merge the guidance in `rapidroom/plugin/codex/AGENTS.md` into the photo folder's `AGENTS.md` (or `~/.codex/AGENTS.md`) and fix its checkout path. Preserve any existing instructions in that file.
 

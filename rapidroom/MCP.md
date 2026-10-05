@@ -13,7 +13,7 @@ npm run start:mcp                        # tauri dev -- --features mcp
 npm run tauri build -- --features mcp    # release build
 ```
 
-While the app is running, its HTTP listener binds to `127.0.0.1:7790` (or the next ten ports). `RAPIDRAW_MCP_PORT` pins a port and fails if it is occupied. Each app start creates a fresh random 256-bit bearer token. The URL, token and negotiated protocol hint are atomically written to `mcp-endpoint.json` in the app's per-user config directory, with mode 0600 on Unix. Publishing the endpoint must succeed before the listener accepts requests.
+While the app is running, its HTTP listener binds to `127.0.0.1:7790` (or the next ten ports). `RAPIDRAW_MCP_PORT` pins a port and fails if it is occupied. Each app start creates a fresh random 256-bit bearer token. The URL, token and supported protocol hint are atomically written to `mcp-endpoint.json` in the app's per-user config directory, with mode 0600 on Unix. Publishing the endpoint must succeed before the listener accepts requests.
 
 Build the separate adapter alongside the MCP-enabled app:
 
@@ -46,6 +46,7 @@ Codex configuration (`~/.codex/config.toml`):
 ```toml
 [mcp_servers.rapidroom]
 command = "rapidroom-mcp-stdio"
+env_vars = ["XDG_CONFIG_HOME"]
 ```
 
 Equivalent command:
@@ -53,6 +54,8 @@ Equivalent command:
 ```sh
 codex mcp add rapidroom -- rapidroom-mcp-stdio
 ```
+
+Codex filters the environment it passes to stdio children. The `env_vars` entry forwards the standard config-directory variable when set; it contains no credentials and needs no endpoint-specific variable. See the [official MCP environment forwarding documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli). If you register the command with `codex mcp add`, retain that `env_vars` entry for a custom XDG directory.
 
 Both clients use the same tools and running editor as authenticated HTTP clients. The plugin MCP configuration also uses this adapter. The optional thin `rapidroom-agent` command-line interface is not implemented in this change.
 

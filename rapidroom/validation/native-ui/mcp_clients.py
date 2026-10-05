@@ -153,6 +153,7 @@ def run_client_checks(case, smoke):
             command = [binary, "exec", "--ignore-user-config", "--ignore-rules", "--ephemeral",
                        "--skip-git-repo-check", "--sandbox", "read-only", "--json", "--color", "never",
                        "-c", 'approval_policy="never"', "-c", "mcp_servers.rapidroom.command=" + json.dumps(adapter),
+                       "-c", 'mcp_servers.rapidroom.env_vars=["XDG_CONFIG_HOME"]',
                        "-c", "mcp_servers.rapidroom.enabled_tools=" + json.dumps(allowed),
                        "-c", 'mcp_servers.rapidroom.required=true',
                        "-c", 'mcp_servers.rapidroom.default_tools_approval_mode="auto"']

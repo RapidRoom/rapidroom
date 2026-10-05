@@ -5,14 +5,14 @@
       "id": "mcp-auth-stdio",
       "title": "Authenticate local MCP requests and connect Claude Code/Codex through a separate stdio adapter",
       "category": "privacy",
-      "landed": "2026-10-04",
+      "landed": "2026-10-05",
       "authors": ["yojen7"],
       "source": "rapidroom (fresh code; design ideas from 1tuz, Irvingouj and ssarangi; AI-assisted)",
       "commits": [],
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Only with feature mcp: fresh per-start token, atomic private endpoint file (0600 on Unix), fixed-size constant-time SHA-256 verification, and a separate GUI-free rapidroom-mcp-stdio adapter with automatic per-user discovery. No copied adapter code or additional filesystem tools. Default build remains feature-off. Native client and release regression validation pending."
+      "notes": "Only with feature mcp: fresh per-start token, atomic private endpoint file (0600 on Unix), fixed-size constant-time SHA-256 verification, and a separate GUI-free rapidroom-mcp-stdio adapter with automatic per-user discovery. No copied adapter code or additional filesystem tools. Default build remains feature-off. Strict all-feature Clippy, 331 MCP Rust tests, 134 frontend tests and three standalone security tests pass. Real Claude Code 2.1.289 and Codex 0.160.0 discover and edit through stdio in the Linux native harness; missing/wrong tokens return 401 and authenticated Origin requests return 403. Codex forwards XDG_CONFIG_HOME explicitly. Default dependency graph and frontend type diagnostics are unchanged; pixel regression results are recorded in the PR."
     },
     {
       "id": "mcp-server",

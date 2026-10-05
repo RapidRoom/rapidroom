@@ -89,10 +89,10 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 ### Authenticate local MCP requests and connect Claude Code/Codex through a separate stdio adapter
 
 - **Type:** privacy
-- **Landed in RapidRoom:** 2026-10-04
+- **Landed in RapidRoom:** 2026-10-05
 - **By:** [@yojen7](https://github.com/yojen7), from rapidroom (fresh code; design ideas from 1tuz, Irvingouj and ssarangi; AI-assisted)
 - **Upstream:** not yet offered
-- **Notes:** Only with feature mcp: fresh per-start token, atomic private endpoint file (0600 on Unix), fixed-size constant-time SHA-256 verification, and a separate GUI-free rapidroom-mcp-stdio adapter with automatic per-user discovery. No copied adapter code or additional filesystem tools. Default build remains feature-off. Native client and release regression validation pending.
+- **Notes:** Only with feature mcp: fresh per-start token, atomic private endpoint file (0600 on Unix), fixed-size constant-time SHA-256 verification, and a separate GUI-free rapidroom-mcp-stdio adapter with automatic per-user discovery. No copied adapter code or additional filesystem tools. Default build remains feature-off. Strict all-feature Clippy, 331 MCP Rust tests, 134 frontend tests and three standalone security tests pass. Real Claude Code 2.1.289 and Codex 0.160.0 discover and edit through stdio in the Linux native harness; missing/wrong tokens return 401 and authenticated Origin requests return 403. Codex forwards XDG_CONFIG_HOME explicitly. Default dependency graph and frontend type diagnostics are unchanged; pixel regression results are recorded in the PR.
 
 ### Optional MCP server (cargo feature `mcp`, off by default): AI agents can open images, read and change adjustments, render previews, read the histogram and export through the running editor
 
