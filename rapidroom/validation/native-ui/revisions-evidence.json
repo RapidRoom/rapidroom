@@ -1,0 +1,144 @@
+{
+  "issue": 148,
+  "platform": "Linux / Weston headless GL / native WebKit driver",
+  "fixture": "published CC0 Sony ARW, 4608\u00d73072",
+  "real_model_requests": true,
+  "source": {
+    "head": "4f74fb66bb0e9b09e3b0e16ab2183ec8294d0789",
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": ""
+  },
+  "engine_sha256": "17a2523da7f05dd494f0b67470b193cac62d0ba6b05940ff23bfdd0f240fc13a",
+  "stdio_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
+  "native_steps_passed": 14,
+  "normal_preview_edit_exact_undo_compact_jpeg_clean_exit": true,
+  "authenticated_endpoint_discovery": {
+    "wire_protocols": {
+      "2025-06-18": {
+        "tools": 21,
+        "ttlMs": 0,
+        "cacheScope": "private",
+        "state_read": true
+      },
+      "2026-07-28": {
+        "tools": 21,
+        "ttlMs": 0,
+        "cacheScope": "private",
+        "state_read": true
+      }
+    },
+    "clients": {},
+    "unauthenticated_and_wrong_token_refused": true,
+    "endpoint_mode": "0600",
+    "authenticated_origin_refused": true,
+    "transport": "stdio with automatic per-user endpoint discovery"
+  },
+  "clients": {
+    "claude": {
+      "context": {
+        "version": "2.1.289 (Claude Code)",
+        "editRevision": "b8f3789645797c1eb6b2029e88e08e7e3fe641fd633bfde029bcabff6da01a5c",
+        "appVersion": "2.2.0",
+        "sourceCommit": "4f74fb66bb0e9b09e3b0e16ab2183ec8294d0789",
+        "sourceDirty": false
+      },
+      "gui_exposure_before": 0,
+      "gui_exposure_after": 0.6,
+      "advisory_reads_latest": ["get_preview", "analyze", "sample_region", "render_region", "render_compare"],
+      "stale_fresh_results_and_rendered_payloads_equal": true,
+      "old_preview_differs_after_gui_edit": true,
+      "original_custom_edit_revision_correct": true,
+      "structured_conflict": {
+        "actor": "user",
+        "changedKeys": ["exposure"],
+        "changesKnown": true,
+        "currentRevision": "604cced650e908aa7784e7d9709465f941c39875b56abdd1e6149f3e14ebfa9a",
+        "error": "revision_conflict",
+        "expectedRevision": "b8f3789645797c1eb6b2029e88e08e7e3fe641fd633bfde029bcabff6da01a5c",
+        "message": "Editor changed; retry with the current state."
+      },
+      "all_stale_mutations_refused": [
+        "update_adjustments",
+        "set_adjustments",
+        "reset_adjustments",
+        "undo",
+        "redo",
+        "apply_auto_adjustments"
+      ],
+      "actual_client_calls": [
+        "get_preview",
+        "analyze",
+        "sample_region",
+        "render_region",
+        "render_compare",
+        "update_adjustments"
+      ],
+      "literal_stale_revision_preserved": true,
+      "state_revision_history_sidecar_bytes_and_mtime_unchanged": true,
+      "capture_sha256": "0b5854628e588919130f5ffb1887e912056773cb05de8acdaee62b8bb1c7efe5",
+      "capture_visually_inspected": true
+    },
+    "codex": {
+      "context": {
+        "version": "codex-cli 0.160.0",
+        "editRevision": "604cced650e908aa7784e7d9709465f941c39875b56abdd1e6149f3e14ebfa9a",
+        "appVersion": "2.2.0",
+        "sourceCommit": "4f74fb66bb0e9b09e3b0e16ab2183ec8294d0789",
+        "sourceDirty": false
+      },
+      "gui_exposure_before": 0.6,
+      "gui_exposure_after": 1.2,
+      "advisory_reads_latest": ["get_preview", "analyze", "sample_region", "render_region", "render_compare"],
+      "stale_fresh_results_and_rendered_payloads_equal": true,
+      "old_preview_differs_after_gui_edit": true,
+      "original_custom_edit_revision_correct": true,
+      "structured_conflict": {
+        "actor": "user",
+        "changedKeys": ["exposure"],
+        "changesKnown": true,
+        "currentRevision": "5621715f5ac593bc9403e1d28480198803d09b1d2e51911df13212ae17dfa4e6",
+        "error": "revision_conflict",
+        "expectedRevision": "604cced650e908aa7784e7d9709465f941c39875b56abdd1e6149f3e14ebfa9a",
+        "message": "Editor changed; retry with the current state."
+      },
+      "all_stale_mutations_refused": [
+        "update_adjustments",
+        "set_adjustments",
+        "reset_adjustments",
+        "undo",
+        "redo",
+        "apply_auto_adjustments"
+      ],
+      "actual_client_calls": [
+        "get_preview",
+        "analyze",
+        "sample_region",
+        "render_region",
+        "render_compare",
+        "update_adjustments"
+      ],
+      "literal_stale_revision_preserved": true,
+      "state_revision_history_sidecar_bytes_and_mtime_unchanged": true,
+      "capture_sha256": "4251b388a3732b3c58217f972aa448a9ff033a5a8b0311b185710d17002ed2f4",
+      "capture_visually_inspected": true
+    }
+  },
+  "source_guards": {
+    "fixture_unchanged": true,
+    "engine_unchanged": true
+  },
+  "startup_retry": "First driver script timed out on welcome screen before any step. Same pinned application passed in a fresh case.",
+  "incremental_identity_probe": {
+    "old_stale_dirty_flag_reproduced": true,
+    "revised_clean_rust_edit_frontend_edit_revert_and_head_checks_pass": true,
+    "receipt_sha256": "781de2c4398bb446899e82b63956719bd4b28b24f04710deb7027d38aaa60fbf"
+  },
+  "later_source_changes": "Build-script tracking now watches all tracked files so incremental Rust/frontend edits refresh compiled dirty status; application behavior was validated at the pinned source above.",
+  "photos_captures_and_client_logs": "Retained only in owned samples/readonly-revisions-148; not committed.",
+  "untested": [
+    "Physical input devices",
+    "Windows/macOS",
+    "Native evicted-history and mid-render concurrency",
+    "Git archive identity"
+  ]
+}

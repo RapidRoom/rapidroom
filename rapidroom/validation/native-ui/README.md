@@ -210,3 +210,20 @@ An evicted/unknown expected revision returns `changedKeys: null` with
 every change since an arbitrary revision. A change during rendering retains
 the read guard with structured conflict details. Source commit/dirty fields
 are compiled for MCP builds; archives without Git report unknown identity.
+
+[revisions-evidence.json](revisions-evidence.json) records the 14-step Linux pass
+from clean pinned source `4f74fb66`. Claude Code 2.1.289 and Codex CLI 0.160.0
+each read context in one turn, then sent the literal stale revision to all
+five reads and one update after GUI Exposure edits (0→0.6 and 0.6→1.2). All
+reads matched fresh results/payloads; every stale mutation was refused with
+the latest revision, `exposure` and `user`. State, history and sidecar bytes/mtime
+were unchanged across reads/refusal. Original/custom previews separated edit
+and recipe identity. Both GUI captures were visually inspected, and the
+normal smoke and clean exit passed. An initial driver timeout before any step
+is retained; the same application passed in a fresh case.
+
+A later build-script tracking correction watches tracked Rust/frontend files
+as well as Git HEAD/ref, so incremental edits refresh the compiled dirty flag.
+An isolated Cargo/Git probe reproduces the old stale flag and checks clean,
+Rust/frontend edits, reversion and a new HEAD against the actual helper.
+Native behavior above was tested before this metadata tracking correction.

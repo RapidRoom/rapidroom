@@ -92,6 +92,17 @@ fn source_identity(manifest_dir: &Path) {
             );
         }
     }
+    if let (Some(root), Some(files)) = (
+        git(&["rev-parse", "--show-toplevel"]),
+        git(&["ls-files", "--full-name", "-z", "--", ":/"]),
+    ) {
+        for file in files.split('\0').filter(|file| !file.is_empty()) {
+            println!(
+                "cargo:rerun-if-changed={}",
+                Path::new(&root).join(file).display()
+            );
+        }
+    }
     for reference in
         std::iter::once("HEAD".to_string()).chain(git(&["symbolic-ref", "--quiet", "HEAD"]))
     {
