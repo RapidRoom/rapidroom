@@ -142,3 +142,5 @@ These RapidRAW forks have work we'd like to harvest (with credit) or coordinate 
 - [cl1x/RapidRAW](https://github.com/cl1x/RapidRAW): Immich integration
 
 Native Linux UI smoke harness: yojen7, with Codex. Its optional embedded driver is `tauri-plugin-wdio-webdriver` 1.4.0, © 2024 WebdriverIO Community, MIT, from [webdriverio/desktop-mobile](https://github.com/webdriverio/desktop-mobile). The published crate retains its MIT licence notice.
+
+Authenticated MCP endpoint and separate stdio client: original implementation by yojen7, with Codex. Design ideas from 1tuz (stdio adapter and hashed bearer verification, commit `65983e758c40829e0ad61a6664a783fac04d5790`), Irvingouj (optional command shape, commit `69a001d91548c30a1a78aab74c278b5159c4bfec`) and ssarangi (separate-binary pattern). No code was copied from those sources. The existing MCP SDK and original cgasgarth server authorship are retained. Constant-time hash comparison uses the existing `subtle` 2.6.1 crate (BSD-3-Clause).

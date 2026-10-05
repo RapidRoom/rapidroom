@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "mcp-auth-stdio",
+      "title": "Authenticate local MCP requests and connect Claude Code/Codex through a separate stdio adapter",
+      "category": "privacy",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom (fresh code; design ideas from 1tuz, Irvingouj and ssarangi; AI-assisted)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Only with feature mcp: fresh per-start token, atomic private endpoint file (0600 on Unix), fixed-size constant-time SHA-256 verification, and a separate GUI-free rapidroom-mcp-stdio adapter with automatic per-user discovery. No copied adapter code or additional filesystem tools. Default build remains feature-off. Native client and release regression validation pending."
+    },
+    {
       "id": "mcp-server",
       "title": "Optional MCP server (cargo feature `mcp`, off by default): AI agents can open images, read and change adjustments, render previews, read the histogram and export through the running editor",
       "category": "feature",
@@ -20,7 +33,7 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Only in builds with `--features mcp`. Listens on 127.0.0.1:7790 without authentication while the app runs; requests from browsers are refused. The default build has no MCP code and no listener. Comparison with sheldonxxxx's headless MCP and the security notes are in rapidroom/MCP.md. Local review hardens chunked-body length bounds and terminators, discards consumed framing buffers, and adds frontend regression tests for first-photo opening, pending GUI history, no-op edits, reset undo and slow previews. Local follow-up prevents mirroring a newly selected photo under a pending command’s old path; seven bridge tests cover no-op/reset/history/timeout/photo-switch behavior. Tool discovery supplies the required 2026-07-28 cache hints (zero TTL, private scope) and completed tool calls include resultType=complete so current clients validate the response. The optional Linux native harness can run installed Claude Code and Codex clients against an owned photo and require real editing calls, revision/slider/preview changes, and valid discovery at both 2025-06-18 and 2026-07-28."
+      "notes": "Only in builds with `--features mcp`. Listens on authenticated 127.0.0.1:7790 while the app runs; requests from browsers are refused. The separate stdio adapter discovers the private per-user endpoint. The default build has no MCP code and no listener. Comparison with sheldonxxxx's headless MCP and the security notes are in rapidroom/MCP.md. Local review hardens chunked-body length bounds and terminators, discards consumed framing buffers, and adds frontend regression tests for first-photo opening, pending GUI history, no-op edits, reset undo and slow previews. Local follow-up prevents mirroring a newly selected photo under a pending command’s old path; seven bridge tests cover no-op/reset/history/timeout/photo-switch behavior. Tool discovery supplies the required 2026-07-28 cache hints (zero TTL, private scope) and completed tool calls include resultType=complete so current clients validate the response. The optional Linux native harness can run installed Claude Code and Codex clients against an owned photo and require real editing calls, revision/slider/preview changes, and valid discovery at both 2025-06-18 and 2026-07-28."
     },
     {
       "id": "orf-scoped-image-processing",
