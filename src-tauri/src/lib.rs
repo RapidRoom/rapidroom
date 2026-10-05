@@ -39,6 +39,7 @@ mod dcp;
 mod denoising;
 mod exif_processing;
 mod export_processing;
+mod export_recipes;
 mod file_management;
 mod file_naming;
 mod focus_stacking;
@@ -46,6 +47,8 @@ mod formats;
 mod gpu_processing;
 mod guided_perspective;
 mod hdr_deghosting;
+#[cfg(test)]
+mod hdr_fixtures;
 mod image_loader;
 mod image_processing;
 mod inpainting;
@@ -58,6 +61,7 @@ mod lut_processing;
 mod mask_generation;
 mod multi_exposure;
 mod negative_conversion;
+mod output_sharpening;
 mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
@@ -65,6 +69,7 @@ mod preset_converter;
 mod raw_processing;
 mod tagging;
 mod tagging_utils;
+mod terminal;
 #[cfg(test)]
 mod test_support;
 mod tree_denoise;
@@ -2363,6 +2368,7 @@ pub fn run() {
             export_processing::export_images,
             export_processing::cancel_export,
             export_processing::estimate_export_sizes,
+            export_recipes::get_export_recipes,
             image_processing::calculate_auto_adjustments,
             image_processing::sample_white_balance,
             mask_generation::generate_mask_overlay,
@@ -2388,6 +2394,7 @@ pub fn run() {
             file_management::generate_export_filename,
             file_management::duplicate_file,
             file_management::show_in_finder,
+            terminal::open_terminal_here,
             file_management::delete_files_from_disk,
             file_management::delete_files_with_associated,
             file_management::save_metadata_and_update_thumbnail,

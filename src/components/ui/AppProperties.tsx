@@ -74,6 +74,7 @@ export enum Invokes {
   GetPinnedFolderTrees = 'get_pinned_folder_trees',
   GetSupportedFileTypes = 'get_supported_file_types',
   HandleExportPresetsToFile = 'handle_export_presets_to_file',
+  GetExportRecipes = 'get_export_recipes',
   HandleImportPresetsFromFile = 'handle_import_presets_from_file',
   HandleImportPresetsFromFiles = 'handle_import_presets_from_files',
   HandleImportLegacyPresetsFromFile = 'handle_import_legacy_presets_from_file',
@@ -91,6 +92,7 @@ export enum Invokes {
   LoadSettings = 'load_settings',
   PreviewRenameFiles = 'preview_rename_files',
   MoveFiles = 'move_files',
+  OpenTerminalHere = 'open_terminal_here',
   ReadExifForPaths = 'read_exif_for_paths',
   RemoveTagForPaths = 'remove_tag_for_paths',
   RenameFiles = 'rename_files',
@@ -245,6 +247,7 @@ export interface AppSettings {
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
   adjustmentLayout?: AdjustmentLayout;
+  adjustmentDensity?: 'comfortable' | 'compact';
   enableFolderImageCounts?: boolean;
   displayEditIcon?: boolean;
   linearRawMode?: string;

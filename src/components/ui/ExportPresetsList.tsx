@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { v4 as uuidv4 } from 'uuid';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Save, X, Check } from 'lucide-react';
 import { ExportPreset } from './ExportImportProperties';
-import { AppSettings } from './AppProperties';
+import { AppSettings, Invokes } from './AppProperties';
 import Dropdown from './Dropdown';
 import Text from './Text';
 import { TextVariants } from '../../types/typography';
@@ -26,11 +27,18 @@ export default function ExportPresetsList({
   const [newPresetName, setNewPresetName] = useState('');
   const [selectedPresetId, setSelectedPresetId] = useState<string>('');
   const [isSaved, setIsSaved] = useState(false);
+  const [recipes, setRecipes] = useState<ExportPreset[]>([]);
   const presets = appSettings?.exportPresets || [];
+
+  useEffect(() => {
+    invoke<ExportPreset[]>(Invokes.GetExportRecipes)
+      .then(setRecipes)
+      .catch((err) => console.error('Failed to load export recipes:', err));
+  }, []);
 
   const handleSelect = (id: string) => {
     setSelectedPresetId(id);
-    const preset = presets.find((p) => p.id === id);
+    const preset = [...presets, ...recipes].find((p) => p.id === id);
     if (preset) {
       onApplyPreset(preset);
     }
@@ -55,7 +63,7 @@ export default function ExportPresetsList({
     setNewPresetName('');
   };
 
-  const isDefault = selectedPresetId.startsWith('default-');
+  const isDefault = selectedPresetId.startsWith('default-') || selectedPresetId.startsWith('recipe-');
 
   const handleOverwritePreset = () => {
     if (!selectedPresetId || isDefault || !appSettings) return;
@@ -89,12 +97,10 @@ export default function ExportPresetsList({
     setSelectedPresetId('');
   };
 
-  const dropdownOptions = presets
-    .filter((preset) => preset.id !== '__last_used__')
-    .map((preset) => ({
-      label: preset.name,
-      value: preset.id,
-    }));
+  const dropdownOptions = [...presets.filter((preset) => preset.id !== '__last_used__'), ...recipes].map((preset) => ({
+    label: preset.name,
+    value: preset.id,
+  }));
 
   return (
     <div className="mb-8">

@@ -1,0 +1,20 @@
+{
+  "main_base": "a2a4f147",
+  "baseline": "baseline-int7",
+  "fmt": 0,
+  "clippy": 0,
+  "test-lib": 0,
+  "vitest": 0,
+  "status-check": 0,
+  "build": 0,
+  "engine-sha256": "d0a5b919b0f55e6d5d067a98b486eef7477971095cd5fb3d4efc268da17b6a20",
+  "validated-commit": "64a2d62c3c146f51d5130750dab828f7ad3e7590",
+  "validated-tree": "2bd6915ff6e40a60e8263703b1fea1c3d142aedc",
+  "validated-rust-tree": "ab9d4e9f59f652a5a5e8b5b9132ee87fe28286dd",
+  "private-pair": 0,
+  "render": 0,
+  "compare": 0,
+  "complete": true,
+  "rawler_test": 0,
+  "private_figure": 0
+}

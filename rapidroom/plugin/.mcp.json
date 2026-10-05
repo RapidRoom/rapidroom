@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rapidroom": {
+      "type": "http",
+      "url": "http://127.0.0.1:${RAPIDRAW_MCP_PORT:-7790}/mcp"
+    }
+  }
+}

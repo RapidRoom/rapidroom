@@ -1,4 +1,4 @@
-use crate::image_processing::apply_orientation;
+use crate::image_processing::{Crop, apply_orientation};
 use anyhow::{Result, anyhow};
 use image::{DynamicImage, ImageBuffer, Rgba};
 use rawler::{
@@ -174,6 +174,11 @@ fn develop_internal(
         ..Default::default()
     };
     let mut raw_image: RawImage = decoder.raw_image(&source, &decode_params, false)?;
+
+    // Retain the full recommended sensor image for editable camera aspect crops.
+    if let Some(default_area) = raw_image.default_crop_area {
+        raw_image.crop_area = Some(default_area);
+    }
 
     let orientation = metadata_orientation(decoder.as_ref(), &source)?;
     drop(decode_span);
@@ -472,5 +477,152 @@ mod tests {
         for case in cases {
             assert_eq!(get_raw_dimensions(case), None);
         }
+    }
+}
+
+fn oriented_camera_crop(
+    crop: rawler::imgop::Rect,
+    base: rawler::imgop::Rect,
+    orientation: Orientation,
+) -> Crop {
+    let mut x = crop.p.x - base.p.x;
+    let mut y = crop.p.y - base.p.y;
+    let (mut width, mut height) = (crop.d.w, crop.d.h);
+    let (transpose, flip_x, flip_y) = orientation.to_flips();
+    if flip_x {
+        x = base.d.w - x - width;
+    }
+    if flip_y {
+        y = base.d.h - y - height;
+    }
+    if transpose {
+        std::mem::swap(&mut x, &mut y);
+        std::mem::swap(&mut width, &mut height);
+    }
+    Crop {
+        x: x as f64,
+        y: y as f64,
+        width: width as f64,
+        height: height as f64,
+    }
+}
+
+/// Camera aspect crop in the full developed image's oriented pixel coordinates.
+/// Dummy decoding reads metadata without developing the sensor pixels.
+pub fn camera_crop_from_bytes(file_bytes: &[u8]) -> Option<Crop> {
+    let source = RawSource::new_from_slice(file_bytes);
+    let decoder = rawler::get_decoder(&source).ok()?;
+    let raw_image = decoder
+        .raw_image(&source, &RawDecodeParams::default(), true)
+        .ok()?;
+    let mut base = raw_image.default_crop_area?;
+    if let Some(active) = raw_image.active_area {
+        base = base.intersection(&active);
+    }
+    let crop = raw_image.crop_area?;
+    let orientation = metadata_orientation(decoder.as_ref(), &source).ok()?;
+    Some(oriented_camera_crop(crop, base, orientation))
+}
+
+pub fn apply_camera_crop_default(adjustments: &mut serde_json::Value, crop: Option<Crop>) {
+    // An explicit crop (including null for the full frame) always wins.
+    if adjustments.get("crop").is_some() {
+        return;
+    }
+    let Some(crop) = crop else {
+        return;
+    };
+    if adjustments.is_null() {
+        *adjustments = serde_json::json!({});
+    }
+    if let Some(object) = adjustments.as_object_mut() {
+        object.insert("crop".into(), serde_json::json!(crop));
+        object
+            .entry("aspectRatio")
+            .or_insert_with(|| serde_json::json!(crop.width / crop.height));
+    }
+}
+
+pub fn apply_camera_crop_default_from_path(
+    adjustments: &mut serde_json::Value,
+    source_path: &std::path::Path,
+) {
+    if adjustments.get("crop").is_some()
+        || !source_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("arw"))
+    {
+        return;
+    }
+    if let Ok(bytes) = crate::file_management::read_file_mapped(source_path) {
+        let crop = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            camera_crop_from_bytes(&bytes)
+        }))
+        .ok()
+        .flatten();
+        apply_camera_crop_default(adjustments, crop);
+    }
+}
+
+#[cfg(test)]
+mod camera_crop_tests {
+    use super::*;
+    use rawler::imgop::{Dim2, Point, Rect};
+
+    #[test]
+    fn camera_crop_uses_default_frame_and_exif_orientation() {
+        let base = Rect::new(Point::new(12, 8), Dim2::new(7008, 4672));
+        let crop = Rect::new(Point::new(404, 8), Dim2::new(6224, 4672));
+        let normal = oriented_camera_crop(crop, base, Orientation::Normal);
+        assert_eq!(
+            (normal.x, normal.y, normal.width, normal.height),
+            (392.0, 0.0, 6224.0, 4672.0)
+        );
+        let rotated = oriented_camera_crop(crop, base, Orientation::Rotate90);
+        assert_eq!(
+            (rotated.x, rotated.y, rotated.width, rotated.height),
+            (0.0, 392.0, 4672.0, 6224.0)
+        );
+        // Asymmetric rectangle makes all flips/transposes observable.
+        let crop = Rect::new(Point::new(112, 208), Dim2::new(4000, 3000));
+        for (orientation, expected) in [
+            (Orientation::Normal, (100.0, 200.0, 4000.0, 3000.0)),
+            (Orientation::HorizontalFlip, (2908.0, 200.0, 4000.0, 3000.0)),
+            (Orientation::Rotate180, (2908.0, 1472.0, 4000.0, 3000.0)),
+            (Orientation::VerticalFlip, (100.0, 1472.0, 4000.0, 3000.0)),
+            (Orientation::Transpose, (200.0, 100.0, 3000.0, 4000.0)),
+            (Orientation::Rotate90, (1472.0, 100.0, 3000.0, 4000.0)),
+            (Orientation::Transverse, (1472.0, 2908.0, 3000.0, 4000.0)),
+            (Orientation::Rotate270, (200.0, 2908.0, 3000.0, 4000.0)),
+        ] {
+            let result = oriented_camera_crop(crop, base, orientation);
+            assert_eq!((result.x, result.y, result.width, result.height), expected);
+        }
+    }
+
+    #[test]
+    fn explicit_saved_crop_and_full_frame_override_camera_default() {
+        let crop = Some(Crop {
+            x: 392.0,
+            y: 0.0,
+            width: 6224.0,
+            height: 4672.0,
+        });
+        for mut saved in [
+            serde_json::json!({"crop": null}),
+            serde_json::json!({"crop": {"x": 50, "y": 60, "width": 100, "height": 200}}),
+        ] {
+            let original = saved.clone();
+            apply_camera_crop_default(&mut saved, crop);
+            assert_eq!(saved, original);
+        }
+        let mut fresh = serde_json::Value::Null;
+        apply_camera_crop_default(&mut fresh, crop);
+        assert_eq!(fresh["crop"]["x"], 392.0);
+        assert_eq!(fresh["aspectRatio"], 6224.0 / 4672.0);
+        let mut full_aspect = serde_json::json!({"exposure": 1});
+        apply_camera_crop_default(&mut full_aspect, None);
+        assert_eq!(full_aspect, serde_json::json!({"exposure": 1}));
     }
 }
