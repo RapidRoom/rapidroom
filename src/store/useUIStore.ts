@@ -13,6 +13,7 @@ import {
 import { useEditorStore } from './useEditorStore';
 
 export type SwitcherPlacement = 'bottom' | 'right' | 'left' | 'top';
+export type LightsOutMode = 'off' | 'dim' | 'black';
 
 export interface CropSectionsState {
   transform: boolean;
@@ -108,8 +109,11 @@ const DEFAULT_PANEL_DEFAULT_REGIONS: Record<Panel, PanelRegion> = {
   [Panel.Crop]: 'rightTop',
   [Panel.Masks]: 'rightTop',
   [Panel.Ai]: 'rightTop',
-  [Panel.Presets]: 'rightTop',
+  [Panel.Presets]: 'leftTop',
 };
+
+// Bump when a default panel moves; saved layouts below it get that panel moved once in reconcileWorkspace.
+export const WORKSPACE_LAYOUT_VERSION = 1;
 
 export const DEFAULT_PANEL_WIDTH = 350;
 export const DEFAULT_PANEL_SECTION_HEIGHT = 450;
@@ -127,9 +131,15 @@ export function reconcileWorkspace(
     leftTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
     rightTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
     panelLayout: {
-      leftTop: [Panel.Metadata, Panel.FolderTree, Panel.Export, ...(isTetheringSupported ? [Panel.Tethering] : [])],
+      leftTop: [
+        Panel.Metadata,
+        Panel.FolderTree,
+        Panel.Presets,
+        Panel.Export,
+        ...(isTetheringSupported ? [Panel.Tethering] : []),
+      ],
       leftBottom: [],
-      rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai, Panel.Presets],
+      rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai],
       rightBottom: [],
     },
     activePanels: {
@@ -144,11 +154,21 @@ export function reconcileWorkspace(
       rightTop: 'right',
       rightBottom: 'right',
     },
+    layoutVersion: WORKSPACE_LAYOUT_VERSION,
   };
 
   if (!savedWorkspace || !savedWorkspace.panelLayout) {
     return defaultWorkspace;
   }
+
+  // v1 moved Presets to the left sidebar; dropping its saved spot lets it land in its default region below.
+  // Only a Presets panel still in its old default region moves, so a deliberate placement elsewhere is kept.
+  const savedRightTop = savedWorkspace.panelLayout.rightTop;
+  const movedPanels = new Set<Panel>(
+    (savedWorkspace.layoutVersion ?? 0) < 1 && Array.isArray(savedRightTop) && savedRightTop.includes(Panel.Presets)
+      ? [Panel.Presets]
+      : [],
+  );
 
   const seenPanels = new Set<Panel>();
   const sanitizedLayout: Record<PanelRegion, Panel[]> = {
@@ -161,7 +181,7 @@ export function reconcileWorkspace(
   (['leftTop', 'leftBottom', 'rightTop', 'rightBottom'] as PanelRegion[]).forEach((region) => {
     const list = savedWorkspace.panelLayout[region];
     (Array.isArray(list) ? list : []).forEach((panel) => {
-      if (allowedPanels.has(panel) && !seenPanels.has(panel)) {
+      if (allowedPanels.has(panel) && !seenPanels.has(panel) && !movedPanels.has(panel)) {
         sanitizedLayout[region].push(panel);
         seenPanels.add(panel);
       }
@@ -203,6 +223,7 @@ export function reconcileWorkspace(
       ...defaultWorkspace.panelSwitcherPlacement,
       ...(savedWorkspace.panelSwitcherPlacement || {}),
     },
+    layoutVersion: WORKSPACE_LAYOUT_VERSION,
   };
 }
 
@@ -215,6 +236,7 @@ export interface UIState {
   uiVisibility: UiVisibility;
   isLibraryExportPanelVisible: boolean;
   isSettingsOpen: boolean;
+  lightsOutMode: LightsOutMode;
 
   leftPanelWidth: number;
   rightPanelWidth: number;
@@ -238,6 +260,7 @@ export interface UIState {
   renderedPanel: Panel | null;
   slideDirection: number;
   collapsibleSectionsState: CollapsibleSectionsState;
+  isColorMixerExpanded: boolean;
   cropSectionsState: CropSectionsState;
 
   isCreateFolderModalOpen: boolean;
@@ -254,6 +277,7 @@ export interface UIState {
   isCreateAlbumGroupModalOpen: boolean;
   isRenameAlbumModalOpen: boolean;
   albumActionTarget: string | null;
+  lightroomImportCatalog: string | null;
 
   confirmModalState: ConfirmModalState;
   panoramaModalState: PanoramaModalState;
@@ -273,6 +297,7 @@ export interface UIState {
   setCustomEscapeHandler: (handler: (() => void) | null) => void;
   searchFocusRequest: number;
   requestSearchFocus: () => void;
+  cycleLightsOut: (direction?: 1 | -1) => void;
   toggleFullScreen: () => void;
   resetWorkspaceLayout: (isTetheringSupported?: boolean) => WorkspaceState;
 }
@@ -286,6 +311,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   uiVisibility: { filmstrip: true, leftPanel: true, rightPanel: true, quickFilter: false },
   isLibraryExportPanelVisible: false,
   isSettingsOpen: false,
+  lightsOutMode: 'off',
 
   leftPanelWidth: DEFAULT_PANEL_WIDTH,
   rightPanelWidth: DEFAULT_PANEL_WIDTH,
@@ -295,9 +321,9 @@ export const useUIStore = create<UIState>((set, get) => ({
   compactEditorPanelHeightOverride: null,
 
   panelLayout: {
-    leftTop: [Panel.Metadata, Panel.FolderTree, Panel.Export],
+    leftTop: [Panel.Metadata, Panel.FolderTree, Panel.Presets, Panel.Export],
     leftBottom: [],
-    rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai, Panel.Presets],
+    rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai],
     rightBottom: [],
   },
   activePanels: {
@@ -323,6 +349,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   renderedPanel: Panel.Adjustments,
   slideDirection: 1,
   collapsibleSectionsState: { basic: true, color: false, curves: true, details: false, effects: false },
+  isColorMixerExpanded: false,
   cropSectionsState: { transform: false, lens: false },
 
   isCreateFolderModalOpen: false,
@@ -338,6 +365,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   isCreateAlbumGroupModalOpen: false,
   isRenameAlbumModalOpen: false,
   albumActionTarget: null,
+  lightroomImportCatalog: null,
 
   confirmModalState: { isOpen: false },
   panoramaModalState: {
@@ -571,6 +599,12 @@ export const useUIStore = create<UIState>((set, get) => ({
   setCustomEscapeHandler: (handler) => set({ customEscapeHandler: handler }),
   searchFocusRequest: 0,
   requestSearchFocus: () => set((state) => ({ searchFocusRequest: state.searchFocusRequest + 1 })),
+  cycleLightsOut: (direction = 1) =>
+    set((state) => {
+      const modes: LightsOutMode[] = ['off', 'dim', 'black'];
+      const currentIndex = modes.indexOf(state.lightsOutMode);
+      return { lightsOutMode: modes[(currentIndex + direction + modes.length) % modes.length] };
+    }),
 }));
 
 export function isActiveDenoiseEvent(payload: unknown) {

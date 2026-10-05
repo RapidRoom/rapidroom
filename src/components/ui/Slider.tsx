@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useId, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GLOBAL_KEYS } from './AppProperties';
 
@@ -10,12 +10,32 @@ type SliderChangeEvent =
       };
     };
 
+export type SliderDensity = 'comfortable' | 'compact';
+
+// Panels that opt into the Develop density setting provide it here. Everything
+// else keeps the stacked layout.
+export const SliderDensityContext = createContext<SliderDensity>('comfortable');
+
+export const getAdjustmentDensity = (setting?: string): SliderDensity =>
+  setting === 'compact' ? 'compact' : 'comfortable';
+
+interface SliderDensityScopeProps extends React.HTMLAttributes<HTMLDivElement> {
+  density: SliderDensity;
+}
+
+export const SliderDensityScope = ({ density, children, ...divProps }: SliderDensityScopeProps) => (
+  <SliderDensityContext.Provider value={density}>
+    <div {...divProps}>{children}</div>
+  </SliderDensityContext.Provider>
+);
+
 export interface SliderMarker {
   color: string;
   value: number;
 }
 
 interface SliderProps {
+  animateValueChanges?: boolean;
   defaultValue?: number;
   disabled?: boolean;
   label: React.ReactNode;
@@ -30,10 +50,11 @@ interface SliderProps {
   trackClassName?: string;
   fillOrigin?: 'min' | 'default';
   suffix?: string;
+  density?: SliderDensity;
 }
 
 const DOUBLE_CLICK_THRESHOLD_MS = 150;
-const FINE_ADJUSTMENT_MULTIPLIER = 0.2;
+export const FINE_ADJUSTMENT_MULTIPLIER = 0.2;
 const TOUCH_DRAG_THRESHOLD_PX = 10;
 const TOUCH_THUMB_HIT_RADIUS_PX = 24;
 
@@ -43,6 +64,7 @@ const hasFineAdjustmentModifier = (event: MouseEvent | TouchEvent | React.MouseE
   'shiftKey' in event && (event.shiftKey || event.altKey);
 
 const Slider = ({
+  animateValueChanges = true,
   defaultValue = 0,
   disabled = false,
   label,
@@ -57,8 +79,12 @@ const Slider = ({
   trackClassName,
   fillOrigin = 'default',
   suffix = '',
+  density: densityProp,
 }: SliderProps) => {
   const { t } = useTranslation();
+  const contextDensity = useContext(SliderDensityContext);
+  const labelId = useId();
+  const isCompact = (densityProp ?? contextDensity) === 'compact';
   const [displayValue, setDisplayValue] = useState<number>(value);
   const [isDragging, setIsDragging] = useState(false);
   const animationFrameRef = useRef<number | undefined>(undefined);
@@ -68,6 +94,8 @@ const Slider = ({
   const rangeInputRef = useRef<HTMLInputElement | null>(null);
   const [isLabelHovered, setIsLabelHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const labelTextRef = useRef<HTMLSpanElement>(null);
+  const [isLabelTruncated, setIsLabelTruncated] = useState(false);
   const lastUpTime = useRef(0);
   const lastPointerXRef = useRef<number>(0);
   const accumulatedValueRef = useRef<number>(0);
@@ -116,6 +144,31 @@ const Slider = ({
   onChangeRef.current = onChange;
   snapToStepRef.current = snapToStep;
   rangeRef.current = { min, max };
+
+  // Drag travel spans the whole row, which is the track width in the stacked
+  // layout. Measuring the row in compact mode too keeps sensitivity the same in
+  // both densities instead of speeding up by the width the label and value take.
+  const isCompactRef = useRef(isCompact);
+  isCompactRef.current = isCompact;
+
+  const getTravelWidth = useCallback((inputEl: HTMLInputElement) => {
+    const travelEl = isCompactRef.current && containerRef.current ? containerRef.current : inputEl;
+    return travelEl.getBoundingClientRect().width || 1;
+  }, []);
+
+  useEffect(() => {
+    const labelEl = labelTextRef.current;
+    if (!isCompact || !labelEl) {
+      setIsLabelTruncated(false);
+      return;
+    }
+
+    const measure = () => setIsLabelTruncated(labelEl.scrollWidth > labelEl.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(labelEl);
+    return () => observer.disconnect();
+  }, [isCompact, label]);
 
   const onDragStateChangeRef = useRef(onDragStateChange);
   onDragStateChangeRef.current = onDragStateChange;
@@ -197,7 +250,7 @@ const Slider = ({
 
     const inputEl = rangeInputRef.current;
     if (!inputEl) return;
-    const sliderWidth = inputEl.getBoundingClientRect().width || 1;
+    const sliderWidth = getTravelWidth(inputEl);
 
     const handlePointerMove = (e: MouseEvent | TouchEvent) => {
       let clientX: number;
@@ -259,7 +312,7 @@ const Slider = ({
       window.removeEventListener('touchend', handlePointerUp);
       window.removeEventListener('touchcancel', handlePointerUp);
     };
-  }, [disabled, isDragging]);
+  }, [disabled, isDragging, getTravelWidth]);
 
   useEffect(() => {
     if (isDragging) {
@@ -269,7 +322,7 @@ const Slider = ({
       return;
     }
 
-    if (isWheelActivelyChangingRef.current) {
+    if (isWheelActivelyChangingRef.current || !animateValueChanges) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -307,7 +360,7 @@ const Slider = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [value, isDragging]);
+  }, [value, isDragging, animateValueChanges]);
 
   useEffect(() => {
     if (!isEditing || isDragging) {
@@ -422,9 +475,8 @@ const Slider = ({
     const inputEl = rangeInputRef.current;
     if (!inputEl) return;
 
-    const rect = inputEl.getBoundingClientRect();
     const multiplier = hasFineAdjustmentModifier(e) ? FINE_ADJUSTMENT_MULTIPLIER : 1;
-    const rawValue = pendingTouch.startValue + (deltaX / rect.width) * (max - min) * multiplier;
+    const rawValue = pendingTouch.startValue + (deltaX / getTravelWidth(inputEl)) * (max - min) * multiplier;
     const snappedValue = snapToStep(rawValue);
 
     accumulatedValueRef.current = rawValue;
@@ -535,108 +587,155 @@ const Slider = ({
 
   const numericValue = isNaN(Number(value)) ? 0 : Number(value);
 
+  const isStringLabel = typeof label === 'string';
+  const canReset = isStringLabel && !disabled;
+
+  const labelSpans = (
+    <>
+      <span
+        ref={labelTextRef}
+        id={isCompact ? labelId : undefined}
+        aria-hidden={isLabelHovered && isStringLabel}
+        className={`col-start-1 row-start-1 text-sm font-medium text-text-secondary select-none ${
+          isCompact ? 'truncate ' : ''
+        }transition-opacity duration-200 ease-in-out ${isLabelHovered && isStringLabel ? 'opacity-0' : 'opacity-100'}`}
+      >
+        {label}
+      </span>
+      {isStringLabel && (
+        <span
+          aria-hidden={!isLabelHovered}
+          className={`col-start-1 row-start-1 text-sm font-medium text-text-primary select-none ${
+            isCompact ? 'truncate ' : ''
+          }transition-opacity duration-200 ease-in-out pointer-events-none ${
+            isLabelHovered ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          {t('ui.slider.reset')}
+        </span>
+      )}
+    </>
+  );
+
+  const labelHandlers = {
+    onClick: canReset ? handleReset : undefined,
+    onDoubleClick: canReset ? handleReset : undefined,
+    onMouseEnter: canReset ? () => setIsLabelHovered(true) : undefined,
+    onMouseLeave: canReset ? () => setIsLabelHovered(false) : undefined,
+  };
+
+  const valueContent = isEditing ? (
+    <input
+      className="w-full text-sm text-right bg-card-active border border-gray-500 rounded-sm px-1 py-0 outline-none focus:ring-1 focus:ring-blue-500 text-text-primary"
+      disabled={disabled}
+      aria-labelledby={isCompact ? labelId : undefined}
+      max={max}
+      min={min}
+      onBlur={handleInputCommit}
+      onChange={handleInputChange}
+      onKeyDown={handleInputKeyDown}
+      ref={inputRef}
+      step={step}
+      type="text"
+      value={inputValue}
+    />
+  ) : (
+    <span
+      className={`text-sm text-text-primary w-full text-right select-none ${isCompact ? 'tabular-nums ' : ''}${
+        disabled ? '' : 'cursor-text'
+      }`}
+      onClick={disabled ? undefined : handleValueClick}
+      onDoubleClick={disabled ? undefined : handleReset}
+      data-tooltip={disabled ? undefined : t('ui.slider.clickToEdit')}
+    >
+      {decimalPlaces > 0 && numericValue === 0 ? '0' : numericValue.toFixed(decimalPlaces)}
+      {suffix && <span className="text-[10px] align-top inline-block mt-0.5 ml-0.5">{suffix}</span>}
+    </span>
+  );
+
+  const trackContent = (
+    <>
+      <div
+        className={`absolute top-1/2 left-0 w-full h-1.5 -translate-y-1/2 rounded-full pointer-events-none ${
+          trackClassName || 'bg-card-active'
+        }`}
+      />
+      <div
+        className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full pointer-events-none bg-accent/25"
+        style={{
+          left: `${Math.min(fillPercentage, originPercentage)}%`,
+          width: `${Math.abs(fillPercentage - originPercentage)}%`,
+        }}
+      />
+      {markers?.map(({ color, value: markerValue }, index) => (
+        <div
+          className="absolute top-1/2 w-2.5 h-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none opacity-70"
+          key={index}
+          style={{
+            backgroundColor: color,
+            left: `calc(8px + (100% - 16px) * ${Math.max(0, Math.min(1, getFraction(markerValue, min, max)))})`,
+          }}
+        />
+      ))}
+      <input
+        ref={rangeInputRef}
+        aria-label={isCompact && isStringLabel ? label : undefined}
+        aria-labelledby={isCompact && !isStringLabel ? labelId : undefined}
+        className={`absolute top-1/2 left-0 w-full ${
+          isCompact ? 'h-6' : 'h-7'
+        } -translate-y-1/2 appearance-none bg-transparent cursor-pointer m-0 p-0 slider-input z-10 ${
+          isDragging ? 'slider-thumb-active' : ''
+        } ${disabled ? 'cursor-not-allowed' : ''}`}
+        style={{ margin: 0, touchAction: isDragging ? 'none' : 'pan-y' }}
+        max={String(max)}
+        min={String(min)}
+        onChange={handleChange}
+        onDoubleClick={handleReset}
+        onKeyDown={handleRangeKeyDown}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        step={String(step)}
+        type="range"
+        value={displayValue}
+      />
+    </>
+  );
+
+  if (isCompact) {
+    // One row: label, track and value. The label and value columns are fixed per
+    // row so every track lines up down a panel; the label column gives way first
+    // when the panel is narrow, and a truncated label shows in full on hover.
+    return (
+      <div
+        className={`mb-1 group flex items-center gap-2 min-w-0 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        ref={containerRef}
+      >
+        <div
+          className={`grid grid-cols-[minmax(0,1fr)] w-[clamp(4rem,34%,7rem)] shrink-0 min-w-0 ${canReset ? 'cursor-pointer' : ''}`}
+          data-tooltip={isLabelTruncated && isStringLabel ? label : undefined}
+          {...labelHandlers}
+        >
+          {labelSpans}
+        </div>
+        <div className="relative flex-1 min-w-12 h-6">{trackContent}</div>
+        <div className="w-12 shrink-0 text-right">{valueContent}</div>
+      </div>
+    );
+  }
+
   return (
     <div className={`mb-2 group ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`} ref={containerRef}>
       <div className="flex justify-between items-center mb-1">
-        <div
-          className={`grid ${typeof label === 'string' && !disabled ? 'cursor-pointer' : ''}`}
-          onClick={typeof label === 'string' && !disabled ? handleReset : undefined}
-          onDoubleClick={typeof label === 'string' && !disabled ? handleReset : undefined}
-          onMouseEnter={typeof label === 'string' && !disabled ? () => setIsLabelHovered(true) : undefined}
-          onMouseLeave={typeof label === 'string' && !disabled ? () => setIsLabelHovered(false) : undefined}
-        >
-          <span
-            aria-hidden={isLabelHovered && typeof label === 'string'}
-            className={`col-start-1 row-start-1 text-sm font-medium text-text-secondary select-none transition-opacity duration-200 ease-in-out ${
-              isLabelHovered && typeof label === 'string' ? 'opacity-0' : 'opacity-100'
-            }`}
-          >
-            {label}
-          </span>
-          {typeof label === 'string' && (
-            <span
-              aria-hidden={!isLabelHovered}
-              className={`col-start-1 row-start-1 text-sm font-medium text-text-primary select-none transition-opacity duration-200 ease-in-out pointer-events-none ${
-                isLabelHovered ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              {t('ui.slider.reset')}
-            </span>
-          )}
+        <div className={`grid ${canReset ? 'cursor-pointer' : ''}`} {...labelHandlers}>
+          {labelSpans}
         </div>
-        <div className="w-12 text-right">
-          {isEditing ? (
-            <input
-              className="w-full text-sm text-right bg-card-active border border-gray-500 rounded-sm px-1 py-0 outline-none focus:ring-1 focus:ring-blue-500 text-text-primary"
-              disabled={disabled}
-              max={max}
-              min={min}
-              onBlur={handleInputCommit}
-              onChange={handleInputChange}
-              onKeyDown={handleInputKeyDown}
-              ref={inputRef}
-              step={step}
-              type="text"
-              value={inputValue}
-            />
-          ) : (
-            <span
-              className={`text-sm text-text-primary w-full text-right select-none ${disabled ? '' : 'cursor-text'}`}
-              onClick={disabled ? undefined : handleValueClick}
-              onDoubleClick={disabled ? undefined : handleReset}
-              data-tooltip={disabled ? undefined : t('ui.slider.clickToEdit')}
-            >
-              {decimalPlaces > 0 && numericValue === 0 ? '0' : numericValue.toFixed(decimalPlaces)}
-              {suffix && <span className="text-[10px] align-top inline-block mt-0.5 ml-0.5">{suffix}</span>}
-            </span>
-          )}
-        </div>
+        <div className="w-12 text-right">{valueContent}</div>
       </div>
 
-      <div className="relative w-full h-5">
-        <div
-          className={`absolute top-1/2 left-0 w-full h-1.5 -translate-y-1/2 rounded-full pointer-events-none ${
-            trackClassName || 'bg-card-active'
-          }`}
-        />
-        <div
-          className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full pointer-events-none bg-accent/25"
-          style={{
-            left: `${Math.min(fillPercentage, originPercentage)}%`,
-            width: `${Math.abs(fillPercentage - originPercentage)}%`,
-          }}
-        />
-        {markers?.map(({ color, value: markerValue }, index) => (
-          <div
-            className="absolute top-1/2 w-2.5 h-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none opacity-70"
-            key={index}
-            style={{
-              backgroundColor: color,
-              left: `calc(8px + (100% - 16px) * ${Math.max(0, Math.min(1, getFraction(markerValue, min, max)))})`,
-            }}
-          />
-        ))}
-        <input
-          ref={rangeInputRef}
-          className={`absolute top-1/2 left-0 w-full h-7 -translate-y-1/2 appearance-none bg-transparent cursor-pointer m-0 p-0 slider-input z-10 ${
-            isDragging ? 'slider-thumb-active' : ''
-          } ${disabled ? 'cursor-not-allowed' : ''}`}
-          style={{ margin: 0, touchAction: isDragging ? 'none' : 'pan-y' }}
-          max={String(max)}
-          min={String(min)}
-          onChange={handleChange}
-          onDoubleClick={handleReset}
-          onKeyDown={handleRangeKeyDown}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchEnd}
-          step={String(step)}
-          type="range"
-          value={displayValue}
-        />
-      </div>
+      <div className="relative w-full h-5">{trackContent}</div>
     </div>
   );
 };

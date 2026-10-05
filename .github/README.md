@@ -12,7 +12,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 
 <!-- rapidroom-changes:start -->
 
-- **Sony camera aspect ratios are respected.** 4:3, square and 16:9 shots start with the camera framing, and you can expand the crop back to the full image.
+- **Bring your Lightroom collections along:** import collection sets and collections from a catalog
 - **Rename photos, not just files.** RAW+JPEG pairs and all their sidecars move together, bursts number in shooting order, and you see every new name before anything changes, with undo.
 - **Reference View like Lightroom.** Pin one photo next to the one you are editing, then match the look while you move through the filmstrip.
 - **A white balance picker you can trust.** It reads the untouched raw data, averages a square or a dragged area, and shows a live preview before you click, which helps with mixed-light night shots.
@@ -28,8 +28,14 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Star ratings you set in the camera show up in the library.**
 - **Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars.
 - **Bring your Lightroom edits along:** import XMP sidecars
+- **Pick and reject flags for culling,** separate from stars: P, X and U as in Lightroom, a flag filter, and rejects that darktable, Bridge and Lightroom understand.
+- **Presets at your fingertips.** Presets sit in the left sidebar as compact rows: hover to preview one on your photo, click to apply, and star favorites to pin them on top.
+- **Lights Out, Lightroom-style.** Press L to dim everything but the photo, again for pure black, Escape to come back. Good for judging night shots.
+- **Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains.
+- **More sliders on a laptop screen.** An optional compact layout puts each slider's label, track and value on one line, so more controls fit without scrolling.
+- **Sony camera aspect ratios are respected.** 4:3, square and 16:9 shots start with the camera framing, and you can expand the crop back to the full image.
 
-49 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+63 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Why RapidRoom

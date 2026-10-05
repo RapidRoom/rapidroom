@@ -55,10 +55,12 @@
         "reds": "Reds",
         "yellows": "Yellows"
       },
+      "mixerPickerTooltip": "Color Mixer Picker: click and drag up or down on the photo",
       "presence": "Presence",
       "saturation": "Saturation",
       "temperature": "Temperature",
       "tint": "Tint",
+      "toggleMixerExpanded": "Expanded Color Mixer",
       "toggleSliders": "Toggle Sliders",
       "vibrance": "Vibrance",
       "wbPickerTooltip": "White Balance Picker",
@@ -159,13 +161,17 @@
       "confirmDeleteGroupNested": "Confirm Delete Group & All Nested Albums",
       "deleteAlbum": "Delete Album",
       "deleteGroup": "Delete Group",
+      "importLightroom": "Import Lightroom Catalog…",
+      "lightroomCatalog": "Lightroom Catalog",
       "moveHere": "Move Here",
       "moveTo": "Move To...",
       "newAlbum": "New Album",
       "newGroup": "New Group",
+      "relinkLightroom": "Relink Lightroom Folders…",
       "renameAlbum": "Rename Album",
       "renameGroup": "Rename Group",
-      "rootDir": "Root Directory"
+      "rootDir": "Root Directory",
+      "selectLightroomCatalog": "Select Lightroom Catalog"
     },
     "colors": {
       "blue": "Blue",
@@ -192,6 +198,9 @@
       "denoise": "Denoise Image",
       "editImage": "Edit Image",
       "exportImage": "Export Image",
+      "flag": "Flag",
+      "flagPick": "Picked",
+      "flagReject": "Rejected",
       "frameImage": "Frame Image",
       "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "Merge to HDR",
@@ -206,7 +215,8 @@
       "resetAdjustments": "Reset Adjustments",
       "stitchPanorama": "Stitch Panorama",
       "tagging": "Tagging",
-      "undo": "Undo"
+      "undo": "Undo",
+      "unflagged": "Unflagged"
     },
     "folders": {
       "changeIcon": "Change Icon",
@@ -219,6 +229,7 @@
       "moveHere_one": "Move image here",
       "moveHere_other": "Move {{count}} images here",
       "newFolder": "New Folder",
+      "openTerminal": "Open Terminal Here",
       "paste": "Paste",
       "pin": "Pin Folder",
       "refresh": "Refresh Folders",
@@ -230,6 +241,7 @@
     "library": {
       "addCopiedToAlbum_one": "Add copied image to album",
       "addCopiedToAlbum_other": "Add {{count}} copied images to album",
+      "deleteRejected": "Delete Rejected Images",
       "refreshView": "Refresh View"
     },
     "merge": {
@@ -302,6 +314,8 @@
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
     "toasts": {
+      "couldNotOpenTerminal": "Could not open a terminal: {{err}}",
+      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
       "couldNotShowExplorer": "Could not show file in explorer: {{err}}",
       "couldNotShowFolder": "Could not show folder: {{err}}",
       "failedAddToAlbum": "Failed to add to album: {{err}}",
@@ -312,6 +326,7 @@
       "failedDelete": "Failed to delete: {{err}}",
       "failedDeleteFolder": "Failed to delete folder: {{err}}",
       "failedDuplicate": "Failed to duplicate file: {{err}}",
+      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
       "failedImportMatchingXmpSidecars": "Failed to import matching XMP sidecars: {{err}}",
       "failedImportXmpAdjustments": "Failed to import XMP adjustments: {{err}}",
       "failedMatchingXmpSidecars_one": "Matching XMP sidecars failed to import: {{count}}.",
@@ -320,6 +335,7 @@
       "failedMoveError": "Failed to move: {{err}}",
       "failedMoveInvalid": "Failed to move: Target group not found or invalid.",
       "failedRemoveImages": "Failed to remove images: {{err}}",
+      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
       "importedMatchingXmpSidecars_one": "Imported matching XMP sidecars: {{count}}.",
       "importedMatchingXmpSidecars_other": "Imported matching XMP sidecars: {{count}}.",
       "importedXmpAdjustments": "Imported XMP adjustments.",
@@ -754,6 +770,7 @@
         "presetFile": "Preset File",
         "rapidRawPreset": "RapidRAW Preset"
       },
+      "favorites": "Favorites",
       "menu": {
         "configurePreset": "Configure Preset",
         "deleteFolder": "Delete Folder",
@@ -781,8 +798,10 @@
       "tooltips": {
         "explore": "Explore Community Presets",
         "export": "Export all presets to .rrpreset file",
+        "favorite": "Add to favorites",
         "import": "Import presets from .rrpreset file",
-        "saveNew": "Save as new preset"
+        "saveNew": "Save as new preset",
+        "unfavorite": "Remove from favorites"
       },
       "types": {
         "folder": "Folder",
@@ -1016,6 +1035,13 @@
         "editedOnly": "Edited Only",
         "uneditedOnly": "Unedited Only"
       },
+      "flag": {
+        "all": "All Images",
+        "excludeRejected": "Hide Rejected",
+        "picked": "Picked",
+        "rejected": "Rejected",
+        "unflagged": "Unflagged"
+      },
       "noMatch": "No images found that match your filter.",
       "rating": {
         "all": "Show All",
@@ -1103,6 +1129,7 @@
         "filterByColorLabel": "Filter by Color Label",
         "filterByEdited": "Filter by Edit Status",
         "filterByFileType": "Filter by File Type",
+        "filterByFlag": "Filter by Flag",
         "filterByRating": "Filter by Rating",
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
@@ -1136,11 +1163,21 @@
       "expandFolder": "Expand Folder",
       "imagesCount_one": "1 image",
       "imagesCount_other": "{{count}} images",
+      "rejected": "Rejected",
       "tooltipAperture": "Aperture",
       "tooltipFocalLength": "Focal Length",
       "tooltipIso": "ISO",
       "tooltipShutterSpeed": "Shutter Speed",
       "tooltipVirtualCopy": "Virtual Copy"
+    },
+    "reject": {
+      "deleteConfirm": "Delete Rejected",
+      "deleteMessage_one": "Are you sure you want to delete {{count}} rejected image? It will be moved to the trash.",
+      "deleteMessage_other": "Are you sure you want to delete {{count}} rejected images? They will be moved to the trash.",
+      "deleteTitle": "Delete Rejected Images",
+      "noneToDelete": "There are no rejected images to delete.",
+      "virtualCopiesWarning_one": "{{count}} virtual copy that is not rejected will also be deleted because its original is rejected.",
+      "virtualCopiesWarning_other": "{{count}} virtual copies that are not rejected will also be deleted because their originals are rejected."
     },
     "search": {
       "noResults": "No Results Found",
@@ -1329,7 +1366,7 @@
     "culling": {
       "actionDelete": "Move to Trash",
       "actionRateZero": "Set Rating to 1 Stars",
-      "actionReject": "Mark as Rejected (Red Label)",
+      "actionReject": "Mark as Rejected",
       "applyButton_one": "Apply to 1 image",
       "applyButton_other": "Apply to {{count}} images",
       "bestImage": "Best Image",
@@ -1469,6 +1506,36 @@
       "zoomInTooltip": "Zoom In",
       "zoomOutTooltip": "Zoom Out"
     },
+    "lightroomImport": {
+      "addRootFolders": "Also add the found root folders to Folders",
+      "besideCatalog": "Found next to the catalog",
+      "collectionSets": "Collection sets",
+      "collections": "Collections",
+      "copied": "List copied.",
+      "copyList": "Copy List",
+      "found": "Found",
+      "imagesFound": "Images found",
+      "imagesMissing": "Images missing",
+      "import": "Import",
+      "importing": "Importing…",
+      "missingFiles": "Missing files: {{total}}",
+      "missingFilesHint": "Missing files stay in their albums and show up again once their folder is found or relinked.",
+      "missingFilesMore": "…and {{total}} more",
+      "missingRoots": "Root folders not found: {{total}}. Their images are imported as missing until you relink them.",
+      "notFound": "Not found",
+      "nothingToImport": "This catalog has no collections to import.",
+      "reading": "Reading the catalog…",
+      "relink": "Relink…",
+      "relinkTitle": "Find the folder for {{path}}",
+      "relinked": "Relinked",
+      "replacesPrevious": "This catalog was imported before. Importing again refreshes its albums where you put them; your other albums stay as they are.",
+      "rootFolders": "Root folders",
+      "rootFoldersHint": "Where the catalog's folders are on this computer. Relink a folder that moved or comes from another computer. The catalog itself is only read, never changed.",
+      "rootImages": "Images: {{images}}, missing: {{missing}}",
+      "skippedOther": "Books, slideshows, prints and web galleries, not imported: {{total}}",
+      "smartCollections": "Smart collections, not imported: {{total}}",
+      "title": "Import Lightroom Catalog"
+    },
     "negativeConversion": {
       "blueWeight": "Blue (Yellow)",
       "cancel": "Cancel",
@@ -1578,6 +1645,46 @@
       "yAxis": "Y Axis",
       "zoomInTooltip": "Zoom In",
       "zoomOutTooltip": "Zoom Out"
+    },
+    "lightroomDevelop": {
+      "title": "Photo edits",
+      "hint": "Review each photo before importing. Supported Lightroom settings are converted to RapidRoom controls; the appearance can differ. Originals and the catalog stay unchanged.",
+      "reading": "Reading photo edits…",
+      "selectAvailable": "Select available photos",
+      "clearSelection": "Clear selection",
+      "replaceEdits": "Replace saved RapidRoom edits on selected photos",
+      "importRatings": "Import catalog star ratings",
+      "replaceRatings": "Replace saved RapidRoom ratings on selected photos",
+      "preserved": "Saved RapidRoom edits and ratings are preserved unless you choose to replace them.",
+      "cardMode": "Card mode is read-only. Copy the photos to a local folder before importing edits.",
+      "selected": "Selected: {{selected}} of {{total}} photos",
+      "apply": "Import selected photo edits",
+      "details": "Changes to import",
+      "unsupported": "Not transferred: {{items}}",
+      "existing": "Saved RapidRoom metadata",
+      "newPhoto": "New photo",
+      "virtualCopy": "Virtual copy",
+      "rating": "Catalog rating: {{rating}} stars",
+      "noRating": "No catalog rating",
+      "missing": "Photo not found",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {{page}} of {{total}}",
+      "empty": "This catalog has no photo edits to import.",
+      "result": "Imported: {{imported}}. Preserved: {{preserved}}. New virtual copies: {{virtualCopies}}.",
+      "noAdjustments": "No supported adjustments.",
+      "fields": {
+        "whiteBalance": "white balance without an as-shot reference",
+        "profileLook": "profile color and lookup tables",
+        "cameraProfile": "camera profile",
+        "masks": "local masks",
+        "aiMasks": "AI masks",
+        "lensProfile": "Adobe lens profile",
+        "pointColor": "point color",
+        "orientationAndCrop": "unsupported orientation and crop",
+        "virtualCopyName": "virtual-copy name (shown here only)"
+      },
+      "refresh": "Refresh preview"
     }
   },
   "settings": {
@@ -1663,12 +1770,15 @@
     "general": {
       "autoAdvance": "Auto-Advance After Rating",
       "autoAdvanceDesc": "When you rate a single image with a keyboard shortcut, move on to the next image.",
+      "compactAdjustments": "Compact Adjustment Sliders",
+      "compactAdjustmentsDesc": "Lay each Develop slider out on one row, with its label and value beside the track, so more controls fit on a small screen.",
       "createXmp": "Create Missing XMP Files",
       "createXmpDesc": "Automatically create a new XMP sidecar file if one does not exist for an image.",
       "createXmpMissing": "Create XMP if missing",
       "displayEditIcon": "Display Edit Icon",
       "displayEditIconDesc": "Show a small slider icon on thumbnails that have been edited.",
       "enableAutoAdvance": "Enable Auto-Advance",
+      "enableCompactAdjustments": "Enable Compact Sliders",
       "enableFocusMode": "Enable Focus Mode",
       "enableNeutralGreyCanvas": "Enable Neutral Grey Background",
       "enableOsTitlebar": "Enable OS Titlebar",
@@ -1709,7 +1819,10 @@
         "copy_files": "Copy selected file(s)",
         "copy_image_path": "Copy path of selected image(s)",
         "cycle_zoom": "Cycle zoom (Fit, 2x Fit, 100%)",
+        "delete_rejected": "Delete rejected file(s)",
         "delete_selected": "Delete selected file(s)",
+        "flag_pick": "Flag as pick",
+        "flag_reject": "Flag as rejected",
         "focus_search": "Focus search field",
         "open_image": "Open selected image",
         "open_settings": "Open settings",
@@ -1737,6 +1850,8 @@
         "toggle_export": "Toggle Export panel",
         "toggle_folder_tree": "Toggle Folder Tree panel",
         "toggle_fullscreen": "Toggle fullscreen",
+        "cycle_lights_out": "Cycle Lights Out",
+        "cycle_lights_out_reverse": "Cycle Lights Out backward",
         "toggle_left_panel": "Toggle Left Panel",
         "toggle_library_exif": "Toggle EXIF overlay",
         "toggle_masks": "Toggle Masks panel",
@@ -1745,6 +1860,7 @@
         "toggle_reference_view": "Toggle reference view",
         "toggle_right_panel": "Toggle Right Panel",
         "undo": "Undo adjustment",
+        "unflag": "Remove flag",
         "zoom_100": "Zoom to 100%",
         "zoom_fit": "Zoom to fit",
         "zoom_in": "Zoom in",
@@ -2082,6 +2198,10 @@
         "virtualCopy": "Virtual Copy"
       },
       "virtualCopyAbbreviation": "VC"
+    },
+    "flags": {
+      "togglePick": "Toggle Pick",
+      "toggleReject": "Toggle Reject"
     },
     "imagePicker": {
       "clearImage": "Clear Image",

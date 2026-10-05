@@ -4,11 +4,15 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**49 changes on top of RapidRAW.** 19 fix upstream issues that had been open a median of 63 days when RapidRoom shipped the fix; 18 of them still open upstream. 14 offered upstream as PRs, 3 merged so far.
+**63 changes on top of RapidRAW.** 19 fix upstream issues that had been open a median of 63 days when RapidRoom shipped the fix; 18 of them still open upstream. 14 offered upstream as PRs, 3 merged so far.
 
 | Change                                                                                                                                                                                                                                                                            | Type        | By                                                                                                                       | Upstream                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sony 4:3, 1:1 and 16:9 camera framing opens as an editable crop ⚑                                                                                                                                                                                                                 | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
+| Fix intermittent green OM System/Olympus RAW exports by reading image metadata from its correct directory                                                                                                                                                                         | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
+| Faster RAW library thumbnails: unedited raws use the smallest sufficient embedded preview, edited linear DNGs render from their embedded proxy                                                                                                                                    | performance | [@SebastianEggli](https://github.com/SebastianEggli)                                                                     | PR [#1809](https://github.com/CyberTimon/RapidRAW/issues/1809); PR [RapidRAW-DngLab#10](https://github.com/CyberTimon/RapidRAW-DngLab/issues/10)                                                                                                                                   |
+| Apply Adobe lossy DNG polynomial mappings before developing the full image, fixing pink and blown-out photos ⚑                                                                                                                                                                    | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | [#1542](https://github.com/CyberTimon/RapidRAW/issues/1542)                                                                                                                                                                                                                        |
+| Preview and selectively import Lightroom catalog photo edits, crop, straighten, rotation, star ratings and virtual copies, with unsupported-setting reports and independent replacement choices                                                                                   | feature     | [@laurensiusadi](https://github.com/laurensiusadi), [@yojen7](https://github.com/yojen7)                                 | not yet offered                                                                                                                                                                                                                                                                    |
+| Import Lightroom Classic collections and collection sets from a .lrcat catalog as albums, with a preview of found and missing photos and relinking of moved root folders                                                                                                          | feature     | [@Bennyyy27](https://github.com/Bennyyy27)                                                                               | not yet offered                                                                                                                                                                                                                                                                    |
 | Faster raw decoding: highlight recovery and pixel-format conversions run on all CPU cores; the GPU adapter is logged; `rapidraw bench` measures the image pipeline without a window                                                                                               | performance | [@elhigu](https://github.com/elhigu)                                                                                     | PR [#1790](https://github.com/CyberTimon/RapidRAW/pull/1790) open                                                                                                                                                                                                                  |
 | Batch rename treats a photo as one unit: RAW+JPEG/HEIF pairs and every sidecar (.rrdata incl. virtual copies, both XMP styles, .acr, .dop, .pp3) move together, with metadata, burst and group tokens, a preview with collision checks, a rollback-safe two-phase rename and undo | feature     | [@yojen7](https://github.com/yojen7), [@SandeepSubba](https://github.com/SandeepSubba)                                   | PR [#1309](https://github.com/CyberTimon/RapidRAW/issues/1309)                                                                                                                                                                                                                     |
 | Lightroom XMP import: lens profile turns on lens correction, profile-look tone curves are kept, dead keys are dropped, and an import report lists what was not transferred ⚑                                                                                                      | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
@@ -60,19 +64,64 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | HSL mixer hue and saturation are evaluated in sRGB perceptual space while luminance stays linear ⚑                                                                                                                                                                                | fix         | [@lalibertemarc](https://github.com/lalibertemarc)                                                                       | [#1775](https://github.com/CyberTimon/RapidRAW/issues/1775); PR [#1777](https://github.com/CyberTimon/RapidRAW/issues/1777)                                                                                                                                                        |
 | Sync upstream main: shared RAW embedded previews, Nikon lens metadata fallback and mask Escape/cache fixes ⚑                                                                                                                                                                      | fix         | [@lalibertemarc](https://github.com/lalibertemarc), [@CyberTimon](https://github.com/CyberTimon)                         | PR [#1823](https://github.com/CyberTimon/RapidRAW/issues/1823); PR [#1815](https://github.com/CyberTimon/RapidRAW/issues/1815); PR [#1827](https://github.com/CyberTimon/RapidRAW/issues/1827)                                                                                     |
 | Inactive HSL preserves linear RGB exactly; saturated colours no longer turn grey under positive vibrance ⚑                                                                                                                                                                        | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
+| Import old Lightroom `.lrtemplate` presets stored as plain Lua tables, without running any Lua                                                                                                                                                                                    | feature     | [@laurensiusadi](https://github.com/laurensiusadi)                                                                       | not yet offered                                                                                                                                                                                                                                                                    |
+| Pick and reject flags, separate from star ratings: P / X / U shortcuts, badges, a flag filter (picked, unflagged, hide rejected, rejected) and Delete rejected                                                                                                                    | feature     | [@lalibertemarc](https://github.com/lalibertemarc), [@yojen7](https://github.com/yojen7)                                 | [#1599](https://github.com/CyberTimon/RapidRAW/issues/1599); [#994](https://github.com/CyberTimon/RapidRAW/issues/994); [#1057](https://github.com/CyberTimon/RapidRAW/issues/1057)                                                                                                |
+| Presets move to the left sidebar with compact rows, hover previews, favorites and folder reordering                                                                                                                                                                               | feature     | [@laurensiusadi](https://github.com/laurensiusadi)                                                                       | not yet offered                                                                                                                                                                                                                                                                    |
+| Color Grading and Color Mixer get their own visibility eye, globally and in masks; the Color panel eye still bypasses every colour tool                                                                                                                                           | feature     | [@lalibertemarc](https://github.com/lalibertemarc)                                                                       | PR [#1833](https://github.com/CyberTimon/RapidRAW/issues/1833)                                                                                                                                                                                                                     |
+| Lights Out viewing in Library and Editor: L cycles Normal → Dim → Black, Shift+L goes back, Escape restores                                                                                                                                                                       | feature     | [@zeromeridian](https://github.com/zeromeridian), [@yojen7](https://github.com/yojen7)                                   | not yet offered                                                                                                                                                                                                                                                                    |
+| Expanded Color Mixer: Hue, Saturation and Luminance tabs with all eight bands, and a pipette that adjusts the bands under the cursor as you drag up or down on the photo                                                                                                          | feature     | [@lalibertemarc](https://github.com/lalibertemarc)                                                                       | not yet offered                                                                                                                                                                                                                                                                    |
+| Open Terminal Here: open your own terminal in a library folder, with RAPIDROOM_VERSION and RAPIDROOM_FOLDER set, so you can run Claude Code or Codex beside the editor                                                                                                            | feature     | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
+| RapidRoom skill and Claude Code plugin: editing workflow, adjustment reference generated from the code, tutor mode, source lookup and assistant-drafted issues                                                                                                                    | feature     | [@yojen7](https://github.com/yojen7), [@sheldonxxxx](https://github.com/sheldonxxxx)                                     | not yet offered                                                                                                                                                                                                                                                                    |
+| Optional compact adjustment sliders: label, track and value on one row, with aligned columns, in the Develop and mask panels                                                                                                                                                      | feature     | [@pluja](https://github.com/pluja), [@Bennyyy27](https://github.com/Bennyyy27)                                           | not yet offered                                                                                                                                                                                                                                                                    |
+| Sony 4:3, 1:1 and 16:9 camera framing opens as an editable crop ⚑                                                                                                                                                                                                                 | fix         | [@yojen7](https://github.com/yojen7)                                                                                     | not yet offered                                                                                                                                                                                                                                                                    |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-04.
 
 ## Details
 
-### Sony 4:3, 1:1 and 16:9 camera framing opens as an editable crop
+### Fix intermittent green OM System/Olympus RAW exports by reading image metadata from its correct directory
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original rawler decoder fix, AI-assisted)
+- **Upstream:** not yet offered
+- **Commits:** [a98bd05](https://github.com/yojen7/RapidRAW-DngLab/commit/a98bd053c4a14c0c1105ee08a8deba8ce5e6ca5d)
+- **Notes:** Scope ORF white balance, black levels, valid bits and crop to the ImageProcessing maker-note IFD, rejecting truncated fields. CameraSettings preview tags can no longer shadow image metadata through unordered traversal. Preserve legacy root white balance, RAW thumbnails, DNG proxies and Adobe lossy-DNG corrections. Restores the approved reference output without changing render settings.
+
+### Faster RAW library thumbnails: unedited raws use the smallest sufficient embedded preview, edited linear DNGs render from their embedded proxy
+
+- **Type:** performance
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@SebastianEggli](https://github.com/SebastianEggli), from SebastianEggli/MyRR
+- **Upstream:** PR [#1809](https://github.com/CyberTimon/RapidRAW/issues/1809); PR [RapidRAW-DngLab#10](https://github.com/CyberTimon/RapidRAW-DngLab/issues/10)
+- **Commits:** [4a64607](https://github.com/SebastianEggli/MyRR/commit/4a646075d557f6faa5310377f26ae66120af1aa4), [f0a5c66](https://github.com/SebastianEggli/MyRR/commit/f0a5c66ccad1e1a82b880dc8e469c6fb21144d66), [e93c711](https://github.com/SebastianEggli/MyRR/commit/e93c7110b218727ce4fb49c3019415ad0f7e188e), [094189d](https://github.com/SebastianEggli/RapidRAW-DngLab/commit/094189d738f30ec8e973b998fc59a84d00d94d8c)
+- **Notes:** Exports preserve the preceding full-image decode; library thumbnails may differ because they use smaller embedded JPEGs or correctly normalized DNG proxies. The rawler dependency f13d56ec retains RapidRoom crop, dither and full-image Adobe polynomial fixes alongside Sebastian Eggli's preview paths. Adaptations preserve metadata orientation and parallel conversions, reject real or malformed crops from the unedited-preview gate, and retry the full image if a proxy fails. Native real-file and cold/warm sample-probe results are recorded on the PR.
+
+### Apply Adobe lossy DNG polynomial mappings before developing the full image, fixing pink and blown-out photos
 
 - **Type:** fix (changes rendered output)
-- **Landed in RapidRoom:** 2026-10-03
-- **By:** [@yojen7](https://github.com/yojen7)
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original rawler decoder fix, AI-assisted)
+- **Upstream:** [#1542](https://github.com/CyberTimon/RapidRAW/issues/1542)
+- **Notes:** Apply validated DNG OpcodeList2 MapPolynomial operations in order, after linearization and black/white normalization and before demosaic. Respect per-plane areas and pitches, clip each mapped result, and prevent converted DNGs replaying already baked mappings. Unknown-only lists keep the existing decoder behavior; required unsupported operations mixed with polynomial mappings report an error. Private real-file before/after evidence and corpus validation are recorded in the PR. Human rendering approval is required.
+
+### Preview and selectively import Lightroom catalog photo edits, crop, straighten, rotation, star ratings and virtual copies, with unsupported-setting reports and independent replacement choices
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@laurensiusadi](https://github.com/laurensiusadi), [@yojen7](https://github.com/yojen7), from laurensiusadi/RapidRAW, adapted in RapidRoom with the shared read-only catalog reader and current image-aware XMP mapper
 - **Upstream:** not yet offered
-- **Commits:** [b84ca29](https://github.com/yojen7/RapidRAW-DngLab/commit/b84ca29b143c62f920361081b058c77e4d73faa5)
-- **Notes:** Reads SonyCropTopLeft/SonyCropSize in the rawler fork, retains the full DefaultCrop image for crop expansion/reset, and preserves existing sidecar framing. The M/S crop and saturating highlight dither fixes remain. AI-assisted with Codex; maintainer visual review required.
+- **Commits:** [dda6cc5](https://github.com/laurensiusadi/RapidRAW/commit/dda6cc51c69dc6a17906609dbb667eff3507aeeb)
+- **Notes:** Catalogs and originals are read only. Reuses the collections root resolver and bounded Lua-table parser; caps compressed rows at 4 MiB. Preview lists converted controls, unsupported settings, missing originals and unreadable sidecars before an explicit selection is applied. Existing edits, cleared ratings, keywords, EXIF and other metadata are preserved unless the relevant replacement choice is enabled. Uses atomic sidecars, Card mode guards, stale-preview checks and stable full-ID virtual-copy identities. As-shot white balance requires an explicit history reference; no folder median is estimated. Supported nested profile tone curves use the existing mapper; Adobe profiles, local/AI masks and other unsupported fields are reported. Synthetic native/frontend coverage and private sidecar-derived synthetic-catalog calibration only; real Lightroom catalogs, desktop interaction and other platforms still need human checks. Adobe rendering parity is not promised. Adapted with Codex, with source authorship retained.
+
+### Import Lightroom Classic collections and collection sets from a .lrcat catalog as albums, with a preview of found and missing photos and relinking of moved root folders
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@Bennyyy27](https://github.com/Bennyyy27), from Bennyyy27/RapidRAW, branch scs/compact-ui (adapted in RapidRoom: shared read-only catalog reader, preview dialog)
+- **Upstream:** not yet offered
+- **Commits:** [3bd74e2](https://github.com/Bennyyy27/RapidRAW/commit/3bd74e26c6424d57daa8d404eb32fc8157de8b27), [0cfa8dd](https://github.com/Bennyyy27/RapidRAW/commit/0cfa8dd9426fb5f86a3c0781b2f8c6f18083dbab)
+- **Notes:** Right-click an empty spot under Albums and choose Import Lightroom Collections. The catalog is only read: a closed catalog is opened as an immutable SQLite file, one with a leftover -wal or -journal file is read from a temporary copy, and a catalog that Lightroom Classic has open (.lock file) is refused. A preview lists collection sets, collections, found and missing photos, skipped smart collections, and each root folder with where it was found, so roots from a Windows or macOS catalog can be relinked before importing. Missing photos stay in their albums. Importing the same catalog again refreshes its group in place. Smart collections, books, slideshows, prints, web galleries and develop settings are not imported. Album saves are now atomic. Adds the rusqlite dependency (MIT; bundled SQLite is public domain). Not yet tested against a real Lightroom catalog in RapidRoom. Harvested with Claude Code.
 
 ### Faster raw decoding: highlight recovery and pixel-format conversions run on all CPU cores; the GPU adapter is logged; `rapidraw bench` measures the image pipeline without a window
 
@@ -490,3 +539,92 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@yojen7](https://github.com/yojen7)
 - **Upstream:** not yet offered
 - **Notes:** Check all eight effective per-pixel HSL bands before clamping or conversion, including mask contributions. Keep the positive-vibrance fractional power base nonnegative when HSV saturation rounds above one. Active HSL retains the upstream perceptual conversion and existing negative-channel policy; HDR values above one remain supported. Written with Codex. Rendering evidence and GPU regression tests accompany the upstream-main sync.
+
+### Import old Lightroom `.lrtemplate` presets stored as plain Lua tables, without running any Lua
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@laurensiusadi](https://github.com/laurensiusadi), from laurensiusadi/RapidRAW
+- **Upstream:** not yet offered
+- **Commits:** [bb60210](https://github.com/laurensiusadi/RapidRAW/commit/bb60210c609c6939d34deba9c1043fe9d01bde92)
+- **Notes:** Rewritten from the fork's regex converter as a bounded Lua-table parser that feeds the existing XMP preset mapping, so values match .xmp presets. Settings nested in Looks or local corrections are not read. Batch preset import lists what was not imported (profile look, masks, Point Color, camera or lens profile, custom white balance) using the same identifiers as the XMP sidecar report; malformed files or curves are rejected with a reason. Importing only adds a preset; photos change only when you apply it. Harvested with Claude Code.
+
+### Pick and reject flags, separate from star ratings: P / X / U shortcuts, badges, a flag filter (picked, unflagged, hide rejected, rejected) and Delete rejected
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@lalibertemarc](https://github.com/lalibertemarc), [@yojen7](https://github.com/yojen7), from lalibertemarc/RapidRAW (adapted by yojen7)
+- **Upstream:** [#1599](https://github.com/CyberTimon/RapidRAW/issues/1599); [#994](https://github.com/CyberTimon/RapidRAW/issues/994); [#1057](https://github.com/CyberTimon/RapidRAW/issues/1057)
+- **Commits:** [1b4b9db](https://github.com/lalibertemarc/RapidRAW/commit/1b4b9db115f0c1aa6f12e2b4bc0515ffb7fb0eb6)
+- **Notes:** The flag is its own `flag` field in the sidecar, so a reject keeps the stars and older builds ignore it. With XMP sync on, a reject is written as xmp:Rating="-1" (darktable, Bridge and Lightroom use the same value) and read back from it; a flag you set or remove in RapidRoom wins over the .xmp, and a virtual copy never changes the original's reject. A Lightroom XMP import brings rejects in. The Presets panel shortcut moves from P to Shift+P. Upstream has two other designs for this, PRs 1075 (reject as rating -1) and 1272 (flags as tags); the PR for RapidRoom #32 explains the choice. Harvested with Claude Code. Local Codex review propagates sidecar save failures, keeps XMP unchanged when saving fails, and serializes optimistic rating/flag writes so a refused write restores the saved state without discarding later actions.
+
+### Presets move to the left sidebar with compact rows, hover previews, favorites and folder reordering
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@laurensiusadi](https://github.com/laurensiusadi), from laurensiusadi/RapidRAW
+- **Upstream:** not yet offered
+- **Commits:** [9535884](https://github.com/laurensiusadi/RapidRAW/commit/953588443099def3fd0c5e92a55e1966d994e385), [9e478b6](https://github.com/laurensiusadi/RapidRAW/commit/9e478b66eeee63be3e79238af708916655f52125)
+- **Notes:** Hovering a preset previews it on the image without touching the edit, its history or sidecars; only a click applies it. Saved workspaces keep their layout: Presets only moves when it is still in its old default spot on the right. Preset preview thumbnails are gone. Enter/Space apply a focused preset. Scrollbar thumbs across the app are more subtle.
+
+### Color Grading and Color Mixer get their own visibility eye, globally and in masks; the Color panel eye still bypasses every colour tool
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@lalibertemarc](https://github.com/lalibertemarc), from lalibertemarc/RapidRAW
+- **Upstream:** PR [#1833](https://github.com/CyberTimon/RapidRAW/issues/1833)
+- **Commits:** [879b414](https://github.com/lalibertemarc/RapidRAW/commit/879b4146fa4d87ecfa3580261cfc0554ffb1555f)
+- **Notes:** New sectionVisibility.colorGrading/colorMixer keys default to on, so existing sidecars and presets render unchanged; turning a tool off intentionally skips it. Resetting or pasting the Color section re-enables both tools.
+
+### Lights Out viewing in Library and Editor: L cycles Normal → Dim → Black, Shift+L goes back, Escape restores
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@zeromeridian](https://github.com/zeromeridian), [@yojen7](https://github.com/yojen7), from zeromeridian/RapidRAW-Enhanced
+- **Upstream:** not yet offered
+- **Commits:** [69bdb28](https://github.com/zeromeridian/RapidRAW-Enhanced/commit/69bdb283246c7c6746f88c7c0c22d88b7e90ae94)
+- **Notes:** Only the app chrome around the photo is dimmed or hidden; the preview and exports are untouched. Toggle folder tree moved from L to N to free the key. Black also switches the window to fullscreen and restores it afterwards. Local Codex review integrates Reference View and pick/reject controls, and serializes native fullscreen entry/restore to preserve the original window state during rapid mode changes; six async tests cover cancellation, restore races and native failures.
+
+### Expanded Color Mixer: Hue, Saturation and Luminance tabs with all eight bands, and a pipette that adjusts the bands under the cursor as you drag up or down on the photo
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@lalibertemarc](https://github.com/lalibertemarc), from lalibertemarc/RapidRAW
+- **Upstream:** not yet offered
+- **Commits:** [b5475ad](https://github.com/lalibertemarc/RapidRAW/commit/b5475ad8e3176386153d8c3a8fbdc7d21ba7c5a9), [dffc46a](https://github.com/lalibertemarc/RapidRAW/commit/dffc46a161f6a9c35037348d9d62b1a5267a99ac), [17173f2](https://github.com/lalibertemarc/RapidRAW/commit/17173f2873b44f4f7d5f219df1e5e744b3e0dfa9)
+- **Notes:** HSL math and defaults are unchanged; the pipette only sets the existing mixer sliders. Each band moves in proportion to how much of it is in the sampled square (dominant band 0.5 per pixel, Alt for fine steps), weighted by the current shader's perceptual sRGB hue and saturation, with its linear neutral gate. A drag is one undo step. Global mixer only, not masks. Adapted with Claude Code. Local Codex review aligns sampling with the post-sync shader and stops the gesture when the parent Color or Color Mixer eye is off; no render math changes.
+
+### Open Terminal Here: open your own terminal in a library folder, with RAPIDROOM_VERSION and RAPIDROOM_FOLDER set, so you can run Claude Code or Codex beside the editor
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** not yet offered
+- **Notes:** Stopgap for the built-in terminal (RapidRoom #119, design note in rapidroom/TERMINAL.md). Folder context menu. Linux tries $TERMINAL, xdg-terminal-exec, then common terminals with their working-directory flags; macOS opens Terminal.app; Windows uses Windows Terminal or cmd. AppImage library paths are removed from the terminal's environment; Flatpak reports that it can't reach the host. The terminal program never comes from settings or the webview. No new dependencies or network connections. Written with Claude Code. Local review adds the explicit xdg-terminal-exec directory argument and preserves sibling environment paths whose names share the AppImage prefix, with regression tests.
+
+### RapidRoom skill and Claude Code plugin: editing workflow, adjustment reference generated from the code, tutor mode, source lookup and assistant-drafted issues
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@yojen7](https://github.com/yojen7), [@sheldonxxxx](https://github.com/sheldonxxxx)
+- **Upstream:** not yet offered
+- **Commits:** [d332fbd](https://github.com/sheldonxxxx/Lightweft/tree/d332fbd629faf7e47144ba173d7f2032be62199d)
+- **Notes:** rapidroom/plugin: a Claude Code plugin (skill, six slash commands, MCP connection) and a Codex copy, for the in-app MCP server (RapidRoom #5). The adjustment and mask reference is generated from INITIAL_ADJUSTMENTS, the editor sliders and createSubMask, and a Vitest test fails when it drifts. Artistic direction, taste learning and film-look guidance are adapted from sheldonxxxx's Lightweft skills (MIT). Planned MCP tools are listed as coming. Issue drafts are shown to the user and posted only after an explicit yes. Docs only: the app and its rendering are unchanged. Written with Claude Code.
+
+### Optional compact adjustment sliders: label, track and value on one row, with aligned columns, in the Develop and mask panels
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-04
+- **By:** [@pluja](https://github.com/pluja), [@Bennyyy27](https://github.com/Bennyyy27), from pluja/RapidRAW-Fork
+- **Upstream:** not yet offered
+- **Commits:** [198d23c](https://github.com/pluja/RapidRAW-Fork/commit/198d23c0b89e073c88a621d43090488c2a8baf9e), [69445ee](https://github.com/Bennyyy27/RapidRAW/commit/69445eefb3598f3461eb3ed28fb82913b2e04d0f)
+- **Notes:** Off by default (Settings > General). Layout from pluja's one-row slider; narrow-panel column sizing follows Bennyyy27's final compact density. Drag travel spans the whole row in both densities, so switching density does not change sensitivity. Local integration/review by Codex: accessible React-node and typed-field names, six slider tests, 48 browser layout cases and 24 full-panel cases with screenshots; native desktop checks remain.
+
+### Sony 4:3, 1:1 and 16:9 camera framing opens as an editable crop
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-03
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** not yet offered
+- **Commits:** [b84ca29](https://github.com/yojen7/RapidRAW-DngLab/commit/b84ca29b143c62f920361081b058c77e4d73faa5)
+- **Notes:** Reads SonyCropTopLeft/SonyCropSize in the rawler fork, retains the full DefaultCrop image for crop expansion/reset, and preserves existing sidecar framing. The M/S crop and saturating highlight dither fixes remain. AI-assisted with Codex; maintainer visual review required.

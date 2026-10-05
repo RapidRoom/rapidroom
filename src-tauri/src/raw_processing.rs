@@ -19,16 +19,43 @@ pub fn develop_raw_image(
     highlight_compression: f32,
     linear_mode: String,
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+    proxy_min_dim: Option<usize>,
 ) -> Result<DynamicImage> {
     let (developed_image, orientation) = develop_internal(
         file_bytes,
         fast_demosaic,
         highlight_compression,
-        linear_mode,
-        cancel_token,
-    )?;
+        linear_mode.clone(),
+        cancel_token.clone(),
+        proxy_min_dim,
+    )
+    .or_else(|error| {
+        if proxy_min_dim.is_none() {
+            return Err(error);
+        }
+        log::debug!("DNG proxy development failed, trying the full image: {error}");
+        develop_internal(
+            file_bytes,
+            fast_demosaic,
+            highlight_compression,
+            linear_mode,
+            cancel_token,
+            None,
+        )
+    })?;
     let _span = crate::perf_trace::span("decode.orientation");
     Ok(apply_orientation(developed_image, orientation))
+}
+
+fn borrowed_raw_source(file_bytes: &[u8]) -> RawSource {
+    // SAFETY: every caller in this module keeps the source local and drops it
+    // while `file_bytes` is still borrowed.
+    unsafe { RawSource::new_from_slice_unchecked(file_bytes) }
+}
+
+pub fn with_raw_source<T>(file_bytes: &[u8], f: impl FnOnce(&RawSource) -> T) -> T {
+    let source = borrowed_raw_source(file_bytes);
+    f(&source)
 }
 
 fn metadata_orientation(decoder: &dyn Decoder, source: &RawSource) -> Result<Orientation> {
@@ -38,17 +65,6 @@ fn metadata_orientation(decoder: &dyn Decoder, source: &RawSource) -> Result<Ori
         .orientation
         .map(Orientation::from_u16)
         .unwrap_or(Orientation::Normal))
-}
-
-pub fn extract_embedded_preview(file_bytes: &[u8]) -> Option<DynamicImage> {
-    let source = RawSource::new_from_slice(file_bytes);
-    let decoder = rawler::get_decoder(&source).ok()?;
-    let preview = decoder
-        .full_image(&source, &RawDecodeParams::default())
-        .ok()??;
-    let orientation =
-        metadata_orientation(decoder.as_ref(), &source).unwrap_or(Orientation::Normal);
-    Some(apply_orientation(preview, orientation))
 }
 
 fn is_linear_raw_format(raw_image: &RawImage) -> bool {
@@ -135,6 +151,7 @@ fn develop_internal(
     _highlight_compression: f32,
     linear_mode: String,
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+    proxy_min_dim: Option<usize>,
 ) -> Result<(DynamicImage, Orientation)> {
     let check_cancel = || -> Result<()> {
         if let Some((tracker, generation)) = &cancel_token
@@ -148,11 +165,15 @@ fn develop_internal(
     check_cancel()?;
 
     let decode_span = crate::perf_trace::span("decode.rawler_decode");
-    let source = RawSource::new_from_slice(file_bytes);
+    let source = borrowed_raw_source(file_bytes);
     let decoder = rawler::get_decoder(&source)?;
 
     check_cancel()?;
-    let mut raw_image: RawImage = decoder.raw_image(&source, &RawDecodeParams::default(), false)?;
+    let decode_params = RawDecodeParams {
+        proxy_min_dim,
+        ..Default::default()
+    };
+    let mut raw_image: RawImage = decoder.raw_image(&source, &decode_params, false)?;
 
     // Retain the full recommended sensor image for editable camera aspect crops.
     if let Some(default_area) = raw_image.default_crop_area {
@@ -293,6 +314,22 @@ fn develop_internal(
     Ok((dynamic_image, orientation))
 }
 
+pub fn get_raw_dimensions(file_bytes: &[u8]) -> Option<(u32, u32, bool)> {
+    std::panic::catch_unwind(|| {
+        let source = borrowed_raw_source(file_bytes);
+        let decoder = rawler::get_decoder(&source).ok()?;
+        let raw_img = decoder
+            .raw_image(&source, &RawDecodeParams::default(), true)
+            .ok()?;
+        let (w, h) = raw_img
+            .crop_area
+            .map_or((raw_img.width, raw_img.height), |r| (r.d.w, r.d.h));
+        Some((w as u32, h as u32, is_linear_raw_format(&raw_img)))
+    })
+    .ok()
+    .flatten()
+}
+
 fn rgb_pixels_to_rgba(
     data: &[[f32; 3]],
     width: u32,
@@ -324,12 +361,24 @@ pub fn get_fast_demosaic_scale_factor(
     decoded_width: u32,
     decoded_height: u32,
 ) -> f32 {
-    let source = RawSource::new_from_slice(file_bytes);
+    let source = borrowed_raw_source(file_bytes);
     if let Ok(decoder) = rawler::get_decoder(&source)
         && let Ok(raw_img) = decoder.raw_image(&source, &RawDecodeParams::default(), true)
     {
-        let max_orig = (raw_img.width as f32).max(raw_img.height as f32);
         let max_comp = (decoded_width as f32).max(decoded_height as f32);
+        if is_linear_raw_format(&raw_img) {
+            let max_crop = raw_img
+                .crop_area
+                .map_or(raw_img.width.max(raw_img.height), |r| r.d.w.max(r.d.h))
+                as f32;
+            let ratio = if max_crop > 0.0 {
+                max_comp / max_crop
+            } else {
+                1.0
+            };
+            return if ratio > 0.97 { 1.0 } else { ratio };
+        }
+        let max_orig = (raw_img.width as f32).max(raw_img.height as f32);
         if max_orig > 0.0 {
             let ratio = max_comp / max_orig;
             if ratio > 0.1 && ratio < 0.35 {
@@ -417,6 +466,17 @@ mod tests {
         assert!((red - 2.22).abs() < 1e-6);
         assert!((green - 2.104).abs() < 0.001);
         assert!((blue - 2.091).abs() < 0.001);
+    }
+
+    #[test]
+    fn raw_dimensions_of_corrupt_input_is_none() {
+        let mut tiff_header = b"II*\0".to_vec();
+        tiff_header.extend_from_slice(&8u32.to_le_bytes());
+        tiff_header.extend_from_slice(&u16::MAX.to_le_bytes());
+        let cases: [&[u8]; 4] = [b"", b"II*\0", b"not a raw file", &tiff_header];
+        for case in cases {
+            assert_eq!(get_raw_dimensions(case), None);
+        }
     }
 }
 

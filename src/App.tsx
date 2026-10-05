@@ -1,3 +1,4 @@
+import { createLightsOutFullscreenController } from './utils/lightsOutFullscreen';
 import { type PointerEvent as ReactPointerEvent, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -163,6 +164,7 @@ function App() {
     activePanel,
     activeLayoutDragItem,
     isSettingsOpen,
+    lightsOutMode,
     setUI,
     setPanel,
     setLayoutDragItem,
@@ -181,6 +183,7 @@ function App() {
       activePanel: state.activePanel,
       activeLayoutDragItem: state.activeLayoutDragItem,
       isSettingsOpen: state.isSettingsOpen,
+      lightsOutMode: state.lightsOutMode,
       setUI: state.setUI,
       setPanel: state.setPanel,
       setLayoutDragItem: state.setLayoutDragItem,
@@ -365,7 +368,7 @@ function App() {
     handleClearSelection,
     handleLibraryImageSingleClick,
     handleImageClick,
-    handleSetColorLabel,
+    handleSetFlag,
     refreshAllFolderTrees,
     handleTogglePinFolder,
     handleCreateAlbumItem,
@@ -401,6 +404,7 @@ function App() {
   const {
     executeDelete,
     handleDeleteSelected,
+    handleDeleteRejected,
     handleCreateFolder,
     handleRenameFolder,
     handleSaveRename,
@@ -445,6 +449,7 @@ function App() {
     refreshAllFolderTrees,
     refreshImageList: handleLibraryRefresh,
     executeDelete,
+    handleDeleteRejected,
     handleTogglePinFolder,
   });
 
@@ -461,6 +466,7 @@ function App() {
     sortedImageList,
     handleBackToLibrary,
     handleDeleteSelected,
+    handleDeleteRejected,
     handleGoHome,
     handleImageSelect,
     handlePasteFiles,
@@ -516,6 +522,7 @@ function App() {
   useEffect(() => {
     setEditor({
       isWbPickerActive: false,
+      mixerPickerProperty: null,
       isStraightenActive: false,
       isGuidedPerspectiveActive: false,
       activeMaskId: null,
@@ -657,6 +664,16 @@ function App() {
       unlistenPromise.then((unlisten: any) => unlisten());
     };
   }, [setUI]);
+
+  const lightsOutFullscreenRef = useRef<ReturnType<typeof createLightsOutFullscreenController> | null>(null);
+  useEffect(() => {
+    if (isAndroid) return;
+    const controller = lightsOutFullscreenRef.current ?? createLightsOutFullscreenController(getCurrentWindow());
+    lightsOutFullscreenRef.current = controller;
+    controller
+      .setBlack(lightsOutMode === 'black')
+      .catch((err) => console.error('Failed to sync Lights Out fullscreen:', err));
+  }, [lightsOutMode, isAndroid]);
 
   const handlePanelSelect = useCallback(
     (panelId: Panel) => {
@@ -852,14 +869,15 @@ function App() {
       <div
         className={clsx(
           'flex flex-col h-screen font-sans text-text-primary overflow-hidden select-none',
+          `lights-out-${lightsOutMode}`,
           useMacWindowShell && 'macos-window-shell',
-          isWgpuActive ? 'bg-transparent' : 'bg-bg-primary',
+          isWgpuActive ? 'bg-transparent' : lightsOutMode !== 'off' ? 'bg-black' : 'bg-bg-primary',
         )}
       >
         {!isAndroid && (
           <div
             className={clsx(
-              'shrink-0 overflow-hidden z-50',
+              'lights-out-chrome shrink-0 overflow-hidden z-50',
               !isInstantTransition && 'transition-all duration-300 ease-in-out',
               isFullScreen ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-15 opacity-100',
             )}
@@ -869,7 +887,7 @@ function App() {
         )}
         <div
           className={clsx(
-            'flex-1 flex flex-col min-h-0',
+            'lights-out-content flex-1 flex flex-col min-h-0',
             isLayoutReady && hasMainContent && !isInstantTransition && 'transition-all duration-300 ease-in-out',
             [hasMainContent && (isFullScreen ? 'p-0 gap-0' : 'p-2 gap-2')],
           )}
@@ -900,12 +918,14 @@ function App() {
               )}
               <div className="relative flex-1 flex flex-col min-w-0">
                 {selectedImage && externalEditSession && (
-                  <ExternalEditBar
-                    session={externalEditSession}
-                    isFinishing={isExternalEditFinishing}
-                    errorMessage={exportState.status === Status.Error ? exportState.errorMessage : ''}
-                    onDone={finishExternalEdit}
-                  />
+                  <div className="lights-out-chrome">
+                    <ExternalEditBar
+                      session={externalEditSession}
+                      isFinishing={isExternalEditFinishing}
+                      errorMessage={exportState.status === Status.Error ? exportState.errorMessage : ''}
+                      onDone={finishExternalEdit}
+                    />
+                  </div>
                 )}
                 <div
                   className={clsx(
@@ -1031,12 +1051,13 @@ function App() {
           handleSaveRename={handleSaveRename}
           handleUndoRename={handleUndoRename}
           handleStartImport={handleStartImport}
-          handleSetColorLabel={handleSetColorLabel}
+          handleSetFlag={handleSetFlag}
           handleRate={handleRate}
           executeDelete={executeDelete}
           handleSaveCollage={handleSaveCollage}
           handleCreateAlbumItem={handleCreateAlbumItem}
           handleRenameAlbumItem={handleRenameAlbumItem}
+          refreshAllFolderTrees={refreshAllFolderTrees}
         />
         <ToastContainer
           position="bottom-right"

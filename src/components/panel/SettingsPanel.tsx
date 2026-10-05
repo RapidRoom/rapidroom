@@ -36,6 +36,7 @@ import { useTranslation } from 'react-i18next';
 import { Invokes } from '../ui/AppProperties';
 import {
   formatKeyCode,
+  getDefaultCombo,
   KeybindDefinition,
   KEYBIND_DEFINITIONS,
   KEYBIND_SECTIONS,
@@ -168,7 +169,8 @@ const KeybindRow = ({
     return () => window.removeEventListener('keydown', handler, { capture: true });
   }, [recording, def.action, onSave, onStartRecording]);
 
-  const displayCombo = currentCombo !== undefined ? (currentCombo.length ? currentCombo : null) : def.defaultCombo;
+  const displayCombo =
+    currentCombo !== undefined ? (currentCombo.length ? currentCombo : null) : getDefaultCombo(def, osPlatform);
 
   return (
     <div className="flex justify-between items-center py-2">
@@ -994,7 +996,11 @@ export default function SettingsPanel({
     const userKb = appSettings?.keybinds || {};
     for (const def of KEYBIND_DEFINITIONS) {
       const userCombo = userKb[def.action];
-      const effective = userCombo?.length ? userCombo : userCombo === undefined ? def.defaultCombo : null;
+      const effective = userCombo?.length
+        ? userCombo
+        : userCombo === undefined
+          ? getDefaultCombo(def, osPlatform)
+          : null;
       if (!effective) continue;
       const key = effective.join('+');
       if (!map.has(key)) map.set(key, new Set());
@@ -1005,7 +1011,7 @@ export default function SettingsPanel({
       if (actions.size > 1) actions.forEach((k) => keys.add(k));
     }
     return keys;
-  }, [appSettings?.keybinds]);
+  }, [appSettings?.keybinds, osPlatform]);
 
   return (
     <>
@@ -1180,6 +1186,20 @@ export default function SettingsPanel({
                           id="neutral-grey-bg-toggle"
                           label={t('settings.general.enableNeutralGreyCanvas')}
                           onChange={(checked) => onSettingsChange({ ...appSettings, editorNeutralGreyBg: checked })}
+                        />
+                      </SettingItem>
+
+                      <SettingItem
+                        label={t('settings.general.compactAdjustments')}
+                        description={t('settings.general.compactAdjustmentsDesc')}
+                      >
+                        <Switch
+                          checked={appSettings?.adjustmentDensity === 'compact'}
+                          id="compact-adjustments-toggle"
+                          label={t('settings.general.enableCompactAdjustments')}
+                          onChange={(checked) =>
+                            onSettingsChange({ ...appSettings, adjustmentDensity: checked ? 'compact' : 'comfortable' })
+                          }
                         />
                       </SettingItem>
 

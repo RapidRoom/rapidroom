@@ -286,6 +286,7 @@ const ColorWheel = ({
                 label={t('ui.colorWheel.saturation')}
                 max={100}
                 min={0}
+                density="comfortable"
                 onChange={handleSaturationChange}
                 onDragStateChange={setIsSliderDragging}
                 step={1}
@@ -303,6 +304,7 @@ const ColorWheel = ({
           label={isExpanded ? t('ui.colorWheel.luminance') : <Sun size={16} className="text-text-secondary" />}
           max={100}
           min={-100}
+          density="comfortable"
           onChange={handleLumChange}
           onDragStateChange={setIsSliderDragging}
           step={1}

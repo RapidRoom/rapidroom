@@ -55,10 +55,12 @@
         "reds": "Rot",
         "yellows": "Gelb"
       },
+      "mixerPickerTooltip": "Farbmischer-Pipette: Auf das Foto klicken und nach oben oder unten ziehen",
       "presence": "Präsenz",
       "saturation": "Sättigung",
       "temperature": "Temperatur",
       "tint": "Tonung",
+      "toggleMixerExpanded": "Erweiterter Farbmischer",
       "toggleSliders": "Regler umschalten",
       "vibrance": "Dynamik",
       "wbPickerTooltip": "Weißabgleich-Pipette",
@@ -159,13 +161,17 @@
       "confirmDeleteGroupNested": "Gruppe & alle verschachtelten Alben löschen",
       "deleteAlbum": "Album löschen",
       "deleteGroup": "Gruppe löschen",
+      "importLightroom": "Sammlungen aus Lightroom importieren…",
+      "lightroomCatalog": "Lightroom-Katalog",
       "moveHere": "Hierher verschieben",
       "moveTo": "Verschieben nach...",
       "newAlbum": "Neues Album",
       "newGroup": "Neue Gruppe",
+      "relinkLightroom": "Lightroom-Ordner neu zuordnen…",
       "renameAlbum": "Album umbenennen",
       "renameGroup": "Gruppe umbenennen",
-      "rootDir": "Stammverzeichnis"
+      "rootDir": "Stammverzeichnis",
+      "selectLightroomCatalog": "Lightroom-Katalog auswählen"
     },
     "colors": {
       "blue": "Blau",
@@ -192,6 +198,9 @@
       "denoise": "Bild entrauschen",
       "editImage": "Bild bearbeiten",
       "exportImage": "Bild exportieren",
+      "flag": "Markierung",
+      "flagPick": "Ausgewählt",
+      "flagReject": "Abgelehnt",
       "frameImage": "Bild rahmen",
       "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "Zu HDR zusammenfügen",
@@ -206,7 +215,8 @@
       "resetAdjustments": "Einstellungen zurücksetzen",
       "stitchPanorama": "Panorama zusammenfügen",
       "tagging": "Tagging",
-      "undo": "Rückgängig"
+      "undo": "Rückgängig",
+      "unflagged": "Nicht markiert"
     },
     "folders": {
       "changeIcon": "Symbol ändern",
@@ -230,6 +240,7 @@
     "library": {
       "addCopiedToAlbum_one": "Kopiertes Bild zum Album hinzufügen",
       "addCopiedToAlbum_other": "{{count}} kopierte Bilder zum Album hinzufügen",
+      "deleteRejected": "Abgelehnte Bilder löschen",
       "refreshView": "Ansicht aktualisieren"
     },
     "merge": {
@@ -302,6 +313,7 @@
       "unchanged": "Not imported — no supported changes ({{total}})"
     },
     "toasts": {
+      "albumFilesUnreachable": "Keine Dateien dieses Albums sind erreichbar. Bitte den Datenträger verbinden oder die Ordner neu zuordnen, falls sie verschoben wurden.",
       "couldNotShowExplorer": "Datei konnte nicht im Explorer angezeigt werden: {{err}}",
       "couldNotShowFolder": "Ordner konnte nicht angezeigt werden: {{err}}",
       "failedAddToAlbum": "Fehler beim Hinzufügen zum Album: {{err}}",
@@ -312,6 +324,7 @@
       "failedDelete": "Löschen fehlgeschlagen: {{err}}",
       "failedDeleteFolder": "Ordner löschen fehlgeschlagen: {{err}}",
       "failedDuplicate": "Datei duplizieren fehlgeschlagen: {{err}}",
+      "failedImportLightroomCollections": "Lightroom-Sammlungen konnten nicht importiert werden: {{err}}",
       "failedImportMatchingXmpSidecars": "Failed to import matching XMP sidecars: {{err}}",
       "failedImportXmpAdjustments": "Failed to import XMP adjustments: {{err}}",
       "failedMatchingXmpSidecars_one": "Matching XMP sidecars failed to import: {{count}}.",
@@ -320,6 +333,7 @@
       "failedMoveError": "Verschieben fehlgeschlagen: {{err}}",
       "failedMoveInvalid": "Verschieben fehlgeschlagen: Zielgruppe nicht gefunden oder ungültig.",
       "failedRemoveImages": "Bilder entfernen fehlgeschlagen: {{err}}",
+      "importedLightroomCollections": "Lightroom-Sammlungen aus {{name}} importiert.",
       "importedMatchingXmpSidecars_one": "Imported matching XMP sidecars: {{count}}.",
       "importedMatchingXmpSidecars_other": "Imported matching XMP sidecars: {{count}}.",
       "importedXmpAdjustments": "Imported XMP adjustments.",
@@ -754,6 +768,7 @@
         "presetFile": "Vorgabendatei",
         "rapidRawPreset": "RapidRAW Vorgabe"
       },
+      "favorites": "Favoriten",
       "menu": {
         "configurePreset": "Vorgabe konfigurieren",
         "deleteFolder": "Ordner löschen",
@@ -781,8 +796,10 @@
       "tooltips": {
         "explore": "Community-Vorgaben entdecken",
         "export": "Alle Vorgaben als .rrpreset exportieren",
+        "favorite": "Zu Favoriten hinzufügen",
         "import": "Vorgaben aus .rrpreset importieren",
-        "saveNew": "Als neue Vorgabe speichern"
+        "saveNew": "Als neue Vorgabe speichern",
+        "unfavorite": "Aus Favoriten entfernen"
       },
       "types": {
         "folder": "Ordner",
@@ -1006,6 +1023,13 @@
         "editedOnly": "Nur bearbeitete",
         "uneditedOnly": "Nur unbearbeitete"
       },
+      "flag": {
+        "all": "Alle Bilder",
+        "excludeRejected": "Abgelehnte ausblenden",
+        "picked": "Ausgewählt",
+        "rejected": "Abgelehnt",
+        "unflagged": "Ohne Markierung"
+      },
       "noMatch": "Keine Bilder gefunden, die Ihrem Filter entsprechen.",
       "rating": {
         "all": "Alle anzeigen",
@@ -1093,6 +1117,7 @@
         "filterByColorLabel": "Nach Farbmarkierung filtern",
         "filterByEdited": "Nach Bearbeitungsstatus filtern",
         "filterByFileType": "Nach Dateityp filtern",
+        "filterByFlag": "Nach Markierung filtern",
         "filterByRating": "Nach Bewertung filtern",
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
@@ -1126,11 +1151,21 @@
       "expandFolder": "Ordner aufklappen",
       "imagesCount_one": "1 Bild",
       "imagesCount_other": "{{count}} Bilder",
+      "rejected": "Abgelehnt",
       "tooltipAperture": "Blende",
       "tooltipFocalLength": "Brennweite",
       "tooltipIso": "ISO",
       "tooltipShutterSpeed": "Verschlusszeit",
       "tooltipVirtualCopy": "Virtuelle Kopie"
+    },
+    "reject": {
+      "deleteConfirm": "Abgelehnte löschen",
+      "deleteMessage_one": "Möchten Sie {{count}} abgelehntes Bild wirklich löschen? Es wird in den Papierkorb verschoben.",
+      "deleteMessage_other": "Möchten Sie {{count}} abgelehnte Bilder wirklich löschen? Sie werden in den Papierkorb verschoben.",
+      "deleteTitle": "Abgelehnte Bilder löschen",
+      "noneToDelete": "Es gibt keine abgelehnten Bilder zum Löschen.",
+      "virtualCopiesWarning_one": "{{count}} nicht abgelehnte virtuelle Kopie wird ebenfalls gelöscht, weil ihr Original abgelehnt ist.",
+      "virtualCopiesWarning_other": "{{count}} nicht abgelehnte virtuelle Kopien werden ebenfalls gelöscht, weil ihre Originale abgelehnt sind."
     },
     "search": {
       "noResults": "Keine Ergebnisse gefunden",
@@ -1314,7 +1349,7 @@
     "culling": {
       "actionDelete": "In den Papierkorb verschieben",
       "actionRateZero": "Bewertung auf 1 Stern setzen",
-      "actionReject": "Als abgelehnt markieren (Rote Markierung)",
+      "actionReject": "Als abgelehnt markieren",
       "applyButton_one": "Auf 1 Bild anwenden",
       "applyButton_other": "Auf {{count}} Bilder anwenden",
       "bestImage": "Bestes Bild",
@@ -1453,6 +1488,36 @@
       "waitingAutoDetect": "Warten auf Auto-Erkennung...",
       "zoomInTooltip": "Vergrößern",
       "zoomOutTooltip": "Verkleinern"
+    },
+    "lightroomImport": {
+      "addRootFolders": "Gefundene Stammordner auch unter „Ordner“ hinzufügen",
+      "besideCatalog": "Neben dem Katalog gefunden",
+      "collectionSets": "Sammlungssätze",
+      "collections": "Sammlungen",
+      "copied": "Liste kopiert.",
+      "copyList": "Liste kopieren",
+      "found": "Gefunden",
+      "imagesFound": "Bilder gefunden",
+      "imagesMissing": "Bilder fehlen",
+      "import": "Importieren",
+      "importing": "Wird importiert…",
+      "missingFiles": "Fehlende Dateien: {{total}}",
+      "missingFilesHint": "Fehlende Dateien bleiben in ihren Alben und erscheinen wieder, sobald ihr Ordner gefunden oder neu zugeordnet ist.",
+      "missingFilesMore": "…und {{total}} weitere",
+      "missingRoots": "Nicht gefundene Stammordner: {{total}}. Ihre Bilder werden als fehlend importiert, bis du sie neu zuordnest.",
+      "notFound": "Nicht gefunden",
+      "nothingToImport": "Dieser Katalog enthält keine Sammlungen zum Importieren.",
+      "reading": "Katalog wird gelesen…",
+      "relink": "Neu zuordnen…",
+      "relinkTitle": "Fehlenden Lightroom-Ordner suchen: {{path}}",
+      "relinked": "Neu zugeordnet",
+      "replacesPrevious": "Dieser Katalog wurde schon einmal importiert. Ein erneuter Import aktualisiert seine Alben dort, wo du sie abgelegt hast; deine anderen Alben bleiben unverändert.",
+      "rootFolders": "Stammordner",
+      "rootFoldersHint": "Wo die Ordner des Katalogs auf diesem Computer liegen. Ordne einen Ordner neu zu, wenn er verschoben wurde oder von einem anderen Computer stammt. Der Katalog selbst wird nur gelesen, nie verändert.",
+      "rootImages": "Bilder: {{images}}, fehlend: {{missing}}",
+      "skippedOther": "Bücher, Diashows, Drucke und Webgalerien, nicht importiert: {{total}}",
+      "smartCollections": "Smart Collections, nicht importiert: {{total}}",
+      "title": "Lightroom-Sammlungen importieren"
     },
     "negativeConversion": {
       "blueWeight": "Blau (Gelb)",
@@ -1648,12 +1713,15 @@
     "general": {
       "autoAdvance": "Nach Bewertung weiter",
       "autoAdvanceDesc": "Wenn du ein einzelnes Bild per Tastenkürzel bewertest, wird zum nächsten Bild gewechselt.",
+      "compactAdjustments": "Kompakte Regler",
+      "compactAdjustmentsDesc": "Zeigt jeden Regler im Entwickeln-Bereich in einer Zeile, mit Beschriftung und Wert neben der Leiste, damit auf kleinen Bildschirmen mehr Regler sichtbar sind.",
       "createXmp": "Fehlende XMP-Dateien erstellen",
       "createXmpDesc": "Erstellt automatisch eine neue XMP-Filialdatei, falls noch keine für ein Bild existiert.",
       "createXmpMissing": "XMP erstellen, falls fehlend",
       "displayEditIcon": "Bearbeitungssymbol anzeigen",
       "displayEditIconDesc": "Zeigt ein kleines Schieberegler-Symbol auf Miniaturbildern an, die bearbeitet wurden.",
       "enableAutoAdvance": "Automatisch weiter aktivieren",
+      "enableCompactAdjustments": "Kompakte Regler aktivieren",
       "enableFocusMode": "Fokusmodus aktivieren",
       "enableNeutralGreyCanvas": "Neutralgrauen Hintergrund aktivieren",
       "enableOsTitlebar": "OS-Titelleiste aktivieren",
@@ -1694,7 +1762,10 @@
         "copy_files": "Ausgewählte Datei(en) kopieren",
         "copy_image_path": "Pfad des/der ausgewählten Bilder kopieren",
         "cycle_zoom": "Zoom durchwechseln (Einpassen, 2x Einpassen, 100%)",
+        "delete_rejected": "Abgelehnte Datei(en) löschen",
         "delete_selected": "Ausgewählte Datei(en) löschen",
+        "flag_pick": "Als ausgewählt markieren",
+        "flag_reject": "Als abgelehnt markieren",
         "focus_search": "Suchfeld fokussieren",
         "open_image": "Ausgewähltes Bild öffnen",
         "open_settings": "Einstellungen öffnen",
@@ -1722,6 +1793,8 @@
         "toggle_export": "Exportieren-Panel ein-/ausblenden",
         "toggle_folder_tree": "Ordnerstruktur-Panel ein-/ausblenden",
         "toggle_fullscreen": "Vollbild umschalten",
+        "cycle_lights_out": "Lights Out durchschalten",
+        "cycle_lights_out_reverse": "Lights Out rückwärts durchschalten",
         "toggle_left_panel": "Linkes Panel ein-/ausblenden",
         "toggle_library_exif": "EXIF-Überlagerung ein-/ausblenden",
         "toggle_masks": "Maskieren-Panel ein-/ausblenden",
@@ -1730,6 +1803,7 @@
         "toggle_reference_view": "Referenzansicht ein/aus",
         "toggle_right_panel": "Rechtes Panel ein-/ausblenden",
         "undo": "Bearbeitung rückgängig machen",
+        "unflag": "Markierung entfernen",
         "zoom_100": "Auf 100% zoomen",
         "zoom_fit": "Auf Fenstergröße einpassen",
         "zoom_in": "Vergrößern",
@@ -2067,6 +2141,10 @@
         "virtualCopy": "Virtuelle Kopie"
       },
       "virtualCopyAbbreviation": "VK"
+    },
+    "flags": {
+      "togglePick": "Auswahl umschalten",
+      "toggleReject": "Ablehnung umschalten"
     },
     "imagePicker": {
       "clearImage": "Bild löschen",

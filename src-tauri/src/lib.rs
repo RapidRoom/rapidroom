@@ -46,12 +46,16 @@ mod formats;
 mod gpu_processing;
 mod guided_perspective;
 mod hdr_deghosting;
+#[cfg(test)]
+mod hdr_fixtures;
 mod image_loader;
 mod image_processing;
 mod inpainting;
 mod launch_request;
 mod lens_blur;
 mod lens_correction;
+mod lightroom;
+mod lrtemplate;
 mod lut_processing;
 mod mask_generation;
 mod multi_exposure;
@@ -63,6 +67,7 @@ mod preset_converter;
 mod raw_processing;
 mod tagging;
 mod tagging_utils;
+mod terminal;
 #[cfg(test)]
 mod test_support;
 mod two_phase_rename;
@@ -415,6 +420,27 @@ async fn update_wgpu_transform(
     .map_err(|e| format!("Task panicked: {}", e))?;
 
     Ok(())
+}
+
+#[tauri::command]
+async fn sample_display_area(
+    x: f32,
+    y: f32,
+    radius: f32,
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<u8>, String> {
+    tokio::task::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let context = state
+            .gpu_context
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .ok_or("GPU context is not initialized")?;
+        crate::gpu_processing::read_display_area(&context, &state, (x, y), radius)
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {}", e))?
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2304,6 +2330,7 @@ pub fn run() {
             frontend_ready,
             cancel_thumbnail_generation,
             update_wgpu_transform,
+            sample_display_area,
             android_integration::resolve_android_content_uri_name,
             cache_utils::clear_session_caches,
             cache_utils::clear_image_caches,
@@ -2363,6 +2390,7 @@ pub fn run() {
             file_management::generate_export_filename,
             file_management::duplicate_file,
             file_management::show_in_finder,
+            terminal::open_terminal_here,
             file_management::delete_files_from_disk,
             file_management::delete_files_with_associated,
             file_management::save_metadata_and_update_thumbnail,
@@ -2385,12 +2413,17 @@ pub fn run() {
             file_management::clear_thumbnail_cache,
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,
+            file_management::set_flag_for_paths,
             file_management::import_files,
             file_management::create_virtual_copy,
             file_management::get_albums,
             file_management::save_albums,
             file_management::add_to_album,
             file_management::get_album_images,
+            lightroom::collections::preview_lightroom_collections,
+            lightroom::collections::import_lightroom_collections,
+            lightroom::develop::preview_lightroom_develop,
+            lightroom::develop::import_lightroom_develop,
             tagging::start_background_indexing,
             tagging::clear_ai_tags,
             tagging::clear_all_tags,

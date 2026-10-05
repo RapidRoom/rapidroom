@@ -11,6 +11,10 @@ Existing non-null sidecar adjustments remain unchanged, even when they have no c
 - Pinned executable SHA-256: `d0a5b919b0f55e6d5d067a98b486eef7477971095cd5fb3d4efc268da17b6a20`.
 - Baseline executable SHA-256: `933bab69f42ee992dc43ecb8d2c07387c0219c1c664b4a25e8afac06976699d2` (the pinned `samples/engines/int7-rapidroom`, matching `baseline-int7/manifest.json`).
 
+## Historical validation snapshot
+
+The identities and checks below describe the pre-integration snapshot. The final integration combines rawler `a98bd053` (scoped Olympus calibration and DNG/preview fixes) with the Sony crop commits as `53b3dceb`. Fresh final checks are retained in `~/code/rapidraw-project/baseline/results/sora-final-stack/127/` and reported on PR #127 before merge.
+
 ## Results
 
 The A7C II maintainer pair is local only. Both ARWs contain `DefaultCropOrigin = 12,8`, `DefaultCropSize = 7008×4672`. The 4:3 ARW additionally contains Sony origin `404,8`, size `6224×4672`; its crop in the developed full frame is `x=392, y=0, width=6224, height=4672`.
@@ -43,4 +47,4 @@ Actual 1:1 and 16:9 camera files were not available; those modes are covered syn
 
 The full TIFF exports and isolated saved-sidecar inputs are in that directory. Original RAW+JPEG files remain in `samples/aspect-test/`. The committed pair JSON contains dimensions and hashes only.
 
-For human review: open the 4:3 file, compare its initial frame with the camera JPEG, expand/reset its crop to 7008×4672, reopen a saved custom crop and a saved full-frame reset, and confirm the 3:2 file stays unchanged. Keep the PR draft and `needs-human` until this visual/editing review is complete. Offering the fix upstream is for maintainers after it lands; nothing was posted upstream.
+For human review: open the 4:3 file, compare its initial frame with the camera JPEG, expand/reset its crop to 7008×4672, reopen a saved custom crop and a saved full-frame reset, and confirm the 3:2 file stays unchanged. Josh approved #127 on 2026-10-04: “I will never use a 4:3 shot, personally, I will always take the full sensor and crop later, so 127 is approved”. The checks above remain useful desktop follow-ups; the approval permits merging after fresh automated gates. Offering the fix upstream is for maintainers after it lands; nothing was posted upstream.

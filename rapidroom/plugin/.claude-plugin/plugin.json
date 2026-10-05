@@ -1,0 +1,11 @@
+{
+  "name": "rapidroom",
+  "displayName": "RapidRoom",
+  "version": "0.1.0",
+  "description": "Edit raw photos in RapidRoom with an assistant: workflow, adjustment reference, tutor mode, source lookup and assistant-drafted issues. Needs a RapidRoom build with the MCP server.",
+  "author": { "name": "RapidRoom contributors", "url": "https://github.com/RapidRoom/rapidroom" },
+  "homepage": "https://github.com/RapidRoom/rapidroom/tree/main/rapidroom/plugin",
+  "repository": "https://github.com/RapidRoom/rapidroom",
+  "license": "AGPL-3.0-only",
+  "keywords": ["photography", "raw", "photo-editing", "rapidraw", "rapidroom", "mcp"]
+}
