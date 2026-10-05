@@ -243,11 +243,13 @@ class Smoke:
           e.closest('label').scrollIntoView({block:'center'});if(!e.checked)e.click();return true;""")
         self.capture("settings-compact")
         self.key("Escape", "Escape")
+        wait_for(lambda: self.execute("return !document.querySelector('#switch-enable-compact-sliders');"),
+                 "settings overlay closes")
         wait_for(lambda: self.execute("return !!document.querySelector('input[type=range][aria-label=Exposure]');"),
                  "Compact adjustment layout")
         settings = self.case / "data/io.github.CyberTimon.RapidRAW/settings.json"
         wait_for(lambda: json.loads(settings.read_text()).get("adjustmentDensity") == "compact", "Compact persisted")
-        self.capture("compact")
+        self.stable_preview("compact")
         self.step("Compact enabled and persisted", self.slider("Exposure"))
         self.key("KeyE", "e")
         wait_for(lambda: self.execute("return [...document.querySelectorAll('button[aria-haspopup=listbox]')]"
