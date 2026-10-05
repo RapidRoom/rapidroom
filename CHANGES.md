@@ -99,7 +99,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Landed in RapidRoom:** 2026-10-05
 - **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
 - **Upstream:** not yet offered
-- **Notes:** A full-frame crop matching the oriented image is treated as the existing crop. The crop overlay is kept locally without persisting an equivalent full-frame rectangle; unchanged adjustment callbacks do not queue history or switch Original off. Real crops, aspect-ratio changes and straightening remain edits. Unit and native history/revision/sidecar checks in progress.
+- **Notes:** A full-frame crop matching the oriented image is treated as the existing crop. The crop overlay stays local; unchanged adjustment callbacks do not queue history or switch Original off. Real crops, aspect-ratio changes and straightening remain edits. All 159 frontend tests pass, including ten new normalization/action checks. The 12-step Linux native run verifies open/close and unchanged completion preserve state/revision/history/sidecar bytes and mtime; one real crop creates one user entry and Undo restores exact preview pixels, followed by Compact, JPEG export and clean exit. Three captures inspected. Physical input and other platforms are untested.
 
 ### Keep Library and Editor content inside resized docks and give the terminal one compact header
 
