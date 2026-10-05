@@ -2,6 +2,56 @@ use serde_json::{Map, Value, json};
 
 use crate::guided_perspective::{GuideLine, GuideOrientation};
 
+pub(super) fn changed_keys(before: &Value, after: &Value) -> Vec<String> {
+    let keys: std::collections::BTreeSet<_> = before
+        .as_object()
+        .into_iter()
+        .flat_map(|value| value.keys())
+        .chain(after.as_object().into_iter().flat_map(|value| value.keys()))
+        .collect();
+    keys.into_iter()
+        .filter(|key| before.get(key.as_str()) != after.get(key.as_str()))
+        .cloned()
+        .collect()
+}
+
+pub(super) fn compact_schema() -> (Value, Value) {
+    let mut schema = adjustments_schema();
+    let controls = &mut schema["properties"];
+    let mut definitions = json!({
+        "curvePoint": controls["curves"]["properties"]["luma"]["items"],
+        "parametricChannel": controls["parametricCurve"]["properties"]["luma"],
+        "hslBand": controls["hsl"]["properties"]["reds"],
+        "gradingWheel": controls["colorGrading"]["properties"]["shadows"],
+    });
+    let reference = |name: &str| json!({"$ref":format!("#/$defs/{name}")});
+    for key in ["curves", "pointCurves"] {
+        for channel in ["luma", "red", "green", "blue"] {
+            controls[key]["properties"][channel]["items"] = reference("curvePoint");
+        }
+    }
+    let mut channels = controls["curves"].clone();
+    channels.as_object_mut().unwrap().remove("description");
+    definitions["curveChannels"] = channels;
+    for key in ["curves", "pointCurves"] {
+        let description = controls[key]["description"].clone();
+        controls[key] = reference("curveChannels");
+        controls[key]["description"] = description;
+    }
+    for channel in ["luma", "red", "green", "blue"] {
+        controls["parametricCurve"]["properties"][channel] = reference("parametricChannel");
+    }
+    for color in [
+        "reds", "oranges", "yellows", "greens", "aquas", "blues", "purples", "magentas",
+    ] {
+        controls["hsl"]["properties"][color] = reference("hslBand");
+    }
+    for wheel in ["shadows", "midtones", "highlights", "global"] {
+        controls["colorGrading"]["properties"][wheel] = reference("gradingWheel");
+    }
+    (schema, definitions)
+}
+
 pub(super) fn adjustments_schema() -> Value {
     let mut properties = Map::new();
     for (key, min, max, description) in [

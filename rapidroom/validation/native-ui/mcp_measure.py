@@ -85,10 +85,10 @@ def run_measure_checks(case, smoke):
     if len(first) != 2 or first != second or first[0] != first[1] or max(frames[0].size) > 128:
         raise RuntimeError("Identical variants are not byte-stable or size-limited")
     unchanged()
-    stats = read_tool(url, token, "analyze", {**common, "maxDimension": 128})
+    stats = read_tool(url, token, "analyze", {**common, "maxDimension": 128, "histogram": True})
     check_statistics(stats, frames[0])
     unchanged()
-    sample = read_tool(url, token, "sample_region", {**common, "maxDimension": 128,
+    sample = read_tool(url, token, "sample_region", {**common, "maxDimension": 128, "histogram": True,
                        "region": {"x":0.25,"y":0.25,"width":0.5,"height":0.5},"suggestWhiteBalance":True})
     width, height = frames[0].size
     region = frames[0].crop((math.floor(width/4),math.floor(height/4),math.ceil(width*0.75),math.ceil(height*0.75)))

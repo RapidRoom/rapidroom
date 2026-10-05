@@ -163,3 +163,7 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 - **Read-only MCP revision handling and conflict details (#148):** original work
   by Yojen with Codex/sora. Existing MCP authorship and licences retained; no
   dependency added.
+
+- **Compact MCP payloads, local schema definitions and comparison layout (#147):**
+  original work by Yojen with Codex/sora. Existing MCP/renderer/font authorship
+  and full notices retained; no dependency or network connection added.

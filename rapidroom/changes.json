@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "mcp-compact-replies",
+      "title": "Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons",
+      "category": "performance",
+      "landed": "2026-10-05",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex; existing MCP authorship retained)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Set/update/reset replies default to editRevision and actual changedKeys, with verbose:true retaining the full adjustment state. Analyze/sample summaries retain exact clipping, means, medians and linearly interpolated luminance percentiles; histogram:true returns the existing four exact 256-bin histograms. Repeated curve, HSL and grading schemas use self-contained local definitions without changing validation. Compare sheets use image-aspect cells and retain exact labels; photo-rendering algorithms and separate variant pixels are unchanged. Three-mask byte measurements and real-client native validation are in progress."
+    },
+    {
       "id": "mcp-advisory-read-revisions",
       "title": "Read the latest MCP previews across GUI edits and explain stale mutation conflicts",
       "category": "fix",

@@ -236,3 +236,21 @@ old stale dirty flag and checks clean builds, edits, reversion and a new HEAD.
 The revised application includes this correction. Other platforms, physical
 input, native evicted-history/mid-render concurrency and archive identity
 remain untested.
+
+## Optional compact payload scenario
+
+Build with `--mcp-clients`, then run `smoke.py --mcp-compact`. It prepares three
+actual radial masks on the public CC0 Sony fixture, measures UTF-8 JSON result
+bytes for default/verbose set, update and reset, summary/opt-in histograms, and
+tools/list schemas. Four identical landscape variants exercise the tight
+labelled contact sheet and unchanged separate-image pixels. Opt-in statistics
+are independently checked against decoded pre-JPEG pixels, with state/history
+and sidecar bytes/mtime guarded across reads. Both real clients apply a nested
+HSL/grading/parametric patch through the local schemas, receive compact replies,
+preserve all three masks, and record one shared assistant history step.
+
+Use `--mcp-compact-baseline` with the prior pinned application to measure the
+old replies and square sheet using the same owned fixture and wire requests.
+This baseline mode makes no real model requests. Neither mode uses the private
+human editing-session photos/log; captures and client logs stay under samples/.
+Other platforms and physical input devices remain untested.
