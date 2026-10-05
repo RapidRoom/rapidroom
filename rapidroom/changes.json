@@ -5,27 +5,27 @@
       "id": "built-in-terminal-panel",
       "title": "Movable terminal panel with persistent tabs, bounded PTY output, shell/font preferences and built-in/external assistant launch controls",
       "category": "feature",
-      "landed": "2026-10-04",
+      "landed": "2026-10-05",
       "authors": ["yojen7"],
       "source": "rapidroom (original work with Codex; optional portable-pty and xterm dependencies credited separately)",
       "commits": [],
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Requires cargo feature terminal; official Linux release configuration enables it. Uses existing left/right panel docking plus a resizable full-width bottom region. Saved tabs reopen fresh shells without persisted transcripts or automatic commands. Output is bounded with acknowledgement backpressure, OSC 52 clipboard commands are blocked, and owned PTY sessions are closed on tab/app exit. Claude/Codex start buttons type fixed shell commands or use the existing external terminal infrastructure. The optional Linux native extension passes all 11 editor/PTY/launcher/cleanup steps, with zero frontend/native errors and unchanged fixture/engine guards. Assistant and external-terminal stubs verify commands and folder/environment; actual client interoperability and #102/#116 authenticated endpoint/stdio parity remain pending. This branch is not ready to merge before that integration."
+      "notes": "Requires cargo feature terminal; official Linux release configuration enables it. Uses existing left/right panel docking plus a resizable full-width bottom region. Saved tabs reopen fresh shells without persisted transcripts or automatic commands. Output is bounded with acknowledgement backpressure, OSC 52 clipboard commands are blocked, and owned PTY sessions are closed on tab/app exit. Claude/Codex start buttons type fixed shell commands or use the existing external terminal infrastructure. The 15-step Linux native scenario verifies real Claude Code and Codex from both launch paths over authenticated stdio, with the same folder and standard configuration, automatic endpoint discovery, changed photo revision/slider/preview, external mode keeping the panel closed, and PTY cleanup on quit. Default dependency graph is unchanged. Native macOS/Windows and physical terminal focus are untested."
     },
     {
       "id": "terminal-strict-csp",
       "title": "Keep webview scripts local and disable Cloud sign-in before adding the terminal panel",
       "category": "privacy",
-      "landed": "2026-10-04",
+      "landed": "2026-10-05",
       "authors": ["yojen7"],
       "source": "rapidroom (original policy integration, AI-assisted; measured design from #125)",
       "commits": [],
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Implements Josh’s #119 choice: strict script CSP with Clerk off. Existing CPU and AI Connector choices remain available. Production and development directives retain required asset, IPC, style, map and update origins; only styles bypass automatic Tauri CSP modification. CI checks the configured policy, saved Cloud settings, and blocked nonlocal script execution. PTY and MCP endpoint integration follow separately."
+      "notes": "Implements Josh’s #119 choice: strict script CSP with Clerk off. Existing CPU and AI Connector choices remain available. Production and development directives retain required asset, IPC, style, map and update origins; only styles bypass automatic Tauri CSP modification. CI checks the configured policy, saved Cloud settings, and blocked nonlocal script execution. The native panel scenario enforces the response-header policy and blocks a nonlocal script control while PTY and authenticated MCP editing work."
     },
     {
       "id": "orf-scoped-image-processing",

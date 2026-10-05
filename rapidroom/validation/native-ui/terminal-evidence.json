@@ -2,14 +2,20 @@
   "issue": 119,
   "passed": true,
   "application_source": {
-    "head": "4e500c54909d6247f20376e06dbf529b2ed5677c",
+    "head": "f32324c44bd7cd5ab89d6e727d6753e9365a6c5a",
     "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "status": ""
   },
-  "engine_sha256": "b37f202ff1a0103af3fd57086334c3cb67c11ee2d3e7f0c1511439664d411b7e",
-  "harness_sha256": "4ac798df2daf38f93474a65228095f17eafcdab6b24084286b73d097fcfef4b1",
-  "features": ["native-ui-test", "terminal"],
-  "case": "samples/terminal-ui-119/native-stage2",
+  "engine_sha256": "05f7877b56414f100c191164a731a300c548ccf995f1634241c749f4415ec603",
+  "stdio_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
+  "harness_source": "8627b4a4274145ec20f1030afc3b39e25e8f9308",
+  "harness_sha256": "d62158cab177b3b64ddc4c5c7367750eec333486bf3872c22ea609e08f0202f3",
+  "client_helpers_sha256": {
+    "mcp_clients.py": "cd0f671f9a1edf604f636f09a68afbbfcfbab106970580cedd69e034aaff86ab",
+    "terminal_clients.py": "e334ad87b6467c9be969ed8f5fd8a035e89ca49614a5d4880f3341342e37a168"
+  },
+  "features": ["native-ui-test", "terminal", "mcp"],
+  "case": "samples/terminal-ui-119/native-auth-stage1",
   "steps": [
     "library thumbnail",
     "native preview",
@@ -19,18 +25,65 @@
     "GUI JPEG export",
     "native strict CSP",
     "PTY input/output, docking, resize and collapse",
-    "built-in and external shell-typed assistant launch",
+    "authenticated endpoint and both MCP wire versions",
+    "real built-in-claude authenticated stdio edit",
+    "real built-in-codex authenticated stdio edit",
+    "real external-claude authenticated stdio edit",
+    "real external-codex authenticated stdio edit",
     "PTY background process removed on app quit",
     "clean exit and no frontend/native errors"
   ],
   "real_pty": true,
-  "real_assistants_started": false,
-  "built_in_and_external_launch_records": 4,
+  "real_assistants_started": true,
+  "clients": {
+    "built-in-claude": {
+      "folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "app_folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "config_home": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
+      "endpoint_or_token_env": false,
+      "stdin_is_pty": true,
+      "passed": true,
+      "version": "2.1.289 (Claude Code)",
+      "actual_mcp_edit_call": true
+    },
+    "built-in-codex": {
+      "folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "app_folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "config_home": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
+      "endpoint_or_token_env": false,
+      "stdin_is_pty": true,
+      "passed": true,
+      "version": "codex-cli 0.160.0",
+      "actual_mcp_edit_call": true
+    },
+    "external-claude": {
+      "folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "app_folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "config_home": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
+      "endpoint_or_token_env": false,
+      "stdin_is_pty": false,
+      "passed": true,
+      "version": "2.1.289 (Claude Code)",
+      "actual_mcp_edit_call": true
+    },
+    "external-codex": {
+      "folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "app_folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "config_home": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
+      "endpoint_or_token_env": false,
+      "stdin_is_pty": false,
+      "passed": true,
+      "version": "codex-cli 0.160.0",
+      "actual_mcp_edit_call": true
+    }
+  },
+  "client_invocation": "noninteractive real installed CLIs, restricted state/edit MCP tools and per-invocation stdio configuration",
+  "external_terminal_executable": "owned launcher stub; actual assistant process and transport",
   "same_folder_environment": true,
-  "mcp_parity": "pending #102 live approval and #116 integration",
+  "mcp_parity": "passed both launch paths, standard XDG config discovery, no endpoint or token variables",
   "fixture_and_engine_unchanged": true,
   "exit_code": 0,
   "frontend_and_native_errors": 0,
   "default_dependency_graph_unchanged": true,
-  "screenshots_visually_inspected": ["terminal-left", "terminal-final"]
+  "screenshots_visually_inspected": ["terminal-final", "external-codex-after-1"]
 }
