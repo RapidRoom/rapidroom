@@ -1,6 +1,6 @@
 # Starting an assistant with RapidRoom
 
-Until RapidRoom has a built-in terminal ([coming](tools.md#coming), #119), the assistant runs in a terminal next to the app. Use this page to help the user set it up, or when the MCP tools are missing.
+In builds with the `terminal` feature, the movable terminal panel can start Claude Code or Codex in the open photo folder. External-terminal mode uses the same folder and client registration. Use this page to help the user set it up, or when the MCP tools are missing.
 
 ## 1. RapidRoom with the MCP server
 

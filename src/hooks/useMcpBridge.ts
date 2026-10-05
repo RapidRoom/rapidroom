@@ -1,6 +1,6 @@
 import { toast } from 'react-toastify';
 import { isPathInCardRoot } from '../utils/cardMode';
-import { describeHistoryChange } from '../utils/editHistory';
+import { describeHistoryChange, sameAdjustmentValue } from '../utils/editHistory';
 import { useUIStore } from '../store/useUIStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useEffect, useState } from 'react';
@@ -121,7 +121,7 @@ async function waitForAdjustmentRender(
 async function applyEdit(path: string, nextAdjustments: Adjustments): Promise<boolean> {
   debouncedSetHistory.flush();
   const editor = useEditorStore.getState();
-  if (JSON.stringify(nextAdjustments) === JSON.stringify(editor.adjustments)) {
+  if (sameAdjustmentValue(nextAdjustments, editor.adjustments)) {
     return true;
   }
   const previousRenderVersion = editor.previewRenderVersion;

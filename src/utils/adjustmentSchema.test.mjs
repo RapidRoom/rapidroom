@@ -17,9 +17,7 @@ describe('generated MCP adjustment schema', () => {
     expect(schema.parameters['hsl.reds.hue'].uiRanges).toContainEqual(
       expect.objectContaining({ minimum: -100, maximum: 100 }),
     );
-    expect(schema.controls.every((control: { adjustmentKeys: string[] }) => control.adjustmentKeys.length > 0)).toBe(
-      true,
-    );
+    expect(schema.controls.every((control) => control.adjustmentKeys.length > 0)).toBe(true);
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'rapidroom-schema-'));
     try {
       for (const name of ['rapidroom/adjustment-schema.json', ...schema.generatedFrom]) {

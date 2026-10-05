@@ -178,14 +178,14 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         }),
         json!({
             "name": "get_preview",
-            "description": "Render a bounded current/supplied edit or neutral original JPEG. Optional region uses 0–1 fractions of the rendered image; sideBySide returns original on the left and edited on the right without changing history.",
+            "description": "Render a bounded current/supplied edit or neutral original JPEG. Optional region uses 0–1 fractions of the rendered image; side_by_side returns original on the left and edited on the right without changing history.",
             "inputSchema": { "type": "object", "properties": {
                 "imagePath": { "type": "string" },
                 "adjustments": adjustments::adjustments_schema(),
                 "maxDimension": { "type": "integer", "minimum": 128, "maximum": 4096, "default": 1280 },
                 "expectedRevision": { "type": "string" },
                 "original": { "type": "boolean", "default": false },
-                "sideBySide": { "type": "boolean", "default": false },
+                "side_by_side": { "type": "boolean", "default": false },
                 "region": { "type": "object", "additionalProperties": false, "properties": {
                     "x": { "type": "number", "minimum": 0, "maximum": 1 },
                     "y": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -417,10 +417,10 @@ async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value,
     ui::require_active_session(app_handle, Some(&path))?;
     check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
     let original = preview::option(arguments, "original")?;
-    let comparison = preview::option(arguments, "sideBySide")?;
+    let comparison = preview::option(arguments, "side_by_side")?;
     let region = preview::region(arguments)?;
     if original && (comparison || arguments.get("adjustments").is_some()) {
-        return Err("original cannot be combined with adjustments or sideBySide".into());
+        return Err("original cannot be combined with adjustments or side_by_side".into());
     }
     let adjustments = if original {
         original_adjustments()?
@@ -488,7 +488,7 @@ async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value,
     Ok(json!({
         "imagePath": path, "editRevision": adjustments::revision_for(&path,&adjustments),
         "mimeType":"image/jpeg", "width":width, "height":height, "labels":labels,
-        "original":original, "sideBySide":comparison,
+        "original":original, "side_by_side":comparison,
         "regionCoordinates":"fractions of each rendered image after its edit crop",
         "content":[{"type":"image","data":BASE64.encode(encoded),"mimeType":"image/jpeg"}],
     }))

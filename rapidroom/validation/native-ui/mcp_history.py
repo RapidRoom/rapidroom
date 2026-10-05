@@ -30,7 +30,7 @@ def run_history_checks(case, smoke):
         "Make exactly three separate update_adjustments calls that set only exposure to 0.2, then 0.4, then 0.6. "
         "Pass the latest editRevision as expectedRevision each time. Call history_list. "
         "Undo exactly twice, one undo per call, with the latest editRevision. Call history_list again. "
-        "Get three previews with maxDimension 256: one original=true, one sideBySide=true, and one "
+        "Get three previews with maxDimension 256: one original=true, one side_by_side=true, and one "
         "region={x:0.25,y:0.25,width:0.5,height:0.5}. Then get_editor_context and get_image_state. "
         "Make no other changes; use no shell/files/unrelated tools. Finish with a short confirmation.")
     tools = ["get_image_state", "update_adjustments", "history_list", "undo", "get_preview", "get_editor_context"]
@@ -72,7 +72,7 @@ def run_history_checks(case, smoke):
     if schema["parameters"]["exposure"]["default"] != 0 or not schema["parameters"]["exposure"]["uiRanges"]:
         raise RuntimeError("Generated adjustment schema was not served")
     previews = []
-    for options in ({"original": True}, {"sideBySide": True}, {"region": {"x":0.25,"y":0.25,"width":0.5,"height":0.5}}):
+    for options in ({"original": True}, {"side_by_side": True}, {"region": {"x":0.25,"y":0.25,"width":0.5,"height":0.5}}):
         value = rpc(url, "tools/call", {"name": "get_preview", "arguments": {"imagePath":image,"maxDimension":256,**options}}, token=token)
         if value.get("isError"):
             raise RuntimeError("Preview option failed")
@@ -89,7 +89,7 @@ def run_history_checks(case, smoke):
 
     codex_folder = folder / "codex"
     codex_folder.mkdir(mode=0o700)
-    codex_prompt = f"Use only rapidroom MCP tools: get_editor_context, then history_list with imagePath {json.dumps(image)}, then get_preview with that path and maxDimension 256 and sideBySide=true. Do not edit or use any other tool. Finish."
+    codex_prompt = f"Use only rapidroom MCP tools: get_editor_context, then history_list with imagePath {json.dumps(image)}, then get_preview with that path and maxDimension 256 and side_by_side=true. Do not edit or use any other tool. Finish."
     command, version = client_command(case, codex_folder, "codex", 0.2, prompt_override=codex_prompt,
                                       tools=["get_editor_context", "history_list", "get_preview"])
     events = execute_client(command, codex_folder, "codex", case / "config")

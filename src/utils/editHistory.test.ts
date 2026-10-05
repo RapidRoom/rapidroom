@@ -1,11 +1,27 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useEditorStore } from '../store/useEditorStore';
 import { INITIAL_ADJUSTMENTS } from './adjustments';
-import { describeHistoryChange } from './editHistory';
+import { describeHistoryChange, sameAdjustmentValue } from './editHistory';
 
 beforeEach(() => useEditorStore.getState().resetHistory(INITIAL_ADJUSTMENTS));
 
 describe('labelled editor history', () => {
+  it('ignores Rust JSON key order while retaining nested and array changes', () => {
+    const reordered = JSON.parse(
+      JSON.stringify(INITIAL_ADJUSTMENTS, (key, value) =>
+        value && typeof value === 'object' && !Array.isArray(value)
+          ? Object.fromEntries(Object.entries(value).reverse())
+          : value,
+      ),
+    );
+    expect(sameAdjustmentValue(INITIAL_ADJUSTMENTS, reordered)).toBe(true);
+    expect(
+      describeHistoryChange(INITIAL_ADJUSTMENTS, { ...reordered, exposure: 0.2 }, 'assistant').changedKeys,
+    ).toEqual(['exposure']);
+    expect(sameAdjustmentValue({ points: [1, 2] }, { points: [2, 1] })).toBe(false);
+    expect(sameAdjustmentValue({ nested: { hue: 0 } }, { nested: { hue: 1 } })).toBe(false);
+  });
+
   it('retains AI labels across undo/redo and drops the abandoned redo branch', () => {
     const first = { ...INITIAL_ADJUSTMENTS, exposure: 0.4, highlights: -30 };
     const second = { ...first, contrast: 10 };

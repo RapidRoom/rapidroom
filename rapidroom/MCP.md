@@ -65,6 +65,14 @@ Tool discovery includes `ttlMs: 0` and `cacheScope: "private"`, required by MCP 
 
 The optional native Linux regression runs the installed Claude Code and Codex clients against an isolated CC0 photo. It requires a recorded MCP editing call, a new revision, the exact Exposure value in the native slider, and a changed preview for each client. It also validates discovery at `2025-06-18` and `2026-07-28`. See [`validation/native-ui/README.md`](validation/native-ui/README.md). These opt-in checks use the clients’ existing login and make real model requests; they do not change client configuration or touch the user’s library.
 
+## Shared history, context and generated schema
+
+`history_list`, `undo` and `redo` use the editor's existing undo stack. AI edits have an `AI:` label listing changed fields and numeric deltas, plus a brief toast; history reads leave pending GUI gestures untouched. Undo/redo finish a pending GUI history entry before moving one step. Pass `expectedRevision` to avoid overwriting a newer user edit. `get_editor_context` reads the active photo/virtual copy, dimensions, EXIF summary, crop/masks, panel/mask selection and Card mode without applying an edit.
+
+The MCP resource `rapidroom://schema/adjustments` is generated from `INITIAL_ADJUSTMENTS` and actual slider props. It records defaults, keys, UI ranges and sign conventions, including dynamic slider bindings. Run `npm run mcp:schema` after changing those sources; `npm run mcp:schema:check` and the Vitest drift test refuse a stale artifact. The tool input schema still defines accepted values; a default's type or UI range is not an additional validator.
+
+`get_preview` supports `original`, `side_by_side` and a fractional `region` rectangle. Original means the neutral defaults rendered through the existing tone-mapper path, not the camera JPEG. Comparison places original left/edited right with letterboxing, and bounds the whole image's long edge. Regions crop the rendered preview; native-resolution crops are separate future work. These reads preserve the current edit, revision and history. See [plugin tool reference](plugin/skills/rapidroom/references/tools.md) for limits and combinations.
+
 ## Security
 
 - **It listens on a loopback TCP port** (`127.0.0.1` only). Nothing outside the machine can reach it, and it makes no outgoing connections.
