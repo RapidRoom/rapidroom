@@ -45,7 +45,7 @@ def image_state(url, image, version="2026-07-28", token=None):
     return json.loads(next(content["text"] for content in result["content"] if content["type"] == "text"))
 
 
-def execute_client(command, folder, name, config_home):
+def execute_client(command, folder, name, config_home, cwd=None):
     env = {key: value for key, value in os.environ.items()
            if not key.startswith("HCOM_") and key not in {"CLAUDECODE", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"}}
     env["XDG_CONFIG_HOME"] = str(config_home)
@@ -53,7 +53,7 @@ def execute_client(command, folder, name, config_home):
     with output.open("w") as log, (folder / (name + ".stderr.log")).open("w") as errors:
         output.chmod(0o600)
         (folder / (name + ".stderr.log")).chmod(0o600)
-        process = subprocess.Popen(command, cwd=folder, env=env, stdout=log, stderr=errors,
+        process = subprocess.Popen(command, cwd=cwd or folder, env=env, stdout=log, stderr=errors,
                                    start_new_session=True)
         try:
             code = process.wait(timeout=300)
@@ -81,7 +81,45 @@ def objects(value):
             yield from objects(child)
 
 
-def run_client_checks(case, smoke):
+def client_command(case, folder, name, exposure):
+    adapter = str(case / "engine/rapidroom-mcp-stdio")
+    image = str(case / "input/smoke.ARW")
+    binary = os.environ["RAPIDROOM_TEST_" + name.upper() + "_BIN"]
+    config = folder / "claude-mcp.json"
+    config.write_text(json.dumps({"mcpServers": {"rapidroom": {"command": adapter}}}))
+    user_config = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "config.toml"
+    settings = tomllib.loads(user_config.read_text()) if user_config.exists() else {}
+    allowed = ["get_image_state", "update_adjustments"]
+    prompt = ("Perform this regression check using only the rapidroom MCP tools. "
+              f"Call get_image_state with imagePath {json.dumps(image)}, then call update_adjustments "
+              f"with that exact imagePath, changes {{\"exposure\": {exposure}}}, and expectedRevision "
+              "from the state you just read. Do not change any other field. Do not use shell, files, "
+              "other servers, or other tools. Finish after the successful edit with a short confirmation.")
+    if name == "claude":
+        command = [binary, "-p", "--strict-mcp-config", "--mcp-config", str(config),
+                   "--tools", "", "--allowedTools", ",".join("mcp__rapidroom__" + tool for tool in allowed),
+                   "--setting-sources", "", "--settings", '{"disableAllHooks":true}',
+                   "--disable-slash-commands", "--no-session-persistence", "--max-turns", "6",
+                   "--output-format", "stream-json", "--verbose", "--debug-file", str(folder / "claude-debug.log"),
+                   "--system-prompt", "You are an MCP interoperability regression client. Follow the requested tool calls exactly.", prompt]
+    else:
+        command = [binary, "exec", "--ignore-user-config", "--ignore-rules", "--ephemeral",
+                   "--skip-git-repo-check", "--sandbox", "read-only", "--json", "--color", "never",
+                   "-c", 'approval_policy="never"', "-c", "mcp_servers.rapidroom.command=" + json.dumps(adapter),
+                   "-c", 'mcp_servers.rapidroom.env_vars=["XDG_CONFIG_HOME"]',
+                   "-c", "mcp_servers.rapidroom.enabled_tools=" + json.dumps(allowed),
+                   "-c", 'mcp_servers.rapidroom.required=true',
+                   "-c", 'mcp_servers.rapidroom.default_tools_approval_mode="auto"']
+        for tool in allowed:
+            command += ["-c", f'mcp_servers.rapidroom.tools.{tool}.approval_mode="approve"']
+        if settings.get("model"):
+            command += ["--model", settings["model"]]
+        command += [prompt]
+    version = subprocess.check_output([binary, "--version"], text=True).strip()
+    return command, version
+
+
+def run_client_checks(case, smoke, wire_only=False):
     folder = case / "client-tests"
     folder.mkdir(mode=0o700)
     endpoint = case / "config/io.github.CyberTimon.RapidRAW/mcp-endpoint.json"
@@ -111,7 +149,6 @@ def run_client_checks(case, smoke):
     except urllib.error.HTTPError as error:
         if error.code != 403:
             raise RuntimeError("Unexpected Origin rejection status") from error
-    adapter = str(case / "engine/rapidroom-mcp-stdio")
     image = str(case / "input/smoke.ARW")
     results = {"wire_protocols": {}, "clients": {}, "unauthenticated_and_wrong_token_refused": True, "endpoint_mode": "0600", "authenticated_origin_refused": True, "transport": "stdio with automatic per-user endpoint discovery"}
     for version in ("2025-06-18", "2026-07-28"):
@@ -128,41 +165,13 @@ def run_client_checks(case, smoke):
         if image_state(url, image, version, token)["imagePath"] != image:
             raise RuntimeError("Wire state read returned another image")
         results["wire_protocols"][version]["state_read"] = True
-    config = folder / "claude-mcp.json"
-    config.write_text(json.dumps({"mcpServers": {"rapidroom": {"command": adapter}}}))
-    user_config = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "config.toml"
-    settings = tomllib.loads(user_config.read_text()) if user_config.exists() else {}
-    allowed = ["get_image_state", "update_adjustments"]
+    if wire_only:
+        (folder / "result.json").write_text(json.dumps(results, indent=2) + "\n")
+        return results
     for name, exposure in (("claude", 0.5), ("codex", 1.0)):
-        binary = os.environ["RAPIDROOM_TEST_" + name.upper() + "_BIN"]
         before = image_state(url, image, token=token)
         before_pixels = smoke.crop(smoke.stable_preview(name + "-before"))
-        prompt = ("Perform this regression check using only the rapidroom MCP tools. "
-                  f"Call get_image_state with imagePath {json.dumps(image)}, then call update_adjustments "
-                  f"with that exact imagePath, changes {{\"exposure\": {exposure}}}, and expectedRevision "
-                  "from the state you just read. Do not change any other field. Do not use shell, files, "
-                  "other servers, or other tools. Finish after the successful edit with a short confirmation.")
-        if name == "claude":
-            command = [binary, "-p", "--strict-mcp-config", "--mcp-config", str(config),
-                       "--tools", "", "--allowedTools", ",".join("mcp__rapidroom__" + tool for tool in allowed),
-                       "--setting-sources", "", "--settings", '{"disableAllHooks":true}',
-                       "--disable-slash-commands", "--no-session-persistence", "--max-turns", "6",
-                       "--output-format", "stream-json", "--verbose", "--debug-file", str(folder / "claude-debug.log"),
-                       "--system-prompt", "You are an MCP interoperability regression client. Follow the requested tool calls exactly.", prompt]
-        else:
-            command = [binary, "exec", "--ignore-user-config", "--ignore-rules", "--ephemeral",
-                       "--skip-git-repo-check", "--sandbox", "read-only", "--json", "--color", "never",
-                       "-c", 'approval_policy="never"', "-c", "mcp_servers.rapidroom.command=" + json.dumps(adapter),
-                       "-c", 'mcp_servers.rapidroom.env_vars=["XDG_CONFIG_HOME"]',
-                       "-c", "mcp_servers.rapidroom.enabled_tools=" + json.dumps(allowed),
-                       "-c", 'mcp_servers.rapidroom.required=true',
-                       "-c", 'mcp_servers.rapidroom.default_tools_approval_mode="auto"']
-            for tool in allowed:
-                command += ["-c", f'mcp_servers.rapidroom.tools.{tool}.approval_mode="approve"']
-            if settings.get("model"):
-                command += ["--model", settings["model"]]
-            command += [prompt]
-        version = subprocess.check_output([binary, "--version"], text=True).strip()
+        command, version = client_command(case, folder, name, exposure)
         events = execute_client(command, folder, name, case / "config")
         if name == "claude":
             called = any(value.get("type") == "tool_use" and value.get("name") == "mcp__rapidroom__update_adjustments"

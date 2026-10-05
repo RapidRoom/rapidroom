@@ -270,23 +270,27 @@ class Smoke:
         if self.terminal_text().count("RR_NATIVE_PTY") != count:
             raise RuntimeError("Panel reopen replayed or lost output")
         self.step("PTY input/output, docking, resize and collapse", {"folder": expected, "marker_occurrences": count})
-        records = self.case / "tools/agents.txt"
-        for agent in ("claude", "codex"):
-            self.execute("""document.querySelector('[data-start-agent="'+arguments[0]+'"]').click();return true;""", [agent])
-            wait_for(lambda: records.exists() and agent in records.read_text(), "built-in stub " + agent)
-        self.execute("""document.querySelector('[aria-label="Collapse bottom panel"]').click();return true;""")
-        self.execute("""const e=document.querySelector('[data-agent-launcher] select');
-          e.value='external';e.dispatchEvent(new Event('change',{bubbles:true}));return true;""")
-        for agent in ("claude", "codex"):
-            before = records.read_text().count(agent + "|")
-            self.execute("""document.querySelector('[data-start-agent="'+arguments[0]+'"]').click();return true;""", [agent])
-            wait_for(lambda: records.read_text().count(agent + "|") > before, "external stub " + agent)
-            if self.execute("return !!document.querySelector('[data-terminal-panel]');"):
-                raise RuntimeError("External start opened the built-in panel")
-        lines = records.read_text().splitlines()
-        if len(lines) != 4 or any(line.split('|')[1:3] != [expected, expected] for line in lines):
-            raise RuntimeError("Built-in/external stub launch environment differs")
-        self.step("built-in and external shell-typed assistant launch", {"records": lines, "real_assistants_started": False, "mcp_parity": "pending #116 integration"})
+        if json.loads((self.case / "terminal-test.json").read_text())["real_assistants"]:
+            from terminal_clients import run_launch_checks
+            run_launch_checks(self.case, self)
+        else:
+            records = self.case / "tools/agents.txt"
+            for agent in ("claude", "codex"):
+                self.execute("""document.querySelector('[data-start-agent="'+arguments[0]+'"]').click();return true;""", [agent])
+                wait_for(lambda: records.exists() and agent in records.read_text(), "built-in stub " + agent)
+            self.execute("""document.querySelector('[aria-label="Collapse bottom panel"]').click();return true;""")
+            self.execute("""const e=document.querySelector('[data-agent-launcher] select');
+              e.value='external';e.dispatchEvent(new Event('change',{bubbles:true}));return true;""")
+            for agent in ("claude", "codex"):
+                before = records.read_text().count(agent + "|")
+                self.execute("""document.querySelector('[data-start-agent="'+arguments[0]+'"]').click();return true;""", [agent])
+                wait_for(lambda: records.read_text().count(agent + "|") > before, "external stub " + agent)
+                if self.execute("return !!document.querySelector('[data-terminal-panel]');"):
+                    raise RuntimeError("External start opened the built-in panel")
+            lines = records.read_text().splitlines()
+            if len(lines) != 4 or any(line.split('|')[1:3] != [expected, expected] for line in lines):
+                raise RuntimeError("Built-in/external stub launch environment differs")
+            self.step("built-in and external shell-typed assistant launch", {"records": lines, "real_assistants_started": False, "mcp_parity": "pending #116 integration"})
         # Leave a real background job in a PTY, then verify app quit removes it.
         self.execute("""document.querySelector('[data-tab-id=layout-tab-terminal]').click();return true;""")
         wait_for(lambda: self.execute("""return !!document.querySelector('[aria-label="New terminal tab"]');"""), "terminal header")
@@ -409,7 +413,7 @@ class Smoke:
         self.step("GUI JPEG export", {"file": str(files[0].relative_to(self.case)), "sha256": sha(files[0])})
         if (self.case / "terminal-test.json").exists():
             self.terminal_flow()
-        if (self.case / "mcp-clients-test.json").exists():
+        if (self.case / "mcp-clients-test.json").exists() and not (self.case / "terminal-test.json").exists():
             from mcp_clients import run_client_checks
             self.step("real Claude Code and Codex edit the open photo", run_client_checks(self.case, self))
         final = self.snapshot("final")
@@ -500,7 +504,12 @@ def launch(args):
         shell.chmod(0o700)
         for agent in ("claude", "codex"):
             stub = tools / agent
-            stub.write_text("#!/bin/sh\nprintf '%s|%s|%s|%s\\n' " + shlex.quote(agent) + " \"$PWD\" \"$RAPIDROOM_FOLDER\" \"${RAPIDROOM_MCP_ENDPOINT:-}\" >> " + shlex.quote(str(tools / "agents.txt")) + "\nprintf 'RR_STUB_" + agent + "\\n'\n")
+            if args.terminal_clients:
+                stub.write_text("#!/bin/sh\nexec " + shlex.quote(sys.executable) + " " +
+                    shlex.quote(str(ROOT / "rapidroom/validation/native-ui/terminal_clients.py")) + " " +
+                    shlex.quote(str(case)) + " " + shlex.quote(agent) + "\n")
+            else:
+                stub.write_text("#!/bin/sh\nprintf '%s|%s|%s|%s\\n' " + shlex.quote(agent) + " \"$PWD\" \"$RAPIDROOM_FOLDER\" \"${RAPIDROOM_MCP_ENDPOINT:-}\" >> " + shlex.quote(str(tools / "agents.txt")) + "\nprintf 'RR_STUB_" + agent + "\\n'\n")
             stub.chmod(0o700)
         terminal = tools / "ghostty"
         terminal.write_text("#!/bin/sh\nwhile [ $# -gt 0 ]; do\ncase \"$1\" in\n--working-directory=*) cd \"${1#*=}\" || exit 1; shift;;\n-e) shift; break;;\n*) shift;;\nesac\ndone\nPATH=" + shlex.quote(str(tools)) + ":$PATH\nexport PATH\nexec \"$@\"\n")
@@ -514,7 +523,7 @@ def launch(args):
         data = json.loads((settings / "settings.json").read_text())
         data["terminalSettings"] = {"shell": str(shell), "startIn": "built-in"}
         save(settings / "settings.json", data)
-        save(case / "terminal-test.json", {"real_assistants": False, "terminal_launcher": "owned executable stub"})
+        save(case / "terminal-test.json", {"real_assistants": args.terminal_clients, "terminal_launcher": "owned executable stub"})
     try:
         with args.lock.open("a") as lock:
             print("Waiting for native UI lock", flush=True)
@@ -569,8 +578,11 @@ def main():
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
+    parser.add_argument("--terminal-clients", action="store_true", help="Use real clients from both terminal launch paths (implies --terminal --mcp-clients)")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.terminal_clients:
+        args.terminal = args.mcp_clients = True
     if args.inside:
         case = args.inside.resolve()
         runtime = Path((case / "runtime-path.txt").read_text().strip())
