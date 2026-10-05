@@ -1849,15 +1849,14 @@ pub fn run() {
     // The native smoke harness opts in explicitly. Ordinary builds do not
     // include the driver, and headless export/benchmark never starts it.
     #[cfg(all(target_os = "linux", feature = "native-ui-test"))]
-    if !is_headless {
-        if let Ok(port) = std::env::var("RAPIDROOM_NATIVE_UI_TEST_PORT") {
-            let port = port
-                .parse::<u16>()
-                .ok()
-                .filter(|port| *port != 0)
-                .expect("RAPIDROOM_NATIVE_UI_TEST_PORT must be a nonzero u16");
-            builder = builder.plugin(tauri_plugin_wdio_webdriver::init_with_port(port));
-            builder = builder.plugin(
+    if !is_headless && let Ok(port) = std::env::var("RAPIDROOM_NATIVE_UI_TEST_PORT") {
+        let port = port
+            .parse::<u16>()
+            .ok()
+            .filter(|port| *port != 0)
+            .expect("RAPIDROOM_NATIVE_UI_TEST_PORT must be a nonzero u16");
+        builder = builder.plugin(tauri_plugin_wdio_webdriver::init_with_port(port));
+        builder = builder.plugin(
                 tauri::plugin::Builder::<_, ()>::new("native-ui-smoke-observer")
                     .js_init_script(
                         r#"(() => {
@@ -1876,7 +1875,6 @@ pub fn run() {
                     )
                     .build(),
             );
-        }
     }
 
     #[cfg(target_os = "linux")]
