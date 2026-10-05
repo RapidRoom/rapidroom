@@ -1,0 +1,5 @@
+{
+  "bundle": {
+    "externalBin": ["../rapidroom/mcp-client/binaries/rapidroom-mcp-stdio"]
+  }
+}

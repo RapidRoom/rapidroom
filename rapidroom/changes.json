@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "linux-mcp-packaging-consent",
+      "title": "Include MCP and its adapter in Linux packages with default-off AI control and assistant launch consent",
+      "category": "platform",
+      "landed": "2026-10-05",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex; existing MCP authorship retained)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Official deb/AppImage builds include the existing terminal and MCP features plus the stdio adapter. AI control starts off; Settings and assistant start buttons explicitly enable it. Disabling stops the listener and accepted connections and removes the endpoint; re-enabling uses a fresh key. Built-in/external launch registration uses the installed adapter without changing global client configuration. No new dependency or licence."
+    },
+    {
       "id": "mcp-history-context-schema-previews",
       "title": "Label AI edits in shared undo history and expose editor context, generated adjustment schema and bounded original/comparison/region previews",
       "category": "feature",

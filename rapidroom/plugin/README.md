@@ -2,7 +2,7 @@
 
 Lets an assistant edit the photo open in RapidRoom while you watch: grade it step by step and check each step, compare looks, export for Instagram, teach as it goes, explain a slider by reading RapidRoom's source for your version, and draft issues for RapidRoom that are posted only after you say yes. Part of the AI-assisted editing epic (#113); this is issue #118.
 
-It needs a RapidRoom build with the MCP server (the `mcp` cargo feature, issue #5). Without it the plugin has nothing to connect to.
+Official Linux packages include the MCP server and `rapidroom-mcp-stdio` adapter. Enable **Settings → General → Let AI assistants control RapidRoom**, or accept the enable prompt from Start Claude/Codex. Control is off by default. The plugin starts the adapter from PATH; when using an AppImage from an outside terminal, install the adapter on PATH or configure its absolute path. See [MCP.md](../MCP.md). Developer builds need the `mcp` feature.
 
 ## Install
 

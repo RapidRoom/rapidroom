@@ -42,3 +42,6 @@ src-tauri/libs/
 
 # bench/replay.js result dumps
 bench/out/
+
+# Staged existing adapter for opt-in Linux packaging
+/rapidroom/mcp-client/binaries/

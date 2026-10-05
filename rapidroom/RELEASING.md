@@ -79,6 +79,12 @@ Tauri's resource directory on Linux is `<exe dir>/../lib/<productName>`, falling
 
 **Still shared:** the app identifier stays `io.github.CyberTimon.RapidRAW`, so settings, presets, the library database, thumbnails, logs and the WebView storage live in the same folders as RapidRAW's (`~/.config/io.github.CyberTimon.RapidRAW`, `~/.local/share/io.github.CyberTimon.RapidRAW`, `~/.cache/io.github.CyberTimon.RapidRAW`). That is on purpose for now, so existing users keep their settings. Moving to a RapidRoom identifier needs a settings migration and is a separate issue.
 
+## MCP in Linux packages
+
+`python3 rapidroom/build-linux-packages.py` builds the existing stdio adapter, stages the host-suffixed sidecar, and builds both bundles with `terminal,mcp` under the shared build lock and four Cargo jobs. The official workflow uses this helper. `tauri.mcp-linux.conf.json` adds only the adapter; package names, desktop identity and resource paths remain as above. No dependency or licence is added by this packaging change.
+
+Both packages contain `usr/bin/rapidroom-mcp-stdio`. AI control is off by default, with no listener or endpoint file. Settings **Let AI assistants control RapidRoom** and the first assistant launch offer enable control; disabling stops it and removes the endpoint. Each enable/start uses a fresh private key. See [MCP.md](MCP.md) for per-launch registration and external-plugin setup. Keep the adapter with the app when making a user-local install.
+
 ## Test checklist (before publishing)
 
 With stock RapidRAW installed:
@@ -88,6 +94,7 @@ With stock RapidRAW installed:
 - [ ] Both apps can run at the same time; starting one doesn't just focus the other.
 - [ ] The taskbar/dock shows the RapidRoom icon for RapidRoom's window, on X11 and on Wayland (`xprop WM_CLASS` shows `"RapidRoom", "RapidRoom"`).
 - [ ] AI masks work (ONNX Runtime loads from `/usr/lib/RapidRoom/resources`), film LUTs list, and lens correction finds lenses.
+- [ ] Both packages contain an executable stdio adapter; AI control initially has no endpoint/listener, and enable/cancel/disable work. Start Claude/Codex uses the installed adapter and a real client edit reaches the slider and preview.
 - [ ] The AppImage runs on its own (`chmod +x`, run it) with the same checks.
 - [ ] The start screen shows `RapidRoom 2.2.0` and `RapidRAW 1.6.4`.
 - [ ] Upgrading from the previous RapidRoom `.deb` replaces it in place.

@@ -1,3 +1,5 @@
+> Official Linux packages include MCP and the stdio adapter. Enable **Settings → General → Let AI assistants control RapidRoom** before connecting; Start Claude/Codex offers to enable it. Control starts off, listens locally only, and uses a fresh key each time it starts. Disabling removes the endpoint and stops the listener. Reconnect the assistant after re-enabling. AppImage start buttons use its bundled adapter; outside plugins need the adapter on PATH or an absolute path.
+
 # Starting an assistant with RapidRoom
 
 In builds with the `terminal` feature, the movable terminal panel can start Claude Code or Codex in the open photo folder. External-terminal mode uses the same folder and client registration. Use this page to help the user set it up, or when the MCP tools are missing.

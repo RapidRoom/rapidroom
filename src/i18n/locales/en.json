@@ -1830,7 +1830,9 @@
       "toolFocusMode": "Tool Focus Mode",
       "toolFocusModeDesc": "Automatically collapses the other tools in a panel when you expand one.",
       "xmpSync": "XMP Metadata Sync",
-      "xmpSyncDesc": "Sync ratings, color labels and tags to standard XMP sidecar files for compatibility with other photo editors."
+      "xmpSyncDesc": "Sync ratings, color labels and tags to standard XMP sidecar files for compatibility with other photo editors.",
+      "mcpControl": "Let AI assistants control RapidRoom",
+      "mcpControlDescription": "Control is local only, with a fresh key each time it starts."
     },
     "keybinds": {
       "actions": {
@@ -2289,6 +2291,7 @@
     "dropPanel": "Drag a panel here",
     "claude": "Claude Code",
     "codex": "Codex",
-    "loading": "Loading terminal…"
+    "loading": "Loading terminal…",
+    "enableAndStart": "Enable and start"
   }
 }

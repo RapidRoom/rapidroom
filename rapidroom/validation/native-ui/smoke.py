@@ -411,7 +411,10 @@ class Smoke:
                 raise RuntimeError("Incorrect JPEG format or dimensions")
         self.capture("export-done")
         self.step("GUI JPEG export", {"file": str(files[0].relative_to(self.case)), "sha256": sha(files[0])})
-        if (self.case / "terminal-test.json").exists():
+        if (self.case / "mcp-packaging-test.json").exists():
+            from mcp_packaging import run_packaging_checks
+            run_packaging_checks(self.case, self)
+        elif (self.case / "terminal-test.json").exists():
             self.terminal_flow()
         if (self.case / "mcp-history-test.json").exists():
             from mcp_history import run_history_checks
@@ -426,6 +429,10 @@ class Smoke:
         app.wait(timeout=10)
         if app.returncode != 0:
             raise RuntimeError("App did not quit cleanly")
+        if (self.case / "mcp-packaging-test.json").exists():
+            if (self.case / "config/io.github.CyberTimon.RapidRAW/mcp-endpoint.json").exists():
+                raise RuntimeError("Endpoint file survived clean app exit")
+            self.step("endpoint removed on app exit", {"endpoint_exists": False})
         if hasattr(self, "background_pid"):
             def background_gone():
                 path = Path(f"/proc/{self.background_pid}/stat")
@@ -491,6 +498,8 @@ def launch(args):
     shutil.copy2(raw, case / "input/smoke.ARW")
     if args.mcp_history:
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
+    if args.mcp_packaging:
+        save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
     if args.mcp_clients:
         save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
@@ -500,7 +509,12 @@ def launch(args):
     settings.mkdir()
     save(settings / "settings.json", {"rootFolders": [str(case / "input")],
          "lastRootPath": str(case / "input"), "language": "en", "useWgpuRenderer": False,
-         "editorPreviewResolution": 1280, "decorations": False})
+         "editorPreviewResolution": 1280, "decorations": False,
+         "mcpEnabled": args.mcp_clients and not args.mcp_packaging})
+    if args.mcp_packaging:
+        initial = json.loads((settings / "settings.json").read_text())
+        initial.pop("mcpEnabled")
+        save(settings / "settings.json", initial)
     if args.terminal:
         tools = case / "tools"
         tools.mkdir()
@@ -512,7 +526,7 @@ def launch(args):
             if args.terminal_clients:
                 stub.write_text("#!/bin/sh\nexec " + shlex.quote(sys.executable) + " " +
                     shlex.quote(str(ROOT / "rapidroom/validation/native-ui/terminal_clients.py")) + " " +
-                    shlex.quote(str(case)) + " " + shlex.quote(agent) + "\n")
+                    shlex.quote(str(case)) + " " + shlex.quote(agent) + ' "$@"\n')
             else:
                 stub.write_text("#!/bin/sh\nprintf '%s|%s|%s|%s\\n' " + shlex.quote(agent) + " \"$PWD\" \"$RAPIDROOM_FOLDER\" \"${RAPIDROOM_MCP_ENDPOINT:-}\" >> " + shlex.quote(str(tools / "agents.txt")) + "\nprintf 'RR_STUB_" + agent + "\\n'\n")
             stub.chmod(0o700)
@@ -585,10 +599,13 @@ def main():
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
     parser.add_argument("--terminal-clients", action="store_true", help="Use real clients from both terminal launch paths (implies --terminal --mcp-clients)")
     parser.add_argument("--mcp-history", action="store_true", help="Run actual-client labelled history/schema/preview scenario (implies --mcp-clients)")
+    parser.add_argument("--mcp-packaging", action="store_true", help="Verify default-off, launch consent, runtime toggle and real registered clients")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.mcp_history:
         args.mcp_clients = True
+    if args.mcp_packaging:
+        args.terminal_clients = True
     if args.terminal_clients:
         args.terminal = args.mcp_clients = True
     if args.inside:

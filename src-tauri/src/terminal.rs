@@ -183,10 +183,10 @@ impl Agent {
     feature = "terminal",
     any(target_os = "linux", target_os = "macos", target_os = "windows")
 ))]
-fn agent_launch(mut candidate: Launch, agent: Agent) -> Option<Launch> {
+fn agent_launch(mut candidate: Launch, command: &str) -> Option<Launch> {
     let name = Path::new(&candidate.program).file_name()?.to_str()?;
     // A fixed command chosen by enum, with no image path interpolated into shell code.
-    let script = format!("{}; exec \"${{SHELL:-/bin/sh}}\" -l", agent.command());
+    let script = format!("{}; exec \"${{SHELL:-/bin/sh}}\" -l", command);
     let separator = match name {
         "xdg-terminal-exec" | "wezterm" | "gnome-terminal" | "kgx" | "ptyxis" => "--",
         "ghostty"
@@ -209,6 +209,76 @@ fn agent_launch(mut candidate: Launch, agent: Agent) -> Option<Launch> {
     any(target_os = "linux", target_os = "macos", target_os = "windows")
 ))]
 #[tauri::command]
+pub fn terminal_agent_command(agent: Agent, app_handle: AppHandle) -> Result<String, String> {
+    #[cfg(all(feature = "mcp", target_os = "linux"))]
+    {
+        use tauri::Manager;
+        if *app_handle
+            .state::<crate::AppState>()
+            .mcp
+            .port
+            .lock()
+            .unwrap()
+            != 0
+        {
+            let executable = std::env::current_exe().map_err(|e| e.to_string())?;
+            let sibling = executable
+                .parent()
+                .ok_or("Missing executable directory")?
+                .join("rapidroom-mcp-stdio");
+            let adapter = if sibling.is_file() {
+                sibling
+            } else {
+                std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).map(|p|p.join("rapidroom-mcp-stdio")).find(|p|p.is_file()).ok_or("The rapidroom-mcp-stdio adapter is missing; build/install it alongside RapidRoom")?
+            };
+            let adapter = std::fs::canonicalize(adapter).map_err(|e| e.to_string())?;
+            match agent {
+                Agent::Claude => {
+                    let config = app_handle
+                        .path()
+                        .app_config_dir()
+                        .map_err(|e| e.to_string())?
+                        .join("claude-mcp.json");
+                    let data = serde_json::json!({"mcpServers":{"rapidroom":{"command":adapter}}});
+                    crate::file_management::write_file_atomically(
+                        &config,
+                        serde_json::to_vec_pretty(&data).map_err(|e| e.to_string())?,
+                    )
+                    .map_err(|e| e.to_string())?;
+                    return Ok(format!(
+                        "claude --mcp-config {}",
+                        quote_shell(&config.to_string_lossy())
+                    ));
+                }
+                Agent::Codex => {
+                    let command = format!(
+                        "mcp_servers.rapidroom.command={}",
+                        serde_json::to_string(&adapter.to_string_lossy())
+                            .map_err(|e| e.to_string())?
+                    );
+                    return Ok(format!(
+                        "codex -c {} -c {}",
+                        quote_shell(&command),
+                        quote_shell("mcp_servers.rapidroom.env_vars=[\"XDG_CONFIG_HOME\"]")
+                    ));
+                }
+            }
+        }
+    }
+    let _ = app_handle;
+    Ok(agent.command().to_string())
+}
+
+#[cfg(all(feature = "mcp", feature = "terminal", target_os = "linux"))]
+fn quote_shell(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+#[cfg(all(
+    feature = "terminal",
+    any(target_os = "linux", target_os = "macos", target_os = "windows")
+))]
+#[tauri::command]
 pub fn launch_terminal_agent(
     path: String,
     agent: Agent,
@@ -224,10 +294,11 @@ pub fn launch_terminal_agent(
         return Err("Open your terminal outside the Flatpak sandbox to start an assistant".into());
     }
     let dir_str = dir.to_string_lossy();
+    let command = terminal_agent_command(agent, app_handle.clone())?;
     let candidates = if cfg!(target_os = "linux") {
         linux_candidates(&dir_str, std::env::var("TERMINAL").ok().as_deref())
             .into_iter()
-            .filter_map(|candidate| agent_launch(candidate, agent))
+            .filter_map(|candidate| agent_launch(candidate, &command))
             .collect()
     } else if cfg!(target_os = "macos") {
         // quoted form handles spaces, quotes and shell metacharacters in the folder.
@@ -292,19 +363,36 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
+    #[cfg(all(feature = "mcp", feature = "terminal", target_os = "linux"))]
+    #[test]
+    fn registered_adapter_argument_stays_literal_in_the_shell() {
+        for value in [
+            "/photos/name with 'quotes'; $(printf UNWANTED)",
+            "mcp_servers.rapidroom.command=\"/a b/adapter\"",
+        ] {
+            let output = Command::new("/bin/sh")
+                .args(["-c", &format!("printf %s {}", quote_shell(value))])
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+            assert_eq!(String::from_utf8(output.stdout).unwrap(), value);
+        }
+    }
+
     #[cfg(feature = "terminal")]
     #[test]
     fn assistant_commands_keep_folder_paths_out_of_shell_code() {
         let dir = "/photos/name with 'quotes'; printf UNWANTED";
         for agent in [Agent::Claude, Agent::Codex] {
-            let command = agent_launch(known_terminal("ghostty", dir).unwrap(), agent).unwrap();
+            let command =
+                agent_launch(known_terminal("ghostty", dir).unwrap(), agent.command()).unwrap();
             assert_eq!(command.args[0], format!("--working-directory={dir}"));
             assert_eq!(&command.args[1..4], &["-e", "/bin/sh", "-c"]);
             assert!(!command.args[4].contains(dir));
             assert!(command.args[4].starts_with(agent.command()));
         }
         assert!(serde_json::from_str::<Agent>("\"arbitrary command\"").is_err());
-        assert!(agent_launch(launch("unknown-terminal", &[]), Agent::Claude).is_none());
+        assert!(agent_launch(launch("unknown-terminal", &[]), Agent::Claude.command()).is_none());
     }
 
     fn programs(candidates: &[Launch]) -> Vec<&str> {
