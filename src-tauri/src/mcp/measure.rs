@@ -175,7 +175,7 @@ fn contact_sheet(
     let rows = (images.len() as u32).div_ceil(columns);
     let max_width = bound / columns;
     let max_height = bound / rows;
-    let label_height = (max_width / 5).clamp(16, 48).min(max_height / 2);
+    let label_height = (max_width / 5).clamp(16, 24).min(max_height / 2);
     let thumbnail = first.thumbnail(max_width, max_height - label_height);
     let cell_width = thumbnail.width();
     let image_height = thumbnail.height();
@@ -592,9 +592,9 @@ mod tests {
     #[test]
     fn comparison_grid_tracks_landscape_portrait_and_three_tile_geometry() {
         for (count, width, height, expected) in [
-            (4, 1000, 666, (1000, 762)),
-            (4, 666, 1000, (602, 1000)),
-            (3, 1000, 666, (999, 270)),
+            (4, 1000, 666, (1000, 714)),
+            (4, 666, 1000, (634, 1000)),
+            (3, 1000, 666, (999, 246)),
         ] {
             let images =
                 vec![
