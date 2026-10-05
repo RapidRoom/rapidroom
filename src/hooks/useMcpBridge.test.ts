@@ -171,7 +171,7 @@ describe('MCP editor bridge review', () => {
     await mount();
     await act(async () => emit('mcp-command', { requestId: 'empty', kind: 'editor-context', path: '' }));
     expect(responses.at(-1)).toMatchObject({
-      response: { imagePath: null, dimensions: null, crop: null, masks: [] },
+      response: { imagePath: null, editRevision: null, dimensions: null, crop: null, masks: [] },
       error: null,
     });
   });
@@ -188,12 +188,58 @@ describe('MCP editor bridge review', () => {
     expect(responses.at(-1)).toMatchObject({
       response: {
         imagePath: path,
+        editRevision: 'revision',
         dimensions: { width: 6000, height: 4000 },
         exif: { Make: 'Sony', Model: 'A7C II' },
         virtualCopy: null,
       },
     });
     expect((responses.at(-1)?.response as { exif: unknown }).exif).not.toHaveProperty('PrivateUnknown');
+  });
+
+  it('reads current revision and retained snapshots without committing pending GUI history', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    await mount();
+    const gui = { ...INITIAL_ADJUSTMENTS, exposure: 1 };
+    useEditorStore.setState({ adjustments: gui });
+    debouncedSetHistory(gui);
+    const before = useEditorStore.getState();
+    await command('revision-state');
+    expect(useEditorStore.getState().history).toBe(before.history);
+    expect(useEditorStore.getState().adjustments).toBe(gui);
+    expect(responses.at(-1)).toMatchObject({
+      response: {
+        state: { editRevision: 'revision', adjustments: gui },
+        actor: 'user',
+        history: before.history.map((adjustments) => ({ adjustments })),
+      },
+      error: null,
+    });
+  });
+
+  it('reports the actual assistant history actor for a committed edit', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    await mount();
+    const ai = { ...INITIAL_ADJUSTMENTS, exposure: 0.2 };
+    useEditorStore.getState().setEditor({ adjustments: ai });
+    useEditorStore
+      .getState()
+      .pushHistory(ai, { actor: 'assistant', changedKeys: ['exposure'], label: 'AI: Exposure +0.2', timestamp: 1 });
+    await command('revision-state');
+    expect(responses.at(-1)).toMatchObject({
+      response: { actor: 'assistant', state: { adjustments: ai } },
+      error: null,
+    });
+  });
+
+  it('refuses a revision read for a photo that is no longer active', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    await mount();
+    useEditorStore.setState({ selectedImage: { ...image, path: '/photos/b.raw' } });
+    const before = useEditorStore.getState();
+    await command('revision-state');
+    expect(responses.at(-1)).toMatchObject({ error: 'Active image changed before the MCP revision read' });
+    expect(useEditorStore.getState()).toBe(before);
   });
 
   it('does not mirror a new photo under the old path when it changes during a render wait', async () => {

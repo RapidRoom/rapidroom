@@ -25,6 +25,7 @@ interface McpCommand {
     | 'undo'
     | 'redo'
     | 'history-list'
+    | 'revision-state'
     | 'editor-context';
   path: string;
   adjustments?: Adjustments;
@@ -191,6 +192,24 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
         if (command.kind === 'select-image') {
           await handleImageSelect(command.path, true);
           await waitForImage(command.path);
+        } else if (command.kind === 'revision-state') {
+          const current = useEditorStore.getState();
+          if (current.selectedImage?.path !== command.path || !current.selectedImage.isReady) {
+            throw new Error('Active image changed before the MCP revision read');
+          }
+          const state = await invoke<McpStateResponse>('sync_editor_state', {
+            path: command.path,
+            adjustments: current.adjustments,
+          });
+          const actor = sameAdjustmentValue(current.adjustments, current.history[current.historyIndex])
+            ? (current.historyDetails[current.historyIndex]?.actor ?? 'user')
+            : 'user';
+          await invoke('ui_response', {
+            requestId: command.requestId,
+            response: { state, actor, history: current.history.map((adjustments) => ({ adjustments })) },
+            error: null,
+          });
+          return;
         } else if (command.kind === 'history-list' || command.kind === 'editor-context') {
           const editor = useEditorStore.getState();
           if (command.path && (editor.selectedImage?.path !== command.path || !editor.selectedImage.isReady)) {
@@ -216,6 +235,9 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
                 }
               : {
                   imagePath: current.selectedImage?.isReady ? current.selectedImage.path : null,
+                  editRevision: current.selectedImage?.isReady
+                    ? (await syncState(current.selectedImage.path)).editRevision
+                    : null,
                   dimensions: current.selectedImage?.isReady
                     ? { width: current.selectedImage.width, height: current.selectedImage.height }
                     : null,

@@ -189,3 +189,24 @@ catches the duplicated Editor callback's empty Undo step. One initial driver
 startup timed out before any scenario step; a retry reached the intermediate
 negative, and the revised application passed on its first run. No photos or
 private session logs are committed.
+
+## Optional advisory read and stale mutation scenario
+
+Build with `--mcp-clients`, then run `smoke.py --mcp-revisions`. After the normal
+preview/edit/Undo/Compact/JPEG checks, real Claude and Codex each read editor
+context, then a native GUI Exposure change advances revision/history. A second
+real client turn sends the literal old revision to all five read-only rendering
+tools and a single mutation. Reads must return the latest state; the stale
+mutation must fail with current revision, changed keys and the user actor.
+Independent authenticated reads compare stale/fresh results and rendered
+payloads, check compiled version/source identity, and guard state/revision,
+history and sidecar bytes/mtime across reads and refusal. Real calls and exact
+stale arguments are verified in client event logs. This mode makes real model
+requests. Only the owned CC0 Sony fixture is used; physical input and other
+platforms remain untested.
+
+An evicted/unknown expected revision returns `changedKeys: null` with
+`changesKnown: false`; it does not claim that the latest history row describes
+every change since an arbitrary revision. A change during rendering retains
+the read guard with structured conflict details. Source commit/dirty fields
+are compiled for MCP builds; archives without Git report unknown identity.

@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "mcp-advisory-read-revisions",
+      "title": "Read the latest MCP previews across GUI edits and explain stale mutation conflicts",
+      "category": "fix",
+      "landed": "2026-10-05",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex; existing MCP authorship retained)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Read-only render tools accept an advisory expectedRevision and report the current edit revision. Preview render-recipe identity is separate. Mutation revisions remain strict; conflicts include currentRevision, retained-snapshot changedKeys and the latest history actor, or explicitly unknown changes when the snapshot was evicted. Editor context includes editRevision, appVersion and compiled Git source identity/dirty status. Frontend and native real-client checks in progress."
+    },
+    {
       "id": "crop-noop-full-frame",
       "title": "Opening a full-frame Crop view keeps edits, history and sidecars unchanged",
       "category": "fix",
