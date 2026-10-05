@@ -230,11 +230,12 @@ export default function PanelSwitcher({
               'flex-col overflow-y-auto h-full',
               placement === 'left' ? 'border-r border-surface' : 'border-l border-surface',
             )
-          : clsx(
-              'flex-row overflow-x-auto',
-              compact ? 'w-auto' : 'w-full',
-              placement === 'top' ? 'border-b border-surface' : 'border-t border-surface',
-            ),
+          : compact
+            ? 'flex-row h-6'
+            : clsx(
+                'flex-row overflow-x-auto w-full',
+                placement === 'top' ? 'border-b border-surface' : 'border-t border-surface',
+              ),
       )}
     >
       <AnimatePresence>
