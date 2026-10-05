@@ -4,6 +4,14 @@ Issue #119, step 1. Goal: a real shell inside RapidRoom, like VS Code's integrat
 
 This PR also ships the stopgap: **Open Terminal Here** in the folder context menu. It opens your own terminal in that folder. Nothing in this PR adds a PTY or a terminal dependency.
 
+## Approved decisions (2026-10-04)
+
+Josh chose option **A**: the terminal belongs in the existing movable and resizable panel layout inside the main React webview. Clerk sign-in is disabled and scripts are local only. This replaces the earlier recommendation for a separate window. The endpoint file path, shell-typed start buttons, persistent layout and tabs, and font and shell settings are required. Official release builds must enable the terminal.
+
+Built-in and external terminals must use the same folder, environment, MCP tools and per-user endpoint discovery. A setting chooses where Start Claude/Codex opens. The external path must work without inherited environment variables. MCP/auth integration remains gated on #102 and #116. A closed terminal tab does not restore a running process after restart; saved tabs reopen as fresh shells, with no saved transcript or automatic assistant command.
+
+The strict CSP and Clerk-off prerequisite is implemented first. The terminal/PTY sections below remain a design until implementation and native verification are complete.
+
 ## 1. Stopgap: Open Terminal Here (in this PR)
 
 Right-click a folder in the folder tree → **Open Terminal Here**. Rust command `open_terminal_here` (`src-tauri/src/terminal.rs`):

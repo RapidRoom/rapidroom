@@ -135,3 +135,5 @@ These RapidRAW forks have work we'd like to harvest (with credit) or coordinate 
 - [NicoNex/RapidRAW](https://github.com/NicoNex/RapidRAW): native GTK front end, core split
 - [pluja/RapidRAW-Fork](https://github.com/pluja/RapidRAW-Fork): bug fixes, tests
 - [cl1x/RapidRAW](https://github.com/cl1x/RapidRAW): Immich integration
+
+The strict script CSP and disabled Cloud sign-in prerequisite for issue #119 were implemented by yojen7 with Codex, following the #125 design measurements and Josh’s approved option A. The browser measurement uses Playwright (Microsoft contributors, Apache-2.0); it is a test tool only.

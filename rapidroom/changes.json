@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "terminal-strict-csp",
+      "title": "Keep webview scripts local and disable Cloud sign-in before adding the terminal panel",
+      "category": "privacy",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original policy integration, AI-assisted; measured design from #125)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Implements Josh’s #119 choice: strict script CSP with Clerk off. Existing CPU and AI Connector choices remain available. Production and development directives retain required asset, IPC, style, map and update origins; only styles bypass automatic Tauri CSP modification. CI checks the configured policy, saved Cloud settings, and blocked nonlocal script execution. PTY and MCP endpoint integration follow separately."
+    },
+    {
       "id": "orf-scoped-image-processing",
       "title": "Fix intermittent green OM System/Olympus RAW exports by reading image metadata from its correct directory",
       "category": "fix",

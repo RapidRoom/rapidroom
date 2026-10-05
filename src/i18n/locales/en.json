@@ -1924,7 +1924,9 @@
             "upgradeBtn": "Upgrade on Website",
             "upgradeDesc": "To use Cloud AI features, you need a Cloud subscription."
           },
-          "title": "Cloud Service"
+          "title": "Cloud Service",
+          "unavailableTitle": "Cloud sign-in is unavailable",
+          "unavailableDesc": "Choose Built-in CPU or AI Connector to continue. Cloud sign-in is disabled in RapidRoom."
         },
         "connector": {
           "address": "AI Connector Address",
