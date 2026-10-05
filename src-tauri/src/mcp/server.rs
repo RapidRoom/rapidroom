@@ -79,7 +79,13 @@ fn tool_route(definition: Value) -> ToolRoute<McpServer> {
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    let tool = Tool::new(name, description, Arc::new(input_schema));
+    let mut tool = Tool::new(name, description, Arc::new(input_schema));
+    tool.annotations = definition
+        .get("annotations")
+        .cloned()
+        .map(serde_json::from_value)
+        .transpose()
+        .expect("Static tool annotations must be valid");
 
     ToolRoute::<McpServer>::new_dyn(tool, |context: ToolCallContext<'_, McpServer>| {
         let app_handle = context.service.app_handle.clone();

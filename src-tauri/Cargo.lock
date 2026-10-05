@@ -6,6 +6,7 @@ version = 4
 name = "RapidRAW"
 version = "0.0.0"
 dependencies = [
+ "ab_glyph",
  "anyhow",
  "base64 0.23.1",
  "blake3",
