@@ -72,6 +72,14 @@ def run_compact_checks(case, smoke):
                 "mask_count_after": len(after["adjustments"]["masks"]), "full_adjustments_returned": full}, after
 
     initial = state()
+    environment = json.loads((case / "environment.json").read_text())
+    build = json.loads((Path(environment["engine_source"]).parent / "build.json").read_text())
+    context = read_tool(url, token, "get_editor_context", {})
+    if build["source"]["status"] or build["engine_sha256"] != environment["engine_sha256"] or context.get("sourceCommit") != build["source"]["head"] or context.get("sourceDirty") is not False or context.get("editRevision") != initial["editRevision"]:
+        raise RuntimeError("Compact scenario requires the exact clean pinned source identity")
+    result["source"] = build["source"]
+    result["engine_sha256"] = build["engine_sha256"]
+    result["stdio_adapter_sha256"] = build["stdio_adapter_sha256"]
     width, height = 4608, 3072
     masks = [{"id": f"compact-radial-{index}", "name": f"Public fixture radial {index}", "visible": True, "invert": False, "opacity": 100,
               "adjustments": {"exposure": index / 20}, "subMasks": [{"id": f"compact-sub-{index}", "name": "Radial", "type": "radial",
