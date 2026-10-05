@@ -292,6 +292,7 @@
       "virtualCopy": "Còpia virtual"
     },
     "xmpImportReport": {
+      "calibrationWarning": "Lightroom import is uncalibrated: global adjustments and masks are not ready for real use until full import calibration (#31 and #133) is complete.",
       "available": "Informe d'importació XMP: {{unchanged}} sense canvis, {{failed}} amb error. Feu clic per veure'n els detalls.",
       "copied": "S'ha copiat l'informe d'importació.",
       "copy": "Copiar l'informe",

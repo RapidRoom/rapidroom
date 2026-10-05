@@ -34,6 +34,10 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 53 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
+## Lightroom import calibration
+
+Lightroom import is uncalibrated: global adjustments and masks are not ready for real use until full import calibration (#31 and #133) is complete. See the [import instructions](../README.md#importing-lightroom-xmp-sidecars).
+
 ## Why RapidRoom
 
 - **One home for the community's work.** RapidRAW has hundreds of forks, and many of them fix the same things separately. RapidRoom brings the best of them into one build that's tested against a pixel-exact regression set.
