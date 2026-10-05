@@ -1,19 +1,31 @@
 # MCP server
 
-RapidRoom can be built with an [MCP](https://modelcontextprotocol.io) server, so AI agents can drive the editor: load an image, read and change its adjustments, look at a preview and the histogram, and export. It is **off by default**. A normal build has no MCP code, no extra dependencies and no listening socket.
+RapidRoom can be built with an [MCP](https://modelcontextprotocol.io) server, so AI agents can drive the editor: load an image, read and change its adjustments, look at a preview and the histogram, and export. Official Linux `.deb` and AppImage packages include the MCP feature and stdio adapter. AI control is **off by default**: there is no listener or endpoint file until enabled. Developer builds without `mcp` still omit its dependencies and server.
 
 This note compares the two forks that have an MCP server, explains which one RapidRoom took and why, and says how to build and connect. Issue #5.
 
 ## Building and connecting
 
-Build or run with the `mcp` cargo feature:
+In **Settings → General**, enable **Let AI assistants control RapidRoom**. Start Claude/Codex offers the same setting before the first launch when control is off; Cancel leaves it off and starts no client. The explanation is “Control is local only, with a fresh key each time it starts.” Both built-in and external start buttons pass the installed adapter in per-launch client configuration, including its absolute path inside an AppImage. They do not modify global Claude/Codex configuration.
+
+Disabling the setting stops the listener and its accepted connections and removes the private endpoint file. Enabling it again creates a fresh key; restart an existing MCP connection so it discovers the new endpoint. The preference persists for the next GUI start. Clean app exit removes the endpoint. Headless exports never start the server.
+
+Official Linux packaging uses:
+
+```sh
+python3 rapidroom/build-linux-packages.py
+```
+
+The `.deb` installs `/usr/bin/rapidroom-mcp-stdio` alongside `/usr/bin/rapidroom`. The AppImage contains the same adapter in its `usr/bin`; the app's start buttons resolve that bundled executable directly. For a plugin started outside the AppImage, put the adapter on your PATH or use its absolute path in the client configuration; keep the AppImage mounted while using a path inside its mount. A user-local install should place both executables in `~/.local/bin`.
+
+Developer builds can use the `mcp` cargo feature:
 
 ```sh
 npm run start:mcp                        # tauri dev -- --features mcp
 npm run tauri build -- --features mcp    # release build
 ```
 
-While the app is running, its HTTP listener binds to `127.0.0.1:7790` (or the next ten ports). `RAPIDRAW_MCP_PORT` pins a port and fails if it is occupied. Each app start creates a fresh random 256-bit bearer token. The URL, token and supported protocol hint are atomically written to `mcp-endpoint.json` in the app's per-user config directory, with mode 0600 on Unix. Publishing the endpoint must succeed before the listener accepts requests.
+When control is enabled, its HTTP listener binds to `127.0.0.1:7790` (or the next ten ports). `RAPIDRAW_MCP_PORT` pins a port and fails if it is occupied. Each listener start creates a fresh random 256-bit bearer token. The URL, token and supported protocol hint are atomically written to `mcp-endpoint.json` in the app's per-user config directory, with mode 0600 on Unix. Publishing the endpoint must succeed before the listener accepts requests.
 
 Build the separate adapter alongside the MCP-enabled app:
 
@@ -84,7 +96,7 @@ All four tools preserve edits, revision, history and sidecars. They reuse the ex
 ## Security
 
 - **It listens on a loopback TCP port** (`127.0.0.1` only). Nothing outside the machine can reach it, and it makes no outgoing connections.
-- **Per-session authentication.** Missing or incorrect bearer headers receive HTTP 401. The listener retains a SHA-256 token verifier and compares fixed-size hashes in constant time with `subtle`; it does not expose the token through editor state, MCP status or client configuration. A fresh token is generated every app start; there is no pinned-token setting.
+- **Per-session authentication.** Missing or incorrect bearer headers receive HTTP 401. The listener retains a SHA-256 token verifier and compares fixed-size hashes in constant time with `subtle`; it does not expose the token through editor state, MCP status or client configuration. A fresh token is generated every listener start; there is no pinned-token setting.
 - **Browser requests are refused.** Requests carrying an `Origin` header are refused. rmcp also rejects any `Host` other than `localhost`, `127.0.0.1` or `::1`, which blocks DNS rebinding, and it only accepts `application/json`, so a web page can't send a "simple" cross-site request either.
 - **Protocol:** one JSON response per POST to `/mcp` (no event stream; GET gets `405`), `Content-Length` or chunked request bodies, and `Connection: close` on every response. Chunked decoding enforces the body/size-line limits without overflowing the accumulated length, validates each data terminator and discards consumed framing buffers.
 - **Reach:** edits only apply to the image open in the editor. `list_images` and `export_images` can read and write any folder the user can.

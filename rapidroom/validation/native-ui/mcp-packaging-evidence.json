@@ -1,0 +1,66 @@
+{
+  "issue": 135,
+  "passed": true,
+  "native_steps": 18,
+  "date": "2026-10-05",
+  "platform": "Arch Linux / Intel Lunar Lake / Mesa 26.2.2 / WebKitGTK 2.52.6 / private Weston",
+  "app_build_source": {
+    "head": "cedd0a63d12263060e2df0e5388bc3f03627886b",
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": ""
+  },
+  "harness_source": "d0cf7ba9bfbccfa5ee205cc955047265006e166c",
+  "engine_sha256": "681f91ab8f1ac32c48f49ebdef5ff2ad74a1f85cf356b0a582bbd8043adbf09e",
+  "adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
+  "real_clients": [
+    {
+      "mode": "built-in",
+      "version": "2.1.289 (Claude Code)",
+      "exposure": 0.5,
+      "native_per_launch_registration_used": true,
+      "slider_preview_changed": true
+    },
+    {
+      "mode": "built-in",
+      "version": "codex-cli 0.160.0",
+      "exposure": 1.0,
+      "native_per_launch_registration_used": true,
+      "slider_preview_changed": true
+    },
+    {
+      "mode": "external",
+      "version": "2.1.289 (Claude Code)",
+      "exposure": 1.5,
+      "native_per_launch_registration_used": true,
+      "slider_preview_changed": true
+    },
+    {
+      "mode": "external",
+      "version": "codex-cli 0.160.0",
+      "exposure": 2.0,
+      "native_per_launch_registration_used": true,
+      "slider_preview_changed": true
+    }
+  ],
+  "verified": [
+    "existing preferences omit mcpEnabled and start off with no endpoint/listener",
+    "Cancel starts no client and leaves control off",
+    "painted local-only/fresh-key consent and Settings label visually inspected",
+    "both start modes offer enable; already-enabled launches do not prompt again",
+    "private 0600 endpoint and new key on re-enable; previous key HTTP 401",
+    "disable persists off, closes listener and an accepted connection, removes endpoint",
+    "settings-only restart preserves edits, revision and history; other preferences retained",
+    "clean app exit removes endpoint; no frontend/native errors"
+  ],
+  "source_guards": {
+    "fixture_unchanged": true,
+    "engine_unchanged": true
+  },
+  "case": "/home/josh/code/rapidraw-project/samples/mcp-packaging-135/native-stage3",
+  "fixture_sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+  "unverified": [
+    "physical external terminal focus (owned terminal stub runs real clients)",
+    "native macOS/Windows",
+    "GUI inside production deb/AppImage; artifact contents are checked separately"
+  ]
+}

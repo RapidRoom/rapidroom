@@ -1,0 +1,87 @@
+{
+  "issue": 135,
+  "passed": true,
+  "application_build_source": "eab97cb347fb52aa07b51c6d6540301bd44c9179",
+  "verifier_source": "037ab9fe6daa8aecb2f5fa0eedc9d1b828dd5b3c",
+  "original_engine_sha256": "7b1daba552f04b5c53e59583760a39b2630f7b7c81814e845d13dadf4a34cf6a",
+  "original_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
+  "artifacts": {
+    "deb": {
+      "path": "/home/josh/code/rapidraw-project/samples/mcp-packaging-135/packages/RapidRoom_2.2.0_amd64.deb",
+      "sha256": "a367ce3faff8b36d9241c1956bae7e44f20689f5ac9d8ff639ab337b37be9406",
+      "binary_sha256": "0d62e08dab0a2baa5b1945024271e7feac09a6a1ff693c9fae26da3dae7a4abf",
+      "bundle_type": "DEB",
+      "canonical_source_engine_sha256": "7b1daba552f04b5c53e59583760a39b2630f7b7c81814e845d13dadf4a34cf6a",
+      "engine_payload_verified": true,
+      "normalization": "Tauri bundle marker only",
+      "adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
+      "adapter_executable": true,
+      "adapter_help_passed": true,
+      "required_identity_resources_present": true,
+      "no_rapidraw_install_paths": true
+    },
+    "appimage": {
+      "path": "/home/josh/code/rapidraw-project/samples/mcp-packaging-135/packages/RapidRoom_2.2.0_amd64.AppImage",
+      "sha256": "f0fca6ae468a405ced3c2e04c2a77505808a18b5656d739268e6b2544d094d5e",
+      "binary_sha256": "512530910b7535f3aa525f5aceabe0c4ed7b2ca242094225fc62927683468501",
+      "bundle_type": "APP",
+      "canonical_source_engine_sha256": "7b1daba552f04b5c53e59583760a39b2630f7b7c81814e845d13dadf4a34cf6a",
+      "engine_payload_verified": true,
+      "normalization": "allocated ELF payload and dynamic symbols/libraries identical; expected local RUNPATH",
+      "adapter_sha256": "20981e7787e4c614408ac3acd41257ab91d2b666fefb986d790aca53e4bdd2c5",
+      "adapter_executable": true,
+      "adapter_help_passed": true,
+      "required_identity_resources_present": true,
+      "no_rapidraw_install_paths": true
+    }
+  },
+  "existing_font_notices_verified": true,
+  "elf_negative_control": "changed allocated code byte refused; altered binary never executed",
+  "appimage_adapter_native": {
+    "steps": 8,
+    "passed": true,
+    "adapter_sha256": "20981e7787e4c614408ac3acd41257ab91d2b666fefb986d790aca53e4bdd2c5",
+    "wire_protocols": {
+      "2025-06-18": {
+        "tools": 21,
+        "ttlMs": 0,
+        "cacheScope": "private",
+        "state_read": true
+      },
+      "2026-07-28": {
+        "tools": 21,
+        "ttlMs": 0,
+        "cacheScope": "private",
+        "state_read": true
+      }
+    },
+    "clients": {
+      "claude": {
+        "version": "2.1.289 (Claude Code)",
+        "actual_mcp_edit_call": true,
+        "exposure": 0.5,
+        "revision_changed": true,
+        "native_slider_and_preview_changed": true
+      },
+      "codex": {
+        "version": "codex-cli 0.160.0",
+        "actual_mcp_edit_call": true,
+        "exposure": 1.0,
+        "revision_changed": true,
+        "native_slider_and_preview_changed": true
+      }
+    },
+    "authentication_checks_passed": true,
+    "source_guards": {
+      "fixture_unchanged": true,
+      "engine_unchanged": true
+    },
+    "case": "/home/josh/code/rapidraw-project/samples/mcp-packaging-135/native-appimage-adapter"
+  },
+  "inspection_tool": "dpkg-deb isolated from a verified local sync-database archive; no system-wide install",
+  "unverified": [
+    "production deb/AppImage GUI (native common app code tested using optional driver)",
+    "Ubuntu installation and physical external-terminal focus",
+    "macOS/Windows"
+  ]
+}

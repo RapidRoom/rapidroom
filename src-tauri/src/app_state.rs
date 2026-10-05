@@ -223,6 +223,7 @@ pub struct McpEditorState {
 
 #[cfg(feature = "mcp")]
 pub struct McpRuntime {
+    pub server: TokioMutex<Option<tokio::task::JoinHandle<()>>>,
     pub port: Mutex<u16>,
     pub editor_state: Mutex<Option<McpEditorState>>,
     pub ui_waiters: Mutex<HashMap<String, oneshot::Sender<Result<serde_json::Value, String>>>>,
@@ -232,6 +233,7 @@ pub struct McpRuntime {
 impl McpRuntime {
     pub fn new() -> Self {
         Self {
+            server: TokioMutex::new(None),
             port: Mutex::new(0),
             editor_state: Mutex::new(None),
             ui_waiters: Mutex::new(HashMap::new()),

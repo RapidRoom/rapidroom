@@ -6,7 +6,7 @@ mod server;
 mod tools;
 mod ui;
 
-pub use http::{initialize_runtime, start_server};
+pub use http::{cleanup_endpoint, initialize_runtime, set_enabled, start_server};
 
 use crate::AppState;
 use serde_json::Value;

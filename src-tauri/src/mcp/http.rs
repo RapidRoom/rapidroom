@@ -35,75 +35,125 @@ fn fresh_token() -> String {
 
 pub fn start_server(app_handle: AppHandle) {
     tauri::async_runtime::spawn(async move {
-        if let Err(error) = run_server(app_handle).await {
-            log::error!("MCP server stopped: {}", error);
+        if let Err(error) = set_enabled(app_handle, true, false).await {
+            log::warn!("Unable to enable MCP control: {}", error);
         }
     });
 }
 
-pub fn initialize_runtime(app_handle: &AppHandle) -> Result<(), String> {
-    let config_dir = app_handle
+fn endpoint_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
+    Ok(app_handle
         .path()
         .app_config_dir()
-        .map_err(|error| error.to_string())?;
-    fs::create_dir_all(&config_dir).map_err(|error| error.to_string())?;
-
-    Ok(())
+        .map_err(|e| e.to_string())?
+        .join("mcp-endpoint.json"))
 }
 
-async fn run_server(app_handle: AppHandle) -> Result<(), String> {
+fn remove_endpoint(app_handle: &AppHandle) -> Result<(), String> {
+    match fs::remove_file(endpoint_path(app_handle)?) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("Cannot remove MCP endpoint: {error}")),
+    }
+}
+
+pub fn initialize_runtime(app_handle: &AppHandle) -> Result<(), String> {
+    remove_endpoint(app_handle)
+}
+
+pub fn cleanup_endpoint(app_handle: &AppHandle) {
+    if let Err(error) = remove_endpoint(app_handle) {
+        log::warn!("{}", error);
+    }
+}
+
+struct EndpointGuard(AppHandle);
+impl Drop for EndpointGuard {
+    fn drop(&mut self) {
+        *self.0.state::<crate::AppState>().mcp.port.lock().unwrap() = 0;
+        cleanup_endpoint(&self.0);
+    }
+}
+
+pub async fn set_enabled(
+    app_handle: AppHandle,
+    enabled: bool,
+    persist: bool,
+) -> Result<(), String> {
+    let state = app_handle.state::<crate::AppState>();
+    let mut slot = state.mcp.server.lock().await;
+    if enabled && slot.as_ref().is_some_and(|task| !task.is_finished()) {
+        if persist {
+            crate::mcp_control::persist_enabled(&app_handle, true)?;
+        }
+        return Ok(());
+    }
+    if let Some(task) = slot.take() {
+        task.abort();
+        let _ = task.await;
+    }
+    *state.mcp.port.lock().unwrap() = 0;
+    state.mcp.ui_waiters.lock().unwrap().clear();
+    remove_endpoint(&app_handle)?;
+    if !enabled {
+        if persist {
+            crate::mcp_control::persist_enabled(&app_handle, false)?;
+        }
+        return Ok(());
+    }
+
     let requested_port = env::var("RAPIDRAW_MCP_PORT")
         .ok()
-        .and_then(|value| value.parse::<u16>().ok())
+        .and_then(|v| v.parse::<u16>().ok())
         .unwrap_or(DEFAULT_PORT);
-
-    let mut listener = None;
-    let mut bound_port = requested_port;
+    let mut bound = None;
     for port in requested_port..=requested_port.saturating_add(10) {
         match TcpListener::bind(("127.0.0.1", port)).await {
-            Ok(bound) => {
-                listener = Some(bound);
-                bound_port = port;
+            Ok(listener) => {
+                bound = Some((listener, port));
                 break;
             }
             Err(_) if env::var("RAPIDRAW_MCP_PORT").is_err() => continue,
             Err(error) => return Err(format!("failed to bind 127.0.0.1:{port}: {error}")),
         }
     }
-
-    let listener = listener.ok_or_else(|| "no available MCP port found".to_string())?;
-    let state = app_handle.state::<crate::AppState>();
-
+    let (listener, port) = bound.ok_or("no available MCP port found")?;
+    let guard = EndpointGuard(app_handle.clone());
     let token = fresh_token();
     let verifier = Arc::new(BearerVerifier::new(&token));
-    let config_dir = app_handle
-        .path()
-        .app_config_dir()
-        .map_err(|error| error.to_string())?;
     let endpoint = Endpoint {
-        url: format!("http://127.0.0.1:{bound_port}/mcp"),
+        url: format!("http://127.0.0.1:{port}/mcp"),
         token,
         protocol_version: PROTOCOL_VERSION.to_string(),
     };
-    write_endpoint(&config_dir.join("mcp-endpoint.json"), &endpoint)?;
-    *state.mcp.port.lock().unwrap() = bound_port;
-    // Keep only the verifier in the listener; the plaintext is in its private endpoint file.
-    drop(endpoint);
-    log::info!(
-        "MCP server listening on http://127.0.0.1:{bound_port}/mcp (authenticated loopback)"
-    );
-
-    let service = create_http_service(app_handle);
-    loop {
-        let (stream, _) = listener.accept().await.map_err(|error| error.to_string())?;
-        let service_for_connection = service.clone();
-        let verifier = verifier.clone();
-        tauri::async_runtime::spawn(async move {
-            if let Err(error) = handle_connection(stream, service_for_connection, verifier).await {
-                log::debug!("MCP connection closed: {}", error);
-            }
-        });
+    write_endpoint(&endpoint_path(&app_handle)?, &endpoint)?;
+    if persist {
+        crate::mcp_control::persist_enabled(&app_handle, true)?;
     }
+    drop(endpoint);
+    *state.mcp.port.lock().unwrap() = port;
+    let service = create_http_service(app_handle.clone());
+    *slot = Some(tokio::spawn(async move {
+        let _guard = guard;
+        let mut connections = tokio::task::JoinSet::new();
+        loop {
+            tokio::select! {
+                accepted = listener.accept() => {
+                    let (stream, _) = match accepted { Ok(value) => value, Err(error) => { log::warn!("MCP listener stopped: {error}"); break; } };
+                    let service = service.clone();
+                    let verifier = verifier.clone();
+                    connections.spawn(async move {
+                        if let Err(error) = handle_connection(stream, service, verifier).await {
+                            log::debug!("MCP connection closed: {error}");
+                        }
+                    });
+                }
+                _ = connections.join_next(), if !connections.is_empty() => {}
+            }
+        }
+    }));
+    log::info!("MCP control enabled on authenticated loopback port {port}");
+    Ok(())
 }
 
 async fn handle_connection(

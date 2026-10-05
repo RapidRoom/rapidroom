@@ -4,13 +4,14 @@ import json
 import os
 from pathlib import Path
 import sys
+import tomllib
 
 from PIL import ImageChops
 
 from mcp_clients import client_command, execute_client, image_state, objects, run_client_checks
 
 
-def run_launched_client(case, name):
+def run_launched_client(case, name, launch_args=None):
     request = json.loads((case / "tools" / (name + "-request.json")).read_text())
     folder = Path(request["folder"])
     result = {"folder": os.getcwd(), "app_folder": os.environ.get("RAPIDROOM_FOLDER"),
@@ -24,6 +25,30 @@ def run_launched_client(case, name):
         if result["config_home"] != str(case / "config") or result["endpoint_or_token_env"]:
             raise RuntimeError("Launched client endpoint discovery environment differs")
         command, version = client_command(case, folder, name, request["exposure"])
+        if (case / "mcp-packaging-test.json").exists():
+            # Exercise the actual app-generated per-launch registration, rather
+            # than masking a missing/broken command with the test's own config.
+            args = launch_args or []
+            adapter = str(case / "engine/rapidroom-mcp-stdio")
+            if name == "claude":
+                if len(args) != 2 or args[0] != "--mcp-config":
+                    raise RuntimeError("Claude launch lacks native MCP registration")
+                config = Path(args[1])
+                if config.parent != case / "config/io.github.CyberTimon.RapidRAW":
+                    raise RuntimeError("Claude registration is outside owned config")
+                if json.loads(config.read_text()) != {"mcpServers": {"rapidroom": {"command": adapter}}}:
+                    raise RuntimeError("Claude registration differs from the installed adapter")
+                command[command.index("--mcp-config") + 1] = str(config)
+            else:
+                if len(args) != 4 or args[::2] != ["-c", "-c"]:
+                    raise RuntimeError("Codex launch lacks native MCP registration")
+                config = tomllib.loads("\n".join(args[1::2]))
+                if config != {"mcp_servers": {"rapidroom": {"command": adapter, "env_vars": ["XDG_CONFIG_HOME"]}}}:
+                    raise RuntimeError("Codex registration differs from the installed adapter")
+                for key, value in zip(("command", "env_vars"), args[1::2]):
+                    index = next(i for i, item in enumerate(command) if item.startswith("mcp_servers.rapidroom." + key + "="))
+                    command[index] = value
+            result["native_per_launch_registration_used"] = True
         events = execute_client(command, folder, name, case / "config", cwd=case / "input", own_group=False)
         if name == "claude":
             called = any(value.get("type") == "tool_use" and
@@ -94,4 +119,4 @@ def run_launch_checks(case, smoke):
 
 
 if __name__ == "__main__":
-    sys.exit(run_launched_client(Path(sys.argv[1]), sys.argv[2]))
+    sys.exit(run_launched_client(Path(sys.argv[1]), sys.argv[2], sys.argv[3:]))

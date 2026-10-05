@@ -94,6 +94,9 @@ export enum Invokes {
   MoveFiles = 'move_files',
   OpenTerminalHere = 'open_terminal_here',
   LaunchTerminalAgent = 'launch_terminal_agent',
+  TerminalAgentCommand = 'terminal_agent_command',
+  McpControlStatus = 'mcp_control_status',
+  SetMcpEnabled = 'set_mcp_enabled',
   IsTerminalSupported = 'is_terminal_supported',
   PtyOpen = 'pty_open',
   PtyWrite = 'pty_write',
@@ -228,6 +231,7 @@ export type GroupingMode = 'off' | GroupPreference;
 
 export interface AppSettings {
   terminalSettings?: TerminalSettings;
+  mcpEnabled?: boolean;
   aiConnectorAddress?: string;
   aiProvider?: string;
   decorations?: any;

@@ -28,6 +28,7 @@ import Button from '../ui/Button';
 import ConfirmModal from '../modals/ConfirmModal';
 import Dropdown, { OptionItem } from '../ui/Dropdown';
 import Switch from '../ui/Switch';
+import McpControlSettings from './McpControlSettings';
 import Input from '../ui/Input';
 import Slider from '../ui/Slider';
 import { ThemeProps, THEMES, DEFAULT_THEME_ID } from '../../utils/themes';
@@ -1181,6 +1182,8 @@ export default function SettingsPanel({
                           onChange={(checked) => onSettingsChange({ ...appSettings, autoAdvanceOnRate: checked })}
                         />
                       </SettingItem>
+
+                      <McpControlSettings />
 
                       <SettingItem label={t('settings.general.font')} description={t('settings.general.fontDesc')}>
                         <Dropdown

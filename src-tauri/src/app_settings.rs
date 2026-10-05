@@ -620,6 +620,8 @@ pub struct AppSettings {
     pub workspace: WorkspaceState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terminal_settings: Option<Value>,
+    #[serde(default)]
+    pub mcp_enabled: bool,
 }
 
 impl Default for AppSettings {
@@ -722,6 +724,7 @@ impl Default for AppSettings {
             adjustment_density: None,
             workspace: WorkspaceState::default(),
             terminal_settings: None,
+            mcp_enabled: false,
         }
     }
 }
@@ -830,6 +833,16 @@ pub fn save_settings(settings: AppSettings, app_handle: AppHandle) -> Result<(),
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn existing_preferences_do_not_enable_ai_control() {
+        let mut saved = serde_json::to_value(AppSettings::default()).unwrap();
+        saved.as_object_mut().unwrap().remove("mcpEnabled");
+        saved["adjustmentDensity"] = serde_json::json!("compact");
+        let settings: AppSettings = serde_json::from_value(saved).unwrap();
+        assert!(!settings.mcp_enabled);
+        assert_eq!(settings.adjustment_density.as_deref(), Some("compact"));
+    }
 
     #[test]
     fn adjustment_density_is_left_out_until_chosen() {

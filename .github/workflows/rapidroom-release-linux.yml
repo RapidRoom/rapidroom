@@ -88,7 +88,7 @@ jobs:
         env:
           NO_STRIP: 'true'
           BUNDLE_VERSION: ${{ steps.version.outputs.bundle }}
-        run: npx tauri build --verbose --features terminal --bundles deb,appimage --config "{\"version\":\"${BUNDLE_VERSION}\"}"
+        run: python3 rapidroom/build-linux-packages.py --version "$BUNDLE_VERSION"
 
       - name: Collect release assets
         env:
@@ -108,7 +108,7 @@ jobs:
           cp "${appimages[0]}" "release-assets/RapidRoom_v${RR_VERSION}_amd64.AppImage"
           dpkg-deb --field "release-assets/RapidRoom_v${RR_VERSION}_amd64.deb" Package Version
           contents="$(dpkg-deb --contents "release-assets/RapidRoom_v${RR_VERSION}_amd64.deb")"
-          for path in usr/bin/rapidroom usr/share/applications/RapidRoom.desktop usr/lib/RapidRoom/resources/libonnxruntime.so usr/lib/RapidRoom/lensfun_db; do
+          for path in usr/bin/rapidroom usr/bin/rapidroom-mcp-stdio usr/share/applications/RapidRoom.desktop usr/lib/RapidRoom/resources/libonnxruntime.so usr/lib/RapidRoom/lensfun_db; do
             if ! grep -qE " (\./)?${path}/?$" <<< "$contents"; then
               echo "::error::The .deb has no ${path}"
               exit 1

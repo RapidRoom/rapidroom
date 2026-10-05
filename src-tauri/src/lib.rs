@@ -62,6 +62,7 @@ mod lut_processing;
 mod mask_generation;
 #[cfg(feature = "mcp")]
 mod mcp;
+mod mcp_control;
 mod multi_exposure;
 mod negative_conversion;
 mod output_sharpening;
@@ -2034,6 +2035,10 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(PinchZoomDisablePlugin)
         .on_window_event(|window, event| {
+            #[cfg(feature = "mcp")]
+            if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
+                mcp::cleanup_endpoint(window.app_handle());
+            }
             // ScaleFactorChanged too: dragging the window to a display with a
             // different backing scale changes the physical size without ever
             // emitting Resized.
@@ -2248,7 +2253,9 @@ pub fn run() {
                 if let Err(error) = mcp::initialize_runtime(&app_handle) {
                     log::warn!("Unable to initialize MCP runtime: {}", error);
                 } else {
-                    mcp::start_server(app_handle.clone());
+                    if settings.mcp_enabled {
+                        mcp::start_server(app_handle.clone());
+                    }
                 }
             }
 
@@ -2491,6 +2498,8 @@ pub fn run() {
             app_settings::load_settings,
             app_settings::save_settings,
             app_settings::is_tethering_supported,
+            mcp_control::mcp_control_status,
+            mcp_control::set_mcp_enabled,
             ai_commands::generate_ai_subject_mask,
             ai_commands::precompute_ai_subject_mask,
             ai_commands::generate_ai_foreground_mask,
@@ -2549,6 +2558,8 @@ pub fn run() {
             terminal::is_terminal_supported,
             #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
             terminal::launch_terminal_agent,
+            #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+            terminal::terminal_agent_command,
             #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
             terminal_pty::pty_open,
             #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]

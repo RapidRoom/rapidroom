@@ -7,6 +7,7 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 import { saveTerminalSettings, useTerminalStore } from '../../store/useTerminalStore';
 import { useUIStore } from '../../store/useUIStore';
 import { normalizeTerminalSettings } from '../../utils/terminalSettings';
+import { ensureMcpControl } from '../../utils/mcpControl';
 
 export default function AgentLauncher() {
   const { t } = useTranslation();
@@ -16,6 +17,14 @@ export default function AgentLauncher() {
   const start = async (agent: 'claude' | 'codex') => {
     if (!path) return;
     try {
+      if (
+        !(await ensureMcpControl({
+          title: t('settings.general.mcpControl'),
+          message: t('settings.general.mcpControlDescription'),
+          confirm: t('terminal.enableAndStart'),
+        }))
+      )
+        return;
       if (preferences.startIn === 'external') {
         await invoke(Invokes.LaunchTerminalAgent, { path, agent });
         return;
@@ -28,7 +37,8 @@ export default function AgentLauncher() {
         ) ?? 'bottom';
       ui.setActivePanel(region, Panel.Terminal);
       const { writeTerminal } = await import('../../utils/terminalRuntime');
-      await writeTerminal(terminal.id, `${agent}\r`);
+      const command = await invoke<string>(Invokes.TerminalAgentCommand, { agent });
+      await writeTerminal(terminal.id, `${command}\r`);
     } catch (error) {
       toast.error(String(error));
     }
