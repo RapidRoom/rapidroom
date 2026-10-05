@@ -138,6 +138,64 @@ describe('MCP editor bridge review', () => {
     expect(invoke.mock.calls.some(([name]) => name === 'reset_adjustments_for_paths')).toBe(false);
   });
 
+  it('lists AI entries without changing history and undoes/redoes through the shared stack', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    await mount();
+    renderChanges();
+    await command('apply-adjustments', { ...INITIAL_ADJUSTMENTS, exposure: 0.4 });
+    await command('apply-adjustments', { ...INITIAL_ADJUSTMENTS, exposure: 0.4, highlights: -30 });
+    const before = useEditorStore.getState();
+    await command('history-list');
+    expect(useEditorStore.getState().history).toBe(before.history);
+    expect(useEditorStore.getState().adjustments).toBe(before.adjustments);
+    expect(responses.at(-1)).toMatchObject({
+      response: {
+        historyIndex: 2,
+        entries: [
+          { label: 'Initial State' },
+          { actor: 'assistant', label: 'AI: Exposure +0.4' },
+          { actor: 'assistant', label: 'AI: Highlights -30' },
+        ],
+      },
+    });
+    await command('undo');
+    expect(useEditorStore.getState().adjustments).toMatchObject({ exposure: 0.4, highlights: 0 });
+    await command('undo');
+    expect(useEditorStore.getState().adjustments).toEqual(INITIAL_ADJUSTMENTS);
+    await command('redo');
+    expect(useEditorStore.getState().adjustments).toMatchObject({ exposure: 0.4, highlights: 0 });
+    expect(useEditorStore.getState().history).toHaveLength(3);
+  });
+
+  it('reports an empty editor context before a photo is open', async () => {
+    await mount();
+    await act(async () => emit('mcp-command', { requestId: 'empty', kind: 'editor-context', path: '' }));
+    expect(responses.at(-1)).toMatchObject({
+      response: { imagePath: null, dimensions: null, crop: null, masks: [] },
+      error: null,
+    });
+  });
+
+  it('reads bounded editor context without committing pending GUI history', async () => {
+    useEditorStore.setState({
+      selectedImage: { ...image, exif: { Make: 'Sony', Model: 'A7C II', PrivateUnknown: 'omitted' } },
+    });
+    await mount();
+    const before = useEditorStore.getState();
+    debouncedSetHistory({ ...INITIAL_ADJUSTMENTS, exposure: 1 });
+    await command('editor-context');
+    expect(useEditorStore.getState().history).toBe(before.history);
+    expect(responses.at(-1)).toMatchObject({
+      response: {
+        imagePath: path,
+        dimensions: { width: 6000, height: 4000 },
+        exif: { Make: 'Sony', Model: 'A7C II' },
+        virtualCopy: null,
+      },
+    });
+    expect((responses.at(-1)?.response as { exif: unknown }).exif).not.toHaveProperty('PrivateUnknown');
+  });
+
   it('does not mirror a new photo under the old path when it changes during a render wait', async () => {
     useEditorStore.setState({ selectedImage: image });
     await mount();

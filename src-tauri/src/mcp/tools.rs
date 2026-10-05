@@ -5,7 +5,7 @@ use image::GenericImageView;
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
 
-use super::{adjustments, ui};
+use super::{adjustments, preview, ui};
 use crate::AppState;
 use crate::export_processing::{
     ExportRequest, ExportSettings, ResizeMode, ResizeOptions, TiffBitDepth, WatermarkAnchor,
@@ -110,6 +110,32 @@ pub(super) fn tool_definitions() -> Vec<Value> {
             "inputSchema": { "type": "object", "properties": {} }
         }),
         json!({
+            "name": "history_list",
+            "description": "List labelled entries in the active editor undo stack, including undone redo entries. Does not change edits.",
+            "inputSchema": { "type": "object", "additionalProperties": false, "properties": {
+                "imagePath": { "type": "string" }
+            }, "required": ["imagePath"] }
+        }),
+        json!({
+            "name": "undo",
+            "description": "Undo one edit using the same history as the editor UI. Returns the resulting state and edit revision; no-op at the first entry.",
+            "inputSchema": { "type": "object", "additionalProperties": false, "properties": {
+                "imagePath": { "type": "string" }, "expectedRevision": { "type": "string" }
+            }, "required": ["imagePath"] }
+        }),
+        json!({
+            "name": "redo",
+            "description": "Redo one undone edit using the same history as the editor UI. Returns the resulting state and edit revision; no-op at the last entry.",
+            "inputSchema": { "type": "object", "additionalProperties": false, "properties": {
+                "imagePath": { "type": "string" }, "expectedRevision": { "type": "string" }
+            }, "required": ["imagePath"] }
+        }),
+        json!({
+            "name": "get_editor_context",
+            "description": "Read the active photo, dimensions, EXIF summary, crop, masks, selected panel/mask and Card mode. Does not change edits or history.",
+            "inputSchema": { "type": "object", "additionalProperties": false, "properties": {} }
+        }),
+        json!({
             "name": "get_histogram_data",
             "description": "Get the existing RapidRAW histogram for the active edited image, with 256 red, green, blue, and luma bins.",
             "inputSchema": { "type": "object", "properties": {
@@ -152,12 +178,20 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         }),
         json!({
             "name": "get_preview",
-            "description": "Render the current or supplied edit as a JPEG image for the agent.",
+            "description": "Render a bounded current/supplied edit or neutral original JPEG. Optional region uses 0–1 fractions of the rendered image; sideBySide returns original on the left and edited on the right without changing history.",
             "inputSchema": { "type": "object", "properties": {
                 "imagePath": { "type": "string" },
                 "adjustments": adjustments::adjustments_schema(),
                 "maxDimension": { "type": "integer", "minimum": 128, "maximum": 4096, "default": 1280 },
-                "expectedRevision": { "type": "string" }
+                "expectedRevision": { "type": "string" },
+                "original": { "type": "boolean", "default": false },
+                "sideBySide": { "type": "boolean", "default": false },
+                "region": { "type": "object", "additionalProperties": false, "properties": {
+                    "x": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "y": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+                    "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+                }, "required": ["x", "y", "width", "height"] }
             }, "required": ["imagePath"] }
         }),
         json!({
@@ -192,6 +226,13 @@ pub(super) async fn call_tool(
         "open_image" | "select_image" => select_image(app_handle, &arguments).await,
         "get_image_state" => get_image_state(app_handle, &arguments),
         "get_active_image_state" => get_active_image_state(app_handle),
+        "history_list" | "undo" | "redo" => history_action(app_handle, name, &arguments).await,
+        "get_editor_context" => {
+            let path = ui::active_session(app_handle)
+                .map(|session| session.path)
+                .unwrap_or_default();
+            ui::request_ui(app_handle, "editor-context", json!({ "path": path })).await
+        }
         "get_histogram_data" => get_histogram_data(app_handle, &arguments).await,
         "set_adjustments" => set_adjustments(app_handle, &arguments).await,
         "update_adjustments" => update_adjustments(app_handle, &arguments).await,
@@ -261,6 +302,24 @@ async fn get_histogram_data(app_handle: &AppHandle, arguments: &Value) -> Result
     let path = required_image_path(arguments)?;
     ui::require_active_session(app_handle, Some(&path))?;
     ui::request_ui(app_handle, "get-histogram", json!({ "path": path })).await
+}
+
+async fn history_action(
+    app_handle: &AppHandle,
+    name: &str,
+    arguments: &Value,
+) -> Result<Value, String> {
+    let path = required_image_path(arguments)?;
+    ui::require_active_session(app_handle, Some(&path))?;
+    if matches!(name, "undo" | "redo") {
+        check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
+    }
+    let kind = if name == "history_list" {
+        "history-list"
+    } else {
+        name
+    };
+    ui::request_ui(app_handle, kind, json!({ "path": path })).await
 }
 
 async fn set_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
@@ -337,42 +396,101 @@ async fn apply_auto_adjustments(
     .await
 }
 
+fn original_adjustments() -> Result<Value, String> {
+    let schema: Value =
+        serde_json::from_str(include_str!("../../../rapidroom/adjustment-schema.json"))
+            .map_err(|error| error.to_string())?;
+    let parameters = schema["parameters"]
+        .as_object()
+        .ok_or("Invalid generated defaults")?;
+    Ok(Value::Object(
+        parameters
+            .iter()
+            .filter(|(key, _)| !key.contains('.'))
+            .map(|(key, value)| (key.clone(), value["default"].clone()))
+            .collect(),
+    ))
+}
+
 async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
     let path = required_image_path(arguments)?;
     ui::require_active_session(app_handle, Some(&path))?;
-    let adjustments = if let Some(adjustments) = arguments.get("adjustments") {
+    check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
+    let original = preview::option(arguments, "original")?;
+    let comparison = preview::option(arguments, "sideBySide")?;
+    let region = preview::region(arguments)?;
+    if original && (comparison || arguments.get("adjustments").is_some()) {
+        return Err("original cannot be combined with adjustments or sideBySide".into());
+    }
+    let adjustments = if original {
+        original_adjustments()?
+    } else if let Some(adjustments) = arguments.get("adjustments") {
         adjustments::validate_adjustments(adjustments)?;
         adjustments.clone()
     } else {
-        check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
-        get_image_state(app_handle, arguments)?
-            .get("adjustments")
-            .cloned()
-            .unwrap_or_else(|| json!({}))
+        get_image_state(app_handle, arguments)?["adjustments"].clone()
     };
-    let max_dimension = arguments
-        .get("maxDimension")
-        .and_then(Value::as_u64)
-        .unwrap_or(1280)
-        .clamp(128, 4096) as u32;
+    let max_dimension = match arguments.get("maxDimension") {
+        None => 1280,
+        Some(value) => value
+            .as_u64()
+            .ok_or("maxDimension must be an integer")?
+            .clamp(128, 4096) as u32,
+    };
+    let render_dimension = if comparison {
+        max_dimension / 2
+    } else {
+        max_dimension
+    };
     let bytes = crate::generate_preview_bytes_for_path(
         path.clone(),
         adjustments.clone(),
-        max_dimension,
+        render_dimension,
         app_handle.clone(),
     )
     .await?;
-    let revision = adjustments::revision_for(&path, &adjustments);
-    let (width, height) = image::load_from_memory(&bytes)
-        .map(|image| image.dimensions())
-        .unwrap_or((0, 0));
+    let image = preview::crop(
+        image::load_from_memory(&bytes).map_err(|error| error.to_string())?,
+        region,
+    );
+    let (result, labels) = if comparison {
+        let neutral = crate::generate_preview_bytes_for_path(
+            path.clone(),
+            original_adjustments()?,
+            render_dimension,
+            app_handle.clone(),
+        )
+        .await?;
+        let neutral = preview::crop(
+            image::load_from_memory(&neutral).map_err(|error| error.to_string())?,
+            region,
+        );
+        (
+            preview::side_by_side(&neutral, &image, max_dimension),
+            json!(["Original", "Edited"]),
+        )
+    } else {
+        (image, json!([]))
+    };
+    let (width, height) = result.dimensions();
+    let encoded = if !comparison && region.is_none() {
+        bytes
+    } else {
+        let mut encoded = Vec::new();
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut encoded, 90)
+            .encode_image(&result)
+            .map_err(|error| error.to_string())?;
+        encoded
+    };
+    if encoded.len() > preview::MAX_PREVIEW_BYTES {
+        return Err("Preview payload exceeds 8 MiB; request a smaller maxDimension".into());
+    }
     Ok(json!({
-        "imagePath": path,
-        "editRevision": revision,
-        "mimeType": "image/jpeg",
-        "width": width,
-        "height": height,
-        "content": [{ "type": "image", "data": BASE64.encode(bytes), "mimeType": "image/jpeg" }],
+        "imagePath": path, "editRevision": adjustments::revision_for(&path,&adjustments),
+        "mimeType":"image/jpeg", "width":width, "height":height, "labels":labels,
+        "original":original, "sideBySide":comparison,
+        "regionCoordinates":"fractions of each rendered image after its edit crop",
+        "content":[{"type":"image","data":BASE64.encode(encoded),"mimeType":"image/jpeg"}],
     }))
 }
 

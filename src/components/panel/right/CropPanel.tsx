@@ -985,6 +985,7 @@ export default function CropPanel() {
               </Text>
               <div className="bg-surface px-4 pt-3 pb-4 rounded-lg">
                 <Slider
+                  data-adjustment-key="rotation"
                   label={
                     <div className="flex items-center gap-2">
                       <button

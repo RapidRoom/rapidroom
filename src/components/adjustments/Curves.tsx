@@ -923,6 +923,7 @@ export default function CurveGraph({
 
               <div className="flex flex-col gap-2">
                 <Slider
+                  data-adjustment-key="parametricCurve.*.whiteLevel"
                   label={t('adjustments.curves.params.whiteLevel')}
                   markers={getParametricMarkers('whiteLevel')}
                   min={-100}
@@ -934,6 +935,7 @@ export default function CurveGraph({
                   onDragStateChange={onDragStateChange}
                 />
                 <Slider
+                  data-adjustment-key="parametricCurve.*.highlights"
                   label={t('adjustments.curves.params.highlights')}
                   markers={getParametricMarkers('highlights')}
                   min={-100}
@@ -945,6 +947,7 @@ export default function CurveGraph({
                   onDragStateChange={onDragStateChange}
                 />
                 <Slider
+                  data-adjustment-key="parametricCurve.*.lights"
                   label={t('adjustments.curves.params.lights')}
                   markers={getParametricMarkers('lights')}
                   min={-100}
@@ -956,6 +959,7 @@ export default function CurveGraph({
                   onDragStateChange={onDragStateChange}
                 />
                 <Slider
+                  data-adjustment-key="parametricCurve.*.darks"
                   label={t('adjustments.curves.params.darks')}
                   markers={getParametricMarkers('darks')}
                   min={-100}
@@ -967,6 +971,7 @@ export default function CurveGraph({
                   onDragStateChange={onDragStateChange}
                 />
                 <Slider
+                  data-adjustment-key="parametricCurve.*.shadows"
                   label={t('adjustments.curves.params.shadows')}
                   markers={getParametricMarkers('shadows')}
                   min={-100}
@@ -978,6 +983,7 @@ export default function CurveGraph({
                   onDragStateChange={onDragStateChange}
                 />
                 <Slider
+                  data-adjustment-key="parametricCurve.*.blackLevel"
                   label={t('adjustments.curves.params.blackLevel')}
                   markers={getParametricMarkers('blackLevel')}
                   min={0}

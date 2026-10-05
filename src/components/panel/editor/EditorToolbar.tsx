@@ -7,6 +7,7 @@ import { SelectedImage, GroupingMode } from '../../ui/AppProperties';
 import { IconAperture, IconCalendar, IconClock, IconFocalLength, IconIso, IconShutter } from './ExifIcons';
 import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
+import { useEditorStore } from '../../../store/useEditorStore';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { findGroupVariants, getVariantLabel } from '../../../utils/imageGrouping';
@@ -185,7 +186,9 @@ const EditorToolbar = memo(
     }, [isHistoryVisible]);
 
     const prevNamesRef = useRef<string[]>(['Initial State']);
+    const prevSnapshotsRef = useRef<unknown[]>([]);
 
+    const explicitHistoryDetails = useEditorStore((state) => state.historyDetails);
     const historyNames = useMemo(() => {
       if (!adjustmentsHistory || adjustmentsHistory.length === 0) return [];
 
@@ -265,6 +268,8 @@ const EditorToolbar = memo(
       const cachedNames = prevNamesRef.current;
       const newNames = [...cachedNames];
 
+      const replaced = adjustmentsHistory.findIndex((snapshot, index) => prevSnapshotsRef.current[index] !== snapshot);
+      if (replaced >= 0) newNames.length = Math.min(newNames.length, replaced);
       if (newNames.length > adjustmentsHistory.length) {
         newNames.length = adjustmentsHistory.length;
       }
@@ -338,8 +343,9 @@ const EditorToolbar = memo(
       }
 
       prevNamesRef.current = newNames;
-      return newNames;
-    }, [adjustmentsHistory]);
+      prevSnapshotsRef.current = adjustmentsHistory;
+      return newNames.map((name, index) => explicitHistoryDetails[index]?.label ?? name);
+    }, [adjustmentsHistory, explicitHistoryDetails]);
 
     useEffect(() => {
       if (isHistoryVisible && historyContainerRef.current) {

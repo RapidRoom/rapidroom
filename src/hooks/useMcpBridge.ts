@@ -1,3 +1,8 @@
+import { toast } from 'react-toastify';
+import { isPathInCardRoot } from '../utils/cardMode';
+import { describeHistoryChange } from '../utils/editHistory';
+import { useUIStore } from '../store/useUIStore';
+import { useLibraryStore } from '../store/useLibraryStore';
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -12,7 +17,15 @@ import {
 
 interface McpCommand {
   requestId: string;
-  kind: 'select-image' | 'get-histogram' | 'apply-adjustments' | 'reset-adjustments';
+  kind:
+    | 'select-image'
+    | 'get-histogram'
+    | 'apply-adjustments'
+    | 'reset-adjustments'
+    | 'undo'
+    | 'redo'
+    | 'history-list'
+    | 'editor-context';
   path: string;
   adjustments?: Adjustments;
 }
@@ -113,7 +126,9 @@ async function applyEdit(path: string, nextAdjustments: Adjustments): Promise<bo
   }
   const previousRenderVersion = editor.previewRenderVersion;
   editor.setEditor({ adjustments: nextAdjustments });
-  editor.pushHistory(nextAdjustments);
+  const details = describeHistoryChange(editor.adjustments, nextAdjustments, 'assistant');
+  editor.pushHistory(nextAdjustments, details);
+  toast.info(details.label, { autoClose: 2500 });
   return waitForAdjustmentRender(path, previousRenderVersion, nextAdjustments);
 }
 
@@ -176,6 +191,83 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
         if (command.kind === 'select-image') {
           await handleImageSelect(command.path, true);
           await waitForImage(command.path);
+        } else if (command.kind === 'history-list' || command.kind === 'editor-context') {
+          const editor = useEditorStore.getState();
+          if (command.path && (editor.selectedImage?.path !== command.path || !editor.selectedImage.isReady)) {
+            throw new Error('Active image changed before the MCP read');
+          }
+          const current = useEditorStore.getState();
+          const response =
+            command.kind === 'history-list'
+              ? {
+                  imagePath: command.path,
+                  historyIndex: current.historyIndex,
+                  canUndo: current.historyIndex > 0,
+                  canRedo: current.historyIndex < current.history.length - 1,
+                  entries: current.history.map((snapshot, index) => ({
+                    index,
+                    active: index === current.historyIndex,
+                    undone: index > current.historyIndex,
+                    ...(current.historyDetails[index] ??
+                      (index === 0
+                        ? { label: 'Initial State', actor: 'user', changedKeys: [], timestamp: null }
+                        : { ...describeHistoryChange(current.history[index - 1], snapshot, 'user'), timestamp: null })),
+                  })),
+                }
+              : {
+                  imagePath: current.selectedImage?.isReady ? current.selectedImage.path : null,
+                  dimensions: current.selectedImage?.isReady
+                    ? { width: current.selectedImage.width, height: current.selectedImage.height }
+                    : null,
+                  virtualCopy: current.selectedImage?.path.includes('?vc=')
+                    ? current.selectedImage.path.split('?vc=').at(-1)
+                    : null,
+                  exif: Object.fromEntries(
+                    [
+                      'Make',
+                      'Model',
+                      'LensModel',
+                      'FNumber',
+                      'ExposureTime',
+                      'PhotographicSensitivity',
+                      'ISO',
+                      'FocalLength',
+                      'DateTimeOriginal',
+                    ]
+                      .filter((key) => current.selectedImage?.exif?.[key] !== undefined)
+                      .map((key) => [key, current.selectedImage?.exif[key]]),
+                  ),
+                  crop: current.selectedImage?.isReady ? current.adjustments.crop : null,
+                  maskCount: current.selectedImage?.isReady ? current.adjustments.masks.length : 0,
+                  masks: (current.selectedImage?.isReady ? current.adjustments.masks.slice(0, 256) : []).map(
+                    (mask) => ({
+                      id: mask.id,
+                      name: String(mask.name ?? '').slice(0, 128),
+                      opacity: mask.opacity,
+                      visible: mask.visible,
+                    }),
+                  ),
+                  activePanel: useUIStore.getState().activePanel,
+                  activePanels: useUIStore.getState().activePanels,
+                  activeMaskContainerId: current.activeMaskContainerId,
+                  activeMaskId: current.activeMaskId,
+                  cardMode: isPathInCardRoot(command.path.split('?vc=')[0], useLibraryStore.getState().cardBrowseRoot),
+                };
+          await invoke('ui_response', { requestId: command.requestId, response, error: null });
+          return;
+        } else if (command.kind === 'undo' || command.kind === 'redo') {
+          const editor = useEditorStore.getState();
+          if (editor.selectedImage?.path !== command.path || !editor.selectedImage.isReady) {
+            throw new Error('Active image changed before the MCP history action');
+          }
+          debouncedSetHistory.flush();
+          const before = useEditorStore.getState();
+          const previousRenderVersion = before.previewRenderVersion;
+          before[command.kind]();
+          const after = useEditorStore.getState();
+          if (after.historyIndex !== before.historyIndex) {
+            renderPending = !(await waitForAdjustmentRender(command.path, previousRenderVersion, after.adjustments));
+          }
         } else if (command.kind === 'get-histogram') {
           const histogram = await waitForHistogram(command.path);
           const response: McpHistogramResponse = {

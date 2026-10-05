@@ -1,3 +1,4 @@
+import type { HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import { Adjustments, INITIAL_ADJUSTMENTS, MaskContainer, AiPatch } from '../utils/adjustments';
 import { SelectedImage, WaveformData, BrushSettings } from '../components/ui/AppProperties';
@@ -36,6 +37,7 @@ interface EditorState {
 
   // History State
   history: Adjustments[];
+  historyDetails: Array<HistoryDetails | null>;
   historyIndex: number;
 
   // Previews & Overlays
@@ -92,7 +94,7 @@ interface EditorState {
 
   // Actions
   setEditor: (updater: Partial<EditorState> | ((state: EditorState) => Partial<EditorState>)) => void;
-  pushHistory: (newAdjustments: Adjustments) => void;
+  pushHistory: (newAdjustments: Adjustments, details?: HistoryDetails) => void;
   undo: () => void;
   redo: () => void;
   resetHistory: (initialState: Adjustments) => void;
@@ -105,6 +107,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   adjustments: INITIAL_ADJUSTMENTS,
   previewOverride: null,
   history: [INITIAL_ADJUSTMENTS],
+  historyDetails: [null],
   historyIndex: 0,
 
   finalPreviewUrl: null,
@@ -155,12 +158,19 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   setEditor: (updater) => set((state) => (typeof updater === 'function' ? updater(state) : updater)),
 
-  pushHistory: (newAdj) =>
+  pushHistory: (newAdj, details) =>
     set((state) => {
       const newHistory = state.history.slice(0, state.historyIndex + 1);
+      const historyDetails = state.history
+        .slice(0, state.historyIndex + 1)
+        .map((_, index) => state.historyDetails[index] ?? null);
       newHistory.push(newAdj);
-      if (newHistory.length > 50) newHistory.shift();
-      return { history: newHistory, historyIndex: newHistory.length - 1 };
+      historyDetails.push(details ?? null);
+      if (newHistory.length > 50) {
+        newHistory.shift();
+        historyDetails.shift();
+      }
+      return { history: newHistory, historyDetails, historyIndex: newHistory.length - 1 };
     }),
 
   undo: () =>
@@ -184,6 +194,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   resetHistory: (initialState) =>
     set({
       history: [initialState],
+      historyDetails: [null],
       historyIndex: 0,
       adjustments: initialState,
     }),

@@ -87,7 +87,7 @@ def objects(value):
             yield from objects(child)
 
 
-def client_command(case, folder, name, exposure):
+def client_command(case, folder, name, exposure, prompt_override=None, tools=None):
     adapter = str(case / "engine/rapidroom-mcp-stdio")
     image = str(case / "input/smoke.ARW")
     binary = os.environ["RAPIDROOM_TEST_" + name.upper() + "_BIN"]
@@ -95,17 +95,18 @@ def client_command(case, folder, name, exposure):
     config.write_text(json.dumps({"mcpServers": {"rapidroom": {"command": adapter}}}))
     user_config = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "config.toml"
     settings = tomllib.loads(user_config.read_text()) if user_config.exists() else {}
-    allowed = ["get_image_state", "update_adjustments"]
+    allowed = tools or ["get_image_state", "update_adjustments"]
     prompt = ("Perform this regression check using only the rapidroom MCP tools. "
               f"Call get_image_state with imagePath {json.dumps(image)}, then call update_adjustments "
               f"with that exact imagePath, changes {{\"exposure\": {exposure}}}, and expectedRevision "
               "from the state you just read. Do not change any other field. Do not use shell, files, "
               "other servers, or other tools. Finish after the successful edit with a short confirmation.")
+    prompt = prompt_override or prompt
     if name == "claude":
         command = [binary, "-p", "--strict-mcp-config", "--mcp-config", str(config),
                    "--tools", "", "--allowedTools", ",".join("mcp__rapidroom__" + tool for tool in allowed),
                    "--setting-sources", "", "--settings", '{"disableAllHooks":true}',
-                   "--disable-slash-commands", "--no-session-persistence", "--max-turns", "6",
+                   "--disable-slash-commands", "--no-session-persistence", "--max-turns", "20" if prompt_override else "6",
                    "--output-format", "stream-json", "--verbose", "--debug-file", str(folder / "claude-debug.log"),
                    "--system-prompt", "You are an MCP interoperability regression client. Follow the requested tool calls exactly.", prompt]
     else:

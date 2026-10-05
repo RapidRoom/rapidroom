@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "mcp-history-context-schema-previews",
+      "title": "Label AI edits in shared undo history and expose editor context, generated adjustment schema and bounded original/comparison/region previews",
+      "category": "feature",
+      "landed": "2026-10-05",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex, retaining the cgasgarth MCP server authorship)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Optional MCP feature: undo/redo use the editor store and preserve labelled AI entries; reads do not change edits or history. Schema defaults and UI ranges come from source and have a drift test. Original and comparison previews use generated neutral defaults, fraction regions are validated before rendering, and JPEG payload/long edge are bounded. Native real-client validation and the required human live check remain pending before merge."
+    },
+    {
       "id": "built-in-terminal-panel",
       "title": "Movable terminal panel with persistent tabs, bounded PTY output, shell/font preferences and built-in/external assistant launch controls",
       "category": "feature",
