@@ -573,6 +573,7 @@ fn parse_export_settings(value: Option<&Value>) -> Result<ExportSettings, String
     };
 
     Ok(ExportSettings {
+        output_sharpening: None,
         jpeg_quality,
         tiff_bit_depth: TiffBitDepth::try_from(
             bounded_u64(object, "tiffBitDepth", 16, 8, 16)? as u8
@@ -594,6 +595,7 @@ fn parse_export_settings(value: Option<&Value>) -> Result<ExportSettings, String
 
 fn default_export_settings() -> ExportSettings {
     ExportSettings {
+        output_sharpening: None,
         jpeg_quality: 90,
         tiff_bit_depth: TiffBitDepth::default(),
         resize: None,
