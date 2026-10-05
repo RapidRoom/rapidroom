@@ -63,6 +63,7 @@ def run_packaging_checks(case, smoke):
         text = smoke.execute("return document.querySelector('[aria-labelledby=confirm-modal-title]').innerText;")
         if 'Let AI assistants control RapidRoom' not in text or 'Control is local only, with a fresh key each time it starts.' not in text:
             raise RuntimeError('Consent prompt lacks local-only/fresh-key explanation')
+        wait_for(lambda: smoke.execute("const dialog=document.querySelector('[aria-labelledby=confirm-modal-title]'); return !!dialog && getComputedStyle(dialog).opacity==='1';"), 'consent animation painted')
         smoke.capture('consent-' + str(len(smoke.result['steps'])) + ('-confirm' if confirm else '-cancel'))
         smoke.execute("""const dialog=document.querySelector('[aria-labelledby=confirm-modal-title]');
           [...dialog.querySelectorAll('button')].find(e=>e.innerText.trim()===arguments[0]).click();return true;""",
