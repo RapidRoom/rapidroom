@@ -23,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path, help="New engine directory under samples/")
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--terminal", action="store_true", help="Include the optional terminal for its native smoke")
     parser.add_argument("--mcp-clients", action="store_true", help="Include MCP for real-client regression checks")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
@@ -35,13 +36,14 @@ def main():
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     target = Path(env.get("CARGO_TARGET_DIR", str(root / "src-tauri/target"))).resolve()
     env["CARGO_TARGET_DIR"] = str(target)
+    features = ["native-ui-test"] + (["terminal"] if args.terminal else []) + (["mcp"] if args.mcp_clients else [])
     with args.lock.open("a") as lock:
         print("Waiting for native UI build lock", flush=True)
         fcntl.flock(lock, fcntl.LOCK_EX)
         before = source(root)
         with (out / "build.log").open("w") as log:
             subprocess.run(["nice", "-n", "10", "npm", "run", "tauri", "build", "--", "--no-bundle",
-                            "--features", "native-ui-test,mcp" if args.mcp_clients else "native-ui-test", "--", "--locked"],
+                            "--features", ",".join(features), "--", "--locked"],
                            cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
         if args.mcp_clients:
             with (out / "stdio-build.log").open("w") as log:
@@ -62,7 +64,7 @@ def main():
                 adapter_digest = hashlib.file_digest(stream, "sha256").hexdigest()
         (out / "build.json").write_text(json.dumps({"source": before, "engine_sha256": digest,
               "stdio_adapter_sha256": adapter_digest,
-              "profile": "release", "features": ["native-ui-test"] + (["mcp"] if args.mcp_clients else []), "cargo_locked": True,
+              "profile": "release", "features": features, "cargo_locked": True,
               "jobs": 4, "resources": "symlinked source resources; no AI operation in minimum smoke"}, indent=2) + "\n")
     print("Pinned native UI release: " + str(out / "rapidroom"), flush=True)
 

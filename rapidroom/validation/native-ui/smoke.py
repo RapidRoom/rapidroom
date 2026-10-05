@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import shlex
 import signal
 import socket
 import subprocess
@@ -139,7 +140,7 @@ class Smoke:
           e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0,buttons:1,
             clientX:x,clientY:r.top+r.height/2}));return true;""", [label, value])
         time.sleep(0.3)  # React installs the document drag listeners after mousedown.
-        self.execute("document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0}));return true;")
+        self.execute("""document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0}));return true;""")
         after = wait_for(lambda: self.slider(label) if self.slider(label)["value"] != before["value"] else None,
                          label + " changes")
         # MouseEvent coordinates are integral in WebKit; allow track pixel quantization.
@@ -166,6 +167,140 @@ class Smoke:
                 return path
             previous = image
         raise RuntimeError("Preview did not settle: " + name)
+
+    def terminal_type(self, text):
+        # Exercise xterm's ordinary keyboard listeners, then the real Tauri PTY.
+        self.execute("""const e=document.querySelector('[data-terminal-panel] textarea');
+          if(!e)throw Error('Terminal input missing');e.focus();
+          for(const c of arguments[0]) {
+            if(c==='\\r') {
+              e.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,
+                key:'Enter',code:'Enter',keyCode:13,which:13}));
+              e.dispatchEvent(new KeyboardEvent('keyup',{bubbles:true,key:'Enter',code:'Enter',keyCode:13}));
+            } else {
+              e.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:c,keyCode:0}));
+              e.dispatchEvent(new KeyboardEvent('keypress',{bubbles:true,cancelable:true,
+                key:c,charCode:c.charCodeAt(0),keyCode:c.charCodeAt(0),which:c.charCodeAt(0)}));
+              e.dispatchEvent(new KeyboardEvent('keyup',{bubbles:true,key:c,keyCode:0}));
+            }
+          }return true;""", [text])
+
+    def terminal_text(self):
+        return self.execute("return document.querySelector('[data-terminal-panel] .xterm-rows')?.textContent || ''; ")
+
+    def terminal_drag(self, region):
+        points = self.execute("""const a=document.querySelector('[data-tab-id=layout-tab-terminal]'),
+          b=document.querySelector('[data-layout-region="'+arguments[0]+'"]');
+          if(!a||!b)throw Error('Dock target missing');const r=a.getBoundingClientRect(),s=b.getBoundingClientRect();
+          // Bottom-positioned sidebar tabs offer the upper half as the empty lower region.
+          // Aim below that split overlay to retain the existing top region.
+          const y=arguments[0].endsWith('Top') ? s.top+s.height*0.75 : s.top+s.height/2;
+          return [r.left+r.width/2,r.top+r.height/2,s.left+s.width/2,y];""", [region])
+        self.execute("""const e=document.querySelector('[data-tab-id=layout-tab-terminal]');
+          e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,
+            pointerId:1,pointerType:'mouse',isPrimary:true,button:0,buttons:1,
+            clientX:arguments[0],clientY:arguments[1]}));return true;""", points[:2])
+        time.sleep(0.2)
+        for x, y in [(points[0]+10, points[1]+10), (points[2], points[3])]:
+            self.execute("""document.dispatchEvent(new PointerEvent('pointermove',
+              {bubbles:true,pointerId:1,pointerType:'mouse',isPrimary:true,buttons:1,
+               clientX:arguments[0],clientY:arguments[1]}));return true;""", [x, y])
+            time.sleep(0.3)
+        self.execute("""document.dispatchEvent(new PointerEvent('pointerup',
+          {bubbles:true,pointerId:1,pointerType:'mouse',isPrimary:true,button:0,
+           clientX:arguments[0],clientY:arguments[1]}));return true;""", points[2:])
+        wait_for(lambda: self.execute("return document.querySelector('[data-terminal-panel]')"
+          "?.closest('[data-layout-region]')?.dataset.layoutRegion === arguments[0];", [region]),
+                 "terminal docks in " + region)
+
+    def terminal_flow(self):
+        policy = self.execute("return [...document.querySelectorAll('meta[http-equiv]')]"
+          ".filter(e=>e.httpEquiv.toLowerCase()==='content-security-policy').map(e=>e.content);")
+        # Tauri's custom protocol supplies CSP as a response header on WebKitGTK.
+        headers = request(self.url + "/execute/async", {"script": """
+          const done=arguments[arguments.length-1];
+          fetch(location.href).then(r=>done({policy:r.headers.get('content-security-policy')}))
+            .catch(e=>done({error:String(e)}));""", "args": []})["value"]
+        if headers.get("policy"):
+            policy.append(headers["policy"])
+        if not policy or any("unsafe-eval" in value or "clerk" in value.lower() for value in policy):
+            raise RuntimeError("Native strict CSP missing or broadened: " + str(headers))
+        control = request(self.url + "/execute/async", {"script": """
+          const callback=arguments[arguments.length-1], script=document.createElement('script');
+          let violation=null,finished=false;
+          const listener=e=>{if(e.blockedURI==='data' && e.effectiveDirective.startsWith('script-src'))
+            violation={directive:e.effectiveDirective,policy:e.originalPolicy};};
+          document.addEventListener('securitypolicyviolation',listener);
+          const done=()=>{if(finished)return;finished=true;script.remove();
+            document.removeEventListener('securitypolicyviolation',listener);
+            callback({executed:window.__RR_CSP_CONTROL__===true,violation});};
+          script.src='data:text/javascript,window.__RR_CSP_CONTROL__=true';
+          script.onload=done;script.onerror=()=>setTimeout(done,100);
+          document.body.append(script);setTimeout(done,2000);""", "args": []})["value"]
+        if control.get("executed") or not control.get("violation"):
+            raise RuntimeError("Native CSP negative control failed: " + str(control))
+        self.step("native strict CSP", {"policy": policy, "nonlocal_script_control": control})
+        self.execute("""document.querySelector('[data-tab-id=layout-tab-terminal]').click();return true;""")
+        wait_for(lambda: self.execute("return !!document.querySelector('[data-terminal-open]');"), "terminal panel")
+        self.execute("""document.querySelector('[data-terminal-open]').click();return true;""")
+        wait_for(lambda: self.execute("return !!document.querySelector('[data-terminal-panel] textarea');"), "xterm input")
+        env_file = self.case / "tools/pty-env.txt"
+        self.terminal_type("printf '%s_%s\\n' RR_NATIVE PTY; printf '%s|%s' \"$PWD\" \"$RAPIDROOM_FOLDER\" > " + shlex.quote(str(env_file)) + "\r")
+        wait_for(lambda: env_file.exists(), "real PTY command executes")
+        expected = str(self.case / "input")
+        if env_file.read_text() != expected + "|" + expected:
+            raise RuntimeError("PTY folder/environment mismatch")
+        wait_for(lambda: "RR_NATIVE_PTY" in self.terminal_text(), "real PTY output")
+        count = self.terminal_text().count("RR_NATIVE_PTY")
+        self.capture("terminal-bottom")
+        self.terminal_drag("leftTop")
+        if self.terminal_text().count("RR_NATIVE_PTY") != count:
+            raise RuntimeError("Docking replayed or lost terminal output")
+        self.capture("terminal-left")
+        self.terminal_drag("bottom")
+        height = self.execute("""const h=document.querySelector('[data-bottom-dock]').getBoundingClientRect().height,
+          e=document.querySelector('[aria-label="Resize bottom panel"]');
+          e.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,key:'ArrowUp'}));return h;""")
+        wait_for(lambda: self.execute("return document.querySelector('[data-bottom-dock]').getBoundingClientRect().height;") >= height + 19,
+                 "bottom dock resizes")
+        self.execute("""document.querySelector('[aria-label="Collapse bottom panel"]').click();return true;""")
+        wait_for(lambda: self.execute("return !document.querySelector('[data-terminal-panel]');"), "dock collapsed")
+        self.execute("""document.querySelector('[data-tab-id=layout-tab-terminal]').click();return true;""")
+        wait_for(lambda: self.execute("return !!document.querySelector('[data-terminal-panel] textarea');"), "same tab reopened")
+        if self.terminal_text().count("RR_NATIVE_PTY") != count:
+            raise RuntimeError("Panel reopen replayed or lost output")
+        self.step("PTY input/output, docking, resize and collapse", {"folder": expected, "marker_occurrences": count})
+        if json.loads((self.case / "terminal-test.json").read_text())["real_assistants"]:
+            from terminal_clients import run_launch_checks
+            run_launch_checks(self.case, self)
+        else:
+            records = self.case / "tools/agents.txt"
+            for agent in ("claude", "codex"):
+                self.execute("""document.querySelector('[data-start-agent="'+arguments[0]+'"]').click();return true;""", [agent])
+                wait_for(lambda: records.exists() and agent in records.read_text(), "built-in stub " + agent)
+            self.execute("""document.querySelector('[aria-label="Collapse bottom panel"]').click();return true;""")
+            self.execute("""const e=document.querySelector('[data-agent-launcher] select');
+              e.value='external';e.dispatchEvent(new Event('change',{bubbles:true}));return true;""")
+            for agent in ("claude", "codex"):
+                before = records.read_text().count(agent + "|")
+                self.execute("""document.querySelector('[data-start-agent="'+arguments[0]+'"]').click();return true;""", [agent])
+                wait_for(lambda: records.read_text().count(agent + "|") > before, "external stub " + agent)
+                if self.execute("return !!document.querySelector('[data-terminal-panel]');"):
+                    raise RuntimeError("External start opened the built-in panel")
+            lines = records.read_text().splitlines()
+            if len(lines) != 4 or any(line.split('|')[1:3] != [expected, expected] for line in lines):
+                raise RuntimeError("Built-in/external stub launch environment differs")
+            self.step("built-in and external shell-typed assistant launch", {"records": lines, "real_assistants_started": False, "mcp_parity": "pending #116 integration"})
+        # Leave a real background job in a PTY, then verify app quit removes it.
+        self.execute("""document.querySelector('[data-tab-id=layout-tab-terminal]').click();return true;""")
+        wait_for(lambda: self.execute("""return !!document.querySelector('[aria-label="New terminal tab"]');"""), "terminal header")
+        self.execute("""document.querySelector('[aria-label="New terminal tab"]').click();return true;""")
+        wait_for(lambda: self.execute("return !!document.querySelector('[data-terminal-panel] textarea');"), "fresh shell")
+        pid_file = self.case / "tools/background-pid.txt"
+        self.terminal_type("sleep 120 & printf '%s' \"$!\" > " + shlex.quote(str(pid_file)) + "\r")
+        wait_for(lambda: pid_file.exists() and pid_file.read_text().strip(), "owned background process")
+        self.background_pid = int(pid_file.read_text())
+        self.capture("terminal-final")
 
     def run(self):
         runtime = Path(os.environ["XDG_RUNTIME_DIR"])
@@ -276,7 +411,9 @@ class Smoke:
                 raise RuntimeError("Incorrect JPEG format or dimensions")
         self.capture("export-done")
         self.step("GUI JPEG export", {"file": str(files[0].relative_to(self.case)), "sha256": sha(files[0])})
-        if (self.case / "mcp-clients-test.json").exists():
+        if (self.case / "terminal-test.json").exists():
+            self.terminal_flow()
+        if (self.case / "mcp-clients-test.json").exists() and not (self.case / "terminal-test.json").exists():
             from mcp_clients import run_client_checks
             self.step("real Claude Code and Codex edit the open photo", run_client_checks(self.case, self))
         final = self.snapshot("final")
@@ -286,6 +423,12 @@ class Smoke:
         app.wait(timeout=10)
         if app.returncode != 0:
             raise RuntimeError("App did not quit cleanly")
+        if hasattr(self, "background_pid"):
+            def background_gone():
+                path = Path(f"/proc/{self.background_pid}/stat")
+                return not path.exists() or path.read_text().rsplit(") ", 1)[1].startswith("Z")
+            wait_for(background_gone, "PTY background process cleanup", 10)
+            self.step("PTY background process removed on app quit", {"pid": self.background_pid})
         native_errors = [line for line in (self.case / "app.log").read_text().splitlines()
                          if re.search(r"\[ERROR\]|CRITICAL|panicked at|Segmentation fault", line)]
         if native_errors:
@@ -353,6 +496,34 @@ def launch(args):
     save(settings / "settings.json", {"rootFolders": [str(case / "input")],
          "lastRootPath": str(case / "input"), "language": "en", "useWgpuRenderer": False,
          "editorPreviewResolution": 1280, "decorations": False})
+    if args.terminal:
+        tools = case / "tools"
+        tools.mkdir()
+        shell = tools / "test-shell"
+        shell.write_text("#!/bin/sh\nunset ENV BASH_ENV\nHISTFILE=" + shlex.quote(str(tools / "shell-history")) + "\nPATH=" + shlex.quote(str(tools)) + ":$PATH\nexport PATH HISTFILE\nexec /bin/sh -i\n")
+        shell.chmod(0o700)
+        for agent in ("claude", "codex"):
+            stub = tools / agent
+            if args.terminal_clients:
+                stub.write_text("#!/bin/sh\nexec " + shlex.quote(sys.executable) + " " +
+                    shlex.quote(str(ROOT / "rapidroom/validation/native-ui/terminal_clients.py")) + " " +
+                    shlex.quote(str(case)) + " " + shlex.quote(agent) + "\n")
+            else:
+                stub.write_text("#!/bin/sh\nprintf '%s|%s|%s|%s\\n' " + shlex.quote(agent) + " \"$PWD\" \"$RAPIDROOM_FOLDER\" \"${RAPIDROOM_MCP_ENDPOINT:-}\" >> " + shlex.quote(str(tools / "agents.txt")) + "\nprintf 'RR_STUB_" + agent + "\\n'\n")
+            stub.chmod(0o700)
+        terminal = tools / "ghostty"
+        terminal.write_text("#!/bin/sh\nwhile [ $# -gt 0 ]; do\ncase \"$1\" in\n--working-directory=*) cd \"${1#*=}\" || exit 1; shift;;\n-e) shift; break;;\n*) shift;;\nesac\ndone\nPATH=" + shlex.quote(str(tools)) + ":$PATH\nexport PATH\nexec \"$@\"\n")
+        terminal.chmod(0o700)
+        env["TERMINAL"] = str(terminal)
+        # External mock exits after the fixed CLI, without opening a desktop window.
+        exit_shell = tools / "exit-shell"
+        exit_shell.write_text("#!/bin/sh\nexit 0\n")
+        exit_shell.chmod(0o700)
+        env["SHELL"] = str(exit_shell)
+        data = json.loads((settings / "settings.json").read_text())
+        data["terminalSettings"] = {"shell": str(shell), "startIn": "built-in"}
+        save(settings / "settings.json", data)
+        save(case / "terminal-test.json", {"real_assistants": args.terminal_clients, "terminal_launcher": "owned executable stub"})
     try:
         with args.lock.open("a") as lock:
             print("Waiting for native UI lock", flush=True)
@@ -405,9 +576,13 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
+    parser.add_argument("--terminal-clients", action="store_true", help="Use real clients from both terminal launch paths (implies --terminal --mcp-clients)")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.terminal_clients:
+        args.terminal = args.mcp_clients = True
     if args.inside:
         case = args.inside.resolve()
         runtime = Path((case / "runtime-path.txt").read_text().strip())

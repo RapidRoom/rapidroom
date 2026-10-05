@@ -24,7 +24,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import clsx from 'clsx';
-import { Show, SignIn, useUser, useAuth, useClerk } from '@clerk/react';
 import Button from '../ui/Button';
 import ConfirmModal from '../modals/ConfirmModal';
 import Dropdown, { OptionItem } from '../ui/Dropdown';
@@ -45,8 +44,6 @@ import {
 import Text from '../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
 import { useOsPlatform } from '../../hooks/useOsPlatform';
-import { useCloudUsage } from '../../hooks/useCloudUsage';
-import { open } from '@tauri-apps/plugin-shell';
 import { RotateCcw } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 
@@ -268,7 +265,7 @@ const AiProviderSwitch = ({ selectedProvider, onProviderChange }: AiProviderSwit
     () => [
       { id: 'cpu', label: t('settings.processing.ai.providers.cpu'), icon: Cpu },
       { id: 'ai-connector', label: t('settings.processing.ai.providers.aiConnector'), icon: Server },
-      { id: 'cloud', label: t('settings.processing.ai.providers.cloud'), icon: Cloud },
+      { id: 'cloud', label: t('settings.processing.ai.providers.cloud'), icon: Cloud, disabled: true },
     ],
     [t],
   );
@@ -279,6 +276,8 @@ const AiProviderSwitch = ({ selectedProvider, onProviderChange }: AiProviderSwit
         <button
           key={provider.id}
           onClick={() => onProviderChange(provider.id)}
+          disabled={provider.disabled}
+          title={provider.disabled ? t('settings.processing.ai.cloud.unavailableDesc') : undefined}
           className={clsx(
             'relative flex-1 flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
             {
@@ -302,74 +301,6 @@ const AiProviderSwitch = ({ selectedProvider, onProviderChange }: AiProviderSwit
           </span>
         </button>
       ))}
-    </div>
-  );
-};
-
-const CloudDashboard = () => {
-  const { user } = useUser();
-  const { signOut } = useClerk();
-  const { t } = useTranslation();
-  const { cloudUsage, isPro } = useCloudUsage();
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between border-b border-border-color pb-4">
-        <div className="flex items-center gap-3">
-          <div>
-            <Text variant={TextVariants.heading}>{user?.fullName || user?.primaryEmailAddress?.emailAddress}</Text>
-            <Text variant={TextVariants.small} color={isPro ? TextColors.success : TextColors.error}>
-              {isPro
-                ? t('settings.processing.ai.cloud.signedIn.active')
-                : t('settings.processing.ai.cloud.signedIn.inactive')}
-            </Text>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            className="bg-transparent text-text-secondary hover:text-text-primary hover:bg-surface border-none shadow-none"
-            onClick={() => open('https://www.getrapidraw.com/dashboard')}
-          >
-            {t('settings.processing.ai.cloud.signedIn.manage')} <ExternalLinkIcon size={14} className="ml-1" />
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={async () => {
-              await signOut();
-            }}
-          >
-            {t('settings.processing.ai.cloud.signedIn.logout')}
-          </Button>
-        </div>
-      </div>
-
-      {isPro ? (
-        <div className="bg-surface p-4 rounded-md">
-          <div className="flex justify-between items-center mb-2">
-            <Text variant={TextVariants.label}>{t('settings.processing.ai.cloud.signedIn.usage')}</Text>
-            <Text variant={TextVariants.small}>
-              {t('settings.processing.ai.cloud.signedIn.usageStats', {
-                requests: cloudUsage?.requests ?? 0,
-                limit: cloudUsage?.limit ?? 200,
-              })}
-            </Text>
-          </div>
-          <div className="w-full bg-bg-primary rounded-full h-2">
-            <div
-              className="bg-accent h-2 rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, ((cloudUsage?.requests ?? 0) / (cloudUsage?.limit ?? 200)) * 100)}%` }}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="bg-red-900/10 border border-red-500/50 p-4 rounded-md text-center">
-          <Text className="mb-3">{t('settings.processing.ai.cloud.signedOut.upgradeDesc')}</Text>
-          <Button onClick={() => open('https://www.getrapidraw.com/cloud')}>
-            {t('settings.processing.ai.cloud.signedOut.upgradeBtn')}
-          </Button>
-        </div>
-      )}
     </div>
   );
 };
@@ -2266,91 +2197,12 @@ export default function SettingsPanel({
                         )}
 
                         {aiProvider === 'cloud' && (
-                          <motion.div
-                            key="cloud"
-                            initial={{ opacity: 0, x: 10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -10 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <Text variant={TextVariants.heading}>{t('settings.processing.ai.cloud.title')}</Text>
-                            <Text className="mt-1">{t('settings.processing.ai.cloud.description')}</Text>
-                            <Text as="ul" className="mt-3 space-y-1 list-disc list-inside">
-                              <li>{t('settings.processing.ai.cloud.feature1')}</li>
-                              <li>{t('settings.processing.ai.cloud.feature2')}</li>
-                              <li>{t('settings.processing.ai.cloud.feature3')}</li>
+                          <div>
+                            <Text variant={TextVariants.heading}>
+                              {t('settings.processing.ai.cloud.unavailableTitle')}
                             </Text>
-
-                            <div className="mt-8">
-                              <Show when="signed-in">
-                                <div className="p-6 bg-bg-primary rounded-xl border border-border-color shadow-inner">
-                                  <CloudDashboard />
-                                </div>
-                              </Show>
-                              <Show when="signed-out">
-                                <div className="w-full max-w-md">
-                                  <SignIn
-                                    routing="hash"
-                                    fallbackRedirectUrl="/"
-                                    forceRedirectUrl="/"
-                                    appearance={{
-                                      variables: {
-                                        colorBackground: 'transparent',
-                                        colorInput: 'transparent',
-                                        colorForeground: 'inherit',
-                                        colorInputForeground: 'inherit',
-                                        colorPrimaryForeground: 'inherit',
-                                        colorBorder: 'transparent',
-                                        colorShadow: 'none',
-                                        colorNeutral: 'inherit',
-                                      },
-                                      elements: {
-                                        rootBox: '',
-
-                                        cardBox: '!shadow-none !m-0 !p-0 !rounded-none',
-
-                                        card: '!bg-transparent !border-none !shadow-none !py-0 !px-1 !rounded-none',
-
-                                        header: '!hidden',
-
-                                        formFieldLabel: '!text-base !font-semibold !text-text-primary !block !mb-2',
-
-                                        formFieldAction:
-                                          '!text-text-secondary hover:!text-text-primary !transition-colors !no-underline hover:!underline',
-
-                                        formFieldInput:
-                                          '!bg-bg-primary !border !border-border-color !text-text-primary focus:!border-accent focus:!ring-1 focus:!ring-accent !rounded-md !px-3 !py-2',
-
-                                        formButtonPrimary:
-                                          '!bg-accent !text-button-text hover:!bg-accent/90 !shadow-none !transition-colors !rounded-md !mt-4 !py-2',
-
-                                        footer:
-                                          '!bg-transparent !p-0 !mt-4 opacity-50 hover:opacity-100 transition-opacity',
-                                        footerAction: '!hidden',
-
-                                        identityPreview:
-                                          '!bg-bg-primary !border !border-border-color !rounded-md !mb-4',
-                                        identityPreviewText: '!text-text-primary !font-medium',
-                                        identityPreviewEditButtonIcon:
-                                          '!text-text-secondary hover:!text-text-primary !transition-colors',
-                                      },
-                                    }}
-                                  />
-                                  <div className="mt-6">
-                                    <Text variant={TextVariants.small}>
-                                      {t('settings.processing.ai.cloud.signedOut.noAccount')}{' '}
-                                      <button
-                                        onClick={() => open('https://www.getrapidraw.com/cloud')}
-                                        className="text-accent hover:underline focus:outline-none"
-                                      >
-                                        {t('settings.processing.ai.cloud.signedOut.signup')}
-                                      </button>
-                                    </Text>
-                                  </div>
-                                </div>
-                              </Show>
-                            </div>
-                          </motion.div>
+                            <Text className="mt-1">{t('settings.processing.ai.cloud.unavailableDesc')}</Text>
+                          </div>
                         )}
                       </AnimatePresence>
                     </div>

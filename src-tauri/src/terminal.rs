@@ -91,7 +91,7 @@ const APPIMAGE_VARS: &[&str] = &[
 
 // An AppImage points library and data paths into its own mount; a terminal (and the shell and
 // tools inside it) must not inherit them. Returns the variables to remove and the ones to rewrite.
-fn appimage_env_fixes(
+pub(crate) fn appimage_env_fixes(
     get: impl Fn(&str) -> Option<String>,
 ) -> (Vec<String>, Vec<(String, String)>) {
     let Some(appdir) = get("APPDIR").filter(|d| !d.is_empty()) else {
@@ -155,6 +155,106 @@ fn spawn_first(candidates: Vec<Launch>, dir: &Path, version: &str) -> Result<Str
     ))
 }
 
+#[cfg(all(
+    feature = "terminal",
+    any(target_os = "linux", target_os = "macos", target_os = "windows")
+))]
+#[derive(Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Agent {
+    Claude,
+    Codex,
+}
+
+#[cfg(all(
+    feature = "terminal",
+    any(target_os = "linux", target_os = "macos", target_os = "windows")
+))]
+impl Agent {
+    fn command(self) -> &'static str {
+        match self {
+            Self::Claude => "claude",
+            Self::Codex => "codex",
+        }
+    }
+}
+
+#[cfg(all(
+    feature = "terminal",
+    any(target_os = "linux", target_os = "macos", target_os = "windows")
+))]
+fn agent_launch(mut candidate: Launch, agent: Agent) -> Option<Launch> {
+    let name = Path::new(&candidate.program).file_name()?.to_str()?;
+    // A fixed command chosen by enum, with no image path interpolated into shell code.
+    let script = format!("{}; exec \"${{SHELL:-/bin/sh}}\" -l", agent.command());
+    let separator = match name {
+        "xdg-terminal-exec" | "wezterm" | "gnome-terminal" | "kgx" | "ptyxis" => "--",
+        "ghostty"
+        | "foot"
+        | "kitty"
+        | "alacritty"
+        | "konsole"
+        | "xterm"
+        | "x-terminal-emulator" => "-e",
+        _ => return None,
+    };
+    candidate
+        .args
+        .extend([separator.to_string(), "/bin/sh".into(), "-c".into(), script]);
+    Some(candidate)
+}
+
+#[cfg(all(
+    feature = "terminal",
+    any(target_os = "linux", target_os = "macos", target_os = "windows")
+))]
+#[tauri::command]
+pub fn launch_terminal_agent(
+    path: String,
+    agent: Agent,
+    app_handle: AppHandle,
+    window: tauri::WebviewWindow,
+) -> Result<String, String> {
+    crate::terminal_pty::caller(&window)?;
+    let dir = Path::new(&path);
+    if !dir.is_absolute() || !dir.is_dir() {
+        return Err(format!("Not a folder: {path}"));
+    }
+    if std::env::var_os("FLATPAK_ID").is_some() {
+        return Err("Open your terminal outside the Flatpak sandbox to start an assistant".into());
+    }
+    let dir_str = dir.to_string_lossy();
+    let candidates = if cfg!(target_os = "linux") {
+        linux_candidates(&dir_str, std::env::var("TERMINAL").ok().as_deref())
+            .into_iter()
+            .filter_map(|candidate| agent_launch(candidate, agent))
+            .collect()
+    } else if cfg!(target_os = "macos") {
+        // quoted form handles spaces, quotes and shell metacharacters in the folder.
+        let script = format!(
+            "on run argv\n tell application \"Terminal\"\n activate\n do script (\"cd \" & quoted form of item 1 of argv & \"; {}; exec \\\"${{SHELL:-/bin/sh}}\\\" -l\")\n end tell\nend run",
+            agent.command()
+        );
+        vec![launch("osascript", &["-e", &script, &dir_str])]
+    } else {
+        vec![
+            launch(
+                "wt.exe",
+                &["-d", &dir_str, "cmd.exe", "/K", agent.command()],
+            ),
+            launch(
+                "cmd.exe",
+                &["/C", "start", "", "cmd.exe", "/K", agent.command()],
+            ),
+        ]
+    };
+    spawn_first(
+        candidates,
+        dir,
+        &app_handle.package_info().version.to_string(),
+    )
+}
+
 #[tauri::command]
 pub fn open_terminal_here(path: String, app_handle: AppHandle) -> Result<String, String> {
     let dir = Path::new(&path);
@@ -191,6 +291,21 @@ pub fn open_terminal_here(path: String, app_handle: AppHandle) -> Result<String,
 mod tests {
     use super::*;
     use std::collections::HashMap;
+
+    #[cfg(feature = "terminal")]
+    #[test]
+    fn assistant_commands_keep_folder_paths_out_of_shell_code() {
+        let dir = "/photos/name with 'quotes'; printf UNWANTED";
+        for agent in [Agent::Claude, Agent::Codex] {
+            let command = agent_launch(known_terminal("ghostty", dir).unwrap(), agent).unwrap();
+            assert_eq!(command.args[0], format!("--working-directory={dir}"));
+            assert_eq!(&command.args[1..4], &["-e", "/bin/sh", "-c"]);
+            assert!(!command.args[4].contains(dir));
+            assert!(command.args[4].starts_with(agent.command()));
+        }
+        assert!(serde_json::from_str::<Agent>("\"arbitrary command\"").is_err());
+        assert!(agent_launch(launch("unknown-terminal", &[]), Agent::Claude).is_none());
+    }
 
     fn programs(candidates: &[Launch]) -> Vec<&str> {
         candidates.iter().map(|c| c.program.as_str()).collect()
@@ -343,4 +458,16 @@ mod tests {
         assert!(err.contains("rapidroom-no-such-terminal"));
         assert!(err.contains("$TERMINAL"));
     }
+}
+
+#[tauri::command]
+pub fn is_terminal_supported() -> bool {
+    cfg!(all(
+        feature = "terminal",
+        any(
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "windows"
+        )
+    ))
 }

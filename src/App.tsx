@@ -1,5 +1,14 @@
 import { createLightsOutFullscreenController } from './utils/lightsOutFullscreen';
-import { type PointerEvent as ReactPointerEvent, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  type PointerEvent as ReactPointerEvent,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  lazy,
+  Suspense,
+} from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -15,6 +24,7 @@ import {
   pointerWithin,
 } from '@dnd-kit/core';
 import clsx from 'clsx';
+import { useTranslation } from 'react-i18next';
 
 import TitleBar from './window/TitleBar';
 import FolderTree from './components/panel/right/FolderTree';
@@ -24,6 +34,7 @@ import GlobalTooltip from './components/ui/GlobalTooltip';
 import AppModals from './components/modals/AppModals';
 
 import SidePanelArea from './components/panel/SidePanelArea';
+import BottomDock from './components/panel/BottomDock';
 import { PANEL_ICONS } from './components/panel/PanelSwitcher';
 import Controls from './components/panel/right/ControlsPanel';
 import MetadataPanel from './components/panel/right/MetadataPanel';
@@ -79,6 +90,17 @@ import {
 
 import ImageProcessingManager from './components/managers/ImageProcessingManager';
 import ImageLoaderManager from './components/managers/ImageLoaderManager';
+
+const TerminalPanel = lazy(() => import('./components/panel/TerminalPanel'));
+
+function TerminalLoading() {
+  const { t } = useTranslation();
+  return (
+    <div role="status" className="p-3">
+      {t('terminal.loading')}
+    </div>
+  );
+}
 
 const insertChildrenIntoTree = (node: any, targetPath: string, newChildren: any[]): any => {
   if (!node) return null;
@@ -765,6 +787,12 @@ function App() {
           return <PresetsPanel onNavigateToCommunity={() => setUI({ activeView: 'community' })} />;
         case Panel.Tethering:
           return <TetheringPanel onLibraryRefresh={handleLibraryRefresh} onImageSelect={handleImageSelect} />;
+        case Panel.Terminal:
+          return (
+            <Suspense fallback={<TerminalLoading />}>
+              <TerminalPanel />
+            </Suspense>
+          );
         default:
           return null;
       }
@@ -905,7 +933,7 @@ function App() {
               },
             }}
           >
-            <div className="flex flex-row grow h-full min-h-0">
+            <div className="flex flex-row flex-1 min-h-0">
               {!shouldHideFolderTree && hasMainContent && (
                 <SidePanelArea
                   side="left"
@@ -1026,6 +1054,7 @@ function App() {
                 />
               )}
             </div>
+            <TerminalDock renderPanel={renderAppPanel} />
             <DragOverlay modifiers={activeImageDragItem ? [imageDragModifier] : undefined} dropAnimation={null}>
               {activeLayoutDragItem && ActiveOverlayIcon ? (
                 <div className="w-10 h-10 bg-surface shadow-2xl rounded-md flex items-center justify-center text-text-primary ring-1 ring-border-color">
@@ -1091,5 +1120,11 @@ const AppWrapper = () => (
     <GlobalTooltip />
   </ContextMenuProvider>
 );
+
+function TerminalDock({ renderPanel }: { renderPanel: (panel: Panel) => React.ReactNode }) {
+  const supported = useUIStore((state) => state.terminalSupported);
+  const fullscreen = useUIStore((state) => state.isFullScreen);
+  return supported && !fullscreen ? <BottomDock renderPanel={renderPanel} /> : null;
+}
 
 export default AppWrapper;

@@ -93,6 +93,14 @@ export enum Invokes {
   PreviewRenameFiles = 'preview_rename_files',
   MoveFiles = 'move_files',
   OpenTerminalHere = 'open_terminal_here',
+  LaunchTerminalAgent = 'launch_terminal_agent',
+  IsTerminalSupported = 'is_terminal_supported',
+  PtyOpen = 'pty_open',
+  PtyWrite = 'pty_write',
+  PtyResize = 'pty_resize',
+  PtyAck = 'pty_ack',
+  PtyDetach = 'pty_detach',
+  PtyClose = 'pty_close',
   ReadExifForPaths = 'read_exif_for_paths',
   RemoveTagForPaths = 'remove_tag_for_paths',
   RenameFiles = 'rename_files',
@@ -156,9 +164,12 @@ export enum Panel {
   Presets = 'presets',
   FolderTree = 'folderTree',
   Tethering = 'tethering',
+  Terminal = 'terminal',
 }
 
-export type PanelRegion = 'leftTop' | 'leftBottom' | 'rightTop' | 'rightBottom';
+export type SidebarRegion = 'leftTop' | 'leftBottom' | 'rightTop' | 'rightBottom';
+export type PanelRegion = SidebarRegion | 'bottom';
+type SavedRegions<T> = Record<SidebarRegion, T> & Partial<Record<'bottom', T>>;
 
 export enum RawStatus {
   All = 'all',
@@ -200,9 +211,10 @@ export interface WorkspaceState {
   rightPanelWidth: number;
   leftTopHeight: number;
   rightTopHeight: number;
-  panelLayout: Record<PanelRegion, Panel[]>;
-  activePanels: Record<PanelRegion, Panel | null>;
-  panelSwitcherPlacement: Record<PanelRegion, 'left' | 'right' | 'top' | 'bottom'>;
+  panelLayout: SavedRegions<Panel[]>;
+  activePanels: SavedRegions<Panel | null>;
+  panelSwitcherPlacement: SavedRegions<'left' | 'right' | 'top' | 'bottom'>;
+  bottomDockHeight?: number;
   layoutVersion?: number;
 }
 
@@ -215,6 +227,7 @@ export type GroupPreference = 'jpeg' | 'raw';
 export type GroupingMode = 'off' | GroupPreference;
 
 export interface AppSettings {
+  terminalSettings?: TerminalSettings;
   aiConnectorAddress?: string;
   aiProvider?: string;
   decorations?: any;
@@ -284,6 +297,21 @@ export interface AppSettings {
   groupPreferredType?: GroupPreference; // legacy
   alwaysDecodeRawThumbnails?: boolean;
   workspace?: WorkspaceState;
+}
+
+export interface TerminalTab {
+  id: string;
+  title: string;
+  path: string;
+}
+
+export interface TerminalSettings {
+  shell?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  startIn?: 'built-in' | 'external';
+  tabs?: TerminalTab[];
+  activeTab?: string | null;
 }
 
 export interface BrushSettings {

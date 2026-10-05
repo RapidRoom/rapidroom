@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright-core';
+const { chromium } = await import(process.env.RAPIDROOM_PLAYWRIGHT_MODULE ?? 'playwright-core');
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../dist');
 
@@ -40,15 +40,25 @@ const serialize = (p) =>
     .map(([k, v]) => `${k} ${v.join(' ')}`)
     .join('; ');
 
+const config = JSON.parse(fs.readFileSync(path.resolve(DIST, '../src-tauri/tauri.conf.json'), 'utf8'));
+const configured = config.app.security.csp;
+if (!configured || typeof configured !== 'object') throw new Error('Production CSP must be a directive map');
+if (configured['script-src'] !== "'self'") throw new Error('Production scripts must be local only');
+if (config.app.security.dangerousDisableAssetCspModification?.join(',') !== 'style-src') {
+  throw new Error('Only runtime styles may opt out of Tauri CSP rewriting');
+}
+
 const POLICIES = {
   current: null,
+  configured: serialize(Object.fromEntries(Object.entries(configured).map(([k, v]) => [k, v.split(' ')]))),
   proposed: serialize(base),
   'strict-style': serialize({ ...base, 'style-src': ["'self'"] }),
 };
 
 const args = process.argv.slice(2);
 const cloud = args.includes('--cloud');
-const policyName = args.find((a) => !a.startsWith('--')) ?? 'proposed';
+const probe = args.includes('--probe');
+const policyName = args.find((a) => !a.startsWith('--')) ?? 'configured';
 if (!(policyName in POLICIES)) throw new Error(`unknown policy ${policyName}`);
 const csp = POLICIES[policyName];
 
@@ -84,6 +94,10 @@ const browser = await chromium.launch({
 const page = await browser.newPage();
 const violations = new Set();
 const pageErrors = [];
+const clerkRequests = [];
+page.on('request', (request) => {
+  if (/clerk\.(accounts\.dev|com)/.test(request.url())) clerkRequests.push(request.url());
+});
 page.on('pageerror', (error) => pageErrors.push(error.message));
 await page.exposeFunction('__reportViolation', (v) => violations.add(v));
 await page.addInitScript(
@@ -123,9 +137,41 @@ await page.addInitScript(
 await page.goto(`http://127.0.0.1:${server.address().port}/`);
 await page.waitForTimeout(6000);
 const rendered = await page.evaluate(() => (document.getElementById('root')?.childElementCount ?? 0) > 0);
+const startupViolations = [...violations];
+let remoteScriptBlocked = null;
+if (probe) {
+  await page.evaluate(() => {
+    window.__cspProbeRan = false;
+    const script = document.createElement('script');
+    script.src = 'data:text/javascript,window.__cspProbeRan=true';
+    document.head.appendChild(script);
+  });
+  await page.waitForTimeout(100);
+  remoteScriptBlocked = await page.evaluate(() => window.__cspProbeRan === false);
+  remoteScriptBlocked &&= [...violations].some((v) => v.startsWith('script-src-elem: data'));
+}
 console.log(
-  JSON.stringify({ policy: policyName, csp, cloud, rendered, pageErrors, violations: [...violations] }, null, 2),
+  JSON.stringify(
+    {
+      policy: policyName,
+      csp,
+      cloud,
+      rendered,
+      pageErrors,
+      violations: startupViolations,
+      clerkRequests,
+      remoteScriptBlocked,
+    },
+    null,
+    2,
+  ),
 );
 await browser.close();
 server.close();
-if (!rendered) process.exitCode = 1;
+if (
+  !rendered ||
+  pageErrors.length ||
+  (policyName === 'configured' && (startupViolations.length || clerkRequests.length)) ||
+  (probe && !remoteScriptBlocked)
+)
+  process.exitCode = 1;

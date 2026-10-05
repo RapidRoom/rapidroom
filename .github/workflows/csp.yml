@@ -1,0 +1,28 @@
+name: Production CSP
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  csp:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install isolated browser test tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/rapidroom-csp" --no-save --ignore-scripts playwright@1.63.0
+          "$RUNNER_TEMP/rapidroom-csp/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Check production policy and saved cloud settings
+        run: |
+          export RAPIDROOM_PLAYWRIGHT_MODULE="$RUNNER_TEMP/rapidroom-csp/node_modules/playwright-core/index.mjs"
+          export CHROMIUM_PATH="$(node --input-type=module -e 'const { chromium } = await import(process.env.RAPIDROOM_PLAYWRIGHT_MODULE); console.log(chromium.executablePath())')"
+          node rapidroom/validation/csp/measure.mjs configured --probe
+          node rapidroom/validation/csp/measure.mjs configured --cloud --probe

@@ -390,6 +390,8 @@ pub struct WorkspaceState {
     /// Missing in older settings (0); the frontend migrates those layouts once.
     #[serde(default)]
     pub layout_version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bottom_dock_height: Option<u32>,
 }
 
 impl Default for WorkspaceState {
@@ -441,6 +443,7 @@ impl Default for WorkspaceState {
             active_panels,
             panel_switcher_placement,
             layout_version: 1,
+            bottom_dock_height: None,
         }
     }
 }
@@ -615,6 +618,8 @@ pub struct AppSettings {
     pub adjustment_density: Option<String>,
     #[serde(default)]
     pub workspace: WorkspaceState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal_settings: Option<Value>,
 }
 
 impl Default for AppSettings {
@@ -716,6 +721,7 @@ impl Default for AppSettings {
             adjustment_layout: AdjustmentLayout::default(),
             adjustment_density: None,
             workspace: WorkspaceState::default(),
+            terminal_settings: None,
         }
     }
 }

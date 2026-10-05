@@ -73,6 +73,11 @@ mod raw_processing;
 mod tagging;
 mod tagging_utils;
 mod terminal;
+#[cfg(all(
+    feature = "terminal",
+    any(target_os = "linux", target_os = "macos", target_os = "windows")
+))]
+mod terminal_pty;
 #[cfg(test)]
 mod test_support;
 mod tree_denoise;
@@ -1938,6 +1943,12 @@ pub fn run() {
         }
     }
 
+    #[cfg(all(
+        feature = "terminal",
+        any(target_os = "linux", target_os = "macos", target_os = "windows")
+    ))]
+    let builder = builder.manage(terminal_pty::Sessions::default());
+
     builder
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_fs::init())
@@ -2458,6 +2469,22 @@ pub fn run() {
             file_management::duplicate_file,
             file_management::show_in_finder,
             terminal::open_terminal_here,
+            terminal::is_terminal_supported,
+            #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+            terminal::launch_terminal_agent,
+            #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+            terminal_pty::pty_open,
+            #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+            terminal_pty::pty_write,
+            #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+            terminal_pty::pty_resize,
+            #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+            terminal_pty::pty_ack,
+            #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+            terminal_pty::pty_detach,
+            #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+            terminal_pty::pty_close,
+
             file_management::delete_files_from_disk,
             file_management::delete_files_with_associated,
             file_management::save_metadata_and_update_thumbnail,
@@ -2562,6 +2589,8 @@ pub fn run() {
                 tauri::RunEvent::ExitRequested { api, code, .. } => {
                     api.prevent_exit();
                     let code = resolve_exit_code(code, process_exit_code());
+                    #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+                    app_handle.state::<terminal_pty::Sessions>().close_all();
 
                     #[cfg(target_os = "macos")]
                     unsafe { libc::_exit(code); }
@@ -2571,6 +2600,8 @@ pub fn run() {
                 }
                 tauri::RunEvent::Exit => {
                     let code = process_exit_code();
+                    #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+                    app_handle.state::<terminal_pty::Sessions>().close_all();
 
                     #[cfg(target_os = "macos")]
                     unsafe { libc::_exit(code); }

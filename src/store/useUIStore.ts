@@ -98,6 +98,7 @@ const ALL_PANELS: Panel[] = [
   Panel.Masks,
   Panel.Ai,
   Panel.Presets,
+  Panel.Terminal,
 ];
 
 const DEFAULT_PANEL_DEFAULT_REGIONS: Record<Panel, PanelRegion> = {
@@ -110,6 +111,7 @@ const DEFAULT_PANEL_DEFAULT_REGIONS: Record<Panel, PanelRegion> = {
   [Panel.Masks]: 'rightTop',
   [Panel.Ai]: 'rightTop',
   [Panel.Presets]: 'leftTop',
+  [Panel.Terminal]: 'bottom',
 };
 
 // Bump when a default panel moves; saved layouts below it get that panel moved once in reconcileWorkspace.
@@ -119,13 +121,25 @@ export const DEFAULT_PANEL_WIDTH = 350;
 export const DEFAULT_PANEL_SECTION_HEIGHT = 450;
 export const DEFAULT_BOTTOM_PANEL_HEIGHT = 144;
 
+export interface NormalizedWorkspace extends WorkspaceState {
+  panelLayout: Record<PanelRegion, Panel[]>;
+  activePanels: Record<PanelRegion, Panel | null>;
+  panelSwitcherPlacement: Record<PanelRegion, SwitcherPlacement>;
+  bottomDockHeight: number;
+}
+
 export function reconcileWorkspace(
   savedWorkspace: WorkspaceState | undefined,
   isTetheringSupported: boolean,
-): WorkspaceState {
-  const allowedPanels = new Set(ALL_PANELS.filter((p) => p !== Panel.Tethering || isTetheringSupported));
+  isTerminalSupported = false,
+): NormalizedWorkspace {
+  const allowedPanels = new Set(
+    ALL_PANELS.filter(
+      (p) => (p !== Panel.Tethering || isTetheringSupported) && (p !== Panel.Terminal || isTerminalSupported),
+    ),
+  );
 
-  const defaultWorkspace: WorkspaceState = {
+  const defaultWorkspace: NormalizedWorkspace = {
     leftPanelWidth: DEFAULT_PANEL_WIDTH,
     rightPanelWidth: DEFAULT_PANEL_WIDTH,
     leftTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
@@ -141,20 +155,24 @@ export function reconcileWorkspace(
       leftBottom: [],
       rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai],
       rightBottom: [],
+      bottom: isTerminalSupported ? [Panel.Terminal] : [],
     },
     activePanels: {
       leftTop: Panel.FolderTree,
       leftBottom: null,
       rightTop: Panel.Adjustments,
       rightBottom: null,
+      bottom: null,
     },
     panelSwitcherPlacement: {
       leftTop: 'bottom',
       leftBottom: 'bottom',
       rightTop: 'right',
       rightBottom: 'right',
+      bottom: 'top',
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
+    bottomDockHeight: 240,
   };
 
   if (!savedWorkspace || !savedWorkspace.panelLayout) {
@@ -176,9 +194,10 @@ export function reconcileWorkspace(
     leftBottom: [],
     rightTop: [],
     rightBottom: [],
+    bottom: [],
   };
 
-  (['leftTop', 'leftBottom', 'rightTop', 'rightBottom'] as PanelRegion[]).forEach((region) => {
+  (['leftTop', 'leftBottom', 'rightTop', 'rightBottom', 'bottom'] as PanelRegion[]).forEach((region) => {
     const list = savedWorkspace.panelLayout[region];
     (Array.isArray(list) ? list : []).forEach((panel) => {
       if (allowedPanels.has(panel) && !seenPanels.has(panel) && !movedPanels.has(panel)) {
@@ -201,11 +220,14 @@ export function reconcileWorkspace(
     leftBottom: null,
     rightTop: null,
     rightBottom: null,
+    bottom: null,
   };
 
-  (['leftTop', 'leftBottom', 'rightTop', 'rightBottom'] as PanelRegion[]).forEach((region) => {
+  (['leftTop', 'leftBottom', 'rightTop', 'rightBottom', 'bottom'] as PanelRegion[]).forEach((region) => {
     const currentActive = savedWorkspace.activePanels?.[region];
-    if (currentActive && sanitizedLayout[region].includes(currentActive)) {
+    if (region === 'bottom' && currentActive == null) {
+      sanitizedActive.bottom = null;
+    } else if (currentActive && sanitizedLayout[region].includes(currentActive)) {
       sanitizedActive[region] = currentActive;
     } else {
       sanitizedActive[region] = sanitizedLayout[region].length > 0 ? sanitizedLayout[region][0] : null;
@@ -224,6 +246,7 @@ export function reconcileWorkspace(
       ...(savedWorkspace.panelSwitcherPlacement || {}),
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
+    bottomDockHeight: Math.max(80, Math.min(800, savedWorkspace.bottomDockHeight || 240)),
   };
 }
 
@@ -241,6 +264,8 @@ export interface UIState {
   leftPanelWidth: number;
   rightPanelWidth: number;
   bottomPanelHeight: number;
+  bottomDockHeight: number;
+  terminalSupported: boolean;
   leftTopHeight: number;
   rightTopHeight: number;
   compactEditorPanelHeightOverride: number | null;
@@ -316,6 +341,8 @@ export const useUIStore = create<UIState>((set, get) => ({
   leftPanelWidth: DEFAULT_PANEL_WIDTH,
   rightPanelWidth: DEFAULT_PANEL_WIDTH,
   bottomPanelHeight: DEFAULT_BOTTOM_PANEL_HEIGHT,
+  bottomDockHeight: 240,
+  terminalSupported: false,
   leftTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
   rightTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
   compactEditorPanelHeightOverride: null,
@@ -325,12 +352,14 @@ export const useUIStore = create<UIState>((set, get) => ({
     leftBottom: [],
     rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai],
     rightBottom: [],
+    bottom: [],
   },
   activePanels: {
     leftTop: Panel.FolderTree,
     leftBottom: null,
     rightTop: Panel.Adjustments,
     rightBottom: null,
+    bottom: null,
   },
   activeLayoutDragItem: null,
 
@@ -339,6 +368,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     leftBottom: 'bottom',
     rightTop: 'right',
     rightBottom: 'right',
+    bottom: 'top',
   },
   setPanelSwitcherPlacement: (region, placement) =>
     set((state) => ({
@@ -453,6 +483,7 @@ export const useUIStore = create<UIState>((set, get) => ({
         leftBottom: [...state.panelLayout.leftBottom],
         rightTop: [...state.panelLayout.rightTop],
         rightBottom: [...state.panelLayout.rightBottom],
+        bottom: [...state.panelLayout.bottom],
       };
       const active = { ...state.activePanels };
 
@@ -488,6 +519,7 @@ export const useUIStore = create<UIState>((set, get) => ({
         leftBottom: [...state.panelLayout.leftBottom],
         rightTop: [...state.panelLayout.rightTop],
         rightBottom: [...state.panelLayout.rightBottom],
+        bottom: [...state.panelLayout.bottom],
       };
       const active = { ...state.activePanels };
 
@@ -579,8 +611,9 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
 
   resetWorkspaceLayout: (isTetheringSupported = false) => {
-    const defaultWorkspace = reconcileWorkspace(undefined, isTetheringSupported);
+    const defaultWorkspace = reconcileWorkspace(undefined, isTetheringSupported, get().terminalSupported);
     set({
+      bottomDockHeight: defaultWorkspace.bottomDockHeight,
       leftPanelWidth: defaultWorkspace.leftPanelWidth,
       rightPanelWidth: defaultWorkspace.rightPanelWidth,
       leftTopHeight: defaultWorkspace.leftTopHeight,
