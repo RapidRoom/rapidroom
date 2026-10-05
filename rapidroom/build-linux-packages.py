@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import struct
 import tempfile
 
 
@@ -25,6 +26,51 @@ def source(root):
     return {'head': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
             'diff_sha256': hashlib.sha256(subprocess.check_output(['git', 'diff', 'HEAD'], cwd=root)).hexdigest(),
             'status': subprocess.check_output(['git', 'status', '--porcelain'], cwd=root, text=True)}
+
+
+
+def elf_payload(path):
+    """Identify allocated ELF payloads apart from linuxdeploy's loader rewrite."""
+    data = path.read_bytes()
+    if data[:6] != b'\x7fELF\x02\x01':
+        raise RuntimeError('Expected a little-endian ELF64 executable')
+    header = struct.unpack_from('<HHIQQQIHHHHHH', data, 16)
+    sections = [struct.unpack_from('<IIQQQQIIQQ', data, header[5] + n * header[10])
+                for n in range(header[11])]
+    strings = sections[header[12]]
+    names = data[strings[4]:strings[4] + strings[5]]
+    def name(section):
+        return names[section[0]:].split(b'\0', 1)[0].decode()
+    identity = {'header': header[:4], 'allocated': {}, 'symbols': [], 'needed': []}
+    rpaths = []
+    for section in sections:
+        label = name(section)
+        payload = data[section[4]:section[4] + section[5]] if section[1] != 8 else b''
+        if section[2] & 2 and label not in {'.dynstr', '.dynamic', '.dynsym'}:
+            if label == '.rodata':
+                # Tauri changes only this marker between deb/AppImage/no bundle.
+                payload = payload.replace(b'__TAURI_BUNDLE_TYPE_VAR_DEB', b'__TAURI_BUNDLE_TYPE_VAR_UNK')
+                payload = payload.replace(b'__TAURI_BUNDLE_TYPE_VAR_APP', b'__TAURI_BUNDLE_TYPE_VAR_UNK')
+            identity['allocated'][label] = (section[1], section[2], section[5], hashlib.sha256(payload).hexdigest())
+        if section[1] in (6, 11):
+            table = sections[section[6]]
+            text = data[table[4]:table[4] + table[5]]
+            def string(offset):
+                return text[offset:].split(b'\0', 1)[0].decode()
+            if section[1] == 6:
+                for tag, value in struct.iter_unpack('<qQ', payload):
+                    if tag == 1:
+                        identity['needed'].append(string(value))
+                    elif tag in (15, 29):
+                        rpaths.extend(string(value).split(':'))
+            else:
+                for offset, info, other, index, value, size in struct.iter_unpack('<IBBHQQ', payload):
+                    target = name(sections[index]) if 0 < index < len(sections) else str(index)
+                    relative = value - sections[index][3] if 0 < index < len(sections) else value
+                    identity['symbols'].append((string(offset), info, other, target, relative, size))
+    identity['symbols'].sort()
+    identity['needed'].sort()
+    return identity, rpaths
 
 
 def verify_packages(root, target, kinds, adapter):
@@ -47,14 +93,22 @@ def verify_packages(root, target, kinds, adapter):
                                stdout=subprocess.DEVNULL, check=True)
                 contents = folder / 'squashfs-root'
             installed = contents / 'usr/bin/rapidroom-mcp-stdio'
-            if not installed.is_file() or not os.access(installed, os.X_OK) or sha(installed) != sha(adapter):
-                raise RuntimeError(kind + ' adapter missing, not executable or changed')
+            if not installed.is_file() or not os.access(installed, os.X_OK):
+                raise RuntimeError(kind + ' adapter missing or not executable')
+            if kind == 'deb':
+                if sha(installed) != sha(adapter):
+                    raise RuntimeError('Debian adapter differs from staged source')
+            else:
+                original, _ = elf_payload(adapter)
+                packaged, rpaths = elf_payload(installed)
+                if packaged != original or rpaths != ['$ORIGIN/../lib']:
+                    raise RuntimeError('AppImage adapter differs beyond its expected local loader path')
             for notice in notices:
                 copies = list(contents.rglob(notice.name))
                 if not any(copy.is_file() and sha(copy) == sha(notice) for copy in copies):
                     raise RuntimeError(kind + ' is missing retained notice ' + notice.name)
             artifacts[kind] = {'path': str(package), 'sha256': sha(package),
-                               'adapter_sha256': sha(installed), 'adapter_executable': True,
+                               'adapter_sha256': sha(installed), 'adapter_executable': True, 'adapter_payload_verified': True,
                                'existing_font_notices_retained': True}
     return artifacts
 
