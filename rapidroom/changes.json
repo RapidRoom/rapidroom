@@ -884,6 +884,18 @@
       "rendering_change": true,
       "notes": "Reads SonyCropTopLeft/SonyCropSize in the rawler fork, retains the full DefaultCrop image for crop expansion/reset, and preserves existing sidecar framing. The M/S crop and saturating highlight dither fixes remain. AI-assisted with Codex; maintainer visual review required.",
       "highlight": "**Sony camera aspect ratios are respected.** 4:3, square and 16:9 shots start with the camera framing, and you can expand the crop back to the full image."
+    },
+    {
+      "id": "native-ui-smoke",
+      "title": "Native Linux UI smoke: exercise the release app, GPU preview, edits, Undo, Compact settings and JPEG export on an isolated compositor",
+      "category": "ci",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom; optional WebdriverIO embedded Tauri driver (MIT)",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Written with Codex for issue #134. The opt-in native-ui-test feature and explicit port enable loopback automation only in a test GUI; ordinary releases and headless export/benchmark omit registration. Weston captures the real native app and its GPU-processed preview on a private session bus and display with fresh settings and copied CC0 input. Scripts preserve per-step screenshots, error logs and pass/fail evidence. Local Linux gate; hosted CI and other platforms remain untested. An optional latest-release lookup returning 404 is treated as no available release, so a private or new repository does not log a startup error."
     }
   ]
 }

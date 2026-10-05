@@ -134,3 +134,5 @@ These RapidRAW forks have work we'd like to harvest (with credit) or coordinate 
 - [NicoNex/RapidRAW](https://github.com/NicoNex/RapidRAW): native GTK front end, core split
 - [pluja/RapidRAW-Fork](https://github.com/pluja/RapidRAW-Fork): bug fixes, tests
 - [cl1x/RapidRAW](https://github.com/cl1x/RapidRAW): Immich integration
+
+Native Linux UI smoke harness: yojen7, with Codex. Its optional embedded driver is `tauri-plugin-wdio-webdriver` 1.4.0, © 2024 WebdriverIO Community, MIT, from [webdriverio/desktop-mobile](https://github.com/webdriverio/desktop-mobile). The published crate retains its MIT licence notice.
