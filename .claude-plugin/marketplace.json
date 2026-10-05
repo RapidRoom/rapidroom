@@ -1,0 +1,13 @@
+{
+  "name": "rapidroom",
+  "owner": { "name": "RapidRoom", "url": "https://github.com/RapidRoom/rapidroom" },
+  "description": "Claude Code plugins for RapidRoom, the community build of the RapidRAW raw photo editor.",
+  "plugins": [
+    {
+      "name": "rapidroom",
+      "source": "./rapidroom/plugin",
+      "description": "Edit raw photos in RapidRoom with an assistant: workflow, adjustment reference, tutor mode, source lookup and assistant-drafted issues.",
+      "category": "photography"
+    }
+  ]
+}

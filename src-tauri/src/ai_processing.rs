@@ -89,7 +89,9 @@ pub struct CachedDepthMap {
     pub original_size: (u32, u32),
 }
 
+#[derive(Default)]
 pub struct AiState {
+    pub tree_models: std::collections::HashMap<&'static str, Arc<Mutex<Session>>>,
     pub models: Option<Arc<AiModels>>,
     pub denoise_model: Option<Arc<Mutex<Session>>>,
     pub clip_models: Option<Arc<ClipModels>>,
@@ -308,7 +310,7 @@ pub fn fast_guided_filter(
     GrayImage::from_raw(hr_w, hr_h, final_mask_raw).unwrap()
 }
 
-fn get_models_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf> {
+pub(crate) fn get_models_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf> {
     let models_dir = app_handle.path().app_data_dir()?.join("models");
     if !models_dir.exists() {
         fs::create_dir_all(&models_dir)?;
@@ -407,7 +409,7 @@ fn promote_legacy_model_filename(
     Ok(())
 }
 
-async fn download_and_verify_model(
+pub(crate) async fn download_and_verify_model(
     app_handle: &tauri::AppHandle,
     models_dir: &Path,
     filename: &str,
@@ -548,6 +550,7 @@ pub async fn get_or_init_ai_models(
         state.models = Some(models.clone());
     } else {
         *ai_state_lock = Some(AiState {
+            tree_models: Default::default(),
             models: Some(models.clone()),
             denoise_model: None,
             clip_models: None,
@@ -608,6 +611,7 @@ pub async fn get_or_init_denoise_model(
         state.denoise_model = Some(denoise_model.clone());
     } else {
         *ai_state_lock = Some(AiState {
+            tree_models: Default::default(),
             models: None,
             denoise_model: Some(denoise_model.clone()),
             clip_models: None,
@@ -680,6 +684,7 @@ pub async fn get_or_init_clip_models(
         state.clip_models = Some(clip_models.clone());
     } else {
         *ai_state_lock = Some(AiState {
+            tree_models: Default::default(),
             models: None,
             denoise_model: None,
             clip_models: Some(clip_models.clone()),
@@ -740,6 +745,7 @@ pub async fn get_or_init_lama_model(
         state.lama_model = Some(lama_model.clone());
     } else {
         *ai_state_lock = Some(AiState {
+            tree_models: Default::default(),
             models: None,
             denoise_model: None,
             clip_models: None,

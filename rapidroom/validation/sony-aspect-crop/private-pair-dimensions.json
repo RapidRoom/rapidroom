@@ -1,0 +1,138 @@
+{
+  "description": "Local-only maintainer pair; no images, photo metadata or sample files included. Pixel hashes document equality without publishing the photographs.",
+  "engine_sha256": {
+    "before": "933bab69f42ee992dc43ecb8d2c07387c0219c1c664b4a25e8afac06976699d2",
+    "after": "d0a5b919b0f55e6d5d067a98b486eef7477971095cd5fb3d4efc268da17b6a20"
+  },
+  "assertions": "all passed: correct selected dimensions, exact explicit-camera crop, full frame/reset, saved crop/null and legacy edits, unchanged 3:2",
+  "renders": [
+    {
+      "variant": "before",
+      "case": "4x3",
+      "width": 7008,
+      "height": 4672,
+      "pixel_sha256": "2a288e2a8642075f465957b02e2e63ce8db2cb54c9e7ad7cb04662f0cc25dc31",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "before",
+      "case": "3x2",
+      "width": 7008,
+      "height": 4672,
+      "pixel_sha256": "76de4a2b15909b5384c59eaf32391688ad9c32a1fe18e79c2c41255a2fac8df4",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "before",
+      "case": "reset",
+      "width": 7008,
+      "height": 4672,
+      "pixel_sha256": "2a288e2a8642075f465957b02e2e63ce8db2cb54c9e7ad7cb04662f0cc25dc31",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "before",
+      "case": "saved-crop",
+      "width": 4200,
+      "height": 2800,
+      "pixel_sha256": "e4d4cd12b6c225530eef3f47751e0ddf3501cc64f964b5b16f982da5ea549785",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "before",
+      "case": "saved-full",
+      "width": 7008,
+      "height": 4672,
+      "pixel_sha256": "2a288e2a8642075f465957b02e2e63ce8db2cb54c9e7ad7cb04662f0cc25dc31",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "before",
+      "case": "legacy-edits",
+      "width": 7008,
+      "height": 4672,
+      "pixel_sha256": "2a288e2a8642075f465957b02e2e63ce8db2cb54c9e7ad7cb04662f0cc25dc31",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "before",
+      "case": "preset-default",
+      "width": 7008,
+      "height": 4672,
+      "pixel_sha256": "2a288e2a8642075f465957b02e2e63ce8db2cb54c9e7ad7cb04662f0cc25dc31",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "before",
+      "case": "explicit-camera-crop",
+      "width": 6224,
+      "height": 4672,
+      "pixel_sha256": "d81bb42ce46f098a893b55edc7138ed02b35664c72dd1385a457635540693fce",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "after",
+      "case": "4x3",
+      "width": 6224,
+      "height": 4672,
+      "pixel_sha256": "d81bb42ce46f098a893b55edc7138ed02b35664c72dd1385a457635540693fce",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "after",
+      "case": "3x2",
+      "width": 7008,
+      "height": 4672,
+      "pixel_sha256": "76de4a2b15909b5384c59eaf32391688ad9c32a1fe18e79c2c41255a2fac8df4",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "after",
+      "case": "reset",
+      "width": 7008,
+      "height": 4672,
+      "pixel_sha256": "2a288e2a8642075f465957b02e2e63ce8db2cb54c9e7ad7cb04662f0cc25dc31",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "after",
+      "case": "saved-crop",
+      "width": 4200,
+      "height": 2800,
+      "pixel_sha256": "e4d4cd12b6c225530eef3f47751e0ddf3501cc64f964b5b16f982da5ea549785",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "after",
+      "case": "saved-full",
+      "width": 7008,
+      "height": 4672,
+      "pixel_sha256": "2a288e2a8642075f465957b02e2e63ce8db2cb54c9e7ad7cb04662f0cc25dc31",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "after",
+      "case": "legacy-edits",
+      "width": 7008,
+      "height": 4672,
+      "pixel_sha256": "2a288e2a8642075f465957b02e2e63ce8db2cb54c9e7ad7cb04662f0cc25dc31",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "after",
+      "case": "preset-default",
+      "width": 6224,
+      "height": 4672,
+      "pixel_sha256": "d81bb42ce46f098a893b55edc7138ed02b35664c72dd1385a457635540693fce",
+      "icc_desc": "sRGB"
+    },
+    {
+      "variant": "after",
+      "case": "explicit-camera-crop",
+      "width": 6224,
+      "height": 4672,
+      "pixel_sha256": "d81bb42ce46f098a893b55edc7138ed02b35664c72dd1385a457635540693fce",
+      "icc_desc": "sRGB"
+    }
+  ]
+}

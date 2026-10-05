@@ -46,7 +46,7 @@ import {
 
 import CollapsibleSection from '../../ui/CollapsibleSection';
 import Switch from '../../ui/Switch';
-import Slider from '../../ui/Slider';
+import Slider, { SliderDensityScope, getAdjustmentDensity } from '../../ui/Slider';
 import BasicAdjustments from '../../adjustments/Basic';
 import CurveGraph from '../../adjustments/Curves';
 import ColorPanel from '../../adjustments/Color';
@@ -80,6 +80,7 @@ import {
   MaskContainer,
   ADJUSTMENT_SECTIONS,
   getVisibleAdjustmentSections,
+  showSectionAndTools,
 } from '../../../utils/adjustments';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import { OPTION_SEPARATOR, Orientation, Panel } from '../../ui/AppProperties';
@@ -1040,7 +1041,10 @@ export default function MasksPanel() {
           )}
         </AnimatePresence>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 p-3">
+        <SliderDensityScope
+          className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 p-3"
+          density={getAdjustmentDensity(appSettings?.adjustmentDensity)}
+        >
           {selectedImage ? (
             <>
               <AnimatePresence mode="wait">
@@ -1229,7 +1233,7 @@ export default function MasksPanel() {
               </Text>
             </div>
           )}
-        </div>
+        </SliderDensityScope>
       </div>
 
       <DragOverlay dropAnimation={{ duration: 150, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
@@ -2031,7 +2035,7 @@ function SettingsPanel({
     const cur = container.adjustments;
     const vis = cur.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility;
     updateContainer(container.id, {
-      adjustments: { ...cur, sectionVisibility: { ...vis, [sectionName]: !vis[sectionName] } },
+      adjustments: { ...cur, sectionVisibility: { ...vis, [sectionName]: !(vis[sectionName] ?? true) } },
     });
   };
 
@@ -2059,10 +2063,10 @@ function SettingsPanel({
       setMaskContainerAdjustments((prev: any) => ({
         ...prev,
         ...copiedSectionAdjustments.values,
-        sectionVisibility: {
-          ...(prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility),
-          [sectionName]: true,
-        },
+        sectionVisibility: showSectionAndTools(
+          prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility,
+          sectionName,
+        ),
       }));
     };
 
@@ -2076,10 +2080,10 @@ function SettingsPanel({
       setMaskContainerAdjustments((prev: any) => ({
         ...prev,
         ...resetValues,
-        sectionVisibility: {
-          ...(prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility),
-          [sectionName]: true,
-        },
+        sectionVisibility: showSectionAndTools(
+          prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility,
+          sectionName,
+        ),
       }));
     };
 
@@ -2292,6 +2296,8 @@ function SettingsPanel({
                 isForMask={true}
                 appSettings={appSettings}
                 onDragStateChange={onDragStateChange}
+                onToggleVisibility={handleToggleVisibility}
+                sectionVisibility={sectionVisibility}
               />
             </CollapsibleSection>
           );

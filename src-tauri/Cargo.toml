@@ -33,7 +33,7 @@ tokio = { version = "1", features = ["full"] }
 uuid = { version = "1.25", features = ["v4", "serde"] }
 walkdir = "2.5.0"
 imageproc = "0.27.0"
-ort = { version = "=2.0.0-rc.10", features = ["ndarray", "load-dynamic"] }
+ort = { version = "=2.0.0-rc.10", features = ["ndarray", "load-dynamic", "half"] }
 ndarray = "0.16"
 tauri-plugin-process = "2.3.1"
 tauri-plugin-os = "2.3.2"
@@ -70,6 +70,7 @@ rgb = "0.8.53"
 imgref = "1.12.2"
 sysinfo = "0.39.6"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+flate2 = "=1.1.9"
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 trash = "5.2.6"
@@ -135,7 +136,11 @@ strip = true
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-clippy"))'] }
 
 # Carry Kheil-Z's Sony lossless M/S and Canon mRAW/sRAW default-crop fix
-# (rebased onto 934af4b), plus saturating lookup-table highlight dithering
-# for DxO compressed DNGs. Keep this patch until upstream includes both fixes.
+# (rebased onto 934af4b), saturating lookup-table highlight dithering for DxO
+# compressed DNGs, Adobe stage-2 polynomial mappings, and SebastianEggli's
+# fast preview paths (DNG LinearRaw
+# proxies, CR3/ORF previews, zero-copy RawSource; `CyberTimon/RapidRAW-DngLab#10`).
+# It also scopes Olympus calibration to ImageProcessing and retains editable
+# Sony camera-aspect crops. Keep until upstream includes these fixes.
 [patch."https://github.com/CyberTimon/RapidRAW-DngLab.git"]
-rawler = { git = "https://github.com/yojen7/RapidRAW-DngLab.git", rev = "4c960626978287ab8e4aabe70a6cfa60b4582273" }
+rawler = { git = "https://github.com/yojen7/RapidRAW-DngLab.git", rev = "53b3dceb86934b44b85e55edb2e02726dc585c7b" }

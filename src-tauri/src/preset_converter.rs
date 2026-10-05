@@ -45,7 +45,7 @@ fn get_attr_as_f64(attrs: &HashMap<String, String>, key: &str) -> Option<f64> {
         .and_then(|s| s.trim_start_matches('+').parse::<f64>().ok())
 }
 
-fn extract_namespaced_scalar(content: &str, prefix: &str, key: &str) -> Option<String> {
+pub(crate) fn extract_namespaced_scalar(content: &str, prefix: &str, key: &str) -> Option<String> {
     let prefix = regex::escape(prefix);
     let key = regex::escape(key);
     let attr_pattern = format!(r#"{}:{}="([^"]*)""#, prefix, key);
@@ -283,7 +283,8 @@ fn probe_xmp_crop_image_dimensions(image_path: &Path) -> Option<(f64, f64)> {
             .raw_image(&source, &RawDecodeParams::default(), true)
             .ok()?;
         let dimensions = raw_image
-            .crop_area
+            .default_crop_area
+            .or(raw_image.crop_area)
             .or(raw_image.active_area)
             .map(|crop| (crop.d.w, crop.d.h))
             .unwrap_or((raw_image.width, raw_image.height));
@@ -1296,6 +1297,107 @@ fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, St
     Ok(attrs)
 }
 
+const BASIC_MAPPINGS: &[(&str, &str)] = &[
+    ("Exposure2012", "exposure"),
+    ("Contrast2012", "contrast"),
+    ("Highlights2012", "highlights"),
+    ("Shadows2012", "shadows"),
+    ("Whites2012", "whites"),
+    ("Blacks2012", "blacks"),
+    ("Clarity2012", "clarity"),
+    ("Dehaze", "dehaze"),
+    ("Vibrance", "vibrance"),
+    ("Saturation", "saturation"),
+    ("Texture", "structure"),
+    ("LuminanceSmoothing", "lumaNoiseReduction"),
+    ("ColorNoiseReduction", "colorNoiseReduction"),
+    ("ChromaticAberrationRedCyan", "chromaticAberrationRedCyan"),
+    (
+        "ChromaticAberrationBlueYellow",
+        "chromaticAberrationBlueYellow",
+    ),
+    ("PostCropVignetteAmount", "vignetteAmount"),
+    ("PostCropVignetteMidpoint", "vignetteMidpoint"),
+    ("PostCropVignetteFeather", "vignetteFeather"),
+    ("PostCropVignetteRoundness", "vignetteRoundness"),
+    ("GrainAmount", "grainAmount"),
+    ("GrainSize", "grainSize"),
+    ("GrainFrequency", "grainRoughness"),
+    ("ColorGradeBlending", "blending"),
+];
+
+pub(crate) fn is_mapped_xmp_scalar(key: &str) -> bool {
+    if BASIC_MAPPINGS.iter().any(|(name, _)| *name == key) {
+        return true;
+    }
+    for prefix in [
+        "HueAdjustment",
+        "SaturationAdjustment",
+        "LuminanceAdjustment",
+        "GrayMixer",
+    ] {
+        if let Some(color) = key.strip_prefix(prefix)
+            && [
+                "Red", "Orange", "Yellow", "Green", "Aqua", "Blue", "Purple", "Magenta",
+            ]
+            .contains(&color)
+        {
+            return true;
+        }
+    }
+    matches!(
+        key,
+        "Sharpness"
+            | "SharpenEdgeMasking"
+            | "Exposure"
+            | "Brightness"
+            | "Contrast"
+            | "Recovery"
+            | "FillLight"
+            | "Shadows"
+            | "Clarity"
+            | "Temperature"
+            | "Tint"
+            | "AsShotTemperature"
+            | "AsShotTint"
+            | "WhiteBalance"
+            | "IncrementalTemperature"
+            | "IncrementalTint"
+            | "ConvertToGrayscale"
+            | "HasCrop"
+            | "CropLeft"
+            | "CropRight"
+            | "CropTop"
+            | "CropBottom"
+            | "CropAngle"
+            | "CropConstrainAspectRatio"
+            | "LensProfileEnable"
+            | "LensProfileDistortionScale"
+            | "LensProfileVignettingScale"
+            | "AutoLateralCA"
+            | "SplitToningShadowHue"
+            | "SplitToningShadowSaturation"
+            | "SplitToningHighlightHue"
+            | "SplitToningHighlightSaturation"
+            | "SplitToningBalance"
+            | "ColorGradeMidtoneHue"
+            | "ColorGradeMidtoneSat"
+            | "ColorGradeShadowLum"
+            | "ColorGradeMidtoneLum"
+            | "ColorGradeHighlightLum"
+            | "ColorGradeGlobalHue"
+            | "ColorGradeGlobalSat"
+            | "ColorGradeGlobalLum"
+            | "Version"
+            | "ProcessVersion"
+            | "HasSettings"
+            | "AlreadyApplied"
+            | "CameraProfile"
+            | "ToneCurveName"
+            | "ToneCurveName2012"
+    )
+}
+
 fn convert_xmp_to_preset_with_crop(
     xmp_content: &str,
     include_crop_transform: bool,
@@ -1311,36 +1413,7 @@ fn convert_xmp_to_preset_with_crop(
     let mut color_grading_map = Map::new();
     let mut curves_map = Map::new();
 
-    let mappings = vec![
-        ("Exposure2012", "exposure"),
-        ("Contrast2012", "contrast"),
-        ("Highlights2012", "highlights"),
-        ("Shadows2012", "shadows"),
-        ("Whites2012", "whites"),
-        ("Blacks2012", "blacks"),
-        ("Clarity2012", "clarity"),
-        ("Dehaze", "dehaze"),
-        ("Vibrance", "vibrance"),
-        ("Saturation", "saturation"),
-        ("Texture", "structure"),
-        ("LuminanceSmoothing", "lumaNoiseReduction"),
-        ("ColorNoiseReduction", "colorNoiseReduction"),
-        ("ChromaticAberrationRedCyan", "chromaticAberrationRedCyan"),
-        (
-            "ChromaticAberrationBlueYellow",
-            "chromaticAberrationBlueYellow",
-        ),
-        ("PostCropVignetteAmount", "vignetteAmount"),
-        ("PostCropVignetteMidpoint", "vignetteMidpoint"),
-        ("PostCropVignetteFeather", "vignetteFeather"),
-        ("PostCropVignetteRoundness", "vignetteRoundness"),
-        ("GrainAmount", "grainAmount"),
-        ("GrainSize", "grainSize"),
-        ("GrainFrequency", "grainRoughness"),
-        ("ColorGradeBlending", "blending"),
-    ];
-
-    for (xmp_key, rr_key) in mappings {
+    for &(xmp_key, rr_key) in BASIC_MAPPINGS {
         if let Some(raw_val) = attrs.get(xmp_key)
             && let Some(num) = parse_num(raw_val.trim_start_matches('+'))
             && let Some(json_val) = num_to_json(num)

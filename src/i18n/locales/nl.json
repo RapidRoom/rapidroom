@@ -1,4 +1,4 @@
-﻿{
+{
   "adjustments": {
     "basic": {
       "blacks": "Zwarttinten",
@@ -95,6 +95,7 @@
       "resetPoint": "{{channel}} puntcurve herstellen"
     },
     "details": {
+      "aiDenoiseHint": "For high-ISO RAW photos, use AI Denoise from the photo menu. These sliders are for light touch-ups.",
       "blueYellow": "Blauw/Geel",
       "centre": "Centrum",
       "chromaticAberration": "Chromatische aberratie",
@@ -104,6 +105,7 @@
       "luminance": "Luminantie",
       "noiseReduction": "Ruisonderdrukking",
       "presence": "Presentie",
+      "quickNoiseReduction": "Quick noise reduction (basic)",
       "redCyan": "Rood/Cyaan",
       "sharpening": "Verscherping",
       "sharpness": "Scherpte",
@@ -1316,19 +1318,27 @@
       "denoisingProgress": "Ruisonderdrukking bezig",
       "description": "Verwijder ruis uit uw afbeelding met AI-gestuurde of traditionele ruisonderdrukking.",
       "downloadingText": "Downloaden {{status}}...",
+      "fewerMethods": "Fewer methods",
       "gpuWarningTooltip": "NIND Ruis verwijderen ondersteunt nog geen GPU-versnelling vanwege afhankelijkheidsbeperkingen.",
       "initializing": "Initialiseren...",
+      "legacyAi": "NIND (legacy AI)",
       "methodAi": "NIND (AI - Beste voor RAW)",
       "methodBm3d": "BM3D (Traditioneel - Alle formaten)",
       "methodLabel": "Methode",
       "methodRaw9": "Apple RAW 9 (Neural Engine)",
+      "moreMethods": "More methods",
       "openInEditor": "Openen in editor",
       "original": "Origineel",
       "panZoomEnabled": "Pannen & zoomen ingeschakeld",
+      "presetBest": "Best",
+      "presetFast": "Fast",
       "processingFailed": "Verwerking mislukt",
       "qualityTileSizeLabel": "Kwaliteit / Tegelgrootte",
+      "rawHint": "Denoise the original Bayer RAW. Save creates an editable DNG. Models download on first use.",
+      "rawSpeedTooltip": "Processing runs locally and may take several minutes. The saved DNG can be edited without running AI again.",
       "reset": "Herstellen",
       "saveSuccess": "Afbeelding succesvol opgeslagen!",
+      "sharpen": "Sharpen",
       "speedNotice": "Dit kan enkele minuten duren afhankelijk van de afbeeldingsgrootte en geselecteerde methode.",
       "strengthLabel": "Sterkte",
       "titleBatch": "Ruis verwijderen uit afbeeldingen",
@@ -1589,11 +1599,14 @@
       "title": "Gegevensbeheer"
     },
     "general": {
+      "compactAdjustments": "Compacte schuifregelaars",
+      "compactAdjustmentsDesc": "Zet elke ontwikkelschuifregelaar op één regel, met label en waarde naast de balk, zodat er op een klein scherm meer regelaars passen.",
       "createXmp": "Ontbrekende XMP-bestanden maken",
       "createXmpDesc": "Automatisch een nieuw XMP-sidecar-bestand maken als er geen bestaat voor een afbeelding.",
       "createXmpMissing": "XMP maken indien ontbrekend",
       "displayEditIcon": "Bewerkingspictogram weergeven",
       "displayEditIconDesc": "Toon een klein schuifregelaarpictogram op miniaturen die zijn bewerkt.",
+      "enableCompactAdjustments": "Compacte schuifregelaars inschakelen",
       "enableFocusMode": "Focusmodus inschakelen",
       "enableNeutralGreyCanvas": "Neutrale grijze achtergrond inschakelen",
       "enableOsTitlebar": "OS-titelbalk inschakelen",
@@ -1662,6 +1675,8 @@
         "toggle_export": "Exportpaneel aan/uit",
         "toggle_folder_tree": "Mappenstructuurpaneel aan/uit",
         "toggle_fullscreen": "Volledig scherm aan/uit",
+        "cycle_lights_out": "Lights Out doorlopen",
+        "cycle_lights_out_reverse": "Lights Out achteruit doorlopen",
         "toggle_left_panel": "Linkerpaneel aan/uit",
         "toggle_library_exif": "EXIF-overlay aan/uit",
         "toggle_masks": "Maskerpaneel aan/uit",

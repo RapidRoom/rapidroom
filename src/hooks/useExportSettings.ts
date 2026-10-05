@@ -3,6 +3,7 @@ import {
   BorderBasis,
   DEFAULT_FILENAME_TEMPLATE,
   ExportPreset,
+  OutputSharpening,
   sanitizeFilenameTemplate,
   TiffBitDepth,
   WatermarkAnchor,
@@ -39,6 +40,7 @@ export function useExportSettings() {
   const [watermarkOpacity, setWatermarkOpacity] = useState(75);
   const [destinationType, setDestinationType] = useState<string>('customFolder');
   const [subfolder, setSubfolder] = useState<string>('');
+  const [outputSharpening, setOutputSharpening] = useState<OutputSharpening | null>(null);
 
   const handleApplyPreset = useCallback((preset: ExportPreset) => {
     setFileFormat(preset.fileFormat);
@@ -71,6 +73,7 @@ export function useExportSettings() {
     setWatermarkOpacity(preset.watermarkOpacity);
     setDestinationType(preset.destinationType || 'customFolder');
     setSubfolder(preset.subfolder || '');
+    setOutputSharpening(preset.outputSharpening ?? null);
   }, []);
 
   const currentSettingsObject = useMemo(
@@ -105,6 +108,7 @@ export function useExportSettings() {
       watermarkOpacity,
       destinationType,
       subfolder,
+      outputSharpening,
     }),
     [
       fileFormat,
@@ -137,6 +141,7 @@ export function useExportSettings() {
       watermarkOpacity,
       destinationType,
       subfolder,
+      outputSharpening,
     ],
   );
 
@@ -201,6 +206,8 @@ export function useExportSettings() {
     setDestinationType,
     subfolder,
     setSubfolder,
+    outputSharpening,
+    setOutputSharpening,
     handleApplyPreset,
     currentSettingsObject,
   };

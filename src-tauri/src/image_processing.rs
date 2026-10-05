@@ -132,6 +132,11 @@ pub struct GeometryParams {
     pub vig_k1: f32,
     pub vig_k2: f32,
     pub vig_k3: f32,
+    /// Factor between the radius normalized to the half diagonal and the
+    /// radius that the Lensfun models expect. A value of 0.0 marks values
+    /// from an older sidecar file, which are evaluated the old way.
+    #[serde(default)]
+    pub lens_radius_scale: f32,
     #[serde(default)]
     pub guided_lines: Vec<GuideLine>,
     #[serde(default)]
@@ -164,6 +169,7 @@ impl Default for GeometryParams {
             vig_k1: 0.0,
             vig_k2: 0.0,
             vig_k3: 0.0,
+            lens_radius_scale: 0.0,
             guided_lines: Vec::new(),
             guided_perspective_enabled: false,
         }
@@ -234,6 +240,9 @@ pub fn get_geometry_params_from_json(adjustments: &serde_json::Value) -> Geometr
             .unwrap_or(0.0) as f32,
         vig_k3: lens_params
             .and_then(|p| p.get("vig_k3").and_then(|k| k.as_f64()))
+            .unwrap_or(0.0) as f32,
+        lens_radius_scale: lens_params
+            .and_then(|p| p.get("radius_scale").and_then(|k| k.as_f64()))
             .unwrap_or(0.0) as f32,
         guided_lines,
         guided_perspective_enabled,
@@ -626,22 +635,110 @@ fn solve_generic_distortion_inv(r_target: f64, k_scaled: f64) -> f64 {
     r
 }
 
+/// Distortion values of a Lensfun profile, read from `lensDistortionParams`.
+struct LensDistortion {
+    k1: f64,
+    k2: f64,
+    k3: f64,
+    is_ptlens: bool,
+    /// 0.0 marks values from an older sidecar file.
+    radius_scale: f64,
+    amount: f64,
+    enabled: bool,
+}
+
+impl LensDistortion {
+    fn new(params: &GeometryParams) -> Self {
+        let k1 = params.lens_dist_k1 as f64;
+        let k2 = params.lens_dist_k2 as f64;
+        let k3 = params.lens_dist_k3 as f64;
+        let radius_scale = params.lens_radius_scale as f64;
+        let amount = if radius_scale > 0.0 {
+            params.lens_distortion_amount as f64
+        } else {
+            // Values from an older sidecar file keep the old behaviour, so
+            // that an existing edit does not change.
+            (params.lens_distortion_amount as f64) * 2.5
+        };
+        Self {
+            k1,
+            k2,
+            k3,
+            is_ptlens: params.lens_model == 1,
+            radius_scale,
+            amount,
+            enabled: params.lens_distortion_enabled
+                && (k1.abs() > 1e-6 || k2.abs() > 1e-6 || k3.abs() > 1e-6),
+        }
+    }
+
+    /// Factor from the output radius to the source radius, with the amount
+    /// applied. The radius is normalized to the half diagonal.
+    fn scale(&self, ru_norm: f64) -> f64 {
+        let rd_norm = ru_norm * self.factor_and_slope(ru_norm).0;
+        let effective_r_norm = ru_norm + (rd_norm - ru_norm) * self.amount;
+        effective_r_norm / ru_norm
+    }
+
+    /// The ratio and the derivative of the distorted radius.
+    fn factor_and_slope(&self, ru_norm: f64) -> (f64, f64) {
+        let (k1, k2, k3) = (self.k1, self.k2, self.k3);
+        if self.radius_scale > 0.0 {
+            // Lensfun defines r = 1 at the middle of the long edge. The
+            // scale also carries the crop factor of the calibration.
+            let t = ru_norm * self.radius_scale;
+            if self.is_ptlens {
+                let factor = 1.0 + k1 * t + k2 * t * t + k3 * t * t * t;
+                let slope = 1.0 + 2.0 * k1 * t + 3.0 * k2 * t * t + 4.0 * k3 * t * t * t;
+                (factor, slope)
+            } else {
+                let t2 = t * t;
+                let factor = 1.0 + k1 * t2 + k2 * (t2 * t2);
+                let slope = 1.0 + 3.0 * k1 * t2 + 5.0 * k2 * (t2 * t2);
+                (factor, slope)
+            }
+        } else {
+            // Values from an older sidecar file, evaluated the old way.
+            let ru_norm2 = ru_norm * ru_norm;
+            if self.is_ptlens {
+                let (a, b, c) = (k1, k2, k3);
+                let d = 1.0 - a - b - c;
+                let factor = a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d;
+                let slope =
+                    4.0 * a * ru_norm2 * ru_norm + 3.0 * b * ru_norm2 + 2.0 * c * ru_norm + d;
+                (factor, slope)
+            } else {
+                let factor = 1.0
+                    + k1 * ru_norm2
+                    + k2 * (ru_norm2 * ru_norm2)
+                    + k3 * (ru_norm2 * ru_norm2 * ru_norm2);
+                let factor_prime = 2.0 * k1 * ru_norm
+                    + 4.0 * k2 * ru_norm2 * ru_norm
+                    + 6.0 * k3 * (ru_norm2 * ru_norm2) * ru_norm;
+                (factor, factor + ru_norm * factor_prime)
+            }
+        }
+    }
+}
+
+/// Darkening of the Lensfun model "pa" at a radius normalized to the half
+/// diagonal.
+fn lens_vignetting_factor(vk1: f64, vk2: f64, vk3: f64, ru_norm: f64) -> f64 {
+    let ru_norm2 = ru_norm * ru_norm;
+    1.0 + vk1 * ru_norm2 + vk2 * (ru_norm2 * ru_norm2) + vk3 * (ru_norm2 * ru_norm2 * ru_norm2)
+}
+
 fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32) -> f64 {
     let cx = (width / 2.0) as f64;
     let cy = (height / 2.0) as f64;
     let half_diagonal = (cx * cx + cy * cy).sqrt();
     let max_radius_sq_inv = 1.0 / (cx * cx + cy * cy);
 
-    let lk1 = params.lens_dist_k1 as f64;
-    let lk2 = params.lens_dist_k2 as f64;
-    let lk3 = params.lens_dist_k3 as f64;
-    let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+    let lens = LensDistortion::new(params);
 
     let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
 
-    let has_lens_correction = params.lens_distortion_enabled
-        && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
-    let is_ptlens = params.lens_model == 1;
+    let has_lens_correction = lens.enabled;
 
     let sample_points: [(f64, f64); 8] = [
         (cx, 0.0),
@@ -668,25 +765,7 @@ fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32
         let mut mapped_dy = dy;
 
         if has_lens_correction {
-            let ru_norm = ru / half_diagonal;
-            let ru_norm2 = ru_norm * ru_norm;
-
-            let rd_norm = if is_ptlens {
-                let a = lk1;
-                let b = lk2;
-                let c = lk3;
-                let d = 1.0 - a - b - c;
-                ru_norm * (a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d)
-            } else {
-                ru_norm
-                    * (1.0
-                        + lk1 * ru_norm2
-                        + lk2 * (ru_norm2 * ru_norm2)
-                        + lk3 * (ru_norm2 * ru_norm2 * ru_norm2))
-            };
-
-            let effective_r_norm = ru_norm + (rd_norm - ru_norm) * lens_dist_amt;
-            let scale = effective_r_norm / ru_norm;
+            let scale = lens.scale(ru / half_diagonal);
 
             mapped_dx *= scale;
             mapped_dy *= scale;
@@ -733,14 +812,9 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
     let hd = half_diagonal;
 
     let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
-    let lk1 = params.lens_dist_k1 as f64;
-    let lk2 = params.lens_dist_k2 as f64;
-    let lk3 = params.lens_dist_k3 as f64;
-    let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+    let lens = LensDistortion::new(&params);
 
-    let has_lens_correction = params.lens_distortion_enabled
-        && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
-    let is_ptlens = params.lens_model == 1;
+    let has_lens_correction = lens.enabled;
 
     let auto_crop_scale = if has_lens_correction || k_distortion.abs() > 1e-5 {
         compute_lens_auto_crop_scale(&params, width as f32, height as f32) as f32
@@ -803,25 +877,7 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
                         let ru = (dx * dx + dy * dy).sqrt();
 
                         if ru > 1e-6 {
-                            let ru_norm = ru / hd;
-                            let ru_norm2 = ru_norm * ru_norm;
-
-                            let rd_norm = if is_ptlens {
-                                let a = lk1;
-                                let b = lk2;
-                                let c = lk3;
-                                let d = 1.0 - a - b - c;
-                                ru_norm * (a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d)
-                            } else {
-                                ru_norm
-                                    * (1.0
-                                        + lk1 * ru_norm2
-                                        + lk2 * (ru_norm2 * ru_norm2)
-                                        + lk3 * (ru_norm2 * ru_norm2 * ru_norm2))
-                            };
-
-                            let effective_r_norm = ru_norm + (rd_norm - ru_norm) * lens_dist_amt;
-                            let scale = effective_r_norm / ru_norm;
+                            let scale = lens.scale(ru / hd);
 
                             src_x = cx + (dx * scale) as f32;
                             src_y = cy + (dy * scale) as f32;
@@ -848,13 +904,7 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
                         let dx = (src_x - cx) as f64;
                         let dy = (src_y - cy) as f64;
                         let ru = (dx * dx + dy * dy).sqrt();
-                        let ru_norm = ru / hd;
-                        let ru_norm2 = ru_norm * ru_norm;
-
-                        let v_factor = 1.0
-                            + vk1 * ru_norm2
-                            + vk2 * (ru_norm2 * ru_norm2)
-                            + vk3 * (ru_norm2 * ru_norm2 * ru_norm2);
+                        let v_factor = lens_vignetting_factor(vk1, vk2, vk3, ru / hd);
 
                         if v_factor > 1e-6 {
                             let correction_gain = 1.0 / v_factor;
@@ -885,14 +935,9 @@ pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams
     let hd = half_diagonal;
 
     let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
-    let lk1 = params.lens_dist_k1 as f64;
-    let lk2 = params.lens_dist_k2 as f64;
-    let lk3 = params.lens_dist_k3 as f64;
-    let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+    let lens = LensDistortion::new(&params);
 
-    let has_lens_correction = params.lens_distortion_enabled
-        && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
-    let is_ptlens = params.lens_model == 1;
+    let has_lens_correction = lens.enabled;
 
     let auto_crop_scale = if has_lens_correction || k_distortion.abs() > 1e-5 {
         compute_lens_auto_crop_scale(&params, width as f32, height as f32) as f32
@@ -940,36 +985,11 @@ pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams
 
                         for _ in 0..8 {
                             let ru_norm = ru / hd;
-                            let ru_norm2 = ru_norm * ru_norm;
+                            let (factor, f_prime) = lens.factor_and_slope(ru_norm);
+                            let f_val = ru * factor;
 
-                            let (f_val, f_prime) = if is_ptlens {
-                                let a = lk1;
-                                let b = lk2;
-                                let c = lk3;
-                                let d = 1.0 - a - b - c;
-                                let poly = a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d;
-
-                                let val = ru * poly;
-                                let prime = 4.0 * a * ru_norm2 * ru_norm
-                                    + 3.0 * b * ru_norm2
-                                    + 2.0 * c * ru_norm
-                                    + d;
-                                (val, prime)
-                            } else {
-                                let poly = 1.0
-                                    + lk1 * ru_norm2
-                                    + lk2 * (ru_norm2 * ru_norm2)
-                                    + lk3 * (ru_norm2 * ru_norm2 * ru_norm2);
-                                let val = ru * poly;
-                                let poly_prime = 2.0 * lk1 * ru_norm
-                                    + 4.0 * lk2 * ru_norm2 * ru_norm
-                                    + 6.0 * lk3 * (ru_norm2 * ru_norm2) * ru_norm;
-                                let prime = poly + ru_norm * poly_prime;
-                                (val, prime)
-                            };
-
-                            let g_val = ru + (f_val - ru) * lens_dist_amt - rd;
-                            let g_prime = 1.0 + (f_prime - 1.0) * lens_dist_amt;
+                            let g_val = ru + (f_val - ru) * lens.amount - rd;
+                            let g_prime = 1.0 + (f_prime - 1.0) * lens.amount;
 
                             if g_prime.abs() < 1e-7 {
                                 break;
@@ -1117,14 +1137,9 @@ pub fn inverse_transform_point(
         let mut src_y = (vec.y as f64) * inv_z;
 
         let k_distortion = (params.distortion as f64 / 100.0) * 2.5;
-        let lk1 = params.lens_dist_k1 as f64;
-        let lk2 = params.lens_dist_k2 as f64;
-        let lk3 = params.lens_dist_k3 as f64;
-        let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+        let lens = LensDistortion::new(&params);
 
-        let has_lens_correction = params.lens_distortion_enabled
-            && (lk1.abs() > 1e-6 || lk2.abs() > 1e-6 || lk3.abs() > 1e-6);
-        let is_ptlens = params.lens_model == 1;
+        let has_lens_correction = lens.enabled;
 
         let auto_crop_scale = if has_lens_correction || k_distortion.abs() > 1e-5 {
             compute_lens_auto_crop_scale(&params, width, height)
@@ -1143,25 +1158,7 @@ pub fn inverse_transform_point(
             let ru = (dx * dx + dy * dy).sqrt();
 
             if ru > 1e-6 {
-                let ru_norm = ru / hd;
-                let ru_norm2 = ru_norm * ru_norm;
-
-                let rd_norm = if is_ptlens {
-                    let a = lk1;
-                    let b = lk2;
-                    let c = lk3;
-                    let d = 1.0 - a - b - c;
-                    ru_norm * (a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d)
-                } else {
-                    ru_norm
-                        * (1.0
-                            + lk1 * ru_norm2
-                            + lk2 * (ru_norm2 * ru_norm2)
-                            + lk3 * (ru_norm2 * ru_norm2 * ru_norm2))
-                };
-
-                let effective_r_norm = ru_norm + (rd_norm - ru_norm) * lens_dist_amt;
-                let scale = effective_r_norm / ru_norm;
+                let scale = lens.scale(ru / hd);
 
                 src_x = cx + (dx * scale);
                 src_y = cy + (dy * scale);
@@ -2110,18 +2107,24 @@ pub fn is_image_edited(
     bytemuck::bytes_of(&current_adj) != bytemuck::bytes_of(&default_adj)
 }
 
+fn is_section_visible(adjustments: &serde_json::Value, section: &str) -> bool {
+    adjustments
+        .get("sectionVisibility")
+        .and_then(|v| v.get(section))
+        .and_then(|s| s.as_bool())
+        .unwrap_or(true)
+}
+
+fn is_color_tool_visible(adjustments: &serde_json::Value, tool: &str) -> bool {
+    is_section_visible(adjustments, "color") && is_section_visible(adjustments, tool)
+}
+
 fn get_global_adjustments_from_json(
     js_adjustments: &serde_json::Value,
     is_raw: bool,
     tonemapper_override: Option<u32>,
 ) -> GlobalAdjustments {
-    let visibility = js_adjustments.get("sectionVisibility");
-    let is_visible = |section: &str| -> bool {
-        visibility
-            .and_then(|v| v.get(section))
-            .and_then(|s| s.as_bool())
-            .unwrap_or(true)
-    };
+    let is_visible = |section: &str| is_section_visible(js_adjustments, section);
 
     let get_val = |section: &str, key: &str, scale: f32, default: Option<f64>| -> f32 {
         if is_visible(section) {
@@ -2181,6 +2184,9 @@ fn get_global_adjustments_from_json(
     } else {
         Vec::new()
     };
+
+    let color_grading_visible = is_color_tool_visible(js_adjustments, "colorGrading");
+    let color_mixer_visible = is_color_tool_visible(js_adjustments, "colorMixer");
 
     let cg_obj = js_adjustments
         .get("colorGrading")
@@ -2342,32 +2348,32 @@ fn get_global_adjustments_from_json(
         _pad_cg2: 0.0,
         _pad_cg3: 0.0,
         _pad_cg4: 0.0,
-        color_grading_shadows: if is_visible("color") {
+        color_grading_shadows: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["shadows"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_midtones: if is_visible("color") {
+        color_grading_midtones: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["midtones"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_highlights: if is_visible("color") {
+        color_grading_highlights: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["highlights"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_global: if is_visible("color") {
+        color_grading_global: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["global"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_blending: if is_visible("color") {
+        color_grading_blending: if color_grading_visible {
             cg_obj["blending"].as_f64().unwrap_or(50.0) as f32 / SCALES.color_grading_blending
         } else {
             0.5
         },
-        color_grading_balance: if is_visible("color") {
+        color_grading_balance: if color_grading_visible {
             cg_obj["balance"].as_f64().unwrap_or(0.0) as f32 / SCALES.color_grading_balance
         } else {
             0.0
@@ -2377,7 +2383,7 @@ fn get_global_adjustments_from_json(
 
         color_calibration: color_cal_settings,
 
-        hsl: if is_visible("color") {
+        hsl: if color_mixer_visible {
             parse_hsl_adjustments(&js_adjustments.get("hsl").cloned().unwrap_or_default())
         } else {
             [HslColor::default(); 8]
@@ -2412,13 +2418,7 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
         return MaskAdjustments::default();
     }
 
-    let visibility = adj.get("sectionVisibility");
-    let is_visible = |section: &str| -> bool {
-        visibility
-            .and_then(|v| v.get(section))
-            .and_then(|s| s.as_bool())
-            .unwrap_or(true)
-    };
+    let is_visible = |section: &str| is_section_visible(adj, section);
 
     let get_val = |section: &str, key: &str, scale: f32| -> f32 {
         if is_visible(section) {
@@ -2449,6 +2449,9 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
     } else {
         Vec::new()
     };
+    let color_grading_visible = is_color_tool_visible(adj, "colorGrading");
+    let color_mixer_visible = is_color_tool_visible(adj, "colorMixer");
+
     let cg_obj = adj.get("colorGrading").cloned().unwrap_or_default();
 
     MaskAdjustments {
@@ -2485,32 +2488,32 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
         hue: get_val("color", "hue", 1.0),
         _pad_cg1: 0.0,
         _pad_cg2: 0.0,
-        color_grading_shadows: if is_visible("color") {
+        color_grading_shadows: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["shadows"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_midtones: if is_visible("color") {
+        color_grading_midtones: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["midtones"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_highlights: if is_visible("color") {
+        color_grading_highlights: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["highlights"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_global: if is_visible("color") {
+        color_grading_global: if color_grading_visible {
             parse_color_grade_settings(&cg_obj["global"])
         } else {
             ColorGradeSettings::default()
         },
-        color_grading_blending: if is_visible("color") {
+        color_grading_blending: if color_grading_visible {
             cg_obj["blending"].as_f64().unwrap_or(50.0) as f32 / SCALES.color_grading_blending
         } else {
             0.5
         },
-        color_grading_balance: if is_visible("color") {
+        color_grading_balance: if color_grading_visible {
             cg_obj["balance"].as_f64().unwrap_or(0.0) as f32 / SCALES.color_grading_balance
         } else {
             0.0
@@ -2518,7 +2521,7 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
         _pad5: 0.0,
         _pad6: 0.0,
 
-        hsl: if is_visible("color") {
+        hsl: if color_mixer_visible {
             parse_hsl_adjustments(&adj.get("hsl").cloned().unwrap_or_default())
         } else {
             [HslColor::default(); 8]
@@ -3780,6 +3783,374 @@ mod white_balance_sample_tests {
         let s = compute_white_balance_sample(&img, true, &diamond).unwrap();
         assert!(s.count < 16);
         assert!(s.temperature.abs() < 1e-4);
+    }
+}
+
+#[cfg(test)]
+mod lens_tests {
+    use super::*;
+
+    fn base_params() -> GeometryParams {
+        GeometryParams {
+            lens_distortion_amount: 1.0,
+            lens_tca_amount: 1.0,
+            lens_vignette_amount: 1.0,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn lensfun_poly_model_uses_the_radius_scale() {
+        // m(t) = 1 + k1*t^2 + k2*t^4 with t = r * radius_scale.
+        let mut params = base_params();
+        params.lens_dist_k1 = -0.02;
+        params.lens_radius_scale = 1.8028;
+        let lens = LensDistortion::new(&params);
+        assert!(lens.enabled);
+
+        // The scale is stored as f32, so the test uses the stored value.
+        let t = params.lens_radius_scale as f64;
+        let expected = 1.0 + (params.lens_dist_k1 as f64) * t * t;
+        assert!(
+            (lens.scale(1.0) - expected).abs() < 1e-9,
+            "{} instead of {}",
+            lens.scale(1.0),
+            expected
+        );
+
+        // The amount blends between 1.0 and the model value, without the
+        // amplification that the old code applied.
+        params.lens_distortion_amount = 0.5;
+        let lens = LensDistortion::new(&params);
+        let half = 1.0 + (expected - 1.0) * 0.5;
+        assert!((lens.scale(1.0) - half).abs() < 1e-9);
+    }
+
+    #[test]
+    fn lensfun_ptlens_model_uses_the_radius_scale() {
+        // m(t) = 1 + k1*t + k2*t^2 + k3*t^3.
+        let mut params = base_params();
+        params.lens_model = 1;
+        params.lens_dist_k1 = -0.004;
+        params.lens_dist_k2 = -0.089;
+        params.lens_dist_k3 = 0.025;
+        params.lens_radius_scale = 1.8028;
+        let lens = LensDistortion::new(&params);
+
+        let t = params.lens_radius_scale as f64;
+        let expected = 1.0
+            + (params.lens_dist_k1 as f64) * t
+            + (params.lens_dist_k2 as f64) * t * t
+            + (params.lens_dist_k3 as f64) * t * t * t;
+        assert!(
+            (lens.scale(1.0) - expected).abs() < 1e-9,
+            "{} instead of {}",
+            lens.scale(1.0),
+            expected
+        );
+    }
+
+    #[derive(serde::Deserialize)]
+    struct OracleCase {
+        label: String,
+        lens_maker: String,
+        lens_model: String,
+        lens_crop: f32,
+        camera_maker: String,
+        camera_model: String,
+        camera_crop: f32,
+        focal: f32,
+        aperture: f32,
+        distance: f32,
+        distortion: Vec<[f64; 2]>,
+        vignetting: Vec<[f64; 2]>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Oracle {
+        cases: Vec<OracleCase>,
+    }
+
+    fn oracle_cases() -> Vec<OracleCase> {
+        let json = include_str!("../tests/lensfun_oracle/expected.json");
+        serde_json::from_str::<Oracle>(json)
+            .expect("expected.json parses")
+            .cases
+    }
+
+    /// Resolves a case the way the app does and reads the values back from
+    /// the sidecar JSON.
+    fn oracle_params(
+        db: &crate::lens_correction::LensDatabase,
+        case: &OracleCase,
+    ) -> GeometryParams {
+        let camera_crop =
+            crate::lens_correction::camera_crop_factor(db, &case.camera_maker, &case.camera_model)
+                .unwrap_or_else(|| panic!("{}: camera not found", case.label));
+        assert!(
+            (camera_crop - case.camera_crop).abs() < 1e-6,
+            "{}: camera crop {} instead of {}",
+            case.label,
+            camera_crop,
+            case.camera_crop
+        );
+
+        let maker_lenses: Vec<&crate::lens_correction::Lens> = db
+            .lenses
+            .iter()
+            .filter(|l| l.get_maker() == case.lens_maker)
+            .collect();
+        let lens = maker_lenses
+            .iter()
+            .find(|l| {
+                l.get_canonical_model_name() == case.lens_model
+                    && (l.cropfactor.unwrap_or(1.0) - case.lens_crop).abs() < 1e-3
+            })
+            .unwrap_or_else(|| panic!("{}: lens not found", case.label));
+
+        let (aperture, distance) = if case.aperture > 0.0 {
+            (Some(case.aperture), Some(case.distance))
+        } else {
+            (None, None)
+        };
+        let params = crate::lens_correction::resolve_lens_params(
+            db,
+            &case.lens_maker,
+            &lens.get_display_name(&maker_lenses),
+            case.focal,
+            aperture,
+            distance,
+            Some(camera_crop),
+        )
+        .unwrap_or_else(|| panic!("{}: no profile", case.label));
+
+        let adjustments = serde_json::json!({ "lensDistortionParams": params });
+        get_geometry_params_from_json(&adjustments)
+    }
+
+    #[test]
+    fn lensfun_oracle_distortion() {
+        let db = crate::lens_correction::load_bundled_db();
+        for case in oracle_cases().iter().filter(|c| !c.distortion.is_empty()) {
+            let lens = LensDistortion::new(&oracle_params(&db, case));
+            for [r, expected] in &case.distortion {
+                let actual = lens.scale(*r);
+                assert!(
+                    (actual - expected).abs() < 2e-5,
+                    "{} at r = {:.3}: {} instead of {}",
+                    case.label,
+                    r,
+                    actual,
+                    expected
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn lensfun_oracle_vignetting() {
+        let db = crate::lens_correction::load_bundled_db();
+        for case in oracle_cases().iter().filter(|c| !c.vignetting.is_empty()) {
+            let params = oracle_params(&db, case);
+            for [r, expected] in &case.vignetting {
+                let factor = lens_vignetting_factor(
+                    params.vig_k1 as f64,
+                    params.vig_k2 as f64,
+                    params.vig_k3 as f64,
+                    *r,
+                );
+                let actual = 1.0 / factor;
+                assert!(
+                    (actual / expected - 1.0).abs() < 2e-5,
+                    "{} at r = {:.3}: gain {} instead of {}",
+                    case.label,
+                    r,
+                    actual,
+                    expected
+                );
+            }
+        }
+    }
+
+    /// The evaluation before the radius scale existed, copied from the
+    /// previous version of the warp code.
+    fn previous_scale_and_newton_terms(params: &GeometryParams, ru_norm: f64) -> (f64, f64, f64) {
+        let lk1 = params.lens_dist_k1 as f64;
+        let lk2 = params.lens_dist_k2 as f64;
+        let lk3 = params.lens_dist_k3 as f64;
+        let lens_dist_amt = (params.lens_distortion_amount as f64) * 2.5;
+        let ru_norm2 = ru_norm * ru_norm;
+
+        let rd_norm = if params.lens_model == 1 {
+            let a = lk1;
+            let b = lk2;
+            let c = lk3;
+            let d = 1.0 - a - b - c;
+            ru_norm * (a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d)
+        } else {
+            ru_norm
+                * (1.0
+                    + lk1 * ru_norm2
+                    + lk2 * (ru_norm2 * ru_norm2)
+                    + lk3 * (ru_norm2 * ru_norm2 * ru_norm2))
+        };
+        let effective_r_norm = ru_norm + (rd_norm - ru_norm) * lens_dist_amt;
+        let scale = effective_r_norm / ru_norm;
+
+        let (poly, prime) = if params.lens_model == 1 {
+            let a = lk1;
+            let b = lk2;
+            let c = lk3;
+            let d = 1.0 - a - b - c;
+            let poly = a * ru_norm2 * ru_norm + b * ru_norm2 + c * ru_norm + d;
+            let prime = 4.0 * a * ru_norm2 * ru_norm + 3.0 * b * ru_norm2 + 2.0 * c * ru_norm + d;
+            (poly, prime)
+        } else {
+            let poly = 1.0
+                + lk1 * ru_norm2
+                + lk2 * (ru_norm2 * ru_norm2)
+                + lk3 * (ru_norm2 * ru_norm2 * ru_norm2);
+            let poly_prime = 2.0 * lk1 * ru_norm
+                + 4.0 * lk2 * ru_norm2 * ru_norm
+                + 6.0 * lk3 * (ru_norm2 * ru_norm2) * ru_norm;
+            (poly, poly + ru_norm * poly_prime)
+        };
+        (scale, poly, prime)
+    }
+
+    #[test]
+    fn old_sidecar_values_render_bit_for_bit_as_before() {
+        let mut ptlens = base_params();
+        ptlens.lens_model = 1;
+        ptlens.lens_dist_k1 = 0.0061844;
+        ptlens.lens_dist_k2 = -0.0313122;
+        ptlens.lens_dist_k3 = 0.0314815;
+        ptlens.lens_distortion_amount = 0.73;
+
+        let mut poly = base_params();
+        poly.lens_dist_k1 = -0.0215;
+        poly.lens_dist_k2 = 0.0042;
+        poly.lens_dist_k3 = -0.0007;
+
+        for params in [&ptlens, &poly] {
+            let lens = LensDistortion::new(params);
+            for i in 1..=2000 {
+                let ru_norm = i as f64 / 1700.0;
+                let (scale, factor, slope) = previous_scale_and_newton_terms(params, ru_norm);
+                assert_eq!(lens.scale(ru_norm).to_bits(), scale.to_bits());
+                let (new_factor, new_slope) = lens.factor_and_slope(ru_norm);
+                assert_eq!(new_factor.to_bits(), factor.to_bits());
+                assert_eq!(new_slope.to_bits(), slope.to_bits());
+            }
+        }
+    }
+
+    #[test]
+    fn old_sidecar_values_keep_the_old_behaviour() {
+        // Without a radius scale the values come from an older sidecar file.
+        // They keep the old evaluation, amplified by 2.5.
+        let mut params = base_params();
+        params.lens_dist_k1 = -0.02;
+        params.lens_radius_scale = 0.0;
+        let lens = LensDistortion::new(&params);
+        assert!(lens.enabled);
+
+        let expected = 1.0 + (params.lens_dist_k1 as f64) * 2.5;
+        assert!(
+            (lens.scale(1.0) - expected).abs() < 1e-9,
+            "{} instead of {}",
+            lens.scale(1.0),
+            expected
+        );
+    }
+}
+
+#[cfg(test)]
+mod color_tool_visibility_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn edited(visibility: Option<serde_json::Value>) -> serde_json::Value {
+        let mut adj = json!({
+            "saturation": 20,
+            "colorGrading": {
+                "shadows": { "hue": 200, "saturation": 40, "luminance": 0 },
+                "midtones": { "hue": 30, "saturation": 10, "luminance": 5 },
+                "highlights": { "hue": 60, "saturation": 25, "luminance": 0 },
+                "global": { "hue": 0, "saturation": 0, "luminance": 0 },
+                "blending": 70,
+                "balance": 15
+            },
+            "hsl": { "reds": { "hue": 10, "saturation": -20, "luminance": 5 } }
+        });
+        if let Some(v) = visibility {
+            adj["sectionVisibility"] = v;
+        }
+        adj
+    }
+
+    fn global(adj: &serde_json::Value) -> GlobalAdjustments {
+        get_global_adjustments_from_json(adj, true, None)
+    }
+
+    fn has_grading(a: &GlobalAdjustments) -> bool {
+        a.color_grading_shadows.saturation != 0.0 && a.color_grading_balance != 0.0
+    }
+
+    fn has_mixer(a: &GlobalAdjustments) -> bool {
+        a.hsl[0].hue != 0.0
+    }
+
+    #[test]
+    fn absent_tool_keys_render_like_all_visible() {
+        let all_on = global(&edited(Some(json!({
+            "basic": true, "curves": true, "color": true,
+            "colorGrading": true, "colorMixer": true, "details": true, "effects": true
+        }))));
+        for vis in [None, Some(json!({})), Some(json!({ "color": true }))] {
+            let a = global(&edited(vis));
+            assert_eq!(bytemuck::bytes_of(&a), bytemuck::bytes_of(&all_on));
+        }
+        assert!(has_grading(&all_on) && has_mixer(&all_on));
+    }
+
+    #[test]
+    fn tools_toggle_independently() {
+        let no_grading = global(&edited(Some(json!({ "colorGrading": false }))));
+        assert!(!has_grading(&no_grading) && has_mixer(&no_grading));
+        assert_eq!(no_grading.color_grading_blending, 0.5);
+
+        let no_mixer = global(&edited(Some(json!({ "colorMixer": false }))));
+        assert!(has_grading(&no_mixer) && !has_mixer(&no_mixer));
+        assert!(no_mixer.saturation != 0.0);
+    }
+
+    #[test]
+    fn color_panel_eye_bypasses_both_tools() {
+        let a = global(&edited(Some(json!({
+            "color": false, "colorGrading": true, "colorMixer": true
+        }))));
+        assert!(!has_grading(&a) && !has_mixer(&a));
+        assert_eq!(a.saturation, 0.0);
+    }
+
+    #[test]
+    fn mask_tools_follow_the_same_rules() {
+        let on = get_mask_adjustments_from_json(&edited(None));
+        let explicit = get_mask_adjustments_from_json(&edited(Some(json!({ "color": true }))));
+        assert_eq!(bytemuck::bytes_of(&on), bytemuck::bytes_of(&explicit));
+        assert!(on.color_grading_shadows.saturation != 0.0 && on.hsl[0].hue != 0.0);
+
+        let no_grading =
+            get_mask_adjustments_from_json(&edited(Some(json!({ "colorGrading": false }))));
+        assert!(no_grading.color_grading_shadows.saturation == 0.0 && no_grading.hsl[0].hue != 0.0);
+
+        let no_mixer =
+            get_mask_adjustments_from_json(&edited(Some(json!({ "colorMixer": false }))));
+        assert!(no_mixer.color_grading_shadows.saturation != 0.0 && no_mixer.hsl[0].hue == 0.0);
+
+        let parent_off = get_mask_adjustments_from_json(&edited(Some(json!({ "color": false }))));
+        assert!(parent_off.color_grading_shadows.saturation == 0.0 && parent_off.hsl[0].hue == 0.0);
     }
 }
 

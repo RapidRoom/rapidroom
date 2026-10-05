@@ -5,6 +5,7 @@ import { ChannelConfig } from '../components/adjustments/Curves';
 import { ImageDimensions } from '../hooks/useImageRenderSize';
 import { ToolType } from '../components/panel/right/Masks';
 import { OverlayMode } from '../components/panel/right/CropPanel';
+import { HslMixerProperty } from '../utils/hslMixer';
 import {
   DEFAULT_REFERENCE_VIEW_STATE,
   ReferenceViewCommand,
@@ -65,6 +66,7 @@ interface EditorState {
   overlayRotation: number;
   isStraightenActive: boolean;
   isWbPickerActive: boolean;
+  mixerPickerProperty: HslMixerProperty | null;
   isGuidedPerspectiveActive: boolean;
   liveRotation: number | null;
   brushSettings: BrushSettings | null;
@@ -131,6 +133,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   overlayRotation: 0,
   isStraightenActive: false,
   isWbPickerActive: false,
+  mixerPickerProperty: null,
   isGuidedPerspectiveActive: false,
   liveRotation: null,
 
