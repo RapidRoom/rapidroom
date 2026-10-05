@@ -23,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path, help="New engine directory under samples/")
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--mcp-clients", action="store_true", help="Include MCP for real-client regression checks")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     out = args.out.resolve()
@@ -31,6 +32,7 @@ def main():
     out.mkdir(parents=True, exist_ok=False)
     env = os.environ.copy()
     env["CARGO_BUILD_JOBS"] = "4"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     target = Path(env.get("CARGO_TARGET_DIR", str(root / "src-tauri/target"))).resolve()
     env["CARGO_TARGET_DIR"] = str(target)
     with args.lock.open("a") as lock:
@@ -39,7 +41,7 @@ def main():
         before = source(root)
         with (out / "build.log").open("w") as log:
             subprocess.run(["nice", "-n", "10", "npm", "run", "tauri", "build", "--", "--no-bundle",
-                            "--features", "native-ui-test", "--", "--locked"],
+                            "--features", "native-ui-test,mcp" if args.mcp_clients else "native-ui-test", "--", "--locked"],
                            cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
         if source(root) != before:
             raise RuntimeError("Source changed during the build")
@@ -49,7 +51,7 @@ def main():
         with (out / "rapidroom").open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
         (out / "build.json").write_text(json.dumps({"source": before, "engine_sha256": digest,
-              "profile": "release", "features": ["native-ui-test"], "cargo_locked": True,
+              "profile": "release", "features": ["native-ui-test"] + (["mcp"] if args.mcp_clients else []), "cargo_locked": True,
               "jobs": 4, "resources": "symlinked source resources; no AI operation in minimum smoke"}, indent=2) + "\n")
     print("Pinned native UI release: " + str(out / "rapidroom"), flush=True)
 

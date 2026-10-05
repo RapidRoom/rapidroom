@@ -63,6 +63,7 @@ import { useProductivityActions } from './hooks/useProductivityActions';
 
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useAndroidBackHandler } from './hooks/useAndroidBackHandler';
+import { useMcpBridge } from './hooks/useMcpBridge';
 import './i18n';
 
 import {
@@ -461,6 +462,7 @@ function App() {
   });
 
   useAndroidBackHandler();
+  useMcpBridge(handleImageSelect);
 
   useKeyboardShortcuts({
     sortedImageList,

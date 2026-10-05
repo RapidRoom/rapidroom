@@ -1,0 +1,42 @@
+{
+  "wire_protocols": {
+    "2025-06-18": {
+      "tools": 13,
+      "ttlMs": 0,
+      "cacheScope": "private",
+      "state_read": true
+    },
+    "2026-07-28": {
+      "tools": 13,
+      "ttlMs": 0,
+      "cacheScope": "private",
+      "state_read": true
+    }
+  },
+  "clients": {
+    "claude": {
+      "version": "2.1.289 (Claude Code)",
+      "actual_mcp_edit_call": true,
+      "exposure": 0.5,
+      "revision_changed": true,
+      "native_slider_and_preview_changed": true
+    },
+    "codex": {
+      "version": "codex-cli 0.160.0",
+      "actual_mcp_edit_call": true,
+      "exposure": 1.0,
+      "revision_changed": true,
+      "native_slider_and_preview_changed": true
+    }
+  },
+  "application_head": "a854016e5857887b8a067280fd0e97c85fa411cb",
+  "engine_sha256": "685bac54c72e2657dccbe37678372624e2648e200e18d1ae44bc2be7fd3f8347",
+  "harness_sha256": "3a357f9ca3d0717f86728b12d1a21ff804d89d40521ee61152c05e6b67940dae",
+  "client_check_sha256": "18759d68e673648005310ace7711943e7049292d173768603948e7c174bbccc4",
+  "native_steps_passed": 8,
+  "exit_code": 0,
+  "frontend_and_native_errors": 0,
+  "fixture_and_engine_unchanged": true,
+  "case": "samples/mcp-clients-102/native-protocol-complete-approved-tools",
+  "visual_capture_reviewed": true
+}

@@ -41,6 +41,8 @@ interface EditorState {
   // Previews & Overlays
   finalPreviewUrl: string | null;
   uncroppedAdjustedPreviewUrl: string | null;
+  previewRenderVersion: number;
+  lastRenderedAdjustments: Adjustments | null;
   interactivePatch: InteractivePatch | null;
   showOriginal: boolean;
   referenceView: ReferenceViewState;
@@ -107,6 +109,8 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   finalPreviewUrl: null,
   uncroppedAdjustedPreviewUrl: null,
+  previewRenderVersion: 0,
+  lastRenderedAdjustments: null,
   showOriginal: false,
   referenceView: DEFAULT_REFERENCE_VIEW_STATE,
   histogram: null,

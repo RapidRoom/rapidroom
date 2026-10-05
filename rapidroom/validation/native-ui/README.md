@@ -98,3 +98,11 @@ Weston version and software native presentation need a separate measured run.
 macOS, Windows, Android, physical touch, user desktop focus and file-picker
 dialogs remain untested. The opt-in driver build supplements the default release
 checks and the pixel-exact full60 regression; it does not replace either.
+
+## Optional real MCP clients
+
+Pass `--mcp-clients` to both helpers to build `native-ui-test,mcp` and run the installed `claude` and `codex` CLIs after the minimum editor/export scenario. Python 3.11+ and working existing client logins are required. This opt-in scenario makes real model requests. Each client discovers RapidRoom’s tools and changes only Exposure on the owned CC0 photo; the harness requires an actual editing-tool event, changed revision, exact native slider value and changed native preview. It also checks wire discovery for MCP `2025-06-18` and `2026-07-28`, including required cache hints.
+
+Client configuration is supplied per invocation, with unrelated servers and user hooks disabled. No global client configuration changes. Logs, client versions, results and screenshots remain in the isolated case. This supplements the raw HTTP and unit checks with the real clients’ response validation and tool-call path.
+
+[`mcp-client-evidence.json`](mcp-client-evidence.json) records the successful real-client run: Claude Code 2.1.289 changed Exposure to 0.5 and Codex 0.160.0 changed it to 1.0, each with a recorded MCP editing call and verified revision/slider/preview changes. The app exited with zero frontend/native errors and unchanged fixture/engine guards. The application was built from `a854016e`; the client-check harness is hashed separately. Codex grants per-invocation approval only for the two explicitly requested state/edit tools.

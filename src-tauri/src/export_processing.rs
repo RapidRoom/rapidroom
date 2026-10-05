@@ -151,6 +151,17 @@ pub struct ExportSettings {
     pub output_sharpening: Option<OutputSharpening>,
 }
 
+#[cfg(feature = "mcp")]
+pub(crate) struct ExportRequest {
+    pub(crate) paths: Vec<String>,
+    pub(crate) output_folder: String,
+    pub(crate) base_origin_folders: Vec<String>,
+    pub(crate) export_settings: ExportSettings,
+    pub(crate) output_format: String,
+    pub(crate) current_edit_path: Option<String>,
+    pub(crate) current_edit_adjustments: Option<Value>,
+}
+
 #[derive(Clone)]
 pub(crate) enum ExportAdjustmentsMode {
     UseSidecars {
@@ -2171,6 +2182,43 @@ pub async fn run_headless_export(
                 errors.join("\n  ")
             ),
         }),
+        Err(_) => Err("Export task panicked or was cancelled.".to_string()),
+    }
+}
+
+#[cfg(feature = "mcp")]
+pub(crate) async fn export_images_and_wait(
+    request: ExportRequest,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let app_handle_for_state = app_handle.clone();
+    let state = app_handle_for_state.state::<crate::AppState>();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    export_images_impl(
+        request.paths,
+        request.output_folder,
+        false,
+        request.base_origin_folders,
+        request.export_settings,
+        request.output_format,
+        ExportAdjustmentsMode::UseSidecars {
+            active_path: request.current_edit_path,
+            active_adjustments: request.current_edit_adjustments,
+        },
+        state,
+        app_handle,
+        Some(tx),
+    )
+    .await?;
+
+    match rx.await {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(errors)) => Err(format!(
+            "Export completed with {} errors:\n  {}",
+            errors.len(),
+            errors.join("\n  ")
+        )),
         Err(_) => Err("Export task panicked or was cancelled.".to_string()),
     }
 }

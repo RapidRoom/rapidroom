@@ -2,6 +2,27 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "mcp-server",
+      "title": "Optional MCP server (cargo feature `mcp`, off by default): AI agents can open images, read and change adjustments, render previews, read the histogram and export through the running editor",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["cgasgarth"],
+      "source": "cgasgarth/RapidRaw (put behind a feature flag in RapidRoom; design ideas from sheldonxxxx/RapidRAW)",
+      "commits": [
+        "https://github.com/cgasgarth/RapidRaw/commit/4a5c14eae0715db4d9ae79d4126a1495a0493ff0",
+        "https://github.com/cgasgarth/RapidRaw/commit/c0f079d7fbf017369de660e29f2993f457337115",
+        "https://github.com/cgasgarth/RapidRaw/commit/b2b9abf2cae9ecae8ad30ccf1ceff28adee6ae24",
+        "https://github.com/cgasgarth/RapidRaw/commit/9a70a3cd567293c2f25127cf6e018080af91685d",
+        "https://github.com/cgasgarth/RapidRaw/commit/0a5e71f1fdbaef9f58fa5ca0059319c41f645df8",
+        "https://github.com/cgasgarth/RapidRaw/commit/c8d6ec61aa7a27b132d2c93a7a30f4ed3186238a",
+        "https://github.com/cgasgarth/RapidRaw/commit/a5a01ccfe370a5dfe1042e8ca0e2537780d18409"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Only in builds with `--features mcp`. Listens on 127.0.0.1:7790 without authentication while the app runs; requests from browsers are refused. The default build has no MCP code and no listener. Comparison with sheldonxxxx's headless MCP and the security notes are in rapidroom/MCP.md. Local review hardens chunked-body length bounds and terminators, discards consumed framing buffers, and adds frontend regression tests for first-photo opening, pending GUI history, no-op edits, reset undo and slow previews. Local follow-up prevents mirroring a newly selected photo under a pending command’s old path; seven bridge tests cover no-op/reset/history/timeout/photo-switch behavior. Tool discovery supplies the required 2026-07-28 cache hints (zero TTL, private scope) and completed tool calls include resultType=complete so current clients validate the response. The optional Linux native harness can run installed Claude Code and Codex clients against an owned photo and require real editing calls, revision/slider/preview changes, and valid discovery at both 2025-06-18 and 2026-07-28."
+    },
+    {
       "id": "orf-scoped-image-processing",
       "title": "Fix intermittent green OM System/Olympus RAW exports by reading image metadata from its correct directory",
       "category": "fix",
