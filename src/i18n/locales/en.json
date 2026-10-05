@@ -936,6 +936,20 @@
       "metadata": "Metadata",
       "watermark": "Watermark"
     },
+    "sharpening": {
+      "amount": "Amount",
+      "amounts": {
+        "high": "High",
+        "low": "Low",
+        "standard": "Standard"
+      },
+      "outputSharpening": "Output Sharpening",
+      "target": "For",
+      "targets": {
+        "print": "Print",
+        "screen": "Screen"
+      }
+    },
     "status": {
       "cancelExport": "Cancel Export",
       "cancelled": "Export cancelled",

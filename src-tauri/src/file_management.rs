@@ -2429,6 +2429,14 @@ pub fn resolve_lens_params_in_adjustments(
             }
         }
 
+        // Lens values from an older version carry no radius scale. They keep
+        // the old evaluation when the edit is saved again, so that the image
+        // does not change. Choosing a lens again gives the current one.
+        let legacy = map
+            .get("lensDistortionParams")
+            .and_then(|v| v.as_object())
+            .is_some_and(|p| !p.contains_key("radius_scale"));
+
         if let Some(db) = lens_db {
             let has_valid_lens = match (
                 map.get("lensMaker").and_then(|v| v.as_str()),
@@ -2459,14 +2467,36 @@ pub fn resolve_lens_params_in_adjustments(
                         }
                     }
 
-                    if let Some(params) = crate::lens_correction::resolve_lens_params(
-                        db,
-                        maker,
-                        model,
-                        focal_length,
-                        aperture,
-                        distance,
-                    ) {
+                    let camera_crop = exif_data.as_ref().and_then(|exif| {
+                        crate::lens_correction::camera_crop_factor(
+                            db,
+                            exif.get("Make").map(|s| s.as_str()).unwrap_or(""),
+                            exif.get("Model").map(|s| s.as_str()).unwrap_or(""),
+                        )
+                    });
+
+                    let resolved = if legacy {
+                        crate::lens_correction::resolve_legacy_lens_params(
+                            db,
+                            maker,
+                            model,
+                            focal_length,
+                            aperture,
+                            distance,
+                        )
+                    } else {
+                        crate::lens_correction::resolve_lens_params(
+                            db,
+                            maker,
+                            model,
+                            focal_length,
+                            aperture,
+                            distance,
+                            camera_crop,
+                        )
+                    };
+
+                    if let Some(params) = resolved {
                         map.insert(
                             "lensDistortionParams".to_string(),
                             serde_json::to_value(params).unwrap(),
@@ -3273,6 +3303,13 @@ pub async fn apply_adjustments_to_paths(
             if let (Some(new_map), Some(pasted_map)) =
                 (new_adjustments.as_object_mut(), adjustments.as_object())
             {
+                // A pasted lens is a new choice of lens, so its values are
+                // resolved afresh instead of keeping the old evaluation.
+                if (pasted_map.contains_key("lensMaker") || pasted_map.contains_key("lensModel"))
+                    && !pasted_map.contains_key("lensDistortionParams")
+                {
+                    new_map.remove("lensDistortionParams");
+                }
                 for (k, v) in pasted_map {
                     new_map.insert(k.clone(), v.clone());
                 }
@@ -3472,6 +3509,7 @@ pub async fn apply_auto_lens_correction_to_paths(
                 obj.insert("lensDistortionEnabled".to_string(), serde_json::json!(true));
                 obj.insert("lensTcaEnabled".to_string(), serde_json::json!(true));
                 obj.insert("lensVignetteEnabled".to_string(), serde_json::json!(true));
+                obj.remove("lensDistortionParams");
             }
 
             resolve_lens_params_in_adjustments(
@@ -6395,6 +6433,95 @@ mod embedded_rating_tests {
 
         fs::remove_file(&shot.raw).unwrap();
         assert_eq!(shown_rating(&shot, false), 0);
+    }
+}
+
+#[cfg(test)]
+mod lens_params_tests {
+    use super::*;
+    use crate::lens_correction::{Lens, LensDatabase};
+
+    fn canon_db() -> LensDatabase {
+        let mut db = LensDatabase {
+            cameras: Vec::new(),
+            lenses: Vec::new(),
+        };
+        for file in ["slr-canon.xml", "mil-canon.xml"] {
+            let path = format!("{}/lensfun_db/{}", env!("CARGO_MANIFEST_DIR"), file);
+            let xml = fs::read_to_string(path).expect("part of the bundled database");
+            let mut part: LensDatabase = quick_xml::de::from_str(&xml).expect("parses");
+            db.cameras.append(&mut part.cameras);
+            db.lenses.append(&mut part.lenses);
+        }
+        db
+    }
+
+    /// The name the lens picker shows for the full frame entry of the
+    /// Canon EF 50mm f/1.8 STM.
+    fn ef_50_name(db: &LensDatabase) -> String {
+        let canon: Vec<&Lens> = db
+            .lenses
+            .iter()
+            .filter(|l| l.get_maker() == "Canon")
+            .collect();
+        canon
+            .iter()
+            .find(|l| {
+                l.get_canonical_model_name() == "Canon EF 50mm f/1.8 STM"
+                    && l.cropfactor == Some(1.0)
+            })
+            .expect("full frame entry")
+            .get_display_name(&canon)
+    }
+
+    fn exif() -> Option<HashMap<String, String>> {
+        Some(HashMap::from([
+            ("Make".to_string(), "Canon".to_string()),
+            ("Model".to_string(), "Canon EOS M6 Mark II".to_string()),
+            ("FocalLength".to_string(), "50.0 mm".to_string()),
+            ("FNumber".to_string(), "1.8".to_string()),
+        ]))
+    }
+
+    fn resolve(db: &LensDatabase, params: Option<Value>) -> Value {
+        let mut adjustments = serde_json::json!({
+            "lensCorrectionMode": "manual",
+            "lensMaker": "Canon",
+            "lensModel": ef_50_name(db),
+        });
+        if let Some(params) = params {
+            adjustments["lensDistortionParams"] = params;
+        }
+        resolve_lens_params_in_adjustments(&mut adjustments, &exif(), Some(db));
+        adjustments["lensDistortionParams"].clone()
+    }
+
+    #[test]
+    fn saving_an_old_edit_keeps_the_old_values() {
+        let db = canon_db();
+        // As an older version wrote it: the raw ptlens terms, no radius scale.
+        let old = serde_json::json!({
+            "k1": 0.0061844f32 as f64, "k2": -0.0313122f32 as f64, "k3": 0.0314815f32 as f64,
+            "model": 1, "tca_vr": 1.0000409f32 as f64, "tca_vb": 0.9999893f32 as f64,
+            "vig_k1": -1.5829f32 as f64, "vig_k2": 1.2949f32 as f64, "vig_k3": -0.5012f32 as f64,
+        });
+        let resolved = resolve(&db, Some(old.clone()));
+        assert_eq!(resolved, old);
+    }
+
+    #[test]
+    fn a_new_edit_gets_the_lensfun_evaluation() {
+        let db = canon_db();
+        for existing in [
+            None,
+            Some(serde_json::json!({"k1": 0.1, "radius_scale": 1.0})),
+        ] {
+            let resolved = resolve(&db, existing);
+            let scale = resolved["radius_scale"].as_f64().expect("radius scale");
+            assert!((scale - 1.5f64.hypot(1.0) / (1.613f32 as f64)).abs() < 1e-9);
+            // The rescaled ptlens term, c / d^2, not the raw a.
+            assert!((resolved["k1"].as_f64().unwrap() - 0.0061844).abs() > 1e-3);
+        }
     }
 }
 

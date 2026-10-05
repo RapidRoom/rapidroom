@@ -886,6 +886,33 @@
       "highlight": "**Sony camera aspect ratios are respected.** 4:3, square and 16:9 shots start with the camera framing, and you can expand the crop back to the full image."
     },
     {
+      "id": "lensfun-evaluation",
+      "title": "Lens correction evaluates Lensfun profiles the way Lensfun does: right radius per model, rescaled terms instead of ×2.5, calibration that fits the sensor",
+      "category": "fix",
+      "landed": "2026-10-04",
+      "authors": ["beneedict", "yojen7"],
+      "source": "beneedict/RapidRAW (adapted by yojen7 with Claude Code: old edits kept, Lensfun's choice of calibration, vignetting across sensor sizes, Lensfun oracle tests)",
+      "commits": ["https://github.com/beneedict/RapidRAW/commit/99a142e6e7be658c721f5700811199429efb22ee"],
+      "upstream_issues": ["CyberTimon/RapidRAW#1688", "CyberTimon/RapidRAW#1689"],
+      "upstream_prs": ["CyberTimon/RapidRAW#1705"],
+      "rendering_change": true,
+      "notes": "Only images with a Lensfun lens profile change, and only when the lens is chosen or detected again: edits saved by an older version keep their previous lens values and render bit for bit as before. Checked against the Lensfun C++ library on 13 cases (ptlens, poly3, poly5; full frame, APS-C, Micro Four Thirds, compact; 3:2, 4:3, 16:9, portrait). The embedded RAW lens profiles of the source branch (CyberTimon/RapidRAW#1687) are not included.",
+      "highlight": "**Lens profiles that actually fit.** Distortion and vignetting from the Lensfun database are applied the way Lensfun defines them, including full frame lenses on APS-C bodies."
+    },
+    {
+      "id": "export-recipes",
+      "title": "Export recipes: export presets from the CLI (`--preset`), opt-in output sharpening for screen or print, and Instagram 4:5, 1:1 and 1.91:1 presets",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "RapidRoom #121. Rust can now read export presets (export_recipes.rs), so `rapidroom export --preset NAME` exports with a saved preset or a built-in recipe; MCP support follows once the MCP server (#102) is on main. Three read-only Instagram recipes (1080×1350, 1080×1080, 1080×566; sRGB JPEG q90, padded, GPS stripped, light screen sharpening) appear in the export panel's preset list. Output sharpening is an output-luma unsharp mask after the resize whose radius follows the output size; it is off unless chosen, so default exports are unchanged. Rendering change only for opt-in settings: sharpening when chosen, and pad-plus-resize exports now derive the resized edge from the pad ratio (at most 1 px different, so 4:5 at 1080 wide is always 1350). The donor note (puneetrane1811's Creative Export Studio, weholt's export workflows) is rapidroom/EXPORT-RECIPES.md; no donor code is used. Written with Claude Code. Local integration/review by Codex: sharpened float/alpha precision regression, donor snapshot statistics rechecked, and processing/quality claims narrowed.",
+      "highlight": "**Export for Instagram and print.** Built-in Instagram 4:5, 1:1 and 1.91:1 presets, optional output sharpening for screen or print, and `--preset` to use any export preset from the command line."
+    },
+    {
       "id": "native-ui-smoke",
       "title": "Native Linux UI smoke: exercise the release app, GPU preview, edits, Undo, Compact settings and JPEG export on an isolated compositor",
       "category": "ci",
