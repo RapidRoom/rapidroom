@@ -6,13 +6,9 @@
       "title": "Fix intermittent green OM System/Olympus RAW exports by reading image metadata from its correct directory",
       "category": "fix",
       "landed": "2026-10-04",
-      "authors": [
-        "yojen7"
-      ],
+      "authors": ["yojen7"],
       "source": "rapidroom (original rawler decoder fix, AI-assisted)",
-      "commits": [
-        "https://github.com/yojen7/RapidRAW-DngLab/commit/a98bd053c4a14c0c1105ee08a8deba8ce5e6ca5d"
-      ],
+      "commits": ["https://github.com/yojen7/RapidRAW-DngLab/commit/a98bd053c4a14c0c1105ee08a8deba8ce5e6ca5d"],
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
@@ -164,7 +160,7 @@
     },
     {
       "id": "closed-pipe",
-      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw … | head`)",
+      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw \u2026 | head`)",
       "category": "fix",
       "landed": "2026-10-02",
       "authors": ["yojen7"],
@@ -550,8 +546,8 @@
       "upstream_issues": ["CyberTimon/RapidRAW#1749", "CyberTimon/RapidRAW#1583"],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Auto-advance is off by default (Settings → General) and only moves on when a single image is rated with the 0–5 keys; it stops at the last image. The ≥/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
-      "highlight": "**Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars."
+      "notes": "Auto-advance is off by default (Settings \u2192 General) and only moves on when a single image is rated with the 0\u20135 keys; it stops at the last image. The \u2265/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
+      "highlight": "**Faster culling:** rate with 0\u20135 and jump straight to the next photo, and filter for exactly N stars."
     },
     {
       "id": "lightroom-xmp-import",
@@ -803,7 +799,7 @@
     },
     {
       "id": "lights-out",
-      "title": "Lights Out viewing in Library and Editor: L cycles Normal → Dim → Black, Shift+L goes back, Escape restores",
+      "title": "Lights Out viewing in Library and Editor: L cycles Normal \u2192 Dim \u2192 Black, Shift+L goes back, Escape restores",
       "category": "feature",
       "landed": "2026-10-04",
       "authors": ["zeromeridian", "yojen7"],
@@ -834,8 +830,64 @@
       "highlight": "**Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains."
     },
     {
+      "id": "open-terminal-here",
+      "title": "Open Terminal Here: open your own terminal in a library folder, with RAPIDROOM_VERSION and RAPIDROOM_FOLDER set, so you can run Claude Code or Codex beside the editor",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Stopgap for the built-in terminal (RapidRoom #119, design note in rapidroom/TERMINAL.md). Folder context menu. Linux tries $TERMINAL, xdg-terminal-exec, then common terminals with their working-directory flags; macOS opens Terminal.app; Windows uses Windows Terminal or cmd. AppImage library paths are removed from the terminal's environment; Flatpak reports that it can't reach the host. The terminal program never comes from settings or the webview. No new dependencies or network connections. Written with Claude Code. Local review adds the explicit xdg-terminal-exec directory argument and preserves sibling environment paths whose names share the AppImage prefix, with regression tests."
+    },
+    {
+      "id": "assistant-skill-plugin",
+      "title": "RapidRoom skill and Claude Code plugin: editing workflow, adjustment reference generated from the code, tutor mode, source lookup and assistant-drafted issues",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["yojen7", "sheldonxxxx"],
+      "source": "rapidroom",
+      "commits": ["https://github.com/sheldonxxxx/Lightweft/tree/d332fbd629faf7e47144ba173d7f2032be62199d"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "rapidroom/plugin: a Claude Code plugin (skill, six slash commands, MCP connection) and a Codex copy, for the in-app MCP server (RapidRoom #5). The adjustment and mask reference is generated from INITIAL_ADJUSTMENTS, the editor sliders and createSubMask, and a Vitest test fails when it drifts. Artistic direction, taste learning and film-look guidance are adapted from sheldonxxxx's Lightweft skills (MIT). Planned MCP tools are listed as coming. Issue drafts are shown to the user and posted only after an explicit yes. Docs only: the app and its rendering are unchanged. Written with Claude Code."
+    },
+    {
+      "id": "compact-adjustment-density",
+      "title": "Optional compact adjustment sliders: label, track and value on one row, with aligned columns, in the Develop and mask panels",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["pluja", "Bennyyy27"],
+      "source": "pluja/RapidRAW-Fork",
+      "commits": [
+        "https://github.com/pluja/RapidRAW-Fork/commit/198d23c0b89e073c88a621d43090488c2a8baf9e",
+        "https://github.com/Bennyyy27/RapidRAW/commit/69445eefb3598f3461eb3ed28fb82913b2e04d0f"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Off by default (Settings > General). Layout from pluja's one-row slider; narrow-panel column sizing follows Bennyyy27's final compact density. Drag travel spans the whole row in both densities, so switching density does not change sensitivity. Local integration/review by Codex: accessible React-node and typed-field names, six slider tests, 48 browser layout cases and 24 full-panel cases with screenshots; native desktop checks remain.",
+      "highlight": "**More sliders on a laptop screen.** An optional compact layout puts each slider's label, track and value on one line, so more controls fit without scrolling."
+    },
+    {
+      "id": "sony-aspect-crop",
+      "title": "Sony 4:3, 1:1 and 16:9 camera framing opens as an editable crop",
+      "category": "fix",
+      "landed": "2026-10-03",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "commits": ["https://github.com/yojen7/RapidRAW-DngLab/commit/b84ca29b143c62f920361081b058c77e4d73faa5"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Reads SonyCropTopLeft/SonyCropSize in the rawler fork, retains the full DefaultCrop image for crop expansion/reset, and preserves existing sidecar framing. The M/S crop and saturating highlight dither fixes remain. AI-assisted with Codex; maintainer visual review required.",
+      "highlight": "**Sony camera aspect ratios are respected.** 4:3, square and 16:9 shots start with the camera framing, and you can expand the crop back to the full image."
+    },
+    {
       "id": "lensfun-evaluation",
-      "title": "Lens correction evaluates Lensfun profiles the way Lensfun does: right radius per model, rescaled terms instead of ×2.5, calibration that fits the sensor",
+      "title": "Lens correction evaluates Lensfun profiles the way Lensfun does: right radius per model, rescaled terms instead of \u00d72.5, calibration that fits the sensor",
       "category": "fix",
       "landed": "2026-10-04",
       "authors": ["beneedict", "yojen7"],

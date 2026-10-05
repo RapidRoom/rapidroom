@@ -1190,6 +1190,20 @@ export default function SettingsPanel({
                       </SettingItem>
 
                       <SettingItem
+                        label={t('settings.general.compactAdjustments')}
+                        description={t('settings.general.compactAdjustmentsDesc')}
+                      >
+                        <Switch
+                          checked={appSettings?.adjustmentDensity === 'compact'}
+                          id="compact-adjustments-toggle"
+                          label={t('settings.general.enableCompactAdjustments')}
+                          onChange={(checked) =>
+                            onSettingsChange({ ...appSettings, adjustmentDensity: checked ? 'compact' : 'comfortable' })
+                          }
+                        />
+                      </SettingItem>
+
+                      <SettingItem
                         label={t('settings.general.displayEditIcon')}
                         description={t('settings.general.displayEditIconDesc')}
                       >

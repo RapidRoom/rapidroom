@@ -97,38 +97,5 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 | Lightroom catalog photo-edit previews and selective develop/virtual-copy import | [@laurensiusadi](https://github.com/laurensiusadi) (Laurensius Adi), adapted by yojen7 with Codex | [laurensiusadi/RapidRAW@dda6cc5](https://github.com/laurensiusadi/RapidRAW/commit/dda6cc51c69dc6a17906609dbb667eff3507aeeb); shares the existing catalog reader and XMP mapper |
 | Expanded Color Mixer with a targeted pipette | [@lalibertemarc](https://github.com/lalibertemarc), adapted with Claude Code | [lalibertemarc/RapidRAW@b5475ad](https://github.com/lalibertemarc/RapidRAW/commit/b5475ad8e3176386153d8c3a8fbdc7d21ba7c5a9), [@dffc46a](https://github.com/lalibertemarc/RapidRAW/commit/dffc46a161f6a9c35037348d9d62b1a5267a99ac), [@17173f2](https://github.com/lalibertemarc/RapidRAW/commit/17173f2873b44f4f7d5f219df1e5e744b3e0dfa9) |
 | Embedded-preview and DNG-proxy RAW thumbnails | [@SebastianEggli](https://github.com/SebastianEggli) (Sebastian Eggli) | [4a64607](https://github.com/SebastianEggli/MyRR/commit/4a646075d557f6faa5310377f26ae66120af1aa4), [f0a5c66](https://github.com/SebastianEggli/MyRR/commit/f0a5c66ccad1e1a82b880dc8e469c6fb21144d66), [e93c711](https://github.com/SebastianEggli/MyRR/commit/e93c7110b218727ce4fb49c3019415ad0f7e188e) in SebastianEggli/MyRR; rawler half [094189d](https://github.com/SebastianEggli/RapidRAW-DngLab/commit/094189d738f30ec8e973b998fc59a84d00d94d8c) (upstream PRs `CyberTimon/RapidRAW#1809`, `CyberTimon/RapidRAW-DngLab#10`) |
-| Lensfun profiles evaluated the way Lensfun does | [@beneedict](https://github.com/beneedict) (Benedikt Nimmervoll), adapted by @yojen7 with Claude Code | [beneedict/RapidRAW@99a142e](https://github.com/beneedict/RapidRAW/commit/99a142e6e7be658c721f5700811199429efb22ee) (branch `lensfun-evaluation`, upstream PR `CyberTimon/RapidRAW#1705`), ported without the embedded RAW profiles it builds on |
-
-## RapidRoom changes
-
-| Change                               | Author                                             | Upstream PR                                                                                                                                                                                    |
-| ------------------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tauri 2.12                           | [@yojen7](https://github.com/yojen7) (AI-assisted) | [#1813](https://github.com/CyberTimon/RapidRAW/pull/1813), merged                                                                                                                              |
-| Closed-pipe abort/hang fix           | @yojen7 (AI-assisted)                              | [#1819](https://github.com/CyberTimon/RapidRAW/pull/1819)                                                                                                                                      |
-| sRGB ICC profile in exports          | @yojen7 (AI-assisted)                              | [#1820](https://github.com/CyberTimon/RapidRAW/pull/1820); TIFF part to follow [#1752](https://github.com/CyberTimon/RapidRAW/pull/1752) by [@FabianWeiss90](https://github.com/FabianWeiss90) |
-| Bundled Poppins font                 | @yojen7 (AI-assisted)                              | not yet proposed                                                                                                                                                                               |
-| Clerk loaded only for cloud features | @yojen7 (AI-assisted)                              | not yet proposed                                                                                                                                                                               |
-
-Inactive HSL exact no-op and positive-vibrance power-domain fix: yojen7, with Codex. The upstream perceptual HSL work by lalibertemarc and Claude is retained.
-
-Adobe lossy DNG stage-2 polynomial mapping fix: yojen7, with Codex; original implementation following Adobe's DNG specification. Existing rawler authorship and LGPL-2.1 notices are retained.
-
-## Third-party assets
-
-- **Start-screen photograph** `public/splash-rapidroom.jpg`: © 2025 [@yojen7](https://github.com/yojen7), **all rights reserved**. It is not covered by the AGPL and is included with permission for RapidRoom only. Forks must replace it; see `public/splash-rapidroom.jpg.license`.
-- **RapidRoom logo** (`.github/assets/rapidroom-logo.png`, `public/rapidroom-logo.png`, app icons): by @yojen7 for RapidRoom. Text set in Liberation Sans Bold (SIL OFL 1.1).
-- **sRGB ICC profile** `src-tauri/icc/sRGB-v2-magic.icc`: from [saucecontrol/Compact-ICC-Profiles](https://github.com/saucecontrol/Compact-ICC-Profiles), CC0-1.0.
-- **Poppins font**: by the Indian Type Foundry, SIL Open Font License 1.1, bundled via [@fontsource/poppins](https://fontsource.org/fonts/poppins).
-
-## Forks we follow
-
-These RapidRAW forks have work we'd like to harvest (with credit) or coordinate with. Being listed here doesn't mean any of their code is in RapidRoom yet. Code moves to the tables above when it lands.
-
-- [sheldonxxxx/RapidRAW](https://github.com/sheldonxxxx/RapidRAW): MCP server, Nonlocal raw denoise, atomic sidecars, preview performance
-- [RustRunner/RapidRAW-MKII](https://github.com/RustRunner/RapidRAW-MKII): offline build, low-light and blur recovery
-- [vinioliveiras/RapidRAW](https://github.com/vinioliveiras/RapidRAW): colour pipeline fixes against Lightroom
-- [cgasgarth/RapidRaw](https://github.com/cgasgarth/RapidRaw): MCP kept in sync with upstream (Reference View is in the table above)
-- [ssarangi/RapidRAW](https://github.com/ssarangi/RapidRAW): interactive raw performance
-- [NicoNex/RapidRAW](https://github.com/NicoNex/RapidRAW): native GTK front end, core split
-- [pluja/RapidRAW-Fork](https://github.com/pluja/RapidRAW-Fork): bug fixes, tests
-- [cl1x/RapidRAW](https://github.com/cl1x/RapidRAW): Immich integration
+| Artistic direction, taste learning and film-look guidance in the RapidRoom skill (MIT) | [@sheldonxxxx](https://github.com/sheldonxxxx), adapted by Claude Code | `photo-edit-master` and `photo-style-builder` in [sheldonxxxx/Lightweft@d332fbd](https://github.com/sheldonxxxx/Lightweft/tree/d332fbd629faf7e47144ba173d7f2032be62199d); see `rapidroom/plugin/LICENSES/Lightweft-MIT.txt` |
+| Compact one-row adjustment sliders | [@pluja](https://github.com/pluja), narrow-panel sizing after [@Bennyyy27](https://github.com/Bennyyy27), adapted with Claude Code | [pluja/RapidRAW-Fork@198d23c](https://github.com/pluja/RapidRAW-Fork/commit/198d23c0b89e073c88a621d43090488c2a8baf9e), [Bennyyy27/RapidRAW@69445ee](https://github.com/Bennyyy27/RapidRAW/commit/69445eefb3598f3461eb3ed28fb82913b2e04d0f) |
