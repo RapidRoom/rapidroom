@@ -97,13 +97,23 @@ def run_revision_checks(case, smoke):
                     raise RuntimeError(tool + " did not render exact fresh-state pixels")
             reads.append(tool)
             unchanged()
-        error = rpc(url, "tools/call", {"name": "update_adjustments", "arguments": {"imagePath": path, "expectedRevision": before["editRevision"], "changes": {"exposure": 1.3}}}, token=token)
-        details = error.get("structuredContent")
-        if not error.get("isError") or not details or details["error"] != "revision_conflict" or details["currentRevision"] != latest["editRevision"] or details["changedKeys"] != ["exposure"] or details["actor"] != "user" or details["changesKnown"] is not True:
-            raise RuntimeError("Stale mutation lacks strict structured current-revision/change details")
-        unchanged()
-        save(folder / "wire-proof.json", {"reads": reads, "current_revision": latest["editRevision"], "stale_write": details, "all_guards_unchanged": True})
-        smoke.step(client + " GUI edit: advisory reads latest and strict stale mutation refused", {"slider": drag, "reads": reads, "stale_write": details, "capture": str(capture.relative_to(case)), "state_revision_history_sidecars_unchanged": True})
+        for extra in ({"original": True}, {"adjustments": {"exposure": 0}}):
+            preview = read_tool(url, token, "get_preview", {"imagePath": path, "expectedRevision": before["editRevision"], "maxDimension": 128, **extra})
+            if preview["editRevision"] != latest["editRevision"] or preview["renderRevision"] == latest["editRevision"]:
+                raise RuntimeError("Original/custom preview confused the edit and render-recipe revision")
+            unchanged()
+        refused = []
+        for tool, extra in (("update_adjustments", {"changes": {"exposure": 1.3}}),
+                            ("set_adjustments", {"adjustments": latest["adjustments"]}),
+                            ("reset_adjustments", {}), ("undo", {}), ("redo", {}), ("apply_auto_adjustments", {})):
+            error = rpc(url, "tools/call", {"name": tool, "arguments": {"imagePath": path, "expectedRevision": before["editRevision"], **extra}}, token=token)
+            details = error.get("structuredContent")
+            if not error.get("isError") or not details or details["error"] != "revision_conflict" or details["currentRevision"] != latest["editRevision"] or details["changedKeys"] != ["exposure"] or details["actor"] != "user" or details["changesKnown"] is not True:
+                raise RuntimeError(tool + " lacks strict structured current-revision/change details")
+            refused.append(tool)
+            unchanged()
+        save(folder / "wire-proof.json", {"reads": reads, "current_revision": latest["editRevision"], "stale_write": details, "all_stale_mutations_refused": refused, "original_custom_edit_revision_correct": True, "all_guards_unchanged": True})
+        smoke.step(client + " GUI edit: advisory reads latest and strict stale mutation refused", {"slider": drag, "reads": reads, "stale_write": details, "all_stale_mutations_refused": refused, "original_custom_edit_revision_correct": True, "capture": str(capture.relative_to(case)), "state_revision_history_sidecars_unchanged": True})
 
         folder = folder / "after-gui"
         folder.mkdir(mode=0o700)
