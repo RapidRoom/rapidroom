@@ -97,7 +97,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Landed in RapidRoom:** 2026-10-05
 - **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex; existing MCP authorship retained)
 - **Upstream:** not yet offered
-- **Notes:** Official deb/AppImage builds include the existing terminal and MCP features plus the stdio adapter. AI control starts off; Settings and assistant start buttons explicitly enable it. Disabling stops the listener and accepted connections and removes the endpoint; re-enabling uses a fresh key. Built-in/external launch registration uses the installed adapter without changing global client configuration. No new dependency or licence.
+- **Notes:** Official deb/AppImage builds include the existing terminal and MCP features plus the stdio adapter. AI control starts off; Settings and assistant start buttons explicitly enable it. Disabling stops the listener and accepted connections and removes the endpoint; re-enabling uses a fresh key. Built-in/external launch registration uses the installed adapter without changing global client configuration. No new dependency or licence. The 18-step private Linux native pass verifies four real Claude/Codex launches using app-generated registration, default-off and Cancel, painted consent, private fresh-key endpoints, listener/connection removal, unchanged edits/history across settings-only restart and clean exit.
 
 ### Read-only MCP contact sheets, exact clipping/color statistics and native-resolution detail crops
 

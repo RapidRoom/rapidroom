@@ -12,7 +12,7 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Official deb/AppImage builds include the existing terminal and MCP features plus the stdio adapter. AI control starts off; Settings and assistant start buttons explicitly enable it. Disabling stops the listener and accepted connections and removes the endpoint; re-enabling uses a fresh key. Built-in/external launch registration uses the installed adapter without changing global client configuration. No new dependency or licence."
+      "notes": "Official deb/AppImage builds include the existing terminal and MCP features plus the stdio adapter. AI control starts off; Settings and assistant start buttons explicitly enable it. Disabling stops the listener and accepted connections and removes the endpoint; re-enabling uses a fresh key. Built-in/external launch registration uses the installed adapter without changing global client configuration. No new dependency or licence. The 18-step private Linux native pass verifies four real Claude/Codex launches using app-generated registration, default-off and Cancel, painted consent, private fresh-key endpoints, listener/connection removal, unchanged edits/history across settings-only restart and clean exit."
     },
     {
       "id": "mcp-readonly-measure-compare",
