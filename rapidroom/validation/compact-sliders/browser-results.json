@@ -1,0 +1,5745 @@
+{
+  "scenarios": [
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "en",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping", "Sharpness", "Luminance"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "en",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "en",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "en",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "de",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Belichtung",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "de",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "de",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "de",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "ru",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Экспозиция",
+            "Нажмите для точного ввода",
+            "Контрастность",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Светлые тона",
+            "Нажмите для точного ввода",
+            "Затемнение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "ru",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Экспозиция",
+            "Нажмите для точного ввода",
+            "Контрастность",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Светлые тона",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "ru",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "dark",
+      "language": "ru",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "en",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping", "Sharpness", "Luminance"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "en",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "en",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "en",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "de",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Belichtung",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "de",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "de",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "de",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "ru",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Экспозиция",
+            "Нажмите для точного ввода",
+            "Контрастность",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Светлые тона",
+            "Нажмите для точного ввода",
+            "Затемнение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "ru",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Экспозиция",
+            "Нажмите для точного ввода",
+            "Контрастность",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Светлые тона",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "ru",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 1,
+      "theme": "light",
+      "language": "ru",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "en",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping", "Sharpness", "Luminance"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "en",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "en",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "en",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "de",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Belichtung",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "de",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "de",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "de",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "ru",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Экспозиция",
+            "Нажмите для точного ввода",
+            "Контрастность",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Светлые тона",
+            "Нажмите для точного ввода",
+            "Затемнение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "ru",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Экспозиция",
+            "Нажмите для точного ввода",
+            "Контрастность",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Светлые тона",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "ru",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "dark",
+      "language": "ru",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "en",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping", "Sharpness", "Luminance"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "en",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "en",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "en",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": ["Standard Tonemapping", "Film-like Tonemapping"]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "de",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Belichtung",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "de",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "de",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Schwellenwert",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "de",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Standard-Tonemapping",
+            "Filmähnliches Tonemapping",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Dunst entfernen",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken",
+            "Zum Bearbeiten klicken"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "ru",
+      "width": 240,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 200,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 224,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 376,
+              "width": 68,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            },
+            {
+              "left": 372.15625,
+              "width": 83.84375,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Экспозиция",
+            "Нажмите для точного ввода",
+            "Контрастность",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Светлые тона",
+            "Нажмите для точного ввода",
+            "Затемнение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "ru",
+      "width": 260,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 220,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 244,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 402.796875,
+              "width": 81.203125,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            },
+            {
+              "left": 398.953125,
+              "width": 97.046875,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Экспозиция",
+            "Нажмите для точного ввода",
+            "Контрастность",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Светлые тона",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "ru",
+      "width": 320,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 280,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 304,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 483.1875,
+              "width": 120.8125,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            },
+            {
+              "left": 479.359375,
+              "width": 136.640625,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Удаление дымки",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    },
+    {
+      "dpi": 2,
+      "theme": "light",
+      "language": "ru",
+      "width": 420,
+      "panels": [
+        {
+          "density": "comfortable",
+          "height": 1070,
+          "ranges": [
+            {
+              "left": 36,
+              "width": 380,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            },
+            {
+              "left": 24,
+              "width": 404,
+              "height": 28
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        },
+        {
+          "density": "compact",
+          "height": 714,
+          "ranges": [
+            {
+              "left": 600,
+              "width": 204,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            },
+            {
+              "left": 588,
+              "width": 228,
+              "height": 24
+            }
+          ],
+          "labels": [
+            "Стандартное тональное отображение",
+            "Кинематографическое тональное отображение",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода",
+            "Нажмите для точного ввода"
+          ]
+        }
+      ],
+      "domEqual": [true, true, true, true]
+    }
+  ],
+  "interactions": [
+    {
+      "density": "comfortable",
+      "dragStart": 0,
+      "dragEnd": 26,
+      "drag": 26,
+      "keyboard": 13,
+      "focus": {
+        "visible": true,
+        "width": "2px",
+        "style": "solid"
+      },
+      "navigationBlur": true,
+      "reset": 0,
+      "fine": {
+        "Alt": 5,
+        "Shift": 5
+      },
+      "wheel": 1
+    },
+    {
+      "density": "compact",
+      "dragStart": -1,
+      "dragEnd": 25,
+      "drag": 26,
+      "keyboard": 13,
+      "focus": {
+        "visible": true,
+        "width": "2px",
+        "style": "solid"
+      },
+      "navigationBlur": true,
+      "reset": 0,
+      "fine": {
+        "Alt": 5,
+        "Shift": 5
+      },
+      "wheel": 1
+    }
+  ],
+  "touch": [
+    {
+      "density": "comfortable",
+      "value": 26,
+      "vertical": 0
+    },
+    {
+      "density": "compact",
+      "value": 26,
+      "vertical": 0
+    }
+  ],
+  "maskControls": true
+}

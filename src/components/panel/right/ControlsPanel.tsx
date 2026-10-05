@@ -23,6 +23,7 @@ import {
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import { OPTION_SEPARATOR, Orientation } from '../../ui/AppProperties';
 import Text from '../../ui/Text';
+import { SliderDensityScope, getAdjustmentDensity } from '../../ui/Slider';
 import { TextVariants, TextColors, TextWeights } from '../../../types/typography';
 import { useShallow } from 'zustand/react/shallow';
 import { useEditorStore } from '../../../store/useEditorStore';
@@ -287,7 +288,10 @@ export default function Controls() {
         )}
       </AnimatePresence>
 
-      <div className="grow overflow-y-scroll p-3 flex flex-col gap-2">
+      <SliderDensityScope
+        className="grow overflow-y-scroll p-3 flex flex-col gap-2"
+        density={getAdjustmentDensity(appSettings?.adjustmentDensity)}
+      >
         {selectedImage ? (
           visibleSections.map((sectionName: string) => {
             const SectionComponent: any = {
@@ -341,7 +345,7 @@ export default function Controls() {
             </Text>
           </div>
         )}
-      </div>
+      </SliderDensityScope>
     </div>
   );
 }

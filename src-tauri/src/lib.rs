@@ -46,6 +46,8 @@ mod formats;
 mod gpu_processing;
 mod guided_perspective;
 mod hdr_deghosting;
+#[cfg(test)]
+mod hdr_fixtures;
 mod image_loader;
 mod image_processing;
 mod inpainting;
@@ -67,6 +69,7 @@ mod preset_converter;
 mod raw_processing;
 mod tagging;
 mod tagging_utils;
+mod terminal;
 #[cfg(test)]
 mod test_support;
 mod two_phase_rename;
@@ -2418,6 +2421,7 @@ pub fn run() {
             file_management::generate_export_filename,
             file_management::duplicate_file,
             file_management::show_in_finder,
+            terminal::open_terminal_here,
             file_management::delete_files_from_disk,
             file_management::delete_files_with_associated,
             file_management::save_metadata_and_update_thumbnail,

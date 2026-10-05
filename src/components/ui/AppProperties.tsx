@@ -91,6 +91,7 @@ export enum Invokes {
   LoadSettings = 'load_settings',
   PreviewRenameFiles = 'preview_rename_files',
   MoveFiles = 'move_files',
+  OpenTerminalHere = 'open_terminal_here',
   ReadExifForPaths = 'read_exif_for_paths',
   RemoveTagForPaths = 'remove_tag_for_paths',
   RenameFiles = 'rename_files',
@@ -245,6 +246,7 @@ export interface AppSettings {
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
   adjustmentLayout?: AdjustmentLayout;
+  adjustmentDensity?: 'comfortable' | 'compact';
   enableFolderImageCounts?: boolean;
   displayEditIcon?: boolean;
   linearRawMode?: string;
