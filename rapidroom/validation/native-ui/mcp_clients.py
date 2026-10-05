@@ -126,6 +126,8 @@ def run_client_checks(case, smoke):
                        "-c", "mcp_servers.rapidroom.enabled_tools=" + json.dumps(allowed),
                        "-c", 'mcp_servers.rapidroom.required=true',
                        "-c", 'mcp_servers.rapidroom.default_tools_approval_mode="auto"']
+            for tool in allowed:
+                command += ["-c", f'mcp_servers.rapidroom.tools.{tool}.approval_mode="approve"']
             if settings.get("model"):
                 command += ["--model", settings["model"]]
             command += [prompt]
