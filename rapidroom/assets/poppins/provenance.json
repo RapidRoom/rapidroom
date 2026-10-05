@@ -1,0 +1,26 @@
+{
+  "source_repository": "google/fonts",
+  "source_commit": "9710da1eacb3be272583c3224dcb70f9da6eadbb",
+  "license": "SIL Open Font License 1.1",
+  "same_family_as_existing_frontend_font": "Poppins",
+  "files": {
+    "Poppins-Regular.ttf": {
+      "sha256": "7e65201e9b79159e2300267cc885e16c8dcef2424cdfa09a29bfb0980a94a7ba",
+      "git_blob": "0bda228ade88b0bb5aac7da2c881d0c3f64d0817",
+      "bytes": 160316
+    },
+    "OFL.txt": {
+      "sha256": "6be04893d770899a015649c7aa3b582f871b272f8747a92b78b17c3e5c8b2573",
+      "git_blob": "76df3b565672e3248a5715339d092d4cb6c75019",
+      "bytes": 4385
+    }
+  },
+  "caption_rasterizer": {
+    "crate": "ab_glyph",
+    "version": "0.2.32",
+    "license": "Apache-2.0",
+    "already_in_dependency_graph": true,
+    "new_optional_direct_root_edge": true,
+    "license_sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9"
+  }
+}

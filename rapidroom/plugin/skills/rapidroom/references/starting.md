@@ -13,7 +13,7 @@ npm run start:mcp                        # development: tauri dev -- --features 
 npm run tauri build -- --features mcp    # a release build with MCP
 ```
 
-Release packages don't include it yet. Build the separate `rapidroom-mcp-stdio` adapter and put it on `PATH` (or configure its absolute path):
+Official packages include it. For a developer build, build the separate `rapidroom-mcp-stdio` adapter and put it on `PATH` (or configure its absolute path):
 
 ```sh
 cargo build --manifest-path rapidroom/mcp-client/Cargo.toml --release --locked

@@ -151,3 +151,7 @@ Authenticated MCP endpoint and separate stdio client: original implementation by
 Labelled MCP history/context, generated adjustment schema and bounded preview options: original implementation by yojen7 with Codex. The original MCP implementation and notices are retained.
 
 Linux MCP packaging, default-off runtime control and per-launch assistant registration: original implementation by yojen7 with Codex. Ships the existing MCP server and stdio adapter; no new dependency or licence. Existing authorship and complete notices are retained.
+
+Read-only MCP measurement/comparison tools: original implementation by yojen7 with Codex. Design ideas (no copied engine code) from [sheldonxxxx/RapidRAW@4494beb](https://github.com/sheldonxxxx/RapidRAW/commit/4494beb9bae0ee57f420a8292c4f4f6e1dba4bd2) and native-detail inspection from [SandeepSubba/RapidRAW@4a60d6d](https://github.com/SandeepSubba/RapidRAW/commit/4a60d6d69610cb8f013e52b35c10b3d1ab64a816).
+
+MCP contact-sheet captions embed unmodified Poppins Regular from [google/fonts@9710da1](https://github.com/google/fonts/commit/9710da1eacb3be272583c3224dcb70f9da6eadbb), Copyright 2020 The Poppins Project Authors, SIL Open Font License 1.1. The complete licence and pinned asset provenance are retained under `rapidroom/assets/poppins/`. The optional direct `ab_glyph` 0.2.32 dependency is an existing app dependency version, Apache-2.0 (Alex Butler and contributors); its complete licence is retained in the same directory. Neither the font nor new optional dependency edge is included by the default MCP-disabled path.

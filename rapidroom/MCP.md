@@ -83,7 +83,15 @@ The optional native Linux regression runs the installed Claude Code and Codex cl
 
 The MCP resource `rapidroom://schema/adjustments` is generated from `INITIAL_ADJUSTMENTS` and actual slider props. It records defaults, keys, UI ranges and sign conventions, including dynamic slider bindings. Run `npm run mcp:schema` after changing those sources; `npm run mcp:schema:check` and the Vitest drift test refuse a stale artifact. The tool input schema still defines accepted values; a default's type or UI range is not an additional validator.
 
-`get_preview` supports `original`, `side_by_side` and a fractional `region` rectangle. Original means the neutral defaults rendered through the existing tone-mapper path, not the camera JPEG. Comparison places original left/edited right with letterboxing, and bounds the whole image's long edge. Regions crop the rendered preview; native-resolution crops are separate future work. These reads preserve the current edit, revision and history. See [plugin tool reference](plugin/skills/rapidroom/references/tools.md) for limits and combinations.
+`get_preview` supports `original`, `side_by_side` and a fractional `region` rectangle. Original means the neutral defaults rendered through the existing tone-mapper path, not the camera JPEG. Comparison places original left/edited right with letterboxing, and bounds the whole image's long edge. Regions crop the rendered preview; `render_region` provides native-resolution detail crops. These reads preserve the current edit, revision and history. See [plugin tool reference](plugin/skills/rapidroom/references/tools.md) for limits and combinations.
+
+## Read-only measurements and comparisons
+
+`render_compare` renders 2–6 temporary patches or existing virtual copies of the active photo at identical geometry and dimensions. It returns a bounded, labelled PNG contact sheet, or separate PNGs with exact text labels. Copies use the current GUI label, including its `(VC)` suffix; named copies are separate future work. It reads an existing sidecar snapshot without repairing or writing metadata.
+
+`analyze` and `sample_region` measure the same rendered sRGB pixels before JPEG compression: exact channel clipping counts/percentages, RGB means/medians and unsmoothed 256-bin histograms. Luminance uses linearized sRGB with Rec.709 weights. `sample_region` may suggest neutral-patch RGB gain ratios without applying them; these ratios are not temperature/tint slider values. `render_region` returns a 1:1 PNG crop in the rendered native image's pixel coordinates.
+
+All four tools preserve edits, revision, history and sidecars. They reuse the existing renderer and the user's tone mapper. Neutral `stage: "original"` retains the active geometry and tone mapper. See the [tool reference](plugin/skills/rapidroom/references/tools.md#read-only-measurements) for exact units, coordinate conventions and limits.
 
 ## Security
 
