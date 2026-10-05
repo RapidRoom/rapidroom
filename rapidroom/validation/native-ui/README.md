@@ -154,3 +154,13 @@ The normal preview/edit/Undo/Compact/export/PTY smoke follows. No real model
 requests or user desktop interaction occur. These DOM keyboard resizes exercise
 the native app's actual accessible handlers; physical pointer drags and the
 user's fractional desktop scale are not covered.
+
+[dock-layout-evidence.json](dock-layout-evidence.json) records the successful
+39-step Linux run from clean application/harness source `8855d8ae`: all 26
+resize states have a 32px header, no chrome/viewport overlap, and contained
+labelled controls. Tab, gear launch mode, both assistant stubs and PTY
+collapse/reopen pass, followed by the complete existing smoke and clean exit.
+The negative baseline catches an 11px toolbar/dock overlap and an 86px header;
+intermediate controls/scrollbar failures are retained. Four bottom/narrow/wide
+compositor captures were visually inspected. Subsequent changes only record
+measurements and documentation; photos and captures remain under samples/.

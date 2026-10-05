@@ -98,7 +98,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Landed in RapidRoom:** 2026-10-05
 - **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
 - **Upstream:** not yet offered
-- **Notes:** Library and Editor flex panes shrink with the terminal dock; the virtualized Library grid clips within its own viewport. The terminal has one 32px row with tabs, launch buttons, settings and collapse. Narrow docks use labelled icons, launch mode lives in terminal preferences, and side resizers support keyboard steps. Native stepped overlap, compact-header and control validation pending.
+- **Notes:** Library and Editor flex panes shrink with the terminal dock; the virtualized Library grid clips within its own viewport. The terminal has one 32px row with tabs, launch buttons, settings and collapse. Narrow docks use labelled icons, launch mode lives in terminal preferences, and side resizers support keyboard steps. The Linux native pass checks 26 Library/Editor bottom/left/right resize states, a 32px header and contained labelled controls at every step, width-adaptive assistant labels, tab/settings/launcher actions and collapse/reopen PTY preservation. The existing preview/edit/Undo/Compact/JPEG/PTY/cleanup smoke also passes. Physical pointer drags and fractional desktop scale remain untested.
 
 ### Include MCP and its adapter in Linux packages with default-off AI control and assistant launch consent
 
