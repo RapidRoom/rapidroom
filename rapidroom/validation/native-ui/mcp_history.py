@@ -55,6 +55,11 @@ def run_history_checks(case, smoke):
       {bubbles:true,cancelable:true}));return true;""")
     wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button[data-active]')].filter(e=>e.innerText.includes('AI: Exposure')).length;") == 3,
              "real GUI history labels")
+    wait_for(lambda: smoke.execute("""const e = [...document.querySelectorAll('button[data-active]')]
+      .find(e => e.innerText.includes('AI: Exposure'));return e &&
+      Number(getComputedStyle(e.parentElement).opacity) >= 0.99 && e.getBoundingClientRect().height > 0;"""),
+      "painted GUI history menu")
+    smoke.snapshot("mcp-history")
     smoke.capture("mcp-ai-labelled-history")
     smoke.step("actual Claude three edits, labelled history and undo twice", {"version": version, "calls": names,
         "exposure": 0.2, "ai_entries": ai_entries, "native_history_labels": True})
