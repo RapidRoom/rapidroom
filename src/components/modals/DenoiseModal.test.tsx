@@ -112,7 +112,9 @@ describe('Denoise dialog cancellation', () => {
     mockCommand(Invokes.ApplyDenoising, (args) => (args?.jobId === 1 ? first.promise : second.promise));
     await mount();
     await click(button('btnStart'));
-    expect(calls(Invokes.ApplyDenoising)).toEqual([{ jobId: 1, path: '/photos/a.raw', intensity: 0.5, method: 'ai' }]);
+    expect(calls(Invokes.ApplyDenoising)).toEqual([
+      { jobId: 1, path: '/photos/a.raw', intensity: 1, method: 'tree_best', sharpen: true },
+    ]);
     await click(backdrop());
     expect(state().denoiseModalState.isOpen).toBe(true);
     expect(button('cancel').disabled).toBe(false);
@@ -177,7 +179,7 @@ describe('Denoise dialog cancellation', () => {
     const { refreshImageList } = await mount(['/photos/a.raw', '/photos/b.raw']);
     await click(button('btnBatchDenoise'));
     expect(calls(Invokes.BatchDenoiseImages)).toEqual([
-      { jobId: 1, paths: ['/photos/a.raw', '/photos/b.raw'], intensity: 0.5, method: 'ai' },
+      { jobId: 1, paths: ['/photos/a.raw', '/photos/b.raw'], intensity: 1, method: 'tree_best', sharpen: true },
     ]);
     await act(async () => emit('denoise-complete', { jobId: 1, denoised: 'intermediate batch image' }));
     await act(async () => emit('denoise-error', { jobId: 1, message: 'Failed to denoise a.raw' }));
@@ -262,5 +264,35 @@ describe('Denoise dialog cancellation', () => {
     await act(async () => save.resolve('/photos/a_Denoised.tiff'));
     expect(button('openInEditor').disabled).toBe(false);
     expect(calls(Invokes.CancelDenoise)).toHaveLength(0);
+  });
+});
+
+describe('AI raw denoise presets', () => {
+  it('defaults to Best with separate sharpening and hides BM3D until More methods', async () => {
+    await mount();
+    expect(container.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
+    const dropdown = container.querySelector('button[aria-haspopup="listbox"]')!;
+    await click(dropdown);
+    expect(container.textContent).toContain('modals.denoise.presetFast');
+    expect(container.textContent).not.toContain('modals.denoise.methodBm3d');
+    await click(dropdown);
+    await click(button('moreMethods'));
+    await click(dropdown);
+    expect(container.textContent).toContain('modals.denoise.methodBm3d');
+  });
+
+  it('runs Fast without sharpening when the user switches it off', async () => {
+    mockCommand(Invokes.ApplyDenoising, () => {});
+    await mount();
+    await click(container.querySelector('button[aria-haspopup="listbox"]')!);
+    const option = [...container.querySelectorAll('[role="option"]')].find(
+      (el) => el.textContent === 'modals.denoise.presetFast',
+    )!;
+    await click(option);
+    await click(container.querySelector('input[type="checkbox"]')!);
+    await click(button('btnStart'));
+    expect(calls(Invokes.ApplyDenoising)).toEqual([
+      { jobId: 1, path: '/photos/a.raw', intensity: 1, method: 'tree_fast', sharpen: false },
+    ]);
   });
 });

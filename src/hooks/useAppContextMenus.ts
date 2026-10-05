@@ -89,7 +89,8 @@ interface ImportedXmpMetadata {
   adjustments?: (Partial<Adjustments> & { is_null?: boolean }) | null;
 }
 
-type XmpNotTransferredItem = 'whiteBalance' | 'profileLook' | 'aiDenoise' | 'masks' | 'pointColor';
+type XmpNotTransferredItem =
+  'whiteBalance' | 'profileLook' | 'aiDenoise' | 'aiMasks' | 'masks' | 'localAdjustments' | 'pointColor';
 
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
   notTransferred?: XmpNotTransferredItem[];
@@ -139,6 +140,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
     (items: XmpNotTransferredItem[]) => {
       const labels: Record<XmpNotTransferredItem, string> = {
         aiDenoise: t('contextMenus.xmpImportReport.notTransferredItems.aiDenoise'),
+        aiMasks: t('contextMenus.xmpImportReport.notTransferredItems.aiMasks'),
+        localAdjustments: t('contextMenus.xmpImportReport.notTransferredItems.localAdjustments'),
         masks: t('contextMenus.xmpImportReport.notTransferredItems.masks'),
         pointColor: t('contextMenus.xmpImportReport.notTransferredItems.pointColor'),
         profileLook: t('contextMenus.xmpImportReport.notTransferredItems.profileLook'),
@@ -328,6 +331,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         applyImportedXmpMetadata(targetPath, metadata);
         await props.refreshImageList();
         toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
+        toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
         if (metadata.notTransferred?.length) {
           toast.info(
             t('contextMenus.xmpImportReport.notTransferredForImage', {
@@ -397,7 +401,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
 
         const relativeToImportedFolder = (path: string) =>
           path.startsWith(`${targetPath}/`) ? path.slice(targetPath.length + 1) : path;
-        const reportLines = [t('contextMenus.xmpImportReport.folder', { folder: targetPath })];
+        const reportLines = [
+          t('contextMenus.xmpImportReport.calibrationWarning'),
+          '',
+          t('contextMenus.xmpImportReport.folder', { folder: targetPath }),
+        ];
         if (result.unchangedPaths.length > 0) {
           reportLines.push(
             '',
@@ -439,6 +447,13 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             },
           });
         };
+
+        if (result.imported > 0) {
+          toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), {
+            autoClose: false,
+            onClick: showImportReport,
+          });
+        }
 
         if (result.unchanged > 0 || result.failed > 0) {
           const notify = result.failed > 0 ? toast.error : toast.info;

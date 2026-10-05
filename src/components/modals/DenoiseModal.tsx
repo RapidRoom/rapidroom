@@ -11,15 +11,15 @@ import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { Invokes } from '../ui/AppProperties';
 
-export type DenoiseMethod = 'ai' | 'bm3d' | 'raw9';
+export type DenoiseMethod = 'tree_best' | 'tree_fast' | 'ai' | 'bm3d' | 'raw9';
 
 const defaultIntensityFor = (m: DenoiseMethod) => (m === 'bm3d' ? 15 : 50);
 
 interface DenoiseModalProps {
   isOpen: boolean;
   onClose(): void;
-  onDenoise(intensity: number, method: DenoiseMethod): void;
-  onBatchDenoise(intensity: number, method: DenoiseMethod, paths: string[]): Promise<string[]>;
+  onDenoise(intensity: number, method: DenoiseMethod, sharpen?: boolean): void;
+  onBatchDenoise(intensity: number, method: DenoiseMethod, paths: string[], sharpen?: boolean): Promise<string[]>;
   onSave(): Promise<string>;
   onOpenFile(path: string): void;
   error: string | null;
@@ -236,7 +236,10 @@ export default function DenoiseModal({
   const [isMounted, setIsMounted] = useState(false);
   const [show, setShow] = useState(false);
   const [intensity, setIntensity] = useState<number>(15);
-  const [method, setMethod] = useState<DenoiseMethod>('ai');
+  const [method, setMethod] = useState<DenoiseMethod>('tree_best');
+  const [sharpen, setSharpen] = useState(true);
+  const [moreMethods, setMoreMethods] = useState(false);
+  const isTree = method === 'tree_best' || method === 'tree_fast';
   const [raw9Available, setRaw9Available] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savedPath, setSavedPath] = useState<string | null>(null);
@@ -249,11 +252,21 @@ export default function DenoiseModal({
 
   const methodOptions = useMemo<Array<{ label: string; value: DenoiseMethod }>>(
     () => [
-      { label: t('modals.denoise.methodAi'), value: 'ai' },
-      { label: t('modals.denoise.methodBm3d'), value: 'bm3d' },
-      ...(raw9Available ? [{ label: t('modals.denoise.methodRaw9'), value: 'raw9' as const }] : []),
+      ...(isRaw
+        ? [
+            { label: t('modals.denoise.presetBest'), value: 'tree_best' as const },
+            { label: t('modals.denoise.presetFast'), value: 'tree_fast' as const },
+          ]
+        : [{ label: t('modals.denoise.methodAi'), value: 'ai' as const }]),
+      ...(moreMethods
+        ? [
+            ...(isRaw ? [{ label: t('modals.denoise.legacyAi'), value: 'ai' as const }] : []),
+            { label: t('modals.denoise.methodBm3d'), value: 'bm3d' as const },
+            ...(raw9Available ? [{ label: t('modals.denoise.methodRaw9'), value: 'raw9' as const }] : []),
+          ]
+        : []),
     ],
-    [t, raw9Available],
+    [t, raw9Available, isRaw, moreMethods],
   );
 
   useEffect(() => {
@@ -286,7 +299,7 @@ export default function DenoiseModal({
 
   useEffect(() => {
     if (method === 'raw9' && !raw9Available) {
-      const fallback: DenoiseMethod = isRaw ? 'ai' : 'bm3d';
+      const fallback: DenoiseMethod = isRaw ? 'tree_best' : 'ai';
       setMethod(fallback);
       setIntensity(defaultIntensityFor(fallback));
     }
@@ -295,14 +308,16 @@ export default function DenoiseModal({
   const currentStatusText =
     isBatch && batchProgress
       ? t('modals.denoise.batchProgressText', { current: batchProgress.current, total: batchProgress.total })
-      : aiModelDownloadStatus?.includes('NIND')
+      : aiModelDownloadStatus
         ? t('modals.denoise.downloadingText', { status: aiModelDownloadStatus })
         : progressMessage || t('modals.denoise.initializing');
 
   useEffect(() => {
     if (isOpen) {
-      setMethod(isRaw ? 'ai' : 'bm3d');
-      setIntensity(isRaw ? 50 : 15);
+      setMethod(isRaw ? 'tree_best' : 'ai');
+      setIntensity(50);
+      setSharpen(true);
+      setMoreMethods(false);
       setIsMounted(true);
       const timer = setTimeout(() => setShow(true), 10);
       return () => clearTimeout(timer);
@@ -342,7 +357,7 @@ export default function DenoiseModal({
     if (isBatch) {
       const currentRun = ++runId.current;
       try {
-        await onBatchDenoise(intensity / 100, method, targetPaths);
+        await onBatchDenoise(isTree ? 1 : intensity / 100, method, targetPaths, sharpen);
         if (currentRun === runId.current) onClose();
       } catch (e) {
         console.error('Batch denoise failed:', e);
@@ -350,7 +365,7 @@ export default function DenoiseModal({
         if (currentRun === runId.current) setBatchProgress(null);
       }
     } else {
-      onDenoise(intensity / 100, method);
+      onDenoise(isTree ? 1 : intensity / 100, method, sharpen);
     }
   };
 
@@ -452,7 +467,7 @@ export default function DenoiseModal({
 
               <Text
                 variant={TextVariants.small}
-                data-tooltip={t('modals.denoise.gpuWarningTooltip')}
+                data-tooltip={t(isTree ? 'modals.denoise.rawSpeedTooltip' : 'modals.denoise.gpuWarningTooltip')}
                 className="mt-6 text-center max-w-xs opacity-60"
               >
                 {t('modals.denoise.speedNotice')}
@@ -503,7 +518,7 @@ export default function DenoiseModal({
 
     return (
       <div className="w-full flex items-center gap-4">
-        <div className={`flex-1 flex items-center gap-6 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className={`flex-1 flex flex-wrap items-center gap-6 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="flex flex-col gap-1 w-[280px] mt-2 shrink-0">
             <Text variant={TextVariants.body} weight={TextWeights.medium}>
               {t('modals.denoise.methodLabel')}
@@ -511,6 +526,7 @@ export default function DenoiseModal({
             <Dropdown
               options={methodOptions}
               value={method}
+              disabled={disabled}
               onChange={(val: string) => {
                 const newMethod = val as DenoiseMethod;
                 setMethod(newMethod);
@@ -518,19 +534,51 @@ export default function DenoiseModal({
               }}
             />
           </div>
-          <div className="flex-1 max-w-[280px]">
-            <Slider
-              label={method === 'ai' ? t('modals.denoise.qualityTileSizeLabel') : t('modals.denoise.strengthLabel')}
-              value={intensity}
-              min={0}
-              max={100}
-              step={1}
-              defaultValue={defaultIntensityFor(method)}
-              onChange={(e) => setIntensity(Number(e.target.value))}
-              trackClassName="bg-bg-secondary"
-              fillOrigin="min"
-            />
-          </div>
+          {isTree ? (
+            <div className="flex-1 max-w-[320px] flex flex-col gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  disabled={disabled}
+                  checked={sharpen}
+                  onChange={(e) => setSharpen(e.target.checked)}
+                  className="accent-accent"
+                />
+                <span>{t('modals.denoise.sharpen')}</span>
+              </label>
+              <Text variant={TextVariants.body} className="text-xs text-text-secondary">
+                {t('modals.denoise.rawHint')}
+              </Text>
+            </div>
+          ) : (
+            <div className="flex-1 max-w-[280px]">
+              <Slider
+                label={method === 'ai' ? t('modals.denoise.qualityTileSizeLabel') : t('modals.denoise.strengthLabel')}
+                value={intensity}
+                min={0}
+                max={100}
+                step={1}
+                defaultValue={defaultIntensityFor(method)}
+                onChange={(e) => setIntensity(Number(e.target.value))}
+                trackClassName="bg-bg-secondary"
+                fillOrigin="min"
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={disabled}
+            className="text-sm text-text-secondary underline"
+            onClick={() => {
+              setMoreMethods(!moreMethods);
+              if (moreMethods && !isTree) {
+                setMethod(isRaw ? 'tree_best' : 'ai');
+                setIntensity(50);
+              }
+            }}
+          >
+            {moreMethods ? t('modals.denoise.fewerMethods') : t('modals.denoise.moreMethods')}
+          </button>
         </div>
 
         <div className="h-10 w-px bg-surface shrink-0" />

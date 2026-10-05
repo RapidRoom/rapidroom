@@ -37,8 +37,12 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Lens profiles that actually fit.** Distortion and vignetting from the Lensfun database are applied the way Lensfun defines them, including full frame lenses on APS-C bodies.
 - **Export for Instagram and print.** Built-in Instagram 4:5, 1:1 and 1.91:1 presets, optional output sharpening for screen or print, and `--preset` to use any export preset from the command line.
 
-65 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+67 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
+
+## Lightroom import calibration
+
+Lightroom import is uncalibrated: global adjustments and masks are not ready for real use until full import calibration (#31 and #133) is complete. See the [import instructions](../README.md#importing-lightroom-xmp-sidecars).
 
 ## Why RapidRoom
 

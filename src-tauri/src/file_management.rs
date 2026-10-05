@@ -6316,6 +6316,60 @@ mod lightroom_xmp_import_tests {
                 .is_some_and(|tags| tags.contains(&"user:keep".to_string()))
         );
     }
+
+    #[test]
+    fn imports_lightroom_masks_atomically_and_never_onto_the_card() {
+        let with_masks = crate::lightroom_masks::tests::sidecar_with_corrections(
+            "",
+            r#"<rdf:li>
+      <rdf:Description crs:What="Correction" crs:CorrectionName="Sky" crs:LocalExposure2012="-0.125">
+      <crs:CorrectionMasks>
+       <rdf:Seq>
+        <rdf:li crs:What="Mask/Gradient" crs:MaskValue="1"
+         crs:ZeroX="0.5" crs:ZeroY="0.6" crs:FullX="0.5" crs:FullY="0.2"/>
+       </rdf:Seq>
+      </crs:CorrectionMasks>
+      </rdf:Description>
+     </rdf:li>"#,
+        );
+        let f = folders();
+        fs::write(f.library.join("IMG_0001.xmp"), &with_masks).unwrap();
+        fs::write(f.dcim.join("IMG_0001.xmp"), &with_masks).unwrap();
+
+        let _mode = CardMode::on(&f.card);
+        let before = snapshot(&f.card);
+        assert_eq!(
+            import_xmp_adjustments_to_sidecar(
+                &path_str(&f.dcim.join("IMG_0001.jpg")),
+                &f.dcim.join("IMG_0001.xmp"),
+                None,
+            )
+            .unwrap_err(),
+            CARD_READ_ONLY_ERROR
+        );
+        assert_eq!(snapshot(&f.card), before);
+
+        let imported = import_xmp_adjustments_to_sidecar(
+            &path_str(&f.library.join("IMG_0001.jpg")),
+            &f.library.join("IMG_0001.xmp"),
+            None,
+        )
+        .unwrap();
+        assert!(imported.not_transferred.is_empty());
+        assert!(leftover_temp_files(&f.library).is_empty());
+
+        let sidecar = crate::exif_processing::load_sidecar(&f.library.join("IMG_0001.jpg.rrdata"));
+        let masks = sidecar.adjustments["masks"].as_array().unwrap();
+        assert_eq!(masks.len(), 1);
+        assert_eq!(masks[0]["name"], "Sky");
+        assert_eq!(masks[0]["adjustments"]["exposure"], -0.5);
+        assert_eq!(masks[0]["subMasks"][0]["type"], "linear");
+        // RapidRAW's renderer must accept every imported mask, or it drops them all.
+        assert_eq!(
+            crate::mask_generation::parse_mask_definitions(&sidecar.adjustments).len(),
+            1
+        );
+    }
 }
 
 #[cfg(test)]
