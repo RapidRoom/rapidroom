@@ -338,6 +338,9 @@ class Smoke:
                                       "e.complete && e.naturalWidth>100);"), "real library thumbnail")
         self.capture("library")
         self.step("library thumbnail", self.snapshot("library")["images"])
+        if (self.case / "dock-layout-test.json").exists():
+            from dock_layout import run_layout_checks
+            run_layout_checks(self.case, self)
         self.execute("""const e=[...document.images].find(e=>e.src.startsWith('asset:'));
           e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;""")
         wait_for(lambda: self.execute("return document.body.innerText.includes('4608 × 3072') && "
@@ -499,6 +502,10 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.dock_layout:
+        save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
+        for index in range(1, 24):
+            shutil.copy2(raw, case / f"input/smoke-{index:02d}.ARW")
     if args.mcp_measure:
         save(case / "mcp-measure-test.json", {"issue": 117, "real_model_requests": True})
     if args.mcp_history:
@@ -600,6 +607,7 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--dock-layout", action="store_true", help="Check stepped dock resize overlap and compact terminal controls (implies --terminal)")
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
     parser.add_argument("--terminal-clients", action="store_true", help="Use real clients from both terminal launch paths (implies --terminal --mcp-clients)")
@@ -608,6 +616,10 @@ def main():
     parser.add_argument("--mcp-measure", action="store_true", help="Run read-only measurement/comparison scenario (implies --mcp-clients)")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    global WIDTH, HEIGHT
+    if args.dock_layout:
+        args.terminal = True
+        WIDTH, HEIGHT = 1800, 1048
     if args.mcp_history or args.mcp_measure:
         args.mcp_clients = True
     if args.mcp_packaging:
@@ -616,6 +628,8 @@ def main():
         args.terminal = args.mcp_clients = True
     if args.inside:
         case = args.inside.resolve()
+        if (case / "dock-layout-test.json").exists():
+            WIDTH, HEIGHT = json.loads((case / "dock-layout-test.json").read_text())["viewport"]
         runtime = Path((case / "runtime-path.txt").read_text().strip())
         if runtime.parent != Path("/run/user") / str(os.getuid()) or not runtime.name.startswith("rr-smoke-"):
             raise RuntimeError("Unexpected private runtime path")

@@ -208,7 +208,7 @@ export default function EditorView({
 
   return (
     <div className={clsx('flex grow h-full min-h-0', layoutMode === 'compact' ? 'flex-col gap-2' : 'flex-col')}>
-      <div className={clsx('flex-1 flex flex-col min-w-0', layoutMode === 'compact' && 'min-h-0')}>{editorNode}</div>
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">{editorNode}</div>
       {layoutMode === 'compact' ? editorMobilePanelNode : editorBottomBarNode}
     </div>
   );

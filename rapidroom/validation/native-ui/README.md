@@ -134,3 +134,23 @@ Build with `--mcp-clients`, then run `smoke.py --mcp-measure` using that pinned 
 [`mcp-packaging-evidence.json`](mcp-packaging-evidence.json) records the 18-step Linux pass: four real clients used app-generated registration, both consent modes and the Settings control were inspected in compositor captures, default-off/Cancel/toggle/fresh-key/history guards passed, and clean exit removed the endpoint. The app was built from `cedd0a63`; subsequent changes only affect packaging, notices, harness capture timing and evidence. Production package GUI behavior and physical terminal focus remain unverified.
 
 [`mcp-packages-evidence.json`](mcp-packages-evidence.json) records actual deb/AppImage contents and an additional 8-step native pass with the adapter extracted from the real AppImage. Debian adapter bytes match exactly. AppImage verification permits only its expected local loader path while preserving allocated payloads, dynamic-symbol semantics and library requirements; a modified code-byte control is refused. Both Claude and Codex made real edits through the packaged adapter. The common app was run with the optional native driver; the production package GUI remains unverified.
+
+## Optional dock layout and compact terminal header
+
+Build with --terminal, then run smoke.py --dock-layout. It uses 24 independent
+copies of the existing CC0 Sony photo at a logical 1800×1048 viewport. In both
+Library and Editor, accessible resize controls step the bottom dock from 120
+to 620px and back, and each side dock from 240 to 560px and back. Each step
+records viewport/toolbar/dock bounds, the effective painted thumbnail bounds
+after ancestor clipping, compact-header height/controls, and a compositor
+screenshot. Virtualized overscan rows may extend beyond the scrolling viewport;
+their clipped painted bounds must never cover neighbouring chrome.
+
+The scenario checks one 28–32px terminal header and labelled controls contained
+inside it, with icon-only assistant buttons below 480px. It exercises new/close
+tab, persistent built-in/external selection in the gear menu, both assistant
+launchers via owned CLI stubs, and collapse/reopen through public controls.
+The normal preview/edit/Undo/Compact/export/PTY smoke follows. No real model
+requests or user desktop interaction occur. These DOM keyboard resizes exercise
+the native app's actual accessible handlers; physical pointer drags and the
+user's fractional desktop scale are not covered.

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Settings, X } from 'lucide-react';
+import { Plus, Settings, X, ChevronDown } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useShallow } from 'zustand/react/shallow';
 import { useLibraryStore } from '../../store/useLibraryStore';
@@ -8,6 +8,10 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 import { useTerminalStore, saveTerminalSettings } from '../../store/useTerminalStore';
 import { closeTerminal, mountTerminal } from '../../utils/terminalRuntime';
 import { normalizeTerminalSettings } from '../../utils/terminalSettings';
+import { useUIStore } from '../../store/useUIStore';
+import { Panel, type PanelRegion } from '../ui/AppProperties';
+import PanelSwitcher from './PanelSwitcher';
+import AgentLauncher from './AgentLauncher';
 
 export default function TerminalPanel() {
   const { t } = useTranslation();
@@ -25,6 +29,20 @@ export default function TerminalPanel() {
       selectTab: state.selectTab,
     })),
   );
+  const region = useUIStore(
+    (state) =>
+      (Object.keys(state.panelLayout) as PanelRegion[]).find((key) =>
+        state.panelLayout[key].includes(Panel.Terminal),
+      ) ?? 'bottom',
+  );
+  const collapse = () =>
+    useUIStore.getState().setUI((state) =>
+      region === 'bottom'
+        ? { activePanels: { ...state.activePanels, bottom: null } }
+        : {
+            uiVisibility: { ...state.uiVisibility, [region.startsWith('left') ? 'leftPanel' : 'rightPanel']: false },
+          },
+    );
   const path = useLibraryStore((state) => state.currentFolderPath ?? state.rootPaths[0]);
   const active = tabs.find((tab) => tab.id === activeTab);
 
@@ -45,25 +63,25 @@ export default function TerminalPanel() {
   return (
     <section
       data-terminal-panel
-      className="flex flex-col h-full min-h-0 w-full bg-bg-secondary text-text-primary rounded-lg overflow-hidden"
+      className="@container/terminal flex flex-col h-full min-h-0 w-full bg-bg-secondary text-text-primary rounded-lg overflow-hidden"
     >
-      <div className="flex items-center gap-1 p-1 border-b border-border-color shrink-0">
-        <span className="text-sm px-2">{t('terminal.title')}</span>
+      <div data-terminal-header className="flex items-center gap-1 h-8 px-1 border-b border-border-color shrink-0">
+        {region === 'bottom' && <PanelSwitcher region="bottom" side="bottom" placement="top" compact />}
         <div role="tablist" aria-label={t('terminal.tabs')} className="flex flex-1 min-w-0 overflow-x-auto">
           {tabs.map((tab) => (
-            <div key={tab.id} className="flex shrink-0 items-center">
+            <div key={tab.id} className="group/tab flex shrink-0 items-center">
               <button
                 role="tab"
                 aria-selected={tab.id === activeTab}
                 title={tab.path}
-                className={`px-2 py-1 text-sm rounded ${tab.id === activeTab ? 'bg-surface' : ''}`}
+                className={`max-w-56 truncate px-1 h-6 text-xs rounded ${tab.id === activeTab ? 'bg-surface' : ''}`}
                 onClick={() => selectTab(tab.id)}
               >
                 {tab.title}
               </button>
               <button
                 aria-label={t('terminal.closeTab', { title: tab.title })}
-                className="p-1"
+                className="p-1 opacity-0 group-hover/tab:opacity-100 focus:opacity-100"
                 onClick={() => {
                   void closeTerminal(tab.id).catch((error) => toast.error(String(error)));
                 }}
@@ -77,10 +95,11 @@ export default function TerminalPanel() {
           aria-label={t('terminal.newTab')}
           disabled={!path || tabs.length >= 16}
           onClick={add}
-          className="p-1 disabled:opacity-40"
+          className="p-1 shrink-0 disabled:opacity-40"
         >
           <Plus size={16} />
         </button>
+        <AgentLauncher compact showDestination={false} />
         <button
           aria-label={t('terminal.preferences')}
           aria-expanded={showPreferences}
@@ -88,6 +107,14 @@ export default function TerminalPanel() {
           className="p-1"
         >
           <Settings size={16} />
+        </button>
+        <button
+          aria-label={t(region === 'bottom' ? 'terminal.collapseDock' : 'terminal.collapsePanel')}
+          data-terminal-collapse
+          className="p-1 shrink-0"
+          onClick={collapse}
+        >
+          <ChevronDown size={16} />
         </button>
       </div>
       {showPreferences && (

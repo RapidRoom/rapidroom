@@ -2339,6 +2339,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           style={{ cursor: cursorStyle }}
           onContextMenu={onContextMenu}
           ref={imageContainerRef}
+          data-editor-viewport
           onPointerDownCapture={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

@@ -557,7 +557,7 @@ export default function MainLibrary(props: MainLibraryProps) {
   return (
     <div
       className={clsx(
-        'lights-out-content relative z-20 flex-1 flex flex-col h-full min-w-0 rounded-lg overflow-visible',
+        'lights-out-content relative z-20 flex-1 flex flex-col h-full min-w-0 min-h-0 rounded-lg overflow-visible',
         lightsOutMode !== 'off' ? 'bg-black' : 'bg-bg-secondary',
       )}
     >

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
@@ -323,6 +323,8 @@ export default function SidePanelArea({
   isResizing,
   showAdditionalTabs = false,
 }: SidePanelAreaProps) {
+  const { t } = useTranslation();
+  const resizeLabel = t(side === 'left' ? 'terminal.resizeLeftDock' : 'terminal.resizeRightDock');
   const panelLayout = useUIStore((s) => s.panelLayout);
   const isFullScreen = useUIStore((s) => s.isFullScreen);
   const isInstantTransition = useUIStore((s) => s.isInstantTransition);
@@ -392,6 +394,20 @@ export default function SidePanelArea({
   const bottomSplitIsTop = bottomPlacement !== 'top';
 
   const isCollapsed = width < COLLAPSE_THRESHOLD;
+  const handleWidthKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      const grow = (event.key === 'ArrowRight') === (side === 'left');
+      useUIStore.getState().setUI((state) => ({
+        [side === 'left' ? 'leftPanelWidth' : 'rightPanelWidth']: Math.max(
+          200,
+          Math.min(600, width + (grow ? 20 : -20)),
+        ),
+        uiVisibility: { ...state.uiVisibility, [side === 'left' ? 'leftPanel' : 'rightPanel']: true },
+      }));
+    }
+  };
+
   const shouldAnimateWidth = !isInstantTransition && (!isResizing || isCollapsed);
 
   if (showAdditionalTabs) {
@@ -402,10 +418,17 @@ export default function SidePanelArea({
           isFullScreen ? 'w-0 opacity-0 pointer-events-none' : 'opacity-100',
           shouldAnimateWidth && 'transition-all duration-300 ease-in-out',
         )}
+        data-side-panel={side}
         style={{ width: isFullScreen ? 0 : width }}
       >
         <div
           className="shrink-0 w-2 my-auto h-full cursor-col-resize z-20"
+          data-side-resizer
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={resizeLabel}
+          tabIndex={0}
+          onKeyDown={handleWidthKeyDown}
           onPointerDown={onWidthChange}
           onDoubleClick={onWidthReset}
         />
@@ -445,11 +468,18 @@ export default function SidePanelArea({
         isFullScreen ? 'w-0 opacity-0 pointer-events-none' : 'opacity-100',
         shouldAnimateWidth && 'transition-all duration-300 ease-in-out',
       )}
+      data-side-panel={side}
       style={{ width: isFullScreen ? 0 : width }}
     >
       {side === 'right' && (
         <div
           className="shrink-0 w-2 my-auto h-full cursor-col-resize z-20"
+          data-side-resizer
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={resizeLabel}
+          tabIndex={0}
+          onKeyDown={handleWidthKeyDown}
           onPointerDown={onWidthChange}
           onDoubleClick={onWidthReset}
         />
@@ -522,6 +552,12 @@ export default function SidePanelArea({
       {side === 'left' && (
         <div
           className="shrink-0 w-2 my-auto h-full cursor-col-resize z-20"
+          data-side-resizer
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={resizeLabel}
+          tabIndex={0}
+          onKeyDown={handleWidthKeyDown}
           onPointerDown={onWidthChange}
           onDoubleClick={onWidthReset}
         />

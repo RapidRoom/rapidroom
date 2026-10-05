@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
-import type { Panel } from '../ui/AppProperties';
+import { Panel } from '../ui/AppProperties';
 import PanelSwitcher from './PanelSwitcher';
 import AgentLauncher from './AgentLauncher';
 
@@ -62,24 +62,26 @@ export default function BottomDock({ renderPanel }: { renderPanel: (panel: Panel
           }}
         />
       )}
-      <div className="flex shrink-0 items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <PanelSwitcher region="bottom" side="bottom" placement="top" />
+      {active !== Panel.Terminal && (
+        <div className="flex shrink-0 items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <PanelSwitcher region="bottom" side="bottom" placement="top" />
+          </div>
+          <AgentLauncher />
+          {active && (
+            <button
+              aria-label={t('terminal.collapseDock')}
+              className="p-2"
+              onClick={() =>
+                useUIStore.getState().setUI((state) => ({ activePanels: { ...state.activePanels, bottom: null } }))
+              }
+            >
+              <ChevronDown size={18} />
+            </button>
+          )}
+          {!panels.length && <span className="text-xs text-text-secondary px-2">{t('terminal.dropPanel')}</span>}
         </div>
-        <AgentLauncher />
-        {active && (
-          <button
-            aria-label={t('terminal.collapseDock')}
-            className="p-2"
-            onClick={() =>
-              useUIStore.getState().setUI((state) => ({ activePanels: { ...state.activePanels, bottom: null } }))
-            }
-          >
-            <ChevronDown size={18} />
-          </button>
-        )}
-        {!panels.length && <span className="text-xs text-text-secondary px-2">{t('terminal.dropPanel')}</span>}
-      </div>
+      )}
       {active && <div className="flex-1 min-h-0">{renderPanel(active)}</div>}
     </aside>
   );
