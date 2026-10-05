@@ -1848,6 +1848,37 @@ pub fn run() {
 
     let mut builder = tauri::Builder::default();
 
+    // The native smoke harness opts in explicitly. Ordinary builds do not
+    // include the driver, and headless export/benchmark never starts it.
+    #[cfg(all(target_os = "linux", feature = "native-ui-test"))]
+    if !is_headless && let Ok(port) = std::env::var("RAPIDROOM_NATIVE_UI_TEST_PORT") {
+        let port = port
+            .parse::<u16>()
+            .ok()
+            .filter(|port| *port != 0)
+            .expect("RAPIDROOM_NATIVE_UI_TEST_PORT must be a nonzero u16");
+        builder = builder.plugin(tauri_plugin_wdio_webdriver::init_with_port(port));
+        builder = builder.plugin(
+                tauri::plugin::Builder::<_, ()>::new("native-ui-smoke-observer")
+                    .js_init_script(
+                        r#"(() => {
+                            const errors = window.__RAPIDROOM_SMOKE_ERRORS__ = [];
+                            const record = value => {
+                                if (errors.length < 200) errors.push(String(value));
+                            };
+                            window.addEventListener('error', event => record(event.message));
+                            window.addEventListener('unhandledrejection', event => record(event.reason));
+                            const original = console.error;
+                            console.error = (...args) => {
+                                record(args.join(' '));
+                                original.apply(console, args);
+                            };
+                        })();"#,
+                    )
+                    .build(),
+            );
+    }
+
     #[cfg(target_os = "linux")]
     {
         // Window class and Wayland app ID, so desktops match RapidRoom.desktop, not RapidRAW's.
