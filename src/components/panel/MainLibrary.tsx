@@ -311,6 +311,8 @@ export default function MainLibrary(props: MainLibraryProps) {
         setAppVersion(currentVersion);
 
         const response = await fetch('https://api.github.com/repos/RapidRoom/rapidroom/releases/latest');
+        // A new or private repository may have no publicly available release.
+        if (response.status === 404) return;
         if (!response.ok) {
           console.error('Failed to fetch latest release info from GitHub.');
           return;

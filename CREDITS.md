@@ -7,6 +7,10 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.
 - **[RapidRAW-DngLab](https://github.com/CyberTimon/RapidRAW-DngLab)**, CyberTimon's fork of [dnglab/rawler](https://github.com/dnglab/dnglab) by Daniel Vogelbacher and contributors (raw decoding).
 
+## AI raw denoise
+
+The native preprocessing and model contract are adapted from [RawForge](https://github.com/rymuelle/RawForge/commit/79f17700c29765b28a4cf5bd1b6d90bc7e3eb7f2) and RawHandler by rymuelle (MIT), overlap masks from blended-tiling-numpy by ProGamerGov (MIT), and Malvar kernels from colour-demosaicing by Colour Developers (BSD-3-Clause). Adapted for RapidRoom by yojen7 with Codex. [Licence check and retained notices](rapidroom/DENOISE.md). No model weights are bundled.
+
 ## Harvested changes
 
 | Change                                                                                                                            | Author                                                                                                                                                                  | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -135,5 +139,7 @@ These RapidRAW forks have work we'd like to harvest (with credit) or coordinate 
 - [NicoNex/RapidRAW](https://github.com/NicoNex/RapidRAW): native GTK front end, core split
 - [pluja/RapidRAW-Fork](https://github.com/pluja/RapidRAW-Fork): bug fixes, tests
 - [cl1x/RapidRAW](https://github.com/cl1x/RapidRAW): Immich integration
+
+Native Linux UI smoke harness: yojen7, with Codex. Its optional embedded driver is `tauri-plugin-wdio-webdriver` 1.4.0, © 2024 WebdriverIO Community, MIT, from [webdriverio/desktop-mobile](https://github.com/webdriverio/desktop-mobile). The published crate retains its MIT licence notice.
 
 The strict script CSP and disabled Cloud sign-in prerequisite for issue #119 were implemented by yojen7 with Codex, following the #125 design measurements and Josh’s approved option A. The browser measurement uses Playwright (Microsoft contributors, Apache-2.0); it is a test tool only.

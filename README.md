@@ -578,6 +578,8 @@ Explore example edits processed entirely within RapidRAW. You can download the `
 
 ## Importing Lightroom XMP Sidecars
 
+**Lightroom import is uncalibrated: global adjustments and masks are not ready for real use until full import calibration (#31 and #133) is complete.**
+
 RapidRAW imports supported Adobe Lightroom and Camera Raw adjustments into its non-destructive `.rrdata` workflow. The original image remains unchanged.
 
 - To import one image, right-click it and choose **Import XMP Adjustments**. RapidRAW first looks for a same-name `.xmp` sidecar beside the image and opens a file picker if none is found.
