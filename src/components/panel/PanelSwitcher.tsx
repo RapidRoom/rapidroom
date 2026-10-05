@@ -12,6 +12,7 @@ import {
   SwatchBook,
   FileInput,
   Camera,
+  Terminal as TerminalIcon,
   Folder as FolderIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ export const PANEL_ICONS: Record<Panel, LucideIcon> = {
   [Panel.Export]: FileInput,
   [Panel.FolderTree]: FolderIcon,
   [Panel.Tethering]: Camera,
+  [Panel.Terminal]: TerminalIcon,
 };
 
 const PANEL_TITLES: Record<Panel, string> = {
@@ -40,9 +42,10 @@ const PANEL_TITLES: Record<Panel, string> = {
   [Panel.Export]: 'editor.switcher.tooltips.export',
   [Panel.FolderTree]: 'library.folders.sourcesTitle',
   [Panel.Tethering]: 'editor.switcher.tooltips.tethering',
+  [Panel.Terminal]: 'terminal.title',
 };
 
-function PanelTab({ panel, region, side }: { panel: Panel; region: PanelRegion; side: 'left' | 'right' }) {
+function PanelTab({ panel, region, side }: { panel: Panel; region: PanelRegion; side: 'left' | 'right' | 'bottom' }) {
   const { t } = useTranslation();
   const activePanels = useUIStore((s) => s.activePanels);
   const setActivePanel = useUIStore((s) => s.setActivePanel);
@@ -103,7 +106,7 @@ export default function PanelSwitcher({
   placement,
 }: {
   region: PanelRegion;
-  side: 'left' | 'right';
+  side: 'left' | 'right' | 'bottom';
   placement: SwitcherPlacement;
 }) {
   const panelLayout = useUIStore((s) => s.panelLayout);
@@ -262,10 +265,14 @@ export function MobilePanelSwitcher({
   const isVertical = placement === 'right';
 
   return (
-    <div className={clsx(
-      'flex items-center p-1.5 gap-1 shrink-0 custom-scrollbar',
-      isVertical ? 'flex-col overflow-y-auto h-full border-l border-surface' : 'flex-row overflow-x-auto w-full border-t border-surface',
-    )}>
+    <div
+      className={clsx(
+        'flex items-center p-1.5 gap-1 shrink-0 custom-scrollbar',
+        isVertical
+          ? 'flex-col overflow-y-auto h-full border-l border-surface'
+          : 'flex-row overflow-x-auto w-full border-t border-surface',
+      )}
+    >
       {MOBILE_PANELS.map((id) => {
         const Icon = PANEL_ICONS[id];
         const isActive = activePanel === id;

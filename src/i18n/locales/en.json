@@ -2268,5 +2268,27 @@
         "vectorscope": "Vectorscope"
       }
     }
+  },
+  "terminal": {
+    "title": "Terminal",
+    "tabs": "Terminal tabs",
+    "closeTab": "Close {{title}}",
+    "newTab": "New terminal tab",
+    "preferences": "Terminal preferences",
+    "fontSize": "Font size",
+    "fontFamily": "Font family",
+    "shell": "Shell executable",
+    "defaultShell": "System login shell",
+    "startIn": "Start Claude/Codex in",
+    "builtIn": "Built-in panel",
+    "external": "My terminal",
+    "shellNote": "Shell changes apply to new tabs. On restart, tabs open fresh shells; commands and transcripts are not saved.",
+    "chooseFolder": "Choose a photo folder first",
+    "resizeDock": "Resize bottom panel",
+    "collapseDock": "Collapse bottom panel",
+    "dropPanel": "Drag a panel here",
+    "claude": "Claude Code",
+    "codex": "Codex",
+    "loading": "Loading terminal…"
   }
 }

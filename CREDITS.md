@@ -143,3 +143,5 @@ These RapidRAW forks have work we'd like to harvest (with credit) or coordinate 
 Native Linux UI smoke harness: yojen7, with Codex. Its optional embedded driver is `tauri-plugin-wdio-webdriver` 1.4.0, © 2024 WebdriverIO Community, MIT, from [webdriverio/desktop-mobile](https://github.com/webdriverio/desktop-mobile). The published crate retains its MIT licence notice.
 
 The strict script CSP and disabled Cloud sign-in prerequisite for issue #119 were implemented by yojen7 with Codex, following the #125 design measurements and Josh’s approved option A. The browser measurement uses Playwright (Microsoft contributors, Apache-2.0); it is a test tool only.
+
+Built-in terminal panel and PTY lifecycle: yojen7 with Codex, original work for RapidRoom. Optional `portable-pty` 0.9.0 (MIT, Copyright 2018 Wez Furlong); `@xterm/xterm` 6.0.0 (MIT, the xterm.js authors, SourceLair and Fabrice Bellard); `@xterm/addon-fit` 0.11.0 (MIT, Copyright 2019 the xterm.js authors). Complete notices are retained under `rapidroom/LICENSES/`. No fork code is used for this panel.

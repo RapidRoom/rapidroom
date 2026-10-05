@@ -98,3 +98,5 @@ Weston version and software native presentation need a separate measured run.
 macOS, Windows, Android, physical touch, user desktop focus and file-picker
 dialogs remain untested. The opt-in driver build supplements the default release
 checks and the pixel-exact full60 regression; it does not replace either.
+
+For the optional terminal extension, pass `--terminal` to both `build.py` and `smoke.py`. The test uses owned shell/CLI/external-terminal stubs, drives xterm keyboard and existing docking callbacks, checks real PTY folder/environment, output preservation across docking/collapse, external starts with the built-in panel closed, and background-process cleanup on app quit. It never starts actual Claude/Codex agents. Authenticated MCP endpoint/stdio parity remains a separate pending #116 integration gate.

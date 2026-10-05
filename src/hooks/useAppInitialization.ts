@@ -95,6 +95,7 @@ export const useAppInitialization = ({
       rightPanelWidth: state.rightPanelWidth,
       leftTopHeight: state.leftTopHeight,
       rightTopHeight: state.rightTopHeight,
+      bottomDockHeight: state.bottomDockHeight,
       panelLayout: state.panelLayout,
       activePanels: state.activePanels,
       panelSwitcherPlacement: state.panelSwitcherPlacement,
@@ -148,8 +149,12 @@ export const useAppInitialization = ({
   }, [setSupportedTypes]);
 
   useEffect(() => {
-    Promise.all([invoke(Invokes.LoadSettings), invoke<boolean>(Invokes.IsTetheringSupported).catch(() => false)])
-      .then(async ([settings, isTetheringSupported]: [any, boolean]) => {
+    Promise.all([
+      invoke(Invokes.LoadSettings),
+      invoke<boolean>(Invokes.IsTetheringSupported).catch(() => false),
+      invoke<boolean>(Invokes.IsTerminalSupported).catch(() => false),
+    ])
+      .then(async ([settings, isTetheringSupported, isTerminalSupported]: [any, boolean, boolean]) => {
         if (
           !settings.copyPasteSettings ||
           !settings.copyPasteSettings.includedAdjustments ||
@@ -171,7 +176,7 @@ export const useAppInitialization = ({
           handleSettingsChange(settings);
         }
 
-        const reconciledWorkspace = reconcileWorkspace(settings?.workspace, isTetheringSupported);
+        const reconciledWorkspace = reconcileWorkspace(settings?.workspace, isTetheringSupported, isTerminalSupported);
         settings.workspace = reconciledWorkspace;
 
         setAppSettings(settings);
@@ -203,6 +208,8 @@ export const useAppInitialization = ({
         }
 
         setUI({
+          terminalSupported: isTerminalSupported,
+          bottomDockHeight: reconciledWorkspace.bottomDockHeight,
           leftPanelWidth: reconciledWorkspace.leftPanelWidth,
           rightPanelWidth: reconciledWorkspace.rightPanelWidth,
           leftTopHeight: reconciledWorkspace.leftTopHeight,

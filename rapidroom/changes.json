@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "built-in-terminal-panel",
+      "title": "Movable terminal panel with persistent tabs, bounded PTY output, shell/font preferences and built-in/external assistant launch controls",
+      "category": "feature",
+      "landed": "2026-10-04",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original work with Codex; optional portable-pty and xterm dependencies credited separately)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Requires cargo feature terminal; official Linux release configuration enables it. Uses existing left/right panel docking plus a resizable full-width bottom region. Saved tabs reopen fresh shells without persisted transcripts or automatic commands. Output is bounded with acknowledgement backpressure, OSC 52 clipboard commands are blocked, and owned PTY sessions are closed on tab/app exit. Claude/Codex start buttons type fixed shell commands or use the existing external terminal infrastructure. Native verification and #102/#116 authenticated endpoint/stdio parity are still pending; this branch is not ready to merge before that integration."
+    },
+    {
       "id": "terminal-strict-csp",
       "title": "Keep webview scripts local and disable Cloud sign-in before adding the terminal panel",
       "category": "privacy",

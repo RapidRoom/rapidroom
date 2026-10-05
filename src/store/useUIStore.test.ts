@@ -46,6 +46,42 @@ const savedWorkspace = (overrides: Partial<WorkspaceState>): WorkspaceState => (
 });
 
 describe('reconcileWorkspace', () => {
+  it('adds a collapsed terminal dock to legacy workspaces only in supported builds', () => {
+    const legacy = savedWorkspace({ layoutVersion: WORKSPACE_LAYOUT_VERSION });
+    const enabled = reconcileWorkspace(legacy, false, true);
+    expect(enabled.panelLayout.bottom).toEqual([Panel.Terminal]);
+    expect(enabled.activePanels.bottom).toBeNull();
+    expect(enabled.panelLayout.leftTop).toEqual(legacy.panelLayout.leftTop);
+    expect(reconcileWorkspace(legacy, false, false).panelLayout.bottom).toEqual([]);
+  });
+
+  it('preserves a moved terminal and collapsed dock while filtering duplicate tabs', () => {
+    const saved = savedWorkspace({
+      layoutVersion: WORKSPACE_LAYOUT_VERSION,
+      panelLayout: {
+        leftTop: [Panel.FolderTree, Panel.Terminal],
+        leftBottom: [],
+        rightTop: [Panel.Adjustments],
+        rightBottom: [],
+        bottom: [Panel.Terminal, Panel.Metadata],
+      },
+      activePanels: {
+        leftTop: Panel.Terminal,
+        leftBottom: null,
+        rightTop: Panel.Adjustments,
+        rightBottom: null,
+        bottom: null,
+      },
+      bottomDockHeight: 360,
+    });
+    const workspace = reconcileWorkspace(saved, false, true);
+    expect(workspace.panelLayout.leftTop).toContain(Panel.Terminal);
+    expect(workspace.panelLayout.bottom).toEqual([Panel.Metadata]);
+    expect(workspace.activePanels.bottom).toBeNull();
+    expect(workspace.bottomDockHeight).toBe(360);
+    const off = reconcileWorkspace(saved, false, false);
+    expect(Object.values(off.panelLayout).flat()).not.toContain(Panel.Terminal);
+  });
   it('puts Presets in the left sidebar for a new workspace', () => {
     const workspace = reconcileWorkspace(undefined, false);
     expect(workspace.panelLayout.leftTop).toContain(Panel.Presets);
@@ -89,12 +125,14 @@ describe('reconcileWorkspace', () => {
       leftBottom: [Panel.Metadata],
       rightTop: [Panel.Adjustments, Panel.Masks],
       rightBottom: [Panel.Crop, Panel.Ai, Panel.Export],
+      bottom: [],
     });
     expect(workspace.activePanels).toEqual({
       leftTop: Panel.FolderTree,
       leftBottom: Panel.Metadata,
       rightTop: Panel.Masks,
       rightBottom: Panel.Ai,
+      bottom: null,
     });
     expect(workspace.leftPanelWidth).toBe(300);
     expect(workspace.rightPanelWidth).toBe(400);

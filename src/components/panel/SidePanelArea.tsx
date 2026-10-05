@@ -121,6 +121,7 @@ function RegionDroppableContainer({
   return (
     <div
       ref={setRefs}
+      data-layout-region={region}
       className={clsx(
         'flex h-full w-full bg-bg-secondary rounded-lg overflow-hidden border transition-colors shadow-xs relative',
         isFlexRow ? 'flex-row' : 'flex-col',
