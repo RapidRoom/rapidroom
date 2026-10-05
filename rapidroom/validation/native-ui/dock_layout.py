@@ -16,7 +16,7 @@ def run_layout_checks(case, smoke):
     smoke.terminal_type("printf 'RR_LAYOUT_READY\\n'\r")
     wait_for(lambda: 'RR_LAYOUT_READY' in smoke.terminal_text(), 'layout PTY output')
 
-    def geometry(view, region, size):
+    def geometry(view, region, size, index):
         data = smoke.execute(r"""
           const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
           const visible=e=>!!e && rect(e).width>0 && rect(e).height>0 && getComputedStyle(e).visibility!=='hidden';
@@ -53,9 +53,14 @@ def run_layout_checks(case, smoke):
             controls:header?[...header.querySelectorAll('button')].filter(e=>!e.closest('[role=tablist]')).map(e=>({label:e.getAttribute('aria-label')||e.getAttribute('data-tooltip'),bounds:rect(e)})):[],
             agent_labels:header?[...header.querySelectorAll('[data-start-agent] span')].map(e=>({text:e.textContent,visible:rect(e).width>0})):[]};
         """, [view, region, size])
-        name=f'dock-{view}-{region}-{size}'
+        name=f'dock-{view}-{region}-{index}-{size}'
         data['capture']=str(smoke.capture(name).relative_to(case))
         save(case / (name+'.json'),data)
+        if not 28 <= data['header_height'] <= 33:
+            data['violations'].append('terminal header is not one 28–32px row')
+        actual=data['dock']['height'] if region=='bottom' else data['dock']['width']
+        if abs(actual-size)>11:
+            data['violations'].append('resize did not reach requested step within keyboard quantization')
         if data['header']:
             for control in data['controls']:
                 b=control['bounds'];h=data['header']
@@ -87,9 +92,9 @@ def run_layout_checks(case, smoke):
             wait_for(lambda: smoke.execute("return !!document.querySelector('[data-bench-id=editor-first-frame]');"),'editor native frame')
         for region in ('bottom','leftTop','rightTop'):
             if region!='bottom': smoke.terminal_drag(region)
-            for size in ((120,260,420,620,260) if region=='bottom' else (240,400,560,320)):
+            for index,size in enumerate((120,260,420,620,260) if region=='bottom' else (240,400,560,320)):
                 resize(region,size)
-                measurements=geometry(view,region,size)
+                measurements=geometry(view,region,size,index)
             if not 28 <= measurements['header_height'] <= 33:
                 raise RuntimeError(f"{view}/{region}: expected one 28–32px terminal header, observed {measurements['header_height']}")
             if region!='bottom': smoke.terminal_drag('bottom')
