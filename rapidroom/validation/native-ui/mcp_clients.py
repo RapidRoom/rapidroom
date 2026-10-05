@@ -45,7 +45,7 @@ def image_state(url, image, version="2026-07-28", token=None):
     return json.loads(next(content["text"] for content in result["content"] if content["type"] == "text"))
 
 
-def execute_client(command, folder, name, config_home, cwd=None):
+def execute_client(command, folder, name, config_home, cwd=None, own_group=True):
     env = {key: value for key, value in os.environ.items()
            if not key.startswith("HCOM_") and key not in {"CLAUDECODE", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"}}
     env["XDG_CONFIG_HOME"] = str(config_home)
@@ -54,15 +54,21 @@ def execute_client(command, folder, name, config_home, cwd=None):
         output.chmod(0o600)
         (folder / (name + ".stderr.log")).chmod(0o600)
         process = subprocess.Popen(command, cwd=cwd or folder, env=env, stdout=log, stderr=errors,
-                                   start_new_session=True)
+                                   start_new_session=own_group)
         try:
             code = process.wait(timeout=300)
         except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGTERM)
+            if own_group:
+                os.killpg(process.pid, signal.SIGTERM)
+            else:
+                process.terminate()
             try:
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
+                if own_group:
+                    os.killpg(process.pid, signal.SIGKILL)
+                else:
+                    process.kill()
                 process.wait()
             raise RuntimeError(name + " real client timed out")
     if code:

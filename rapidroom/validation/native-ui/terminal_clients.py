@@ -24,7 +24,7 @@ def run_launched_client(case, name):
         if result["config_home"] != str(case / "config") or result["endpoint_or_token_env"]:
             raise RuntimeError("Launched client endpoint discovery environment differs")
         command, version = client_command(case, folder, name, request["exposure"])
-        events = execute_client(command, folder, name, case / "config", cwd=case / "input")
+        events = execute_client(command, folder, name, case / "config", cwd=case / "input", own_group=False)
         if name == "claude":
             called = any(value.get("type") == "tool_use" and
                          value.get("name") == "mcp__rapidroom__update_adjustments"
