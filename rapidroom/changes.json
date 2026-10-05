@@ -15,7 +15,7 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Optional MCP tools render 2–6 variants at the same geometry, preserve current GUI virtual-copy labels, and return bounded PNGs. Exact sRGB channel clipping/count histograms and linear Rec.709 luminance use pre-JPEG rendered pixels; region white-balance gains are advisory only. Native crops use post-transform 1:1 pixel coordinates with explicit edge/source/payload limits. Read-only calls preserve edits, revision, history and sidecars. Embeds unmodified Poppins Regular with OFL licence and adds an optional direct edge to the existing ab_glyph version; default dependency graph remains unchanged. Local native/release validation pending; macOS/Windows and packaged runtime untested."
+      "notes": "Optional MCP tools render 2–6 variants at the same geometry, preserve current GUI virtual-copy labels, and return bounded PNGs. Exact sRGB channel clipping/count histograms and linear Rec.709 luminance use pre-JPEG rendered pixels; region white-balance gains are advisory only. Native crops use post-transform 1:1 pixel coordinates with explicit edge/source/payload limits. Read-only calls preserve edits, revision, history and sidecars. Embeds unmodified Poppins Regular with OFL licence and adds an optional direct edge to the existing ab_glyph version; default dependency graph remains unchanged. The 12-step Linux native scenario verifies actual Claude calls, independently decoded exact statistics, stable variants, real virtual-copy labels, nested native crops and unchanged state/history/sidecars. Final release regression validation pending; macOS/Windows and packaged runtime untested."
     },
     {
       "id": "mcp-history-context-schema-previews",
