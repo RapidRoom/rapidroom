@@ -50,6 +50,7 @@ export function useEditorActions() {
       setEditor((state) => {
         const prev = state.adjustments;
         const newAdjustments = typeof value === 'function' ? value(prev) : { ...prev, ...value };
+        if (newAdjustments === prev) return state;
         debouncedSetHistory(newAdjustments);
         return {
           adjustments: newAdjustments,

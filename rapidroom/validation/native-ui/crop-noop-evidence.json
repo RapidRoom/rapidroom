@@ -1,0 +1,151 @@
+{
+  "issue": 149,
+  "application_build": {
+    "source": {
+      "head": "5efade09285229ceeea65019dffd1d461239ab8c",
+      "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": ""
+    },
+    "engine_sha256": "aaaab0938a327baeb12e45d42509308417f0b1541f128b38773d859d63dd197d",
+    "stdio_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
+    "profile": "release",
+    "features": ["native-ui-test", "mcp"],
+    "cargo_locked": true,
+    "jobs": 4,
+    "resources": "symlinked source resources; no AI operation in minimum smoke"
+  },
+  "harness_head": "87ce6ad931013f9375de34ca5e3638e418eb5b8a",
+  "harness_only_changes_since_app_build": ["rapidroom/validation/native-ui/crop_noop.py"],
+  "platform": "Arch Linux, Intel LNL Vulkan; private Weston headless GL logical1680x1050",
+  "fixture": "published CC0 Sony ARW4608x3072; owned copy",
+  "passed": true,
+  "native_steps_passed": 12,
+  "no_op_guards": [
+    {
+      "phase": "closing the no-op full-frame crop",
+      "crop": null,
+      "editRevision": "a1b30c3b12eec2155dede1aea670f6700cc3aa5575a50a9fa1171f152df575c2",
+      "historyIndex": 0,
+      "state_unchanged": true,
+      "history_unchanged": true,
+      "sidecar_bytes_mtime_unchanged": true
+    },
+    {
+      "phase": "completing an unchanged full-frame crop",
+      "crop": null,
+      "editRevision": "a1b30c3b12eec2155dede1aea670f6700cc3aa5575a50a9fa1171f152df575c2",
+      "historyIndex": 0,
+      "state_unchanged": true,
+      "history_unchanged": true,
+      "sidecar_bytes_mtime_unchanged": true
+    },
+    {
+      "phase": "opening the no-op full-frame crop",
+      "crop": null,
+      "editRevision": "a1b30c3b12eec2155dede1aea670f6700cc3aa5575a50a9fa1171f152df575c2",
+      "historyIndex": 0,
+      "state_unchanged": true,
+      "history_unchanged": true,
+      "sidecar_bytes_mtime_unchanged": true
+    }
+  ],
+  "crop_steps": [
+    {
+      "name": "opening/closing crop preserves revision, history and sidecars",
+      "evidence": {
+        "editRevision": "a1b30c3b12eec2155dede1aea670f6700cc3aa5575a50a9fa1171f152df575c2",
+        "historyIndex": 0,
+        "sidecars": {
+          "input/smoke.ARW.rrdata": {
+            "sha256": "18dd3596b89a62c41b2e43b85d000f3fe64f342e423b4e89ca05d6b89dc2e15d",
+            "mtime_ns": 1791240690031108061
+          }
+        }
+      }
+    },
+    {
+      "name": "no-movement crop completion records no edit",
+      "evidence": {
+        "editRevision": "a1b30c3b12eec2155dede1aea670f6700cc3aa5575a50a9fa1171f152df575c2",
+        "history_entries": 2
+      }
+    },
+    {
+      "name": "one real crop records one user history step",
+      "evidence": {
+        "crop": {
+          "height": 2614,
+          "unit": "px",
+          "width": 4150,
+          "x": 0,
+          "y": 0
+        },
+        "editRevision": "ac9e013356ae8af3293fc415903f63751243bac7c3a89e5273c881c342a689c1",
+        "history_entry": {
+          "active": true,
+          "actor": "user",
+          "changedKeys": ["crop"],
+          "index": 1,
+          "label": "Crop",
+          "timestamp": null,
+          "undone": false
+        }
+      }
+    },
+    {
+      "name": "crop Undo restores original preview and stays uncropped",
+      "evidence": {
+        "historyIndex": 0,
+        "crop": null,
+        "native_preview_exact": true,
+        "real_assistants_started": false
+      }
+    }
+  ],
+  "source_guards": {
+    "fixture_unchanged": true,
+    "engine_unchanged": true
+  },
+  "captures": [
+    {
+      "capture": "samples/noop-crop-149/after-stage2/captures/crop-full-frame-open/wayland-screenshot-2026-10-05_12-51-33.png",
+      "sha256": "0d6a7305c98d3953c8016f138e433716796ad0b8d80d687218c3a9639d36a6e8"
+    },
+    {
+      "capture": "samples/noop-crop-149/after-stage2/captures/crop-real-corner-edit/wayland-screenshot-2026-10-05_12-51-37.png",
+      "sha256": "f2a36d53b099f700a3664dbace5c3a87ca45c08347725a2992ba8bd5c9588ea4"
+    },
+    {
+      "capture": "samples/noop-crop-149/after-stage2/captures/crop-undo-restored-1/wayland-screenshot-2026-10-05_12-51-39.png",
+      "sha256": "a4ec4dcff0408384d36ec2bdc308bdeb4c515c725558abc968b9ab16729964d5"
+    }
+  ],
+  "captures_visually_inspected": true,
+  "real_model_requests": false,
+  "untested": [
+    "physical pointer devices",
+    "fractional desktop scaling",
+    "production packaged GUI",
+    "other compositors",
+    "Windows",
+    "macOS"
+  ],
+  "negative_baseline": {
+    "application_head": "cedd0a63d12263060e2df0e5388bc3f03627886b",
+    "crop_before": null,
+    "crop_after": {
+      "height": 3072,
+      "unit": "px",
+      "width": 4608,
+      "x": 0,
+      "y": 0
+    },
+    "revision_history_sidecar_changed": true
+  },
+  "intermediate_negative": {
+    "application_head": "529896f064128efd65e5730a115622379a10abe4",
+    "state_revision_sidecar_unchanged": true,
+    "empty_history_entry_changed": true,
+    "correction": "Editor now uses shared guarded action"
+  }
+}
