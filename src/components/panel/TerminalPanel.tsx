@@ -110,7 +110,7 @@ export default function TerminalPanel() {
             {t('terminal.fontFamily')}{' '}
             <input
               aria-label={t('terminal.fontFamily')}
-              className="bg-surface p-1"
+              className="appearance-none bg-surface text-text-primary border border-border-color rounded p-1 cursor-pointer"
               value={preferences.fontFamily}
               onChange={(event) => {
                 void saveTerminalSettings({ fontFamily: event.target.value.slice(0, 200) });
@@ -122,7 +122,7 @@ export default function TerminalPanel() {
             <input
               aria-label={t('terminal.shell')}
               placeholder={t('terminal.defaultShell')}
-              className="bg-surface p-1"
+              className="appearance-none bg-surface text-text-primary border border-border-color rounded p-1 cursor-pointer"
               value={preferences.shell}
               onChange={(event) => {
                 void saveTerminalSettings({ shell: event.target.value });
@@ -133,7 +133,7 @@ export default function TerminalPanel() {
             {t('terminal.startIn')}{' '}
             <select
               aria-label={t('terminal.startIn')}
-              className="bg-surface p-1"
+              className="appearance-none bg-surface text-text-primary border border-border-color rounded p-1 cursor-pointer"
               value={preferences.startIn}
               onChange={(event) => {
                 void saveTerminalSettings({ startIn: event.target.value === 'external' ? 'external' : 'built-in' });

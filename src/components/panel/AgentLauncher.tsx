@@ -39,7 +39,7 @@ export default function AgentLauncher() {
         <span className="sr-only">{t('terminal.startIn')}</span>
         <select
           aria-label={t('terminal.startIn')}
-          className="bg-surface rounded px-1 py-1"
+          className="appearance-none bg-surface text-text-primary border border-border-color rounded px-2 py-1 cursor-pointer"
           value={preferences.startIn}
           onChange={(event) => {
             void saveTerminalSettings({ startIn: event.target.value === 'external' ? 'external' : 'built-in' });

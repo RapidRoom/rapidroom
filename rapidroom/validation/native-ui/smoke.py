@@ -190,7 +190,9 @@ class Smoke:
         points = self.execute("""const a=document.querySelector('[data-tab-id=layout-tab-terminal]'),
           b=document.querySelector('[data-layout-region="'+arguments[0]+'"]');
           if(!a||!b)throw Error('Dock target missing');const r=a.getBoundingClientRect(),s=b.getBoundingClientRect();
-          return [r.left+r.width/2,r.top+r.height/2,s.left+s.width/2,s.top+s.height/2];""", [region])
+          // A single populated sidebar splits into upper/lower drop zones during dragging.
+          const y=arguments[0].endsWith('Top') ? s.top+s.height/4 : s.top+s.height/2;
+          return [r.left+r.width/2,r.top+r.height/2,s.left+s.width/2,y];""", [region])
         self.execute("""const e=document.querySelector('[data-tab-id=layout-tab-terminal]');
           e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,
             pointerId:1,pointerType:'mouse',isPrimary:true,button:0,buttons:1,
@@ -211,9 +213,30 @@ class Smoke:
     def terminal_flow(self):
         policy = self.execute("return [...document.querySelectorAll('meta[http-equiv]')]"
           ".filter(e=>e.httpEquiv.toLowerCase()==='content-security-policy').map(e=>e.content);")
+        # Tauri's custom protocol supplies CSP as a response header on WebKitGTK.
+        headers = request(self.url + "/execute/async", {"script": """
+          const done=arguments[arguments.length-1];
+          fetch(location.href).then(r=>done({policy:r.headers.get('content-security-policy')}))
+            .catch(e=>done({error:String(e)}));""", "args": []})["value"]
+        if headers.get("policy"):
+            policy.append(headers["policy"])
         if not policy or any("unsafe-eval" in value or "clerk" in value.lower() for value in policy):
-            raise RuntimeError("Native strict CSP missing or broadened")
-        self.step("native strict CSP", policy)
+            raise RuntimeError("Native strict CSP missing or broadened: " + str(headers))
+        control = request(self.url + "/execute/async", {"script": """
+          const callback=arguments[arguments.length-1], script=document.createElement('script');
+          let violation=null,finished=false;
+          const listener=e=>{if(e.blockedURI==='data' && e.effectiveDirective.startsWith('script-src'))
+            violation={directive:e.effectiveDirective,policy:e.originalPolicy};};
+          document.addEventListener('securitypolicyviolation',listener);
+          const done=()=>{if(finished)return;finished=true;script.remove();
+            document.removeEventListener('securitypolicyviolation',listener);
+            callback({executed:window.__RR_CSP_CONTROL__===true,violation});};
+          script.src='data:text/javascript,window.__RR_CSP_CONTROL__=true';
+          script.onload=done;script.onerror=()=>setTimeout(done,100);
+          document.body.append(script);setTimeout(done,2000);""", "args": []})["value"]
+        if control.get("executed") or not control.get("violation"):
+            raise RuntimeError("Native CSP negative control failed: " + str(control))
+        self.step("native strict CSP", {"policy": policy, "nonlocal_script_control": control})
         self.execute("""document.querySelector('[data-tab-id=layout-tab-terminal]').click();return true;""")
         wait_for(lambda: self.execute("return !!document.querySelector('[data-terminal-open]');"), "terminal panel")
         self.execute("""document.querySelector('[data-terminal-open]').click();return true;""")

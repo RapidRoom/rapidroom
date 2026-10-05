@@ -42,7 +42,7 @@ export default function BottomDock({ renderPanel }: { renderPanel: (panel: Panel
       data-bottom-dock
       data-layout-region="bottom"
       className={`lights-out-chrome shrink-0 flex flex-col min-h-0 rounded-lg bg-bg-secondary ${isOver ? 'ring-2 ring-accent' : ''}`}
-      style={{ height: active ? height : 40 }}
+      style={{ height: active ? height : 52 }}
     >
       {active && (
         <div
