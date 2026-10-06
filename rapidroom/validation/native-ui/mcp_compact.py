@@ -206,13 +206,20 @@ def run_compact_checks(case, smoke):
                 value = value[key]
             if value != expected:
                 raise RuntimeError("Actual nested edit did not apply " + ".".join(keys))
-        if "adjustments" in reply or reply["editRevision"] != after["editRevision"] or reply["changedKeys"] != entry["changedKeys"] or entry["actor"] != "assistant":
+        actual_keys = sorted(key for key in current["adjustments"].keys() | after["adjustments"].keys()
+                             if current["adjustments"].get(key) != after["adjustments"].get(key))
+        save(client_folder / "edit-proof.json", {"reply": reply, "actual_changed_keys": actual_keys,
+                                                "history_entry": entry, "nested_fields_verified": True,
+                                                "three_masks_preserved": True, "native_preview_changed": True})
+        # History keeps control/label order; compact replies use sorted keys.
+        if "adjustments" in reply or reply["editRevision"] != after["editRevision"] or reply["changedKeys"] != actual_keys or sorted(entry["changedKeys"]) != actual_keys or entry["actor"] != "assistant":
             raise RuntimeError("Actual client did not receive a compact accurate reply/shared assistant history")
         summary = client_reply(events, client, next(v[2] for v in actual if v[0] == "analyze"))
         if "histogram" in summary:
             raise RuntimeError("Actual summary response contains unwanted histograms")
         result["clients"][client] = {"version": version, "calls": [v[0] for v in actual], "nested_local_schema_patch_accepted": True,
                                      "compact_revision_changed_keys_reply": True, "changed_keys": reply["changedKeys"],
+                                     "history_changed_keys_same_membership": True,
                                      "three_masks_preserved": True, "one_shared_assistant_history_entry": True,
                                      "native_preview_changed": True, "summary_histogram_omitted": True}
         save(folder / "result.json", result)
