@@ -330,8 +330,27 @@ class Smoke:
         wait_for(driver_ready, "embedded driver", 60)
         session = request(base + "/session", {"capabilities": {"alwaysMatch": {}}})["value"]["sessionId"]
         self.url = base + "/session/" + session
-        wait_for(lambda: self.execute("return !!document.querySelector('#root')?.children.length && "
-                                      "Array.isArray(window.__RAPIDROOM_SMOKE_ERRORS__);"), "real frontend")
+        startup = {"phase": "read-only frontend readiness", "script_timeouts_retried": 0}
+        save(self.case / "driver-startup.json", startup)
+
+        def frontend_ready():
+            try:
+                return self.execute("return !!document.querySelector('#root')?.children.length && "
+                                    "Array.isArray(window.__RAPIDROOM_SMOKE_ERRORS__);")
+            except RuntimeError as error:
+                # The driver can advertise readiness before its first script
+                # callback is attached. Only this side-effect-free probe retries.
+                if startup["script_timeouts_retried"] or not re.search(
+                    r"['\"]error['\"]\s*:\s*['\"]script timeout['\"]", str(error)
+                ):
+                    raise
+                startup.update(script_timeouts_retried=1, first_probe_error=str(error))
+                save(self.case / "driver-startup.json", startup)
+                return False
+
+        wait_for(frontend_ready, "real frontend", 90)
+        startup["phase"] = "frontend ready before Continue Session"
+        save(self.case / "driver-startup.json", startup)
         self.execute("""const e=[...document.querySelectorAll('button')]
           .find(e=>e.innerText.trim()==='Continue Session');
           if(!e)throw Error('Continue Session missing');e.click();return true;""")
@@ -423,7 +442,10 @@ class Smoke:
             run_packaging_checks(self.case, self)
         elif (self.case / "terminal-test.json").exists():
             self.terminal_flow()
-        if (self.case / "mcp-revisions-test.json").exists():
+        if (self.case / "mcp-compact-test.json").exists():
+            from mcp_compact import run_compact_checks
+            run_compact_checks(self.case, self)
+        elif (self.case / "mcp-revisions-test.json").exists():
             from mcp_revisions import run_revision_checks
             run_revision_checks(self.case, self)
         elif (self.case / "mcp-measure-test.json").exists():
@@ -517,6 +539,8 @@ def launch(args):
         save(case / "mcp-measure-test.json", {"issue": 117, "real_model_requests": True})
     if args.mcp_revisions:
         save(case / "mcp-revisions-test.json", {"issue": 148, "real_model_requests": True})
+    if args.mcp_compact or args.mcp_compact_baseline:
+        save(case / "mcp-compact-test.json", {"issue": 147, "baseline": args.mcp_compact_baseline, "real_model_requests": not args.mcp_compact_baseline})
     if args.mcp_history:
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_packaging:
@@ -524,7 +548,7 @@ def launch(args):
     if args.crop_noop:
         save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
-        if not args.crop_noop:
+        if not args.crop_noop and not args.mcp_compact_baseline:
             save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
@@ -627,6 +651,8 @@ def main():
     parser.add_argument("--mcp-packaging", action="store_true", help="Verify default-off, launch consent, runtime toggle and real registered clients")
     parser.add_argument("--mcp-measure", action="store_true", help="Run read-only measurement/comparison scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-revisions", action="store_true", help="Real clients read latest state across a GUI edit and receive strict stale-write details")
+    parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
+    parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -634,7 +660,7 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_history or args.mcp_measure or args.mcp_revisions or args.crop_noop:
+    if args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop:
         args.mcp_clients = True
     if args.mcp_packaging:
         args.terminal_clients = True

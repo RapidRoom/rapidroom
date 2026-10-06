@@ -215,6 +215,24 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         }),
     ];
     definitions.extend(super::measure::tool_definitions());
+    for tool in &mut definitions {
+        let property = match tool["name"].as_str() {
+            Some("set_adjustments" | "get_preview") => "adjustments",
+            Some("update_adjustments") => "changes",
+            _ => continue,
+        };
+        let (schema, definitions) = adjustments::compact_schema();
+        tool["inputSchema"]["properties"][property] = schema;
+        tool["inputSchema"]["$defs"] = definitions;
+    }
+    for tool in &mut definitions {
+        if matches!(
+            tool["name"].as_str(),
+            Some("set_adjustments" | "update_adjustments" | "reset_adjustments")
+        ) {
+            tool["inputSchema"]["properties"]["verbose"] = json!({"type":"boolean","default":false,"description":"Return full state instead of editRevision and changedKeys."});
+        }
+    }
     definitions
 }
 
@@ -336,6 +354,7 @@ async fn history_action(
 
 async fn set_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
     let path = required_image_path(arguments)?;
+    let verbose = preview::option(arguments, "verbose")?;
     let adjustments = arguments
         .get("adjustments")
         .cloned()
@@ -343,16 +362,19 @@ async fn set_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result<Va
     adjustments::validate_adjustments(&adjustments)?;
     check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
     ui::require_active_session(app_handle, Some(&path))?;
-    ui::request_ui(
+    let before = get_image_state(app_handle, arguments)?;
+    let response = ui::request_ui(
         app_handle,
         "apply-adjustments",
         json!({ "path": path, "adjustments": adjustments, "resetHistory": false }),
     )
-    .await
+    .await?;
+    Ok(mutation_response(&before, response, verbose))
 }
 
 async fn update_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
     let path = required_image_path(arguments)?;
+    let verbose = preview::option(arguments, "verbose")?;
     let changes = arguments
         .get("changes")
         .cloned()
@@ -366,19 +388,32 @@ async fn update_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result
         .unwrap_or_else(|| json!({}));
     let merged = adjustments::merge_adjustments(current_adjustments, changes)?;
     ui::require_active_session(app_handle, Some(&path))?;
-    ui::request_ui(
+    let response = ui::request_ui(
         app_handle,
         "apply-adjustments",
         json!({ "path": path, "adjustments": merged, "resetHistory": false }),
     )
-    .await
+    .await?;
+    Ok(mutation_response(&current, response, verbose))
 }
 
 async fn reset_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
     let path = required_image_path(arguments)?;
+    let verbose = preview::option(arguments, "verbose")?;
     check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
     ui::require_active_session(app_handle, Some(&path))?;
-    ui::request_ui(app_handle, "reset-adjustments", json!({ "path": path })).await
+    let before = get_image_state(app_handle, arguments)?;
+    let response = ui::request_ui(app_handle, "reset-adjustments", json!({ "path": path })).await?;
+    Ok(mutation_response(&before, response, verbose))
+}
+
+fn mutation_response(before: &Value, response: Value, verbose: bool) -> Value {
+    if verbose {
+        return response;
+    }
+    json!({"imagePath":response["imagePath"],"editRevision":response["editRevision"],
+        "changedKeys":adjustments::changed_keys(&before["adjustments"],&response["adjustments"]),
+        "renderPending":response["renderPending"]})
 }
 
 async fn apply_auto_adjustments(
@@ -959,23 +994,9 @@ async fn revision_conflict(
 }
 
 fn conflict_value(expected: &str, current: &Value, before: Option<&Value>, actor: &Value) -> Value {
-    let changed_keys = before.map(|before| {
-        let keys: std::collections::BTreeSet<_> = before
-            .as_object()
-            .into_iter()
-            .flat_map(|value| value.keys())
-            .chain(
-                current["adjustments"]
-                    .as_object()
-                    .into_iter()
-                    .flat_map(|value| value.keys()),
-            )
-            .collect();
-        keys.into_iter()
-            .filter(|key| before.get(key.as_str()) != current["adjustments"].get(key.as_str()))
-            .cloned()
-            .collect::<Vec<_>>()
-    });
+    let changed_keys =
+        before.map(|before| adjustments::changed_keys(before, &current["adjustments"]));
+
     json!({"error":"revision_conflict", "message":"Editor changed; retry with the current state.",
         "expectedRevision":expected,"currentRevision":current["editRevision"],"changedKeys":changed_keys,
         "changesKnown":before.is_some(),"actor":actor})
@@ -1034,6 +1055,77 @@ pub(super) fn required_image_path(arguments: &Value) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn compact_mutations_report_actual_changed_keys_without_echoing_masks() {
+        let before = json!({"adjustments":{"exposure":0,"crop":null,"masks":[{"id":"a"}]}});
+        let response = json!({"imagePath":"/photo.raw","editRevision":"new","renderPending":false,
+            "adjustments":{"exposure":1,"masks":[{"id":"a"}]},"isSelected":true});
+        let compact = mutation_response(&before, response.clone(), false);
+        assert_eq!(compact["changedKeys"], json!(["crop", "exposure"]));
+        assert_eq!(compact["editRevision"], "new");
+        assert_eq!(compact["renderPending"], false);
+        assert!(compact.get("adjustments").is_none());
+        assert_eq!(mutation_response(&before, response.clone(), true), response);
+        assert_eq!(
+            mutation_response(&response, response.clone(), false)["changedKeys"],
+            json!([])
+        );
+    }
+
+    #[test]
+    fn compact_tool_definitions_resolve_locally_to_the_full_adjustment_schema() {
+        fn expand(value: &Value, definitions: &Value, depth: usize) -> Value {
+            assert!(depth < 16);
+            if let Some(reference) = value.get("$ref").and_then(Value::as_str) {
+                let name = reference.strip_prefix("#/$defs/").expect("local reference");
+                let mut expanded = expand(&definitions[name], definitions, depth + 1);
+                assert!(expanded.is_object());
+                for (key, child) in value.as_object().unwrap() {
+                    if key != "$ref" {
+                        expanded[key] = expand(child, definitions, depth + 1);
+                    }
+                }
+                expanded
+            } else {
+                match value {
+                    Value::Object(object) => Value::Object(
+                        object
+                            .iter()
+                            .map(|(key, value)| {
+                                (key.clone(), expand(value, definitions, depth + 1))
+                            })
+                            .collect(),
+                    ),
+                    Value::Array(array) => Value::Array(
+                        array
+                            .iter()
+                            .map(|value| expand(value, definitions, depth + 1))
+                            .collect(),
+                    ),
+                    _ => value.clone(),
+                }
+            }
+        }
+        let full = adjustments::adjustments_schema();
+        for tool in tool_definitions() {
+            let property = match tool["name"].as_str() {
+                Some("set_adjustments" | "get_preview") => "adjustments",
+                Some("update_adjustments") => "changes",
+                _ => continue,
+            };
+            let schema = &tool["inputSchema"];
+            assert_eq!(
+                expand(&schema["properties"][property], &schema["$defs"], 0),
+                full
+            );
+            let bytes = serde_json::to_vec(&schema["properties"][property])
+                .unwrap()
+                .len()
+                + serde_json::to_vec(&schema["$defs"]).unwrap().len();
+            assert!(bytes * 4 < serde_json::to_vec(&full).unwrap().len() * 3);
+        }
+    }
 
     #[test]
     fn revision_conflicts_report_known_diff_and_structured_error() {

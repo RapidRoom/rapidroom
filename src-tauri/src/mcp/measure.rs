@@ -69,7 +69,7 @@ fn channel_median(histogram: &[u64; 256], count: u64) -> f64 {
     (values[0] + values[1]) / 2.0
 }
 
-fn statistics(image: &DynamicImage) -> Result<Value, String> {
+fn statistics(image: &DynamicImage, include_histogram: bool) -> Result<Value, String> {
     let count = u64::from(image.width()) * u64::from(image.height());
     if count == 0 || count > MAX_PIXELS {
         return Err("Measurement requires 1–16777216 rendered pixels".into());
@@ -102,7 +102,13 @@ fn statistics(image: &DynamicImage) -> Result<Value, String> {
             "highlightPercent": histogram[255] as f64 * 100.0 / count_float,
         })
     });
-    Ok(json!({
+    let percentile = |fraction: f64| {
+        let rank = fraction * (count - 1) as f64;
+        let lower = rank.floor() as usize;
+        let upper = rank.ceil() as usize;
+        luminances[lower] + (luminances[upper] - luminances[lower]) * rank.fract()
+    };
+    let mut value = json!({
         "width":image.width(), "height":image.height(), "pixelCount":count,
         "stage":"rendered_srgb_u8_before_jpeg", "rgbUnits":"0–255 encoded sRGB",
         "luminanceUnits":"0–1 linear relative luminance, sRGB transfer and Rec.709 weights",
@@ -111,9 +117,14 @@ fn statistics(image: &DynamicImage) -> Result<Value, String> {
         "meanLuminance":luminance_sum / count_float,
         "medianLuminance":(luminances[(count as usize-1)/2] + luminances[count as usize/2])/2.0,
         "clipping": {"red":clipping[0],"green":clipping[1],"blue":clipping[2]},
-        "histogram": {"red":channels[0].as_slice(),"green":channels[1].as_slice(),"blue":channels[2].as_slice(),
-            "linearLuminance":histogram.as_slice(),"bins":256,"smoothed":false,"normalized":false},
-    }))
+        "luminancePercentiles":{"p05":percentile(0.05),"p25":percentile(0.25),"p50":percentile(0.5),"p75":percentile(0.75),"p95":percentile(0.95)},
+        "percentileMethod":"Linear interpolation at p*(pixelCount-1) in sorted linear luminance",
+    });
+    if include_histogram {
+        value["histogram"] = json!({"red":channels[0].as_slice(),"green":channels[1].as_slice(),"blue":channels[2].as_slice(),
+            "linearLuminance":histogram.as_slice(),"bins":256,"smoothed":false,"normalized":false});
+    }
+    Ok(value)
 }
 
 fn white_balance(stats: &Value) -> Value {
@@ -158,12 +169,19 @@ fn contact_sheet(
     labels: &[String],
     bound: u32,
 ) -> Result<DynamicImage, String> {
+    let first = images.first().ok_or("Contact sheet needs images")?;
     let font = FontRef::try_from_slice(FONT).map_err(|e| e.to_string())?;
-    let columns = if images.len() <= 4 { 2 } else { 3 };
+    let columns = if matches!(images.len(), 2 | 4) { 2 } else { 3 };
     let rows = (images.len() as u32).div_ceil(columns);
-    let cell = bound / columns.max(rows);
-    let label_height = (cell / 5).clamp(16, 48).min(cell / 2);
-    let mut sheet = RgbImage::from_pixel(columns * cell, rows * cell, Rgb([24, 24, 24]));
+    let max_width = bound / columns;
+    let max_height = bound / rows;
+    let label_height = (max_width / 5).clamp(16, 24).min(max_height / 2);
+    let thumbnail = first.thumbnail(max_width, max_height - label_height);
+    let cell_width = thumbnail.width();
+    let image_height = thumbnail.height();
+    let cell_height = image_height + label_height;
+    let mut sheet =
+        RgbImage::from_pixel(columns * cell_width, rows * cell_height, Rgb([24, 24, 24]));
     for (index, (image, label)) in images.iter().zip(labels).enumerate() {
         if label.chars().any(|c| {
             c.is_control()
@@ -175,15 +193,15 @@ fn contact_sheet(
         let title = format!("{}: {}", (b'A' + index as u8) as char, label);
         let mut scale = 18.0_f32.min(label_height as f32 - 4.0);
         while scale >= 8.0
-            && imageproc::drawing::text_size(scale, &font, &title).0 > cell.saturating_sub(8)
+            && imageproc::drawing::text_size(scale, &font, &title).0 > cell_width.saturating_sub(8)
         {
             scale -= 1.0;
         }
         if scale < 8.0 {
             return Err("Complete contact-sheet label does not fit; increase maxDimension or use separate images".into());
         }
-        let x = index as u32 % columns * cell;
-        let y = index as u32 / columns * cell;
+        let x = index as u32 % columns * cell_width;
+        let y = index as u32 / columns * cell_height;
         imageproc::drawing::draw_text_mut(
             &mut sheet,
             Rgb([240, 240, 240]),
@@ -193,12 +211,12 @@ fn contact_sheet(
             &font,
             &title,
         );
-        let thumb = image.thumbnail(cell, cell - label_height).to_rgb8();
+        let thumb = image.thumbnail(cell_width, image_height).to_rgb8();
         imageops::overlay(
             &mut sheet,
             &thumb,
-            (x + (cell - thumb.width()) / 2) as i64,
-            (y + label_height + (cell - label_height - thumb.height()) / 2) as i64,
+            (x + (cell_width - thumb.width()) / 2) as i64,
+            (y + label_height + (image_height - thumb.height()) / 2) as i64,
         );
     }
     Ok(DynamicImage::ImageRgb8(sheet))
@@ -260,7 +278,7 @@ pub(super) fn tool_definitions() -> Vec<Value> {
     for (name, description) in [
         (
             "analyze",
-            "Read exact rendered sRGB channel clipping percentages, mean/median linear luminance and unsmoothed 256-bin pixel-count histograms. Does not change edits/history/revision.",
+            "Read exact rendered sRGB clipping, RGB/linear-luminance means and medians, and luminance percentiles. Optional histogram:true adds four unsmoothed 256-bin histograms. Does not change edits.",
         ),
         (
             "sample_region",
@@ -279,6 +297,9 @@ pub(super) fn tool_definitions() -> Vec<Value> {
             "maxDimension":{"type":"integer","minimum":128,"maximum":4096,"default":1280},
             "stage":{"type":"string","enum":["edited","original"],"default":"edited"},"region":fractions});
         let mut required = vec!["imagePath"];
+        if matches!(name, "analyze" | "sample_region") {
+            properties["histogram"] = json!({"type":"boolean","default":false,"description":"Include four unsmoothed 256-bin pixel-count histograms."});
+        }
         if name == "sample_region" {
             required.push("region");
             properties["suggestWhiteBalance"] = json!({"type":"boolean","default":false});
@@ -337,6 +358,8 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
     }
     let parameters = stage_adjustments(arguments, &state["adjustments"])?;
     let suggest = name == "sample_region" && preview::option(arguments, "suggestWhiteBalance")?;
+    let histogram =
+        matches!(name, "analyze" | "sample_region") && preview::option(arguments, "histogram")?;
     let (target, native) = if name == "render_region" {
         let region = pixel_region(arguments.get("region").ok_or("region is required")?)?;
         (0, Some((region.x, region.y, region.width, region.height)))
@@ -364,7 +387,7 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
         json!({"width":image.width(),"height":image.height(),"nativePixels":true,
             "coordinates":"pixels of the full rendered image after edit geometry/crop","content":content(&[image])?})
     } else {
-        let mut value = statistics(&image)?;
+        let mut value = statistics(&image, histogram)?;
         if suggest {
             value["whiteBalanceSuggestion"] = white_balance(&value);
         }
@@ -549,9 +572,46 @@ mod tests {
     use super::*;
 
     #[test]
+    fn summary_keeps_exact_statistics_and_percentiles_without_histogram_echoes() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_fn(2, 1, |x, _| {
+            Rgb([if x == 0 { 0 } else { 255 }; 3])
+        }));
+        let summary = statistics(&image, false).unwrap();
+        let mut full = statistics(&image, true).unwrap();
+        assert!(summary.get("histogram").is_none());
+        assert_eq!(summary["luminancePercentiles"]["p05"], json!(0.05));
+        assert_eq!(summary["luminancePercentiles"]["p95"], json!(0.95));
+        assert!(
+            serde_json::to_vec(&summary).unwrap().len() * 2
+                < serde_json::to_vec(&full).unwrap().len()
+        );
+        full.as_object_mut().unwrap().remove("histogram");
+        assert_eq!(summary, full);
+    }
+
+    #[test]
+    fn comparison_grid_tracks_landscape_portrait_and_three_tile_geometry() {
+        for (count, width, height, expected) in [
+            (4, 1000, 666, (1000, 714)),
+            (4, 666, 1000, (634, 1000)),
+            (3, 1000, 666, (999, 246)),
+        ] {
+            let images =
+                vec![
+                    DynamicImage::ImageRgb8(RgbImage::from_pixel(width, height, Rgb([90, 30, 40])));
+                    count
+                ];
+            let labels = vec![String::from("Current"); count];
+            let sheet = contact_sheet(&images, &labels, 1000).unwrap();
+            assert_eq!(sheet.dimensions(), expected);
+            assert!(sheet.width() <= 1000 && sheet.height() <= 1000);
+        }
+    }
+
+    #[test]
     fn red_pixels_keep_channel_identity_and_rec709_luminance() {
         let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(1, 1, Rgb([255, 0, 0])));
-        let value = statistics(&image).unwrap();
+        let value = statistics(&image, true).unwrap();
         assert_eq!(value["meanRGB"], json!([255.0, 0.0, 0.0]));
         assert_eq!(value["meanLuminance"], json!(0.2126));
         assert_eq!(value["clipping"]["red"]["highlightPercent"], json!(100.0));
@@ -607,7 +667,7 @@ mod tests {
                 Rgb([255, 255, 255])
             }
         }));
-        let value = statistics(&image).unwrap();
+        let value = statistics(&image, true).unwrap();
         assert_eq!(value["meanRGB"], json!([127.5, 127.5, 127.5]));
         assert_eq!(value["medianRGB"], json!([127.5, 127.5, 127.5]));
         assert_eq!(value["meanLuminance"], json!(0.5));
@@ -623,7 +683,7 @@ mod tests {
     #[test]
     fn luminance_uses_the_srgb_transfer_and_neutral_suggestion_never_applies() {
         let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(1, 1, Rgb([128, 128, 128])));
-        let value = statistics(&image).unwrap();
+        let value = statistics(&image, true).unwrap();
         assert!((value["meanLuminance"].as_f64().unwrap() - 0.21586050011389926).abs() < 1e-12);
         assert_eq!(value["meanLuminance"], value["medianLuminance"]);
         assert_eq!(
@@ -633,7 +693,7 @@ mod tests {
         assert_eq!(white_balance(&value)["applied"], json!(false));
         let black = DynamicImage::ImageRgb8(RgbImage::from_pixel(1, 1, Rgb([0, 0, 0])));
         assert_eq!(
-            white_balance(&statistics(&black).unwrap())["available"],
+            white_balance(&statistics(&black, true).unwrap())["available"],
             json!(false)
         );
     }
