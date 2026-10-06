@@ -81,14 +81,20 @@ def run_compact_checks(case, smoke):
     result["engine_sha256"] = build["engine_sha256"]
     result["stdio_adapter_sha256"] = build["stdio_adapter_sha256"]
     width, height = 4608, 3072
+    # Complete neutral mask recipes: sparse MCP masks are the separate #150 default-fill issue.
+    mask_keys = ("blacks brightness clarity colorGrading colorNoiseReduction contrast curves pointCurves parametricCurve curveMode "
+                 "dehaze exposure flareAmount glowAmount halationAmount highlights hsl hue lumaNoiseReduction saturation shadows "
+                 "sharpness sharpnessThreshold structure temperature tint vibrance whites").split()
+    mask_defaults = {key: copy.deepcopy(initial["adjustments"][key]) for key in mask_keys}
+    mask_defaults["sectionVisibility"] = {key: True for key in ("basic", "curves", "color", "colorGrading", "colorMixer", "details", "effects")}
     masks = [{"id": f"compact-radial-{index}", "name": f"Public fixture radial {index}", "visible": True, "invert": False, "opacity": 100,
-              "adjustments": {"exposure": index / 20}, "subMasks": [{"id": f"compact-sub-{index}", "name": "Radial", "type": "radial",
+              "adjustments": {**copy.deepcopy(mask_defaults), "exposure": index / 20}, "subMasks": [{"id": f"compact-sub-{index}", "name": "Radial", "type": "radial",
               "mode": "additive", "visible": True, "invert": False, "opacity": 100,
               "parameters": {"centerX": width * index / 4, "centerY": height / 2, "radiusX": width / 6,
                              "radiusY": height / 4, "rotation": 0, "feather": 0.5}}]} for index in (1, 2, 3)]
     _, seeded = mutate("update_adjustments", {"changes": {"masks": masks}})
-    if len(seeded["adjustments"]["masks"]) != 3 or any(len(mask["adjustments"]) < 30 for mask in seeded["adjustments"]["masks"]):
-        raise RuntimeError("Three real radial masks did not receive editor defaults")
+    if len(seeded["adjustments"]["masks"]) != 3 or any(len(mask["adjustments"]) != len(mask_defaults) for mask in seeded["adjustments"]["masks"]):
+        raise RuntimeError("Three full radial fixture recipes did not round-trip")
     three_mask = copy.deepcopy(seeded["adjustments"])
     result["replies"]["update_adjustments_default"], updated = mutate("update_adjustments", {"changes": {"exposure": 0.2}})
     recipe = copy.deepcopy(updated["adjustments"])
