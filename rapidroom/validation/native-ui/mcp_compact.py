@@ -81,7 +81,7 @@ def run_compact_checks(case, smoke):
     result["engine_sha256"] = build["engine_sha256"]
     result["stdio_adapter_sha256"] = build["stdio_adapter_sha256"]
     width, height = 4608, 3072
-    # Complete neutral mask recipes: sparse MCP masks are the separate #150 default-fill issue.
+    # Use complete neutral mask recipes so byte comparisons isolate response size.
     mask_keys = ("blacks brightness clarity colorGrading colorNoiseReduction contrast curves pointCurves parametricCurve curveMode "
                  "dehaze exposure flareAmount glowAmount halationAmount highlights hsl hue lumaNoiseReduction saturation shadows "
                  "sharpness sharpnessThreshold structure temperature tint vibrance whites").split()
