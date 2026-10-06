@@ -211,27 +211,28 @@ every change since an arbitrary revision. A change during rendering retains
 the read guard with structured conflict details. Source commit/dirty fields
 are compiled for MCP builds; archives without Git report unknown identity.
 
-[revisions-evidence.json](revisions-evidence.json) records the 14-step Linux pass
-from clean pinned source `4f74fb66`. Claude Code 2.1.289 and Codex CLI 0.160.0
-each read context in one turn, then sent the literal stale revision to all
-five reads and one update after GUI Exposure edits (0→0.6 and 0.6→1.2). All
-reads matched fresh results/payloads; every stale mutation was refused with
+[revisions-evidence.json](revisions-evidence.json) records the 15-step Linux pass
+from clean application source `849ccd34`, with harness-only settling commit
+`bcf03869`. Eight context requests overlapped actual GUI Exposure edits and all
+arrived. Claude Code 2.1.289 and Codex CLI 0.160.0 then each read context in
+one turn and sent the literal stale revision to all five reads and one update
+after GUI Exposure edits (1.2→0.6 and 0.6→1.2). Reads matched fresh results and
+rendered payloads; all six stale mutations were independently refused with
 the latest revision, `exposure` and `user`. State, history and sidecar bytes/mtime
 were unchanged across reads/refusal. Original/custom previews separated edit
-and recipe identity. Both GUI captures were visually inspected, and the
-normal smoke and clean exit passed. An initial driver timeout before any step
-is retained; the same application passed in a fresh case.
+and recipe identity. Both GUI captures were visually inspected; normal smoke,
+clean exit and fixture/application guards passed.
 
-A later build-script tracking correction watches tracked Rust/frontend files
-as well as Git HEAD/ref, so incremental edits refresh the compiled dirty flag.
-An isolated Cargo/Git probe reproduces the old stale flag and checks clean,
-Rust/frontend edits, reversion and a new HEAD against the actual helper.
-Native behavior above was tested before this metadata tracking correction.
+An earlier 14-step run passed, but a later payload-baseline run exposed one
+lost editor-context request while navigation callbacks changed. The bridge
+now keeps its command listener stable and calls the latest navigation handler
+through a ref. A deferred-registration regression fails on the old bridge;
+all 163 frontend tests pass with the fix. The earlier timeout and regression
+logs are retained. The revised native run above needed no startup retry.
 
-A later payload-baseline run exposed one lost editor-context request while
-navigation callbacks changed. The bridge now keeps its command listener
-stable and calls the latest navigation handler through a ref. A deferred
-registration regression reproduces the dropped request on the old code; all
-163 frontend tests pass after the fix. The revised native scenario overlaps
-eight editor-context reads with actual GUI Exposure changes before the real
-client turns. Revised native and exact-head release checks are in progress.
+Tracked-file build watches keep compiled source identity current after
+incremental Rust/frontend edits. An isolated Cargo/Git probe reproduces the
+old stale dirty flag and checks clean builds, edits, reversion and a new HEAD.
+The revised application includes this correction. Other platforms, physical
+input, native evicted-history/mid-render concurrency and archive identity
+remain untested.

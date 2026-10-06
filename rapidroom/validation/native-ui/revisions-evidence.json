@@ -4,13 +4,13 @@
   "fixture": "published CC0 Sony ARW, 4608\u00d73072",
   "real_model_requests": true,
   "source": {
-    "head": "4f74fb66bb0e9b09e3b0e16ab2183ec8294d0789",
+    "head": "849ccd344154ef25465349886e518962615994a6",
     "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "status": ""
   },
-  "engine_sha256": "17a2523da7f05dd494f0b67470b193cac62d0ba6b05940ff23bfdd0f240fc13a",
+  "engine_sha256": "cdc7499a495a611703d732c217e6ce8c3958003066a5c4d24ef8d2eee369d3ee",
   "stdio_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
-  "native_steps_passed": 14,
+  "native_steps_passed": 15,
   "normal_preview_edit_exact_undo_compact_jpeg_clean_exit": true,
   "authenticated_endpoint_discovery": {
     "wire_protocols": {
@@ -37,12 +37,12 @@
     "claude": {
       "context": {
         "version": "2.1.289 (Claude Code)",
-        "editRevision": "b8f3789645797c1eb6b2029e88e08e7e3fe641fd633bfde029bcabff6da01a5c",
+        "editRevision": "3333ee8b0acab6cd2ebd8a8fd8543bc6059f378d5175dde0451d6d6c1ca7d83f",
         "appVersion": "2.2.0",
-        "sourceCommit": "4f74fb66bb0e9b09e3b0e16ab2183ec8294d0789",
+        "sourceCommit": "849ccd344154ef25465349886e518962615994a6",
         "sourceDirty": false
       },
-      "gui_exposure_before": 0,
+      "gui_exposure_before": 1.2,
       "gui_exposure_after": 0.6,
       "advisory_reads_latest": ["get_preview", "analyze", "sample_region", "render_region", "render_compare"],
       "stale_fresh_results_and_rendered_payloads_equal": true,
@@ -52,9 +52,9 @@
         "actor": "user",
         "changedKeys": ["exposure"],
         "changesKnown": true,
-        "currentRevision": "604cced650e908aa7784e7d9709465f941c39875b56abdd1e6149f3e14ebfa9a",
+        "currentRevision": "2cd8778fb40079a6b6e61a1e1b0256c37f9983acc1417ec0b75df2895d28b99b",
         "error": "revision_conflict",
-        "expectedRevision": "b8f3789645797c1eb6b2029e88e08e7e3fe641fd633bfde029bcabff6da01a5c",
+        "expectedRevision": "3333ee8b0acab6cd2ebd8a8fd8543bc6059f378d5175dde0451d6d6c1ca7d83f",
         "message": "Editor changed; retry with the current state."
       },
       "all_stale_mutations_refused": [
@@ -81,9 +81,9 @@
     "codex": {
       "context": {
         "version": "codex-cli 0.160.0",
-        "editRevision": "604cced650e908aa7784e7d9709465f941c39875b56abdd1e6149f3e14ebfa9a",
+        "editRevision": "2cd8778fb40079a6b6e61a1e1b0256c37f9983acc1417ec0b75df2895d28b99b",
         "appVersion": "2.2.0",
-        "sourceCommit": "4f74fb66bb0e9b09e3b0e16ab2183ec8294d0789",
+        "sourceCommit": "849ccd344154ef25465349886e518962615994a6",
         "sourceDirty": false
       },
       "gui_exposure_before": 0.6,
@@ -96,9 +96,9 @@
         "actor": "user",
         "changedKeys": ["exposure"],
         "changesKnown": true,
-        "currentRevision": "5621715f5ac593bc9403e1d28480198803d09b1d2e51911df13212ae17dfa4e6",
+        "currentRevision": "3333ee8b0acab6cd2ebd8a8fd8543bc6059f378d5175dde0451d6d6c1ca7d83f",
         "error": "revision_conflict",
-        "expectedRevision": "604cced650e908aa7784e7d9709465f941c39875b56abdd1e6149f3e14ebfa9a",
+        "expectedRevision": "2cd8778fb40079a6b6e61a1e1b0256c37f9983acc1417ec0b75df2895d28b99b",
         "message": "Editor changed; retry with the current state."
       },
       "all_stale_mutations_refused": [
@@ -127,18 +127,217 @@
     "fixture_unchanged": true,
     "engine_unchanged": true
   },
-  "startup_retry": "First driver script timed out on welcome screen before any step. Same pinned application passed in a fresh case.",
+  "startup_retry": null,
   "incremental_identity_probe": {
     "old_stale_dirty_flag_reproduced": true,
     "revised_clean_rust_edit_frontend_edit_revert_and_head_checks_pass": true,
     "receipt_sha256": "781de2c4398bb446899e82b63956719bd4b28b24f04710deb7027d38aaa60fbf"
   },
-  "later_source_changes": "Build-script tracking now watches all tracked files so incremental Rust/frontend edits refresh compiled dirty status; application behavior was validated at the pinned source above.",
+  "later_source_changes": "Application source above includes tracked-file identity watches and the stable command listener. The harness-only commit adds a settling delay before counting the next GUI history row. Final evidence/documentation changes do not alter application behavior.",
   "photos_captures_and_client_logs": "Retained only in owned samples/readonly-revisions-148; not committed.",
   "untested": [
     "Physical input devices",
     "Windows/macOS",
     "Native evicted-history and mid-render concurrency",
     "Git archive identity"
-  ]
+  ],
+  "harness_source_commit": "bcf038696c77e975762a0a6e53a0a67bb6de8d2e",
+  "concurrent_gui_delivery": {
+    "read_context_requests": 8,
+    "all_acknowledged": true,
+    "deliveries": [
+      {
+        "slider": {
+          "label": "Exposure",
+          "requested": 0.4,
+          "before": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0,
+            "width": 48
+          },
+          "after": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0.6,
+            "width": 48
+          }
+        },
+        "editRevision": "f90085280ef0841e6eff90a0ff88606fc3cb929cabdecc33c5678a29441034ad"
+      },
+      {
+        "slider": {
+          "label": "Exposure",
+          "requested": 0.8,
+          "before": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0.6,
+            "width": 48
+          },
+          "after": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 1.2,
+            "width": 48
+          }
+        },
+        "editRevision": "3333ee8b0acab6cd2ebd8a8fd8543bc6059f378d5175dde0451d6d6c1ca7d83f"
+      },
+      {
+        "slider": {
+          "label": "Exposure",
+          "requested": 0.4,
+          "before": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 1.2,
+            "width": 48
+          },
+          "after": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0.6,
+            "width": 48
+          }
+        },
+        "editRevision": "3333ee8b0acab6cd2ebd8a8fd8543bc6059f378d5175dde0451d6d6c1ca7d83f"
+      },
+      {
+        "slider": {
+          "label": "Exposure",
+          "requested": 0.8,
+          "before": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0.6,
+            "width": 48
+          },
+          "after": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 1.2,
+            "width": 48
+          }
+        },
+        "editRevision": "2cd8778fb40079a6b6e61a1e1b0256c37f9983acc1417ec0b75df2895d28b99b"
+      },
+      {
+        "slider": {
+          "label": "Exposure",
+          "requested": 0.4,
+          "before": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 1.2,
+            "width": 48
+          },
+          "after": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0.6,
+            "width": 48
+          }
+        },
+        "editRevision": "3333ee8b0acab6cd2ebd8a8fd8543bc6059f378d5175dde0451d6d6c1ca7d83f"
+      },
+      {
+        "slider": {
+          "label": "Exposure",
+          "requested": 0.8,
+          "before": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0.6,
+            "width": 48
+          },
+          "after": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 1.2,
+            "width": 48
+          }
+        },
+        "editRevision": "2cd8778fb40079a6b6e61a1e1b0256c37f9983acc1417ec0b75df2895d28b99b"
+      },
+      {
+        "slider": {
+          "label": "Exposure",
+          "requested": 0.4,
+          "before": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 1.2,
+            "width": 48
+          },
+          "after": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0.6,
+            "width": 48
+          }
+        },
+        "editRevision": "3333ee8b0acab6cd2ebd8a8fd8543bc6059f378d5175dde0451d6d6c1ca7d83f"
+      },
+      {
+        "slider": {
+          "label": "Exposure",
+          "requested": 0.8,
+          "before": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0.6,
+            "width": 48
+          },
+          "after": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 1.2,
+            "width": 48
+          }
+        },
+        "editRevision": "2cd8778fb40079a6b6e61a1e1b0256c37f9983acc1417ec0b75df2895d28b99b"
+      }
+    ]
+  },
+  "delivery_regression": {
+    "old_bridge_failed_deferred_registration_test": true,
+    "negative_log_sha256": "9f66f4e20f7ca86a3bfaef973e1032d7e7223c1bbe3719523e8eecce56470817",
+    "revised_bridge_frontend_tests_passed": 163,
+    "positive_log_sha256": "d6b2bcaea3518648c604f91b1326a12ba9ce20bfdbd3ba4c8cf09485605cc2cb",
+    "prior_native_ui_ack_timeout_retained": true,
+    "prior_failure_source_commit": "4f74fb66bb0e9b09e3b0e16ab2183ec8294d0789"
+  }
 }
