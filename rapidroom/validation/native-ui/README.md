@@ -227,3 +227,11 @@ as well as Git HEAD/ref, so incremental edits refresh the compiled dirty flag.
 An isolated Cargo/Git probe reproduces the old stale flag and checks clean,
 Rust/frontend edits, reversion and a new HEAD against the actual helper.
 Native behavior above was tested before this metadata tracking correction.
+
+A later payload-baseline run exposed one lost editor-context request while
+navigation callbacks changed. The bridge now keeps its command listener
+stable and calls the latest navigation handler through a ref. A deferred
+registration regression reproduces the dropped request on the old code; all
+163 frontend tests pass after the fix. The revised native scenario overlaps
+eight editor-context reads with actual GUI Exposure changes before the real
+client turns. Revised native and exact-head release checks are in progress.

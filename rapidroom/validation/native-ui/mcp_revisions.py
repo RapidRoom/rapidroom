@@ -2,6 +2,7 @@
 
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from mcp_clients import client_command, execute_client, image_state, objects, rpc, run_client_checks
@@ -47,6 +48,19 @@ def run_revision_checks(case, smoke):
         "render_region": {"region": {"x": 100, "y": 100, "width": 8, "height": 8}},
         "render_compare": {"maxDimension": 128, "separateImages": True, "variants": [{"name": "Current"}, {"name": "Twin"}]},
     }
+    # UI edits re-render App and change its navigation callback identity.
+    # Context requests must keep reaching the bridge during those renders.
+    deliveries = []
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        for index in range(8):
+            pending = pool.submit(read_tool, url, token, "get_editor_context", {})
+            drag = smoke.drag("Exposure", 0.4 if index % 2 == 0 else 0.8)
+            context = pending.result()
+            if not context.get("editRevision") or context.get("sourceCommit") != build["source"]["head"]:
+                raise RuntimeError("Concurrent GUI context read lost revision or source identity")
+            deliveries.append({"slider": drag, "editRevision": context["editRevision"]})
+    smoke.step("context delivery survives eight concurrent GUI rerenders", {"read_context_requests": len(deliveries), "all_acknowledged": True, "deliveries": deliveries})
+
     root = case / "revision-client-tests"
     root.mkdir(mode=0o700)
     for client, target in (("claude", 0.4), ("codex", 0.8)):

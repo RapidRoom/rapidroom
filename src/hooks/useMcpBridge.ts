@@ -3,7 +3,7 @@ import { isPathInCardRoot } from '../utils/cardMode';
 import { describeHistoryChange, sameAdjustmentValue } from '../utils/editHistory';
 import { useUIStore } from '../store/useUIStore';
 import { useLibraryStore } from '../store/useLibraryStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useEditorStore } from '../store/useEditorStore';
@@ -156,6 +156,10 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
   const selectedImage = useEditorStore((state) => state.selectedImage);
   const adjustments = useEditorStore((state) => state.adjustments);
   const [enabled, setEnabled] = useState(false);
+  const selectImageRef = useRef(handleImageSelect);
+  useEffect(() => {
+    selectImageRef.current = handleImageSelect;
+  }, [handleImageSelect]);
 
   useEffect(() => {
     // The commands below exist only in builds with the `mcp` cargo feature.
@@ -190,7 +194,7 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
 
       try {
         if (command.kind === 'select-image') {
-          await handleImageSelect(command.path, true);
+          await selectImageRef.current(command.path, true);
           await waitForImage(command.path);
         } else if (command.kind === 'revision-state') {
           const current = useEditorStore.getState();
@@ -306,7 +310,7 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
           return;
         } else {
           if (useEditorStore.getState().selectedImage?.path !== command.path) {
-            await handleImageSelect(command.path, true);
+            await selectImageRef.current(command.path, true);
             await waitForImage(command.path);
           }
 
@@ -344,5 +348,5 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
       active = false;
       unlistenPromise.then((unlisten) => unlisten()).catch(() => undefined);
     };
-  }, [enabled, handleImageSelect]);
+  }, [enabled]);
 }

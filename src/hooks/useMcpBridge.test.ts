@@ -2,7 +2,7 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { emit, invoke, listenerCount, mockCommand } from '../test/tauriMock';
+import { emit, invoke, listen, listenerCount, mockCommand } from '../test/tauriMock';
 import { useEditorStore } from '../store/useEditorStore';
 import { INITIAL_ADJUSTMENTS, type Adjustments } from '../utils/adjustments';
 import { debouncedSetHistory } from './useEditorActions';
@@ -69,6 +69,43 @@ function renderChanges() {
 }
 
 describe('MCP editor bridge review', () => {
+  it('delivers commands during navigation callback changes and uses the latest selector', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    const first = vi.fn(async () => undefined);
+    const latest = vi.fn(async () => undefined);
+    function Harness({ select }: { select: typeof first }) {
+      useMcpBridge(select);
+      return null;
+    }
+    root = createRoot(document.createElement('div'));
+    await act(async () => root!.render(createElement(Harness, { select: first })));
+    const register = listen.getMockImplementation()!;
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    listen.mockImplementationOnce(async (...args) => {
+      await blocked;
+      return register(...args);
+    });
+    try {
+      await act(async () => root!.render(createElement(Harness, { select: latest })));
+      await command('editor-context');
+      expect(responses).toHaveLength(1);
+      expect(responses[0].error).toBeNull();
+      await command('select-image');
+      expect(latest).toHaveBeenCalledWith(path, true);
+      expect(first).not.toHaveBeenCalled();
+      expect(responses).toHaveLength(2);
+    } finally {
+      release();
+      await act(async () => {
+        await blocked;
+      });
+      listen.mockReset().mockImplementation(register);
+    }
+  });
+
   it('stays idle in a build without the MCP command', async () => {
     mockCommand('mcp_status', () => {
       throw new Error('unsupported command');
