@@ -330,8 +330,27 @@ class Smoke:
         wait_for(driver_ready, "embedded driver", 60)
         session = request(base + "/session", {"capabilities": {"alwaysMatch": {}}})["value"]["sessionId"]
         self.url = base + "/session/" + session
-        wait_for(lambda: self.execute("return !!document.querySelector('#root')?.children.length && "
-                                      "Array.isArray(window.__RAPIDROOM_SMOKE_ERRORS__);"), "real frontend")
+        startup = {"phase": "read-only frontend readiness", "script_timeouts_retried": 0}
+        save(self.case / "driver-startup.json", startup)
+
+        def frontend_ready():
+            try:
+                return self.execute("return !!document.querySelector('#root')?.children.length && "
+                                    "Array.isArray(window.__RAPIDROOM_SMOKE_ERRORS__);")
+            except RuntimeError as error:
+                # The driver can advertise readiness before its first script
+                # callback is attached. Only this side-effect-free probe retries.
+                if startup["script_timeouts_retried"] or not re.search(
+                    r"['\"]error['\"]\s*:\s*['\"]script timeout['\"]", str(error)
+                ):
+                    raise
+                startup.update(script_timeouts_retried=1, first_probe_error=str(error))
+                save(self.case / "driver-startup.json", startup)
+                return False
+
+        wait_for(frontend_ready, "real frontend", 90)
+        startup["phase"] = "frontend ready before Continue Session"
+        save(self.case / "driver-startup.json", startup)
         self.execute("""const e=[...document.querySelectorAll('button')]
           .find(e=>e.innerText.trim()==='Continue Session');
           if(!e)throw Error('Continue Session missing');e.click();return true;""")
