@@ -60,6 +60,8 @@ def run_revision_checks(case, smoke):
                 raise RuntimeError("Concurrent GUI context read lost revision or source identity")
             deliveries.append({"slider": drag, "editRevision": context["editRevision"]})
     smoke.step("context delivery survives eight concurrent GUI rerenders", {"read_context_requests": len(deliveries), "all_acknowledged": True, "deliveries": deliveries})
+    # Let the final slider edit commit before counting the next GUI history row.
+    time.sleep(0.8)
 
     root = case / "revision-client-tests"
     root.mkdir(mode=0o700)
