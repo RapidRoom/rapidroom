@@ -158,6 +158,8 @@ def run_compact_checks(case, smoke):
     unchanged()
     # Independently verify the opt-in histograms against exactly decoded pre-JPEG pixels.
     stats = read_tool(url, token, "analyze", {"imagePath": path, "maxDimension": 1000, "histogram": True})
+    if not baseline and "luminancePercentiles" not in stats:
+        raise RuntimeError("Summary statistics dropped luminance percentiles")
     check_statistics(stats, separate[0])
     unchanged()
     smoke.step("summary/histogram bytes, tight labels and unchanged read-only geometry", {"baseline": baseline, "replies": {k: v for k, v in result["replies"].items() if k.startswith(("analyze", "sample_region"))}, "comparison": result["comparison"], "independent_opt_in_pixel_statistics": True, "state_history_sidecars_unchanged": True})
@@ -195,6 +197,15 @@ def run_compact_checks(case, smoke):
         after_pixels = smoke.crop(smoke.stable_preview(client + "-compact-after"))
         if after["adjustments"]["exposure"] != exposure or after["adjustments"]["masks"] != current["adjustments"]["masks"] or after_pixels.tobytes() == pixels.tobytes():
             raise RuntimeError("Actual nested edit failed or changed unrelated masks")
+        for keys, expected in ((("hsl", "greens", "saturation"), exposure * 10),
+                               (("colorGrading", "midtones", "hue"), 90),
+                               (("colorGrading", "midtones", "saturation"), exposure * 4),
+                               (("parametricCurve", "luma", "lights"), exposure * 6)):
+            value = after["adjustments"]
+            for key in keys:
+                value = value[key]
+            if value != expected:
+                raise RuntimeError("Actual nested edit did not apply " + ".".join(keys))
         if "adjustments" in reply or reply["editRevision"] != after["editRevision"] or reply["changedKeys"] != entry["changedKeys"] or entry["actor"] != "assistant":
             raise RuntimeError("Actual client did not receive a compact accurate reply/shared assistant history")
         summary = client_reply(events, client, next(v[2] for v in actual if v[0] == "analyze"))

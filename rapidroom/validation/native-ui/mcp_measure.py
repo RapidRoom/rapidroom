@@ -44,6 +44,13 @@ def check_statistics(value, frame):
         raise RuntimeError("Linear luminance disagrees with independently decoded rendered pixels")
     if value["histogram"]["linearLuminance"] != luminance_histogram:
         raise RuntimeError("Linear luminance histogram is not exact")
+    if "luminancePercentiles" in value:
+        for name, fraction in (("p05", 0.05), ("p25", 0.25), ("p50", 0.5), ("p75", 0.75), ("p95", 0.95)):
+            rank = fraction * (count - 1)
+            lower, upper = math.floor(rank), math.ceil(rank)
+            expected = luminances[lower] + (luminances[upper] - luminances[lower]) * (rank - lower)
+            if abs(value["luminancePercentiles"][name] - expected) > 1e-12:
+                raise RuntimeError("Luminance percentile disagrees with decoded pixels: " + name)
     for channel, name in enumerate(["red", "green", "blue"]):
         values = sorted(pixel[channel] for pixel in pixels)
         histogram = [0] * 256
