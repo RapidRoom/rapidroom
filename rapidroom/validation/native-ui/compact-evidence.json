@@ -1,0 +1,388 @@
+{
+  "issue": 147,
+  "platform": "Linux / Weston headless GL / native WebKit driver",
+  "fixture": "Published CC0 Sony ARW,4608×3072; three actual radial masks with complete29-field recipes",
+  "real_model_requests": true,
+  "before_native_steps_passed": 10,
+  "native_steps_passed": 12,
+  "application": {
+    "source": {
+      "head": "96d9f6d5b05d438a402cbe5ed6bb665a31d3bac5",
+      "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": ""
+    },
+    "engine_sha256": "d51179888f1f97fcd58ca8983769e7942d23d002364b65c232e2fd60a490fd9e",
+    "stdio_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab"
+  },
+  "baseline_application": {
+    "source": {
+      "head": "849ccd344154ef25465349886e518962615994a6",
+      "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": ""
+    },
+    "engine_sha256": "cdc7499a495a611703d732c217e6ce8c3958003066a5c4d24ef8d2eee369d3ee",
+    "stdio_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab"
+  },
+  "harness_source_commit": "3f0463aa06e8c20c0b35678d86c6ac98c15dea53",
+  "byte_count": "UTF-8 compact JSON serialization of the actual tools/call result (text and structured content), excluding JSON-RPC framing and image tokens",
+  "replies": {
+    "update_adjustments_default": {
+      "before_bytes": 37572,
+      "after_bytes": 610,
+      "saved_bytes": 36962,
+      "percent_smaller": 98.38,
+      "before": {
+        "result_json_bytes": 37572,
+        "text_bytes": 24227,
+        "changed_keys": ["exposure"],
+        "mask_count_before": 3,
+        "mask_count_after": 3,
+        "full_adjustments_returned": true
+      },
+      "after": {
+        "result_json_bytes": 610,
+        "text_bytes": 257,
+        "changed_keys": ["exposure"],
+        "mask_count_before": 3,
+        "mask_count_after": 3,
+        "full_adjustments_returned": false
+      }
+    },
+    "set_adjustments_default": {
+      "before_bytes": 37572,
+      "after_bytes": 610,
+      "saved_bytes": 36962,
+      "percent_smaller": 98.38,
+      "before": {
+        "result_json_bytes": 37572,
+        "text_bytes": 24227,
+        "changed_keys": ["exposure"],
+        "mask_count_before": 3,
+        "mask_count_after": 3,
+        "full_adjustments_returned": true
+      },
+      "after": {
+        "result_json_bytes": 610,
+        "text_bytes": 257,
+        "changed_keys": ["exposure"],
+        "mask_count_before": 3,
+        "mask_count_after": 3,
+        "full_adjustments_returned": false
+      }
+    },
+    "reset_adjustments_default": {
+      "before_bytes": 10447,
+      "after_bytes": 670,
+      "saved_bytes": 9777,
+      "percent_smaller": 93.59,
+      "before": {
+        "result_json_bytes": 10447,
+        "text_bytes": 6017,
+        "changed_keys": ["aspectRatio", "exposure", "masks"],
+        "mask_count_before": 3,
+        "mask_count_after": 0,
+        "full_adjustments_returned": true
+      },
+      "after": {
+        "result_json_bytes": 670,
+        "text_bytes": 289,
+        "changed_keys": ["aspectRatio", "exposure", "masks"],
+        "mask_count_before": 3,
+        "mask_count_after": 0,
+        "full_adjustments_returned": false
+      }
+    },
+    "set_adjustments_verbose": {
+      "before_bytes": 37568,
+      "after_bytes": 37566,
+      "saved_bytes": 2,
+      "percent_smaller": 0.01,
+      "before": {
+        "result_json_bytes": 37568,
+        "text_bytes": 24225,
+        "changed_keys": ["aspectRatio", "masks"],
+        "mask_count_before": 0,
+        "mask_count_after": 3,
+        "full_adjustments_returned": true
+      },
+      "after": {
+        "result_json_bytes": 37566,
+        "text_bytes": 24224,
+        "changed_keys": ["aspectRatio", "masks"],
+        "mask_count_before": 0,
+        "mask_count_after": 3,
+        "full_adjustments_returned": true
+      }
+    },
+    "update_adjustments_verbose": {
+      "before_bytes": 37572,
+      "after_bytes": 37570,
+      "saved_bytes": 2,
+      "percent_smaller": 0.01,
+      "before": {
+        "result_json_bytes": 37572,
+        "text_bytes": 24227,
+        "changed_keys": ["exposure"],
+        "mask_count_before": 3,
+        "mask_count_after": 3,
+        "full_adjustments_returned": true
+      },
+      "after": {
+        "result_json_bytes": 37570,
+        "text_bytes": 24226,
+        "changed_keys": ["exposure"],
+        "mask_count_before": 3,
+        "mask_count_after": 3,
+        "full_adjustments_returned": true
+      }
+    },
+    "reset_adjustments_verbose": {
+      "before_bytes": 10447,
+      "after_bytes": 10445,
+      "saved_bytes": 2,
+      "percent_smaller": 0.02,
+      "before": {
+        "result_json_bytes": 10447,
+        "text_bytes": 6017,
+        "changed_keys": ["aspectRatio", "exposure", "masks"],
+        "mask_count_before": 3,
+        "mask_count_after": 0,
+        "full_adjustments_returned": true
+      },
+      "after": {
+        "result_json_bytes": 10445,
+        "text_bytes": 6016,
+        "changed_keys": ["aspectRatio", "exposure", "masks"],
+        "mask_count_before": 3,
+        "mask_count_after": 0,
+        "full_adjustments_returned": true
+      }
+    },
+    "analyze_default": {
+      "before_bytes": 16164,
+      "after_bytes": 2851,
+      "saved_bytes": 13313,
+      "percent_smaller": 82.36,
+      "before": {
+        "result_json_bytes": 16164,
+        "histogram_returned": true
+      },
+      "after": {
+        "result_json_bytes": 2851,
+        "histogram_returned": false
+      }
+    },
+    "analyze_histogram": {
+      "before_bytes": 16164,
+      "after_bytes": 16717,
+      "saved_bytes": -553,
+      "percent_smaller": -3.42,
+      "before": {
+        "result_json_bytes": 16164,
+        "histogram_returned": true
+      },
+      "after": {
+        "result_json_bytes": 16717,
+        "histogram_returned": true
+      }
+    },
+    "sample_region_default": {
+      "before_bytes": 15602,
+      "after_bytes": 2967,
+      "saved_bytes": 12635,
+      "percent_smaller": 80.98,
+      "before": {
+        "result_json_bytes": 15602,
+        "histogram_returned": true
+      },
+      "after": {
+        "result_json_bytes": 2967,
+        "histogram_returned": false
+      }
+    },
+    "sample_region_histogram": {
+      "before_bytes": 15602,
+      "after_bytes": 16155,
+      "saved_bytes": -553,
+      "percent_smaller": -3.54,
+      "before": {
+        "result_json_bytes": 15602,
+        "histogram_returned": true
+      },
+      "after": {
+        "result_json_bytes": 16155,
+        "histogram_returned": true
+      }
+    }
+  },
+  "discovery": {
+    "before": {
+      "tools_list_json_bytes": 82710,
+      "input_schema_json_bytes": {
+        "analyze": 738,
+        "apply_auto_adjustments": 124,
+        "calculate_guided_perspective": 855,
+        "export_images": 2973,
+        "get_active_image_state": 33,
+        "get_editor_context": 62,
+        "get_histogram_data": 87,
+        "get_image_state": 87,
+        "get_preview": 23764,
+        "history_list": 116,
+        "list_images": 275,
+        "open_image": 87,
+        "redo": 153,
+        "render_compare": 963,
+        "render_region": 637,
+        "reset_adjustments": 124,
+        "sample_region": 804,
+        "select_image": 87,
+        "set_adjustments": 23173,
+        "undo": 153,
+        "update_adjustments": 23165
+      }
+    },
+    "after": {
+      "tools_list_json_bytes": 57200,
+      "input_schema_json_bytes": {
+        "analyze": 857,
+        "apply_auto_adjustments": 124,
+        "calculate_guided_perspective": 855,
+        "export_images": 2973,
+        "get_active_image_state": 33,
+        "get_editor_context": 62,
+        "get_histogram_data": 87,
+        "get_image_state": 87,
+        "get_preview": 15055,
+        "history_list": 116,
+        "list_images": 275,
+        "open_image": 87,
+        "redo": 153,
+        "render_compare": 963,
+        "render_region": 637,
+        "reset_adjustments": 244,
+        "sample_region": 923,
+        "select_image": 87,
+        "set_adjustments": 14584,
+        "undo": 153,
+        "update_adjustments": 14576
+      }
+    }
+  },
+  "comparison": {
+    "before": {
+      "sheet_dimensions": [1000, 1000],
+      "variant_dimensions": [
+        [1000, 667],
+        [1000, 667],
+        [1000, 667],
+        [1000, 667]
+      ],
+      "sheet_png_sha256": "7d5349ac2a502fc62a2dd7b97958919ceb26beff91553997c6ea38813931a4d0",
+      "labels": ["Current", "Twin", "Neutral", "Same"],
+      "separate_variant_pixels_identical": true
+    },
+    "after": {
+      "sheet_dimensions": [1000, 716],
+      "variant_dimensions": [
+        [1000, 667],
+        [1000, 667],
+        [1000, 667],
+        [1000, 667]
+      ],
+      "sheet_png_sha256": "64e713b031fb818b239c870578f6cadc68bc5bff2d6878dd25c1346d9dd1a230",
+      "labels": ["Current", "Twin", "Neutral", "Same"],
+      "separate_variant_pixels_identical": true
+    },
+    "separate_variant_pixels_identical": true,
+    "contact_sheet_layout_intentionally_changed": true
+  },
+  "clients": {
+    "claude": {
+      "version": "2.1.289 (Claude Code)",
+      "calls": ["get_editor_context", "update_adjustments", "analyze", "render_compare"],
+      "nested_local_schema_patch_accepted": true,
+      "compact_revision_changed_keys_reply": true,
+      "changed_keys": ["colorGrading", "exposure", "hsl", "parametricCurve"],
+      "history_changed_keys_same_membership": true,
+      "three_masks_preserved": true,
+      "one_shared_assistant_history_entry": true,
+      "native_preview_changed": true,
+      "summary_histogram_omitted": true
+    },
+    "codex": {
+      "version": "codex-cli 0.160.0",
+      "calls": ["get_editor_context", "update_adjustments", "analyze", "render_compare"],
+      "nested_local_schema_patch_accepted": true,
+      "compact_revision_changed_keys_reply": true,
+      "changed_keys": ["colorGrading", "exposure", "hsl", "parametricCurve"],
+      "history_changed_keys_same_membership": true,
+      "three_masks_preserved": true,
+      "one_shared_assistant_history_entry": true,
+      "native_preview_changed": true,
+      "summary_histogram_omitted": true
+    }
+  },
+  "normal_preview_edit_exact_undo_compact_jpeg_clean_exit": true,
+  "read_state_history_sidecar_bytes_and_mtime_unchanged": true,
+  "opt_in_statistics_and_percentiles_checked_against_decoded_pixels": true,
+  "source_guards": {
+    "baseline": {
+      "fixture_unchanged": true,
+      "engine_unchanged": true
+    },
+    "revised": {
+      "fixture_unchanged": true,
+      "engine_unchanged": true
+    }
+  },
+  "retained_revised_attempts": [
+    {
+      "case": "after-stage2",
+      "result": "First driver startup timed out on welcome screen before any step; empty frontend errors and unchanged source guards."
+    },
+    {
+      "case": "after-stage2-retry",
+      "result": "Wire checks and actualClaude calls passed; harness wrongly required history/control order to equal sorted compact keys. Harness-only correction compares both to the actual state diff."
+    },
+    {
+      "case": "after-stage3",
+      "result": "Driver startup script timeout before any test step; same pinned app, no mutations."
+    }
+  ],
+  "driver_startup": {
+    "phase": "frontend ready before Continue Session",
+    "script_timeouts_retried": 0
+  },
+  "captures": {
+    "claude": {
+      "path": "captures/claude-compact-after-1/wayland-screenshot-2026-10-05_15-19-37.png",
+      "sha256": "e0b85e2733f8716e011bfd63792ff61a6719933b3f1781ff26b84d3482b69d3c",
+      "visually_inspected": true
+    },
+    "codex": {
+      "path": "captures/codex-compact-after-1/wayland-screenshot-2026-10-05_15-20-04.png",
+      "sha256": "000eb04699ad19ca7a9fe5e51a171a52083fdecd2567473ed435bffa022cbccf",
+      "visually_inspected": true
+    },
+    "contact_sheet": {
+      "path": "captures/mcp-tight-comparison.png",
+      "sha256": "64e713b031fb818b239c870578f6cadc68bc5bff2d6878dd25c1346d9dd1a230",
+      "visually_inspected": true
+    }
+  },
+  "earlier_baseline_attempts": [
+    {
+      "application_source": "4f74fb66",
+      "result": "Incorrect harness30-field assertion; application normalized29 fields correctly."
+    },
+    {
+      "application_source": "4f74fb66",
+      "result": "Editor-context UI acknowledgement timeout; fixed by the148 stable-listener change. Retained, not a150 default-fill failure."
+    }
+  ],
+  "later_source_changes": "Application source is pinned above. Harness-only key-membership correction, proof and documentation leave application/frontend/renderer source unchanged; Git source equivalence is a final gate.",
+  "photos_captures_and_client_logs": "Retained only under owned samples/compact-mcp-147; never committed.",
+  "untested": ["Other platforms", "Physical input devices", "Private human editing-session photos"],
+  "case_path_difference": "Separate before/after case paths differ by one character; text and structured-result sizes include those paths."
+}

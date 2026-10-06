@@ -12,7 +12,7 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Set/update/reset replies default to editRevision and actual changedKeys, with verbose:true retaining the full adjustment state. Analyze/sample summaries retain exact clipping, means, medians and linearly interpolated luminance percentiles; histogram:true returns the existing four exact 256-bin histograms. Repeated curve, HSL and grading schemas use self-contained local definitions without changing validation. Compare sheets use image-aspect cells and retain exact labels; photo-rendering algorithms and separate variant pixels are unchanged. Three-mask byte measurements and real-client native validation are in progress."
+      "notes": "Set/update/reset replies default to editRevision and actual changedKeys, with verbose:true retaining the full adjustment state. Analyze/sample summaries retain exact clipping, means, medians and linearly interpolated luminance percentiles; histogram:true returns the existing four exact 256-bin histograms. Repeated curve, HSL and grading schemas use self-contained local definitions without changing validation. Compare sheets use image-aspect cells and retain exact labels; photo-rendering algorithms and separate variant pixels are unchanged. A 12-step native Linux pass with real Claude/Codex preserves three masks and one shared assistant history row while applying nested HSL/grading/parametric edits. Three-mask set/update results shrink from 37572 to 610 UTF-8 JSON bytes; discovery from 82710 to 57200; the actual four-landscape sheet from 1000×1000 to 1000×716. Opt-in histograms/percentiles match independently decoded pixels, and read-only state/history/sidecar guards hold. 163 frontend tests and 317 default/353 combined Rust tests pass."
     },
     {
       "id": "mcp-advisory-read-revisions",
@@ -80,7 +80,7 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Optional MCP tools render 2\u20136 variants at the same geometry, preserve current GUI virtual-copy labels, and return bounded PNGs. Exact sRGB channel clipping/count histograms and linear Rec.709 luminance use pre-JPEG rendered pixels; region white-balance gains are advisory only. Native crops use post-transform 1:1 pixel coordinates with explicit edge/source/payload limits. Read-only calls preserve edits, revision, history and sidecars. Embeds unmodified Poppins Regular with OFL licence and adds an optional direct edge to the existing ab_glyph version; default dependency graph remains unchanged. The 12-step Linux native scenario verifies actual Claude calls, independently decoded exact statistics, stable variants, real virtual-copy labels, nested native crops and unchanged state/history/sidecars. Final release regression validation pending; macOS/Windows and packaged runtime untested."
+      "notes": "Optional MCP tools render 2–6 variants at the same geometry, preserve current GUI virtual-copy labels, and return bounded PNGs. Exact sRGB channel clipping/count histograms and linear Rec.709 luminance use pre-JPEG rendered pixels; region white-balance gains are advisory only. Native crops use post-transform 1:1 pixel coordinates with explicit edge/source/payload limits. Read-only calls preserve edits, revision, history and sidecars. Embeds unmodified Poppins Regular with OFL licence and adds an optional direct edge to the existing ab_glyph version; default dependency graph remains unchanged. The 12-step Linux native scenario verifies actual Claude calls, independently decoded exact statistics, stable variants, real virtual-copy labels, nested native crops and unchanged state/history/sidecars. Final release regression validation pending; macOS/Windows and packaged runtime untested."
     },
     {
       "id": "mcp-history-context-schema-previews",
@@ -119,7 +119,7 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Implements Josh\u2019s #119 choice: strict script CSP with Clerk off. Existing CPU and AI Connector choices remain available. Production and development directives retain required asset, IPC, style, map and update origins; only styles bypass automatic Tauri CSP modification. CI checks the configured policy, saved Cloud settings, and blocked nonlocal script execution. The native panel scenario enforces the response-header policy and blocks a nonlocal script control while PTY and authenticated MCP editing work."
+      "notes": "Implements Josh’s #119 choice: strict script CSP with Clerk off. Existing CPU and AI Connector choices remain available. Production and development directives retain required asset, IPC, style, map and update origins; only styles bypass automatic Tauri CSP modification. CI checks the configured policy, saved Cloud settings, and blocked nonlocal script execution. The native panel scenario enforces the response-header policy and blocks a nonlocal script control while PTY and authenticated MCP editing work."
     },
     {
       "id": "orf-scoped-image-processing",
@@ -280,7 +280,7 @@
     },
     {
       "id": "closed-pipe",
-      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw \u2026 | head`)",
+      "title": "No abort or hang when stdout/stderr is a closed pipe (e.g. `rapidraw … | head`)",
       "category": "fix",
       "landed": "2026-10-02",
       "authors": ["yojen7"],
@@ -666,8 +666,8 @@
       "upstream_issues": ["CyberTimon/RapidRAW#1749", "CyberTimon/RapidRAW#1583"],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Auto-advance is off by default (Settings \u2192 General) and only moves on when a single image is rated with the 0\u20135 keys; it stops at the last image. The \u2265/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
-      "highlight": "**Faster culling:** rate with 0\u20135 and jump straight to the next photo, and filter for exactly N stars."
+      "notes": "Auto-advance is off by default (Settings → General) and only moves on when a single image is rated with the 0–5 keys; it stops at the last image. The ≥/= button next to the rating filter stars switches between \"N and up\" and \"exactly N\". Written with Claude Code.",
+      "highlight": "**Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars."
     },
     {
       "id": "lightroom-xmp-import",
@@ -919,7 +919,7 @@
     },
     {
       "id": "lights-out",
-      "title": "Lights Out viewing in Library and Editor: L cycles Normal \u2192 Dim \u2192 Black, Shift+L goes back, Escape restores",
+      "title": "Lights Out viewing in Library and Editor: L cycles Normal → Dim → Black, Shift+L goes back, Escape restores",
       "category": "feature",
       "landed": "2026-10-04",
       "authors": ["zeromeridian", "yojen7"],
@@ -1007,7 +1007,7 @@
     },
     {
       "id": "lensfun-evaluation",
-      "title": "Lens correction evaluates Lensfun profiles the way Lensfun does: right radius per model, rescaled terms instead of \u00d72.5, calibration that fits the sensor",
+      "title": "Lens correction evaluates Lensfun profiles the way Lensfun does: right radius per model, rescaled terms instead of ×2.5, calibration that fits the sensor",
       "category": "fix",
       "landed": "2026-10-04",
       "authors": ["beneedict", "yojen7"],
@@ -1029,7 +1029,7 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": true,
-      "notes": "RapidRoom #121. Rust can now read export presets (export_recipes.rs), so `rapidroom export --preset NAME` exports with a saved preset or a built-in recipe; MCP support follows once the MCP server (#102) is on main. Three read-only Instagram recipes (1080\u00d71350, 1080\u00d71080, 1080\u00d7566; sRGB JPEG q90, padded, GPS stripped, light screen sharpening) appear in the export panel's preset list. Output sharpening is an output-luma unsharp mask after the resize whose radius follows the output size; it is off unless chosen, so default exports are unchanged. Rendering change only for opt-in settings: sharpening when chosen, and pad-plus-resize exports now derive the resized edge from the pad ratio (at most 1 px different, so 4:5 at 1080 wide is always 1350). The donor note (puneetrane1811's Creative Export Studio, weholt's export workflows) is rapidroom/EXPORT-RECIPES.md; no donor code is used. Written with Claude Code. Local integration/review by Codex: sharpened float/alpha precision regression, donor snapshot statistics rechecked, and processing/quality claims narrowed.",
+      "notes": "RapidRoom #121. Rust can now read export presets (export_recipes.rs), so `rapidroom export --preset NAME` exports with a saved preset or a built-in recipe; MCP support follows once the MCP server (#102) is on main. Three read-only Instagram recipes (1080×1350, 1080×1080, 1080×566; sRGB JPEG q90, padded, GPS stripped, light screen sharpening) appear in the export panel's preset list. Output sharpening is an output-luma unsharp mask after the resize whose radius follows the output size; it is off unless chosen, so default exports are unchanged. Rendering change only for opt-in settings: sharpening when chosen, and pad-plus-resize exports now derive the resized edge from the pad ratio (at most 1 px different, so 4:5 at 1080 wide is always 1350). The donor note (puneetrane1811's Creative Export Studio, weholt's export workflows) is rapidroom/EXPORT-RECIPES.md; no donor code is used. Written with Claude Code. Local integration/review by Codex: sharpened float/alpha precision regression, donor snapshot statistics rechecked, and processing/quality claims narrowed.",
       "highlight": "**Export for Instagram and print.** Built-in Instagram 4:5, 1:1 and 1.91:1 presets, optional output sharpening for screen or print, and `--preset` to use any export preset from the command line."
     },
     {
@@ -1101,7 +1101,7 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Only in builds with `--features mcp`. Listens on authenticated 127.0.0.1:7790 while the app runs; requests from browsers are refused. The separate stdio adapter discovers the private per-user endpoint. The default build has no MCP code and no listener. Comparison with sheldonxxxx's headless MCP and the security notes are in rapidroom/MCP.md. Local review hardens chunked-body length bounds and terminators, discards consumed framing buffers, and adds frontend regression tests for first-photo opening, pending GUI history, no-op edits, reset undo and slow previews. Local follow-up prevents mirroring a newly selected photo under a pending command\u2019s old path; seven bridge tests cover no-op/reset/history/timeout/photo-switch behavior. Tool discovery supplies the required 2026-07-28 cache hints (zero TTL, private scope) and completed tool calls include resultType=complete so current clients validate the response. The optional Linux native harness can run installed Claude Code and Codex clients against an owned photo and require real editing calls, revision/slider/preview changes, and valid discovery at both 2025-06-18 and 2026-07-28."
+      "notes": "Only in builds with `--features mcp`. Listens on authenticated 127.0.0.1:7790 while the app runs; requests from browsers are refused. The separate stdio adapter discovers the private per-user endpoint. The default build has no MCP code and no listener. Comparison with sheldonxxxx's headless MCP and the security notes are in rapidroom/MCP.md. Local review hardens chunked-body length bounds and terminators, discards consumed framing buffers, and adds frontend regression tests for first-photo opening, pending GUI history, no-op edits, reset undo and slow previews. Local follow-up prevents mirroring a newly selected photo under a pending command’s old path; seven bridge tests cover no-op/reset/history/timeout/photo-switch behavior. Tool discovery supplies the required 2026-07-28 cache hints (zero TTL, private scope) and completed tool calls include resultType=complete so current clients validate the response. The optional Linux native harness can run installed Claude Code and Codex clients against an owned photo and require real editing calls, revision/slider/preview changes, and valid discovery at both 2025-06-18 and 2026-07-28."
     }
   ]
 }

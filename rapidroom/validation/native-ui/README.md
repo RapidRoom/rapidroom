@@ -254,3 +254,38 @@ old replies and square sheet using the same owned fixture and wire requests.
 This baseline mode makes no real model requests. Neither mode uses the private
 human editing-session photos/log; captures and client logs stay under samples/.
 Other platforms and physical input devices remain untested.
+
+[compact-evidence.json](compact-evidence.json) records a 10-step old-payload
+baseline at clean application `849ccd34` and the 12-step revised pass at clean
+application `96d9f6d5`, with harness-only corrections at `3f0463aa`. Real Claude
+Code 2.1.289 and Codex CLI 0.160.0 each applied the exact nested patch, received
+a compact reply, kept all three masks, changed the native preview and recorded
+one assistant history row. Sorted compact keys and GUI control-order history
+keys both match the actual state diff. Both GUI captures and the sheet were
+visually inspected; normal smoke, clean exit and source guards passed.
+
+| Actual tools/call result | Before bytes | After bytes |
+| ------------------------ | -----------: | ----------: |
+| Set/update, three masks  |       37,572 |         610 |
+| Reset from three masks   |       10,447 |         670 |
+| Analyze default          |       16,164 |       2,851 |
+| Sample-region default    |       15,602 |       2,967 |
+| tools/list discovery     |       82,710 |      57,200 |
+
+Counts are UTF-8 compact JSON of the entire result, including text and
+structured content, excluding JSON-RPC framing and image-token billing.
+Separate owned case paths differ by one character, affecting a few bytes.
+Verbose replies retain the full authoritative state. Histograms opt in and
+keep their exact bins; statistics and percentiles match decoded pixels. The
+four-image sheet is 1000×716 instead of 1000×1000; all separate variants remain
+1000×667 with identical pixels and complete labels. The contact-sheet layout
+changes intentionally.
+
+Failed attempts remain available: an incorrect 30-versus-29 fixture assertion,
+the old context delivery gap fixed in #148, driver welcome-screen timeouts
+before any step, and a harness assertion that conflated sorted reply keys
+with GUI history order. Application code did not change for the last two
+harness corrections. Startup now permits one script-timeout retry only for
+its first side-effect-free readiness probe, before Continue Session. The
+successful final run needed no retry; GUI actions and MCP calls are never
+silently retried.
