@@ -132,7 +132,7 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         }),
         json!({
             "name": "get_editor_context",
-            "description": "Read the active photo, dimensions, EXIF summary, crop, masks, selected panel/mask and Card mode. Does not change edits or history.",
+            "description": "Read the active editRevision, app version/source commit, photo, dimensions, EXIF summary, crop, masks, selected panel/mask and Card mode. Does not change edits or history.",
             "inputSchema": { "type": "object", "additionalProperties": false, "properties": {} }
         }),
         json!({
@@ -183,7 +183,7 @@ pub(super) fn tool_definitions() -> Vec<Value> {
                 "imagePath": { "type": "string" },
                 "adjustments": adjustments::adjustments_schema(),
                 "maxDimension": { "type": "integer", "minimum": 128, "maximum": 4096, "default": 1280 },
-                "expectedRevision": { "type": "string" },
+                "expectedRevision": { "type": "string", "description": "Advisory; render the latest edit and return its editRevision even when this revision is stale." },
                 "original": { "type": "boolean", "default": false },
                 "side_by_side": { "type": "boolean", "default": false },
                 "region": { "type": "object", "additionalProperties": false, "properties": {
@@ -229,12 +229,7 @@ pub(super) async fn call_tool(
         "get_image_state" => get_image_state(app_handle, &arguments),
         "get_active_image_state" => get_active_image_state(app_handle),
         "history_list" | "undo" | "redo" => history_action(app_handle, name, &arguments).await,
-        "get_editor_context" => {
-            let path = ui::active_session(app_handle)
-                .map(|session| session.path)
-                .unwrap_or_default();
-            ui::request_ui(app_handle, "editor-context", json!({ "path": path })).await
-        }
+        "get_editor_context" => editor_context(app_handle).await,
         "get_histogram_data" => get_histogram_data(app_handle, &arguments).await,
         "set_adjustments" => set_adjustments(app_handle, &arguments).await,
         "update_adjustments" => update_adjustments(app_handle, &arguments).await,
@@ -253,6 +248,18 @@ pub(super) async fn call_tool(
         Ok(value) => Ok(tool_success(value)),
         Err(error) => Ok(tool_error(&error)),
     }
+}
+
+async fn editor_context(app_handle: &AppHandle) -> Result<Value, String> {
+    let path = ui::active_session(app_handle)
+        .map(|session| session.path)
+        .unwrap_or_default();
+    let mut context = ui::request_ui(app_handle, "editor-context", json!({ "path": path })).await?;
+    context["appVersion"] = json!(app_handle.package_info().version.to_string());
+    context["sourceCommit"] = json!(option_env!("RAPIDROOM_SOURCE_COMMIT"));
+    context["sourceDirty"] =
+        json!(option_env!("RAPIDROOM_SOURCE_DIRTY").and_then(|value| value.parse::<bool>().ok()));
+    Ok(context)
 }
 
 fn list_images(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
@@ -420,7 +427,7 @@ pub(super) fn original_adjustments() -> Result<Value, String> {
 async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
     let path = required_image_path(arguments)?;
     ui::require_active_session(app_handle, Some(&path))?;
-    check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
+    let current = get_image_state(app_handle, arguments)?;
     let original = preview::option(arguments, "original")?;
     let comparison = preview::option(arguments, "side_by_side")?;
     let region = preview::region(arguments)?;
@@ -433,7 +440,7 @@ async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value,
         adjustments::validate_adjustments(adjustments)?;
         adjustments.clone()
     } else {
-        get_image_state(app_handle, arguments)?["adjustments"].clone()
+        current["adjustments"].clone()
     };
     let max_dimension = match arguments.get("maxDimension") {
         None => 1280,
@@ -490,8 +497,10 @@ async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value,
     if encoded.len() > preview::MAX_PREVIEW_BYTES {
         return Err("Preview payload exceeds 8 MiB; request a smaller maxDimension".into());
     }
+    ensure_read_state(app_handle, arguments, &current).await?;
     Ok(json!({
-        "imagePath": path, "editRevision": adjustments::revision_for(&path,&adjustments),
+        "imagePath": path, "editRevision": current["editRevision"],
+        "renderRevision": adjustments::revision_for(&path,&adjustments),
         "mimeType":"image/jpeg", "width":width, "height":height, "labels":labels,
         "original":original, "side_by_side":comparison,
         "regionCoordinates":"fractions of each rendered image after its edit crop",
@@ -897,20 +906,79 @@ async fn check_expected_revision(
     path: &str,
     expected: Option<&Value>,
 ) -> Result<(), String> {
-    let Some(expected) = expected.and_then(Value::as_str) else {
+    let Some(expected) = expected else {
         return Ok(());
     };
+    let expected = expected
+        .as_str()
+        .filter(|value| !value.is_empty() && value.len() <= 128)
+        .ok_or("expectedRevision must be a nonempty string of at most 128 bytes")?;
     let current = get_image_state(app_handle, &json!({ "imagePath": path }))?;
     let actual = current
         .get("editRevision")
         .and_then(Value::as_str)
         .unwrap_or_default();
     if expected != actual {
-        return Err(format!(
-            "edit revision conflict: expected {expected}, current {actual}"
-        ));
+        return Err(revision_conflict(app_handle, path, expected, None).await?);
     }
     Ok(())
+}
+
+pub(super) async fn ensure_read_state(
+    app: &AppHandle,
+    arguments: &Value,
+    initial: &Value,
+) -> Result<(), String> {
+    if get_image_state(app, arguments)? != *initial {
+        let path = required_image_path(arguments)?;
+        return Err(revision_conflict(
+            app,
+            &path,
+            initial["editRevision"].as_str().unwrap_or_default(),
+            Some(&initial["adjustments"]),
+        )
+        .await?);
+    }
+    Ok(())
+}
+
+async fn revision_conflict(
+    app: &AppHandle,
+    path: &str,
+    expected: &str,
+    known: Option<&Value>,
+) -> Result<String, String> {
+    let details = ui::request_ui(app, "revision-state", json!({"path":path})).await?;
+    let before = known.or_else(|| {
+        details["history"].as_array()?.iter().find_map(|entry| {
+            (adjustments::revision_for(path, &entry["adjustments"]) == expected)
+                .then_some(&entry["adjustments"])
+        })
+    });
+    Ok(conflict_value(expected, &details["state"], before, &details["actor"]).to_string())
+}
+
+fn conflict_value(expected: &str, current: &Value, before: Option<&Value>, actor: &Value) -> Value {
+    let changed_keys = before.map(|before| {
+        let keys: std::collections::BTreeSet<_> = before
+            .as_object()
+            .into_iter()
+            .flat_map(|value| value.keys())
+            .chain(
+                current["adjustments"]
+                    .as_object()
+                    .into_iter()
+                    .flat_map(|value| value.keys()),
+            )
+            .collect();
+        keys.into_iter()
+            .filter(|key| before.get(key.as_str()) != current["adjustments"].get(key.as_str()))
+            .cloned()
+            .collect::<Vec<_>>()
+    });
+    json!({"error":"revision_conflict", "message":"Editor changed; retry with the current state.",
+        "expectedRevision":expected,"currentRevision":current["editRevision"],"changedKeys":changed_keys,
+        "changesKnown":before.is_some(),"actor":actor})
 }
 
 fn tool_success(value: Value) -> Value {
@@ -937,6 +1005,11 @@ fn tool_success(value: Value) -> Value {
 }
 
 fn tool_error(error: &str) -> Value {
+    if let Ok(details) = serde_json::from_str::<Value>(error)
+        && details["error"] == "revision_conflict"
+    {
+        return json!({"content":[{"type":"text","text":error}],"structuredContent":details,"isError":true});
+    }
     json!({
         "content": [{ "type": "text", "text": error }],
         "isError": true,
@@ -961,6 +1034,43 @@ pub(super) fn required_image_path(arguments: &Value) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn revision_conflicts_report_known_diff_and_structured_error() {
+        let before = json!({"exposure":0,"crop":null,"masks":[{"id":"a","opacity":1}]});
+        let current = json!({"editRevision":"current", "adjustments":{"exposure":1,"masks":[{"id":"a","opacity":0.5}]}});
+        let details = conflict_value("old", &current, Some(&before), &json!("user"));
+        assert_eq!(details["currentRevision"], "current");
+        assert_eq!(details["changedKeys"], json!(["crop", "exposure", "masks"]));
+        assert_eq!(details["actor"], "user");
+        assert_eq!(details["changesKnown"], true);
+        let error = tool_error(&details.to_string());
+        assert_eq!(error["isError"], true);
+        assert_eq!(error["structuredContent"], details);
+        assert_eq!(
+            serde_json::from_str::<Value>(error["content"][0]["text"].as_str().unwrap()).unwrap(),
+            details
+        );
+    }
+
+    #[test]
+    fn unknown_revision_does_not_invent_changed_keys() {
+        let details = conflict_value(
+            "unknown",
+            &json!({"editRevision":"current","adjustments":{"exposure":1}}),
+            None,
+            &json!("assistant"),
+        );
+        assert_eq!(details["currentRevision"], "current");
+        assert!(details["changedKeys"].is_null());
+        assert_eq!(details["changesKnown"], false);
+        assert_eq!(details["actor"], "assistant");
+        assert!(
+            tool_error("invalid exposure")
+                .get("structuredContent")
+                .is_none()
+        );
+    }
 
     #[test]
     fn preview_tool_result_keeps_image_content() {

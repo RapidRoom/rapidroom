@@ -423,7 +423,10 @@ class Smoke:
             run_packaging_checks(self.case, self)
         elif (self.case / "terminal-test.json").exists():
             self.terminal_flow()
-        if (self.case / "mcp-measure-test.json").exists():
+        if (self.case / "mcp-revisions-test.json").exists():
+            from mcp_revisions import run_revision_checks
+            run_revision_checks(self.case, self)
+        elif (self.case / "mcp-measure-test.json").exists():
             from mcp_measure import run_measure_checks
             run_measure_checks(self.case, self)
         elif (self.case / "mcp-history-test.json").exists():
@@ -512,6 +515,8 @@ def launch(args):
             shutil.copy2(raw, case / f"input/smoke-{index:02d}.ARW")
     if args.mcp_measure:
         save(case / "mcp-measure-test.json", {"issue": 117, "real_model_requests": True})
+    if args.mcp_revisions:
+        save(case / "mcp-revisions-test.json", {"issue": 148, "real_model_requests": True})
     if args.mcp_history:
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_packaging:
@@ -621,6 +626,7 @@ def main():
     parser.add_argument("--mcp-history", action="store_true", help="Run actual-client labelled history/schema/preview scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-packaging", action="store_true", help="Verify default-off, launch consent, runtime toggle and real registered clients")
     parser.add_argument("--mcp-measure", action="store_true", help="Run read-only measurement/comparison scenario (implies --mcp-clients)")
+    parser.add_argument("--mcp-revisions", action="store_true", help="Real clients read latest state across a GUI edit and receive strict stale-write details")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -628,7 +634,7 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_history or args.mcp_measure or args.crop_noop:
+    if args.mcp_history or args.mcp_measure or args.mcp_revisions or args.crop_noop:
         args.mcp_clients = True
     if args.mcp_packaging:
         args.terminal_clients = True

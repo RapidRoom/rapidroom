@@ -68,11 +68,64 @@ fn download_and_verify(
     }
 }
 
+fn source_identity(manifest_dir: &Path) {
+    let git = |args: &[&str]| -> Option<String> {
+        let result = std::process::Command::new("git")
+            .arg("-C")
+            .arg(manifest_dir)
+            .args(args)
+            .output()
+            .ok()?;
+        result
+            .status
+            .success()
+            .then(|| String::from_utf8_lossy(&result.stdout).trim().to_string())
+    };
+    if let Some(commit) = git(&["rev-parse", "HEAD"])
+        .filter(|value| value.len() == 40 && value.bytes().all(|c| c.is_ascii_hexdigit()))
+    {
+        println!("cargo:rustc-env=RAPIDROOM_SOURCE_COMMIT={commit}");
+        if let Some(status) = git(&["status", "--porcelain", "--untracked-files=no"]) {
+            println!(
+                "cargo:rustc-env=RAPIDROOM_SOURCE_DIRTY={}",
+                !status.is_empty()
+            );
+        }
+    }
+    if let (Some(root), Some(files)) = (
+        git(&["rev-parse", "--show-toplevel"]),
+        git(&["ls-files", "--full-name", "-z", "--", ":/"]),
+    ) {
+        for file in files.split('\0').filter(|file| !file.is_empty()) {
+            println!(
+                "cargo:rerun-if-changed={}",
+                Path::new(&root).join(file).display()
+            );
+        }
+    }
+    for reference in
+        std::iter::once("HEAD".to_string()).chain(git(&["symbolic-ref", "--quiet", "HEAD"]))
+    {
+        if let Some(path) = git(&["rev-parse", "--git-path", &reference]) {
+            let path = PathBuf::from(path);
+            let path = if path.is_absolute() {
+                path
+            } else {
+                manifest_dir.join(path)
+            };
+            println!("cargo:rerun-if-changed={}", path.display());
+        }
+    }
+}
+
 fn main() {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
 
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    if env::var_os("CARGO_FEATURE_MCP").is_some() {
+        source_identity(&manifest_dir);
+    }
 
     let (download_filename, lib_name, expected_hash) =
         match (target_os.as_str(), target_arch.as_str()) {

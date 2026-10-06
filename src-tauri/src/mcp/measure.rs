@@ -275,7 +275,7 @@ pub(super) fn tool_definitions() -> Vec<Value> {
             "Render 2–6 temporary patches or existing virtual copies of the active photo at the same geometry and size. Return a labelled contact sheet or separate images. Never applies edits.",
         ),
     ] {
-        let mut properties = json!({"imagePath":{"type":"string"},"expectedRevision":{"type":"string"},
+        let mut properties = json!({"imagePath":{"type":"string"},"expectedRevision":{"type":"string","description":"Advisory; renders the latest edit and returns its editRevision even when this revision is stale."},
             "maxDimension":{"type":"integer","minimum":128,"maximum":4096,"default":1280},
             "stage":{"type":"string","enum":["edited","original"],"default":"edited"},"region":fractions});
         let mut required = vec!["imagePath"];
@@ -307,20 +307,7 @@ pub(super) fn tool_definitions() -> Vec<Value> {
 }
 
 fn snapshot(app: &AppHandle, arguments: &Value) -> Result<Value, String> {
-    let value = tools::get_image_state(app, arguments)?;
-    if let Some(expected) = arguments.get("expectedRevision")
-        && expected.as_str() != value["editRevision"].as_str()
-    {
-        return Err("Edit revision conflict before read-only render".into());
-    }
-    Ok(value)
-}
-
-fn unchanged(app: &AppHandle, arguments: &Value, initial: &Value) -> Result<(), String> {
-    if tools::get_image_state(app, arguments)? != *initial {
-        return Err("Active editor changed during read-only render; read state and retry".into());
-    }
-    Ok(())
+    tools::get_image_state(app, arguments)
 }
 
 fn stage_adjustments(arguments: &Value, current: &Value) -> Result<Value, String> {
@@ -383,7 +370,7 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
         }
         value
     };
-    unchanged(app, arguments, &state)?;
+    tools::ensure_read_state(app, arguments, &state).await?;
     value["imagePath"] = json!(path);
     value["editRevision"] = state["editRevision"].clone();
     value["region"] = arguments.get("region").cloned().unwrap_or(Value::Null);
@@ -548,7 +535,7 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
             json!({"type":"text","text":format!("Images follow in this order:\n{mapping}")}),
         );
     }
-    unchanged(app, arguments, state)?;
+    tools::ensure_read_state(app, arguments, state).await?;
     Ok(
         json!({"imagePath":path,"editRevision":state["editRevision"],"labels":labels,"variantDimensions":dimensions,
         "identifiers":(0..labels.len()).map(|i|((b'A'+i as u8) as char).to_string()).collect::<Vec<_>>(),
