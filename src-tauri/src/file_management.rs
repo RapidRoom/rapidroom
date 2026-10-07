@@ -2516,6 +2516,27 @@ pub fn resolve_lens_params_in_adjustments(
     }
 }
 
+fn resolve_unresolved_auto_lens_metadata(
+    metadata: &mut ImageMetadata,
+    source_path: &Path,
+    sidecar_path: &Path,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) {
+    if metadata.adjustments["lensCorrectionMode"].as_str() != Some("auto")
+        || metadata.adjustments["lensDistortionParams"].is_object()
+    {
+        return;
+    }
+    let Some(db) = lens_db else {
+        return;
+    };
+    if metadata.exif.is_none() {
+        metadata.exif =
+            crate::exif_processing::load_sidecar_with_exif(sidecar_path, source_path).exif;
+    }
+    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, Some(db));
+}
+
 #[tauri::command]
 pub fn get_supported_file_types() -> Result<serde_json::Value, String> {
     let raw_extensions: Vec<&str> = crate::formats::RAW_EXTENSIONS
@@ -3068,8 +3089,24 @@ fn import_xmp_adjustments_to_sidecar(
     let not_transferred =
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-    metadata.adjustments = converted_preset.adjustments;
-    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    let mut adjustments = converted_preset.adjustments;
+    if adjustments["lensCorrectionMode"].as_str() == Some("auto")
+        && metadata.adjustments["lensCorrectionMode"].as_str() == Some("auto")
+        && metadata.adjustments["lensDistortionParams"].is_object()
+        && let Some(map) = adjustments.as_object_mut()
+    {
+        for key in ["lensMaker", "lensModel", "lensDistortionParams"] {
+            if let Some(value) = metadata.adjustments.get(key) {
+                map.insert(key.to_string(), value.clone());
+            }
+        }
+    }
+    metadata.adjustments = adjustments;
+    if metadata.adjustments["lensCorrectionMode"].as_str() == Some("auto") {
+        resolve_unresolved_auto_lens_metadata(&mut metadata, &source_path, &sidecar_path, lens_db);
+    } else {
+        resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    }
     merge_xmp_metadata_fields(&xmp_content, &mut metadata);
 
     let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
@@ -3801,7 +3838,11 @@ pub fn set_flag_for_paths(
 }
 
 #[tauri::command]
-pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadata, String> {
+pub fn load_metadata(
+    path: String,
+    app_handle: AppHandle,
+    state: tauri::State<AppState>,
+) -> Result<ImageMetadata, String> {
     let settings = load_settings(app_handle).unwrap_or_default();
     let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
 
@@ -3821,6 +3862,14 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
             &source_path,
         );
     }
+
+    let lens_db = state.lens_db.lock().unwrap().clone();
+    resolve_unresolved_auto_lens_metadata(
+        &mut metadata,
+        &source_path,
+        &sidecar_path,
+        lens_db.as_deref(),
+    );
 
     Ok(metadata)
 }
@@ -6576,6 +6625,131 @@ mod lens_params_tests {
             // The rescaled ptlens term, c / d^2, not the raw a.
             assert!((resolved["k1"].as_f64().unwrap() - 0.0061844).abs() > 1e-3);
         }
+    }
+
+    fn auto_exif() -> Option<HashMap<String, String>> {
+        let mut values = exif().unwrap();
+        values.insert(
+            "LensModel".to_string(),
+            "Canon EF 50mm f/1.8 STM".to_string(),
+        );
+        Some(values)
+    }
+
+    #[test]
+    fn opening_an_unresolved_auto_edit_uses_exif_and_keeps_imported_flags() {
+        let db = canon_db();
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.CR3");
+        let sidecar = dir.path().join("photo.CR3.rrdata");
+        let mut metadata = ImageMetadata {
+            exif: auto_exif(),
+            adjustments: serde_json::json!({
+                "lensCorrectionMode": "auto", "lensDistortionParams": null,
+                "lensVignetteAmount": 80.0, "lensVignetteEnabled": false,
+                "lensDistortionEnabled": true, "lensTcaEnabled": false,
+                "exposure": 0.7,
+            }),
+            ..Default::default()
+        };
+        resolve_unresolved_auto_lens_metadata(&mut metadata, &source, &sidecar, Some(&db));
+        assert!(metadata.adjustments["lensDistortionParams"]["radius_scale"].is_number());
+        assert!(
+            metadata.adjustments["lensModel"]
+                .as_str()
+                .unwrap()
+                .contains("EF 50mm f/1.8 STM")
+        );
+        assert_eq!(metadata.adjustments["lensVignetteAmount"], 80.0);
+        assert_eq!(metadata.adjustments["lensVignetteEnabled"], false);
+        assert_eq!(metadata.adjustments["lensTcaEnabled"], false);
+        assert_eq!(metadata.adjustments["exposure"], 0.7);
+        assert!(!sidecar.exists());
+    }
+
+    #[test]
+    fn already_resolved_and_manual_edits_are_unchanged_when_opened() {
+        let db = canon_db();
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("missing.CR3");
+        let sidecar = dir.path().join("missing.CR3.rrdata");
+        for adjustments in [
+            serde_json::json!({"lensCorrectionMode":"auto", "lensDistortionParams":{"k1":0.17}}),
+            serde_json::json!({"lensCorrectionMode":"auto", "lensDistortionParams":{"k1":0.0,"radius_scale":1.0}}),
+            serde_json::json!({"lensCorrectionMode":"manual", "lensDistortionParams":null}),
+            Value::Null,
+        ] {
+            let mut metadata = ImageMetadata {
+                rating: 4,
+                adjustments,
+                ..Default::default()
+            };
+            let before = serde_json::to_value(&metadata).unwrap();
+            resolve_unresolved_auto_lens_metadata(&mut metadata, &source, &sidecar, Some(&db));
+            assert_eq!(serde_json::to_value(&metadata).unwrap(), before);
+            assert!(!sidecar.exists());
+        }
+    }
+
+    #[test]
+    fn importing_auto_lens_settings_loads_source_exif_before_first_sidecar() {
+        let db = canon_db();
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.tiff");
+        let sidecar = dir.path().join("photo.tiff.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        let lens = "Canon EF 50mm f/1.8 STM\0".to_string();
+        // TIFF IFD0 points at a normal EXIF IFD containing the lens description.
+        let exif_ifd = crate::exif_processing::rating_samples::tiff(
+            true,
+            &[(0xa434, 2, lens.len() as u32, lens.into_bytes())],
+        );
+        let make = b"Canon\0".to_vec();
+        let model = b"Canon EOS M6 Mark II\0".to_vec();
+        let mut bytes = crate::exif_processing::rating_samples::tiff(
+            true,
+            &[
+                (0x010f, 2, make.len() as u32, make),
+                (0x0110, 2, model.len() as u32, model),
+                (0x8769, 4, 1, vec![0; 4]),
+            ],
+        );
+        let offset = bytes.len() as u32;
+        bytes[42..46].copy_from_slice(&offset.to_le_bytes());
+        let mut nested = exif_ifd[8..].to_vec();
+        let data_offset = u32::from_le_bytes(nested[10..14].try_into().unwrap());
+        nested[10..14].copy_from_slice(&(data_offset + offset - 8).to_le_bytes());
+        bytes.extend(nested);
+        fs::write(&source, bytes).unwrap();
+        fs::write(&xmp, r#"<rdf:Description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" crs:LensProfileEnable="1" crs:LensProfileVignettingScale="80"/>"#).unwrap();
+        let imported =
+            import_xmp_adjustments_to_sidecar(&source.to_string_lossy(), &xmp, Some(&db)).unwrap();
+        assert_eq!(imported.metadata.exif.as_ref().unwrap()["Make"], "Canon");
+        assert!(
+            imported.metadata.adjustments["lensModel"]
+                .as_str()
+                .unwrap()
+                .contains("EF 50mm f/1.8 STM")
+        );
+        assert!(imported.metadata.adjustments["lensDistortionParams"].is_object());
+        assert_eq!(imported.metadata.adjustments["lensVignetteAmount"], 80.0);
+        let persisted = crate::exif_processing::load_sidecar(&sidecar);
+        assert_eq!(persisted.adjustments["lensVignetteAmount"], 80.0);
+        assert!(persisted.adjustments["lensDistortionParams"].is_object());
+        let mut existing = persisted;
+        existing.adjustments["lensDistortionParams"] = serde_json::json!({"k1":0.17});
+        fs::write(&sidecar, serde_json::to_string(&existing).unwrap()).unwrap();
+        let next = fs::read_to_string(&xmp)
+            .unwrap()
+            .replace("Scale=\"80\"", "Scale=\"25\"");
+        fs::write(&xmp, next).unwrap();
+        let reimported =
+            import_xmp_adjustments_to_sidecar(&source.to_string_lossy(), &xmp, Some(&db)).unwrap();
+        assert_eq!(
+            reimported.metadata.adjustments["lensDistortionParams"],
+            existing.adjustments["lensDistortionParams"]
+        );
+        assert_eq!(reimported.metadata.adjustments["lensVignetteAmount"], 25.0);
     }
 }
 
