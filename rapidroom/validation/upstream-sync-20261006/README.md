@@ -126,7 +126,7 @@ checks, not extra full60 camera coverage.
   This measures startup/edit/export traffic, not all packets or every future
   state. Cloud account sign-in/generation and non-Linux platforms are untested.
 - Interactive terminal PTY use was not exercised in this native run.
-- Codex inspected all six public before/after panels and all five WB probe pairs.
+- Codex inspected all ten public before/after panels and all five WB probe pairs.
   This agent inspection does not constitute human approval.
 - No human visual/interaction approval has been received.
 
@@ -160,6 +160,44 @@ are in `cc0-sources.json`; preview/pixel hashes in `before-after-manifest.json`.
 ### apple-iphone12pro-proraw — busy-tone-color-detail
 
 ![Frozen int7 before and upstream integration after](busy-tone-color-detail-apple-iphone12pro-proraw.png)
+
+## Largest measured changes
+
+These additional views show the corpus maxima, alongside the representative
+Sony/OM-1/iPhone cases above.
+
+**Review concern: the Sony A7CR 18 MP small-lossless raw has a strong magenta
+cast in both busy recipes after integration.** Its mean dE00 is 14.056 in the
+tone recipe and 8.252 in the AgX recipe. For this input the Kelvin WB increment
+has mean absolute differences 3446.649 / 2714.990 codes; A/D65 interpolation
+reduces the difference against int7 to 2539.374 / 1853.379 codes before later
+tone changes. These measurements account for the changed production paths;
+they do not establish that the resulting color is acceptable. Josh should
+explicitly judge this camera case before accepting the WB changes.
+
+### canon-r50-24mp-craw — busy-tone-color-detail
+
+Selection: largest per-image mean absolute pixel difference.
+
+![Frozen int7 before and integration after](busy-tone-color-detail-canon-r50-24mp-craw.png)
+
+### sony-a7cr-18mp-lossless-s — busy-tone-color-detail
+
+Selection: largest per-image mean dE00.
+
+![Frozen int7 before and integration after](busy-tone-color-detail-sony-a7cr-18mp-lossless-s.png)
+
+### sony-a7cr-18mp-lossless-s — busy-agx-lut-effects
+
+Selection: second largest per-image mean dE00; other recipe for the same camera.
+
+![Frozen int7 before and integration after](busy-agx-lut-effects-sony-a7cr-18mp-lossless-s.png)
+
+### fuji-xt4-26mp-lossless — busy-tone-color-detail
+
+Selection: largest absolute pixel difference.
+
+![Frozen int7 before and integration after](busy-tone-color-detail-fuji-xt4-26mp-lossless.png)
 
 Written/reconciled by Yojen with Codex. Original upstream authors and licences
 are retained; no upstream comments, submissions or outsider notifications were
