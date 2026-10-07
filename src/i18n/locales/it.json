@@ -331,7 +331,13 @@
         "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
       },
       "title": "XMP Import Report",
-      "unchanged": "Not imported — no supported changes ({{total}})"
+      "unchanged": "Not imported — no supported changes ({{total}})",
+      "denoisePending_one": "Lightroom AI Denoise has not been applied to this photo.",
+      "denoisePending_other": "Lightroom AI Denoise has not been applied to these {{count}} photos.",
+      "denoiseAmount": "Lightroom denoise amount: {{amount}}",
+      "denoiseCalibration": "Lightroom denoise strength is not calibrated to RapidRoom. Review Best before processing.",
+      "reviewBestDenoise": "Review Best denoise",
+      "denoisePending_many": "Lightroom AI Denoise has not been applied to these {{count}} photos."
     },
     "toasts": {
       "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",

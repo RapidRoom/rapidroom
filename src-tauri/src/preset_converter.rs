@@ -1230,7 +1230,8 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
     }
 
     // An already applied AI Denoise lives in the enhanced DNG's pixels.
-    if attrs.keys().any(|key| key.starts_with("EnhanceDenoise"))
+    if (attrs.keys().any(|key| key.starts_with("EnhanceDenoise"))
+        || has_nested_denoise_filter(xmp_content))
         && !is_xmp_true(attrs.get("EnhanceDenoiseAlreadyApplied"))
     {
         items.push("aiDenoise");
@@ -1267,7 +1268,121 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
     items
 }
 
-fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, String> {
+fn has_nested_denoise_filter(xmp_content: &str) -> bool {
+    nested_denoise_settings(xmp_content).is_some()
+}
+
+pub(crate) fn lightroom_denoise_request(
+    xmp_content: &str,
+) -> Option<crate::lightroom_enhance::EnhanceSettings> {
+    let attrs = parse_xmp_attributes(xmp_content).ok()?;
+    if is_xmp_true(attrs.get("EnhanceDenoiseAlreadyApplied")) {
+        return None;
+    }
+    if let Some(settings) = nested_denoise_settings(xmp_content) {
+        return Some(settings);
+    }
+    attrs
+        .keys()
+        .any(|key| key.starts_with("EnhanceDenoise"))
+        .then(|| crate::lightroom_enhance::EnhanceSettings {
+            denoise: true,
+            denoise_luma_amount: get_attr_as_f64(&attrs, "EnhanceDenoiseLumaAmount")
+                .filter(|v| v.is_finite() && (0.0..=100.0).contains(v)),
+        })
+}
+
+fn nested_denoise_settings(xmp_content: &str) -> Option<crate::lightroom_enhance::EnhanceSettings> {
+    use quick_xml::NsReader;
+    use quick_xml::XmlVersion;
+    use quick_xml::events::Event;
+    use quick_xml::name::ResolveResult;
+
+    const CRS: &[u8] = b"http://ns.adobe.com/camera-raw-settings/1.0/";
+    let mut reader = NsReader::from_str(xmp_content);
+    let mut filters_depth = None;
+    let mut depth: usize = 0;
+    loop {
+        let event = match reader.read_event() {
+            Ok(event) => event,
+            Err(_) => return None,
+        };
+        match event {
+            Event::Start(ref element) | Event::Empty(ref element) => {
+                let (namespace, name) = reader.resolver().resolve_element(element.name());
+                if matches!(namespace, ResolveResult::Bound(ns) if ns.as_ref() == CRS)
+                    && name.as_ref() == b"Filters"
+                    && matches!(event, Event::Start(_))
+                {
+                    filters_depth = Some(depth);
+                }
+                if filters_depth.is_some() {
+                    let mut enhance = false;
+                    let mut denoise = false;
+                    let mut settings_reference = None;
+                    for attribute in element.attributes() {
+                        let Ok(attribute) = attribute else {
+                            return None;
+                        };
+                        let (namespace, name) = reader.resolver().resolve_attribute(attribute.key);
+                        if !matches!(namespace, ResolveResult::Bound(ns) if ns.as_ref() == CRS) {
+                            continue;
+                        }
+                        let Ok(value) = attribute.decoded_and_normalized_value(
+                            XmlVersion::Implicit1_0,
+                            reader.decoder(),
+                        ) else {
+                            return None;
+                        };
+                        match name.as_ref() {
+                            b"Name" => enhance = value == "Enhance",
+                            b"Title" => {
+                                // Adobe's resource key survives localisation of the title text.
+                                denoise = value == "Denoise"
+                                    || value
+                                        .split_once('=')
+                                        .is_some_and(|(key, _)| key.ends_with("/Denoise"));
+                            }
+                            b"CompressedSettings" => settings_reference = Some(value.into_owned()),
+                            _ => {}
+                        }
+                    }
+                    if enhance {
+                        let decoded = settings_reference.and_then(|reference| {
+                            crate::lightroom_enhance::decode_referenced_settings(
+                                xmp_content,
+                                &reference,
+                            )
+                        });
+                        match decoded {
+                            Some(settings) if settings.denoise => return Some(settings),
+                            None if denoise => {
+                                return Some(crate::lightroom_enhance::EnhanceSettings {
+                                    denoise: true,
+                                    denoise_luma_amount: None,
+                                });
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                if matches!(event, Event::Start(_)) {
+                    depth += 1;
+                }
+            }
+            Event::End(_) => {
+                depth = depth.saturating_sub(1);
+                if filters_depth == Some(depth) {
+                    filters_depth = None;
+                }
+            }
+            Event::Eof => return None,
+            _ => {}
+        }
+    }
+}
+
+pub(crate) fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, String> {
     // Lightroom sidecars can contain nested rdf:Description elements for
     // profiles and looks. Only the outer description represents the image's
     // active settings; nested attributes must not overwrite those values.
@@ -2872,6 +2987,94 @@ mod tests {
         ] {
             assert!(not_transferred(xmp).is_empty(), "{xmp}");
         }
+    }
+
+    fn nested_enhance_xmp(filter: &str, outer: &str) -> String {
+        format!(
+            r#"<rdf:Description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" {outer}>
+              <crs:FilterList><crs:Filters><rdf:Seq><rdf:li>
+                {filter}
+              </rdf:li></rdf:Seq></crs:Filters></crs:FilterList>
+            </rdf:Description>"#
+        )
+    }
+
+    #[test]
+    fn reports_nested_enhance_denoise_without_changing_adjustments() {
+        let xmp = nested_enhance_xmp(
+            r#"<rdf:Description crs:Name="Enhance"
+                crs:Title="$$$/CRaw/Filter/Title/Denoise=Denoise"
+                crs:CompressedSettings="0123456789ABCDEF0123456789ABCDEF" />"#,
+            r#"crs:Exposure2012="+1.23""#,
+        );
+        let preset = convert_xmp_sidecar_to_preset(&xmp).unwrap();
+        let plain =
+            convert_xmp_sidecar_to_preset(r#"<rdf:Description crs:Exposure2012="+1.23" />"#)
+                .unwrap();
+        assert_eq!(preset.adjustments, plain.adjustments);
+        assert_eq!(
+            lightroom_settings_not_transferred(&xmp, &preset),
+            ["aiDenoise"]
+        );
+        // An explicit already-applied flag means the enhanced pixels carry it.
+        assert!(
+            not_transferred(&xmp.replace(
+                "crs:Exposure2012=",
+                "crs:EnhanceDenoiseAlreadyApplied=\"True\" crs:Exposure2012="
+            ))
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn recognises_denoise_resource_key_with_localised_title_and_xml_entities() {
+        let xmp = nested_enhance_xmp(
+            r#"<rdf:Description xmlns:camera="http://ns.adobe.com/camera-raw-settings/1.0/"
+                camera:Name="Enhance" camera:Title="$$$/CRaw/Filter/Title/Denoise=R&#233;duction" />"#,
+            "",
+        );
+        assert_eq!(not_transferred(&xmp), ["aiDenoise"]);
+    }
+
+    #[test]
+    fn nested_enhance_uses_verified_settings_before_the_title() {
+        use crate::lightroom_enhance::{DISABLED, DISABLED_REF, ENABLED, ENABLED_REF};
+        let enabled = nested_enhance_xmp(
+            &format!(
+                r#"<rdf:Description crs:Name="Enhance" crs:CompressedSettings="{ENABLED_REF}" />"#
+            ),
+            &format!(r#"crs:Table_{ENABLED_REF}="{ENABLED}""#),
+        );
+        assert_eq!(not_transferred(&enabled), ["aiDenoise"]);
+        let disabled = nested_enhance_xmp(
+            &format!(
+                r#"<rdf:Description crs:Name="Enhance" crs:Title="Denoise" crs:CompressedSettings="{DISABLED_REF}" />"#
+            ),
+            &format!(r#"crs:Table_{DISABLED_REF}="{DISABLED}""#),
+        );
+        assert!(not_transferred(&disabled).is_empty());
+        // A corrupted or missing table cannot silently erase the title warning.
+        assert_eq!(
+            not_transferred(&disabled.replace(DISABLED, "invalid")),
+            ["aiDenoise"]
+        );
+    }
+
+    #[test]
+    fn does_not_confuse_other_filters_or_profile_names_with_ai_denoise() {
+        for filter in [
+            r#"<rdf:Description crs:Name="Enhance" crs:Title="$$$/CRaw/Filter/Title/SuperResolution=Denoise" />"#,
+            r#"<rdf:Description crs:Name="Other" crs:Title="Denoise" />"#,
+            r#"<rdf:Description crs:Name="Enhance" /><rdf:Description crs:Title="Denoise" />"#,
+            r#"<rdf:Description xmlns:other="urn:other" other:Name="Enhance" other:Title="Denoise" />"#,
+        ] {
+            assert!(not_transferred(&nested_enhance_xmp(filter, "")).is_empty());
+        }
+        assert!(!has_nested_denoise_filter(
+            r#"<rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
+                crs:Name="Enhance" crs:Title="Denoise" />"#
+        ));
     }
 
     #[test]

@@ -526,6 +526,8 @@ struct ImportedXmpSidecar {
     sidecar_path: PathBuf,
     metadata: ImageMetadata,
     not_transferred: Vec<&'static str>,
+    denoise_request: Option<XmpDenoiseRequest>,
+    adjustments_imported: bool,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -543,6 +545,27 @@ pub struct XmpSidecarImportResult {
     pub imported_paths: Vec<String>,
     pub unchanged_paths: Vec<String>,
     pub not_transferred: Vec<XmpNotTransferred>,
+    pub denoise_requests: Vec<XmpDenoiseRequest>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct XmpDenoiseRequest {
+    pub path: String,
+    pub amount: Option<f64>,
+}
+
+fn xmp_raw_denoise_request(xmp: &str, path: &str) -> Option<XmpDenoiseRequest> {
+    // The existing denoise action works on physical files. Virtual-copy edits
+    // need a separate save/provenance path before they can be offered here.
+    if path.contains("?vc=") || !is_raw_file(path) {
+        return None;
+    }
+    let settings = preset_converter::lightroom_denoise_request(xmp)?;
+    Some(XmpDenoiseRequest {
+        path: path.to_owned(),
+        amount: settings.denoise_luma_amount,
+    })
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -558,6 +581,8 @@ pub struct XmpImageImportResult {
     #[serde(flatten)]
     pub metadata: ImageMetadata,
     pub not_transferred: Vec<&'static str>,
+    pub denoise_request: Option<XmpDenoiseRequest>,
+    pub adjustments_imported: bool,
 }
 
 pub fn parse_virtual_path(virtual_path: &str) -> (PathBuf, PathBuf) {
@@ -3061,13 +3086,23 @@ fn import_xmp_adjustments_to_sidecar(
     let has_supported_metadata = extract_xmp_rating(&xmp_content).is_some()
         || extract_xmp_label(&xmp_content).is_some()
         || !extract_xmp_tags(&xmp_content).is_empty();
-    if !has_supported_adjustments && !has_supported_metadata {
-        return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
-    }
-
     let not_transferred =
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
+    let denoise_request = xmp_raw_denoise_request(&xmp_content, path);
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
+    if !has_supported_adjustments && !has_supported_metadata {
+        if denoise_request.is_none() {
+            return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
+        }
+        return Ok(ImportedXmpSidecar {
+            source_path,
+            sidecar_path,
+            metadata,
+            not_transferred,
+            denoise_request,
+            adjustments_imported: false,
+        });
+    }
     metadata.adjustments = converted_preset.adjustments;
     resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
     merge_xmp_metadata_fields(&xmp_content, &mut metadata);
@@ -3080,6 +3115,8 @@ fn import_xmp_adjustments_to_sidecar(
         sidecar_path,
         metadata,
         not_transferred,
+        denoise_request,
+        adjustments_imported: true,
     })
 }
 
@@ -3100,18 +3137,30 @@ pub fn import_xmp_adjustments_for_image(
     let imported_adjustments = imported.metadata.adjustments.clone();
     let sidecar_path = imported.sidecar_path.clone();
     let not_transferred = imported.not_transferred;
+    let denoise_request = imported.denoise_request;
+    let adjustments_imported = imported.adjustments_imported;
 
-    save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
+    if adjustments_imported {
+        save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
+    }
+    let metadata = if adjustments_imported {
+        crate::exif_processing::load_sidecar(&sidecar_path)
+    } else {
+        imported.metadata
+    };
 
     log::info!(
-        "Imported XMP adjustments from {} to {}",
+        "Read XMP import from {} for {} (adjustments imported: {})",
         xmp_path.display(),
-        sidecar_path.display()
+        sidecar_path.display(),
+        adjustments_imported,
     );
 
     Ok(XmpImageImportResult {
-        metadata: crate::exif_processing::load_sidecar(&sidecar_path),
+        metadata,
         not_transferred,
+        denoise_request,
+        adjustments_imported,
     })
 }
 
@@ -3149,6 +3198,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
             imported_paths: Vec::new(),
             unchanged_paths: Vec::new(),
             not_transferred: Vec::new(),
+            denoise_requests: Vec::new(),
         };
 
         let emit_progress = |current: usize, result: &XmpSidecarImportResult| {
@@ -3170,7 +3220,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
             let path_string = path.to_string_lossy().to_string();
             match import_xmp_adjustments_to_sidecar(&path_string, &xmp_path, lens_db.as_deref()) {
                 Ok(imported) => {
-                    if enable_xmp_sync {
+                    if enable_xmp_sync && imported.adjustments_imported {
                         sync_metadata_to_xmp(
                             &imported.source_path,
                             &imported.sidecar_path,
@@ -3178,14 +3228,22 @@ pub async fn import_matching_xmp_sidecars_in_folder(
                             create_xmp_if_missing,
                         );
                     }
-                    result.imported += 1;
+                    if imported.adjustments_imported {
+                        result.imported += 1;
+                        result.imported_paths.push(path_string.clone());
+                    } else {
+                        result.unchanged += 1;
+                        result.unchanged_paths.push(path_string.clone());
+                    }
+                    if let Some(request) = imported.denoise_request {
+                        result.denoise_requests.push(request);
+                    }
                     if !imported.not_transferred.is_empty() {
                         result.not_transferred.push(XmpNotTransferred {
                             path: path_string.clone(),
                             items: imported.not_transferred,
                         });
                     }
-                    result.imported_paths.push(path_string);
                 }
                 Err(error) if error == NO_SUPPORTED_XMP_CONTENT_ERROR => {
                     result.unchanged += 1;
@@ -5730,6 +5788,50 @@ mod card_mode_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn denoise_only_xmp_preserves_existing_sidecar_edits_and_requests_review() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("source.ARW");
+        fs::write(&raw, []).unwrap();
+        let raw_path = raw.to_str().unwrap();
+        let (_, sidecar) = parse_virtual_path(raw_path);
+        let original = crate::image_processing::ImageMetadata {
+            adjustments: serde_json::json!({"exposure": 1.5, "sharpness": 12}),
+            ..Default::default()
+        };
+        let bytes = serde_json::to_vec_pretty(&original).unwrap();
+        fs::write(&sidecar, &bytes).unwrap();
+        let xmp = dir.path().join("source.xmp");
+        fs::write(&xmp, r#"<rdf:Description crs:EnhanceDenoiseVersion="1" crs:EnhanceDenoiseLumaAmount="37" />"#).unwrap();
+        let imported = import_xmp_adjustments_to_sidecar(raw_path, &xmp, None).unwrap();
+        assert!(!imported.adjustments_imported);
+        assert_eq!(imported.metadata.adjustments, original.adjustments);
+        assert_eq!(fs::read(&sidecar).unwrap(), bytes);
+        assert_eq!(imported.not_transferred, ["aiDenoise"]);
+        assert_eq!(imported.denoise_request.unwrap().amount, Some(37.0));
+    }
+
+    #[test]
+    fn xmp_denoise_offer_requires_a_physical_raw_and_an_unapplied_request() {
+        let xmp = r#"<rdf:Description crs:EnhanceDenoiseVersion="1" crs:EnhanceDenoiseLumaAmount="37" />"#;
+        let request = xmp_raw_denoise_request(xmp, "/photos/source.ARW").unwrap();
+        assert_eq!(request.path, "/photos/source.ARW");
+        assert_eq!(request.amount, Some(37.0));
+        assert!(xmp_raw_denoise_request(xmp, "/photos/source.jpg").is_none());
+        assert!(xmp_raw_denoise_request(xmp, "/photos/source.ARW?vc=copy").is_none());
+        assert!(
+            xmp_raw_denoise_request(
+                &xmp.replace(
+                    "crs:EnhanceDenoiseVersion",
+                    "crs:EnhanceDenoiseAlreadyApplied=\"True\" crs:EnhanceDenoiseVersion"
+                ),
+                "/photos/source.DNG",
+            )
+            .is_none()
+        );
+        assert!(xmp_raw_denoise_request("<rdf:Description />", "/photos/source.ARW").is_none());
+    }
 
     #[test]
     #[ignore = "requires RAPIDROOM_THUMBNAIL_QA_INPUT pointing to a local sample"]

@@ -35,6 +35,7 @@ dependencies = [
  "libc",
  "little_exif",
  "log",
+ "md5",
  "memmap2",
  "mimalloc",
  "mozjpeg-rs",

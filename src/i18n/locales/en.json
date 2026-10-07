@@ -316,7 +316,12 @@
         "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
       },
       "title": "XMP Import Report",
-      "unchanged": "Not imported — no supported changes ({{total}})"
+      "unchanged": "Not imported — no supported changes ({{total}})",
+      "denoisePending_one": "Lightroom AI Denoise has not been applied to this photo.",
+      "denoisePending_other": "Lightroom AI Denoise has not been applied to these {{count}} photos.",
+      "denoiseAmount": "Lightroom denoise amount: {{amount}}",
+      "denoiseCalibration": "Lightroom denoise strength is not calibrated to RapidRoom. Review Best before processing.",
+      "reviewBestDenoise": "Review Best denoise"
     },
     "toasts": {
       "couldNotOpenTerminal": "Could not open a terminal: {{err}}",

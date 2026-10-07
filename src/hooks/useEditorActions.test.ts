@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mockCommand } from '../test/tauriMock';
-import { useEditorActions } from './useEditorActions';
+import { debouncedSave, useEditorActions } from './useEditorActions';
 import { useEditorStore } from '../store/useEditorStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useProcessStore } from '../store/useProcessStore';
@@ -18,6 +18,7 @@ const initialSettingsState = useSettingsStore.getState();
 const initialProcessState = useProcessStore.getState();
 
 afterEach(() => {
+  debouncedSave.cancel();
   useEditorStore.setState(initialEditorState, true);
   useSettingsStore.setState(initialSettingsState, true);
   useProcessStore.setState(initialProcessState, true);
@@ -81,5 +82,33 @@ describe('useEditorActions.handlePasteAdjustments', () => {
 
     expect(applied).toEqual([{ paths: ['/photos/a.raw'], adjustments: { exposure: 1 } }]);
     await unmount();
+  });
+});
+
+describe('pending editor save before XMP import', () => {
+  it('lets import wait for the pending sidecar write to finish', async () => {
+    let complete!: () => void;
+    const write = new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+    const saved: unknown[] = [];
+    mockCommand(Invokes.SaveMetadataAndUpdateThumbnail, (args) => {
+      saved.push(args);
+      return write;
+    });
+    const adjustments = { ...INITIAL_ADJUSTMENTS, exposure: 1.5 };
+    debouncedSave('/photos/source.ARW', adjustments);
+    expect(saved).toEqual([]);
+    let finished = false;
+    const pending = debouncedSave.flush()?.then(() => {
+      finished = true;
+    });
+    expect(pending).toBeDefined();
+    expect(saved).toEqual([{ path: '/photos/source.ARW', adjustments }]);
+    await Promise.resolve();
+    expect(finished).toBe(false);
+    complete();
+    await pending;
+    expect(finished).toBe(true);
   });
 });

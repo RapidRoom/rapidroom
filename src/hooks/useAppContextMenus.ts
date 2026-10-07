@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { createElement, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -84,6 +84,7 @@ import TaggingSubMenu from '../context/TaggingSubMenu';
 import { debouncedSave, debouncedSetHistory, useEditorActions } from './useEditorActions';
 import { useLibraryActions } from './useLibraryActions';
 import { globalImageCache } from '../utils/ImageLRUCache';
+import LightroomDenoiseOffer, { type XmpDenoiseRequest } from '../components/ui/LightroomDenoiseOffer';
 
 interface ImportedXmpMetadata {
   adjustments?: (Partial<Adjustments> & { is_null?: boolean }) | null;
@@ -94,6 +95,8 @@ type XmpNotTransferredItem =
 
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
   notTransferred?: XmpNotTransferredItem[];
+  denoiseRequest?: XmpDenoiseRequest | null;
+  adjustmentsImported?: boolean;
 }
 
 interface XmpNotTransferred {
@@ -111,6 +114,7 @@ interface MatchingXmpSidecarImportResult {
   importedPaths: string[];
   unchangedPaths: string[];
   notTransferred: XmpNotTransferred[];
+  denoiseRequests?: XmpDenoiseRequest[];
 }
 
 interface MatchingXmpSidecarImportProgress {
@@ -135,6 +139,22 @@ export interface UseAppContextMenusProps {
 export function useAppContextMenus(props: UseAppContextMenusProps) {
   const { t } = useTranslation();
   const { showContextMenu } = useContextMenu();
+  const offerImportedDenoise = useCallback((requests: XmpDenoiseRequest[]) => {
+    if (requests.length === 0) return;
+    const id: ReturnType<typeof toast.info> = toast.info(
+      createElement(LightroomDenoiseOffer, {
+        requests,
+        onReview: (paths: string[]) => {
+          // Opening stages Best; the existing dialog owns processing and Save.
+          const ui = useUIStore.getState();
+          if (ui.denoiseModalState.isOpen || ui.denoiseModalState.isProcessing) return;
+          ui.openDenoiseModal(paths, true);
+          toast.dismiss(id);
+        },
+      }),
+      { autoClose: false, closeOnClick: false },
+    );
+  }, []);
 
   const describeNotTransferred = useCallback(
     (items: XmpNotTransferredItem[]) => {
@@ -300,9 +320,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   const importXmpAdjustmentsForImage = useCallback(
     async (targetPath: string) => {
       try {
-        // A pending editor save would otherwise overwrite the newly imported sidecar.
-        debouncedSave.cancel();
-        debouncedSetHistory.cancel();
+        // Finish pending edits before import; denoise-only requests retain those edits.
+        await debouncedSave.flush();
+        debouncedSetHistory.flush();
         globalImageCache.delete(targetPath);
 
         let metadata: ImportedXmpAdjustments;
@@ -328,10 +348,13 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           });
         }
 
-        applyImportedXmpMetadata(targetPath, metadata);
-        await props.refreshImageList();
-        toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
+        if (metadata.adjustmentsImported !== false) {
+          applyImportedXmpMetadata(targetPath, metadata);
+          await props.refreshImageList();
+          toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
+        }
         toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
+        if (metadata.denoiseRequest) offerImportedDenoise([metadata.denoiseRequest]);
         if (metadata.notTransferred?.length) {
           toast.info(
             t('contextMenus.xmpImportReport.notTransferredForImage', {
@@ -345,7 +368,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         toast.error(t('contextMenus.toasts.failedImportXmpAdjustments', { err }));
       }
     },
-    [applyImportedXmpMetadata, describeNotTransferred, props, t],
+    [applyImportedXmpMetadata, describeNotTransferred, offerImportedDenoise, props, t],
   );
 
   const importMatchingXmpSidecarsInFolder = useCallback(
@@ -361,8 +384,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       let stopListening: (() => void) | undefined;
 
       try {
-        debouncedSave.cancel();
-        debouncedSetHistory.cancel();
+        await debouncedSave.flush();
+        debouncedSetHistory.flush();
         stopListening = await listen<MatchingXmpSidecarImportProgress>('xmp-sidecar-import-progress', ({ payload }) => {
           if (payload.folderPath !== targetPath) return;
           useProcessStore.getState().setImportState({
@@ -376,6 +399,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         });
 
         await refreshImportedXmpPaths(result.importedPaths);
+        offerImportedDenoise(result.denoiseRequests ?? []);
 
         const { currentFolderPath, imageList } = useLibraryStore.getState();
         const importedVisibleImage = imageList.some((image) => result.importedPaths.includes(image.path));
@@ -492,7 +516,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         stopListening?.();
       }
     },
-    [describeNotTransferred, props, refreshImportedXmpPaths, t],
+    [describeNotTransferred, offerImportedDenoise, props, refreshImportedXmpPaths, t],
   );
 
   const handleEditorContextMenu = useCallback(
