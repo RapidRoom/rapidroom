@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "bounded-xmp-metadata-roundtrips",
+      "title": "Escape XMP keywords and safely update self-closing sidecars",
+      "category": "fix",
+      "landed": "2026-10-07",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Keyword and label entities round-trip, including Unicode and numeric references. Metadata updates handle self-closing RDF descriptions and declare missing namespaces while preserving foreign attributes and nested content. XMP reads require regular files up to16MiB; parsing refuses DOCTYPE, excessive depth and node counts. Malformed sidecars are backed up to exclusive .bak names before repair; backup failures and safety-limit refusals leave the original untouched. Existing reject, virtual-copy and Card protection semantics are retained. Default rendering is unchanged."
+    },
+    {
       "id": "mcp-compact-replies",
       "title": "Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons",
       "category": "performance",
