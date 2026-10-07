@@ -1,0 +1,213 @@
+# Daily upstream sync: merge CyberTimon/RapidRAW main into RapidRoom main without
+# a person in the loop. Maintainers decided (2026-10-06) that upstream is trusted
+# enough to merge automatically and be double-checked later.
+#
+#   1. Merge upstream/main into a fresh `upstream-sync` branch cut from main.
+#      A conflict stops here and opens (or updates) one `upstream-sync` issue.
+#   2. Open (or update) the sync PR; the usual pull_request workflows run on it
+#      (lint, Vitest, the pixel-exact regression check). This needs a token of
+#      its own: GITHUB_TOKEN can't push upstream commits that touch
+#      .github/workflows, and its PRs don't start other workflows.
+#   3. Renders changed but are deterministic: record a new ci-reference.json on
+#      the branch, rerun the checks, and open a `needs-human` issue so a person
+#      looks at the changed renders later.
+#   4. Every required check green: merge the PR.
+#
+# Needs the repository secret UPSTREAM_SYNC_TOKEN: a fine-grained token for
+# RapidRoom/rapidroom (Contents, Pull requests, Issues, Actions and Workflows:
+# read and write), owned by a maintainer. See rapidroom/UPSTREAM-SYNC.md.
+name: Upstream sync
+
+on:
+  schedule:
+    - cron: '23 9 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  UPSTREAM: https://github.com/CyberTimon/RapidRAW.git
+  BRANCH: upstream-sync
+  GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Token present
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::The UPSTREAM_SYNC_TOKEN secret is missing; see rapidroom/UPSTREAM-SYNC.md."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+
+      - name: Merge upstream into a fresh branch
+        id: merge
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898299+github-actions[bot]@users.noreply.github.com'
+          git remote add upstream "$UPSTREAM"
+          git fetch --no-tags upstream main
+          behind=$(git rev-list --count HEAD..upstream/main)
+          upstream_sha=$(git rev-parse --short=8 upstream/main)
+          echo "behind=$behind" >> "$GITHUB_OUTPUT"
+          echo "upstream=$upstream_sha" >> "$GITHUB_OUTPUT"
+          if [ "$behind" = 0 ]; then
+            echo "main already contains upstream $upstream_sha."
+            echo "result=current" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git checkout -B "$BRANCH"
+          if git merge --no-ff --no-edit -m "Sync upstream RapidRAW $upstream_sha ($behind commits)" upstream/main; then
+            echo "result=merged" >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt"
+            git merge --abort
+            echo "result=conflict" >> "$GITHUB_OUTPUT"
+          fi
+          git log --no-merges --format='- %h %s (%an)' origin/main..upstream/main > "$RUNNER_TEMP/commits.txt"
+
+      - name: Report a conflict
+        if: steps.merge.outputs.result == 'conflict'
+        run: |
+          title="Upstream sync needs conflict resolution"
+          {
+            echo "The daily upstream sync could not merge upstream \`${{ steps.merge.outputs.upstream }}\` (${{ steps.merge.outputs.behind }} commits) into main: Git reports conflicts. An agent resolves them on a branch and opens a PR, following AGENTS.md (keep both behaviours, say what was done). Once that lands, the daily sync merges by itself again."
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo "**Conflicting files**"
+            sed 's/^/- `/; s/$/`/' "$RUNNER_TEMP/conflicts.txt"
+            echo
+            echo "<details><summary>Upstream commits not in main</summary>"
+            echo
+            sed 's/#\([0-9]\)/#\&#8203;\1/g' "$RUNNER_TEMP/commits.txt"
+            echo
+            echo "</details>"
+          } > "$RUNNER_TEMP/issue.md"
+          existing=$(gh issue list --state open --label upstream-sync --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file "$RUNNER_TEMP/issue.md"
+            gh issue comment "$existing" --body "Still conflicting at upstream \`${{ steps.merge.outputs.upstream }}\` ($(date -u +%F))."
+          else
+            gh issue create --title "$title" --label upstream-sync --label agent:codex --body-file "$RUNNER_TEMP/issue.md"
+          fi
+
+      - name: Push the branch and open the PR
+        id: pr
+        if: steps.merge.outputs.result == 'merged'
+        run: |
+          git push --force origin "$BRANCH"
+          {
+            echo "Daily upstream sync: merges upstream RapidRAW \`${{ steps.merge.outputs.upstream }}\` (${{ steps.merge.outputs.behind }} commits) into main. Merged automatically once the required checks pass; changed renders get a \`needs-human\` issue for a later look."
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo "**Upstream commits**"
+            echo
+            sed 's/#\([0-9]\)/#\&#8203;\1/g' "$RUNNER_TEMP/commits.txt"
+          } > "$RUNNER_TEMP/pr.md"
+          pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --body-file "$RUNNER_TEMP/pr.md"
+          else
+            gh pr create --base main --head "$BRANCH" --label upstream-sync \
+              --title "Sync upstream RapidRAW ${{ steps.merge.outputs.upstream }}" --body-file "$RUNNER_TEMP/pr.md"
+            pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          fi
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the checks
+        id: checks
+        if: steps.merge.outputs.result == 'merged'
+        run: |
+          set -euo pipefail
+          # Wait for a workflow's run on the branch head; prints "<run id> <conclusion>".
+          # A workflow whose path filter skips this change prints "none skipped".
+          wait_for() {
+            local workflow=$1 event=$2 sha id=""
+            sha=$(git rev-parse HEAD)
+            for _ in $(seq 30); do
+              sleep 20
+              id=$(gh run list --workflow "$workflow" --commit "$sha" --event "$event" \
+                --json databaseId --jq '.[0].databaseId // empty')
+              [ -n "$id" ] && break
+            done
+            if [ -z "$id" ]; then echo "none skipped"; return; fi
+            gh run watch "$id" --interval 60 > /dev/null 2>&1 || true
+            echo "$id $(gh run view "$id" --json conclusion --jq .conclusion)"
+          }
+          all_checks() {
+            read -r _ lint < <(wait_for lint.yml pull_request)
+            read -r _ vitest < <(wait_for frontend-test.yml pull_request)
+            read -r reg_id regression < <(wait_for regression.yml pull_request)
+            [ "$regression" = skipped ] && regression=success
+            echo "lint=$lint vitest=$vitest regression=$regression"
+          }
+
+          all_checks
+          render_changed=false
+          if [ "$regression" = failure ]; then
+            steps=$(gh run view "$reg_id" --json jobs --jq '.jobs[0].steps')
+            determinism=$(jq -r '.[] | select(.name | startswith("Determinism")) | .conclusion' <<<"$steps")
+            compare=$(jq -r '.[] | select(.name | startswith("Compare with")) | .conclusion' <<<"$steps")
+            [ "$determinism" = success ] && [ "$compare" = failure ] && render_changed=true
+          fi
+
+          if [ "$render_changed" = true ]; then
+            # Upstream changed how photos render. Record the new reference on the
+            # branch so main stays green, and leave the diff for a person.
+            diff_run=$reg_id
+            gh workflow run regression.yml --ref "$BRANCH" -f record=true >&2
+            read -r rec_id rec < <(wait_for regression.yml workflow_dispatch)
+            [ "$rec" = success ] || { echo "::error::recording the new reference failed"; exit 1; }
+            gh run download "$rec_id" --name ci-reference --dir "$RUNNER_TEMP/ref"
+            cp "$RUNNER_TEMP/ref/ci-reference.json" rapidroom/regression/ci-reference.json
+            git add rapidroom/regression/ci-reference.json
+            git commit -m "Record the CI render reference after upstream ${{ steps.merge.outputs.upstream }}"
+            git push origin "$BRANCH"
+            # The recording run was deterministic on the same code, so only the
+            # required checks are rerun on the new head (a third regression run
+            # would not fit in the job's six hours).
+            read -r _ lint < <(wait_for lint.yml pull_request)
+            read -r _ vitest < <(wait_for frontend-test.yml pull_request)
+            regression=success
+          fi
+
+          {
+            echo "lint=$lint"
+            echo "vitest=$vitest"
+            echo "regression=$regression"
+            echo "render_changed=$render_changed"
+            echo "diff_run=${diff_run:-}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Merge
+        if: steps.merge.outputs.result == 'merged' && steps.checks.outputs.lint == 'success' && steps.checks.outputs.vitest == 'success' && steps.checks.outputs.regression == 'success'
+        run: |
+          gh pr merge "${{ steps.pr.outputs.number }}" --merge --delete-branch
+          if [ "${{ steps.checks.outputs.render_changed }}" = true ]; then
+            gh issue create --label needs-human --label rendering-change --label upstream-sync \
+              --title "Look at render changes from upstream ${{ steps.merge.outputs.upstream }}" \
+              --body "The daily upstream sync merged upstream \`${{ steps.merge.outputs.upstream }}\` (PR #${{ steps.pr.outputs.number }}), which changes how photos render. It recorded a new CI render reference, so nothing is blocked. When convenient, compare a few photos before and after, and re-bless the private 60-render baseline if they look right. Regression run with the differing renders (artifact \`regression-diff\`, kept 14 days): ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ steps.checks.outputs.diff_run }}"
+          fi
+
+      - name: Report failing checks
+        if: steps.merge.outputs.result == 'merged' && !(steps.checks.outputs.lint == 'success' && steps.checks.outputs.vitest == 'success' && steps.checks.outputs.regression == 'success')
+        run: |
+          gh pr edit "${{ steps.pr.outputs.number }}" --add-label agent:codex
+          gh pr comment "${{ steps.pr.outputs.number }}" --body "Not merged: lint ${{ steps.checks.outputs.lint || 'not run' }}, Vitest ${{ steps.checks.outputs.vitest || 'not run' }}, regression ${{ steps.checks.outputs.regression || 'not run' }}. An agent fixes this on the branch (tomorrow's run rebuilds the branch from main, so push fixes to a separate branch and PR). Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          exit 1

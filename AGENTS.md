@@ -7,7 +7,7 @@ RapidRoom is a community build of [RapidRAW](https://github.com/CyberTimon/Rapid
 - Work comes from issues. Agent queues are the labels `agent:codex` and `agent:claude-cloud`. Take only issues with your label, and comment on the issue when you start, so two agents never work on the same thing.
 - `needs-human` means a person has to test, judge or decide something. Do the code, then say exactly what needs checking. Don't mark the issue done.
 - One issue per branch and per PR. Branch names: `codex/<issue>-<slug>` or `claude/<issue>-<slug>`. Cloud sessions that are assigned a branch name may keep it. Either way, put the issue number in the PR title and write `Closes #<issue>` in the body.
-- PRs go to `RapidRoom/rapidroom` `main`. A maintainer reviews and merges them. Never push to `main` directly.
+- PRs go to `RapidRoom/rapidroom` `main`. A maintainer reviews and merges them. Never push to `main` directly. The one exception is the daily upstream sync, which merges itself ([rapidroom/UPSTREAM-SYNC.md](rapidroom/UPSTREAM-SYNC.md)); its conflict issues and failed sync PRs are labelled `agent:codex`.
 
 ## Cloud sessions: picking the next issue
 
