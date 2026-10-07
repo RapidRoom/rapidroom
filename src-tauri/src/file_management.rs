@@ -5042,9 +5042,13 @@ fn backup_malformed_xmp(path: &Path, bytes: &[u8]) -> Result<(), String> {
                     return Err(error.to_string());
                 }
                 #[cfg(unix)]
-                fs::File::open(path.parent().unwrap_or(Path::new(".")))
-                    .and_then(|parent| parent.sync_all())
-                    .map_err(|e| e.to_string())?;
+                fs::File::open(
+                    path.parent()
+                        .filter(|p| !p.as_os_str().is_empty())
+                        .unwrap_or(Path::new(".")),
+                )
+                .and_then(|parent| parent.sync_all())
+                .map_err(|e| e.to_string())?;
                 return Ok(());
             }
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
