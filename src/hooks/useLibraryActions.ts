@@ -12,7 +12,11 @@ import { expandGroupedPaths } from '../utils/imageGrouping';
 import { getReferenceLabel, isReferenceCandidate } from '../utils/referenceView';
 import type { FolderTree } from '../components/panel/right/FolderTree';
 import { getImageFlag, restoreFlags, toggledFlag, withFlag } from '../utils/imageFlags';
-import { enqueueLibraryMetadataWrite } from '../utils/libraryMetadataWrites';
+import {
+  afterPendingLibraryMetadataWrites,
+  enqueueLibraryMetadataWrite,
+  getPendingLibraryVisibleOrder,
+} from '../utils/libraryMetadataWrites';
 
 const resolveTargetPaths = (paths?: string[]) => {
   const { multiSelectedPaths, imageList } = useLibraryStore.getState();
@@ -22,7 +26,10 @@ const resolveTargetPaths = (paths?: string[]) => {
     paths || (multiSelectedPaths.length > 0 ? multiSelectedPaths : selectedImage ? [selectedImage.path] : []);
 
   const groupingMode = useSettingsStore.getState().appSettings?.grouping ?? 'off';
-  return { selectedPaths, expandedPaths: expandGroupedPaths(imageList, selectedPaths, groupingMode) };
+  return {
+    selectedPaths,
+    expandedPaths: expandGroupedPaths(imageList, selectedPaths, groupingMode),
+  };
 };
 export const clearLibrarySelection = () => {
   useLibraryStore.getState().setLibrary({
@@ -46,7 +53,9 @@ export const clearLibrarySelection = () => {
   });
 };
 
-const advanceWhenSaved = (changedPaths: string[]): (() => void) => {
+const advanceWhenSaved = (changedPaths: string[]): { visibleOrder: readonly ImageFile[]; onSaved?: () => void } => {
+  const before =
+    getPendingLibraryVisibleOrder() ?? computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState());
   const { activeView, cullingModalState } = useUIStore.getState();
   const activePath =
     activeView === 'editor'
@@ -54,45 +63,49 @@ const advanceWhenSaved = (changedPaths: string[]): (() => void) => {
       : useLibraryStore.getState().libraryActivePath;
 
   if (!activePath || !changedPaths.includes(activePath) || cullingModalState.isOpen) {
-    return () => {};
+    return { visibleOrder: before };
   }
 
-  const before = computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState());
-  return () => {
-    const ui = useUIStore.getState();
-    const currentPath =
-      activeView === 'editor'
-        ? useEditorStore.getState().selectedImage?.path
-        : useLibraryStore.getState().libraryActivePath;
-    if (ui.activeView !== activeView || ui.cullingModalState.isOpen || currentPath !== activePath) return;
-    const after = computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState());
+  return {
+    visibleOrder: before,
+    onSaved: () => {
+      const ui = useUIStore.getState();
+      const currentPath =
+        activeView === 'editor'
+          ? useEditorStore.getState().selectedImage?.path
+          : useLibraryStore.getState().libraryActivePath;
+      if (ui.activeView !== activeView || ui.cullingModalState.isOpen || currentPath !== activePath) return;
+      const after = computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState());
 
-    const visible = new Set(after.map((img) => img.path));
-    const activeIndex = before.findIndex((img) => img.path === activePath);
-    if (activeIndex === -1 || visible.has(activePath)) return;
+      const visible = new Set(after.map((img) => img.path));
+      const activeIndex = before.findIndex((img) => img.path === activePath);
+      if (activeIndex === -1 || visible.has(activePath)) return;
 
-    const next =
-      before.slice(activeIndex + 1).find((img) => visible.has(img.path)) ??
-      before
-        .slice(0, activeIndex)
-        .reverse()
-        .find((img) => visible.has(img.path));
+      const next =
+        before.slice(activeIndex + 1).find((img) => visible.has(img.path)) ??
+        before
+          .slice(0, activeIndex)
+          .reverse()
+          .find((img) => visible.has(img.path));
 
-    if (next) {
-      useLibraryStore
-        .getState()
-        .setLibrary({ libraryActivePath: next.path, multiSelectedPaths: [next.path], selectionAnchorPath: next.path });
-      useUIStore.getState().imageSelectHandler?.(next.path, activeView === 'editor');
-    } else if (activeView === 'library') {
-      clearLibrarySelection();
-    }
+      if (next) {
+        useLibraryStore.getState().setLibrary({
+          libraryActivePath: next.path,
+          multiSelectedPaths: [next.path],
+          selectionAnchorPath: next.path,
+        });
+        useUIStore.getState().imageSelectHandler?.(next.path, activeView === 'editor');
+      } else if (activeView === 'library') {
+        clearLibrarySelection();
+      }
+    },
   };
 };
 
 const applyWithAutoAdvance = (changedPaths: string[], apply: () => void) => {
-  const advance = advanceWhenSaved(changedPaths);
+  const { onSaved } = advanceWhenSaved(changedPaths);
   apply();
-  advance();
+  if (onSaved) afterPendingLibraryMetadataWrites(onSaved);
 };
 
 export function useLibraryActions(handleImageSelect?: (path: string, openInEditor?: boolean) => void) {
@@ -136,8 +149,12 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
           });
         };
       },
-      save: () => invoke(Invokes.SetRatingForPaths, { paths: pathsToRate, rating: finalRating }),
-      onSaved: advanceWhenSaved(pathsToRate),
+      save: () =>
+        invoke(Invokes.SetRatingForPaths, {
+          paths: pathsToRate,
+          rating: finalRating,
+        }),
+      ...advanceWhenSaved(pathsToRate),
       onError: (err) => {
         console.error(err);
         toast.error(`Failed to apply rating: ${err}`);
@@ -153,11 +170,16 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     enqueueLibraryMetadataWrite({
       apply: () => {
         const { imageList: previous } = useLibraryStore.getState();
-        setLibrary((state) => ({ imageList: withFlag(state.imageList, expandedPaths, flag) }));
-        return () => setLibrary((state) => ({ imageList: restoreFlags(state.imageList, previous, expandedPaths) }));
+        setLibrary((state) => ({
+          imageList: withFlag(state.imageList, expandedPaths, flag),
+        }));
+        return () =>
+          setLibrary((state) => ({
+            imageList: restoreFlags(state.imageList, previous, expandedPaths),
+          }));
       },
       save: () => invoke(Invokes.SetFlagForPaths, { paths: expandedPaths, flag }),
-      onSaved: advanceWhenSaved(expandedPaths),
+      ...advanceWhenSaved(expandedPaths),
       onError: (err) => {
         console.error(err);
         toast.error(`Failed to update flag: ${err}`);
@@ -193,7 +215,10 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     const finalColor = color !== null && color === currentColor ? null : color;
 
     try {
-      await invoke(Invokes.SetColorLabelForPaths, { paths: pathsToUpdate, color: finalColor });
+      await invoke(Invokes.SetColorLabelForPaths, {
+        paths: pathsToUpdate,
+        color: finalColor,
+      });
       applyWithAutoAdvance(pathsToUpdate, () =>
         setLibrary((state) => ({
           imageList: state.imageList.map((image: ImageFile) => {
@@ -223,7 +248,10 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
             const colorTags = (image.tags || []).filter((t) => t.startsWith('color:'));
             const prefixedNewTags = newTags.map((t) => (t.isUser ? `user:${t.tag}` : t.tag));
             const finalTags = [...colorTags, ...prefixedNewTags].sort();
-            return { ...image, tags: finalTags.length > 0 ? finalTags : null };
+            return {
+              ...image,
+              tags: finalTags.length > 0 ? finalTags : null,
+            };
           }
           return image;
         }),
@@ -249,11 +277,19 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     const physicalPathsArray = Array.from(physicalPathsSet);
 
     try {
-      await invoke(Invokes.UpdateExifFields, { paths: physicalPathsArray, updates });
+      await invoke(Invokes.UpdateExifFields, {
+        paths: physicalPathsArray,
+        updates,
+      });
 
       setEditor((state) => {
         if (!state.selectedImage || !physicalPathsSet.has(state.selectedImage.path.split('?vc=')[0])) return state;
-        return { selectedImage: { ...state.selectedImage, exif: { ...(state.selectedImage.exif || {}), ...updates } } };
+        return {
+          selectedImage: {
+            ...state.selectedImage,
+            exif: { ...(state.selectedImage.exif || {}), ...updates },
+          },
+        };
       });
 
       setLibrary((state) => ({
@@ -270,7 +306,10 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
         if (cached && cached.selectedImage) {
           globalImageCache.set(p, {
             ...cached,
-            selectedImage: { ...cached.selectedImage, exif: { ...(cached.selectedImage.exif || {}), ...updates } },
+            selectedImage: {
+              ...cached.selectedImage,
+              exif: { ...(cached.selectedImage.exif || {}), ...updates },
+            },
           });
         }
       });
@@ -324,7 +363,10 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
           const baseSelection = isCtrlPressed ? multiSelectedPaths : [];
           const newSelection = Array.from(new Set([...baseSelection, ...range]));
 
-          setLibrary({ multiSelectedPaths: newSelection, selectionAnchorPath: path });
+          setLibrary({
+            multiSelectedPaths: newSelection,
+            selectionAnchorPath: path,
+          });
           if (updateLibraryActivePath) setLibrary({ libraryActivePath: path });
         }
       } else if (isCtrlPressed) {
@@ -333,12 +375,17 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
         else newSelection.add(path);
 
         const newSelectionArray = Array.from(newSelection);
-        setLibrary({ multiSelectedPaths: newSelectionArray, selectionAnchorPath: path });
+        setLibrary({
+          multiSelectedPaths: newSelectionArray,
+          selectionAnchorPath: path,
+        });
 
         if (updateLibraryActivePath) {
           if (newSelectionArray.includes(path)) setLibrary({ libraryActivePath: path });
           else if (newSelectionArray.length > 0)
-            setLibrary({ libraryActivePath: newSelectionArray[newSelectionArray.length - 1] });
+            setLibrary({
+              libraryActivePath: newSelectionArray[newSelectionArray.length - 1],
+            });
           else setLibrary({ libraryActivePath: null });
         }
       } else {
@@ -358,7 +405,11 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
           if (isAlreadySelected) {
             setLibrary({ libraryActivePath: p, selectionAnchorPath: p });
           } else {
-            setLibrary({ multiSelectedPaths: [p], libraryActivePath: p, selectionAnchorPath: p });
+            setLibrary({
+              multiSelectedPaths: [p],
+              libraryActivePath: p,
+              selectionAnchorPath: p,
+            });
           }
           if (handleImageSelect) {
             handleImageSelect(p, false);
@@ -377,7 +428,10 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
 
       if (inEditor && referenceView.isChooserOpen) {
         if (isReferenceCandidate(referenceView, path, selectedImage.path)) {
-          dispatchReferenceView({ image: { label: getReferenceLabel(path), path }, type: 'set-reference' });
+          dispatchReferenceView({
+            image: { label: getReferenceLabel(path), path },
+            type: 'set-reference',
+          });
         }
         return;
       }
@@ -470,8 +524,18 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     const newTree = structuredClone(albumTree);
     const newItem: AlbumItem =
       type === 'album'
-        ? ({ type: 'album', id: crypto.randomUUID(), name, images: [] } as Album)
-        : ({ type: 'group', id: crypto.randomUUID(), name, children: [] } as AlbumGroup);
+        ? ({
+            type: 'album',
+            id: crypto.randomUUID(),
+            name,
+            images: [],
+          } as Album)
+        : ({
+            type: 'group',
+            id: crypto.randomUUID(),
+            name,
+            children: [],
+          } as AlbumGroup);
 
     let actualTarget = albumActionTarget;
 

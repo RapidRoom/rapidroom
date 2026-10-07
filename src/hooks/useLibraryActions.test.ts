@@ -41,7 +41,10 @@ const click = { ctrlKey: false, metaKey: false, shiftKey: false };
 
 function openEditorOn(path: string) {
   useEditorStore.setState({ selectedImage: { path } as SelectedImage });
-  useLibraryStore.setState({ multiSelectedPaths: [path], selectionAnchorPath: path });
+  useLibraryStore.setState({
+    multiSelectedPaths: [path],
+    selectionAnchorPath: path,
+  });
 }
 
 describe('useLibraryActions.handleImageClick with Reference View', () => {
@@ -81,9 +84,10 @@ describe('useLibraryActions.handleImageClick with Reference View', () => {
 
   it('navigates normally once a reference is pinned', async () => {
     openEditorOn('/photos/active.raw');
-    useEditorStore
-      .getState()
-      .dispatchReferenceView({ image: { label: 'ref.raw', path: '/photos/ref.raw' }, type: 'set-reference' });
+    useEditorStore.getState().dispatchReferenceView({
+      image: { label: 'ref.raw', path: '/photos/ref.raw' },
+      type: 'set-reference',
+    });
     const handleImageSelect = vi.fn();
     const { actions, unmount } = await mountLibraryActions(handleImageSelect);
 
@@ -117,7 +121,12 @@ describe('filtered selection after atomic metadata writes', () => {
       libraryActivePath: '/a.raw',
       multiSelectedPaths: ['/a.raw'],
       selectionAnchorPath: '/a.raw',
-      filterCriteria: { colors: [], rating: 0, rawStatus: RawStatus.All, flagStatus: FlagStatus.ExcludeRejected },
+      filterCriteria: {
+        colors: [],
+        rating: 0,
+        rawStatus: RawStatus.All,
+        flagStatus: FlagStatus.ExcludeRejected,
+      },
       searchCriteria: { tags: [], text: '', mode: 'AND' },
       sortCriteria: { key: 'name', order: 'asc' },
     });
@@ -172,7 +181,10 @@ describe('filtered selection after atomic metadata writes', () => {
     );
     const { actions, unmount } = await mountLibraryActions(vi.fn());
     actions.handleSetFlag(ImageFlag.Reject);
-    useLibraryStore.setState({ libraryActivePath: '/b.raw', multiSelectedPaths: ['/b.raw'] });
+    useLibraryStore.setState({
+      libraryActivePath: '/b.raw',
+      multiSelectedPaths: ['/b.raw'],
+    });
     await act(async () => finish());
     expect(useLibraryStore.getState().libraryActivePath).toBe('/b.raw');
     expect(useUIStore.getState().imageSelectHandler).not.toHaveBeenCalled();
@@ -181,7 +193,12 @@ describe('filtered selection after atomic metadata writes', () => {
   it('advances after a saved color label excludes the active photo, but keeps a refused edit in place', async () => {
     filteredSelection();
     useLibraryStore.setState({
-      filterCriteria: { colors: ['none'], rating: 0, rawStatus: RawStatus.All, flagStatus: FlagStatus.ExcludeRejected },
+      filterCriteria: {
+        colors: ['none'],
+        rating: 0,
+        rawStatus: RawStatus.All,
+        flagStatus: FlagStatus.ExcludeRejected,
+      },
     });
     let finish!: () => void;
     mockCommand(
@@ -210,11 +227,88 @@ describe('filtered selection after atomic metadata writes', () => {
   it('advances when a saved tag change removes the active photo from the search', async () => {
     filteredSelection();
     useLibraryStore.setState((state) => ({
-      imageList: state.imageList.map((image) => ({ ...image, tags: ['user:keep'] })),
+      imageList: state.imageList.map((image) => ({
+        ...image,
+        tags: ['user:keep'],
+      })),
       searchCriteria: { tags: ['keep'], text: '', mode: 'AND' },
     }));
     const { actions, unmount } = await mountLibraryActions(vi.fn());
     actions.handleTagsChanged(['/a.raw'], []);
+    expect(useLibraryStore.getState().libraryActivePath).toBe('/b.raw');
+    await unmount();
+  });
+  it('does not navigate because of a later unsaved reject when an earlier pick saves', async () => {
+    filteredSelection();
+    let finishPick!: () => void;
+    let failReject!: (error: Error) => void;
+    mockCommand(Invokes.SetFlagForPaths, (args) =>
+      args?.flag === ImageFlag.Pick
+        ? new Promise<void>((resolve) => {
+            finishPick = resolve;
+          })
+        : new Promise<void>((_, reject) => {
+            failReject = reject;
+          }),
+    );
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+    actions.handleSetFlag(ImageFlag.Pick);
+    actions.handleSetFlag(ImageFlag.Reject);
+    await act(async () => finishPick());
+    const whileRejectIsPending = useLibraryStore.getState().libraryActivePath;
+    await act(async () => failReject(new Error('write refused')));
+    expect(whileRejectIsPending).toBe('/a.raw');
+    expect(useLibraryStore.getState().libraryActivePath).toBe('/a.raw');
+    expect(useLibraryStore.getState().imageList[0].flag).toBe(ImageFlag.Pick);
+    await unmount();
+  });
+  it('uses the pre-write order when a failed reject is followed by a saved reject', async () => {
+    filteredSelection();
+    let failFirst!: (error: Error) => void;
+    let finishSecond!: () => void;
+    let count = 0;
+    mockCommand(Invokes.SetFlagForPaths, () =>
+      ++count === 1
+        ? new Promise<void>((_, reject) => {
+            failFirst = reject;
+          })
+        : new Promise<void>((resolve) => {
+            finishSecond = resolve;
+          }),
+    );
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+    actions.handleSetFlag(ImageFlag.Reject);
+    actions.handleSetFlag(ImageFlag.Reject);
+    await act(async () => failFirst(new Error('write refused')));
+    await act(async () => finishSecond());
+    expect(useLibraryStore.getState().libraryActivePath).toBe('/b.raw');
+    await unmount();
+  });
+  it('waits for pending flag rollback before advancing after a saved color label', async () => {
+    filteredSelection();
+    useLibraryStore.setState({
+      filterCriteria: {
+        colors: ['none'],
+        rating: 0,
+        rawStatus: RawStatus.All,
+        flagStatus: FlagStatus.ExcludeRejected,
+      },
+    });
+    let fail!: (error: Error) => void;
+    mockCommand(
+      Invokes.SetFlagForPaths,
+      () =>
+        new Promise<void>((_, reject) => {
+          fail = reject;
+        }),
+    );
+    mockCommand(Invokes.SetColorLabelForPaths, () => undefined);
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+    actions.handleSetFlag(ImageFlag.Reject, ['/b.raw']);
+    await act(async () => actions.handleSetColorLabel('red', ['/a.raw']));
+    const whileFlagIsPending = useLibraryStore.getState().libraryActivePath;
+    await act(async () => fail(new Error('write refused')));
+    expect(whileFlagIsPending).toBe('/a.raw');
     expect(useLibraryStore.getState().libraryActivePath).toBe('/b.raw');
     await unmount();
   });
