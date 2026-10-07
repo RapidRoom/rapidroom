@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lightroom-import-auto-lens",
+      "title": "Resolve Auto lens corrections before opening imported photos",
+      "category": "fix",
+      "landed": "2026-10-07",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Fresh Lightroom imports obtain source EXIF before resolving Auto lens parameters. Opening an older unresolved Auto edit resolves it for the preview without replacing already stored lens coefficients or changing manual/default settings. Imported distortion, vignetting and TCA flags and amounts remain intact. Existing Lensfun evaluation and correction strength are unchanged; missing lens matches and profiles without vignetting data remain explicit."
+    },
+    {
       "id": "mcp-compact-replies",
       "title": "Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons",
       "category": "performance",
