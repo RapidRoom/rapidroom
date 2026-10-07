@@ -296,6 +296,7 @@
       "virtualCopy": "Virtuelle Kopie"
     },
     "xmpImportReport": {
+      "brushTableGroup": "Pinselgruppe „{{name}}“: {{reason}}",
       "calibrationWarning": "Lightroom import is uncalibrated: global adjustments and masks are not ready for real use until full import calibration (#31 and #133) is complete.",
       "available": "XMP import report: {{unchanged}} unchanged, {{failed}} failed. Click to view details.",
       "copied": "Import report copied.",
@@ -306,7 +307,7 @@
       "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
-        "maskBrushTable": "MaskBrushTable-Pinseltabellen (nicht unterstützt)",
+        "maskBrushTable": "Nicht importierte Pinseltabellen",
         "aiDenoise": "AI Denoise",
         "aiMasks": "AI masks (subject, sky, people, objects)",
         "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
@@ -316,7 +317,8 @@
         "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
       },
       "title": "XMP Import Report",
-      "unchanged": "Not imported — no supported changes ({{total}})"
+      "unchanged": "Not imported — no supported changes ({{total}})",
+      "unchangedForImage": "Vorhandene Bearbeitungen wurden beibehalten; keine unterstützten Anpassungen wurden importiert."
     },
     "toasts": {
       "albumFilesUnreachable": "Keine Dateien dieses Albums sind erreichbar. Bitte den Datenträger verbinden oder die Ordner neu zuordnen, falls sie verschoben wurden.",

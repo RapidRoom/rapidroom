@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lightroom-acr-brush-tables",
+      "title": "Import Lightroom brush tables from bounded ACR companions",
+      "category": "fix",
+      "landed": "2026-10-06",
+      "authors": ["yojen7", "skymanbp"],
+      "source": "rapidroom adaptation of skymanbp/autoshade brush-table decoder and measured flow law",
+      "commits": ["https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "A shared read-only ACR object-store reader validates directories, object ranges/alignment, MD5 references and source identity, with per-file/object/import limits. The bounded Brotli brush-table decoder validates envelopes, exact output/input consumption and stroke/token grammar, including measured UUID prefixes and four-place hardness updates. Image-aware sidecar conversion appends inline strokes after table strokes, skips inactive records, resolves radius/flow/hardness state at each dab, and applies the measured flow odds law before density-scaled screen accumulation. Imported low-flow brushes accumulate in float until the final alpha bitmap; existing native flow brushes retain their rounding. Skipped groups are named in the import report; table-only refusals preserve existing edits and report the no-op. Native falloff and component-composition laws, erase encoding and local-strength calibration remain parity limits. AI corrections remain unsupported. Default renders require the frozen exact regression gate; human visual acceptance is pending."
+    },
+    {
       "id": "lightroom-aggregate-radial-import",
       "title": "Import Lightroom brush groups and correct radial polarity and rotated geometry",
       "category": "fix",
