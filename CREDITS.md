@@ -173,3 +173,10 @@ Terminal dock containment, compact header and stepped native layout checks: orig
   [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba),
   adapted to RapidRoom masks by Yojen with Codex/kano. AutoShade’s complete MIT
   notice is retained in `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.
+
+- **Lightroom ACR brush tables and flow semantics (#177):** the shared bounded
+  object-store rules, Brotli decoder, record grammar, authored synthetic
+  fixtures and measured flow law derive from skymanbp’s
+  [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba)
+  (MIT), adapted by Yojen with Codex/kano. The complete notice remains in
+  `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.

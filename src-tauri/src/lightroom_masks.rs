@@ -5,12 +5,14 @@
 //! Aggregate composition and signed radial decoding adapt measured rules from
 //! skymanbp/autoshade@cbca12b5 (MIT; full notice in resources/licenses/).
 
+use crate::lightroom_brush_table::{BrushStroke, BrushTableReader};
 use quick_xml::Reader;
 use quick_xml::XmlVersion;
 use quick_xml::events::{BytesStart, Event};
 use regex::regex;
 use serde_json::{Map, Value, json};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::path::Path;
 use uuid::Uuid;
 
 /// Lightroom stores local slider values normalised to -1..1. Exposure spans
@@ -110,10 +112,20 @@ pub struct MaskImportSummary {
     /// Corrections skipped for other reasons (unsupported components, missing
     /// geometry, no components).
     pub skipped_unsupported: usize,
-    /// Corrections containing opaque Aggregate brush tables, not decoded yet.
+    /// Corrections with brush tables that were not transferred.
     pub with_brush_tables: usize,
+    pub brush_tables_seen: usize,
+    pub brush_tables_decoded: usize,
+    pub brush_tables_imported: usize,
+    pub brush_table_refusals: Vec<BrushTableRefusal>,
     /// Converted corrections that also set local adjustments RapidRAW lacks.
     pub with_unmapped_adjustments: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct BrushTableRefusal {
+    pub name: String,
+    pub reason: String,
 }
 
 pub fn has_mask_group_corrections(xmp_content: &str) -> bool {
@@ -127,6 +139,17 @@ pub fn import_lightroom_masks(
     frame: Option<&ImageFrame>,
     scale_exposure: impl Fn(&mut Map<String, Value>),
 ) -> (Vec<Value>, MaskImportSummary) {
+    import_lightroom_masks_for_image(xmp_content, frame, None, scale_exposure)
+}
+
+pub fn import_lightroom_masks_for_image(
+    xmp_content: &str,
+    frame: Option<&ImageFrame>,
+    image_path: Option<&Path>,
+    scale_exposure: impl Fn(&mut Map<String, Value>),
+) -> (Vec<Value>, MaskImportSummary) {
+    let mut reader = BrushTableReader::new(image_path);
+    let mut dab_budget = 65_536usize;
     let mut summary = MaskImportSummary::default();
     let mut masks = Vec::new();
     if !has_mask_group_corrections(xmp_content) {
@@ -142,19 +165,15 @@ pub fn import_lightroom_masks(
 
     for (index, item) in seq_items(corrections).into_iter().enumerate() {
         let correction = Resource::from_item(item);
-        if correction
-            .structs
-            .get("CorrectionMasks")
-            .is_some_and(|components| {
-                seq_items(components)
-                    .into_iter()
-                    .map(Resource::from_item)
-                    .any(|component| component.has_brush_table())
-            })
-        {
-            summary.with_brush_tables += 1;
-        }
-        match convert_correction(&correction, index, frame, &scale_exposure) {
+        match convert_correction(
+            &correction,
+            index,
+            frame,
+            &scale_exposure,
+            &mut reader,
+            &mut dab_budget,
+            &mut summary,
+        ) {
             Converted::Mask(mask, unmapped) => {
                 summary.convertible += 1;
                 if unmapped {
@@ -184,6 +203,9 @@ fn convert_correction(
     index: usize,
     frame: Option<&ImageFrame>,
     scale_exposure: &impl Fn(&mut Map<String, Value>),
+    reader: &mut BrushTableReader,
+    dab_budget: &mut usize,
+    summary: &mut MaskImportSummary,
 ) -> Converted {
     let components: Vec<Resource> = correction
         .structs
@@ -195,12 +217,7 @@ fn convert_correction(
                 .collect()
         })
         .unwrap_or_default();
-    if components
-        .iter()
-        .any(|component| component.what() == Some("Mask/Image"))
-    {
-        return Converted::SkippedAi;
-    }
+    let has_ai = components.iter().any(|c| c.what() == Some("Mask/Image"));
     if components.is_empty() {
         return Converted::SkippedUnsupported;
     }
@@ -213,9 +230,81 @@ fn convert_correction(
         orientation: 1,
         rotation: 0.0,
     });
-    let Some(sub_masks) = convert_components(&components, &frame_or_unit) else {
+    let mut tables = BTreeMap::new();
+    let refusals_before = summary.brush_table_refusals.len();
+    for (component_index, component) in components.iter().enumerate() {
+        if !component.has_brush_table() {
+            continue;
+        }
+        summary.brush_tables_seen += 1;
+        let result = if has_ai {
+            Err("this correction includes an unsupported AI mask".to_string())
+        } else if component.what() != Some("Mask/Aggregate") {
+            Err("brush table is attached to an unsupported component".to_string())
+        } else {
+            decoded_brush_lines(component, &frame_or_unit, reader, dab_budget).inspect(|_| {
+                summary.brush_tables_decoded += 1;
+            })
+        };
+        match result {
+            Ok(lines) => {
+                tables.insert(component_index, lines);
+            }
+            Err(reason) => summary.brush_table_refusals.push(brush_table_refusal(
+                component,
+                index,
+                component_index,
+                reason,
+            )),
+        }
+    }
+    if summary.brush_table_refusals.len() > refusals_before {
+        summary.with_brush_tables += 1;
+        for component_index in tables.keys() {
+            summary.brush_table_refusals.push(brush_table_refusal(
+                &components[*component_index],
+                index,
+                *component_index,
+                "another brush group in this correction could not be imported".to_string(),
+            ));
+        }
+        return if has_ai {
+            Converted::SkippedAi
+        } else {
+            Converted::SkippedUnsupported
+        };
+    }
+    if has_ai {
+        return Converted::SkippedAi;
+    }
+    let Some(sub_masks) = convert_components(&components, &frame_or_unit, &tables, dab_budget)
+    else {
+        if !tables.is_empty() {
+            summary.with_brush_tables += 1;
+            for component_index in tables.keys() {
+                summary.brush_table_refusals.push(brush_table_refusal(
+                    &components[*component_index],
+                    index,
+                    *component_index,
+                    "this correction includes unsupported mask components".to_string(),
+                ));
+            }
+        }
         return Converted::SkippedUnsupported;
     };
+    if frame.is_some() {
+        summary.brush_tables_imported += tables.len();
+    } else if !tables.is_empty() {
+        summary.with_brush_tables += 1;
+        for component_index in tables.keys() {
+            summary.brush_table_refusals.push(brush_table_refusal(
+                &components[*component_index],
+                index,
+                *component_index,
+                "image dimensions are unavailable".to_string(),
+            ));
+        }
+    }
 
     let amount = correction
         .number("CorrectionAmount")
@@ -307,6 +396,7 @@ struct BrushGroup {
     invert: bool,
     name: Option<String>,
     visible: bool,
+    high_precision: bool,
     lines: Vec<Value>,
 }
 
@@ -316,11 +406,16 @@ fn flush_brush(brush: &mut Option<BrushGroup>, sub_masks: &mut Vec<Value>) {
     }
 }
 
-fn convert_components(components: &[Resource], frame: &ImageFrame) -> Option<Vec<Value>> {
+fn convert_components(
+    components: &[Resource],
+    frame: &ImageFrame,
+    tables: &BTreeMap<usize, Vec<Value>>,
+    dab_budget: &mut usize,
+) -> Option<Vec<Value>> {
     let mut sub_masks: Vec<Value> = Vec::new();
     let mut brush: Option<BrushGroup> = None;
 
-    for component in components {
+    for (component_index, component) in components.iter().enumerate() {
         match component.what()? {
             "Mask/Paint" => {
                 let line = brush_line(component, frame)?;
@@ -342,6 +437,7 @@ fn convert_components(components: &[Resource], frame: &ImageFrame) -> Option<Vec
                         invert,
                         name: component.name(),
                         visible: true,
+                        high_precision: false,
                         lines: Vec::new(),
                     });
                 }
@@ -351,14 +447,17 @@ fn convert_components(components: &[Resource], frame: &ImageFrame) -> Option<Vec
             }
             "Mask/Aggregate" => {
                 flush_brush(&mut brush, &mut sub_masks);
-                // A table may coexist with inline strokes. Importing only those
-                // strokes would silently change the correction's coverage.
-                if component.has_brush_table() {
-                    return None;
-                }
-                let paints = component.structs.get("Masks")?;
-                let mut lines = Vec::new();
-                for item in seq_items(paints) {
+                let mut lines = if component.has_brush_table() {
+                    tables.get(&component_index)?.clone()
+                } else {
+                    Vec::new()
+                };
+                let paints = component
+                    .structs
+                    .get("Masks")
+                    .map(|masks| seq_items(masks))
+                    .unwrap_or_default();
+                for item in paints {
                     let paint = Resource::from_item(item);
                     if paint.what() != Some("Mask/Paint")
                         || paint.scalars.get("MaskBlendMode").is_some_and(|v| v != "0")
@@ -372,9 +471,9 @@ fn convert_components(components: &[Resource], frame: &ImageFrame) -> Option<Vec
                     if paint.scalars.get("MaskActive").is_some_and(|v| is_false(v)) {
                         continue;
                     }
-                    lines.push(brush_line(&paint, frame)?);
+                    lines.extend(inline_brush_lines(&paint, frame, dab_budget)?);
                 }
-                if lines.is_empty() {
+                if lines.is_empty() && !component.has_brush_table() {
                     return None;
                 }
                 // Composition belongs to the container. Its Value=0 is a
@@ -388,6 +487,7 @@ fn convert_components(components: &[Resource], frame: &ImageFrame) -> Option<Vec
                         .scalars
                         .get("MaskActive")
                         .is_none_or(|v| !is_false(v)),
+                    high_precision: true,
                     lines,
                 }));
             }
@@ -458,6 +558,7 @@ fn brush_sub_mask(group: BrushGroup) -> Value {
         invert,
         name,
         visible,
+        high_precision,
         lines,
     } = group;
     // RapidRAW's brush paints at full strength. Strokes with less flow or
@@ -488,6 +589,9 @@ fn brush_sub_mask(group: BrushGroup) -> Value {
         "mode": mode,
         "parameters": { "lines": lines },
     });
+    if high_precision && mask_type == "flow" {
+        sub_mask["parameters"]["highPrecisionAccumulation"] = json!(true);
+    }
     if let Some(name) = name {
         sub_mask["name"] = json!(name);
     }
@@ -606,6 +710,168 @@ fn brush_line(component: &Resource, frame: &ImageFrame) -> Option<Value> {
         "flow": round((flow * density).clamp(0.0, 1.0) * 100.0),
         "points": points,
     }))
+}
+
+fn brush_table_refusal(
+    component: &Resource,
+    correction: usize,
+    group: usize,
+    reason: String,
+) -> BrushTableRefusal {
+    let name = component
+        .name()
+        .unwrap_or_else(|| format!("Lightroom brush group {}.{}", correction + 1, group + 1));
+    BrushTableRefusal {
+        name: name.chars().filter(|c| !c.is_control()).take(128).collect(),
+        reason,
+    }
+}
+
+fn decoded_brush_lines(
+    component: &Resource,
+    frame: &ImageFrame,
+    reader: &mut BrushTableReader,
+    budget: &mut usize,
+) -> Result<Vec<Value>, String> {
+    let token = component
+        .scalars
+        .get("MaskBrushTable")
+        .ok_or("brush table reference is missing")?;
+    let expected = component
+        .scalars
+        .get("MaskBrushUncompressedBytes")
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .ok_or("brush table size is missing or invalid")?;
+    let strokes = reader.read_table(token.trim(), expected).map_err(|e| {
+        log::warn!("Lightroom brush table import refused: {:?}", e.class);
+        e.to_string()
+    })?;
+    stroke_brush_lines(strokes, frame, budget)
+}
+
+fn stroke_brush_lines(
+    strokes: Vec<BrushStroke>,
+    frame: &ImageFrame,
+    budget: &mut usize,
+) -> Result<Vec<Value>, String> {
+    let mut lines = Vec::new();
+    for stroke in strokes {
+        if !stroke.active {
+            *budget = budget
+                .checked_sub(stroke.dabs.lines().count())
+                .ok_or("brush dab tokens exceed the per-import safety limit")?;
+            continue;
+        }
+        lines.extend(
+            brush_dab_lines(
+                stroke.value,
+                stroke.radius,
+                stroke.flow,
+                stroke.center_weight,
+                stroke.dabs.lines(),
+                frame,
+                budget,
+            )
+            .ok_or("brush stroke geometry or tokens are unsupported")?,
+        );
+    }
+    Ok(lines)
+}
+
+fn inline_brush_lines(
+    component: &Resource,
+    frame: &ImageFrame,
+    budget: &mut usize,
+) -> Option<Vec<Value>> {
+    let dabs = component.structs.get("Dabs")?;
+    brush_dab_lines(
+        component.number("MaskValue").unwrap_or(1.0),
+        component.number("Radius")?,
+        component.number("Flow").unwrap_or(1.0),
+        component.number("CenterWeight").unwrap_or(0.5),
+        seq_items(dabs).into_iter().map(|e| e.text.as_str()),
+        frame,
+        budget,
+    )
+}
+
+/// Resolve state before each dab, preserving order. One native line per dab
+/// lets the existing flow brush screen-accumulate density-scaled deposits;
+/// native falloff/8-bit quantization are still an approximation to Lightroom.
+fn brush_dab_lines<'a>(
+    value: f64,
+    mut radius: f64,
+    mut flow: f64,
+    mut hardness: f64,
+    tokens: impl IntoIterator<Item = &'a str>,
+    frame: &ImageFrame,
+    budget: &mut usize,
+) -> Option<Vec<Value>> {
+    if ![value, radius, flow, hardness]
+        .into_iter()
+        .all(f64::is_finite)
+        || radius < 0.0
+    {
+        return None;
+    }
+    let erases = value == 0.0;
+    let density = if erases { 1.0 } else { value.clamp(0.0, 1.0) };
+    let mut lines = Vec::new();
+    let mut seen_dab = false;
+    for token in tokens {
+        if token.len() > 256 || *budget == 0 {
+            return None;
+        }
+        *budget -= 1;
+        let mut parts = token.split_whitespace();
+        let kind = parts.next()?;
+        let a = parts
+            .next()?
+            .parse::<f64>()
+            .ok()
+            .filter(|v| v.is_finite())?;
+        match kind {
+            "r" if a >= 0.0 => radius = a,
+            "f" => flow = a,
+            "h" => hardness = a,
+            "d" => {
+                let b = parts
+                    .next()?
+                    .parse::<f64>()
+                    .ok()
+                    .filter(|v| v.is_finite())?;
+                seen_dab = true;
+                let (x, y) = frame.map_normalized(a, b);
+                let size =
+                    radius * 2.0 * lightroom_brush_radius_reference(frame.width, frame.height);
+                if ![x, y, size]
+                    .into_iter()
+                    .all(|v| v.is_finite() && v.abs() <= f32::MAX as f64)
+                {
+                    return None;
+                }
+                let deposit = density * lightroom_flow_deposit(flow);
+                if size > 0.0 && deposit > 0.0 {
+                    lines.push(json!({
+                        "tool":if erases {"eraser"} else {"brush"},
+                        "brushSize":round(size),"feather":round((1.0-hardness).clamp(0.0,1.0)),
+                        "flow":deposit*100.0,"points":[{"x":round(x),"y":round(y)}],
+                    }));
+                }
+            }
+            _ => return None,
+        }
+        if parts.next().is_some() {
+            return None;
+        }
+    }
+    seen_dab.then_some(lines)
+}
+
+fn lightroom_flow_deposit(flow: f64) -> f64 {
+    let f = flow.clamp(0.0, 1.0);
+    let kf = 0.1284 * f;
+    kf / (1.0 - f + kf)
 }
 
 fn normalize_degrees(degrees: f64) -> f64 {
@@ -760,9 +1026,8 @@ impl<'a> Resource<'a> {
     }
 
     fn has_brush_table(&self) -> bool {
-        self.what() == Some("Mask/Aggregate")
-            && (self.scalars.contains_key("MaskBrushTable")
-                || self.scalars.contains_key("MaskBrushUncompressedBytes"))
+        self.scalars.contains_key("MaskBrushTable")
+            || self.scalars.contains_key("MaskBrushUncompressedBytes")
     }
 
     fn what(&self) -> Option<&str> {
@@ -1457,6 +1722,266 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn aggregate_state_tokens_are_applied_before_each_discrete_dab() {
+        let component=aggregate(
+            "",
+            &paint("0.5",0.5).replace("d 0.5 0.5",
+                "r 0.2</rdf:li><rdf:li>f 0.5</rdf:li><rdf:li>h 1</rdf:li><rdf:li>d 0.5 0.5</rdf:li><rdf:li>d 0.5 0.5"),
+        );
+        let xmp = sidecar_with_corrections("", &correction("", &component))
+            .replace(r#"tiff:ImageWidth="6000""#, r#"tiff:ImageWidth="20""#)
+            .replace(r#"tiff:ImageLength="4000""#, r#"tiff:ImageLength="20""#);
+        let preset = convert_xmp_sidecar_to_preset(&xmp).unwrap();
+        let sub = &preset.adjustments["masks"][0]["subMasks"][0];
+        assert_eq!(sub["type"], "flow");
+        let lines = sub["parameters"]["lines"].as_array().unwrap();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0]["brushSize"], 8.0);
+        assert_eq!(lines[0]["feather"], 0.0);
+        assert!((lines[0]["flow"].as_f64().unwrap() - 5.6894718).abs() < 1e-5);
+        let masks = crate::mask_generation::parse_mask_definitions(&preset.adjustments);
+        let bitmap =
+            crate::mask_generation::generate_mask_bitmap(&masks[0], 20, 20, 1.0, (0.0, 0.0), None)
+                .unwrap();
+        assert_eq!(bitmap.get_pixel(10, 10)[0], 28);
+        assert_eq!(bitmap.get_pixel(0, 0)[0], 0);
+        assert!((lightroom_flow_deposit(0.5) - 0.113789436).abs() < 1e-6);
+        assert_eq!(lightroom_flow_deposit(0.0), 0.0);
+        assert_eq!(lightroom_flow_deposit(1.0), 1.0);
+    }
+
+    #[test]
+    fn brush_token_grammar_is_all_or_nothing_and_bounded() {
+        let frame = ImageFrame {
+            width: 4000.0,
+            height: 6000.0,
+            orientation: 1,
+            rotation: 0.0,
+        };
+        let mut budget = 20;
+        let lines = brush_dab_lines(
+            1.0,
+            0.01,
+            1.0,
+            0.0,
+            ["d 0.1 0.1", "r 0.02", "f 0.5", "h 1", "d 0.8 0.9"],
+            &frame,
+            &mut budget,
+        )
+        .unwrap();
+        assert_eq!(lines[0]["brushSize"], 80.0);
+        assert_eq!(lines[1]["brushSize"], 160.0);
+        assert!((lines[1]["flow"].as_f64().unwrap() - 11.3789436).abs() < 1e-5);
+        assert_eq!(lines[1]["feather"], 0.0);
+        assert_eq!(lines[1]["points"][0]["x"], 3200.0);
+        assert_eq!(lines[1]["points"][0]["y"], 5400.0);
+        for token in [
+            "unknown 1",
+            "d NaN 0.5",
+            "d 0.5 Infinity",
+            "d 0.5 0.5 extra",
+            "r -1",
+            "f NaN",
+            "h 0.5 extra",
+        ] {
+            let mut budget = 10;
+            assert!(
+                brush_dab_lines(1.0, 0.01, 1.0, 0.0, [token], &frame, &mut budget).is_none(),
+                "{token}"
+            );
+        }
+        let mut budget = 1;
+        assert!(
+            brush_dab_lines(
+                1.0,
+                0.01,
+                1.0,
+                0.0,
+                ["r 0.2", "d 0.5 0.5"],
+                &frame,
+                &mut budget
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn inactive_table_strokes_do_not_erase_earlier_paint() {
+        let frame = ImageFrame {
+            width: 20.0,
+            height: 20.0,
+            orientation: 1,
+            rotation: 0.0,
+        };
+        let stroke = |active, value, flow| BrushStroke {
+            active,
+            value,
+            radius: 0.2,
+            flow,
+            center_weight: 1.0,
+            dabs: "d 0.5 0.5".to_string(),
+        };
+        let mut budget = 20;
+        let lines = stroke_brush_lines(
+            vec![stroke(true, 1.0, 0.5), stroke(false, 0.0, 1.0)],
+            &frame,
+            &mut budget,
+        )
+        .unwrap();
+        assert_eq!(lines.len(), 1);
+        assert_eq!(budget, 18);
+        let mut exhausted = 0;
+        assert!(stroke_brush_lines(vec![stroke(false, 0.0, 1.0)], &frame, &mut exhausted).is_err());
+        let sub = brush_sub_mask(BrushGroup {
+            mode: "additive",
+            invert: false,
+            name: None,
+            visible: true,
+            high_precision: true,
+            lines,
+        });
+        let adjustments = Map::from_iter([(
+            "masks".to_string(),
+            json!([{
+                    "id":"test","name":"Test","visible":true,"invert":false,
+                    "opacity":100.0,"adjustments":{},"subMasks":[sub]
+            }]),
+        )]);
+        let masks = crate::mask_generation::parse_mask_definitions(&Value::Object(adjustments));
+        let bitmap =
+            crate::mask_generation::generate_mask_bitmap(&masks[0], 20, 20, 1.0, (0.0, 0.0), None)
+                .unwrap();
+        assert_eq!(bitmap.get_pixel(10, 10)[0], 29);
+    }
+
+    #[test]
+    fn uuid_tables_apply_hardness_updates_and_skip_inactive_erasers_in_the_renderer() {
+        use crate::lightroom_brush_table::tests::{MB_UUID_HARDNESS, MB_UUID_HARDNESS_LEN, object};
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        let (bytes, refs) = crate::acr::tests::container(&[object(MB_UUID_HARDNESS)]);
+        std::fs::write(raw.with_extension("acr"), &bytes).unwrap();
+        let attrs = format!(
+            r#"crs:MaskBrushTable="{}" crs:MaskBrushUncompressedBytes="{}""#,
+            refs[0], MB_UUID_HARDNESS_LEN
+        );
+        let xmp = sidecar_with_corrections("", &correction("", &aggregate(&attrs, "")))
+            .replace(r#"tiff:ImageWidth="6000""#, r#"tiff:ImageWidth="20""#)
+            .replace(r#"tiff:ImageLength="4000""#, r#"tiff:ImageLength="20""#);
+        let (preset, summary) =
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &xmp, &raw,
+            )
+            .unwrap();
+        assert_eq!(summary.brush_tables_imported, 1);
+        assert!(summary.brush_table_refusals.is_empty());
+        let parameters = &preset.adjustments["masks"][0]["subMasks"][0]["parameters"];
+        assert_eq!(parameters["lines"].as_array().unwrap().len(), 2);
+        assert_eq!(parameters["lines"][0]["brushSize"], 8.0);
+        assert_eq!(parameters["lines"][0]["feather"], 0.0);
+        assert_eq!(parameters["highPrecisionAccumulation"], true);
+        let masks = crate::mask_generation::parse_mask_definitions(&preset.adjustments);
+        let bitmap =
+            crate::mask_generation::generate_mask_bitmap(&masks[0], 20, 20, 1.0, (0.0, 0.0), None)
+                .unwrap();
+        assert_eq!(bitmap.get_pixel(10, 10)[0], 28);
+        assert_eq!(bitmap.get_pixel(13, 10)[0], 28);
+        assert_eq!(bitmap.get_pixel(0, 0)[0], 0);
+        assert_eq!(std::fs::read(raw.with_extension("acr")).unwrap(), bytes);
+    }
+
+    #[test]
+    fn compressed_tables_stay_with_their_group_and_missing_companions_are_reported() {
+        use crate::lightroom_brush_table::tests::{MB_GOOD_A, MB_GOOD_A_LEN, object};
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        let (bytes, refs) = crate::acr::tests::container(&[object(MB_GOOD_A)]);
+        std::fs::write(raw.with_extension("acr"), &bytes).unwrap();
+        let attrs = format!(
+            r#"crs:MaskName="Table" crs:MaskBrushTable="{}" crs:MaskBrushUncompressedBytes="{}""#,
+            refs[0], MB_GOOD_A_LEN
+        );
+        let component = aggregate(&attrs, &paint("1", 0.9));
+        let xmp = sidecar_with_corrections("", &correction("", &component));
+        let (preset, summary) =
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &xmp, &raw,
+            )
+            .unwrap();
+        assert_eq!(summary.brush_tables_seen, 1);
+        assert_eq!(summary.brush_tables_decoded, 1);
+        assert_eq!(summary.brush_tables_imported, 1);
+        assert!(summary.brush_table_refusals.is_empty());
+        let subs = &preset.adjustments["masks"][0]["subMasks"];
+        assert_eq!(subs.as_array().unwrap().len(), 1);
+        let lines = subs[0]["parameters"]["lines"].as_array().unwrap();
+        assert_eq!(lines[0]["brushSize"], 1481.47);
+        assert_eq!(lines.last().unwrap()["points"][0]["x"], 5400.0);
+        assert!(
+            crate::preset_converter::lightroom_settings_not_transferred_with_mask_summary(
+                &xmp, &preset, &summary
+            )
+            .is_empty()
+        );
+        let renderer = crate::mask_generation::parse_mask_definitions(&preset.adjustments);
+        assert_eq!(renderer.len(), 1);
+        assert_eq!(std::fs::read(raw.with_extension("acr")).unwrap(), bytes);
+
+        let misplaced = component.replace("Mask/Aggregate", "Mask/Gradient");
+        let misplaced = sidecar_with_corrections("", &correction("", &misplaced));
+        let (preset, summary) =
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &misplaced, &raw,
+            )
+            .unwrap();
+        assert!(preset.adjustments.get("masks").is_none());
+        assert_eq!(summary.brush_tables_decoded, 0);
+        assert_eq!(summary.brush_table_refusals.len(), 1);
+
+        let missing = aggregate(
+            &format!(
+                r#"crs:MaskName="Missing" crs:MaskBrushTable="{}" crs:MaskBrushUncompressedBytes="{}""#,
+                "0".repeat(32),
+                MB_GOOD_A_LEN
+            ),
+            "",
+        );
+        let mixed = sidecar_with_corrections("", &correction("", &format!("{component}{missing}")));
+        let (preset, summary) =
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &mixed, &raw,
+            )
+            .unwrap();
+        assert!(preset.adjustments.get("masks").is_none());
+        assert_eq!(summary.brush_tables_decoded, 1);
+        assert_eq!(summary.brush_tables_imported, 0);
+        assert_eq!(
+            summary
+                .brush_table_refusals
+                .iter()
+                .map(|r| r.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Missing", "Table"]
+        );
+
+        std::fs::remove_file(raw.with_extension("acr")).unwrap();
+        let (preset, summary) =
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &xmp, &raw,
+            )
+            .unwrap();
+        assert!(preset.adjustments.get("masks").is_none());
+        assert_eq!(summary.brush_table_refusals.len(), 1);
+        assert_eq!(summary.brush_table_refusals[0].name, "Table");
+        assert_eq!(
+            crate::preset_converter::lightroom_settings_not_transferred_with_mask_summary(
+                &xmp, &preset, &summary
+            ),
+            vec!["masks", "maskBrushTable"]
+        );
+    }
+
+    #[test]
     #[ignore = "Private read-only sidecar audit; requires explicit input/output environment paths"]
     fn audit_private_sidecar_mask_counts() {
         use std::{env, fs, path::Path};
@@ -1479,7 +2004,12 @@ pub(crate) mod tests {
         for path in files {
             let before = fs::read(&path).unwrap();
             let xmp = std::str::from_utf8(&before).unwrap();
-            let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
+            let (preset, summary) =
+                crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                    xmp,
+                    &path.with_extension("ARW"),
+                )
+                .unwrap();
             let masks = preset
                 .adjustments
                 .get("masks")
@@ -1487,7 +2017,6 @@ pub(crate) mod tests {
                 .unwrap_or(json!([]));
             let parsed = crate::mask_generation::parse_mask_definitions(&preset.adjustments);
             assert_eq!(masks.as_array().unwrap().len(), parsed.len());
-            let (_, summary) = import_lightroom_masks(xmp, None, |_| {});
             let mut types = HashMap::<String, usize>::new();
             for mask in masks.as_array().unwrap() {
                 for sub in mask["subMasks"].as_array().unwrap() {
@@ -1498,7 +2027,7 @@ pub(crate) mod tests {
             }
             rows.push(json!({"stem":path.file_stem().unwrap().to_str().unwrap(),"masks":parsed.len(),
                 "sub_mask_types":types,"convertible":summary.convertible,"skipped_ai":summary.skipped_ai,
-                "skipped_unsupported":summary.skipped_unsupported,"not_transferred":lightroom_settings_not_transferred(xmp,&preset),"adjustments":preset.adjustments}));
+                "skipped_unsupported":summary.skipped_unsupported,"not_transferred":crate::preset_converter::lightroom_settings_not_transferred_with_mask_summary(xmp,&preset,&summary),"brush_tables_seen":summary.brush_tables_seen,"brush_tables_decoded":summary.brush_tables_decoded,"brush_tables_imported":summary.brush_tables_imported,"brush_table_refusals":summary.brush_table_refusals,"adjustments":preset.adjustments}));
             assert_eq!(fs::read(&path).unwrap(), before);
         }
         assert_eq!(rows.len(), 36);

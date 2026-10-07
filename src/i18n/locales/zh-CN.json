@@ -296,6 +296,7 @@
       "virtualCopy": "虚拟副本"
     },
     "xmpImportReport": {
+      "brushTableGroup": "画笔组“{{name}}”：{{reason}}",
       "calibrationWarning": "Lightroom import is uncalibrated: global adjustments and masks are not ready for real use until full import calibration (#31 and #133) is complete.",
       "available": "XMP import report: {{unchanged}} unchanged, {{failed}} failed. Click to view details.",
       "copied": "Import report copied.",
@@ -306,7 +307,7 @@
       "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
-        "maskBrushTable": "MaskBrushTable 画笔表（不支持）",
+        "maskBrushTable": "未导入的画笔表",
         "aiDenoise": "AI Denoise",
         "aiMasks": "AI masks (subject, sky, people, objects)",
         "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
@@ -316,7 +317,8 @@
         "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
       },
       "title": "XMP Import Report",
-      "unchanged": "Not imported — no supported changes ({{total}})"
+      "unchanged": "Not imported — no supported changes ({{total}})",
+      "unchangedForImage": "已保留现有编辑；未导入受支持的调整。"
     },
     "toasts": {
       "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",

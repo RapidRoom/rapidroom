@@ -99,13 +99,21 @@ type XmpNotTransferredItem =
   | 'localAdjustments'
   | 'pointColor';
 
+interface BrushTableRefusal {
+  name: string;
+  reason: string;
+}
+
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
+  unchanged?: boolean;
   notTransferred?: XmpNotTransferredItem[];
+  brushTableRefusals?: BrushTableRefusal[];
 }
 
 interface XmpNotTransferred {
   path: string;
   items: XmpNotTransferredItem[];
+  brushTableRefusals?: BrushTableRefusal[];
 }
 
 interface MatchingXmpSidecarImportResult {
@@ -144,7 +152,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   const { showContextMenu } = useContextMenu();
 
   const describeNotTransferred = useCallback(
-    (items: XmpNotTransferredItem[]) => {
+    (items: XmpNotTransferredItem[], brushTableRefusals: BrushTableRefusal[] = []) => {
       const labels: Record<XmpNotTransferredItem, string> = {
         aiDenoise: t('contextMenus.xmpImportReport.notTransferredItems.aiDenoise'),
         aiMasks: t('contextMenus.xmpImportReport.notTransferredItems.aiMasks'),
@@ -155,7 +163,12 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         profileLook: t('contextMenus.xmpImportReport.notTransferredItems.profileLook'),
         whiteBalance: t('contextMenus.xmpImportReport.notTransferredItems.whiteBalance'),
       };
-      return items.map((item) => labels[item] ?? item).join(', ');
+      return [
+        items.map((item) => labels[item] ?? item).join(', '),
+        ...brushTableRefusals.map(({ name, reason }) =>
+          t('contextMenus.xmpImportReport.brushTableGroup', { name, reason }),
+        ),
+      ].join('\n');
     },
     [t],
   );
@@ -336,14 +349,18 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           });
         }
 
-        applyImportedXmpMetadata(targetPath, metadata);
-        await props.refreshImageList();
-        toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
-        toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
+        if (metadata.unchanged) {
+          toast.info(t('contextMenus.xmpImportReport.unchangedForImage'));
+        } else {
+          applyImportedXmpMetadata(targetPath, metadata);
+          await props.refreshImageList();
+          toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
+          toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
+        }
         if (metadata.notTransferred?.length) {
           toast.info(
             t('contextMenus.xmpImportReport.notTransferredForImage', {
-              items: describeNotTransferred(metadata.notTransferred),
+              items: describeNotTransferred(metadata.notTransferred, metadata.brushTableRefusals),
             }),
             { autoClose: false },
           );
@@ -433,7 +450,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             '',
             t('contextMenus.xmpImportReport.notTransferred', { total: result.notTransferred.length }),
             ...result.notTransferred.map(
-              ({ path, items }) => `${relativeToImportedFolder(path)}: ${describeNotTransferred(items)}`,
+              ({ path, items, brushTableRefusals }) =>
+                `${relativeToImportedFolder(path)}: ${describeNotTransferred(items, brushTableRefusals)}`,
             ),
           );
         }
