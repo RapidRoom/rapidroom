@@ -366,7 +366,24 @@ pub fn read_as_shot_white_balance(file_bytes: &[u8]) -> Option<WhiteBalance> {
     let raw_image = decoder
         .raw_image(&source, &RawDecodeParams::default(), true)
         .ok()?;
+    as_shot_white_balance_from_raw(&raw_image, file_bytes)
+}
+
+fn as_shot_white_balance_from_raw(raw_image: &RawImage, file_bytes: &[u8]) -> Option<WhiteBalance> {
     if raw_image.cpp == 1 && !matches!(raw_image.photometric, RawPhotometricInterpretation::Cfa(_))
+    {
+        return None;
+    }
+
+    // Sony lossless M/S ARWs contain already white-balanced RGB. Rawler replaces
+    // their sensor WB coefficients with unity; these are development gains, not
+    // a camera neutral. Inverting the sensor matrices invents an extreme tint,
+    // which the first relative edit clamps and turns the whole image magenta.
+    // Use the existing reference fallback until original sensor WB is available.
+    if raw_image.make.eq_ignore_ascii_case("SONY")
+        && raw_image.cpp == 3
+        && is_linear_raw_format(raw_image)
+        && raw_image.wb_coeffs[..3] == [1.0; 3]
     {
         return None;
     }
@@ -390,6 +407,89 @@ pub fn read_as_shot_white_balance(file_bytes: &[u8]) -> Option<WhiteBalance> {
         .get(&Illuminant::D65)
         .or_else(|| matrices.values().next())?;
     WhiteBalance::from_camera_neutral(color_matrix, &neutral)
+}
+
+#[cfg(test)]
+mod as_shot_white_balance_tests {
+    use super::*;
+    use rawler::{
+        cfa::CFA,
+        decoders::Camera,
+        pixarray::PixU16,
+        rawimage::{BlackLevel, CFAConfig, WhiteLevel},
+    };
+
+    fn sony_metadata(cpp: usize, wb: [f32; 4]) -> RawImage {
+        let mut camera = Camera::new();
+        camera.make = "SONY".into();
+        camera.model = "ILCE-7CR".into();
+        camera.cfa = CFA::new("RGGB");
+        // Pinned rawler's ILCE-7CR matrices and CC0 sample's sensor coefficients.
+        camera.color_matrix.insert(
+            Illuminant::A,
+            vec![
+                0.9185, -0.4857, 0.0505, -0.3651, 1.1061, 0.2982, -0.0161, 0.0698, 0.6769,
+            ],
+        );
+        camera.color_matrix.insert(
+            Illuminant::D65,
+            vec![
+                0.82, -0.2976, -0.0719, -0.4296, 1.2053, 0.2532, -0.0429, 0.1282, 0.5774,
+            ],
+        );
+        let photometric = if cpp == 3 {
+            RawPhotometricInterpretation::LinearRaw
+        } else {
+            RawPhotometricInterpretation::Cfa(CFAConfig::new_from_camera(&camera))
+        };
+        RawImage::new(
+            camera,
+            PixU16::new_with(vec![0; 4 * cpp], 2 * cpp, 2),
+            cpp,
+            wb,
+            photometric,
+            Some(BlackLevel::zero(1, 1, cpp)),
+            Some(WhiteLevel::new(vec![16383; cpp])),
+            false,
+        )
+    }
+
+    #[test]
+    fn sony_reduced_rgb_does_not_invent_a_sensor_white_balance() {
+        let image = sony_metadata(3, [1.0, 1.0, 1.0, f32::NAN]);
+        let invented = WhiteBalance::from_dual_illuminant_camera_neutral(
+            &image.color_matrix[&Illuminant::A],
+            &image.color_matrix[&Illuminant::D65],
+            &[1.0; 3],
+        )
+        .unwrap();
+        assert!(invented.tint < -150.0);
+        let wb =
+            as_shot_white_balance_from_raw(&image, &[]).unwrap_or_else(WhiteBalance::reference);
+        assert_eq!(wb, WhiteBalance::reference());
+        for (temperature, tint) in [(8.0, -4.0), (-5.0, 0.0)] {
+            let gains =
+                crate::white_balance::adaptation_log_gains(wb, wb.shifted(temperature, tint));
+            assert!(
+                gains
+                    .iter()
+                    .all(|gain| gain.is_finite() && gain.abs() < 0.25)
+            );
+        }
+    }
+
+    #[test]
+    fn sony_cfa_and_original_linear_sensor_coefficients_remain_available() {
+        let sensor_wb = [2688.0 / 1024.0, 1.0, 1636.0 / 1024.0, f32::NAN];
+        let cfa = as_shot_white_balance_from_raw(&sony_metadata(1, sensor_wb), &[]).unwrap();
+        assert!((cfa.temperature - 6021.31).abs() < 0.1);
+        assert!((cfa.tint - 19.012).abs() < 0.01);
+        let linear = as_shot_white_balance_from_raw(&sony_metadata(3, sensor_wb), &[]).unwrap();
+        assert_eq!(linear, cfa);
+        let mut other_linear = sony_metadata(3, [1.0, 1.0, 1.0, f32::NAN]);
+        other_linear.make = "Apple".into();
+        assert!(as_shot_white_balance_from_raw(&other_linear, &[]).is_some());
+    }
 }
 
 pub fn get_fast_demosaic_scale_factor(
