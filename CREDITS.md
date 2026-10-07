@@ -167,3 +167,9 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 - **Compact MCP payloads, local schema definitions and comparison layout (#147):**
   original work by Yojen with Codex/sora. Existing MCP/renderer/font authorship
   and full notices retained; no dependency or network connection added.
+
+- **Lightroom Aggregate brushes and radial geometry (#173):** measured XMP rules
+  and signed ellipse decoding by skymanbp in
+  [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba),
+  adapted to RapidRoom masks by Yojen with Codex/kano. AutoShade’s complete MIT
+  notice is retained in `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.

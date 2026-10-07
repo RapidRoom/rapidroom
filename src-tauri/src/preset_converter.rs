@@ -1256,6 +1256,9 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
     if masks.skipped_ai > 0 {
         items.push("aiMasks");
     }
+    if masks.with_brush_tables > 0 {
+        items.push("maskBrushTable");
+    }
     if masks.with_unmapped_adjustments > 0 && imported_masks > 0 {
         items.push("localAdjustments");
     }
