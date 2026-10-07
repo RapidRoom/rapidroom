@@ -128,6 +128,12 @@ checks, not extra full60 camera coverage.
 - Interactive terminal PTY use was not exercised in this native run.
 - Codex inspected all ten public before/after panels and all five WB probe pairs.
   This agent inspection does not constitute human approval.
+- Configured CSP browser checks pass for default and persisted Cloud with an
+  intentionally unavailable auth backend. Default makes zero auth calls; saved
+  Cloud makes one initialization call. Both start screens render without policy
+  violations and block the injected data script. Four forbidden-policy probes
+  are rejected; `csp-browser.json` records scope and results. Live account sign-in
+  and native CSP rewriting are outside this browser harness.
 - No human visual/interaction approval has been received.
 
 ## CC0 before / after
