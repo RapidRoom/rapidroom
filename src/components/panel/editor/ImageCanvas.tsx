@@ -17,6 +17,13 @@ import type { OverlayMode } from '../right/CropPanel';
 import CompositionOverlays from './overlays/CompositionOverlays';
 import { calculateStraightenAngle } from '../../../utils/cropUtils';
 import { toast } from 'react-toastify';
+import {
+  getWhiteBalanceMode,
+  toRelativeWhiteBalance,
+  WhiteBalanceMode,
+  withKelvinWhiteBalance,
+  withRelativeWhiteBalance,
+} from '../../../utils/whiteBalance';
 
 interface CursorPreview {
   visible: boolean;
@@ -128,6 +135,39 @@ const linearToSrgb8 = (value: number) => {
   const encoded = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
   return Math.round(encoded * 255);
 };
+
+interface WbSampleOutlineProps {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zoomScale: number;
+  dashed?: boolean;
+}
+
+const WbSampleOutline = ({ x, y, width, height, zoomScale, dashed = false }: WbSampleOutlineProps) => (
+  <>
+    <Rect
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      stroke="rgba(0, 0, 0, 0.6)"
+      strokeWidth={3 / zoomScale}
+      listening={false}
+    />
+    <Rect
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      stroke="#ffffff"
+      strokeWidth={1.5 / zoomScale}
+      dash={dashed ? [4 / zoomScale, 4 / zoomScale] : undefined}
+      listening={false}
+    />
+  </>
+);
 
 function multiply3x3(a: number[], b: number[]): number[] {
   if (!a || !b) return IDENTITY_3X3;
@@ -2177,6 +2217,9 @@ const ImageCanvas = memo(
       setWbHover((p: CursorPreview) => (p.visible ? { ...p, visible: false } : p));
     }, []);
 
+    const isKelvinWhiteBalance = getWhiteBalanceMode(appSettings) === WhiteBalanceMode.Kelvin;
+    const asShotWhiteBalance = selectedImage?.asShotWhiteBalance;
+
     const applyWbPick = useCallback(
       async (corners: Coord[]) => {
         const state = wbSampleStateRef.current;
@@ -2190,17 +2233,20 @@ const ImageCanvas = memo(
           if (state.generation === generation) {
             setWbSample(sample);
           }
-          setAdjustments((prev: Adjustments) => ({
-            ...prev,
-            temperature: sample.temperature,
-            tint: sample.tint,
-          }));
+          if (asShotWhiteBalance) {
+            const picked = { temperature: sample.temperature, tint: sample.tint };
+            setAdjustments((prev: Adjustments) =>
+              isKelvinWhiteBalance
+                ? withKelvinWhiteBalance(prev, picked)
+                : withRelativeWhiteBalance(prev, toRelativeWhiteBalance(asShotWhiteBalance, picked)),
+            );
+          }
           onWbPicked?.();
         } catch (err) {
           console.error('Failed to pick white balance:', err);
         }
       },
-      [setAdjustments, onWbPicked],
+      [setAdjustments, onWbPicked, asShotWhiteBalance, isKelvinWhiteBalance],
     );
 
     useEffect(() => {
@@ -3103,6 +3149,12 @@ const ImageCanvas = memo(
     const wbSwatchFlipX = !!wbSwatchAnchor && wbSwatchAnchor.x > imageRenderSize.width * 0.75;
     const wbSwatchFlipY = !!wbSwatchAnchor && wbSwatchAnchor.y > imageRenderSize.height * 0.75;
     const wbSwatchOffset = WB_SWATCH_OFFSET / effectiveZoomScale;
+    const wbSwatchWhiteBalance =
+      wbSample && asShotWhiteBalance
+        ? isKelvinWhiteBalance
+          ? wbSample
+          : toRelativeWhiteBalance(asShotWhiteBalance, wbSample)
+        : null;
 
     const currentTarget = finalPreviewUrl || selectedImage.thumbnailUrl;
     const baseIsReady = displayState.base === currentTarget && !displayState.fade;
@@ -3133,7 +3185,10 @@ const ImageCanvas = memo(
 
     const effectiveCursor = useMemo(() => {
       if (isGuidedPerspectiveActive && isCropping) return 'crosshair';
-      if (isWbPickerActive) return 'crosshair';
+      if (isWbPickerActive) {
+        if (wbBox || wbHover.visible) return 'none';
+        return 'crosshair';
+      }
       if (isMixerPickerDragging) return 'ns-resize';
       if (isMixerPickerActive) return 'crosshair';
       if (isParametricActive) return 'crosshair';
@@ -3165,6 +3220,8 @@ const ImageCanvas = memo(
       isWbPickerActive,
       isMixerPickerDragging,
       isMixerPickerActive,
+      wbBox,
+      wbHover.visible,
       isInitialDrawing,
       isBrushActive,
       isCloneOrHealActive,
@@ -3490,49 +3547,23 @@ const ImageCanvas = memo(
                         />
                       )}
                       {isWbPickerActive && wbBox && (
-                        <>
-                          <Rect
-                            x={Math.min(wbBox.start.x, wbBox.end.x)}
-                            y={Math.min(wbBox.start.y, wbBox.end.y)}
-                            width={Math.max(0.1, Math.abs(wbBox.end.x - wbBox.start.x))}
-                            height={Math.max(0.1, Math.abs(wbBox.end.y - wbBox.start.y))}
-                            stroke="rgba(0, 0, 0, 0.6)"
-                            strokeWidth={3 / effectiveZoomScale}
-                            listening={false}
-                          />
-                          <Rect
-                            x={Math.min(wbBox.start.x, wbBox.end.x)}
-                            y={Math.min(wbBox.start.y, wbBox.end.y)}
-                            width={Math.max(0.1, Math.abs(wbBox.end.x - wbBox.start.x))}
-                            height={Math.max(0.1, Math.abs(wbBox.end.y - wbBox.start.y))}
-                            stroke="#ffffff"
-                            strokeWidth={1.5 / effectiveZoomScale}
-                            dash={[4 / effectiveZoomScale, 4 / effectiveZoomScale]}
-                            listening={false}
-                          />
-                        </>
+                        <WbSampleOutline
+                          x={Math.min(wbBox.start.x, wbBox.end.x)}
+                          y={Math.min(wbBox.start.y, wbBox.end.y)}
+                          width={Math.max(0.1, Math.abs(wbBox.end.x - wbBox.start.x))}
+                          height={Math.max(0.1, Math.abs(wbBox.end.y - wbBox.start.y))}
+                          zoomScale={effectiveZoomScale}
+                          dashed
+                        />
                       )}
                       {isWbPickerActive && wbHover.visible && !wbBox && (
-                        <>
-                          <Rect
-                            x={wbHover.x - wbSquareStage / 2}
-                            y={wbHover.y - wbSquareStage / 2}
-                            width={wbSquareStage}
-                            height={wbSquareStage}
-                            stroke="rgba(0, 0, 0, 0.6)"
-                            strokeWidth={3 / effectiveZoomScale}
-                            listening={false}
-                          />
-                          <Rect
-                            x={wbHover.x - wbSquareStage / 2}
-                            y={wbHover.y - wbSquareStage / 2}
-                            width={wbSquareStage}
-                            height={wbSquareStage}
-                            stroke="#ffffff"
-                            strokeWidth={1.5 / effectiveZoomScale}
-                            listening={false}
-                          />
-                        </>
+                        <WbSampleOutline
+                          x={wbHover.x - wbSquareStage / 2}
+                          y={wbHover.y - wbSquareStage / 2}
+                          width={wbSquareStage}
+                          height={wbSquareStage}
+                          zoomScale={effectiveZoomScale}
+                        />
                       )}
                       {isBrushActive &&
                         cursorPreview.visible &&
@@ -3585,10 +3616,14 @@ const ImageCanvas = memo(
                 <span className="text-text-secondary">
                   R {wbSwatchRgb[0]} G {wbSwatchRgb[1]} B {wbSwatchRgb[2]}
                 </span>
-                <span>
-                  {t('adjustments.color.temperature')} {Math.round(wbSample.temperature)} ·{' '}
-                  {t('adjustments.color.tint')} {Math.round(wbSample.tint)}
-                </span>
+                {wbSwatchWhiteBalance && (
+                  <span className="flex gap-1">
+                    <span>{t('adjustments.color.temperature')}</span>
+                    <span>{`${Math.round(wbSwatchWhiteBalance.temperature)}${isKelvinWhiteBalance ? 'K' : ''}`}</span>
+                    <span className="ml-1">{t('adjustments.color.tint')}</span>
+                    <span>{Math.round(wbSwatchWhiteBalance.tint)}</span>
+                  </span>
+                )}
               </div>
             </div>
           )}

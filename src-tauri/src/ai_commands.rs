@@ -312,6 +312,7 @@ pub async fn generate_ai_subject_mask(
     flip_horizontal: bool,
     flip_vertical: bool,
     orientation_steps: u8,
+    skip_refinement: Option<bool>,
     task_id: Option<String>,
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
@@ -469,7 +470,11 @@ pub async fn generate_ai_subject_mask(
         &embeddings,
         unrotated_start_point,
         unrotated_end_point,
-        Some(warped_image.as_ref()),
+        if skip_refinement.unwrap_or(false) {
+            None
+        } else {
+            Some(warped_image.as_ref())
+        },
     )
     .map_err(|e| e.to_string())?;
 

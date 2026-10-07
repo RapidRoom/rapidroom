@@ -32,7 +32,7 @@ export const useKeyboardShortcuts = ({
   handleZoomChange,
 }: KeyboardShortcutsProps) => {
   const { handleRotate, handleCopyAdjustments, handlePasteAdjustments, toggleShowOriginal } = useEditorActions();
-  const { handleRate, handleSetFlag, handleSetColorLabel } = useLibraryActions();
+  const { handleRate, handleSetFlag, handleToggleFlag, handleSetColorLabel } = useLibraryActions();
 
   const sortedListRef = useRef(sortedImageList);
   useEffect(() => {
@@ -552,6 +552,20 @@ export const useKeyboardShortcuts = ({
           handleSetFlag(ImageFlag.Reject);
         },
       },
+      toggle_pick: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          handleToggleFlag(ImageFlag.Pick);
+        },
+      },
+      toggle_reject: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          handleToggleFlag(ImageFlag.Reject);
+        },
+      },
       unflag: {
         shouldFire: () => true,
         execute: (e: KeyboardEvent) => {
@@ -768,6 +782,7 @@ export const useKeyboardShortcuts = ({
     handlePasteAdjustments,
     handleRate,
     handleSetFlag,
+    handleToggleFlag,
     handleSetColorLabel,
     toggleShowOriginal,
   ]);

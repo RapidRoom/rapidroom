@@ -352,17 +352,20 @@ function App() {
   const { handleCopyAdjustments, handlePasteAdjustments, handleResetAdjustments, handleZoomChange } =
     useEditorActions();
 
-  const navigationRefs = {
-    transformWrapperRef,
-    preloadedDataRef,
-    cachedEditStateRef,
-    selectedImagePathRef,
-    isBackendReadyRef,
-    latestRenderedJobIdRef,
-    previewJobIdRef,
-    currentResRef,
-    prevAdjustmentsRef,
-  };
+  const navigationRefs = useMemo(
+    () => ({
+      transformWrapperRef,
+      preloadedDataRef,
+      cachedEditStateRef,
+      selectedImagePathRef,
+      isBackendReadyRef,
+      latestRenderedJobIdRef,
+      previewJobIdRef,
+      currentResRef,
+      prevAdjustmentsRef,
+    }),
+    [],
+  );
 
   const {
     handleGoHome,
@@ -397,6 +400,12 @@ function App() {
     handleCreateAlbumItem,
     handleRenameAlbumItem,
   } = useLibraryActions(handleImageSelect);
+
+  useEffect(() => {
+    const { setImageSelectHandler } = useUIStore.getState();
+    setImageSelectHandler(handleImageSelect);
+    return () => setImageSelectHandler(null);
+  }, [handleImageSelect]);
 
   const { displayList: sortedImageList, badges: groupBadgeInfo } = useSortedLibrary();
 

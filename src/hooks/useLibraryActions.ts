@@ -24,6 +24,76 @@ const resolveTargetPaths = (paths?: string[]) => {
   const groupingMode = useSettingsStore.getState().appSettings?.grouping ?? 'off';
   return { selectedPaths, expandedPaths: expandGroupedPaths(imageList, selectedPaths, groupingMode) };
 };
+export const clearLibrarySelection = () => {
+  useLibraryStore.getState().setLibrary({
+    multiSelectedPaths: [],
+    libraryActivePath: null,
+    selectionAnchorPath: null,
+  });
+
+  useEditorStore.getState().setEditor({
+    selectedImage: null,
+    finalPreviewUrl: null,
+    uncroppedAdjustedPreviewUrl: null,
+    histogram: null,
+    waveform: null,
+    activeMaskId: null,
+    activeMaskContainerId: null,
+    activeAiPatchContainerId: null,
+    activeAiSubMaskId: null,
+    isWbPickerActive: false,
+    mixerPickerProperty: null,
+  });
+};
+
+const advanceWhenSaved = (changedPaths: string[]): (() => void) => {
+  const { activeView, cullingModalState } = useUIStore.getState();
+  const activePath =
+    activeView === 'editor'
+      ? (useEditorStore.getState().selectedImage?.path ?? null)
+      : useLibraryStore.getState().libraryActivePath;
+
+  if (!activePath || !changedPaths.includes(activePath) || cullingModalState.isOpen) {
+    return () => {};
+  }
+
+  const before = computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState());
+  return () => {
+    const ui = useUIStore.getState();
+    const currentPath =
+      activeView === 'editor'
+        ? useEditorStore.getState().selectedImage?.path
+        : useLibraryStore.getState().libraryActivePath;
+    if (ui.activeView !== activeView || ui.cullingModalState.isOpen || currentPath !== activePath) return;
+    const after = computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState());
+
+    const visible = new Set(after.map((img) => img.path));
+    const activeIndex = before.findIndex((img) => img.path === activePath);
+    if (activeIndex === -1 || visible.has(activePath)) return;
+
+    const next =
+      before.slice(activeIndex + 1).find((img) => visible.has(img.path)) ??
+      before
+        .slice(0, activeIndex)
+        .reverse()
+        .find((img) => visible.has(img.path));
+
+    if (next) {
+      useLibraryStore
+        .getState()
+        .setLibrary({ libraryActivePath: next.path, multiSelectedPaths: [next.path], selectionAnchorPath: next.path });
+      useUIStore.getState().imageSelectHandler?.(next.path, activeView === 'editor');
+    } else if (activeView === 'library') {
+      clearLibrarySelection();
+    }
+  };
+};
+
+const applyWithAutoAdvance = (changedPaths: string[], apply: () => void) => {
+  const advance = advanceWhenSaved(changedPaths);
+  apply();
+  advance();
+};
 
 export function useLibraryActions(handleImageSelect?: (path: string, openInEditor?: boolean) => void) {
   const handleRate = useCallback((newRating: number, paths?: string[]) => {
@@ -67,6 +137,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
         };
       },
       save: () => invoke(Invokes.SetRatingForPaths, { paths: pathsToRate, rating: finalRating }),
+      onSaved: advanceWhenSaved(pathsToRate),
       onError: (err) => {
         console.error(err);
         toast.error(`Failed to apply rating: ${err}`);
@@ -86,6 +157,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
         return () => setLibrary((state) => ({ imageList: restoreFlags(state.imageList, previous, expandedPaths) }));
       },
       save: () => invoke(Invokes.SetFlagForPaths, { paths: expandedPaths, flag }),
+      onSaved: advanceWhenSaved(expandedPaths),
       onError: (err) => {
         console.error(err);
         toast.error(`Failed to update flag: ${err}`);
@@ -122,16 +194,18 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
 
     try {
       await invoke(Invokes.SetColorLabelForPaths, { paths: pathsToUpdate, color: finalColor });
-      setLibrary((state) => ({
-        imageList: state.imageList.map((image: ImageFile) => {
-          if (pathsToUpdate.includes(image.path)) {
-            const otherTags = (image.tags || []).filter((tag: string) => !tag.startsWith('color:'));
-            const newTags = finalColor ? [...otherTags, `color:${finalColor}`] : otherTags;
-            return { ...image, tags: newTags };
-          }
-          return image;
-        }),
-      }));
+      applyWithAutoAdvance(pathsToUpdate, () =>
+        setLibrary((state) => ({
+          imageList: state.imageList.map((image: ImageFile) => {
+            if (pathsToUpdate.includes(image.path)) {
+              const otherTags = (image.tags || []).filter((tag: string) => !tag.startsWith('color:'));
+              const newTags = finalColor ? [...otherTags, `color:${finalColor}`] : otherTags;
+              return { ...image, tags: newTags };
+            }
+            return image;
+          }),
+        })),
+      );
     } catch (err) {
       toast.error(`Failed to set color label: ${err}`);
     }
@@ -142,21 +216,23 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     const groupingMode = useSettingsStore.getState().appSettings?.grouping ?? 'off';
     const pathsToUpdate = expandGroupedPaths(imageList, changedPaths, groupingMode);
 
-    useLibraryStore.getState().setLibrary((state) => ({
-      imageList: state.imageList.map((image) => {
-        if (pathsToUpdate.includes(image.path)) {
-          const colorTags = (image.tags || []).filter((t) => t.startsWith('color:'));
-          const prefixedNewTags = newTags.map((t) => (t.isUser ? `user:${t.tag}` : t.tag));
-          const finalTags = [...colorTags, ...prefixedNewTags].sort();
-          return { ...image, tags: finalTags.length > 0 ? finalTags : null };
-        }
-        return image;
-      }),
-    }));
+    applyWithAutoAdvance(pathsToUpdate, () =>
+      useLibraryStore.getState().setLibrary((state) => ({
+        imageList: state.imageList.map((image) => {
+          if (pathsToUpdate.includes(image.path)) {
+            const colorTags = (image.tags || []).filter((t) => t.startsWith('color:'));
+            const prefixedNewTags = newTags.map((t) => (t.isUser ? `user:${t.tag}` : t.tag));
+            const finalTags = [...colorTags, ...prefixedNewTags].sort();
+            return { ...image, tags: finalTags.length > 0 ? finalTags : null };
+          }
+          return image;
+        }),
+      })),
+    );
   }, []);
 
   const handleUpdateExif = useCallback(async (paths: Array<string> | undefined, updates: Record<string, string>) => {
-    const { multiSelectedPaths, imageList, setLibrary } = useLibraryStore.getState();
+    const { multiSelectedPaths, setLibrary } = useLibraryStore.getState();
     const { selectedImage, setEditor } = useEditorStore.getState();
 
     const pathsToUpdate =
@@ -214,25 +290,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
         selectionAnchorPath: selectedImage.path,
       });
     } else {
-      useLibraryStore.getState().setLibrary({
-        multiSelectedPaths: [],
-        libraryActivePath: null,
-        selectionAnchorPath: null,
-      });
-
-      useEditorStore.getState().setEditor({
-        selectedImage: null,
-        finalPreviewUrl: null,
-        uncroppedAdjustedPreviewUrl: null,
-        histogram: null,
-        waveform: null,
-        activeMaskId: null,
-        activeMaskContainerId: null,
-        activeAiPatchContainerId: null,
-        activeAiSubMaskId: null,
-        isWbPickerActive: false,
-        mixerPickerProperty: null,
-      });
+      clearLibrarySelection();
     }
   }, []);
 

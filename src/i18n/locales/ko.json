@@ -65,7 +65,8 @@
       "vibrance": "생동감",
       "wbPickerTooltip": "화이트 밸런스 피커",
       "wbPickerWgpuDisabled": "WB 피커: 설정에서 WGPU를 비활성화하세요.",
-      "whiteBalance": "화이트 밸런스"
+      "whiteBalance": "화이트 밸런스",
+      "kelvinModeTooltip": "색온도를 켈빈으로 표시"
     },
     "curves": {
       "channelTitle": "{{channel}} 채널",
@@ -1047,7 +1048,8 @@
         "threeOnly": "3점만",
         "twoAndUp": "2점 이상",
         "twoOnly": "2점만",
-        "unrated": "미평가 항목만"
+        "unrated": "미평가 항목만",
+        "andDownSuffix": "이하"
       },
       "raw": {
         "all": "모든 유형",
@@ -1137,7 +1139,12 @@
         "sortDescending": "내림차순 정렬",
         "thumbnailFit": "썸네일 맞춤",
         "thumbnailSize": "썸네일 크기",
-        "title": "보기 옵션"
+        "title": "보기 옵션",
+        "ratingOperator": {
+          "eq": "정확히 이 평점",
+          "gte": "이 평점 이상",
+          "lte": "이 평점 이하"
+        }
       }
     },
     "import": {
@@ -1818,7 +1825,9 @@
         "zoom_in": "확대",
         "zoom_in_step": "확대 (단계별)",
         "zoom_out": "축소",
-        "zoom_out_step": "축소 (단계별)"
+        "zoom_out_step": "축소 (단계별)",
+        "toggle_pick": "선택 플래그 전환",
+        "toggle_reject": "거부 플래그 전환"
       },
       "sections": {
         "editing": "편집",
@@ -1862,6 +1871,11 @@
             "upgradeBtn": "웹사이트에서 업그레이드",
             "upgradeDesc": "클라우드 AI 기능을 사용하려면 클라우드 구독이 필요합니다."
           },
+          "statuses": {
+            "connecting": "연결 중…",
+            "retry": "연결 재시도",
+            "unsupported": "클라우드 로그인은 현재 데스크톱에서만 사용할 수 있습니다."
+          },
           "title": "클라우드 서비스"
         },
         "connector": {
@@ -1884,9 +1898,17 @@
           "feature3": "간단한 CPU 기반 생성형 교체",
           "title": "내장 AI (CPU)"
         },
+        "aiFree": {
+          "description": "모든 AI 기능을 끕니다. AI 관련 컨트롤이 모두 인터페이스에서 숨겨져 RapidRAW가 순수한 기존 방식의 RAW 편집기로 작동합니다.",
+          "feature1": "UI에 AI 마스크, 렌즈 블러, 생성형 편집이 표시되지 않음",
+          "feature2": "기존 AI 편집은 계속 정상적으로 적용됨",
+          "feature3": "더 깔끔하고 집중하기 좋은 인터페이스",
+          "title": "AI 없음"
+        },
         "description": "RapidRAW의 AI는 유연성을 위해 설계되었습니다. 빠른 로컬 도구부터 강력한 셀프 호스팅까지, 이상적인 워크플로를 선택하세요.",
         "providers": {
           "aiConnector": "AI 커넥터",
+          "aiFree": "AI 없음",
           "cloud": "클라우드",
           "cpu": "CPU"
         },

@@ -7,7 +7,13 @@ import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import Slider from '../ui/Slider';
 import Switch from '../ui/Switch';
-import { Adjustments, Effect, CreativeAdjustment, getAdjustmentToolOrder, getHiddenAdjustmentTools } from '../../utils/adjustments';
+import {
+  Adjustments,
+  Effect,
+  CreativeAdjustment,
+  getAdjustmentToolOrder,
+  getHiddenAdjustmentTools,
+} from '../../utils/adjustments';
 import LUTControl from '../ui/LUTControl';
 import { AppSettings } from '../ui/AppProperties';
 import Text from '../ui/Text';
@@ -15,6 +21,7 @@ import AdjustmentSubSection from './AdjustmentSubSection';
 import { TextVariants } from '../../types/typography';
 import { DepthRangePicker } from '../ui/DepthRangePicker';
 import { useProcessStore } from '../../store/useProcessStore';
+import { useSettingsStore } from '../../store/useSettingsStore';
 
 interface EffectsPanelProps {
   adjustments: Adjustments;
@@ -194,6 +201,7 @@ export default function EffectsPanel({
     }
   };
 
+  const isAiFree = useSettingsStore((s) => s.appSettings?.aiProvider === 'ai-free');
   const hiddenTools = getHiddenAdjustmentTools(appSettings?.adjustmentLayout);
   const toolOrder = getAdjustmentToolOrder('effects', appSettings?.adjustmentLayout?.toolOrder);
 
@@ -241,7 +249,7 @@ export default function EffectsPanel({
 
       {!isForMask && (
         <>
-          {!hiddenTools.includes('lensBlur') && (
+          {!isAiFree && !hiddenTools.includes('lensBlur') && (
             <AdjustmentSubSection
               id="lensBlur"
               order={toolOrder.indexOf('lensBlur')}

@@ -2,6 +2,7 @@ interface MetadataWrite {
   apply(): () => void;
   save(): Promise<unknown>;
   onError(error: unknown): void;
+  onSaved?(): void;
   undo: () => void;
 }
 
@@ -15,6 +16,11 @@ async function savePending() {
     try {
       await write.save();
       pending.shift();
+      try {
+        write.onSaved?.();
+      } catch (error) {
+        console.error('Failed to advance the library selection:', error);
+      }
     } catch (error) {
       for (const item of [...pending].reverse()) item.undo();
       pending.shift();

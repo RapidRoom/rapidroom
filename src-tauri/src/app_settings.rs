@@ -29,6 +29,8 @@ pub struct FilterCriteria {
     pub colors: Vec<String>,
     #[serde(default)]
     pub rating_exact: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rating_operator: Option<String>,
 }
 
 impl Default for FilterCriteria {
@@ -40,6 +42,7 @@ impl Default for FilterCriteria {
             flag_status: None,
             colors: Vec::new(),
             rating_exact: false,
+            rating_operator: None,
         }
     }
 }
@@ -108,6 +111,7 @@ pub fn all_available_adjustments() -> HashSet<String> {
         "toneMapper",
         "temperature",
         "tint",
+        "whiteBalance",
         "saturation",
         "vibrance",
         "hsl",
@@ -554,6 +558,8 @@ pub struct AppSettings {
     pub editor_neutral_grey_bg: Option<bool>,
     #[serde(default)]
     pub canvas_input_mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub white_balance_mode: Option<String>,
     #[serde(default)]
     pub zoom_speed_multiplier: Option<f32>,
     #[serde(default)]
@@ -686,6 +692,7 @@ impl Default for AppSettings {
             use_wgpu_renderer: Some(true),
             editor_neutral_grey_bg: Some(false),
             canvas_input_mode: Some("mouse".to_string()),
+            white_balance_mode: None,
             zoom_speed_multiplier: Some(1.0),
             zoom_photo_to_pixel_click: Some(false),
             keybinds: HashMap::new(),

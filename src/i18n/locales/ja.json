@@ -65,7 +65,8 @@
       "vibrance": "自然な彩度",
       "wbPickerTooltip": "ホワイトバランススポイト",
       "wbPickerWgpuDisabled": "WBスポイト: 設定でWGPUを無効にしてください。",
-      "whiteBalance": "ホワイトバランス"
+      "whiteBalance": "ホワイトバランス",
+      "kelvinModeTooltip": "色温度をケルビンで表示"
     },
     "curves": {
       "channelTitle": "{{channel}} チャンネル",
@@ -1047,7 +1048,8 @@
         "threeOnly": "3のみ",
         "twoAndUp": "2以上",
         "twoOnly": "2のみ",
-        "unrated": "未評価のみ"
+        "unrated": "未評価のみ",
+        "andDownSuffix": "以下"
       },
       "raw": {
         "all": "すべての種類",
@@ -1137,7 +1139,12 @@
         "sortDescending": "降順で並べ替え",
         "thumbnailFit": "サムネイルのフィット",
         "thumbnailSize": "サムネイルサイズ",
-        "title": "表示オプション"
+        "title": "表示オプション",
+        "ratingOperator": {
+          "eq": "この評価のみ",
+          "gte": "この評価以上",
+          "lte": "この評価以下"
+        }
       }
     },
     "import": {
@@ -1818,7 +1825,9 @@
         "zoom_in": "ズームイン",
         "zoom_in_step": "段階的にズームイン",
         "zoom_out": "ズームアウト",
-        "zoom_out_step": "段階的にズームアウト"
+        "zoom_out_step": "段階的にズームアウト",
+        "toggle_pick": "採用フラグを切り替え",
+        "toggle_reject": "除外フラグを切り替え"
       },
       "sections": {
         "editing": "編集",
@@ -1862,6 +1871,11 @@
             "upgradeBtn": "Webサイトでアップグレード",
             "upgradeDesc": "クラウドAI機能を使用するには、クラウドサブスクリプションへの加入が必要です。"
           },
+          "statuses": {
+            "connecting": "接続中…",
+            "retry": "接続を再試行",
+            "unsupported": "クラウドへのサインインは現在、デスクトップでのみ利用可能です。"
+          },
           "title": "クラウドサービス"
         },
         "connector": {
@@ -1884,9 +1898,17 @@
           "feature3": "CPUベースの簡易生成塗りつぶし",
           "title": "内蔵AI (CPU)"
         },
+        "aiFree": {
+          "description": "すべてのAI機能をオフにします。AI関連のコントロールはすべてインターフェースから非表示になり、RapidRAWは純粋な従来型のRAWエディターとして動作します。",
+          "feature1": "AIマスク、レンズぼかし、生成編集をUIに表示しません",
+          "feature2": "既存のAI編集は引き続き通常どおり反映されます",
+          "feature3": "よりすっきりとした集中しやすいインターフェース",
+          "title": "AIなし"
+        },
         "description": "RapidRAWのAIは、優れた柔軟性を備えています。高速なローカル処理から本格的なセルフホストまで、最適なワークフローを選択してください。",
         "providers": {
           "aiConnector": "AI Connector",
+          "aiFree": "AIなし",
           "cloud": "クラウド",
           "cpu": "CPU"
         },

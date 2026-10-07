@@ -22,6 +22,7 @@ use crate::image_processing::GpuContext;
 use crate::launch_request::ExternalEditSession;
 use crate::lens_correction::LensDatabase;
 use crate::lut_processing::Lut;
+use crate::white_balance::WhiteBalance;
 
 pub struct AiTaskToken {
     cancelled: AtomicBool,
@@ -110,6 +111,7 @@ pub struct LoadedImage {
     pub path: String,
     pub image: Arc<DynamicImage>,
     pub is_raw: bool,
+    pub as_shot_white_balance: WhiteBalance,
 }
 
 #[derive(Clone)]
@@ -126,6 +128,9 @@ pub struct CachedPreview {
 pub struct GpuImageCache {
     pub texture: Texture,
     pub texture_view: TextureView,
+    pub gf_coeffs_view: TextureView,
+    pub gf_dehaze_view: TextureView,
+    pub is_raw: u32,
     pub width: u32,
     pub height: u32,
     pub transform_hash: u64,

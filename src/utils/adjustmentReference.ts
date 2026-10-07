@@ -14,6 +14,7 @@ import { createSubMask } from './maskUtils';
 import { Mask, SubMaskMode } from '../components/panel/right/Masks';
 import type { Curves, ParametricCurve } from './adjustments';
 import type { ImageDimensions } from '../hooks/useImageRenderSize';
+import { RELATIVE_RANGE } from './whiteBalance';
 
 interface MaskPanelConfig {
   parameters?: Array<{
@@ -41,6 +42,7 @@ export interface SliderRange {
 // `<primary>` stand for each HSL band, curve channel and calibration primary.
 const VALUE_PATHS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^adjustments\.([\wé]+)$/, (m) => m[1]],
+  [/^displayedWhiteBalance\.(temperature|tint)$/, (m) => m[1]],
   [/^colorGrading\.(\w+)$/, (m) => `colorGrading.${m[1]}`],
   [/^colorCalibration\.(\w+)$/, (m) => `colorCalibration.${m[1]}`],
   [/^currentHsl\.(\w+)$/, (m) => `hsl.<band>.${m[1]}`],
@@ -104,7 +106,14 @@ export const parseSliderProps = (source: string): Array<Record<string, string>> 
 const parseBound = (expression: string): { value: number; maskValue?: number } => {
   const forMask = /^isForMask\s*\?\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)$/.exec(expression);
   if (forMask) return { value: Number(forMask[2]), maskValue: Number(forMask[1]) };
-  const value = Number(expression);
+  // These sliders display both modes; relative scalar keys keep their relative range.
+  const relative = /^kelvinAsShot\s*\?[^:]+:\s*(.+)$/.exec(expression)?.[1] ?? expression;
+  const value =
+    relative === 'tintRange' || relative === 'RELATIVE_RANGE'
+      ? RELATIVE_RANGE
+      : relative === '-RELATIVE_RANGE' || relative === '-tintRange'
+        ? -RELATIVE_RANGE
+        : Number(relative);
   if (Number.isNaN(value)) throw new Error(`Can't read slider bound "${expression}"`);
   return { value };
 };

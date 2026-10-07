@@ -2,6 +2,25 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "upstream-sync-20261006",
+      "title": "Sync RapidRAW v1.6.5: edge-aware tone adjustments, Kelvin white balance, rating operators and AI-free mode",
+      "category": "feature",
+      "landed": "2026-10-06",
+      "authors": ["CyberTimon", "lalibertemarc", "RSpeets", "MartinBspheroid", "Araoo", "yojen7"],
+      "source": "CyberTimon/RapidRAW (normal merge; original history retained)",
+      "commits": [
+        "https://github.com/CyberTimon/RapidRAW/commit/8387fc12097a541093d796bf216c6e831f9ba5c0",
+        "https://github.com/CyberTimon/RapidRAW/commit/66fa1600b0513aeb6a7f007b88b6de3a6a12869c",
+        "https://github.com/CyberTimon/RapidRAW/commit/1cc99d56c0ff39a2f85d6bb8fb5721bbff1975cd",
+        "https://github.com/CyberTimon/RapidRAW/commit/c91e0bf7ed328fb1d6af0c805409304ea0ae58dc",
+        "https://github.com/CyberTimon/RapidRAW/commit/9ba20c02cde632da11b86dfab55b938ab57d43b6"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "RapidRoom #175. Normal merge of 61 incoming commits from pinned upstream v1.6.5, preserving contributor history and RapidRoom protections. Guided filtering, shadow/highlight detail reinjection, selective Whites and Kelvin/as-shot A/D65 white balance change rendered output. Library pick/reject actions, three-way rating operators, persisted-write selection advance, curve controls, Czech/Dutch translations and Android fixes carry over. Existing closed-pipe logging, AI tag limits, filter-before-grouping and export-preset fields deduplicate where upstream contains the same fixes. Cloud authentication requires an explicitly saved cloud provider; CPU remains the default, AI-free never mounts Clerk, and telemetry is disabled. Atomic metadata rollback, local HSL exact no-op, independent section visibility, MCP/terminal and Tree denoise remain. The MCP schema accepts the new absolute whiteBalance object while retaining relative offsets. Integration and regression tests written with Codex. Rendering evidence and human review accompany the PR; reference renders remain frozen pending explicit approval."
+    },
+    {
       "id": "mcp-compact-replies",
       "title": "Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons",
       "category": "performance",

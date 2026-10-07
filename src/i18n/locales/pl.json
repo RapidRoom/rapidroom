@@ -65,7 +65,8 @@
       "vibrance": "Jaskrawość",
       "wbPickerTooltip": "Próbnik balansu bieli",
       "wbPickerWgpuDisabled": "Próbnik BB: Wyłącz WGPU w Ustawieniach.",
-      "whiteBalance": "Balans bieli"
+      "whiteBalance": "Balans bieli",
+      "kelvinModeTooltip": "Pokaż temperaturę w kelwinach"
     },
     "curves": {
       "channelTitle": "Kanał {{channel}}",
@@ -1101,7 +1102,8 @@
         "threeOnly": "tylko 3",
         "twoAndUp": "2 i więcej",
         "twoOnly": "tylko 2",
-        "unrated": "Tylko bez oceny"
+        "unrated": "Tylko bez oceny",
+        "andDownSuffix": "i mniej"
       },
       "raw": {
         "all": "Wszystkie typy",
@@ -1191,7 +1193,12 @@
         "sortDescending": "Sortuj malejąco",
         "thumbnailFit": "Dopasowanie miniatury",
         "thumbnailSize": "Rozmiar miniatury",
-        "title": "Opcje widoku"
+        "title": "Opcje widoku",
+        "ratingOperator": {
+          "eq": "Dokładnie ta ocena",
+          "gte": "Ta ocena lub wyższa",
+          "lte": "Ta ocena lub niższa"
+        }
       }
     },
     "import": {
@@ -1904,7 +1911,9 @@
         "zoom_in": "Przybliż",
         "zoom_in_step": "Przybliż (krokowo)",
         "zoom_out": "Oddal",
-        "zoom_out_step": "Oddal (krokowo)"
+        "zoom_out_step": "Oddal (krokowo)",
+        "toggle_pick": "Przełącz oznaczenie wybrania",
+        "toggle_reject": "Przełącz oznaczenie odrzucenia"
       },
       "sections": {
         "editing": "Edycja",
@@ -1948,6 +1957,11 @@
             "upgradeBtn": "Ulepsz na stronie",
             "upgradeDesc": "Aby użyć funkcji AI w chmurze, potrzebujesz subskrypcji."
           },
+          "statuses": {
+            "connecting": "Łączenie…",
+            "retry": "Ponów próbę połączenia",
+            "unsupported": "Logowanie w chmurze jest obecnie dostępne tylko na komputerach."
+          },
           "title": "Usługa w chmurze"
         },
         "connector": {
@@ -1970,9 +1984,17 @@
           "feature3": "Proste zastępowanie generatywne oparte na CPU",
           "title": "Wbudowane AI (CPU)"
         },
+        "aiFree": {
+          "description": "Wyłącza wszystkie funkcje AI. Wszystkie elementy sterujące związane z AI są ukryte w interfejsie, dzięki czemu RapidRAW działa jak czysto tradycyjny edytor RAW.",
+          "feature1": "Brak masek AI, rozmycia obiektywu i edycji generatywnych w interfejsie",
+          "feature2": "Istniejące edycje AI nadal są normalnie renderowane",
+          "feature3": "Czytelniejszy, bardziej skoncentrowany interfejs",
+          "title": "Bez AI"
+        },
         "description": "AI w RapidRAW została zbudowana z myślą o elastyczności. Wybierz swój idealny przepływ pracy, od szybkich lokalnych narzędzi po potężne rozwiązania serwerowe.",
         "providers": {
           "aiConnector": "Złącze AI",
+          "aiFree": "Bez AI",
           "cloud": "Chmura",
           "cpu": "CPU"
         },

@@ -10,10 +10,13 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   brightness:
     '+ lifts the midtones after tone mapping; black and white stay put. Use after exposure, for the feel rather than the level.',
   contrast: '+ S-curve around middle grey. Keep moderate; contrast between regions comes from masks.',
-  highlights: '− recovers detail in bright areas (sky, snow); + brightens them. Starts above about 10 % linear luma.',
+  highlights:
+    '− recovers bright-area detail; + brightens it. Uses a log-space edge-aware base and mid-scale detail reinjection.',
   shadows: '+ lifts and opens the shadows with some local detail; − deepens them.',
   whites:
-    'A gain on the whole image, not only the whites (applied before shadows and contrast): +100 ≈ ×6, −100 ≈ ×0.55. Small steps.',
+    'Selectively lifts or compresses bright tones above an edge-aware base, with local and mid-scale detail reinjection. It no longer applies a uniform gain to the whole image.',
+  whiteBalance:
+    'Optional absolute Kelvin baseline {temperature: 2000–50000, tint: −150–150}; null uses the camera as-shot baseline. The relative temperature/tint offsets apply on top. Set both offsets to0 when setting an absolute target, as the GUI does.',
   blacks: '+ lifts the deepest tones (faded look); − deepens them.',
   'curves.<channel>':
     'Points `{x, y}` from 0 to 255, sorted by x, at most 16, after tone mapping. `luma` is applied to R, G and B alike. The renderer reads only `curves`.',

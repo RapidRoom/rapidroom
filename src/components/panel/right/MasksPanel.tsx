@@ -257,6 +257,7 @@ function MasksListRoot({ children, onClick }: { children: React.ReactNode; onCli
 export default function MasksPanel() {
   const { t } = useTranslation();
   const { setAdjustments } = useEditorActions();
+  const isAiFree = useSettingsStore((s) => s.appSettings?.aiProvider === 'ai-free');
   const { handleGenerateAiDepthMask, handleGenerateAiForegroundMask, handleGenerateAiSkyMask, handleCancelAiTask } =
     useAiMasking();
 
@@ -584,8 +585,7 @@ export default function MasksPanel() {
     const hasComponents = container && container.subMasks.length > 0;
 
     const buildFlatMenu = (mode: SubMaskMode) => [
-      ...buildMenu(MASK_AI_TYPES, mode),
-      { type: OPTION_SEPARATOR },
+      ...(isAiFree ? [] : [...buildMenu(MASK_AI_TYPES, mode), { type: OPTION_SEPARATOR }]),
       ...buildMenu(MASK_BASIC_TYPES, mode),
       { type: OPTION_SEPARATOR },
       ...buildMenu(MASK_RANGE_TYPES, mode),
@@ -953,8 +953,7 @@ export default function MasksPanel() {
       }));
 
     const newMaskSubMenu = [
-      ...buildMenu(MASK_AI_TYPES),
-      { type: OPTION_SEPARATOR },
+      ...(isAiFree ? [] : [...buildMenu(MASK_AI_TYPES), { type: OPTION_SEPARATOR }]),
       ...buildMenu(MASK_BASIC_TYPES),
       { type: OPTION_SEPARATOR },
       ...buildMenu(MASK_RANGE_TYPES),
@@ -1058,20 +1057,24 @@ export default function MasksPanel() {
                     className="z-10 shrink-0"
                     onClick={handleDeselect}
                   >
-                    <Text variant={TextVariants.heading} className="mb-2">
-                      {t('editor.masks.aiTitle', 'AI Selections')}
-                    </Text>
-                    <div className="grid grid-cols-3 gap-2 mb-6" onClick={(e) => e.stopPropagation()}>
-                      {MASK_AI_TYPES.map((maskType) => (
-                        <DraggableGridItem
-                          key={maskType.type}
-                          maskType={maskType}
-                          onClick={() => handleGridClick(maskType.type)}
-                          onRightClick={(e: React.MouseEvent) => handleGridRightClick(e, maskType.type)}
-                          activeMaskContainerId={activeMaskContainerId}
-                        />
-                      ))}
-                    </div>
+                    {!isAiFree && (
+                      <>
+                        <Text variant={TextVariants.heading} className="mb-2">
+                          {t('editor.masks.aiTitle', 'AI Selections')}
+                        </Text>
+                        <div className="grid grid-cols-3 gap-2 mb-6" onClick={(e) => e.stopPropagation()}>
+                          {MASK_AI_TYPES.map((maskType) => (
+                            <DraggableGridItem
+                              key={maskType.type}
+                              maskType={maskType}
+                              onClick={() => handleGridClick(maskType.type)}
+                              onRightClick={(e: React.MouseEvent) => handleGridRightClick(e, maskType.type)}
+                              activeMaskContainerId={activeMaskContainerId}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
                     <Text variant={TextVariants.heading} className="mb-2">
                       {t('editor.masks.basicTitle', 'Basic Tools')}
                     </Text>

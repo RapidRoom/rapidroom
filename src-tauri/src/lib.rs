@@ -83,6 +83,7 @@ mod terminal_pty;
 mod test_support;
 mod tree_denoise;
 mod two_phase_rename;
+mod white_balance;
 mod window_customizer;
 
 use std::collections::{HashMap, hash_map::DefaultHasher};
@@ -131,6 +132,7 @@ use crate::mask_generation::{
     MaskDefinition, build_full_warped_image, build_warped_image_for_masks, generate_mask_bitmap,
     get_cached_or_generate_mask, resolve_warped_image_for_masks,
 };
+use crate::white_balance::WhiteBalance;
 use crate::window_customizer::PinchZoomDisablePlugin;
 pub use adjustment_utils::*;
 pub use android_integration::*;
@@ -634,7 +636,12 @@ fn process_preview_job(
     let is_raw = loaded_image.is_raw;
     let parse_span = perf_trace::span("job.parse_adjustments");
     let tm_override = resolve_tonemapper_override_from_handle(app_handle, is_raw);
-    let final_adjustments = get_all_adjustments_from_json(&adjustments_clone, is_raw, tm_override);
+    let final_adjustments = get_all_adjustments_from_json(
+        &adjustments_clone,
+        is_raw,
+        loaded_image.as_shot_white_balance,
+        tm_override,
+    );
     drop(parse_span);
     let lut_path = adjustments_clone["lutPath"].as_str();
     let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
@@ -980,8 +987,12 @@ async fn generate_uncropped_preview(
             .collect();
 
         let tm_override = resolve_tonemapper_override_from_handle(&app_handle, is_raw);
-        let mut uncropped_adjustments =
-            get_all_adjustments_from_json(&adjustments_clone, is_raw, tm_override);
+        let mut uncropped_adjustments = get_all_adjustments_from_json(
+            &adjustments_clone,
+            is_raw,
+            loaded_image.as_shot_white_balance,
+            tm_override,
+        );
         uncropped_adjustments.global.show_clipping = 0;
         let lut_path = adjustments_clone["lutPath"].as_str();
         let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
@@ -1082,7 +1093,12 @@ fn generate_preset_preview(
         .collect();
 
     let tm_override = resolve_tonemapper_override_from_handle(&app_handle, is_raw);
-    let mut all_adjustments = get_all_adjustments_from_json(&js_adjustments, is_raw, tm_override);
+    let mut all_adjustments = get_all_adjustments_from_json(
+        &js_adjustments,
+        is_raw,
+        loaded_image.as_shot_white_balance,
+        tm_override,
+    );
     all_adjustments.global.show_clipping = 0;
     let lut_path = js_adjustments["lutPath"].as_str();
     let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
@@ -1149,7 +1165,7 @@ async fn generate_all_community_previews(
 
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
-    let mut base_thumbnails: Vec<(DynamicImage, bool, f32)> = Vec::new();
+    let mut base_thumbnails: Vec<(DynamicImage, bool, WhiteBalance, f32)> = Vec::new();
     for image_path in image_paths.iter() {
         let (source_path, _) = parse_virtual_path(image_path);
         let source_path_str = source_path.to_string_lossy().to_string();
@@ -1173,7 +1189,12 @@ async fn generate_all_community_previews(
             (original_image, 1.0)
         };
 
-        base_thumbnails.push((base_image, is_raw, base_scale));
+        base_thumbnails.push((
+            base_image,
+            is_raw,
+            white_balance::as_shot_white_balance(&source_path_str),
+            base_scale,
+        ));
     }
 
     for preset in presets.iter() {
@@ -1184,7 +1205,9 @@ async fn generate_all_community_previews(
         preset.name.hash(&mut preset_hasher);
         let preset_hash = preset_hasher.finish();
 
-        for (i, (base_image, is_raw, base_scale)) in base_thumbnails.iter().enumerate() {
+        for (i, (base_image, is_raw, as_shot_white_balance, base_scale)) in
+            base_thumbnails.iter().enumerate()
+        {
             let mut scaled_adjustments = js_adjustments.clone();
             if let Some(crop_val) = scaled_adjustments.get_mut("crop")
                 && let Ok(c) = serde_json::from_value::<Crop>(crop_val.clone())
@@ -1229,8 +1252,12 @@ async fn generate_all_community_previews(
                 .collect();
 
             let tm_override = resolve_tonemapper_override_from_handle(&app_handle, *is_raw);
-            let all_adjustments =
-                get_all_adjustments_from_json(&scaled_adjustments, *is_raw, tm_override);
+            let all_adjustments = get_all_adjustments_from_json(
+                &scaled_adjustments,
+                *is_raw,
+                *as_shot_white_balance,
+                tm_override,
+            );
             let lut_path = js_adjustments["lutPath"].as_str();
             let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
 
@@ -1609,8 +1636,12 @@ async fn render_preview_for_path(
             .collect();
 
         let tm_override = resolve_tonemapper_override(&settings, is_raw);
-        let mut all_adjustments =
-            get_all_adjustments_from_json(&js_adjustments, is_raw, tm_override);
+        let mut all_adjustments = get_all_adjustments_from_json(
+            &js_adjustments,
+            is_raw,
+            white_balance::as_shot_white_balance(&source_path_str),
+            tm_override,
+        );
         all_adjustments.global.show_clipping = 0;
         let lut_path = js_adjustments["lutPath"].as_str();
         let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
@@ -1776,33 +1807,6 @@ struct MonitorBounds {
     height: u32,
 }
 
-fn saved_window_state_is_usable(state: &WindowState, monitors: &[MonitorBounds]) -> bool {
-    if state.width < 800 || state.height < 600 {
-        return false;
-    }
-
-    if monitors.is_empty() {
-        return true;
-    }
-
-    let window_left = state.x as i64;
-    let window_top = state.y as i64;
-    let window_right = window_left + state.width as i64;
-    let window_bottom = window_top + state.height as i64;
-
-    monitors.iter().any(|monitor| {
-        let monitor_left = monitor.x as i64;
-        let monitor_top = monitor.y as i64;
-        let monitor_right = monitor_left + monitor.width as i64;
-        let monitor_bottom = monitor_top + monitor.height as i64;
-
-        let overlap_width = window_right.min(monitor_right) - window_left.max(monitor_left);
-        let overlap_height = window_bottom.min(monitor_bottom) - window_top.max(monitor_top);
-
-        overlap_width >= 100 && overlap_height >= 100
-    })
-}
-
 #[cfg(not(target_os = "android"))]
 fn available_monitor_bounds(window: &tauri::WebviewWindow) -> Vec<MonitorBounds> {
     window
@@ -1828,6 +1832,40 @@ fn available_monitor_bounds(window: &tauri::WebviewWindow) -> Vec<MonitorBounds>
 #[cfg(target_os = "android")]
 fn available_monitor_bounds(_window: &tauri::WebviewWindow) -> Vec<MonitorBounds> {
     Vec::new()
+}
+
+fn saved_window_state_is_usable(
+    state: &WindowState,
+    monitors: &[MonitorBounds],
+    scale_factor: f64,
+) -> bool {
+    let min_w = (800.0 * scale_factor) as u32;
+    let min_h = (600.0 * scale_factor) as u32;
+
+    if state.width < min_w || state.height < min_h {
+        return false;
+    }
+
+    if monitors.is_empty() {
+        return true;
+    }
+
+    let window_left = state.x as i64;
+    let window_top = state.y as i64;
+    let window_right = window_left + state.width as i64;
+    let window_bottom = window_top + state.height as i64;
+
+    monitors.iter().any(|monitor| {
+        let monitor_left = monitor.x as i64;
+        let monitor_top = monitor.y as i64;
+        let monitor_right = monitor_left + monitor.width as i64;
+        let monitor_bottom = monitor_top + monitor.height as i64;
+
+        let overlap_width = window_right.min(monitor_right) - window_left.max(monitor_left);
+        let overlap_height = window_bottom.min(monitor_bottom) - window_top.max(monitor_top);
+
+        overlap_width >= 100 && overlap_height >= 100
+    })
 }
 
 #[tauri::command]
@@ -1858,39 +1896,8 @@ fn frontend_ready(
             if let Ok(contents) = std::fs::read_to_string(&path)
                 && let Ok(saved_state) = serde_json::from_str::<WindowState>(&contents)
             {
-                #[cfg(any(windows, target_os = "linux"))]
-                {
-                    should_maximize = saved_state.maximized;
-                    should_fullscreen = saved_state.fullscreen;
-                }
-
-                if (should_maximize || should_fullscreen)
-                    && let Some(monitor) = window
-                        .current_monitor()
-                        .ok()
-                        .flatten()
-                        .or_else(|| window.primary_monitor().ok().flatten())
-                        .or_else(|| {
-                            window
-                                .available_monitors()
-                                .ok()
-                                .and_then(|m| m.into_iter().next())
-                        })
-                {
-                    let monitor_size = monitor.size();
-                    let monitor_pos = monitor.position();
-                    let default_width = 1280i32;
-                    let default_height = 720i32;
-                    let center_x = monitor_pos.x + (monitor_size.width as i32 - default_width) / 2;
-                    let center_y =
-                        monitor_pos.y + (monitor_size.height as i32 - default_height) / 2;
-
-                    let _ = window.set_size(tauri::PhysicalSize::new(
-                        default_width as u32,
-                        default_height as u32,
-                    ));
-                    let _ = window.set_position(tauri::PhysicalPosition::new(center_x, center_y));
-                }
+                should_maximize = saved_state.maximized;
+                should_fullscreen = saved_state.fullscreen;
             }
         }
 
@@ -2025,7 +2032,19 @@ pub fn run() {
         feature = "terminal",
         any(target_os = "linux", target_os = "macos", target_os = "windows")
     ))]
-    let builder = builder.manage(terminal_pty::Sessions::default());
+    let mut builder = builder.manage(terminal_pty::Sessions::default());
+
+    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+    {
+        builder = builder
+            .plugin(tauri_plugin_store::Builder::new().build())
+            .plugin(
+                tauri_plugin_clerk::ClerkPluginBuilder::new()
+                    .publishable_key("pk_live_Y2xlcmsuZ2V0cmFwaWRyYXcuY29tJA")
+                    .with_tauri_store()
+                    .build(),
+            );
+    }
 
     builder
         .plugin(tauri_plugin_os::init())
@@ -2033,6 +2052,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_http::init())
         .plugin(PinchZoomDisablePlugin)
         .on_window_event(|window, event| {
             #[cfg(feature = "mcp")]
@@ -2303,36 +2323,56 @@ pub fn run() {
                     );
                 }
 
+                let scale = window.scale_factor().unwrap_or(1.0);
+                let default_w = (1280.0 * scale) as u32;
+                let default_h = (720.0 * scale) as u32;
+
+                let mut initial_normal_rect = (default_w, default_h, 100i32, 100i32);
+                let mut state_loaded = false;
+
                 if let Ok(config_dir) = app.path().app_config_dir() {
                     let path = config_dir.join("window_state.json");
-                    if let Ok(contents) = std::fs::read_to_string(&path) {
-                        if let Ok(state) = serde_json::from_str::<WindowState>(&contents) {
-                            let monitor_bounds = available_monitor_bounds(&window);
-                            if saved_window_state_is_usable(&state, &monitor_bounds) {
-                                let _ = window.set_size(tauri::Size::Physical(
-                                    tauri::PhysicalSize::new(state.width, state.height),
-                                ));
-                                let _ = window.set_position(tauri::Position::Physical(
-                                    tauri::PhysicalPosition::new(state.x, state.y),
-                                ));
-                            } else {
-                                log::warn!(
-                                    "Saved window state was unusable ({}x{} at {},{}), centering instead.",
-                                    state.width,
-                                    state.height,
-                                    state.x,
-                                    state.y
-                                );
-                                let _ = window.center();
-                            }
-                        } else {
-                            let _ = window.center();
+                    if let Ok(contents) = std::fs::read_to_string(&path)
+                        && let Ok(state) = serde_json::from_str::<WindowState>(&contents)
+                    {
+                        let monitor_bounds = available_monitor_bounds(&window);
+                        let monitor_size = window.current_monitor().ok().flatten().map(|m| *m.size());
+
+                        let is_maximized_size = monitor_size.map(|m| {
+                            state.width >= m.width.saturating_sub(60) && state.height >= m.height.saturating_sub(60)
+                        }).unwrap_or(false);
+
+                        if saved_window_state_is_usable(&state, &monitor_bounds, scale) && !is_maximized_size {
+                            initial_normal_rect = (state.width, state.height, state.x, state.y);
+                            state_loaded = true;
+
+                            let _ = window.set_size(tauri::Size::Physical(
+                                tauri::PhysicalSize::new(state.width, state.height),
+                            ));
+                            let _ = window.set_position(tauri::Position::Physical(
+                                tauri::PhysicalPosition::new(state.x, state.y),
+                            ));
                         }
-                    } else {
-                        let _ = window.center();
                     }
-                } else {
+                }
+
+                if !state_loaded {
+                    let (mut w, mut h) = (1280.0_f64, 720.0_f64);
+                    if let Some(m) = window.current_monitor().ok().flatten() {
+                        let ms = m.size().to_logical::<f64>(m.scale_factor());
+                        w = w.min(ms.width - 80.0).max(800.0);
+                        h = h.min(ms.height - 120.0).max(600.0);
+                    }
+
+                    let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(w, h)));
                     let _ = window.center();
+
+                    initial_normal_rect.0 = (w * scale) as u32;
+                    initial_normal_rect.1 = (h * scale) as u32;
+                    if let Ok(pos) = window.outer_position() {
+                        initial_normal_rect.2 = pos.x;
+                        initial_normal_rect.3 = pos.y;
+                    }
                 }
 
                 let window_failsafe = window.clone();
@@ -2348,7 +2388,7 @@ pub fn run() {
                 });
 
                 let pending_window_state = Arc::new(Mutex::new(None::<WindowState>));
-                let pending_state_for_saver = pending_window_state.clone();
+                let pending_state_for_saver = Arc::clone(&pending_window_state);
                 let app_handle_for_saver = app.handle().clone();
 
                 tauri::async_runtime::spawn(async move {
@@ -2361,8 +2401,7 @@ pub fn run() {
                         };
 
                         if let Some(state) = state_to_save
-                            && let Ok(config_dir) =
-                                app_handle_for_saver.path().app_config_dir()
+                            && let Ok(config_dir) = app_handle_for_saver.path().app_config_dir()
                         {
                             let path = config_dir.join("window_state.json");
                             let _ = std::fs::create_dir_all(&config_dir);
@@ -2374,7 +2413,9 @@ pub fn run() {
                 });
 
                 let window_for_handler = window.clone();
-                let pending_state_for_handler = pending_window_state.clone();
+                let pending_state_for_handler = Arc::clone(&pending_window_state);
+                let last_normal_rect = Arc::new(Mutex::new(initial_normal_rect));
+                let last_normal_rect_handler = Arc::clone(&last_normal_rect);
 
                 window.on_window_event(move |event| match event {
                     tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_) => {
@@ -2392,29 +2433,47 @@ pub fn run() {
                             return;
                         }
 
-                        let mut state = WindowState {
-                            width: 1280,
-                            height: 720,
-                            x: 0,
-                            y: 0,
+                        let mut normal = last_normal_rect_handler.lock().unwrap();
+
+                        if !maximized && !fullscreen {
+                            let (curr_w, curr_h) = window_for_handler
+                                .outer_size()
+                                .map(|s| (s.width, s.height))
+                                .unwrap_or((0, 0));
+
+                            let event_scale = window_for_handler.scale_factor().unwrap_or(1.0);
+                            let min_w = (800.0 * event_scale) as u32;
+                            let min_h = (600.0 * event_scale) as u32;
+
+                            let is_maximize_in_progress = window_for_handler
+                                .current_monitor()
+                                .ok()
+                                .flatten()
+                                .map(|m| {
+                                    let ms = m.size();
+                                    curr_w >= ms.width.saturating_sub(20) && curr_h >= ms.height.saturating_sub(20)
+                                })
+                                .unwrap_or(false);
+
+                            if !is_maximize_in_progress && curr_w >= min_w && curr_h >= min_h {
+                                normal.0 = curr_w;
+                                normal.1 = curr_h;
+
+                                if let Ok(position) = window_for_handler.outer_position() {
+                                    normal.2 = position.x;
+                                    normal.3 = position.y;
+                                }
+                            }
+                        }
+
+                        let state = WindowState {
+                            width: normal.0,
+                            height: normal.1,
+                            x: normal.2,
+                            y: normal.3,
                             maximized,
                             fullscreen,
                         };
-
-                        if let Ok(position) = window_for_handler.outer_position() {
-                            state.x = position.x;
-                            state.y = position.y;
-                        }
-
-                        if !maximized
-                            && !fullscreen
-                            && let Ok(size) = window_for_handler.outer_size()
-                            && size.width >= 800
-                            && size.height >= 600
-                        {
-                            state.width = size.width;
-                            state.height = size.height;
-                        }
 
                         *pending_state_for_handler.lock().unwrap() = Some(state);
                     }

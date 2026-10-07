@@ -20,14 +20,14 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 
 ### Tone
 
-| Key          | Type   | Default | Slider range | Step | Masks | Notes                                                                                                                       |
-| ------------ | ------ | ------- | ------------ | ---- | ----- | --------------------------------------------------------------------------------------------------------------------------- |
-| `brightness` | number | `0`     | -5 to 5      | 0.01 | yes   | + lifts the midtones after tone mapping; black and white stay put. Use after exposure, for the feel rather than the level.  |
-| `contrast`   | number | `0`     | -100 to 100  | 1    | yes   | + S-curve around middle grey. Keep moderate; contrast between regions comes from masks.                                     |
-| `highlights` | number | `0`     | -100 to 100  | 1    | yes   | − recovers detail in bright areas (sky, snow); + brightens them. Starts above about 10 % linear luma.                       |
-| `shadows`    | number | `0`     | -100 to 100  | 1    | yes   | + lifts and opens the shadows with some local detail; − deepens them.                                                       |
-| `whites`     | number | `0`     | -100 to 100  | 1    | yes   | A gain on the whole image, not only the whites (applied before shadows and contrast): +100 ≈ ×6, −100 ≈ ×0.55. Small steps. |
-| `blacks`     | number | `0`     | -100 to 100  | 1    | yes   | + lifts the deepest tones (faded look); − deepens them.                                                                     |
+| Key          | Type   | Default | Slider range | Step | Masks | Notes                                                                                                                                                                       |
+| ------------ | ------ | ------- | ------------ | ---- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `brightness` | number | `0`     | -5 to 5      | 0.01 | yes   | + lifts the midtones after tone mapping; black and white stay put. Use after exposure, for the feel rather than the level.                                                  |
+| `contrast`   | number | `0`     | -100 to 100  | 1    | yes   | + S-curve around middle grey. Keep moderate; contrast between regions comes from masks.                                                                                     |
+| `highlights` | number | `0`     | -100 to 100  | 1    | yes   | − recovers bright-area detail; + brightens it. Uses a log-space edge-aware base and mid-scale detail reinjection.                                                           |
+| `shadows`    | number | `0`     | -100 to 100  | 1    | yes   | + lifts and opens the shadows with some local detail; − deepens them.                                                                                                       |
+| `whites`     | number | `0`     | -100 to 100  | 1    | yes   | Selectively lifts or compresses bright tones above an edge-aware base, with local and mid-scale detail reinjection. It no longer applies a uniform gain to the whole image. |
+| `blacks`     | number | `0`     | -100 to 100  | 1    | yes   | + lifts the deepest tones (faded look); − deepens them.                                                                                                                     |
 
 ### Curves
 
@@ -50,10 +50,11 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 
 ### White Balance
 
-| Key           | Type   | Default | Slider range | Step | Masks | Notes                                                                    |
-| ------------- | ------ | ------- | ------------ | ---- | ----- | ------------------------------------------------------------------------ |
-| `temperature` | number | `0`     | -100 to 100  | 1    | yes   | + warmer (yellow/orange), − cooler (blue). Strong: ±30 is already a lot. |
-| `tint`        | number | `0`     | -100 to 100  | 1    | yes   | + magenta, − green.                                                      |
+| Key            | Type           | Default | Slider range | Step | Masks | Notes                                                                                                                                                                                                                                          |
+| -------------- | -------------- | ------- | ------------ | ---- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `temperature`  | number         | `0`     | -100 to 100  | 1    | yes   | + warmer (yellow/orange), − cooler (blue). Strong: ±30 is already a lot.                                                                                                                                                                       |
+| `tint`         | number         | `0`     | -100 to 100  | 1    | yes   | + magenta, − green.                                                                                                                                                                                                                            |
+| `whiteBalance` | object \| null | `null`  |              |      |       | Optional absolute Kelvin baseline {temperature: 2000–50000, tint: −150–150}; null uses the camera as-shot baseline. The relative temperature/tint offsets apply on top. Set both offsets to0 when setting an absolute target, as the GUI does. |
 
 ### Presence
 

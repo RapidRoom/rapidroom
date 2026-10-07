@@ -202,6 +202,16 @@ pub(super) fn adjustments_schema() -> Value {
     properties.insert("hsl".to_string(), hsl_schema());
     properties.insert("colorGrading".to_string(), color_grading_schema());
     properties.insert("colorCalibration".to_string(), color_calibration_schema());
+    properties.insert("whiteBalance".to_string(), json!({
+        "type": ["object", "null"],
+        "description": "Absolute Kelvin baseline; null uses camera as-shot. Set relative temperature/tint to0 for a pure absolute target.",
+        "properties": {
+            "temperature": {"type":"number", "minimum": crate::white_balance::MIN_TEMPERATURE, "maximum":crate::white_balance::MAX_TEMPERATURE},
+            "tint": {"type":"number", "minimum":-crate::white_balance::MAX_TINT, "maximum":crate::white_balance::MAX_TINT}
+        },
+        "required": ["temperature", "tint"],
+        "additionalProperties": false
+    }));
     properties.insert("crop".to_string(), json!({ "type": ["object", "null"] }));
     properties.insert("masks".to_string(), json!({ "type": "array" }));
     properties.insert("lutPath".to_string(), json!({ "type": ["string", "null"] }));
@@ -558,6 +568,7 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "colorGrading" => validate_color_grading(value)?,
                 "colorCalibration" => validate_color_calibration(value)?,
                 "guidedPerspective" => validate_guided_perspective(value)?,
+                "whiteBalance" => validate_white_balance(value)?,
                 "curveMode" => validate_string_enum(value, key, &["point", "parametric"])?,
                 "toneMapper" => validate_string_enum(value, key, &["basic", "agx"])?,
                 "lensCorrectionMode" => validate_string_enum(value, key, &["auto", "manual"])?,
@@ -567,6 +578,32 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 _ => {}
             }
         }
+    }
+    Ok(())
+}
+
+fn validate_white_balance(value: &Value) -> Result<(), String> {
+    if value.is_null() {
+        return Ok(());
+    }
+    let object = validate_nested_object(value, "whiteBalance")?;
+    validate_nested_keys(object, "whiteBalance", &["temperature", "tint"])?;
+    for (key, min, max) in [
+        (
+            "temperature",
+            crate::white_balance::MIN_TEMPERATURE,
+            crate::white_balance::MAX_TEMPERATURE,
+        ),
+        (
+            "tint",
+            -crate::white_balance::MAX_TINT,
+            crate::white_balance::MAX_TINT,
+        ),
+    ] {
+        let value = object
+            .get(key)
+            .ok_or_else(|| format!("whiteBalance requires {key}"))?;
+        validate_number(value, &format!("whiteBalance.{key}"), min, max)?;
     }
     Ok(())
 }
@@ -1035,5 +1072,39 @@ mod tests {
         assert_eq!(merged["hsl"]["red"]["hue"], 4.0);
         assert_eq!(merged["hsl"]["red"]["saturation"], 2.0);
         assert_eq!(merged["hsl"]["blue"]["hue"], 3.0);
+    }
+}
+
+#[cfg(test)]
+mod upstream_white_balance_tests {
+    use super::*;
+
+    #[test]
+    fn kelvin_baseline_schema_and_validation_are_consistent() {
+        let schema = adjustments_schema();
+        assert_eq!(
+            schema["properties"]["whiteBalance"]["properties"]["temperature"]["minimum"],
+            crate::white_balance::MIN_TEMPERATURE
+        );
+        assert!(validate_adjustments(&json!({"whiteBalance":null})).is_ok());
+        assert!(
+            validate_adjustments(
+                &json!({"whiteBalance":{"temperature":6504.0,"tint":0.0},"temperature":0,"tint":0})
+            )
+            .is_ok()
+        );
+        for bad in [
+            json!({"temperature":1999,"tint":0}),
+            json!({"temperature":50001,"tint":0}),
+            json!({"temperature":6504,"tint":151}),
+            json!({"temperature":6504}),
+            json!({"temperature":"6504","tint":0}),
+            json!({"temperature":6504,"tint":0,"unknown":1}),
+        ] {
+            assert!(
+                validate_adjustments(&json!({"whiteBalance":bad})).is_err(),
+                "{bad}"
+            );
+        }
     }
 }

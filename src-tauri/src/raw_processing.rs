@@ -1,9 +1,13 @@
 use crate::image_processing::{Crop, apply_orientation};
+use crate::white_balance::WhiteBalance;
 use anyhow::{Result, anyhow};
 use image::{DynamicImage, ImageBuffer, Rgba};
 use rawler::{
     decoders::{Decoder, Orientation, RawDecodeParams},
-    imgop::develop::{DemosaicAlgorithm, Intermediate, ProcessingStep, RawDevelop},
+    imgop::{
+        develop::{DemosaicAlgorithm, Intermediate, ProcessingStep, RawDevelop},
+        xyz::Illuminant,
+    },
     rawimage::{RawImage, RawPhotometricInterpretation},
     rawsource::RawSource,
 };
@@ -356,6 +360,38 @@ fn mono_pixels_to_rgba(
         .ok_or_else(|| anyhow!("Developed image size does not match its dimensions"))
 }
 
+pub fn read_as_shot_white_balance(file_bytes: &[u8]) -> Option<WhiteBalance> {
+    let source = borrowed_raw_source(file_bytes);
+    let decoder = rawler::get_decoder(&source).ok()?;
+    let raw_image = decoder
+        .raw_image(&source, &RawDecodeParams::default(), true)
+        .ok()?;
+    if raw_image.cpp == 1 && !matches!(raw_image.photometric, RawPhotometricInterpretation::Cfa(_))
+    {
+        return None;
+    }
+
+    let wb_coeffs =
+        crate::multi_exposure::neutralize_wb_if_multiexposure(raw_image.wb_coeffs, file_bytes);
+    let neutral = if wb_coeffs[0].is_nan() {
+        [1.0; 4]
+    } else {
+        wb_coeffs.map(|c| 1.0 / c)
+    };
+
+    let matrices = &raw_image.color_matrix;
+    if let (Some(matrix_a), Some(matrix_d65)) =
+        (matrices.get(&Illuminant::A), matrices.get(&Illuminant::D65))
+    {
+        return WhiteBalance::from_dual_illuminant_camera_neutral(matrix_a, matrix_d65, &neutral);
+    }
+
+    let color_matrix = matrices
+        .get(&Illuminant::D65)
+        .or_else(|| matrices.values().next())?;
+    WhiteBalance::from_camera_neutral(color_matrix, &neutral)
+}
+
 pub fn get_fast_demosaic_scale_factor(
     file_bytes: &[u8],
     decoded_width: u32,
@@ -510,7 +546,7 @@ fn oriented_camera_crop(
 /// Camera aspect crop in the full developed image's oriented pixel coordinates.
 /// Dummy decoding reads metadata without developing the sensor pixels.
 pub fn camera_crop_from_bytes(file_bytes: &[u8]) -> Option<Crop> {
-    let source = RawSource::new_from_slice(file_bytes);
+    let source = borrowed_raw_source(file_bytes);
     let decoder = rawler::get_decoder(&source).ok()?;
     let raw_image = decoder
         .raw_image(&source, &RawDecodeParams::default(), true)

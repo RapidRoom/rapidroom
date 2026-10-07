@@ -65,7 +65,8 @@
       "vibrance": "Intensidad",
       "wbPickerTooltip": "Selector de balance de blancos",
       "wbPickerWgpuDisabled": "Selector BB: Desactiva WGPU en los Ajustes.",
-      "whiteBalance": "Balance de blancos"
+      "whiteBalance": "Balance de blancos",
+      "kelvinModeTooltip": "Mostrar la temperatura en Kelvin"
     },
     "curves": {
       "channelTitle": "Canal {{channel}}",
@@ -1076,7 +1077,8 @@
         "threeOnly": "Solo 3",
         "twoAndUp": "2 y superior",
         "twoOnly": "Solo 2",
-        "unrated": "Solo sin puntuación"
+        "unrated": "Solo sin puntuación",
+        "andDownSuffix": "e inferior"
       },
       "raw": {
         "all": "Todos los tipos",
@@ -1166,7 +1168,12 @@
         "sortDescending": "Ordenar descendente",
         "thumbnailFit": "Ajuste de miniatura",
         "thumbnailSize": "Tamaño de miniatura",
-        "title": "Opciones de vista"
+        "title": "Opciones de vista",
+        "ratingOperator": {
+          "eq": "Exactamente esta puntuación",
+          "gte": "Esta puntuación o superior",
+          "lte": "Esta puntuación o inferior"
+        }
       }
     },
     "import": {
@@ -1862,7 +1869,9 @@
         "zoom_in": "Acercar",
         "zoom_in_step": "Acercar (por pasos)",
         "zoom_out": "Alejar",
-        "zoom_out_step": "Alejar (por pasos)"
+        "zoom_out_step": "Alejar (por pasos)",
+        "toggle_pick": "Alternar marca de elegida",
+        "toggle_reject": "Alternar marca de rechazada"
       },
       "sections": {
         "editing": "Edición",
@@ -1906,6 +1915,11 @@
             "upgradeBtn": "Mejorar en la web",
             "upgradeDesc": "Para usar las funciones de IA en la nube, necesitas una suscripción Cloud."
           },
+          "statuses": {
+            "connecting": "Conectando…",
+            "retry": "Reintentar conexión",
+            "unsupported": "El inicio de sesión en la nube actualmente solo está disponible en escritorio."
+          },
           "title": "Servicio en la nube"
         },
         "connector": {
@@ -1928,9 +1942,17 @@
           "feature3": "Relleno generativo simple basado en CPU",
           "title": "IA integrada (CPU)"
         },
+        "aiFree": {
+          "description": "Desactiva todas las funciones de IA. Todos los controles relacionados con la IA se ocultan de la interfaz para que RapidRAW funcione como un editor RAW puramente tradicional.",
+          "feature1": "Sin máscaras de IA, desenfoque de lente ni ediciones generativas en la interfaz",
+          "feature2": "Las ediciones de IA existentes se siguen mostrando con normalidad",
+          "feature3": "Una interfaz más limpia y enfocada",
+          "title": "Sin IA"
+        },
         "description": "La IA de RapidRAW está diseñada para la flexibilidad. Elige tu flujo de trabajo ideal, desde herramientas locales rápidas hasta un potente autoalojamiento.",
         "providers": {
           "aiConnector": "AI Connector",
+          "aiFree": "Sin IA",
           "cloud": "Nube",
           "cpu": "CPU"
         },

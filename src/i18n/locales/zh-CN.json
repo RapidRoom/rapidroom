@@ -65,7 +65,8 @@
       "vibrance": "鲜艳度",
       "wbPickerTooltip": "白平衡选取器",
       "wbPickerWgpuDisabled": "白平衡选取器：请在设置中禁用 WGPU。",
-      "whiteBalance": "白平衡"
+      "whiteBalance": "白平衡",
+      "kelvinModeTooltip": "以开尔文显示色温"
     },
     "curves": {
       "channelTitle": "{{channel}} 通道",
@@ -1047,7 +1048,8 @@
         "threeOnly": "仅 3 星",
         "twoAndUp": "2 星及以上",
         "twoOnly": "仅 2 星",
-        "unrated": "仅未评分"
+        "unrated": "仅未评分",
+        "andDownSuffix": "及以下"
       },
       "raw": {
         "all": "所有类型",
@@ -1137,7 +1139,12 @@
         "sortDescending": "降序排列",
         "thumbnailFit": "缩略图适应",
         "thumbnailSize": "缩略图大小",
-        "title": "视图选项"
+        "title": "视图选项",
+        "ratingOperator": {
+          "eq": "仅此评分",
+          "gte": "此评分及以上",
+          "lte": "此评分及以下"
+        }
       }
     },
     "import": {
@@ -1818,7 +1825,9 @@
         "zoom_in": "放大",
         "zoom_in_step": "放大（步进）",
         "zoom_out": "缩小",
-        "zoom_out_step": "缩小（步进）"
+        "zoom_out_step": "缩小（步进）",
+        "toggle_pick": "切换留用标记",
+        "toggle_reject": "切换拒绝标记"
       },
       "sections": {
         "editing": "编辑",
@@ -1862,6 +1871,11 @@
             "upgradeBtn": "在网站上升级",
             "upgradeDesc": "要使用云端 AI 功能，您需要订阅云端服务。"
           },
+          "statuses": {
+            "connecting": "正在连接…",
+            "retry": "重试连接",
+            "unsupported": "云端登录目前仅在桌面设备上可用。"
+          },
           "title": "云端服务"
         },
         "connector": {
@@ -1884,9 +1898,17 @@
           "feature3": "简单的 CPU 生成式替换",
           "title": "内置 AI（CPU）"
         },
+        "aiFree": {
+          "description": "关闭所有 AI 功能。所有与 AI 相关的控件都会从界面中隐藏，RapidRAW 将作为纯传统的 RAW 编辑器运行。",
+          "feature1": "界面中不显示 AI 蒙版、镜头模糊或生成式编辑",
+          "feature2": "现有的 AI 编辑仍会正常渲染",
+          "feature3": "更简洁、更专注的界面",
+          "title": "无 AI"
+        },
         "description": "RapidRAW 的 AI 专为灵活性而设计。选择您理想的工作流程，从快速的本地工具到强大的自托管。",
         "providers": {
           "aiConnector": "AI 连接器",
+          "aiFree": "无 AI",
           "cloud": "云端",
           "cpu": "CPU"
         },
