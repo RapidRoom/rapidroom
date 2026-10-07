@@ -1,0 +1,1248 @@
+diff --git a/src-tauri/src/app_state.rs b/src-tauri/src/app_state.rs
+index 583a472a..576768c4 100644
+--- a/src-tauri/src/app_state.rs
++++ b/src-tauri/src/app_state.rs
+@@ -128,9 +128,6 @@ pub struct CachedPreview {
+ pub struct GpuImageCache {
+     pub texture: Texture,
+     pub texture_view: TextureView,
+-    pub gf_coeffs_view: TextureView,
+-    pub gf_dehaze_view: TextureView,
+-    pub is_raw: u32,
+     pub width: u32,
+     pub height: u32,
+     pub transform_hash: u64,
+diff --git a/src-tauri/src/gpu_processing.rs b/src-tauri/src/gpu_processing.rs
+index 76825fd3..b86c2a14 100644
+--- a/src-tauri/src/gpu_processing.rs
++++ b/src-tauri/src/gpu_processing.rs
+@@ -574,24 +574,6 @@ struct BlurParams {
+     _pad3: u32,
+ }
+ 
+-const GF_SHORT_EDGE: u32 = 1080;
+-const GF_CLARITY_RADIUS: f32 = 8.0;
+-const GF_STRUCTURE_RADIUS: f32 = 40.0;
+-const GF_CLARITY_EPS: f32 = 0.25;
+-const GF_STRUCTURE_EPS: f32 = 0.5;
+-const GF_COARSE_DIV: u32 = 4;
+-const GF_TONAL_RADIUS: f32 = 10.0;
+-const GF_TONAL_EPS: f32 = 0.25;
+-
+-#[repr(C)]
+-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+-struct GfParams {
+-    radius: u32,
+-    is_raw: u32,
+-    eps: f32,
+-    _pad: f32,
+-}
+-
+ #[repr(C)]
+ #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+ struct FlareParams {
+@@ -622,18 +604,10 @@ pub struct GpuProcessor {
+     flare_final_view: wgpu::TextureView,
+     flare_sampler: wgpu::Sampler,
+ 
+-    gf_bgl: wgpu::BindGroupLayout,
+-    gf_downsample_pipeline: wgpu::ComputePipeline,
+-    gf_box_down_pipeline: wgpu::ComputePipeline,
+-    gf_blur_h_pipeline: wgpu::ComputePipeline,
+-    gf_blur_v_pipeline: wgpu::ComputePipeline,
+-    gf_coeffs_pipeline: wgpu::ComputePipeline,
+-    gf_pack_pipeline: wgpu::ComputePipeline,
+-
+     main_bgl: wgpu::BindGroupLayout,
+     main_pipeline: wgpu::ComputePipeline,
+-    high_precision_entries: Vec<wgpu::BindGroupLayoutEntry>,
+-    high_precision_pipeline: std::sync::OnceLock<HighPrecisionPipeline>,
++    high_precision_bgl: wgpu::BindGroupLayout,
++    high_precision_pipeline: wgpu::ComputePipeline,
+     high_precision_tile: std::sync::OnceLock<HighPrecisionTile>,
+     tile_output_size: wgpu::Extent3d,
+     adjustments_buffer: wgpu::Buffer,
+@@ -654,11 +628,6 @@ pub struct GpuProcessor {
+     pub output_texture_view: wgpu::TextureView,
+ }
+ 
+-struct HighPrecisionPipeline {
+-    bgl: wgpu::BindGroupLayout,
+-    pipeline: wgpu::ComputePipeline,
+-}
+-
+ struct HighPrecisionTile {
+     texture: wgpu::Texture,
+     view: wgpu::TextureView,
+@@ -896,74 +865,6 @@ impl GpuProcessor {
+             ..Default::default()
+         });
+ 
+-        let gf_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+-            label: Some("Guided Filter Shader"),
+-            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/guided.wgsl").into()),
+-        });
+-
+-        let gf_texture_entry = |binding: u32| wgpu::BindGroupLayoutEntry {
+-            binding,
+-            visibility: wgpu::ShaderStages::COMPUTE,
+-            ty: wgpu::BindingType::Texture {
+-                sample_type: wgpu::TextureSampleType::Float { filterable: false },
+-                view_dimension: wgpu::TextureViewDimension::D2,
+-                multisampled: false,
+-            },
+-            count: None,
+-        };
+-
+-        let gf_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+-            label: Some("Guided Filter BGL"),
+-            entries: &[
+-                gf_texture_entry(0),
+-                gf_texture_entry(1),
+-                wgpu::BindGroupLayoutEntry {
+-                    binding: 2,
+-                    visibility: wgpu::ShaderStages::COMPUTE,
+-                    ty: wgpu::BindingType::StorageTexture {
+-                        access: wgpu::StorageTextureAccess::WriteOnly,
+-                        format: wgpu::TextureFormat::Rgba32Float,
+-                        view_dimension: wgpu::TextureViewDimension::D2,
+-                    },
+-                    count: None,
+-                },
+-                wgpu::BindGroupLayoutEntry {
+-                    binding: 3,
+-                    visibility: wgpu::ShaderStages::COMPUTE,
+-                    ty: wgpu::BindingType::Buffer {
+-                        ty: wgpu::BufferBindingType::Uniform,
+-                        has_dynamic_offset: false,
+-                        min_binding_size: None,
+-                    },
+-                    count: None,
+-                },
+-            ],
+-        });
+-
+-        let gf_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+-            label: Some("Guided Filter Pipeline Layout"),
+-            bind_group_layouts: &[Some(&gf_bgl)],
+-            immediate_size: 0,
+-        });
+-
+-        let gf_pipeline = |entry: &'static str| {
+-            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+-                label: Some(entry),
+-                layout: Some(&gf_layout),
+-                module: &gf_shader,
+-                entry_point: Some(entry),
+-                compilation_options: Default::default(),
+-                cache: None,
+-            })
+-        };
+-
+-        let gf_downsample_pipeline = gf_pipeline("gf_downsample");
+-        let gf_box_down_pipeline = gf_pipeline("gf_box_down");
+-        let gf_blur_h_pipeline = gf_pipeline("gf_blur_h");
+-        let gf_blur_v_pipeline = gf_pipeline("gf_blur_v");
+-        let gf_coeffs_pipeline = gf_pipeline("gf_coeffs");
+-        let gf_pack_pipeline = gf_pipeline("gf_pack");
+-
+         let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+             label: Some("Image Processing Shader"),
+             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shader.wgsl").into()),
+@@ -1088,28 +989,6 @@ impl GpuProcessor {
+             count: None,
+         });
+ 
+-        bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
+-            binding: 11 + MAX_MASK_BINDINGS,
+-            visibility: wgpu::ShaderStages::COMPUTE,
+-            ty: wgpu::BindingType::Texture {
+-                sample_type: wgpu::TextureSampleType::Float { filterable: false },
+-                view_dimension: wgpu::TextureViewDimension::D2,
+-                multisampled: false,
+-            },
+-            count: None,
+-        });
+-
+-        bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
+-            binding: 12 + MAX_MASK_BINDINGS,
+-            visibility: wgpu::ShaderStages::COMPUTE,
+-            ty: wgpu::BindingType::Texture {
+-                sample_type: wgpu::TextureSampleType::Float { filterable: false },
+-                view_dimension: wgpu::TextureViewDimension::D2,
+-                multisampled: false,
+-            },
+-            count: None,
+-        });
+-
+         let main_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+             label: Some("Main BGL"),
+             entries: &bind_group_layout_entries,
+@@ -1135,6 +1014,34 @@ impl GpuProcessor {
+             format: wgpu::TextureFormat::Rgba16Float,
+             view_dimension: wgpu::TextureViewDimension::D2,
+         };
++        let high_precision_bgl =
++            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
++                label: Some("High Precision Main BGL"),
++                entries: &bind_group_layout_entries,
++            });
++        let high_precision_pipeline_layout =
++            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
++                label: Some("High Precision Pipeline Layout"),
++                bind_group_layouts: &[Some(&high_precision_bgl)],
++                immediate_size: 0,
++            });
++        let high_precision_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
++            label: Some("High Precision Image Processing Shader"),
++            source: wgpu::ShaderSource::Wgsl(high_precision_shader_source().into()),
++        });
++        let high_precision_pipeline =
++            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
++                label: Some("High Precision Compute Pipeline"),
++                layout: Some(&high_precision_pipeline_layout),
++                module: &high_precision_shader,
++                entry_point: Some("main"),
++                compilation_options: wgpu::PipelineCompilationOptions {
++                    constants: &[("HIGH_PRECISION_OUTPUT", 1.0)],
++                    ..Default::default()
++                },
++                cache: None,
++            });
++
+         let adjustments_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+             label: Some("Adjustments Buffer"),
+             size: std::mem::size_of::<AllAdjustments>() as u64,
+@@ -1282,17 +1189,10 @@ impl GpuProcessor {
+             flare_ghosts_view,
+             flare_final_view,
+             flare_sampler,
+-            gf_bgl,
+-            gf_downsample_pipeline,
+-            gf_box_down_pipeline,
+-            gf_blur_h_pipeline,
+-            gf_blur_v_pipeline,
+-            gf_coeffs_pipeline,
+-            gf_pack_pipeline,
+             main_bgl,
+             main_pipeline,
+-            high_precision_entries: bind_group_layout_entries,
+-            high_precision_pipeline: std::sync::OnceLock::new(),
++            high_precision_bgl,
++            high_precision_pipeline,
+             high_precision_tile: std::sync::OnceLock::new(),
+             tile_output_size: clamped_tile_size,
+             adjustments_buffer,
+@@ -1313,235 +1213,6 @@ impl GpuProcessor {
+         })
+     }
+ 
+-    pub fn build_guided_coeffs(
+-        &self,
+-        input_view: &wgpu::TextureView,
+-        width: u32,
+-        height: u32,
+-        is_raw: u32,
+-    ) -> (wgpu::TextureView, wgpu::TextureView) {
+-        let device = &self.context.device;
+-        let queue = &self.context.queue;
+-
+-        let short = width.min(height).max(1);
+-        let k = (GF_SHORT_EDGE as f32 / short as f32).min(1.0);
+-        let lw = ((width as f32 * k).round() as u32).max(1);
+-        let lh = ((height as f32 * k).round() as u32).max(1);
+-        let low_short = lw.min(lh) as f32;
+-        let cw = lw.div_ceil(GF_COARSE_DIV).max(1);
+-        let ch = lh.div_ceil(GF_COARSE_DIV).max(1);
+-
+-        let make_view = |label: &'static str, w: u32, h: u32| {
+-            device
+-                .create_texture(&wgpu::TextureDescriptor {
+-                    label: Some(label),
+-                    size: wgpu::Extent3d {
+-                        width: w,
+-                        height: h,
+-                        depth_or_array_layers: 1,
+-                    },
+-                    mip_level_count: 1,
+-                    sample_count: 1,
+-                    dimension: wgpu::TextureDimension::D2,
+-                    format: wgpu::TextureFormat::Rgba32Float,
+-                    usage: wgpu::TextureUsages::TEXTURE_BINDING
+-                        | wgpu::TextureUsages::STORAGE_BINDING,
+-                    view_formats: &[],
+-                })
+-                .create_view(&Default::default())
+-        };
+-
+-        let make_params = |base_radius: f32, eps: f32, div: f32| {
+-            let radius = (base_radius * low_short / 1080.0 / div).ceil().max(1.0) as u32;
+-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+-                label: Some("Guided Filter Params"),
+-                contents: bytemuck::bytes_of(&GfParams {
+-                    radius,
+-                    is_raw,
+-                    eps,
+-                    _pad: 0.0,
+-                }),
+-                usage: wgpu::BufferUsages::UNIFORM,
+-            })
+-        };
+-
+-        let moments = make_view("GF Moments", lw, lh);
+-        let tmp = make_view("GF Ping Pong", lw, lh);
+-        let blurred = make_view("GF Blurred", lw, lh);
+-        let ab = make_view("GF Coeffs", lw, lh);
+-        let ab_clarity = make_view("GF Coeffs Clarity", lw, lh);
+-        let c_moments = make_view("GF Coarse Moments", cw, ch);
+-        let c_tmp = make_view("GF Coarse Ping Pong", cw, ch);
+-        let c_blurred = make_view("GF Coarse Blurred", cw, ch);
+-        let c_ab = make_view("GF Coarse Coeffs", cw, ch);
+-
+-        let params_clarity = make_params(GF_CLARITY_RADIUS, GF_CLARITY_EPS, 1.0);
+-        let params_tonal = make_params(GF_TONAL_RADIUS, GF_TONAL_EPS, 1.0);
+-        let params_coarse =
+-            make_params(GF_STRUCTURE_RADIUS, GF_STRUCTURE_EPS, GF_COARSE_DIV as f32);
+-
+-        let mut encoder = device.create_command_encoder(&Default::default());
+-
+-        let mut pass = |pipeline: &wgpu::ComputePipeline,
+-                        src_a: &wgpu::TextureView,
+-                        src_b: &wgpu::TextureView,
+-                        dst: &wgpu::TextureView,
+-                        params: &wgpu::Buffer,
+-                        (w, h): (u32, u32)| {
+-            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+-                label: Some("Guided Filter BG"),
+-                layout: &self.gf_bgl,
+-                entries: &[
+-                    wgpu::BindGroupEntry {
+-                        binding: 0,
+-                        resource: wgpu::BindingResource::TextureView(src_a),
+-                    },
+-                    wgpu::BindGroupEntry {
+-                        binding: 1,
+-                        resource: wgpu::BindingResource::TextureView(src_b),
+-                    },
+-                    wgpu::BindGroupEntry {
+-                        binding: 2,
+-                        resource: wgpu::BindingResource::TextureView(dst),
+-                    },
+-                    wgpu::BindGroupEntry {
+-                        binding: 3,
+-                        resource: params.as_entire_binding(),
+-                    },
+-                ],
+-            });
+-            let mut cpass = encoder.begin_compute_pass(&Default::default());
+-            cpass.set_pipeline(pipeline);
+-            cpass.set_bind_group(0, &bind_group, &[]);
+-            cpass.dispatch_workgroups(w.div_ceil(8), h.div_ceil(8), 1);
+-        };
+-        let fine = (lw, lh);
+-        let coarse = (cw, ch);
+-
+-        pass(
+-            &self.gf_downsample_pipeline,
+-            input_view,
+-            input_view,
+-            &moments,
+-            &params_clarity,
+-            fine,
+-        );
+-
+-        pass(
+-            &self.gf_box_down_pipeline,
+-            &moments,
+-            &moments,
+-            &c_moments,
+-            &params_coarse,
+-            coarse,
+-        );
+-        pass(
+-            &self.gf_blur_h_pipeline,
+-            &c_moments,
+-            &c_moments,
+-            &c_tmp,
+-            &params_coarse,
+-            coarse,
+-        );
+-        pass(
+-            &self.gf_blur_v_pipeline,
+-            &c_tmp,
+-            &c_tmp,
+-            &c_blurred,
+-            &params_coarse,
+-            coarse,
+-        );
+-        pass(
+-            &self.gf_coeffs_pipeline,
+-            &c_blurred,
+-            &c_blurred,
+-            &c_ab,
+-            &params_coarse,
+-            coarse,
+-        );
+-        pass(
+-            &self.gf_blur_h_pipeline,
+-            &c_ab,
+-            &c_ab,
+-            &c_tmp,
+-            &params_coarse,
+-            coarse,
+-        );
+-        pass(
+-            &self.gf_blur_v_pipeline,
+-            &c_tmp,
+-            &c_tmp,
+-            &c_moments,
+-            &params_coarse,
+-            coarse,
+-        );
+-
+-        for (params, out) in [(&params_clarity, &ab_clarity), (&params_tonal, &blurred)] {
+-            pass(
+-                &self.gf_blur_h_pipeline,
+-                &moments,
+-                &moments,
+-                &tmp,
+-                params,
+-                fine,
+-            );
+-            pass(&self.gf_blur_v_pipeline, &tmp, &tmp, &blurred, params, fine);
+-            pass(
+-                &self.gf_coeffs_pipeline,
+-                &blurred,
+-                &blurred,
+-                &ab,
+-                params,
+-                fine,
+-            );
+-            pass(&self.gf_blur_h_pipeline, &ab, &ab, &tmp, params, fine);
+-            pass(&self.gf_blur_v_pipeline, &tmp, &tmp, out, params, fine);
+-        }
+-
+-        pass(
+-            &self.gf_pack_pipeline,
+-            &ab_clarity,
+-            &blurred,
+-            &ab,
+-            &params_clarity,
+-            fine,
+-        );
+-
+-        queue.submit(Some(encoder.finish()));
+-        (ab, c_moments)
+-    }
+-
+-    fn high_precision_pipeline(&self) -> &HighPrecisionPipeline {
+-        self.high_precision_pipeline.get_or_init(|| {
+-            let device = &self.context.device;
+-            let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+-                label: Some("High Precision Main BGL"),
+-                entries: &self.high_precision_entries,
+-            });
+-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+-                label: Some("High Precision Pipeline Layout"),
+-                bind_group_layouts: &[Some(&bgl)],
+-                immediate_size: 0,
+-            });
+-            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+-                label: Some("High Precision Image Processing Shader"),
+-                source: wgpu::ShaderSource::Wgsl(high_precision_shader_source().into()),
+-            });
+-            let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+-                label: Some("High Precision Compute Pipeline"),
+-                layout: Some(&layout),
+-                module: &shader,
+-                entry_point: Some("main"),
+-                compilation_options: wgpu::PipelineCompilationOptions {
+-                    constants: &[("HIGH_PRECISION_OUTPUT", 1.0)],
+-                    ..Default::default()
+-                },
+-                cache: None,
+-            });
+-            HighPrecisionPipeline { bgl, pipeline }
+-        })
+-    }
+-
+     fn high_precision_tile(&self) -> &HighPrecisionTile {
+         self.high_precision_tile.get_or_init(|| {
+             let texture = self
+@@ -1567,8 +1238,6 @@ impl GpuProcessor {
+     fn run(
+         &self,
+         input_texture_view: &wgpu::TextureView,
+-        gf_coeffs_view: &wgpu::TextureView,
+-        gf_dehaze_view: &wgpu::TextureView,
+         width: u32,
+         height: u32,
+         request: RenderRequest,
+@@ -1593,10 +1262,9 @@ impl GpuProcessor {
+         };
+         let (output_pipeline, output_bgl, output_tile_texture, output_tile_view, bytes_per_pixel) =
+             if let Some(high_precision_tile) = high_precision_tile {
+-                let hp = self.high_precision_pipeline();
+                 (
+-                    &hp.pipeline,
+-                    &hp.bgl,
++                    &self.high_precision_pipeline,
++                    &self.high_precision_bgl,
+                     &high_precision_tile.texture,
+                     &high_precision_tile.view,
+                     8,
+@@ -2031,14 +1699,6 @@ impl GpuProcessor {
+                     binding: 10 + MAX_MASK_BINDINGS,
+                     resource: wgpu::BindingResource::Sampler(&self.flare_sampler),
+                 });
+-                bind_group_entries.push(wgpu::BindGroupEntry {
+-                    binding: 11 + MAX_MASK_BINDINGS,
+-                    resource: wgpu::BindingResource::TextureView(gf_coeffs_view),
+-                });
+-                bind_group_entries.push(wgpu::BindGroupEntry {
+-                    binding: 12 + MAX_MASK_BINDINGS,
+-                    resource: wgpu::BindingResource::TextureView(gf_dehaze_view),
+-                });
+ 
+                 let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                     label: Some("Tile Bind Group"),
+@@ -2286,16 +1946,16 @@ fn compute_blur_needs(adjustments: &AllAdjustments) -> BlurNeeds {
+     let g = &adjustments.global;
+     let mut n = BlurNeeds {
+         sharpness: g.sharpness != 0.0,
+-        tonal: g.sharpness != 0.0,
+-        clarity: g.halation_amount != 0.0,
+-        structure: g.glow_amount != 0.0 || g.dehaze != 0.0,
++        tonal: g.sharpness != 0.0 || g.shadows != 0.0 || g.blacks != 0.0,
++        clarity: g.clarity != 0.0 || g.halation_amount != 0.0 || g.centré != 0.0,
++        structure: g.structure != 0.0 || g.glow_amount != 0.0 || g.dehaze != 0.0,
+     };
+     let mask_count = (adjustments.mask_count as usize).min(adjustments.mask_adjustments.len());
+     for m in &adjustments.mask_adjustments[..mask_count] {
+         n.sharpness |= m.sharpness != 0.0;
+-        n.tonal |= m.sharpness != 0.0;
+-        n.clarity |= m.halation_amount != 0.0;
+-        n.structure |= m.glow_amount != 0.0 || m.dehaze != 0.0;
++        n.tonal |= m.sharpness != 0.0 || m.shadows != 0.0 || m.blacks != 0.0;
++        n.clarity |= m.clarity != 0.0 || m.halation_amount != 0.0;
++        n.structure |= m.structure != 0.0 || m.glow_amount != 0.0 || m.dehaze != 0.0;
+     }
+     n
+ }
+@@ -2389,13 +2049,9 @@ fn process_and_get_dynamic_image_inner(
+         }
+     };
+     let mut needs_new_cache = false;
+-    let is_raw = request.adjustments.global.is_raw_image;
+ 
+     if let Some(cache) = &*cache_lock {
+-        if cache.transform_hash != transform_hash
+-            || cache.width != width
+-            || cache.height != height
+-            || cache.is_raw != is_raw
++        if cache.transform_hash != transform_hash || cache.width != width || cache.height != height
+         {
+             needs_new_cache = true;
+         }
+@@ -2440,15 +2096,9 @@ fn process_and_get_dynamic_image_inner(
+         upload_span.gpu_sync(device);
+         drop(upload_span);
+ 
+-        let (gf_coeffs_view, gf_dehaze_view) =
+-            processor.build_guided_coeffs(&texture_view, width, height, is_raw);
+-
+         *cache_lock = Some(GpuImageCache {
+             texture,
+             texture_view,
+-            gf_coeffs_view,
+-            gf_dehaze_view,
+-            is_raw,
+             width,
+             height,
+             transform_hash,
+@@ -2461,8 +2111,6 @@ fn process_and_get_dynamic_image_inner(
+ 
+     let (processed_pixels, out_w, out_h, out_x, out_y) = processor.run(
+         &cache.texture_view,
+-        &cache.gf_coeffs_view,
+-        &cache.gf_dehaze_view,
+         cache.width,
+         cache.height,
+         request,
+diff --git a/src-tauri/src/shaders/guided.wgsl b/src-tauri/src/shaders/guided.wgsl
+deleted file mode 100644
+index 375ecc87..00000000
+--- a/src-tauri/src/shaders/guided.wgsl
++++ /dev/null
+@@ -1,126 +0,0 @@
+-struct GfParams {
+-    radius: u32,
+-    is_raw: u32,
+-    eps: f32,
+-    _pad: f32,
+-}
+-
+-@group(0) @binding(0) var src_a: texture_2d<f32>;
+-@group(0) @binding(1) var src_b: texture_2d<f32>;
+-@group(0) @binding(2) var dst: texture_storage_2d<rgba32float, write>;
+-@group(0) @binding(3) var<uniform> params: GfParams;
+-
+-const GF_LUMA_FLOOR: f32 = 1.0e-4;
+-const LUMA_COEFF = vec3<f32>(0.2126, 0.7152, 0.0722);
+-
+-fn srgb_to_linear(c: vec3<f32>) -> vec3<f32> {
+-    let cutoff = vec3<f32>(0.04045);
+-    let a = vec3<f32>(0.055);
+-    let higher = pow((c + a) / (1.0 + a), vec3<f32>(2.4));
+-    let lower = c / 12.92;
+-    return select(higher, lower, c <= cutoff);
+-}
+-
+-@compute @workgroup_size(8, 8, 1)
+-fn gf_downsample(@builtin(global_invocation_id) id: vec3<u32>) {
+-    let dst_dims = textureDimensions(dst);
+-    if (id.x >= dst_dims.x || id.y >= dst_dims.y) { return; }
+-
+-    let src_dims = textureDimensions(src_a);
+-    let ratio = vec2<f32>(src_dims) / vec2<f32>(dst_dims);
+-    let taps = vec2<i32>(clamp(ceil(ratio), vec2<f32>(1.0), vec2<f32>(8.0)));
+-    let origin = vec2<f32>(id.xy) * ratio;
+-    let max_idx = vec2<i32>(src_dims) - vec2<i32>(1);
+-
+-    var sum = vec4<f32>(0.0);
+-    for (var j = 0; j < taps.y; j = j + 1) {
+-        for (var i = 0; i < taps.x; i = i + 1) {
+-            let pos = origin + (vec2<f32>(f32(i), f32(j)) + 0.5) / vec2<f32>(taps) * ratio;
+-            let coord = clamp(vec2<i32>(pos), vec2<i32>(0), max_idx);
+-            var lin = clamp(textureLoad(src_a, coord, 0).rgb, vec3<f32>(0.0), vec3<f32>(65504.0));
+-            if (params.is_raw == 0u) {
+-                lin = srgb_to_linear(lin);
+-            }
+-            let l = log2(max(dot(lin, LUMA_COEFF), GF_LUMA_FLOOR));
+-            let d = log2(max(min(lin.r, min(lin.g, lin.b)), GF_LUMA_FLOOR));
+-            sum += vec4<f32>(l, l * l, d, d * d);
+-        }
+-    }
+-    textureStore(dst, id.xy, sum / f32(taps.x * taps.y));
+-}
+-
+-@compute @workgroup_size(8, 8, 1)
+-fn gf_box_down(@builtin(global_invocation_id) id: vec3<u32>) {
+-    let dst_dims = textureDimensions(dst);
+-    if (id.x >= dst_dims.x || id.y >= dst_dims.y) { return; }
+-
+-    let src_dims = textureDimensions(src_a);
+-    let ratio = vec2<f32>(src_dims) / vec2<f32>(dst_dims);
+-    let taps = vec2<i32>(clamp(ceil(ratio), vec2<f32>(1.0), vec2<f32>(8.0)));
+-    let origin = vec2<f32>(id.xy) * ratio;
+-    let max_idx = vec2<i32>(src_dims) - vec2<i32>(1);
+-
+-    var sum = vec4<f32>(0.0);
+-    for (var j = 0; j < taps.y; j = j + 1) {
+-        for (var i = 0; i < taps.x; i = i + 1) {
+-            let pos = origin + (vec2<f32>(f32(i), f32(j)) + 0.5) / vec2<f32>(taps) * ratio;
+-            let coord = clamp(vec2<i32>(pos), vec2<i32>(0), max_idx);
+-            sum += textureLoad(src_a, coord, 0);
+-        }
+-    }
+-    textureStore(dst, id.xy, sum / f32(taps.x * taps.y));
+-}
+-
+-fn gf_blur(id: vec2<u32>, dir: vec2<i32>) {
+-    let dims = vec2<i32>(textureDimensions(dst));
+-    let p = vec2<i32>(id);
+-    if (p.x >= dims.x || p.y >= dims.y) { return; }
+-
+-    let radius = i32(params.radius);
+-    let sigma = max(f32(radius) * 0.5, 0.5);
+-    let max_idx = dims - vec2<i32>(1);
+-
+-    var total = vec4<f32>(0.0);
+-    var weight_sum = 0.0;
+-    for (var o = -radius; o <= radius; o = o + 1) {
+-        let c = clamp(p + dir * o, vec2<i32>(0), max_idx);
+-        let x = f32(o);
+-        let w = exp(-(x * x) / (2.0 * sigma * sigma));
+-        total += textureLoad(src_a, c, 0) * w;
+-        weight_sum += w;
+-    }
+-    textureStore(dst, id, total / weight_sum);
+-}
+-
+-@compute @workgroup_size(8, 8, 1)
+-fn gf_blur_h(@builtin(global_invocation_id) id: vec3<u32>) {
+-    gf_blur(id.xy, vec2<i32>(1, 0));
+-}
+-
+-@compute @workgroup_size(8, 8, 1)
+-fn gf_blur_v(@builtin(global_invocation_id) id: vec3<u32>) {
+-    gf_blur(id.xy, vec2<i32>(0, 1));
+-}
+-
+-@compute @workgroup_size(8, 8, 1)
+-fn gf_coeffs(@builtin(global_invocation_id) id: vec3<u32>) {
+-    let dims = textureDimensions(dst);
+-    if (id.x >= dims.x || id.y >= dims.y) { return; }
+-
+-    let m = textureLoad(src_a, vec2<i32>(id.xy), 0);
+-    let variance = max(vec2<f32>(m.y, m.w) - vec2<f32>(m.x, m.z) * vec2<f32>(m.x, m.z), vec2<f32>(0.0));
+-    let a = variance / (variance + params.eps);
+-    let b = vec2<f32>(m.x, m.z) * (1.0 - a);
+-    textureStore(dst, id.xy, vec4<f32>(a.x, b.x, a.y, b.y));
+-}
+-
+-@compute @workgroup_size(8, 8, 1)
+-fn gf_pack(@builtin(global_invocation_id) id: vec3<u32>) {
+-    let dims = textureDimensions(dst);
+-    if (id.x >= dims.x || id.y >= dims.y) { return; }
+-
+-    let p = vec2<i32>(id.xy);
+-    let c = textureLoad(src_a, p, 0).xy;
+-    let s = textureLoad(src_b, p, 0).xy;
+-    textureStore(dst, id.xy, vec4<f32>(c, s));
+-}
+diff --git a/src-tauri/src/shaders/shader.wgsl b/src-tauri/src/shaders/shader.wgsl
+index 18bbef0b..34408b91 100644
+--- a/src-tauri/src/shaders/shader.wgsl
++++ b/src-tauri/src/shaders/shader.wgsl
+@@ -213,21 +213,6 @@ const HSL_RANGES: array<HslRange, 8> = array<HslRange, 8>(
+ @group(0) @binding(10) var flare_texture: texture_2d<f32>;
+ @group(0) @binding(11) var flare_sampler: sampler;
+ 
+-@group(0) @binding(12) var gf_coeffs_texture: texture_2d<f32>;
+-@group(0) @binding(13) var gf_dehaze_texture: texture_2d<f32>;
+-
+-const GF_LUMA_FLOOR: f32 = 1.0e-4;
+-const GF_DETAIL_SIGMA: f32 = 1.5;
+-const SHARPEN_EDGE_SIGMA: f32 = 0.12;
+-const SHARPEN_DARK_SCALE: f32 = 0.55;
+-const DEHAZE_STRENGTH: f32 = 1.5;
+-const GF_CLARITY_GAIN: f32 = 1.8;
+-const GF_STRUCTURE_GAIN: f32 = 1.8;
+-const GF_NEG_GAIN: f32 = 1.0;
+-const GF_BRIGHT_SIGMA: f32 = 0.8;
+-const GF_NOISE_LO: f32 = 0.0;
+-const GF_NOISE_HI: f32 = 0.01;
+-
+ override HIGH_PRECISION_OUTPUT: u32 = 0u;
+ 
+ const LUMA_COEFF = vec3<f32>(0.2126, 0.7152, 0.0722);
+@@ -408,7 +393,7 @@ fn apply_curve(val: f32, points: array<Point, 16>, count: u32) -> f32 {
+ 
+ fn apply_tonal_adjustments(
+     color: vec3<f32>,
+-    local_log_detail: f32,
++    blurred_color_input_space: vec3<f32>,
+     is_raw: u32,
+     con: f32,
+     sh: f32,
+@@ -417,20 +402,29 @@ fn apply_tonal_adjustments(
+ ) -> vec3<f32> {
+     var rgb = color;
+ 
++    var blurred_linear: vec3<f32>;
++    if (is_raw == 1u) {
++        blurred_linear = blurred_color_input_space;
++    } else {
++        blurred_linear = srgb_to_linear(blurred_color_input_space);
++    }
++
+     if (wh != 0.0) {
+         let white_level = 1.0 - wh * 0.25;
+         let w_mult = 1.0 / max(white_level, 0.01);
+         rgb *= w_mult;
++        blurred_linear *= w_mult;
+     }
+ 
+     let pixel_luma = get_luma(max(rgb, vec3<f32>(0.0)));
++    let blurred_luma = get_luma(max(blurred_linear, vec3<f32>(0.0)));
+ 
+     let safe_pixel_luma = max(pixel_luma, 0.0001);
++    let safe_blurred_luma = max(blurred_luma, 0.0001);
+ 
+     if (sh != 0.0 || bl != 0.0) {
+         let t_pixel = pow(safe_pixel_luma, 0.4545);
+-        let t_detail = exp2(local_log_detail * 0.4545);
+-        let t_blurred = t_pixel / max(t_detail, 0.0001);
++        let t_blurred = pow(safe_blurred_luma, 0.4545);
+ 
+         let shadow_lift = sh * t_pixel * pow(max(1.0 - t_pixel, 0.0), 4.5);
+         let black_lift = bl * t_pixel * pow(max(1.0 - t_pixel, 0.0), 12.0);
+@@ -439,23 +433,21 @@ fn apply_tonal_adjustments(
+         let t_pixel_curved = max(t_pixel + shadow_lift + black_lift, 0.0);
+ 
+         let shadow_pivot = 0.2;
+-        let stretch_focus = 1.0 - smoothstep(0.1, 0.85, t_pixel);
+-        let detail_focus = 1.0 - smoothstep(0.05, 0.55, t_pixel);
+-        let stretch_factor = 1.0 + (lift_amount * stretch_focus * 4.4);
++        let stretch_factor = 1.0 + (lift_amount * 1.3);
+         let contrasted_t = shadow_pivot + (t_pixel_curved - shadow_pivot) * stretch_factor;
+ 
+-        let final_t = max(contrasted_t, 0.0);
++        let final_t = max(mix(t_pixel_curved, contrasted_t, 0.85), 0.0);
+         let curved_luma = pow(final_t, 2.2);
+ 
+         let luma_ratio = curved_luma / safe_pixel_luma;
+         rgb *= luma_ratio;
+ 
+-        let log_d = log2(max(t_detail, 0.0001));
+-        let safe_detail = exp2(log_d / (1.0 + abs(log_d) * 0.4));
++        let detail = t_pixel / max(t_blurred, 0.0001);
++        let safe_detail = clamp(detail, 0.8, 1.25);
+ 
+         let noise_protection = smoothstep(0.0, 0.1, t_blurred);
+ 
+-        let detail_amp = 1.0 + (lift_amount * detail_focus * 3.4 * noise_protection);
++        let detail_amp = 1.0 + (lift_amount * 1.2 * noise_protection);
+ 
+         let enhanced_detail = pow(safe_detail, detail_amp);
+         let detail_correction = enhanced_detail / safe_detail;
+@@ -463,12 +455,9 @@ fn apply_tonal_adjustments(
+         let linear_correction = pow(detail_correction, 2.2);
+         rgb *= linear_correction;
+ 
+-        let lift_structure = lift_amount * detail_focus * noise_protection * 7.2;
+-        rgb *= exp2(shape_detail_gf(local_log_detail) * lift_structure);
+-
+         if (luma_ratio > 1.0) {
+             let recovered_luma = get_luma(rgb);
+-            let boost_amount = clamp((luma_ratio - 1.0) * 0.05, 0.0, 0.12);
++            let boost_amount = clamp((luma_ratio - 1.0) * 0.15, 0.0, 0.4);
+             rgb = mix(rgb, vec3<f32>(recovered_luma), boost_amount);
+         }
+     }
+@@ -492,7 +481,8 @@ fn apply_tonal_adjustments(
+ 
+ fn apply_highlights_adjustment(
+     color_in: vec3<f32>,
+-    local_log_detail: f32,
++    coords_i: vec2<i32>,
++    scale: f32,
+     is_raw: u32,
+     highlights_adj: f32
+ ) -> vec3<f32> {
+@@ -505,12 +495,62 @@ fn apply_highlights_adjustment(
+         return color_in;
+     }
+ 
+-    const l_pivot: f32 = 0.06;
++    const l_pivot: f32 = 0.10;
+     if (pixel_luma <= l_pivot) {
+         return color_in;
+     }
+ 
+-    let luma_base = pixel_luma * exp2(-local_log_detail);
++    let dims = vec2<i32>(textureDimensions(input_texture));
++    let max_idx = dims - vec2<i32>(1);
++
++    var center_tex = textureLoad(input_texture, clamp(coords_i, vec2<i32>(0), max_idx), 0).rgb;
++    if (is_raw == 0u) {
++        center_tex = srgb_to_linear(center_tex);
++    }
++    let center_tex_luma = max(get_luma(center_tex), 1e-4);
++
++    let r_inner = max(1, i32(round(3.5 * scale)));
++    let r_outer = max(2, i32(round(7.5 * scale)));
++    let r_diag  = max(1, i32(round(f32(r_outer) * 0.7071)));
++
++    let offsets = array<vec2<i32>, 12>(
++        vec2<i32>( r_inner,        0), vec2<i32>(-r_inner,        0),
++        vec2<i32>(       0,  r_inner), vec2<i32>(       0, -r_inner),
++        vec2<i32>( r_outer,        0), vec2<i32>(-r_outer,        0),
++        vec2<i32>(       0,  r_outer), vec2<i32>(       0, -r_outer),
++        vec2<i32>(  r_diag,   r_diag), vec2<i32>( -r_diag,   r_diag),
++        vec2<i32>(  r_diag,  -r_diag), vec2<i32>( -r_diag,  -r_diag)
++    );
++
++    let spatial_weights = array<f32, 12>(
++        0.85, 0.85, 0.85, 0.85,
++        0.50, 0.50, 0.50, 0.50,
++        0.50, 0.50, 0.50, 0.50
++    );
++
++    let range_tol = max(pixel_luma * 0.22, 0.03);
++    let inv_two_range_sq = 1.0 / (2.0 * range_tol * range_tol);
++
++    var sum_luma: f32 = pixel_luma;
++    var sum_w: f32 = 1.0;
++
++    for (var i = 0u; i < 12u; i = i + 1u) {
++        let coord = clamp(coords_i + offsets[i], vec2<i32>(0), max_idx);
++        var s_rgb = textureLoad(input_texture, coord, 0).rgb;
++        if (is_raw == 0u) {
++            s_rgb = srgb_to_linear(s_rgb);
++        }
++        let s_luma_raw = max(get_luma(s_rgb), 0.0);
++        let s_luma = pixel_luma * (s_luma_raw / center_tex_luma);
++
++        let diff = abs(s_luma - pixel_luma);
++        let w = exp(- (diff * diff) * inv_two_range_sq) * spatial_weights[i];
++
++        sum_luma += s_luma * w;
++        sum_w += w;
++    }
++
++    let luma_base = sum_luma / sum_w;
+     let detail_ratio = pixel_luma / max(luma_base, 1e-4);
+ 
+     let safe_detail = clamp(detail_ratio, 0.65, 1.55);
+@@ -528,14 +568,12 @@ fn apply_highlights_adjustment(
+         let compressed_delta = delta_base / (1.0 + compression_strength * (delta_base / (1.0 + delta_base * 0.35)));
+         let target_base = l_pivot + compressed_delta;
+ 
+-        let neg_soft_detail = local_log_detail / (1.0 + abs(local_log_detail) * 0.40);
+-        let restoration_gain = 1.0 + k * 0.4;
+-        let structure_gain = shape_detail_gf(local_log_detail) * k * 0.5;
+-        let recovered_detail = exp2(neg_soft_detail * restoration_gain + structure_gain);
++        let restoration_gain = 1.0 + k * 0.55;
++        let recovered_detail = exp2(soft_log_detail * restoration_gain);
+ 
+         let recovered_target = target_base * recovered_detail;
+ 
+-        let blend = smoothstep(l_pivot, l_pivot + 0.22, pixel_luma);
++        let blend = smoothstep(l_pivot, l_pivot + 0.35, pixel_luma);
+         target_luma = mix(pixel_luma, recovered_target, blend);
+ 
+     } else {
+@@ -547,7 +585,7 @@ fn apply_highlights_adjustment(
+         let detail_boost = exp2(soft_log_detail * (1.0 + highlights_adj * 0.20));
+         let boosted_target = target_base * detail_boost;
+ 
+-        let blend = smoothstep(l_pivot, l_pivot + 0.22, pixel_luma);
++        let blend = smoothstep(l_pivot, l_pivot + 0.35, pixel_luma);
+         target_luma = mix(pixel_luma, boosted_target, blend);
+     }
+ 
+@@ -806,61 +844,65 @@ fn apply_color_grading(color: vec3<f32>, shadows: ColorGradeSettings, midtones:
+     return graded_color;
+ }
+ 
+-fn sample_gf_tex(tex: texture_2d<f32>, abs_coord: vec2<u32>) -> vec4<f32> {
+-    let full = vec2<f32>(textureDimensions(input_texture));
+-    let low_i = vec2<i32>(textureDimensions(tex));
+-    let p = (vec2<f32>(abs_coord) + 0.5) / full * vec2<f32>(low_i) - 0.5;
+-    let fl = floor(p);
+-    let w = p - fl;
+-    let max_idx = low_i - vec2<i32>(1);
+-    let c0 = clamp(vec2<i32>(fl), vec2<i32>(0), max_idx);
+-    let c1 = clamp(vec2<i32>(fl) + vec2<i32>(1), vec2<i32>(0), max_idx);
+-    let v00 = textureLoad(tex, c0, 0);
+-    let v10 = textureLoad(tex, vec2<i32>(c1.x, c0.y), 0);
+-    let v01 = textureLoad(tex, vec2<i32>(c0.x, c1.y), 0);
+-    let v11 = textureLoad(tex, c1, 0);
+-    return mix(mix(v00, v10, w.x), mix(v01, v11, w.x), w.y);
+-}
+-
+-fn sample_gf_coeffs(abs_coord: vec2<u32>) -> vec4<f32> {
+-    return sample_gf_tex(gf_coeffs_texture, abs_coord);
+-}
+-
+-fn refined_dark_channel(abs_coord: vec2<u32>, is_raw: u32) -> f32 {
+-    var rgb = clamp(textureLoad(input_texture, abs_coord, 0).rgb, vec3<f32>(0.0), vec3<f32>(65504.0));
+-    if (is_raw == 0u) {
+-        rgb = srgb_to_linear(rgb);
++fn apply_local_contrast(
++    processed_color_linear: vec3<f32>,
++    blurred_color_input_space: vec3<f32>,
++    amount: f32,
++    is_raw: u32,
++    mode: u32,
++    threshold: f32
++) -> vec3<f32> {
++    if (amount == 0.0) {
++        return processed_color_linear;
+     }
+-    let dark_i = log2(max(min(rgb.r, min(rgb.g, rgb.b)), GF_LUMA_FLOOR));
+-    let ab = sample_gf_tex(gf_dehaze_texture, abs_coord).zw;
+-    return exp2(ab.x * dark_i + ab.y);
+-}
+ 
+-fn shape_detail(d: f32, sigma: f32) -> f32 {
+-    let x = d / sigma;
+-    return d / (1.0 + x * x);
+-}
+-
+-fn shape_detail_gf(d: f32) -> f32 {
+-    return shape_detail(d, select(GF_DETAIL_SIGMA, GF_BRIGHT_SIGMA, d > 0.0));
+-}
+-
+-fn centre_clarity_strength(centre_amount: f32, coords_i: vec2<i32>) -> f32 {
+-    if (centre_amount == 0.0) {
+-        return 0.0;
++    var blurred_color_linear: vec3<f32>;
++    if (is_raw == 1u) {
++        blurred_color_linear = blurred_color_input_space;
++    } else {
++        blurred_color_linear = srgb_to_linear(blurred_color_input_space);
+     }
+-    let full_dims_f = vec2<f32>(textureDimensions(input_texture));
+-    let coord_f = vec2<f32>(coords_i);
+-    let midpoint = 0.4;
+-    let feather = 0.375;
+-    let aspect = full_dims_f.y / full_dims_f.x;
+-    let uv_centered = (coord_f / full_dims_f - 0.5) * 2.0;
+-    let d = length(uv_centered * vec2<f32>(1.0, aspect)) * 0.5;
+-    let vignette_mask = smoothstep(midpoint - feather, midpoint + feather, d);
+-    let centre_mask = 1.0 - vignette_mask;
+ 
+-    const CLARITY_SCALE: f32 = 0.9;
+-    return centre_amount * (2.0 * centre_mask - 1.0) * CLARITY_SCALE;
++    if (amount < 0.0) {
++        var blur_amount = -amount;
++        if (mode == 0u) {
++            blur_amount = blur_amount * 0.5;
++        }
++        return mix(processed_color_linear, blurred_color_linear, blur_amount);
++    }
++
++    let center_luma = get_luma(processed_color_linear);
++
++    let shadow_threshold = select(0.03, 0.1, is_raw == 1u);
++    let shadow_protection = smoothstep(0.0, shadow_threshold, center_luma);
++    let highlight_protection = 1.0 - smoothstep(0.9, 1.0, center_luma);
++    let midtone_mask = shadow_protection * highlight_protection;
++
++    if (midtone_mask < 0.001) {
++        return processed_color_linear;
++    }
++
++    let blurred_luma = get_luma(blurred_color_linear);
++    let safe_center_luma = max(center_luma, 0.0001);
++    let safe_blurred_luma = max(blurred_luma, 0.0001);
++
++    let log_ratio = log2(safe_center_luma / safe_blurred_luma);
++    var effective_amount = amount;
++
++    if (mode == 0u) {
++        let edge_magnitude = abs(log_ratio);
++        let normalized_edge = clamp(edge_magnitude / 3.0, 0.0, 1.0);
++        let edge_dampener = 1.0 - pow(normalized_edge, 0.5);
++        let edge_mask = smoothstep(threshold * 0.5, threshold * 1.5, edge_magnitude);
++        effective_amount = amount * edge_dampener * edge_mask * 0.8;
++    } else {
++        effective_amount = amount;
++    }
++
++    let contrast_factor = exp2(log_ratio * effective_amount);
++    let final_color = processed_color_linear * contrast_factor;
++
++    return mix(processed_color_linear, final_color, midtone_mask);
+ }
+ 
+ fn sharpen_perc(c: vec3<f32>, is_raw: u32) -> f32 {
+@@ -932,9 +974,7 @@ fn apply_sharpen(
+     let g0 = smoothstep(t * 0.20, t * 0.85, abs(d0));
+     let g1 = smoothstep(t * 0.12, t * 0.55, abs(d1));
+ 
+-    let d0_s = shape_detail(d0, SHARPEN_EDGE_SIGMA);
+-    let d1_s = shape_detail(d1, SHARPEN_EDGE_SIGMA * 0.8);
+-    let boost = (d0_s * 1.25 * g0 + d1_s * 0.25 * g1) * amount;
++    let boost = (d0 * 1.25 * g0 + d1 * 0.25 * g1) * amount;
+ 
+     let dims = vec2<i32>(textureDimensions(input_texture));
+     let max_idx = dims - vec2<i32>(1);
+@@ -969,16 +1009,14 @@ fn apply_sharpen(
+         }
+     }
+ 
+-    let deconv_delta = shape_detail(acc - center_tap, SHARPEN_EDGE_SIGMA) * clamp(amount * 0.60, 0.0, 1.0);
+-    let range = max(hi - lo, 1e-5);
+-    let edge_ratio = smoothstep(0.06, 0.28, range);
+-    let dark_scale = mix(SHARPEN_DARK_SCALE, 0.1, edge_ratio);
+-    let sharpen_delta = boost + deconv_delta;
+-    var l_new = l + select(sharpen_delta, sharpen_delta * dark_scale, sharpen_delta < 0.0);
++    let deconv_delta = (acc - center_tap) * clamp(amount * 0.60, 0.0, 1.0);
+ 
++    var l_new = l + boost + deconv_delta;
++
++    let range = max(hi - lo, 1e-5);
+     l_new = sharpen_soft_limit(
+         l_new,
+-        lo - range * 0.01,
++        lo - range * 0.06,
+         hi + range * 0.10,
+         range * 0.12
+     );
+@@ -1012,7 +1050,7 @@ fn apply_sharpen(
+     let shadow_floor = select(0.03, 0.10, is_raw == 1u);
+     let prot = smoothstep(0.0, shadow_floor, l) * (1.0 - smoothstep(0.92, 1.0, l));
+     l_new = max(mix(l, l_new, prot), 0.0);
+-    l_new = max(l_new, l * 0.70);
++    l_new = max(l_new, l * 0.40);
+ 
+     let ratio = l_new / max(l, 1e-4);
+     if (is_raw == 1u) {
+@@ -1021,6 +1059,37 @@ fn apply_sharpen(
+     return srgb_to_linear(max(color_enc * ratio, vec3<f32>(0.0)));
+ }
+ 
++fn apply_centre_local_contrast(
++    color_in: vec3<f32>,
++    centre_amount: f32,
++    coords_i: vec2<i32>,
++    blurred_color_srgb: vec3<f32>,
++    is_raw: u32
++) -> vec3<f32> {
++    if (centre_amount == 0.0) {
++        return color_in;
++    }
++    let full_dims_f = vec2<f32>(textureDimensions(input_texture));
++    let coord_f = vec2<f32>(coords_i);
++    let midpoint = 0.4;
++    let feather = 0.375;
++    let aspect = full_dims_f.y / full_dims_f.x;
++    let uv_centered = (coord_f / full_dims_f - 0.5) * 2.0;
++    let d = length(uv_centered * vec2<f32>(1.0, aspect)) * 0.5;
++    let vignette_mask = smoothstep(midpoint - feather, midpoint + feather, d);
++    let centre_mask = 1.0 - vignette_mask;
++
++    const CLARITY_SCALE: f32 = 0.9;
++    var processed_color = color_in;
++    let clarity_strength = centre_amount * (2.0 * centre_mask - 1.0) * CLARITY_SCALE;
++
++    if (abs(clarity_strength) > 0.001) {
++        processed_color = apply_local_contrast(processed_color, blurred_color_srgb, clarity_strength, is_raw, 1u, 0.0);
++    }
++
++    return processed_color;
++}
++
+ fn apply_centre_tonal_and_color(
+     color_in: vec3<f32>,
+     centre_amount: f32,
+@@ -1058,21 +1127,29 @@ fn apply_centre_tonal_and_color(
+     return processed_color;
+ }
+ 
+-fn apply_dehaze(
+-    color: vec3<f32>,
+-    blurred_color_input_space: vec3<f32>,
+-    refined_dark: f32,
+-    is_raw: u32,
+-    amount: f32
+-) -> vec3<f32> {
++fn apply_dehaze(color: vec3<f32>, blurred_color_input_space: vec3<f32>, is_raw: u32, amount: f32) -> vec3<f32> {
+     if (amount == 0.0) { return color; }
+ 
++    var blurred_linear: vec3<f32>;
++    if (is_raw == 1u) {
++        blurred_linear = blurred_color_input_space;
++    } else {
++        blurred_linear = srgb_to_linear(blurred_color_input_space);
++    }
++
+     let atmospheric_light = vec3<f32>(0.95, 0.97, 1.0);
+ 
+     if (amount > 0.0) {
+-        let safe_dark = max(refined_dark - 0.02, 0.0);
++        let pixel_dark = min(color.r, min(color.g, color.b));
++        let regional_dark = min(blurred_linear.r, min(blurred_linear.g, blurred_linear.b));
++        let pixel_luma = get_luma(max(color, vec3<f32>(0.0)));
++        let blurred_luma = get_luma(max(blurred_linear, vec3<f32>(0.0)));
++        let edge_diff = abs(pow(pixel_luma, 0.5) - pow(blurred_luma, 0.5));
++        let halo_protection = smoothstep(0.02, 0.15, edge_diff);
++        let spatial_dark = mix(regional_dark, pixel_dark, halo_protection);
++        let safe_dark = max(spatial_dark - 0.02, 0.0);
+         let mapped_haze = safe_dark / (safe_dark + 0.2);
+-        let t = max(1.0 - amount * mapped_haze * DEHAZE_STRENGTH, 0.08);
++        let t = max(1.0 - amount * mapped_haze * 0.85, 0.15);
+         var recovered = (color - atmospheric_light) / t + atmospheric_light;
+         let rec_luma = get_luma(max(recovered, vec3<f32>(0.0)));
+         let shadow_lift = smoothstep(0.1, 0.0, rec_luma) * (1.0 - t) * 0.15;
+@@ -1083,10 +1160,6 @@ fn apply_dehaze(
+         recovered = mix(vec3<f32>(final_luma), recovered, 1.0 + sat_boost);
+         return max(recovered, vec3<f32>(0.0));
+     } else {
+-        var blurred_linear = blurred_color_input_space;
+-        if (is_raw == 0u) {
+-            blurred_linear = srgb_to_linear(blurred_color_input_space);
+-        }
+         let regional_dark = min(blurred_linear.r, min(blurred_linear.g, blurred_linear.b));
+         let safe_dark = max(regional_dark - 0.02, 0.0);
+         let mapped_depth = safe_dark / (safe_dark + 0.2);
+@@ -1120,6 +1193,7 @@ fn apply_noise_reduction(
+     var new_luma   = center_luma;
+     var new_chroma = center_chroma;
+ 
++    // --- LUMA NOISE REDUCTION ---
+     if (luma_a > 0.001) {
+         let l_curve = sqrt(luma_a);
+ 
+@@ -1541,7 +1615,7 @@ fn apply_glow_bloom(
+ 
+     blurred_linear = apply_linear_exposure(blurred_linear, exp);
+     blurred_linear = apply_filmic_exposure(blurred_linear, bright);
+-    blurred_linear = apply_tonal_adjustments(blurred_linear, 0.0, is_raw, 0.0, 0.0, wh, 0.0);
++    blurred_linear = apply_tonal_adjustments(blurred_linear, blurred_color_input_space, is_raw, 0.0, 0.0, wh, 0.0);
+ 
+     let linear_luma = get_luma(max(blurred_linear, vec3<f32>(0.0)));
+ 
+@@ -1609,7 +1683,7 @@ fn apply_halation(
+ 
+     blurred_linear = apply_linear_exposure(blurred_linear, exp);
+     blurred_linear = apply_filmic_exposure(blurred_linear, bright);
+-    blurred_linear = apply_tonal_adjustments(blurred_linear, 0.0, is_raw, 0.0, 0.0, wh, 0.0);
++    blurred_linear = apply_tonal_adjustments(blurred_linear, blurred_color_input_space, is_raw, 0.0, 0.0, wh, 0.0);
+ 
+     let linear_luma = get_luma(max(blurred_linear, vec3<f32>(0.0)));
+ 
+@@ -1771,33 +1845,9 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+         absolute_coord_i, t_sharpness, t_sharp_thresh, is_raw
+     );
+ 
+-    let gf = sample_gf_coeffs(absolute_coord);
+-    let gf_luma = max(get_luma(max(locally_contrasted_rgb, vec3<f32>(0.0))), GF_LUMA_FLOOR);
+-    let gf_i = log2(gf_luma);
+-    let detail_clarity = gf_i - (gf.x * gf_i + gf.y);
+-    var detail_structure = 0.0;
+-    if (t_structure != 0.0) {
+-        let gf_s = sample_gf_tex(gf_dehaze_texture, absolute_coord).xy;
+-        detail_structure = gf_i - (gf_s.x * gf_i + gf_s.y);
+-    }
+-
+-    var lc_gate = smoothstep(GF_NOISE_LO, GF_NOISE_HI, gf_luma);
+-    if (is_raw == 0u) {
+-        lc_gate *= 1.0 - smoothstep(0.9, 1.0, gf_luma);
+-    }
+-
+-    let clarity_total = t_clarity + centre_clarity_strength(adjustments.global.centre, absolute_coord_i);
+-    let structure_smooth = clamp(-t_structure, 0.0, 1.0);
+-    let clarity_overlap = select(1.0, 1.0 - structure_smooth, clarity_total < 0.0);
+-    let clarity_term = shape_detail_gf(detail_clarity)
+-                       * clarity_total * clarity_overlap
+-                       * select(GF_NEG_GAIN, GF_CLARITY_GAIN, clarity_total > 0.0);
+-    let structure_term = shape_detail_gf(detail_structure)
+-                       * t_structure * select(GF_NEG_GAIN, GF_STRUCTURE_GAIN, t_structure > 0.0);
+-
+-    let lc_log_gain = clarity_term * select(lc_gate, 1.0, clarity_total < 0.0)
+-                    + structure_term * select(lc_gate, 1.0, t_structure < 0.0);
+-    locally_contrasted_rgb *= exp2(lc_log_gain);
++    locally_contrasted_rgb = apply_local_contrast(locally_contrasted_rgb, clarity_blurred, t_clarity, is_raw, 1u, 0.0);
++    locally_contrasted_rgb = apply_local_contrast(locally_contrasted_rgb, structure_blurred, t_structure, is_raw, 1u, 0.0);
++    locally_contrasted_rgb = apply_centre_local_contrast(locally_contrasted_rgb, adjustments.global.centre, absolute_coord_i, clarity_blurred, is_raw);
+ 
+     var processed_rgb = apply_linear_exposure(locally_contrasted_rgb, t_exposure);
+ 
+@@ -1829,19 +1879,11 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+         processed_rgb += flare_color * t_flare * protection;
+     }
+ 
+-    var dehaze_dark = 0.0;
+-    if (t_dehaze > 0.0) {
+-        dehaze_dark = refined_dark_channel(absolute_coord, is_raw);
+-    }
+-    var composite_rgb_linear = apply_dehaze(processed_rgb, structure_blurred, dehaze_dark, is_raw, t_dehaze);
++    var composite_rgb_linear = apply_dehaze(processed_rgb, structure_blurred, is_raw, t_dehaze);
+     composite_rgb_linear = apply_white_balance(composite_rgb_linear, t_wb_log_gains);
+     composite_rgb_linear = apply_centre_tonal_and_color(composite_rgb_linear, adjustments.global.centre, absolute_coord_i);
+-    var tonal_log_detail = 0.0;
+-    if (t_shadows != 0.0 || t_blacks != 0.0 || t_highlights != 0.0) {
+-        tonal_log_detail = (gf_i - (gf.z * gf_i + gf.w)) + lc_log_gain;
+-    }
+-    composite_rgb_linear = apply_tonal_adjustments(composite_rgb_linear, tonal_log_detail, is_raw, t_contrast, t_shadows, t_whites, t_blacks);
+-    composite_rgb_linear = apply_highlights_adjustment(composite_rgb_linear, tonal_log_detail, is_raw, t_highlights);
++    composite_rgb_linear = apply_tonal_adjustments(composite_rgb_linear, tonal_blurred, is_raw, t_contrast, t_shadows, t_whites, t_blacks);
++    composite_rgb_linear = apply_highlights_adjustment(composite_rgb_linear, absolute_coord_i, scale, is_raw, t_highlights);
+     composite_rgb_linear = apply_color_calibration(composite_rgb_linear, adjustments.global.color_calibration);
+     composite_rgb_linear = apply_hsl_panel(composite_rgb_linear, final_hsl, absolute_coord_i);
+     composite_rgb_linear = apply_hue_shift(composite_rgb_linear, t_hue);

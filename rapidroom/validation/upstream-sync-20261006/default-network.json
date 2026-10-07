@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "engine_sha256": "ee45e2bf795d17191c1bd069bcac5326c4854eec0fa11b528016bc1b7cfab8aa",
+  "harness_exit": 0,
+  "elapsed_s": 131.15466807800112,
+  "socket_samples": 400,
+  "observed_hosts": ["api.github.com"],
+  "forbidden_default_hosts": [],
+  "sampled_tcp_bypasses": [],
+  "persisted_provider": null,
+  "effective_provider": "cpu",
+  "method": "Fresh owned native minimum-smoke launch with both-case HTTP(S)/ALL_PROXY CONNECT tunnel logging; TCP sockets sampled every0.3s for the harness descendants. CONNECT payloads are forwarded encrypted and never logged. No live MCP/model clients in this run. Normal updater is retained. This records observed startup/edit/export traffic, not an all-packet trace."
+}

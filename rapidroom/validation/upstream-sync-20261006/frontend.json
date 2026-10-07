@@ -1,0 +1,39 @@
+{
+  "head": "4bea590bbd66b074877cad96626b427783c6d9a0",
+  "complete": true,
+  "dependencies": "Both parent archives use the reconciled dependencies. Exact path/code or rule/message/source-line/multiplicity comparison; max parent count, not summed.",
+  "typecheck": {
+    "counts": {
+      "main-source": 47,
+      "upstream-source": 70,
+      "final": 46
+    },
+    "new_diagnostics": 0
+  },
+  "lint": {
+    "counts": {
+      "main-source": 929,
+      "upstream-source": 938,
+      "final": 923
+    },
+    "new_diagnostics": 0
+  },
+  "i18n_runtime": {
+    "counts": {
+      "main-source": 88,
+      "upstream-source": 212,
+      "final": 212
+    },
+    "new_integration_failures": 0,
+    "exactly_matches_pinned_upstream": true,
+    "passes": false
+  },
+  "vitest": {
+    "passed": 184,
+    "failed": 0,
+    "workers": 4,
+    "json_report": "vitest-navigation-final.json"
+  },
+  "prettier": "Original scoped checks plus corrected navigation files pass",
+  "schema_status": "pass"
+}
