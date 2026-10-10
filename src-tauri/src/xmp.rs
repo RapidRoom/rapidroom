@@ -329,12 +329,10 @@ pub(crate) fn validate(content: &str) -> Result<(), Error> {
 
 pub(crate) fn element_text(content: &str, uri: &str, local: &str) -> Result<Option<String>, Error> {
     let doc = Document::parse(content)?;
-    let Some(index) = doc
-        .nodes
-        .iter()
-        .enumerate()
-        .find_map(|(i, node)| doc.matches(i, &node.name, uri, local).then_some(i))
-    else {
+    let Some(index) = doc.nodes.iter().enumerate().find_map(|(i, node)| {
+        let (prefix, actual) = node.name.split_once(':').unwrap_or(("", &node.name));
+        (actual == local && doc.namespace(i, prefix) == Some(uri)).then_some(i)
+    }) else {
         return Ok(None);
     };
     if let Some(text) = doc.text(index) {

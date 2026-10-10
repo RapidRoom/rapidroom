@@ -18,14 +18,42 @@ const isPoint = (v: unknown): v is Point =>
   Number.isFinite(v.y);
 const object = (v: unknown): Record<string, unknown> | null =>
   v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
-const curveY = (points: Point[], x: number): number => {
+// Match the bounded monotone Hermite evaluator used by the native renderer.
+export const presetCurveY = (points: Point[], x: number): number => {
+  if (points.length < 2) return x;
   if (x <= points[0].x) return points[0].y;
-  for (let i = 1; i < points.length; i++) {
-    if (x <= points[i].x) {
-      const left = points[i - 1],
-        right = points[i];
-      return right.x === left.x ? right.y : left.y + ((right.y - left.y) * (x - left.x)) / (right.x - left.x);
+  if (x >= points[points.length - 1].x) return points[points.length - 1].y;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i],
+      p2 = points[i + 1];
+    if (x > p2.x) continue;
+    const p0 = points[Math.max(1, i) - 1],
+      p3 = points[Math.min(i + 2, points.length - 1)];
+    const before = (p1.y - p0.y) / Math.max(0.001, p1.x - p0.x);
+    const current = (p2.y - p1.y) / Math.max(0.001, p2.x - p1.x);
+    const after = (p3.y - p2.y) / Math.max(0.001, p3.x - p2.x);
+    let m1 = i === 0 ? current : before * current <= 0 ? 0 : (before + current) / 2;
+    let m2 = i + 1 === points.length - 1 ? current : current * after <= 0 ? 0 : (current + after) / 2;
+    if (current !== 0) {
+      const magnitude = (m1 / current) ** 2 + (m2 / current) ** 2;
+      if (magnitude > 9) {
+        const scale = 3 / Math.sqrt(magnitude);
+        m1 *= scale;
+        m2 *= scale;
+      }
     }
+    const dx = p2.x - p1.x;
+    if (dx <= 0) return p1.y;
+    const t = (x - p1.x) / dx,
+      t2 = t * t,
+      t3 = t2 * t;
+    return Math.max(
+      0,
+      Math.min(
+        255,
+        (2 * t3 - 3 * t2 + 1) * p1.y + (t3 - 2 * t2 + t) * m1 * dx + (-2 * t3 + 3 * t2) * p2.y + (t3 - t2) * m2 * dx,
+      ),
+    );
   }
   return points[points.length - 1].y;
 };
@@ -47,10 +75,19 @@ export function mixAdjustments(
     }
     if (Array.isArray(target)) {
       if (target.length && target.every(isPoint) && Array.isArray(source) && source.length && source.every(isPoint)) {
-        const xs = [...new Set([...target, ...source].map((p) => p.x))].sort((a, b) => a - b);
+        if (fraction === 1) return target;
+        const knots = [...new Set([...target, ...source].map((p) => p.x))].sort((a, b) => a - b);
+        // Keep both endpoints and at most sixteen knots, matching the GPU representation.
+        const xs =
+          knots.length <= 16
+            ? knots
+            : Array.from({ length: 16 }, (_, i) => knots[Math.round((i * (knots.length - 1)) / 15)]);
         return xs.map((x) => ({
           x,
-          y: Math.max(0, Math.min(255, curveY(source, x) + (curveY(target, x) - curveY(source, x)) * fraction)),
+          y: Math.max(
+            0,
+            Math.min(255, presetCurveY(source, x) + (presetCurveY(target, x) - presetCurveY(source, x)) * fraction),
+          ),
         }));
       }
       return target;

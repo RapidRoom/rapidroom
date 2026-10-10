@@ -3943,6 +3943,9 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
     };
 
     let mut converted_preset = preset_converter::convert_xmp_to_preset(&xmp_content)?;
+    if let Some(reason) = crate::preset_xmp::unavailable_reason(&xmp_content)? {
+        converted_preset.unavailable_reason = Some(reason);
+    }
     let exact = crate::preset_xmp::exact_adjustments(&xmp_content)?;
     let is_exact = exact.is_some();
     if let Some(exact) = exact {
@@ -7121,7 +7124,7 @@ mod xmp_preset_browser_tests {
     }
 
     #[test]
-    fn own_xmp_export_reimports_exact_sparse_adjustments() {
+    fn own_xmp_export_reimports_exact_sparse_adjustments_and_applicability() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("preset.xmp");
         let mut preset = preset_converter::convert_xmp_to_preset(
@@ -7130,13 +7133,42 @@ mod xmp_preset_browser_tests {
         .unwrap();
         preset.adjustments =
             serde_json::json!({"exposure":1.25,"brightness":8,"hsl":{"reds":{"hue":17}}});
-        let (xml, _) = crate::preset_xmp::serialize(&preset).unwrap();
+        preset.camera_model_restriction = Some("Sony & Fujifilm".into());
+        preset.unavailable_reason = Some("Requires camera profile: Adobe Standard".into());
+        let (xml, missing) = crate::preset_xmp::serialize(&preset).unwrap();
+        assert!(missing.contains(&"brightness".to_string()));
+        assert!(xml.contains("crs:CameraModelRestriction=\"Sony &amp; Fujifilm\""));
+        assert!(xml.contains("crs:CameraProfile=\"Adobe Standard\""));
         fs::write(&path, xml).unwrap();
         let (items, warnings) = parse_preset_file(path.to_str().unwrap()).unwrap();
         let PresetItem::Folder(group) = &items[0] else {
             panic!("missing group")
         };
         assert_eq!(group.children[0].adjustments, preset.adjustments);
+        assert_eq!(
+            group.children[0].camera_model_restriction,
+            preset.camera_model_restriction
+        );
+        assert_eq!(
+            group.children[0].unavailable_reason,
+            preset.unavailable_reason
+        );
         assert!(warnings.is_empty());
+        preset.unavailable_reason = Some("Settings not supported: proprietary look".into());
+        let (xml, missing) = crate::preset_xmp::serialize(&preset).unwrap();
+        assert!(missing.contains(&"unavailableReason".to_string()));
+        fs::write(&path, xml).unwrap();
+        let (items, _) = parse_preset_file(path.to_str().unwrap()).unwrap();
+        let PresetItem::Folder(group) = &items[0] else {
+            panic!("missing group")
+        };
+        assert_eq!(
+            group.children[0].unavailable_reason,
+            preset.unavailable_reason
+        );
+        assert_eq!(
+            group.children[0].camera_model_restriction,
+            preset.camera_model_restriction
+        );
     }
 }
