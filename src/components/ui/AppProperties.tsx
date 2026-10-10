@@ -128,6 +128,7 @@ export enum Invokes {
   MergeHdr = 'merge_hdr',
   TestAIConnectorConnection = 'test_ai_connector_connection',
   SampleDisplayArea = 'sample_display_area',
+  SamplePointColorInput = 'sample_point_color_input',
   UndoLastRename = 'undo_last_rename',
   UpdateWgpuTransform = 'update_wgpu_transform',
   UpdateExifFields = 'update_exif_fields',

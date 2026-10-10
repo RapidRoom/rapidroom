@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "point-color",
+      "title": "Pick and shift nearby colors with Point Color",
+      "category": "feature",
+      "landed": "2026-10-09",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex; range-selection ideas from pdcgomes/redlamp design; standard OKLab matrices by Bjorn Ottosson)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Color Mixer gains Point Color with up to eight swatches globally and per mask. A separate native GPU render samples the actual pre-Point Color input, leaving display buffers and edit history intact. OKLCh hue, chroma and lightness ranges have smooth edges; signed shifts share a displacement budget so overlapping selections keep colors ordered. Zero shifts bypass conversion exactly, and near-greys retain their color. Presets, Copy Settings, sidecars and the MCP schema retain swatches. Default adjustment values and existing algorithms are unchanged; validation and human visual acceptance pending."
+    },
+    {
       "id": "mcp-compact-replies",
       "title": "Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons",
       "category": "performance",

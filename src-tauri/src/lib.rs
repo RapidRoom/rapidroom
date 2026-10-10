@@ -69,6 +69,7 @@ mod output_sharpening;
 mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
+mod point_color;
 mod preset_converter;
 mod raw_processing;
 mod tagging;
@@ -453,6 +454,83 @@ async fn sample_display_area(
     })
     .await
     .map_err(|e| format!("Task panicked: {}", e))?
+}
+
+#[tauri::command]
+async fn sample_point_color_input(
+    path: String,
+    mut adjustments: serde_json::Value,
+    x: f32,
+    y: f32,
+    radius: f32,
+    app_handle: tauri::AppHandle,
+) -> Result<point_color::Sample, String> {
+    if ![x, y, radius].iter().all(|value| value.is_finite())
+        || !(0.0..=1.0).contains(&x)
+        || !(0.0..=1.0).contains(&y)
+        || !(0.0..=0.1).contains(&radius)
+    {
+        return Err("Invalid Point Color sample coordinates".into());
+    }
+    tokio::task::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let loaded = state
+            .original_image
+            .lock()
+            .map_err(|_| "Image state unavailable")?
+            .as_ref()
+            .filter(|image| image.path == path)
+            .cloned()
+            .ok_or("Active image changed")?;
+        hydrate_adjustments(&state, &mut adjustments);
+        let context = get_or_init_gpu_context(&state, &app_handle)?;
+        let (base, scale, offset) =
+            generate_transformed_preview(&state, &loaded, &adjustments, 1024)?;
+        let definitions = mask_generation::parse_mask_definitions(&adjustments);
+        let bitmaps: Vec<ImageBuffer<Luma<u8>, Vec<u8>>> = definitions
+            .iter()
+            .filter_map(|definition| {
+                get_cached_or_generate_mask(
+                    &state,
+                    &loaded.path,
+                    definition,
+                    base.width(),
+                    base.height(),
+                    scale,
+                    (offset.0 * scale, offset.1 * scale),
+                    &adjustments,
+                )
+            })
+            .collect();
+        let parsed = get_all_adjustments_from_json(
+            &adjustments,
+            loaded.is_raw,
+            resolve_tonemapper_override_from_handle(&app_handle, loaded.is_raw),
+        );
+        let output = crate::gpu_processing::render_point_color_input(
+            &context,
+            &state,
+            &base,
+            RenderRequest {
+                adjustments: parsed,
+                mask_bitmaps: &bitmaps,
+                lut: None,
+                roi: None,
+            },
+        )?;
+        if !state
+            .original_image
+            .lock()
+            .map_err(|_| "Image state unavailable")?
+            .as_ref()
+            .is_some_and(|image| image.path == path)
+        {
+            return Err("Active image changed".into());
+        }
+        point_color::average_sample(&output, x, y, radius)
+    })
+    .await
+    .map_err(|error| format!("Point Color sampling task failed: {error}"))?
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2492,6 +2570,7 @@ pub fn run() {
             cancel_thumbnail_generation,
             update_wgpu_transform,
             sample_display_area,
+            sample_point_color_input,
             android_integration::resolve_android_content_uri_name,
             cache_utils::clear_session_caches,
             cache_utils::clear_image_caches,

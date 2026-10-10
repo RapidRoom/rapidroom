@@ -289,3 +289,8 @@ harness corrections. Startup now permits one script-timeout retry only for
 its first side-effect-free readiness probe, before Continue Session. The
 successful final run needed no retry; GUI actions and MCP calls are never
 silently retried.
+
+Point Color: pass `--point-color` to pick a swatch on the real canvas, verify
+zero-shift pixels are identical, edit its range and Hue Shift, and verify one
+Undo restores the shift and exact preview. The usual edit/export/exit checks
+follow. Uses an owned sample copy and native GPU processing.

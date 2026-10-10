@@ -1864,6 +1864,27 @@ pub fn read_display_area(
     )
 }
 
+pub fn render_point_color_input(
+    context: &GpuContext,
+    state: &tauri::State<AppState>,
+    base_image: &DynamicImage,
+    mut request: RenderRequest,
+) -> Result<DynamicImage, String> {
+    request.adjustments.global.point_color_input = 1;
+    process_and_get_dynamic_image_inner(
+        context,
+        state,
+        base_image,
+        0,
+        request,
+        "point_color_input",
+        RenderOutputPrecision::SixteenBit,
+        false,
+        None,
+        true,
+    )
+}
+
 pub fn process_and_get_dynamic_image(
     context: &GpuContext,
     state: &tauri::State<AppState>,
@@ -1882,6 +1903,7 @@ pub fn process_and_get_dynamic_image(
         RenderOutputPrecision::EightBit,
         false,
         None,
+        false,
     )
 }
 
@@ -1904,6 +1926,7 @@ pub fn process_and_get_dynamic_image_with_precision(
         output_precision,
         false,
         None,
+        false,
     )
 }
 
@@ -1928,6 +1951,7 @@ pub fn process_and_get_dynamic_image_with_analytics(
         RenderOutputPrecision::EightBit,
         output_to_display,
         analytics_config,
+        false,
     )
 }
 
@@ -1985,6 +2009,7 @@ fn process_and_get_dynamic_image_inner(
     output_precision: RenderOutputPrecision,
     output_to_display: bool,
     analytics_config: Option<crate::AnalyticsConfig>,
+    isolated: bool,
 ) -> Result<DynamicImage, String> {
     let start_time = Instant::now();
     let (width, height) = base_image.dimensions();
@@ -2002,8 +2027,20 @@ fn process_and_get_dynamic_image_inner(
         return Ok(base_image.clone());
     }
 
+    let isolated_processor = std::sync::Mutex::new(None);
+    let isolated_cache = std::sync::Mutex::new(None);
+    let processor_mutex = if isolated {
+        &isolated_processor
+    } else {
+        &state.gpu_processor
+    };
+    let cache_mutex = if isolated {
+        &isolated_cache
+    } else {
+        &state.gpu_image_cache
+    };
     let lock_span = crate::perf_trace::span("gpu.wait_processor_lock");
-    let mut processor_lock = match state.gpu_processor.lock() {
+    let mut processor_lock = match processor_mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
             log::warn!("GPU processor lock was poisoned. Resetting to self-heal.");
@@ -2053,7 +2090,7 @@ fn process_and_get_dynamic_image_inner(
     let processor_state = processor_lock.as_ref().unwrap();
     let processor = &processor_state.processor;
 
-    let mut cache_lock = match state.gpu_image_cache.lock() {
+    let mut cache_lock = match cache_mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
             log::warn!("GPU image cache lock was poisoned. Resetting to self-heal.");
@@ -2570,3 +2607,7 @@ mod tests {
         assert_eq!(needs(&a), NONE);
     }
 }
+
+#[cfg(test)]
+#[path = "point_color_shader_tests.rs"]
+mod point_color_shader_tests;

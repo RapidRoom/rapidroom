@@ -1,3 +1,4 @@
+import PointColorPanel from './PointColor';
 import { useEffect, useState, useMemo, CSSProperties, ReactNode } from 'react';
 import { Pipette, Sliders } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -478,6 +479,7 @@ export default function ColorPanel({
 
   const isMixerExpanded = useUIStore((state) => state.isColorMixerExpanded);
   const setUI = useUIStore((state) => state.setUI);
+  const [mixerMode, setMixerMode] = useState<'hsl' | 'pointColor'>('hsl');
   const [mixerTab, setMixerTab] = useState<HslMixerProperty>('hue');
   const mixerPickerProperty = useEditorStore((state) => (isForMask ? null : state.mixerPickerProperty));
   const isMixerPickerDragging = useEditorStore((state) => mixerPickerProperty !== null && state.isSliderDragging);
@@ -652,7 +654,7 @@ export default function ColorPanel({
         <AdjustmentSubSection
           actions={
             <div className="flex items-center gap-1">
-              {isMixerExpanded && !isForMask && (
+              {isMixerExpanded && !isForMask && mixerMode === 'hsl' && (
                 <ToggleIconButton
                   isActive={mixerPickerProperty !== null}
                   onClick={toggleMixerPicker}
@@ -676,43 +678,70 @@ export default function ColorPanel({
           order={toolOrder.indexOf('colorMixer')}
           title={t('adjustments.color.colorMixer')}
         >
-          <div style={mixerTrackStyle}>
-            {isMixerExpanded ? (
-              <>
-                <div className="flex items-center gap-1 p-1 mb-3 rounded-lg bg-surface-secondary">
-                  {mixerTabs.map(({ id, label }) => (
-                    <button
-                      key={id}
-                      className={`flex-1 h-7 rounded-md text-xs transition-all ${
-                        mixerTab === id ? 'bg-surface text-text-primary' : 'text-text-secondary hover:text-text-primary'
-                      }`}
-                      onClick={() => selectMixerTab(id)}
-                      type="button"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {HSL_COLORS.map(({ name, label }) => renderMixerSlider(name, mixerTab, label))}
-              </>
-            ) : (
-              <>
-                <div className="flex justify-between mb-4 px-1">
-                  {HSL_COLORS.map(({ name, color, label }) => (
-                    <ColorSwatch
-                      color={color}
-                      isActive={activeColor === name}
-                      key={name}
-                      name={name}
-                      onClick={setActiveColor}
-                      ariaLabel={t('adjustments.color.ariaSelectColor', { name: label })}
-                    />
-                  ))}
-                </div>
-                {mixerTabs.map(({ id, label }) => renderMixerSlider(activeColor, id, label))}
-              </>
-            )}
+          <div className="flex gap-1 mb-3 p-1 rounded-lg bg-surface-secondary">
+            {(['hsl', 'pointColor'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={mixerMode === mode}
+                className={`flex-1 h-7 rounded-md text-xs ${mixerMode === mode ? 'bg-surface text-text-primary' : 'text-text-secondary'}`}
+                onClick={() => {
+                  setMixerMode(mode);
+                  setEditor({ isPointColorPickerActive: false, mixerPickerProperty: null });
+                }}
+              >
+                {t(mode === 'hsl' ? 'pointColor.hsl' : 'pointColor.title')}
+              </button>
+            ))}
           </div>
+          {mixerMode === 'pointColor' ? (
+            <PointColorPanel
+              points={adjustments.pointColor ?? []}
+              isForMask={isForMask}
+              onChange={(pointColor) => setAdjustments({ pointColor })}
+              onDragStateChange={onDragStateChange}
+            />
+          ) : (
+            <div style={mixerTrackStyle}>
+              {isMixerExpanded ? (
+                <>
+                  <div className="flex items-center gap-1 p-1 mb-3 rounded-lg bg-surface-secondary">
+                    {mixerTabs.map(({ id, label }) => (
+                      <button
+                        key={id}
+                        className={`flex-1 h-7 rounded-md text-xs transition-all ${
+                          mixerTab === id
+                            ? 'bg-surface text-text-primary'
+                            : 'text-text-secondary hover:text-text-primary'
+                        }`}
+                        onClick={() => selectMixerTab(id)}
+                        type="button"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {HSL_COLORS.map(({ name, label }) => renderMixerSlider(name, mixerTab, label))}
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between mb-4 px-1">
+                    {HSL_COLORS.map(({ name, color, label }) => (
+                      <ColorSwatch
+                        color={color}
+                        isActive={activeColor === name}
+                        key={name}
+                        name={name}
+                        onClick={setActiveColor}
+                        ariaLabel={t('adjustments.color.ariaSelectColor', { name: label })}
+                      />
+                    ))}
+                  </div>
+                  {mixerTabs.map(({ id, label }) => renderMixerSlider(activeColor, id, label))}
+                </>
+              )}
+            </div>
+          )}
         </AdjustmentSubSection>
       )}
 
