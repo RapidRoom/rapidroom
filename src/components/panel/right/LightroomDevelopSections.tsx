@@ -35,12 +35,13 @@ function tools(settings: AppSettings | null, allowed: string[]): AppSettings | n
 
 export default function LightroomDevelopSections() {
   const { t } = useTranslation();
-  const { adjustments, histogram, setEditor, isWbPickerActive } = useEditorStore(
+  const { adjustments, histogram, setEditor, isWbPickerActive, selectedImage } = useEditorStore(
     useShallow((s) => ({
       adjustments: s.adjustments,
       histogram: s.histogram,
       setEditor: s.setEditor,
       isWbPickerActive: s.isWbPickerActive,
+      selectedImage: s.selectedImage,
     })),
   );
   const { appSettings, theme } = useSettingsStore(useShallow((s) => ({ appSettings: s.appSettings, theme: s.theme })));
@@ -55,6 +56,12 @@ export default function LightroomDevelopSections() {
   const { setAdjustments, handleLutSelect, setLutPreviewOverride } = useEditorActions();
   const onDragStateChange = (dragging: boolean) => setEditor({ isSliderDragging: dragging });
   const toggleWbPicker = () => setEditor((s) => ({ isWbPickerActive: !s.isWbPickerActive, mixerPickerProperty: null }));
+  const configuredToneMapper = appSettings?.tonemapperOverrideEnabled
+    ? selectedImage?.isRaw
+      ? (appSettings.defaultRawTonemapper ?? 'agx')
+      : (appSettings.defaultNonRawTonemapper ?? 'basic')
+    : adjustments.toneMapper;
+  const effectiveToneMapper = configuredToneMapper === 'agx' ? 'agx' : 'basic';
   const shared = { adjustments, setAdjustments, onDragStateChange };
   const colorSaturation = useRef(adjustments.saturation === -100 ? 0 : adjustments.saturation);
   if (adjustments.saturation !== -100) colorSaturation.current = adjustments.saturation;
@@ -138,7 +145,7 @@ export default function LightroomDevelopSections() {
                 aria-label={t('lightroomWorkspace.profileLabel')}
                 className="w-full rounded bg-surface p-1"
                 disabled={appSettings?.tonemapperOverrideEnabled}
-                value={adjustments.toneMapper}
+                value={effectiveToneMapper}
                 onChange={(event) =>
                   setAdjustments((previous) => ({ ...previous, toneMapper: event.target.value as 'basic' | 'agx' }))
                 }
