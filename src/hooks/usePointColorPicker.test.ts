@@ -191,13 +191,11 @@ it('permits a new request after cancellation and ignores old success/finally', a
 });
 it('keeps mask picking active in another visible dock and cancels when it hides', async () => {
   await act(async () => {
-    useUIStore
-      .getState()
-      .setUI({
-        activePanel: Panel.Adjustments,
-        activePanels: { ...useUIStore.getState().activePanels, leftTop: Panel.Masks, rightTop: Panel.Adjustments },
-        uiVisibility: { ...useUIStore.getState().uiVisibility, leftPanel: true, rightPanel: true },
-      });
+    useUIStore.getState().setUI({
+      activePanel: Panel.Adjustments,
+      activePanels: { ...useUIStore.getState().activePanels, leftTop: Panel.Masks, rightTop: Panel.Adjustments },
+      uiVisibility: { ...useUIStore.getState().uiVisibility, leftPanel: true, rightPanel: true },
+    });
     useEditorStore.getState().setEditor({ activeMaskContainerId: 'mask', pointColorPickerMaskId: 'mask' });
   });
   expect(useEditorStore.getState().isPointColorPickerActive).toBe(true);
