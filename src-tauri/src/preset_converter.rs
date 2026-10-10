@@ -177,7 +177,6 @@ fn import_xmp_crop(
     };
 
     let orientation = xmp_orientation(xmp_content);
-    let (left, top, right, bottom) = orient_crop_bounds(left, top, right, bottom, orientation);
     let (oriented_width, oriented_height) = if (5..=8).contains(&orientation) {
         (image_height, image_width)
     } else {
@@ -188,24 +187,23 @@ fn import_xmp_crop(
         .filter(|angle| angle.is_finite())
         .unwrap_or(0.0);
     let (x, y, width, height) = if crop_angle.abs() > f64::EPSILON {
-        // With a non-zero CropAngle, Lightroom stores CropLeft/CropTop and
-        // CropRight/CropBottom as the opposing crop corners in the unrotated
-        // image. RapidRAW applies its fine rotation before its axis-aligned
-        // crop, so rotate both corners into that post-rotation coordinate
-        // system. Treating the values as an ordinary bounding box changes the
-        // crop aspect ratio (for _DSC1822, 5655x3585 instead of 5836x3284).
+        // Keep the original opposing corners through EXIF orientation and
+        // fine rotation. Rebuilding their bounding box before rotating loses
+        // the corner pairing for rotated or reflected images.
+        let (first_x, first_y) = orient_normalized_point(left, top, orientation);
+        let (second_x, second_y) = orient_normalized_point(right, bottom, orientation);
         let center_x = oriented_width / 2.0;
         let center_y = oriented_height / 2.0;
         let first = rotate_point_clockwise(
-            left * oriented_width,
-            top * oriented_height,
+            first_x * oriented_width,
+            first_y * oriented_height,
             center_x,
             center_y,
             -crop_angle,
         );
         let second = rotate_point_clockwise(
-            right * oriented_width,
-            bottom * oriented_height,
+            second_x * oriented_width,
+            second_y * oriented_height,
             center_x,
             center_y,
             -crop_angle,
@@ -216,6 +214,7 @@ fn import_xmp_crop(
         let height = (first.1 - second.1).abs().round().min(oriented_height - y);
         (x, y, width, height)
     } else {
+        let (left, top, right, bottom) = orient_crop_bounds(left, top, right, bottom, orientation);
         let x = (left * oriented_width).ceil();
         let y = (top * oriented_height).ceil();
         let width = ((right - left) * oriented_width)
@@ -2488,6 +2487,116 @@ mod tests {
         );
         assert_eq!(preset.adjustments["aspectRatio"], json!(5836.0 / 3284.0));
         assert_eq!(preset.adjustments["rotation"], json!(-3.01));
+    }
+
+    #[test]
+    fn preserves_rotated_crop_corner_pairing_for_all_exif_orientations() {
+        // Independent pixel-coordinate expectations for an off-centre crop.
+        let cases = [
+            (
+                3.0,
+                [
+                    [688, 869, 4263, 2530],
+                    [1206, 634, 3975, 2962],
+                    [1049, 600, 4263, 2530],
+                    [819, 404, 3975, 2962],
+                    [634, 819, 2962, 3975],
+                    [600, 688, 2530, 4263],
+                    [404, 1206, 2962, 3975],
+                    [869, 1049, 2530, 4263],
+                ],
+            ),
+            (
+                -3.0,
+                [
+                    [819, 634, 3975, 2962],
+                    [1049, 869, 4263, 2530],
+                    [1206, 404, 3975, 2962],
+                    [688, 600, 4263, 2530],
+                    [869, 688, 2530, 4263],
+                    [404, 819, 2962, 3975],
+                    [600, 1049, 2530, 4263],
+                    [634, 1206, 2962, 3975],
+                ],
+            ),
+            (
+                0.0,
+                [
+                    [750, 750, 4125, 2750],
+                    [1125, 750, 4125, 2750],
+                    [1125, 500, 4125, 2750],
+                    [750, 500, 4125, 2750],
+                    [750, 750, 2750, 4125],
+                    [500, 750, 2750, 4125],
+                    [500, 1125, 2750, 4125],
+                    [750, 1125, 2750, 4125],
+                ],
+            ),
+        ];
+        for (angle, crops) in cases {
+            for (index, [x, y, width, height]) in crops.into_iter().enumerate() {
+                let orientation = index + 1;
+                let xmp = format!(
+                    r#"<rdf:Description
+                    tiff:ImageWidth="6000" tiff:ImageLength="4000"
+                    tiff:Orientation="{orientation}" crs:CropAngle="{angle}"
+                    crs:CropLeft="0.125" crs:CropTop="0.1875"
+                    crs:CropRight="0.8125" crs:CropBottom="0.875"
+                    crs:HasCrop="True" crs:AlreadyApplied="False" />"#
+                );
+                let preset = convert_xmp_sidecar_to_preset(&xmp).unwrap();
+                assert_eq!(
+                    preset.adjustments["crop"],
+                    json!({"x": x as f64, "y": y as f64,
+                           "width": width as f64, "height": height as f64}),
+                    "orientation={orientation}, angle={angle}"
+                );
+                assert_eq!(
+                    preset.adjustments["aspectRatio"],
+                    json!(width as f64 / height as f64)
+                );
+                if angle == 0.0 {
+                    assert!(
+                        !preset
+                            .adjustments
+                            .as_object()
+                            .unwrap()
+                            .contains_key("rotation")
+                    );
+                } else {
+                    assert_eq!(preset.adjustments["rotation"], json!(-angle));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn clamps_rotated_crops_to_the_oriented_image() {
+        for orientation in 1..=8 {
+            for angle in [-15, 15] {
+                let xmp = format!(
+                    r#"<rdf:Description
+                    tiff:ImageWidth="6000" tiff:ImageLength="4000"
+                    tiff:Orientation="{orientation}" crs:CropAngle="{angle}"
+                    crs:CropLeft="0" crs:CropTop="0"
+                    crs:CropRight="1" crs:CropBottom="1"
+                    crs:HasCrop="True" />"#
+                );
+                let preset = convert_xmp_sidecar_to_preset(&xmp).unwrap();
+                let crop = &preset.adjustments["crop"];
+                let (w, h) = if orientation >= 5 {
+                    (4000.0, 6000.0)
+                } else {
+                    (6000.0, 4000.0)
+                };
+                assert!(crop["x"].as_f64().unwrap() >= 0.0);
+                assert!(crop["y"].as_f64().unwrap() >= 0.0);
+                assert!(crop["width"].as_f64().unwrap() >= 1.0);
+                assert!(crop["height"].as_f64().unwrap() >= 1.0);
+                assert!(crop["x"].as_f64().unwrap() + crop["width"].as_f64().unwrap() <= w);
+                assert!(crop["y"].as_f64().unwrap() + crop["height"].as_f64().unwrap() <= h);
+            }
+        }
     }
 
     #[test]
