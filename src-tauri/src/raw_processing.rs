@@ -3,7 +3,7 @@ use crate::white_balance::WhiteBalance;
 use anyhow::{Result, anyhow};
 use image::{DynamicImage, ImageBuffer, Rgba};
 use rawler::{
-    decoders::{Decoder, Orientation, RawDecodeParams},
+    decoders::{Decoder, FormatHint, Orientation, RawDecodeParams},
     imgop::{
         develop::{DemosaicAlgorithm, Intermediate, ProcessingStep, RawDevelop},
         xyz::Illuminant,
@@ -72,8 +72,9 @@ fn metadata_orientation(decoder: &dyn Decoder, source: &RawSource) -> Result<Ori
 }
 
 // Equivalent to upstream rawler a32bc1ff; retain RapidRoom's pinned decoder fixes.
-fn reconcile_camera_cfa(raw_image: &mut RawImage) {
-    if raw_image.make == "OLYMPUS CORPORATION"
+fn reconcile_camera_cfa(raw_image: &mut RawImage, format: FormatHint) {
+    if format == FormatHint::ORF
+        && raw_image.make == "OLYMPUS CORPORATION"
         && raw_image.model == "E-M1X"
         && raw_image.cpp == 1
         && let RawPhotometricInterpretation::Cfa(config) = &mut raw_image.photometric
@@ -192,7 +193,7 @@ fn develop_internal(
         ..Default::default()
     };
     let mut raw_image: RawImage = decoder.raw_image(&source, &decode_params, false)?;
-    reconcile_camera_cfa(&mut raw_image);
+    reconcile_camera_cfa(&mut raw_image, decoder.format_hint());
 
     // Retain the full recommended sensor image for editable camera aspect crops.
     if let Some(default_area) = raw_image.default_crop_area {
@@ -478,20 +479,23 @@ mod as_shot_white_balance_tests {
         image.photometric =
             RawPhotometricInterpretation::Cfa(CFAConfig::new_from_camera(&image.camera));
         let unchanged = image.clone();
-        reconcile_camera_cfa(&mut image);
+        reconcile_camera_cfa(&mut image, FormatHint::ORF);
         assert_eq!(image.camera.cfa.name, "RGGB");
         let RawPhotometricInterpretation::Cfa(config) = image.photometric else {
             panic!("expected Bayer metadata");
         };
         assert_eq!(config.cfa.name, "RGGB");
+        let mut dng = unchanged.clone();
+        reconcile_camera_cfa(&mut dng, FormatHint::DNG);
+        assert_eq!(dng.photometric, unchanged.photometric);
         let mut other = unchanged.clone();
         other.model = "E-M1".into();
-        reconcile_camera_cfa(&mut other);
+        reconcile_camera_cfa(&mut other, FormatHint::ORF);
         assert_eq!(other.photometric, unchanged.photometric);
         let mut linear = unchanged;
         linear.cpp = 3;
         linear.photometric = RawPhotometricInterpretation::LinearRaw;
-        reconcile_camera_cfa(&mut linear);
+        reconcile_camera_cfa(&mut linear, FormatHint::ORF);
         assert_eq!(linear.photometric, RawPhotometricInterpretation::LinearRaw);
         assert_eq!(linear.camera.cfa.name, "BGGR");
     }
