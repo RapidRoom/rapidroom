@@ -465,7 +465,7 @@ mod as_shot_white_balance_tests {
         .unwrap();
         assert!(invented.tint < -150.0);
         let wb =
-            as_shot_white_balance_from_raw(&image, &[]).unwrap_or_else(WhiteBalance::reference);
+            as_shot_white_balance_from_raw(&image, &[0; 8]).unwrap_or_else(WhiteBalance::reference);
         assert_eq!(wb, WhiteBalance::reference());
         for (temperature, tint) in [(8.0, -4.0), (-5.0, 0.0)] {
             let gains =
@@ -481,14 +481,14 @@ mod as_shot_white_balance_tests {
     #[test]
     fn sony_cfa_and_original_linear_sensor_coefficients_remain_available() {
         let sensor_wb = [2688.0 / 1024.0, 1.0, 1636.0 / 1024.0, f32::NAN];
-        let cfa = as_shot_white_balance_from_raw(&sony_metadata(1, sensor_wb), &[]).unwrap();
+        let cfa = as_shot_white_balance_from_raw(&sony_metadata(1, sensor_wb), &[0; 8]).unwrap();
         assert!((cfa.temperature - 6021.31).abs() < 0.1);
         assert!((cfa.tint - 19.012).abs() < 0.01);
-        let linear = as_shot_white_balance_from_raw(&sony_metadata(3, sensor_wb), &[]).unwrap();
+        let linear = as_shot_white_balance_from_raw(&sony_metadata(3, sensor_wb), &[0; 8]).unwrap();
         assert_eq!(linear, cfa);
         let mut other_linear = sony_metadata(3, [1.0, 1.0, 1.0, f32::NAN]);
         other_linear.make = "Apple".into();
-        assert!(as_shot_white_balance_from_raw(&other_linear, &[]).is_some());
+        assert!(as_shot_white_balance_from_raw(&other_linear, &[0; 8]).is_some());
     }
 }
 
