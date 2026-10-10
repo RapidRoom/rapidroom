@@ -3,6 +3,7 @@
   "generatedFrom": [
     "src/utils/adjustments.ts",
     "src/components/adjustments/AdjustmentSubSection.tsx",
+    "src/components/adjustments/Basic.lightroom.test.tsx",
     "src/components/adjustments/Basic.tsx",
     "src/components/adjustments/Color.tsx",
     "src/components/adjustments/Curves.tsx",
