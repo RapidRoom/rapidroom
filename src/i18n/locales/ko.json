@@ -306,6 +306,7 @@
       "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
+        "maskBrushTable": "MaskBrushTable 브러시 테이블 (미지원)",
         "aiDenoise": "AI Denoise",
         "aiMasks": "AI masks (subject, sky, people, objects)",
         "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",

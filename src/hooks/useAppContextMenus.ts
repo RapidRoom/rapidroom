@@ -90,7 +90,14 @@ interface ImportedXmpMetadata {
 }
 
 type XmpNotTransferredItem =
-  'whiteBalance' | 'profileLook' | 'aiDenoise' | 'aiMasks' | 'masks' | 'localAdjustments' | 'pointColor';
+  | 'whiteBalance'
+  | 'profileLook'
+  | 'aiDenoise'
+  | 'aiMasks'
+  | 'maskBrushTable'
+  | 'masks'
+  | 'localAdjustments'
+  | 'pointColor';
 
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
   notTransferred?: XmpNotTransferredItem[];
@@ -142,6 +149,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         aiDenoise: t('contextMenus.xmpImportReport.notTransferredItems.aiDenoise'),
         aiMasks: t('contextMenus.xmpImportReport.notTransferredItems.aiMasks'),
         localAdjustments: t('contextMenus.xmpImportReport.notTransferredItems.localAdjustments'),
+        maskBrushTable: t('contextMenus.xmpImportReport.notTransferredItems.maskBrushTable'),
         masks: t('contextMenus.xmpImportReport.notTransferredItems.masks'),
         pointColor: t('contextMenus.xmpImportReport.notTransferredItems.pointColor'),
         profileLook: t('contextMenus.xmpImportReport.notTransferredItems.profileLook'),
