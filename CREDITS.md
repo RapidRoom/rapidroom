@@ -167,3 +167,7 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 - **Compact MCP payloads, local schema definitions and comparison layout (#147):**
   original work by Yojen with Codex/sora. Existing MCP/renderer/font authorship
   and full notices retained; no dependency or network connection added.
+
+Classic editor theme: original RapidRoom work by Yojen with Codex. Its neutral
+palette values were inspired by LightCraft's theme definitions (MIT/Apache-2.0);
+no LightCraft code or assets are included.

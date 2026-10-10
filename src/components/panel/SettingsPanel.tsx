@@ -1110,14 +1110,28 @@ export default function SettingsPanel({
                       </SettingItem>
 
                       <SettingItem
-                        label={t('settings.general.neutralGreyCanvas')}
-                        description={t('settings.general.neutralGreyCanvasDesc')}
+                        label={t('settings.general.canvasBackground')}
+                        description={t('settings.general.canvasBackgroundDesc')}
                       >
-                        <Switch
-                          checked={appSettings?.editorNeutralGreyBg ?? false}
-                          id="neutral-grey-bg-toggle"
-                          label={t('settings.general.enableNeutralGreyCanvas')}
-                          onChange={(checked) => onSettingsChange({ ...appSettings, editorNeutralGreyBg: checked })}
+                        <Dropdown
+                          onChange={(value: string) =>
+                            onSettingsChange({
+                              ...appSettings,
+                              editorCanvasBackground: value,
+                              editorNeutralGreyBg: value === 'mid-grey',
+                            })
+                          }
+                          options={[
+                            { value: 'theme', label: t('settings.general.canvasBackgroundTheme') },
+                            { value: 'black', label: t('settings.general.canvasBackgroundBlack') },
+                            { value: 'dark-grey', label: t('settings.general.canvasBackgroundDarkGrey') },
+                            { value: 'mid-grey', label: t('settings.general.canvasBackgroundMidGrey') },
+                            { value: 'white', label: t('settings.general.canvasBackgroundWhite') },
+                          ]}
+                          value={
+                            appSettings?.editorCanvasBackground ||
+                            (appSettings?.editorNeutralGreyBg ? 'mid-grey' : 'theme')
+                          }
                         />
                       </SettingItem>
 

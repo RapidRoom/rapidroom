@@ -1797,6 +1797,13 @@
     "general": {
       "autoAdvance": "Auto-Advance After Rating",
       "autoAdvanceDesc": "When you rate a single image with a keyboard shortcut, move on to the next image.",
+      "canvasBackground": "Canvas Background",
+      "canvasBackgroundBlack": "Black",
+      "canvasBackgroundDarkGrey": "Dark grey",
+      "canvasBackgroundDesc": "Choose the surround behind photos in the editor.",
+      "canvasBackgroundMidGrey": "Mid grey",
+      "canvasBackgroundTheme": "Theme background",
+      "canvasBackgroundWhite": "White",
       "compactAdjustments": "Compact Adjustment Sliders",
       "compactAdjustmentsDesc": "Lay each Develop slider out on one row, with its label and value beside the track, so more controls fit on a small screen.",
       "createXmp": "Create Missing XMP Files",
@@ -2116,6 +2123,7 @@
       "title": "Special Thanks"
     },
     "themes": {
+      "classic": "Classic",
       "dark": "Dark",
       "grey": "Grey",
       "light": "Light"

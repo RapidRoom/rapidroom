@@ -2,6 +2,20 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "classic-editor-theme",
+      "title": "Classic Lightroom-style theme and selectable editor canvas surrounds",
+      "category": "feature",
+      "landed": "2026-10-09",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation; neutral palette values inspired by LightCraft, MIT/Apache-2.0)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Adds an opt-in Classic theme with neutral dark chrome and blue accent, while retaining Dark, Light and Grey unchanged. Temperature, tint and HSL coloured tracks remain available. Editor surrounds can be theme, black, dark grey, mid grey or white; the old neutral-grey preference maps to mid grey. No photo processing or exported pixels change.",
+      "highlight": "Classic adds a compact Lightroom-like dark workspace with a blue accent and selectable editor surrounds."
+    },
+    {
       "id": "mcp-compact-replies",
       "title": "Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons",
       "category": "performance",

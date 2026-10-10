@@ -2335,9 +2335,29 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
             isFullScreen ? 'rounded-none' : 'rounded-lg',
             appSettings?.useWgpuRenderer !== false &&
               !isFullScreen &&
-              clsx('ring-[9999px]', isLightsOut ? 'ring-black' : 'ring-bg-secondary'),
+              clsx(
+                'ring-[9999px]',
+                isLightsOut
+                  ? 'ring-black'
+                  : {
+                      black: 'ring-black',
+                      'dark-grey': 'ring-[#303030]',
+                      'mid-grey': 'ring-[#808080]',
+                      theme: 'ring-bg-secondary',
+                      white: 'ring-white',
+                    }[appSettings?.editorCanvasBackground || (appSettings?.editorNeutralGreyBg ? 'mid-grey' : 'theme')],
+              ),
             !isWgpuActive &&
-              (isLightsOut ? 'bg-black' : appSettings?.editorNeutralGreyBg ? 'bg-[#808080]' : 'bg-bg-secondary'),
+              (isLightsOut
+                ? 'bg-black'
+                : {
+                    black: 'bg-black',
+                    'dark-grey': 'bg-[#303030]',
+                    'mid-grey': 'bg-[#808080]',
+                    theme: 'bg-bg-secondary',
+                    white: 'bg-white',
+                  }[appSettings?.editorCanvasBackground || (appSettings?.editorNeutralGreyBg ? 'mid-grey' : 'theme')] ||
+                  'bg-bg-secondary'),
           )}
           style={{ cursor: cursorStyle }}
           onContextMenu={onContextMenu}
