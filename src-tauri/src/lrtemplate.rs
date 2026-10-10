@@ -1058,11 +1058,9 @@ mod tests {
 
     #[test]
     fn converts_lua_table_preset_through_xmp_mapping() {
-        let raw = convert_xmp_to_preset(SYNTHETIC).unwrap();
-        assert_eq!(
-            raw.adjustments,
-            json!({}),
-            "raw Lua should not parse as XMP"
+        assert!(
+            convert_xmp_to_preset(SYNTHETIC).is_err(),
+            "raw Lua is not well-formed XMP"
         );
 
         let (preset, unsupported) = convert(SYNTHETIC);
