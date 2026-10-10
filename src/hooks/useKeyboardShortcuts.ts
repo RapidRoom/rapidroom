@@ -395,6 +395,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
+          s.ui.setUI({ beforeAfterVisible: false });
           s.editor.dispatchReferenceView({ type: 'toggle' });
         },
       },

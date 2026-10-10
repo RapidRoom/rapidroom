@@ -97,3 +97,15 @@ it('honors custom disabling and refuses module/compare shortcuts in native dialo
   await key('KeyG');
   expect(callbacks.handleBackToLibrary).not.toHaveBeenCalled();
 });
+
+it('switches from Before/After to existing Reference View without hiding its chooser', async () => {
+  await key('KeyY');
+  await act(async () =>
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { code: 'KeyR', key: 'R', shiftKey: true, bubbles: true, cancelable: true }),
+    ),
+  );
+  expect(useUIStore.getState().beforeAfterVisible).toBe(false);
+  expect(useEditorStore.getState().referenceView.mode).toBe('side-by-side');
+  expect(useEditorStore.getState().referenceView.isChooserOpen).toBe(true);
+});

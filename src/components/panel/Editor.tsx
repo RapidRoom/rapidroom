@@ -2328,8 +2328,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onRedo={redo}
           onToggleFullScreen={toggleFullScreen}
           onToggleShowOriginal={toggleShowOriginal}
-          isReferenceViewActive={isReferenceViewOn}
-          onToggleReferenceView={() => dispatchReferenceView({ type: 'toggle' })}
+          isReferenceViewActive={isReferenceViewActive(referenceView)}
+          onToggleReferenceView={() => {
+            setUI({ beforeAfterVisible: false });
+            dispatchReferenceView({ type: 'toggle' });
+          }}
           onUndo={undo}
           selectedImage={selectedImage}
           showOriginal={showOriginal}
