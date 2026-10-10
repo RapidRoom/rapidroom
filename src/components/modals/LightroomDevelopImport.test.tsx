@@ -25,6 +25,8 @@ const photo = (id: number, extra: Partial<DevelopPhoto> = {}): DevelopPhoto => (
   existingEdits: false,
   rating: 3,
   adjustments: { exposure: 0.5 },
+  sources: { exposure: 'catalogDevelopSettings', rating: 'catalogRating' },
+  matchingXmpSidecar: false,
   unsupported: ['profileLook'],
   error: null,
   ...extra,
@@ -33,7 +35,14 @@ const preview: DevelopPreview = {
   catalogName: 'Catalog',
   fingerprint: 'snapshot-a',
   photos: [
-    photo(1),
+    photo(1, {
+      matchingXmpSidecar: true,
+      adjustments: {
+        exposure: 0.5,
+        masks: [{ id: 'internal-mask-id', name: 'Sky', subMasks: [{ parameters: { points: [{ x: 12.3456 }] } }] }],
+      },
+      sources: { exposure: 'catalogDevelopSettings', masks: 'catalogDevelopSettings', rating: 'catalogRating' },
+    }),
     photo(2, { existingSidecar: true, existingEdits: true }),
     photo(3, { found: false }),
     photo(4, { error: 'Unreadable saved edits' }),
@@ -76,6 +85,12 @@ describe('Lightroom catalog photo edits', () => {
     const props = await mount();
     expect(calls(Invokes.ImportLightroomDevelop)).toEqual([]);
     expect(container.textContent).toContain('exposure');
+    expect(container.textContent).toContain('modals.lightroomDevelop.sources.catalogDevelopSettings');
+    expect(container.textContent).toContain('modals.lightroomDevelop.catalogPreferred');
+    expect(container.textContent).toContain('contextMenus.xmpImportReport.calibrationWarning');
+    expect(container.textContent).toContain('modals.lightroomDevelop.maskSummary');
+    expect(container.textContent).not.toContain('internal-mask-id');
+    expect(container.textContent).not.toContain('12.3456');
     expect(container.textContent).toContain('modals.lightroomDevelop.unsupported');
     expect(container.textContent).toContain('Unreadable saved edits');
     expect(container.querySelectorAll('li input:checked')).toHaveLength(1);

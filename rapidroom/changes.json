@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lightroom-aggregate-radial-import",
+      "title": "Import Lightroom brush groups and correct radial polarity and rotated geometry",
+      "category": "fix",
+      "landed": "2026-10-06",
+      "authors": ["yojen7", "skymanbp"],
+      "source": "rapidroom adaptation of measured XMP semantics from skymanbp/autoshade",
+      "commits": ["https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Aggregate Paint children retain stroke order, container visibility/inversion and subtract composition. Radial polarity uses MaskInverted alone; signed rotated pixel-space corners recover clockwise ellipse axes through orientation/crop rotation. Brush radius is in unoriented width units. Only imported mask geometry changes; non-imported edits and rendering algorithms remain unchanged. Brush flow/density and variable dab parameters, Lightroom falloff laws and local-strength calibration remain separate parity work. Opaque MaskBrushTable groups are skipped whole and explicitly reported; their bounded .acr decoder is follow-up #177. AI components remain unsupported and reported. Human visual acceptance of imported brush/radial coverage is required."
+    },
+    {
       "id": "bounded-xmp-metadata-roundtrips",
       "title": "Escape XMP keywords and safely update self-closing sidecars",
       "category": "fix",
@@ -15,17 +28,17 @@
       "notes": "Keyword and label entities round-trip, including Unicode and numeric references. Metadata reads and updates consistently scope the image RDF subject; clearing/replacing rating, label and keywords removes stale fields from every same-subject description while preserving unrelated subjects. Metadata updates handle self-closing RDF descriptions and declare missing namespaces while preserving foreign attributes and nested content. XMP reads require regular files up to16MiB; parsing refuses DOCTYPE, excessive depth and node counts. Malformed sidecars are backed up to exclusive .bak names before repair; backup failures and safety-limit refusals leave the original untouched. Existing reject, virtual-copy and Card protection semantics are retained. Default rendering is unchanged."
     },
     {
-      "id": "lightroom-aggregate-radial-import",
-      "title": "Import Lightroom brush groups and correct radial polarity and rotated geometry",
-      "category": "fix",
-      "landed": "2026-10-06",
-      "authors": ["yojen7", "skymanbp"],
-      "source": "rapidroom adaptation of measured XMP semantics from skymanbp/autoshade",
-      "commits": ["https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba"],
+      "id": "catalog-develop-masks",
+      "title": "Import catalog mask resources and show each adjustment’s source",
+      "category": "feature",
+      "landed": "2026-10-09",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original bounded mask encoding; existing catalog importer attribution retained)",
+      "commits": [],
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": true,
-      "notes": "Aggregate Paint children retain stroke order, container visibility/inversion and subtract composition. Radial polarity uses MaskInverted alone; signed rotated pixel-space corners recover clockwise ellipse axes through orientation/crop rotation. Brush radius is in unoriented width units. Only imported mask geometry changes; non-imported edits and rendering algorithms remain unchanged. Brush flow/density and variable dab parameters, Lightroom falloff laws and local-strength calibration remain separate parity work. Opaque MaskBrushTable groups are skipped whole and explicitly reported; their bounded .acr decoder is follow-up #177. AI components remain unsupported and reported. Human visual acceptance of imported brush/radial coverage is required."
+      "notes": "Catalog develop rows preserve ordered mask resources and every inline brush position through the existing image-aware XMP converter. Supported gradients, radial masks and brush strokes import from the catalog even when an XMP sidecar differs. The preview identifies catalog, history and orientation sources per value; existing RapidRoom edits still require explicit replacement. AI masks without recoverable pixels, unsupported resources and radius/flow changes within brush strokes are reported. Lightroom imports remain uncalibrated until full import calibration is complete."
     },
     {
       "id": "mcp-compact-replies",
