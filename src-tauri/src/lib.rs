@@ -84,6 +84,7 @@ mod test_support;
 mod tree_denoise;
 mod two_phase_rename;
 mod window_customizer;
+mod xmp;
 
 use std::collections::{HashMap, hash_map::DefaultHasher};
 use std::fs;

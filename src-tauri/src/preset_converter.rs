@@ -1271,6 +1271,7 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
 }
 
 fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, String> {
+    crate::xmp::validate(xmp_content).map_err(|e| e.to_string())?;
     // Lightroom sidecars can contain nested rdf:Description elements for
     // profiles and looks. Only the outer description represents the image's
     // active settings; nested attributes must not overwrite those values.

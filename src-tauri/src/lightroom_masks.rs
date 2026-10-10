@@ -664,8 +664,8 @@ fn element_from_start(start: &BytesStart) -> Element {
 /// A minimal element tree; the regex-based attribute parsing elsewhere can't
 /// tell nested mask components apart.
 fn parse_xml_tree(content: &str) -> Option<Element> {
+    crate::xmp::validate(content).ok()?;
     let mut reader = Reader::from_str(content);
-    reader.config_mut().trim_text(true);
     let mut stack = vec![Element::default()];
     loop {
         match reader.read_event().ok()? {
@@ -686,6 +686,15 @@ fn parse_xml_tree(content: &str) -> Option<Element> {
                     stack.last_mut()?.text.push_str(&text);
                 }
             }
+            Event::GeneralRef(reference) => {
+                let raw = reference.decode().ok()?;
+                stack
+                    .last_mut()?
+                    .text
+                    .push_str(&quick_xml::escape::unescape(&format!("&{raw};")).ok()?);
+            }
+            Event::CData(text) => stack.last_mut()?.text.push_str(&text.decode().ok()?),
+            Event::DocType(_) => return None,
             Event::Eof => break,
             _ => {}
         }
@@ -823,12 +832,17 @@ pub(crate) mod tests {
     }
 
     fn correction(attributes: &str, components: &str) -> String {
+        let active = if attributes.contains("crs:CorrectionActive=") {
+            ""
+        } else {
+            r#"crs:CorrectionActive="true""#
+        };
         format!(
             r#"<rdf:li>
       <rdf:Description
        crs:What="Correction"
        crs:CorrectionAmount="1"
-       crs:CorrectionActive="true"
+       {active}
        {attributes}>
       <crs:CorrectionMasks>
        <rdf:Seq>
