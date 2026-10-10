@@ -247,9 +247,12 @@ pub fn calculate_full_job_hash(path: &str, adjustments: &serde_json::Value) -> u
     hasher.finish()
 }
 
+type DecodedImageCacheEntry = (String, Arc<DynamicImage>, HashMap<String, String>, bool);
+type DecodedImageCacheHit = (Arc<DynamicImage>, HashMap<String, String>, bool);
+
 pub struct DecodedImageCache {
     capacity: usize,
-    items: Vec<(String, Arc<DynamicImage>, HashMap<String, String>, bool)>,
+    items: Vec<DecodedImageCacheEntry>,
 }
 
 impl DecodedImageCache {
@@ -267,10 +270,7 @@ impl DecodedImageCache {
         }
     }
 
-    pub fn get(
-        &mut self,
-        path: &str,
-    ) -> Option<(Arc<DynamicImage>, HashMap<String, String>, bool)> {
+    pub fn get(&mut self, path: &str) -> Option<DecodedImageCacheHit> {
         if let Some(pos) = self.items.iter().position(|(p, _, _, _)| p == path) {
             let item = self.items.remove(pos);
             let result = (item.1.clone(), item.2.clone(), item.3);
