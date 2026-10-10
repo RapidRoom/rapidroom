@@ -875,7 +875,8 @@
         "undo": "Deshacer (Ctrl+Z) o Historial (Clic derecho)"
       },
       "vc": "CV"
-    }
+    },
+    "embeddedPreviewWarning": "Falló el revelado RAW; se muestra la vista previa incrustada."
   },
   "export": {
     "advanced": {

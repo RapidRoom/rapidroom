@@ -852,7 +852,8 @@
         "undo": "Rückgängig (Strg+Z) oder Verlauf (Rechtsklick)"
       },
       "vc": "VK"
-    }
+    },
+    "embeddedPreviewWarning": "Die RAW-Entwicklung ist fehlgeschlagen. Stattdessen wird die eingebettete Vorschau angezeigt."
   },
   "export": {
     "advanced": {

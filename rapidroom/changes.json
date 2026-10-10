@@ -15,6 +15,19 @@
       "notes": "JXL exports retain supported source EXIF in an ISO BMFF container when metadata preservation is enabled. The export panel exposes metadata and GPS controls for JXL."
     },
     {
+      "id": "embedded-preview-fallback-warning",
+      "title": "Show a warning when RAW development falls back to an embedded preview",
+      "category": "fix",
+      "landed": "2026-10-10",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": ["CyberTimon/RapidRAW#1873"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "When RAW development fails and the embedded preview is used, the editor displays a localized accessible warning. The fallback marker survives decoded-image and frontend cache hits. Image rendering is unchanged."
+    },
+    {
       "id": "keyboard-command-palette",
       "title": "Find actions and edit sliders from a keyboard command palette",
       "category": "feature",
