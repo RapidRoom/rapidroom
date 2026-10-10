@@ -167,3 +167,5 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 - **Compact MCP payloads, local schema definitions and comparison layout (#147):**
   original work by Yojen with Codex/sora. Existing MCP/renderer/font authorship
   and full notices retained; no dependency or network connection added.
+
+- Physical editor zoom/cropped-orientation math and reactive DPR hook adapted from Sebastian Eggli (SebastianEggli), `SebastianEggli/RapidRAW@4a14440611ed6cb7d064efda139b6ca133511023`, with Claude Opus 5.5 co-authorship. Original AGPL-3.0 licence retained. Shared 400% ceiling, tiny-image exception, regular stops and native tests by Yojen with Codex.

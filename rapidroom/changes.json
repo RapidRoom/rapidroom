@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "editor-fixed-zoom",
+      "title": "Consistent 400% editor zoom and regular wheel/keyboard stops",
+      "category": "fix",
+      "landed": "2026-10-09",
+      "authors": ["yojen7", "SebastianEggli"],
+      "source": "rapidroom; physical zoom and DPR fixes adapted from SebastianEggli/RapidRAW",
+      "commits": ["https://github.com/CyberTimon/RapidRAW/commit/4a14440611ed6cb7d064efda139b6ca133511023"],
+      "upstream_issues": ["CyberTimon/RapidRAW#1638"],
+      "upstream_prs": ["CyberTimon/RapidRAW#1869"],
+      "rendering_change": false,
+      "notes": "Shared limits measure cropped/oriented image pixels on each display. Normal photos stop at 400%; tiny images retain at least twice their fitted size on every path. Wheel notches and keyboard steps share ordered percentage stops with fit inserted; pinch and fine scrolling remain continuous. DOM wheel events have no hardware identity: line/page deltas and common 100/120-pixel ticks snap, while fine/fractional and diagonal pixel deltas do not. Codex implementation; no new dependency or network connection."
+    },
+    {
       "id": "mcp-compact-replies",
       "title": "Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons",
       "category": "performance",
