@@ -166,15 +166,6 @@ export default function LightroomDevelopSections() {
         'basic',
         t('lightroomWorkspace.basic'),
         <>
-          {gated(
-            'color',
-            <Color
-              {...shared}
-              appSettings={tools(appSettings, ['whiteBalance'])}
-              isWbPickerActive={isWbPickerActive}
-              toggleWbPicker={toggleWbPicker}
-            />,
-          )}
           <div className="flex items-center gap-2 mb-3">
             <label className="flex-1">
               {t('lightroomWorkspace.profile')}
@@ -212,7 +203,20 @@ export default function LightroomDevelopSections() {
               </label>,
             )}
           </div>
-          <Basic {...shared} appSettings={{ ...appSettings, tonemapperOverrideEnabled: true }} />
+          {gated(
+            'color',
+            <Color
+              {...shared}
+              appSettings={tools(appSettings, ['whiteBalance'])}
+              isWbPickerActive={isWbPickerActive}
+              toggleWbPicker={toggleWbPicker}
+            />,
+          )}
+          <Basic
+            {...shared}
+            includeBrightness={false}
+            appSettings={{ ...appSettings, tonemapperOverrideEnabled: true }}
+          />
           {gated(
             'details',
             <div className="mt-3" aria-label={t('lightroomWorkspace.presence')}>
@@ -238,7 +242,22 @@ export default function LightroomDevelopSections() {
               ))}
             </div>,
           )}
-          {gated('color', <Color {...shared} appSettings={tools(appSettings, ['hue', 'colorPresence'])} />)}
+          {gated('color', <Color {...shared} appSettings={tools(appSettings, ['colorPresence'])} />)}
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs text-text-secondary">{t('lightroomWorkspace.extra')}</summary>
+            <Slider
+              label={t('adjustments.basic.brightness')}
+              value={adjustments.brightness}
+              min={-5}
+              max={5}
+              step={0.01}
+              onChange={(event) =>
+                setAdjustments((previous) => ({ ...previous, brightness: Number(event.target.value) }))
+              }
+              onDragStateChange={onDragStateChange}
+            />
+            {gated('color', <Color {...shared} appSettings={tools(appSettings, ['hue'])} />)}
+          </details>
         </>,
       )}
       {section('curve', t('lightroomWorkspace.curve'), <Curves {...shared} histogram={histogram} theme={theme} />)}

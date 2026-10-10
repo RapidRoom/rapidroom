@@ -1961,7 +1961,7 @@
   "controls": [
     {
       "source": "src/components/adjustments/Basic.tsx",
-      "line": 141,
+      "line": 142,
       "valueExpression": "exposureValue",
       "changeExpression": "(e: any) => onExposureChange(parseFloat(e.target.value))",
       "labelExpression": "t('adjustments.basic.exposure')",
@@ -1972,7 +1972,7 @@
     },
     {
       "source": "src/components/adjustments/Basic.tsx",
-      "line": 184,
+      "line": 186,
       "valueExpression": "adjustments.exposure",
       "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Exposure, e.target.value)",
       "labelExpression": "t('adjustments.basic.exposure')",
@@ -1983,7 +1983,7 @@
     },
     {
       "source": "src/components/adjustments/Basic.tsx",
-      "line": 202,
+      "line": 204,
       "valueExpression": "adjustments.contrast",
       "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Contrast, e.target.value)",
       "labelExpression": "t('adjustments.basic.contrast')",
@@ -1994,7 +1994,7 @@
     },
     {
       "source": "src/components/adjustments/Basic.tsx",
-      "line": 211,
+      "line": 213,
       "valueExpression": "adjustments.highlights",
       "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Highlights, e.target.value)",
       "labelExpression": "t('adjustments.basic.highlights')",
@@ -2005,7 +2005,7 @@
     },
     {
       "source": "src/components/adjustments/Basic.tsx",
-      "line": 220,
+      "line": 222,
       "valueExpression": "adjustments.shadows",
       "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Shadows, e.target.value)",
       "labelExpression": "t('adjustments.basic.shadows')",
@@ -2016,7 +2016,7 @@
     },
     {
       "source": "src/components/adjustments/Basic.tsx",
-      "line": 229,
+      "line": 231,
       "valueExpression": "adjustments.whites",
       "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Whites, e.target.value)",
       "labelExpression": "t('adjustments.basic.whites')",
@@ -2027,7 +2027,7 @@
     },
     {
       "source": "src/components/adjustments/Basic.tsx",
-      "line": 238,
+      "line": 240,
       "valueExpression": "adjustments.blacks",
       "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Blacks, e.target.value)",
       "labelExpression": "t('adjustments.basic.blacks')",
@@ -2038,7 +2038,7 @@
     },
     {
       "source": "src/components/adjustments/Basic.tsx",
-      "line": 247,
+      "line": 250,
       "valueExpression": "adjustments.brightness",
       "changeExpression": "(e: any) => handleAdjustmentChange(BasicAdjustment.Brightness, e.target.value)",
       "labelExpression": "t('adjustments.basic.brightness')",
