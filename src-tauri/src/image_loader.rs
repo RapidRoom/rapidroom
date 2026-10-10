@@ -3,7 +3,7 @@ use crate::app_settings::{AppSettings, load_settings};
 use crate::app_state::{AppState, LoadedImage};
 use crate::exif_processing;
 use crate::file_management::{parse_virtual_path, read_file_mapped};
-use crate::formats::is_raw_file;
+use crate::formats::{has_non_raw_image_signature, is_raw_file};
 use crate::image_processing::ImageMetadata;
 use crate::image_processing::{
     apply_orientation, apply_srgb_to_linear, remove_raw_artifacts_and_enhance,
@@ -120,10 +120,16 @@ pub fn load_base_image_with_proxy(
         bytes,
     );
 
-    if is_raw_file(path_for_ext_check)
-        && !use_fast_raw_dev
-        && settings.use_apple_raw9.unwrap_or(false)
-    {
+    let mut decode_as_raw = is_raw_file(path_for_ext_check);
+    if decode_as_raw && has_non_raw_image_signature(bytes) {
+        log::info!(
+            "'{}' has a RAW extension but contains a standard image, decoding it as such",
+            path_for_ext_check
+        );
+        decode_as_raw = false;
+    }
+
+    if decode_as_raw && !use_fast_raw_dev && settings.use_apple_raw9.unwrap_or(false) {
         if let Some((tracker, generation)) = &cancel_token
             && tracker.load(Ordering::SeqCst) != *generation
         {
@@ -144,7 +150,7 @@ pub fn load_base_image_with_proxy(
         }
     }
 
-    if is_raw_file(path_for_ext_check) {
+    if decode_as_raw {
         match panic::catch_unwind(move || {
             crate::raw_processing::develop_raw_image(
                 bytes,
@@ -1128,6 +1134,28 @@ mod embedded_preview_tests {
             .encode_image(&img)
             .unwrap();
         out
+    }
+
+    fn png(w: u32, h: u32) -> Vec<u8> {
+        let img = image::RgbImage::from_pixel(w, h, image::Rgb([50, 100, 200]));
+        let mut out = std::io::Cursor::new(Vec::new());
+        DynamicImage::ImageRgb8(img)
+            .write_to(&mut out, image::ImageFormat::Png)
+            .unwrap();
+        out.into_inner()
+    }
+
+    #[test]
+    fn standard_images_with_raw_extensions_use_standard_decoder() {
+        let settings = crate::app_settings::AppSettings::default();
+        for (path, bytes, expected) in [
+            ("photo.ARW", jpeg(80, 48), (80, 48)),
+            ("photo.NEF", png(72, 40), (72, 40)),
+        ] {
+            let decoded = load_base_image_from_bytes(&bytes, path, false, &settings, None)
+                .unwrap_or_else(|error| panic!("failed to decode {path}: {error}"));
+            assert_eq!((decoded.width(), decoded.height()), expected);
+        }
     }
 
     fn tiff(le: bool, orientation: u16, ifd0_jpeg: &[u8], sub_jpeg: &[u8]) -> Vec<u8> {
