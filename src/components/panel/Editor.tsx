@@ -19,6 +19,7 @@ import {
   normalizeCropChange,
 } from '../../utils/cropUtils';
 import EditorToolbar from './editor/EditorToolbar';
+import EmbeddedPreviewWarning from './EmbeddedPreviewWarning';
 import ImageCanvas from './editor/ImageCanvas';
 import ReferencePane from './editor/ReferencePane';
 import { Mask, SubMask } from './right/Masks';
@@ -2349,6 +2350,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onPointerCancel={handlePointerUp}
           onClick={handleClick}
         >
+          <EmbeddedPreviewWarning
+            isReady={selectedImage?.isReady ?? false}
+            usedEmbeddedPreview={selectedImage?.usedEmbeddedPreview}
+          />
           {showSpinner && (
             <div
               className={clsx(

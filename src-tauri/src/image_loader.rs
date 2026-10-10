@@ -35,6 +35,12 @@ pub struct LoadImageResult {
     pub metadata: ImageMetadata,
     pub exif: HashMap<String, String>,
     pub is_raw: bool,
+    pub used_embedded_preview: bool,
+}
+
+struct BaseImageLoad {
+    image: DynamicImage,
+    used_embedded_preview: bool,
 }
 
 #[derive(Deserialize)]
@@ -102,6 +108,25 @@ pub fn load_base_image_with_proxy(
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
     proxy_min_dim: Option<usize>,
 ) -> Result<DynamicImage> {
+    load_base_image_with_proxy_outcome(
+        bytes,
+        path_for_ext_check,
+        use_fast_raw_dev,
+        settings,
+        cancel_token,
+        proxy_min_dim,
+    )
+    .map(|loaded| loaded.image)
+}
+
+fn load_base_image_with_proxy_outcome(
+    bytes: &[u8],
+    path_for_ext_check: &str,
+    use_fast_raw_dev: bool,
+    settings: &AppSettings,
+    cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+    proxy_min_dim: Option<usize>,
+) -> Result<BaseImageLoad> {
     let highlight_compression = settings.raw_highlight_compression.unwrap_or(2.5);
     let linear_mode = settings.linear_raw_mode.clone();
     let color_nr_setting = settings.raw_preprocessing_color_nr.unwrap_or(0.5);
@@ -141,7 +166,12 @@ pub fn load_base_image_with_proxy(
             path_for_ext_check,
             &crate::apple_raw::Raw9Options::for_loading(),
         ) {
-            Ok(image) => return Ok(image),
+            Ok(image) => {
+                return Ok(BaseImageLoad {
+                    image,
+                    used_embedded_preview: false,
+                });
+            }
             Err(e) => log::warn!(
                 "Apple RAW 9 unavailable for '{}', falling back to rawler: {}",
                 path_for_ext_check,
@@ -177,7 +207,10 @@ pub fn load_base_image_with_proxy(
                         duration
                     );
                 }
-                Ok(image)
+                Ok(BaseImageLoad {
+                    image,
+                    used_embedded_preview: false,
+                })
             }
             Ok(Err(e)) => {
                 let classified = classify_raw_develop_error(path_for_ext_check, e);
@@ -199,7 +232,10 @@ pub fn load_base_image_with_proxy(
                         preview.height()
                     );
 
-                    return Ok(linearize_embedded_preview(preview));
+                    return Ok(BaseImageLoad {
+                        image: linearize_embedded_preview(preview),
+                        used_embedded_preview: true,
+                    });
                 }
                 Err(classified)
             }
@@ -213,7 +249,10 @@ pub fn load_base_image_with_proxy(
                         preview.height()
                     );
 
-                    return Ok(linearize_embedded_preview(preview));
+                    return Ok(BaseImageLoad {
+                        image: linearize_embedded_preview(preview),
+                        used_embedded_preview: true,
+                    });
                 }
                 Err(anyhow!(
                     "Failed to process RAW file: {}",
@@ -238,7 +277,10 @@ pub fn load_base_image_with_proxy(
             );
         }
 
-        Ok(image)
+        Ok(BaseImageLoad {
+            image,
+            used_embedded_preview: false,
+        })
     }
 }
 
@@ -1009,8 +1051,13 @@ pub async fn load_image(
         .unwrap()
         .get(&source_path_str);
 
-    let (pristine_arc, exif_data) = if let Some((cached_img, cached_exif)) = cached_data {
-        (cached_img, cached_exif)
+    let (pristine_arc, exif_data, used_embedded_preview) = if let Some((
+        cached_img,
+        cached_exif,
+        cached_preview,
+    )) = cached_data
+    {
+        (cached_img, cached_exif, cached_preview)
     } else {
         if crate::file_management::is_cloud_placeholder(&source_path) {
             return Err(format!(
@@ -1030,29 +1077,31 @@ pub async fn load_image(
             return Err("Load cancelled".to_string());
         }
 
-        let (pristine_img, exif_data_loaded) = tokio::task::spawn_blocking(move || {
+        let (pristine_img, exif_data_loaded, used_embedded_preview) =
+            tokio::task::spawn_blocking(move || {
             let _decode_permit = decode_permit;
             if generation_tracker.load(Ordering::SeqCst) != my_generation {
                 return Err("Load cancelled".to_string());
             }
 
-            let result: Result<(DynamicImage, HashMap<String, String>), String> =
+            let result: Result<(DynamicImage, HashMap<String, String>, bool), String> =
                 (|| match read_file_mapped(Path::new(&path_clone)) {
                     Ok(mmap) => {
                         if generation_tracker.load(Ordering::SeqCst) != my_generation {
                             return Err("Load cancelled".to_string());
                         }
 
-                        let img = load_base_image_from_bytes(
+                        let loaded = load_base_image_with_proxy_outcome(
                             &mmap,
                             &path_clone,
                             false,
                             &settings,
                             cancel_token.clone(),
+                            None,
                         )
                         .map_err(|e| e.to_string())?;
                         let exif = exif_processing::read_exif_data(&path_clone, &mmap);
-                        Ok((img, exif))
+                        Ok((loaded.image, exif, loaded.used_embedded_preview))
                     }
                     Err(e) => {
                         log::warn!(
@@ -1068,22 +1117,23 @@ pub async fn load_image(
                             return Err("Load cancelled".to_string());
                         }
 
-                        let img = load_base_image_from_bytes(
+                        let loaded = load_base_image_with_proxy_outcome(
                             &bytes,
                             &path_clone,
                             false,
                             &settings,
                             cancel_token.clone(),
+                            None,
                         )
                         .map_err(|e| e.to_string())?;
                         let exif = exif_processing::read_exif_data(&path_clone, &bytes);
-                        Ok((img, exif))
+                        Ok((loaded.image, exif, loaded.used_embedded_preview))
                     }
                 })();
             result
-        })
-        .await
-        .map_err(|e| e.to_string())??;
+            })
+            .await
+            .map_err(|e| e.to_string())??;
 
         let arc_img = Arc::new(pristine_img);
 
@@ -1091,9 +1141,10 @@ pub async fn load_image(
             source_path_str.clone(),
             arc_img.clone(),
             exif_data_loaded.clone(),
+            used_embedded_preview,
         );
 
-        (arc_img, exif_data_loaded)
+        (arc_img, exif_data_loaded, used_embedded_preview)
     };
 
     if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
@@ -1120,6 +1171,7 @@ pub async fn load_image(
         metadata,
         exif: exif_data,
         is_raw,
+        used_embedded_preview,
     })
 }
 
@@ -1156,6 +1208,28 @@ mod embedded_preview_tests {
                 .unwrap_or_else(|error| panic!("failed to decode {path}: {error}"));
             assert_eq!((decoded.width(), decoded.height()), expected);
         }
+    }
+
+    #[test]
+    fn reports_when_raw_decode_uses_embedded_preview() {
+        let settings = crate::app_settings::AppSettings::default();
+        let image = jpeg(64, 32);
+        let regular =
+            load_base_image_with_proxy_outcome(&image, "photo.NEF", false, &settings, None, None)
+                .unwrap();
+        assert!(!regular.used_embedded_preview);
+
+        let fallback_fixture = tiff(true, 1, &jpeg(64, 32), &jpeg(320, 160));
+        let fallback = load_base_image_with_proxy_outcome(
+            &fallback_fixture,
+            "fallback.NEF",
+            false,
+            &settings,
+            None,
+            None,
+        )
+        .expect("failed RAW decode should use the embedded preview");
+        assert!(fallback.used_embedded_preview);
     }
 
     fn tiff(le: bool, orientation: u16, ifd0_jpeg: &[u8], sub_jpeg: &[u8]) -> Vec<u8> {

@@ -898,7 +898,8 @@
         "undo": "Cofnij (Ctrl+Z) lub Historia (Prawy przycisk)"
       },
       "vc": "VC"
-    }
+    },
+    "embeddedPreviewWarning": "Wywołanie RAW nie powiodło się; wyświetlany jest osadzony podgląd."
   },
   "export": {
     "advanced": {
