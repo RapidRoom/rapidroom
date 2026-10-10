@@ -875,7 +875,8 @@
         "undo": "Desfazer (Ctrl+Z) ou Histórico (Botão Direito)"
       },
       "vc": "CV"
-    }
+    },
+    "embeddedPreviewWarning": "A revelação RAW falhou; a pré-visualização incorporada está a ser apresentada."
   },
   "export": {
     "advanced": {
