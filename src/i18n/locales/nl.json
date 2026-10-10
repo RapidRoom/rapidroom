@@ -799,7 +799,8 @@
         "undo": "Ongedaan maken (Ctrl+Z) of geschiedenis (rechtermuisknop)"
       },
       "vc": "VK"
-    }
+    },
+    "embeddedPreviewWarning": "RAW-ontwikkeling is mislukt; de ingesloten voorbeeldweergave wordt getoond."
   },
   "export": {
     "advanced": {
