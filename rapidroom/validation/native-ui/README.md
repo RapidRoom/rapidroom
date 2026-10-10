@@ -289,3 +289,22 @@ harness corrections. Startup now permits one script-timeout retry only for
 its first side-effect-free readiness probe, before Continue Session. The
 successful final run needed no retry; GUI actions and MCP calls are never
 silently retried.
+
+## Optional zoom scenario
+
+Build the native driver engine normally, then run `smoke.py --zoom` at two
+native compositor sizes with `--viewport 1440 900` and `--viewport 1920 1200`,
+using separate output directories. The scenario types 100% through the public
+zoom input, injects native GTK wheel up/down events through WebKitGTK and records
+trusted DOM deltas, requires adjacent 100% / 150% stops and an unchanged cursor
+anchor, and checks repeated
+wheel/keyboard input, pinch and typed values against the same 400% ceiling.
+Fine pixel scrolling and pinch must produce intermediate percentages rather
+than snap. The slider maximum is checked and fit restored before the normal
+edit/Undo/export/clean-exit smoke. These are native DOM handler checks; physical
+mouse/touchpad hardware and other platforms remain untested.
+
+The zoom-only test injector (`native_wheel.c`) is compiled into the owned case
+and preloaded into the isolated app. It receives only scroll direction and
+viewport coordinates through an owned file, then calls the WebView GTK event
+handler. It is never bundled in the app. Physical devices remain untested.

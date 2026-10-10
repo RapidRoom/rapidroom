@@ -137,7 +137,7 @@ class Smoke:
           .find(e=>e.parentElement.parentElement.textContent.trim().startsWith(arguments[0]));
           const r=e.getBoundingClientRect(),x=r.left+(arguments[1]-Number(e.min)) /
             (Number(e.max)-Number(e.min))*r.width;
-          e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0,buttons:1,
+        e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,buttons:1,
             clientX:x,clientY:r.top+r.height/2}));return true;""", [label, value])
         time.sleep(0.3)  # React installs the document drag listeners after mousedown.
         self.execute("""document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0}));return true;""")
@@ -316,6 +316,9 @@ class Smoke:
             port = sock.getsockname()[1]
         env = os.environ.copy()
         env["RAPIDROOM_NATIVE_UI_TEST_PORT"] = str(port)
+        if (self.case / "native-wheel.so").exists():
+            env["LD_PRELOAD"] = str(self.case / "native-wheel.so")
+            env["RAPIDROOM_TEST_NATIVE_WHEEL_FILE"] = str(self.case / "native-wheel.command")
         app = self.start([str(self.case / "engine/rapidroom")], "app", env)
         base = f"http://127.0.0.1:{port}"
 
@@ -376,6 +379,19 @@ class Smoke:
                  "GPU-processed editor preview")
         baseline = self.stable_preview("preview")
         self.step("native preview", {"roi": self.roi, "capture": str(baseline.relative_to(self.case))})
+        if (self.case / "zoom-test.json").exists():
+            from zoom import run_zoom_checks
+            run_zoom_checks(self, wait_for)
+            # HiFi zoom keeps the full-resolution preview on zoom-out. The
+            # next adjustment renders at fit resolution, so normalize through
+            # an ordinary public Exposure edit/reset before the Undo comparison.
+            self.drag("Exposure", 0.5)
+            self.execute("""const e=[...document.querySelectorAll('input[type=range]')]
+              .find(e=>e.parentElement.parentElement.textContent.trim().startsWith('Exposure'));
+              e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true}));return true;""")
+            wait_for(lambda: self.slider("Exposure")["value"] == 0, "neutral fit-resolution preview")
+            baseline = self.stable_preview("post-zoom-fit")
+            self.step("post-zoom fit preview", {"capture": str(baseline.relative_to(self.case))})
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
         edited = self.stable_preview("edited")
         difference = ImageStat.Stat(ImageChops.difference(self.crop(baseline), self.crop(edited)))
@@ -531,6 +547,15 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.zoom:
+        save(case / "zoom-test.json", {"issue": 142, "viewport": [WIDTH, HEIGHT]})
+        wheel_source = ROOT / "rapidroom/validation/native-ui/native_wheel.c"
+        flags = shlex.split(subprocess.check_output(
+            ["pkg-config", "--cflags", "--libs", "gtk+-3.0", "webkit2gtk-4.1"], text=True))
+        subprocess.run(["cc", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror",
+                        str(wheel_source), "-o", str(case / "native-wheel.so"), *flags], check=True)
+        save(case / "native-wheel-injector.json", {"source_sha256": sha(wheel_source),
+             "library_sha256": sha(case / "native-wheel.so"), "method": "GTK GDK_SCROLL_UP/DOWN through gtk_widget_event(WebView)"})
     if args.dock_layout:
         save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
         for index in range(1, 24):
@@ -654,9 +679,15 @@ def main():
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
     parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
+    parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
+    parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     global WIDTH, HEIGHT
+    if args.viewport:
+        if not args.zoom or min(args.viewport) < 700:
+            parser.error("--viewport requires --zoom and dimensions >= 700")
+        WIDTH, HEIGHT = args.viewport
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
@@ -670,6 +701,8 @@ def main():
         case = args.inside.resolve()
         if (case / "dock-layout-test.json").exists():
             WIDTH, HEIGHT = json.loads((case / "dock-layout-test.json").read_text())["viewport"]
+        if (case / "zoom-test.json").exists():
+            WIDTH, HEIGHT = json.loads((case / "zoom-test.json").read_text())["viewport"]
         runtime = Path((case / "runtime-path.txt").read_text().strip())
         if runtime.parent != Path("/run/user") / str(os.getuid()) or not runtime.name.startswith("rr-smoke-"):
             raise RuntimeError("Unexpected private runtime path")
