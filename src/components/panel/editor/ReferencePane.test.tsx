@@ -131,3 +131,25 @@ describe('ReferencePane', () => {
     consoleError.mockRestore();
   });
 });
+
+it('reviewer: Before/After labels the neutral pane with the label awaited by native smoke', async () => {
+  mockCommand(Invokes.GeneratePreviewForPath, () => new Uint8Array([1]));
+  await act(async () =>
+    root.render(
+      createElement(ReferencePane, {
+        isChooserOpen: false,
+        reference: { path: '/photo.raw', label: 'Before (Original)' },
+        adjustmentOverride: { exposure: 0 },
+        onCancelChooser: () => undefined,
+        onChoose: () => undefined,
+        onClear: () => undefined,
+        onExit: () => undefined,
+      }),
+    ),
+  );
+  await flush();
+  expect(container.querySelector('[data-testid="editor-reference-pane"]')?.getAttribute('data-reference-state')).toBe(
+    'ready',
+  );
+  expect(container.textContent).toContain('Before (Original)');
+});

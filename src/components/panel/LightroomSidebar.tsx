@@ -39,9 +39,12 @@ export default function LightroomSidebar({ children, onNavigateToCommunity, onZo
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loadedPath, setLoadedPath] = useState<string | null>(null);
+  const loaded = !!path && loadedPath === path;
   const [loadError, setLoadError] = useState(false);
   useEffect(() => {
     let active = true;
+    setLoadedPath(null);
     setSnapshots([]);
     setName('');
     setLoadError(false);
@@ -49,7 +52,10 @@ export default function LightroomSidebar({ children, onNavigateToCommunity, onZo
     if (path)
       invoke<Snapshot[]>('get_photo_snapshots', { path })
         .then((items) => {
-          if (active) setSnapshots(items);
+          if (active) {
+            setSnapshots(items);
+            setLoadedPath(path);
+          }
         })
         .catch((error) => {
           if (active) {
@@ -62,7 +68,8 @@ export default function LightroomSidebar({ children, onNavigateToCommunity, onZo
     };
   }, [path, t]);
   const persist = async (next: Snapshot[]) => {
-    if (!path || readOnly || busy || loadError) return;
+    if (!path || !loaded || useEditorStore.getState().selectedImage?.path !== path || readOnly || busy || loadError)
+      return;
     setBusy(true);
     try {
       await invoke('save_photo_snapshots', { path, snapshots: next });
@@ -136,7 +143,7 @@ export default function LightroomSidebar({ children, onNavigateToCommunity, onZo
               className="min-w-0 w-full rounded bg-surface px-2 py-1"
             />
             <button
-              disabled={!ready || readOnly || busy || loadError || !name.trim() || snapshots.length >= 64}
+              disabled={!ready || !loaded || readOnly || busy || loadError || !name.trim() || snapshots.length >= 64}
               className="disabled:opacity-40"
             >
               {t('lightroomWorkspace.save')}
@@ -149,7 +156,7 @@ export default function LightroomSidebar({ children, onNavigateToCommunity, onZo
               </button>
               <button
                 aria-label={t('lightroomWorkspace.deleteSnapshot', { name: snapshot.name })}
-                disabled={readOnly || busy || loadError}
+                disabled={!loaded || readOnly || busy || loadError}
                 onClick={() => void persist(snapshots.filter((item) => item.id !== snapshot.id))}
               >
                 ×

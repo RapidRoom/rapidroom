@@ -70,15 +70,15 @@ export const useKeyboardShortcuts = ({
     const { appSettings, osPlatform } = useSettingsStore.getState();
     const keybinds = appSettings?.keybinds;
 
+    // Apply optional/default bindings first; explicit user choices have final precedence.
     for (const def of KEYBIND_DEFINITIONS) {
-      const userCombo = keybinds?.[def.action];
-      const effective =
-        userCombo !== undefined
-          ? userCombo
-          : lightroomDefaultCombo(def, getDefaultCombo(def, osPlatform), !!appSettings?.lightroomKeymap);
-      if (effective.length) {
-        comboMap.set(effective.join('+'), def.action);
-      }
+      if (keybinds?.[def.action] !== undefined) continue;
+      const combo = lightroomDefaultCombo(def, getDefaultCombo(def, osPlatform), !!appSettings?.lightroomKeymap);
+      if (combo.length) comboMap.set(combo.join('+'), def.action);
+    }
+    for (const def of KEYBIND_DEFINITIONS) {
+      const combo = keybinds?.[def.action];
+      if (combo?.length) comboMap.set(combo.join('+'), def.action);
     }
 
     const getImagePathsForCopy = (s: any): Array<string> => {

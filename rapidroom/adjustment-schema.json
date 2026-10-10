@@ -2537,7 +2537,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 991,
+      "line": 1010,
       "valueExpression": "displayRotation",
       "changeExpression": "handleFineRotationChange",
       "labelExpression": "<div className=\"flex items-center gap-2\">\n                          <button\n                            onClick={() => {\n                              setEditor((state) => ({\n                                isStraightenActive: !state.isStraightenActive,\n                              }));\n                            }}\n                            className={clsx(\n                              'p-1.5 rounded-md transition-colors',\n                              isStraightenActive\n                                ? 'bg-accent text-button-text'\n                                : 'text-text-secondary hover:bg-card-active hover:text-text-primary',\n                            )}\n                            data-tooltip={t('editor.crop.tooltips.straighten')}\n                          >\n                            <Ruler size={14} />\n                          </button>\n                          <button\n                            className=\"p-1.5 rounded-md text-text-secondary transition-colors cursor-pointer hover:bg-card-active hover:text-text-primary\"\n                            onClick={resetFineRotation}\n                            data-tooltip={t('editor.crop.tooltips.resetFineRotation')}\n                            disabled={displayRotation === 0}\n                          >\n                            <RotateCcw size={14} />\n                          </button>\n                        </div>",
@@ -2548,7 +2548,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1235,
+      "line": 1254,
       "valueExpression": "adjustments.transformDistortion || 0",
       "changeExpression": "(e) =>\n                                  setAdjustments((prev) => ({\n                                    ...prev,\n                                    transformDistortion: Number(e.target.value),\n                                  }))",
       "labelExpression": "t('modals.transform.amount')",
@@ -2559,7 +2559,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1257,
+      "line": 1276,
       "valueExpression": "adjustments.transformVertical || 0",
       "changeExpression": "(e) =>\n                                  setAdjustments((prev) => ({\n                                    ...prev,\n                                    transformVertical: Number(e.target.value),\n                                  }))",
       "labelExpression": "t('modals.transform.vertical')",
@@ -2570,7 +2570,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1271,
+      "line": 1290,
       "valueExpression": "adjustments.transformHorizontal || 0",
       "changeExpression": "(e) =>\n                                  setAdjustments((prev) => ({\n                                    ...prev,\n                                    transformHorizontal: Number(e.target.value),\n                                  }))",
       "labelExpression": "t('modals.transform.horizontal')",
@@ -2581,7 +2581,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1293,
+      "line": 1312,
       "valueExpression": "adjustments.transformRotate || 0",
       "changeExpression": "(e) =>\n                                  setAdjustments((prev) => ({\n                                    ...prev,\n                                    transformRotate: Number(e.target.value),\n                                  }))",
       "labelExpression": "t('modals.transform.rotate')",
@@ -2592,7 +2592,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1307,
+      "line": 1326,
       "valueExpression": "adjustments.transformAspect || 0",
       "changeExpression": "(e) =>\n                                  setAdjustments((prev) => ({\n                                    ...prev,\n                                    transformAspect: Number(e.target.value),\n                                  }))",
       "labelExpression": "t('modals.transform.aspect')",
@@ -2603,7 +2603,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1321,
+      "line": 1340,
       "valueExpression": "adjustments.transformScale || 100",
       "changeExpression": "(e) =>\n                                  setAdjustments((prev) => ({\n                                    ...prev,\n                                    transformScale: Number(e.target.value),\n                                  }))",
       "labelExpression": "t('modals.transform.scale')",
@@ -2614,7 +2614,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1343,
+      "line": 1362,
       "valueExpression": "adjustments.transformXOffset || 0",
       "changeExpression": "(e) =>\n                                  setAdjustments((prev) => ({\n                                    ...prev,\n                                    transformXOffset: Number(e.target.value),\n                                  }))",
       "labelExpression": "t('modals.transform.xAxis')",
@@ -2625,7 +2625,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1357,
+      "line": 1376,
       "valueExpression": "adjustments.transformYOffset || 0",
       "changeExpression": "(e) =>\n                                  setAdjustments((prev) => ({\n                                    ...prev,\n                                    transformYOffset: Number(e.target.value),\n                                  }))",
       "labelExpression": "t('modals.transform.yAxis')",
@@ -2636,7 +2636,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1521,
+      "line": 1540,
       "valueExpression": "adjustments.lensDistortionAmount ?? 100",
       "changeExpression": "(e) =>\n                                        setAdjustments((prev) => ({\n                                          ...prev,\n                                          lensDistortionAmount: Number(e.target.value),\n                                        }))",
       "labelExpression": "t('modals.lensCorrection.amount')",
@@ -2647,7 +2647,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1564,
+      "line": 1583,
       "valueExpression": "adjustments.lensTcaAmount ?? 100",
       "changeExpression": "(e) =>\n                                        setAdjustments((prev) => ({\n                                          ...prev,\n                                          lensTcaAmount: Number(e.target.value),\n                                        }))",
       "labelExpression": "t('modals.lensCorrection.amount')",
@@ -2658,7 +2658,7 @@
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",
-      "line": 1607,
+      "line": 1626,
       "valueExpression": "adjustments.lensVignetteAmount ?? 100",
       "changeExpression": "(e) =>\n                                        setAdjustments((prev) => ({\n                                          ...prev,\n                                          lensVignetteAmount: Number(e.target.value),\n                                        }))",
       "labelExpression": "t('modals.lensCorrection.amount')",

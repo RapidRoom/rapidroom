@@ -253,12 +253,12 @@ export default function ReferencePane({
           <span className="shrink-0 rounded bg-text-secondary/25 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-primary">
             {t('editor.referenceView.reference')}
           </span>
-          {reference && !adjustmentOverride && (
+          {reference && (
             <span className="truncate text-xs text-text-primary" data-tooltip={reference.path}>
               {reference.label}
             </span>
           )}
-          {reference && !adjustmentOverride && (
+          {reference && (
             <span className="shrink-0 text-[10px] text-text-secondary">{t('editor.referenceView.readOnly')}</span>
           )}
         </div>

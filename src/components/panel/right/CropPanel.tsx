@@ -30,7 +30,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { Adjustments, INITIAL_ADJUSTMENTS } from '../../../utils/adjustments';
 import clsx from 'clsx';
-import { CustomAspectRatio, Orientation } from '../../ui/AppProperties';
+import { CustomAspectRatio, Orientation, Panel } from '../../ui/AppProperties';
 import { motion, AnimatePresence } from 'framer-motion';
 import Text from '../../ui/Text';
 import Slider from '../../ui/Slider';
@@ -252,11 +252,30 @@ export default function CropPanel({ section = 'all' }: { section?: 'all' | 'tran
   }, [adjustments.lensMaker]);
 
   useEffect(() => {
+    if (section !== 'all') return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      const activeTag = document.activeElement?.tagName.toLowerCase();
-      if (activeTag === 'input' || activeTag === 'textarea') return;
+      const ui = useUIStore.getState();
+      if (
+        ui.activeView !== 'editor' ||
+        ui.isSettingsOpen ||
+        ui.activePanel !== Panel.Crop ||
+        ui.isCreateFolderModalOpen ||
+        ui.isRenameFolderModalOpen ||
+        ui.isRenameFileModalOpen ||
+        ui.isImportModalOpen ||
+        ui.isCopyPasteSettingsModalOpen ||
+        ui.confirmModalState.isOpen ||
+        ui.panoramaModalState.isOpen ||
+        ui.cullingModalState.isOpen ||
+        ui.collageModalState.isOpen ||
+        ui.denoiseModalState.isOpen ||
+        ui.negativeModalState.isOpen ||
+        document.activeElement?.closest('input,textarea,select,[contenteditable="true"]') ||
+        document.querySelector('[role="dialog"]')
+      )
+        return;
 
-      if (e.ctrlKey || e.metaKey) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       if (e.key.toLowerCase() === 'o') {
         e.preventDefault();
@@ -273,7 +292,7 @@ export default function CropPanel({ section = 'all' }: { section?: 'all' | 'tran
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeOverlay, setOverlay, setOverlayRotation, OVERLAYS]);
+  }, [section, activeOverlay, setOverlay, setOverlayRotation, OVERLAYS]);
 
   useEffect(() => {
     return () => {

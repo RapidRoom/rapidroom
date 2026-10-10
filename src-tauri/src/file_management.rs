@@ -216,6 +216,7 @@ fn resolve_image_metadata(
     enable_xmp_sync: bool,
     settings: &AppSettings,
 ) -> ImageFileMetadata {
+    let _guard = EDIT_SIDECAR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
 
     if enable_xmp_sync
@@ -650,6 +651,7 @@ pub async fn update_exif_fields(
         paths.par_iter().for_each(|path| {
             let original_path = Path::new(&path);
             let primary_path = crate::exif_processing::get_primary_sidecar_path(original_path);
+            let _guard = EDIT_SIDECAR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             let temp_metadata = crate::exif_processing::load_sidecar(&primary_path);
 
             let mut exif_data = temp_metadata.exif.unwrap_or_else(|| {
@@ -2898,8 +2900,8 @@ fn move_files_on_disk(
     Ok(renames)
 }
 
-// Serialize snapshot and ordinary editor saves through the metadata write.
-static EDIT_SIDECAR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+// Serialize every sidecar read-modify-write transaction, including metadata and EXIF.
+pub(crate) static EDIT_SIDECAR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn read_snapshot_metadata(sidecar: &Path) -> Result<ImageMetadata, String> {
     match fs::read(sidecar) {
@@ -3118,6 +3120,7 @@ fn import_xmp_adjustments_to_sidecar(
 
     let not_transferred =
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
+    let _guard = EDIT_SIDECAR_LOCK.lock().map_err(|e| e.to_string())?;
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
     metadata.adjustments = converted_preset.adjustments;
     resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
@@ -3343,6 +3346,7 @@ pub async fn apply_adjustments_to_paths(
         paths.par_iter().for_each(|path| {
             let (source_path, sidecar_path) = parse_virtual_path(path);
 
+            let metadata_guard = EDIT_SIDECAR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             let mut existing_metadata =
                 crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
 
@@ -3378,6 +3382,7 @@ pub async fn apply_adjustments_to_paths(
                 let _ = write_file_atomically(&sidecar_path, json_string);
             }
 
+            drop(metadata_guard);
             if enable_xmp_sync {
                 let source_path = parse_virtual_path(path).0;
                 sync_metadata_to_xmp(
@@ -3452,6 +3457,7 @@ pub async fn reset_adjustments_for_paths(
         paths.par_iter().for_each(|path| {
             let (_, sidecar_path) = parse_virtual_path(path);
 
+            let metadata_guard = EDIT_SIDECAR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
             existing_metadata.adjustments = serde_json::json!({});
@@ -3460,6 +3466,7 @@ pub async fn reset_adjustments_for_paths(
                 let _ = write_file_atomically(&sidecar_path, json_string);
             }
 
+            drop(metadata_guard);
             if enable_xmp_sync {
                 let source_path = parse_virtual_path(path).0;
                 sync_metadata_to_xmp(
@@ -3548,6 +3555,7 @@ pub async fn apply_auto_lens_correction_to_paths(
 
         paths.par_iter().for_each(|path| {
             let (source_path, sidecar_path) = parse_virtual_path(path);
+            let metadata_guard = EDIT_SIDECAR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             let mut existing_metadata =
                 crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
 
@@ -3573,6 +3581,7 @@ pub async fn apply_auto_lens_correction_to_paths(
                 let _ = write_file_atomically(&sidecar_path, json_string);
             }
 
+            drop(metadata_guard);
             if enable_xmp_sync {
                 sync_metadata_to_xmp(
                     &source_path,
@@ -3659,6 +3668,7 @@ pub async fn apply_auto_adjustments_to_paths(
                 let auto_results = perform_auto_analysis(&image);
                 let auto_adjustments_json = auto_results_to_json(&auto_results);
 
+                let metadata_guard = EDIT_SIDECAR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
                 let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
                 if existing_metadata.adjustments.is_null() {
@@ -3692,6 +3702,7 @@ pub async fn apply_auto_adjustments_to_paths(
                     let _ = write_file_atomically(&sidecar_path, json_string);
                 }
 
+                drop(metadata_guard);
                 if enable_xmp_sync {
                     sync_metadata_to_xmp(
                         &source_path,
@@ -3737,6 +3748,7 @@ fn update_sidecar(
     sidecar_path: &Path,
     update: impl Fn(&mut ImageMetadata),
 ) -> Result<ImageMetadata, String> {
+    let _guard = EDIT_SIDECAR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
     update(&mut metadata);
     let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
@@ -3857,6 +3869,7 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
     let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
 
     let (source_path, sidecar_path) = parse_virtual_path(&path);
+    let _guard = EDIT_SIDECAR_LOCK.lock().map_err(|e| e.to_string())?;
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
     if enable_xmp_sync
@@ -7126,6 +7139,53 @@ mod photo_snapshot_tests {
         fs::write(&sidecar, b"malformed sidecar").unwrap();
         assert!(save_photo_snapshots(path, vec![snapshot()]).is_err());
         assert_eq!(fs::read(&sidecar).unwrap(), b"malformed sidecar");
+    }
+    #[test]
+    fn snapshot_and_rating_transactions_preserve_both_updates() {
+        let _mode = card_mode_test_support::CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("photo.arw").to_str().unwrap().to_owned();
+        let (_, sidecar) = parse_virtual_path(&path);
+        let (read_tx, read_rx) = std::sync::mpsc::channel();
+        let (resume_tx, resume_rx) = std::sync::mpsc::channel();
+        let rating_sidecar = sidecar.clone();
+        let rating = std::thread::spawn(move || {
+            update_sidecar(&rating_sidecar, |metadata| {
+                read_tx.send(()).unwrap();
+                resume_rx.recv().unwrap();
+                apply_user_rating(metadata, 5);
+            })
+            .unwrap();
+        });
+        read_rx.recv().unwrap();
+        // The production rating transaction has read and holds the shared lock.
+        assert!(EDIT_SIDECAR_LOCK.try_lock().is_err());
+        let (saved_tx, saved_rx) = std::sync::mpsc::channel();
+        let snapshots = std::thread::spawn(move || {
+            save_photo_snapshots(path, vec![snapshot()]).unwrap();
+            saved_tx.send(()).unwrap();
+        });
+        assert!(matches!(
+            saved_rx.recv_timeout(std::time::Duration::from_millis(100)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ));
+        resume_tx.send(()).unwrap();
+        rating.join().unwrap();
+        snapshots.join().unwrap();
+        let stored = read_snapshot_metadata(&sidecar).unwrap();
+        assert_eq!(stored.rating, 5);
+        assert!(stored.rating_is_explicit);
+        assert_eq!(stored.snapshots.len(), 1);
+        // A later flag/tag write must preserve the snapshot too.
+        update_sidecar(&sidecar, |metadata| {
+            apply_user_flag(metadata, Some(ImageFlag::Pick));
+            metadata.tags = Some(vec!["user:trip".into()]);
+        })
+        .unwrap();
+        assert_eq!(read_snapshot_metadata(&sidecar).unwrap().snapshots.len(), 1);
+        let stored = read_snapshot_metadata(&sidecar).unwrap();
+        assert_eq!(stored.flag, Some(ImageFlag::Pick));
+        assert_eq!(stored.tags, Some(vec!["user:trip".into()]));
     }
     #[test]
     fn snapshots_reject_card_writes_before_creating_sidecars() {

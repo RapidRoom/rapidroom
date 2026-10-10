@@ -2348,7 +2348,7 @@
     "modules": "Modules",
     "library": "Library",
     "develop": "Develop",
-    "calibrationInfo": "Color chart calibration. Adobe camera primary controls are not available.",
+    "calibrationInfo": "RapidRoom primary-color calibration. Adobe DCP/profile matching is not verified.",
     "quickDevelop": "Quick Develop",
     "selectPhoto": "Select a photo to use Quick Develop."
   }

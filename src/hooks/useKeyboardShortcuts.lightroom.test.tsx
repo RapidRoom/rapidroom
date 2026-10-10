@@ -109,3 +109,18 @@ it('switches from Before/After to existing Reference View without hiding its cho
   expect(useEditorStore.getState().referenceView.mode).toBe('side-by-side');
   expect(useEditorStore.getState().referenceView.isChooserOpen).toBe(true);
 });
+
+it('reviewer: custom Before/After wins over a conflicting optional default', async () => {
+  await act(async () =>
+    useSettingsStore.setState({
+      appSettings: {
+        lastRootPath: null,
+        theme: Theme.Dark,
+        lightroomKeymap: true,
+        keybinds: { toggle_before_after: ['KeyR'] },
+      } as AppSettings,
+    }),
+  );
+  await key('KeyR');
+  expect(useUIStore.getState().beforeAfterVisible).toBe(true);
+});

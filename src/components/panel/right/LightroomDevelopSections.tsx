@@ -17,6 +17,18 @@ import CollapsibleSection from '../../ui/CollapsibleSection';
 import Waveform from '../editor/Waveform';
 import { DisplayMode } from '../../../utils/adjustments';
 import Slider from '../../ui/Slider';
+import VisibilityToggle from '../../ui/VisibilityToggle';
+
+const sectionFlags = {
+  basic: 'basic',
+  curve: 'curves',
+  mixer: 'colorMixer',
+  grading: 'colorGrading',
+  detail: 'details',
+  effects: 'effects',
+  calibration: 'color',
+} as const;
+const sectionIds = ['basic', 'curve', 'mixer', 'grading', 'detail', 'lens', 'transform', 'effects', 'calibration'];
 
 // Filter the existing widgets without changing the saved custom tool layout.
 function tools(settings: AppSettings | null, allowed: string[]): AppSettings | null {
@@ -65,23 +77,45 @@ export default function LightroomDevelopSections() {
   const shared = { adjustments, setAdjustments, onDragStateChange };
   const colorSaturation = useRef(adjustments.saturation === -100 ? 0 : adjustments.saturation);
   if (adjustments.saturation !== -100) colorSaturation.current = adjustments.saturation;
+  const toggleVisibility = (flag: keyof typeof adjustments.sectionVisibility) =>
+    setAdjustments((previous) => ({
+      ...previous,
+      sectionVisibility: { ...previous.sectionVisibility, [flag]: !previous.sectionVisibility[flag] },
+    }));
+  const gated = (flag: 'color' | 'details', content: ReactNode) => (
+    <div data-engine-section={flag}>
+      <div className="flex items-center justify-between text-xs mb-2">
+        <span>{t(flag === 'color' ? 'lightroomWorkspace.color' : 'lightroomWorkspace.detail')}</span>
+        <VisibilityToggle isVisible={adjustments.sectionVisibility[flag]} onToggle={() => toggleVisibility(flag)} />
+      </div>
+      <div className={!adjustments.sectionVisibility[flag] ? 'opacity-30 pointer-events-none' : undefined}>
+        {content}
+      </div>
+    </div>
+  );
   const section = (id: string, title: string, content: ReactNode) => {
     const key = `lightroom_${id}`;
     const states = collapsibleSectionsState;
+    const flag = sectionFlags[id as keyof typeof sectionFlags];
     return (
       <CollapsibleSection
         key={key}
         title={title}
         isOpen={states[key] ?? id === 'basic'}
-        isContentVisible
-        canToggleVisibility={false}
+        isContentVisible={!flag || adjustments.sectionVisibility[flag]}
+        canToggleVisibility={!!flag}
+        onToggleVisibility={() => flag && toggleVisibility(flag)}
         compact
         onToggle={() =>
           setUI((s) => ({
             collapsibleSectionsState: {
               ...s.collapsibleSectionsState,
               ...(appSettings?.enableFocusMode
-                ? Object.fromEntries(Object.keys(s.collapsibleSectionsState).map((k) => [k, false]))
+                ? Object.fromEntries(
+                    [...Object.keys(s.collapsibleSectionsState), ...sectionIds.map((id) => `lightroom_${id}`)].map(
+                      (k) => [k, false],
+                    ),
+                  )
                 : s.collapsibleSectionsState),
               [key]: !(states[key] ?? id === 'basic'),
             },
@@ -132,12 +166,15 @@ export default function LightroomDevelopSections() {
         'basic',
         t('lightroomWorkspace.basic'),
         <>
-          <Color
-            {...shared}
-            appSettings={tools(appSettings, ['whiteBalance'])}
-            isWbPickerActive={isWbPickerActive}
-            toggleWbPicker={toggleWbPicker}
-          />
+          {gated(
+            'color',
+            <Color
+              {...shared}
+              appSettings={tools(appSettings, ['whiteBalance'])}
+              isWbPickerActive={isWbPickerActive}
+              toggleWbPicker={toggleWbPicker}
+            />,
+          )}
           <div className="flex items-center gap-2 mb-3">
             <label className="flex-1">
               {t('lightroomWorkspace.profile')}
@@ -154,60 +191,66 @@ export default function LightroomDevelopSections() {
                 <option value="agx">{t('lightroomWorkspace.agxProfile')}</option>
               </select>
             </label>
-            <label className="flex-1">
-              {t('lightroomWorkspace.treatment')}
-              <select
-                aria-label={t('lightroomWorkspace.treatment')}
-                className="w-full rounded bg-surface p-1"
-                value={adjustments.saturation === -100 ? 'bw' : 'color'}
-                onChange={(event) =>
-                  setAdjustments((previous) => ({
-                    ...previous,
-                    saturation: event.target.value === 'bw' ? -100 : colorSaturation.current,
-                  }))
-                }
-              >
-                <option value="color">{t('lightroomWorkspace.color')}</option>
-                <option value="bw">{t('lightroomWorkspace.bw')}</option>
-              </select>
-            </label>
+            {gated(
+              'color',
+              <label className="flex-1">
+                {t('lightroomWorkspace.treatment')}
+                <select
+                  aria-label={t('lightroomWorkspace.treatment')}
+                  className="w-full rounded bg-surface p-1"
+                  value={adjustments.saturation === -100 ? 'bw' : 'color'}
+                  onChange={(event) =>
+                    setAdjustments((previous) => ({
+                      ...previous,
+                      saturation: event.target.value === 'bw' ? -100 : colorSaturation.current,
+                    }))
+                  }
+                >
+                  <option value="color">{t('lightroomWorkspace.color')}</option>
+                  <option value="bw">{t('lightroomWorkspace.bw')}</option>
+                </select>
+              </label>,
+            )}
           </div>
           <Basic {...shared} appSettings={{ ...appSettings, tonemapperOverrideEnabled: true }} />
-          <div className="mt-3" aria-label={t('lightroomWorkspace.presence')}>
-            {(['structure', 'clarity', 'dehaze'] as const).map((key) => (
-              <Slider
-                key={key}
-                label={
-                  key === 'structure'
-                    ? t('lightroomWorkspace.texture')
-                    : key === 'clarity'
-                      ? t('lightroomWorkspace.clarity')
-                      : t('lightroomWorkspace.dehaze')
-                }
-                value={adjustments[key]}
-                min={-100}
-                max={100}
-                step={1}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                  setAdjustments((previous) => ({ ...previous, [key]: Number(event.target.value) }))
-                }
-                onDragStateChange={onDragStateChange}
-              />
-            ))}
-          </div>
-          <Color {...shared} appSettings={tools(appSettings, ['colorPresence'])} />
+          {gated(
+            'details',
+            <div className="mt-3" aria-label={t('lightroomWorkspace.presence')}>
+              {(['structure', 'clarity', 'dehaze'] as const).map((key) => (
+                <Slider
+                  key={key}
+                  label={
+                    key === 'structure'
+                      ? t('lightroomWorkspace.texture')
+                      : key === 'clarity'
+                        ? t('lightroomWorkspace.clarity')
+                        : t('lightroomWorkspace.dehaze')
+                  }
+                  value={adjustments[key]}
+                  min={-100}
+                  max={100}
+                  step={1}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setAdjustments((previous) => ({ ...previous, [key]: Number(event.target.value) }))
+                  }
+                  onDragStateChange={onDragStateChange}
+                />
+              ))}
+            </div>,
+          )}
+          {gated('color', <Color {...shared} appSettings={tools(appSettings, ['hue', 'colorPresence'])} />)}
         </>,
       )}
       {section('curve', t('lightroomWorkspace.curve'), <Curves {...shared} histogram={histogram} theme={theme} />)}
       {section(
         'mixer',
         t('lightroomWorkspace.mixer'),
-        <Color {...shared} appSettings={tools(appSettings, ['hue', 'colorMixer'])} />,
+        gated('color', <Color {...shared} appSettings={tools(appSettings, ['colorMixer'])} />),
       )}
       {section(
         'grading',
         t('lightroomWorkspace.grading'),
-        <Color {...shared} appSettings={tools(appSettings, ['colorGrading'])} />,
+        gated('color', <Color {...shared} appSettings={tools(appSettings, ['colorGrading'])} />),
       )}
       {section(
         'detail',
@@ -219,7 +262,7 @@ export default function LightroomDevelopSections() {
         t('lightroomWorkspace.lens'),
         <>
           <CropPanel section="lens" />
-          <Details {...shared} appSettings={tools(appSettings, ['chromaticAberration'])} />
+          {gated('details', <Details {...shared} appSettings={tools(appSettings, ['chromaticAberration'])} />)}
         </>,
       )}
       {section('transform', t('lightroomWorkspace.transform'), <CropPanel section="transform" />)}

@@ -78,3 +78,56 @@ it('saves the current photo adjustments and blocks saves on a read-only card', a
   });
   expect((button('lightroomWorkspace.save') as HTMLButtonElement).disabled).toBe(true);
 });
+
+it('reviewer: blocks snapshot save until the current photo snapshot load completes', async () => {
+  let resolve!: (items: unknown[]) => void;
+  mockCommand(
+    'get_photo_snapshots',
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  await act(async () =>
+    useEditorStore.setState({ selectedImage: { path: '/second.raw', isReady: true } as SelectedImage }),
+  );
+  invoke.mockClear();
+  const input = node.querySelector('input')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'New');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => button('lightroomWorkspace.save').click());
+  const saves = invoke.mock.calls.filter((c) => c[0] === 'save_photo_snapshots');
+  await act(async () => resolve([{ id: 'old', name: 'Old', adjustments: INITIAL_ADJUSTMENTS }]));
+  expect(saves).toEqual([]);
+});
+
+it('ignores a late snapshot load for the previous photo and preserves the current list on save', async () => {
+  const loads = new Map<string, (items: unknown[]) => void>();
+  mockCommand('get_photo_snapshots', ({ path } = {}) => new Promise((resolve) => loads.set(path as string, resolve)));
+  await act(async () =>
+    useEditorStore.setState({ selectedImage: { path: '/second.raw', isReady: true } as SelectedImage }),
+  );
+  await act(async () =>
+    useEditorStore.setState({ selectedImage: { path: '/third.raw', isReady: true } as SelectedImage }),
+  );
+  await act(async () =>
+    loads.get('/second.raw')!([{ id: 'wrong', name: 'Wrong photo', adjustments: INITIAL_ADJUSTMENTS }]),
+  );
+  expect((button('lightroomWorkspace.save') as HTMLButtonElement).disabled).toBe(true);
+  await act(async () =>
+    loads.get('/third.raw')!([{ id: 'current', name: 'Current photo', adjustments: INITIAL_ADJUSTMENTS }]),
+  );
+  const input = node.querySelector('input')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'New');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => button('lightroomWorkspace.save').click());
+  expect(invoke).toHaveBeenLastCalledWith('save_photo_snapshots', {
+    path: '/third.raw',
+    snapshots: [expect.objectContaining({ id: 'current' }), expect.objectContaining({ name: 'New' })],
+  });
+  expect(node.textContent).not.toContain('Wrong photo');
+});
