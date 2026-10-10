@@ -4,10 +4,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**78 changes on top of RapidRAW.** 19 fix upstream issues that had been open a median of 63 days when RapidRoom shipped the fix; 18 of them still open upstream. 14 offered upstream as PRs, 3 merged so far.
+**79 changes on top of RapidRAW.** 19 fix upstream issues that had been open a median of 63 days when RapidRoom shipped the fix; 18 of them still open upstream. 14 offered upstream as PRs, 3 merged so far.
 
 | Change                                                                                                                                                                                                                                                                            | Type        | By                                                                                                                             | Upstream                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Open JPEG and PNG images saved with RAW extensions                                                                                                                                                                                                                                | fix         | [@baseq](https://github.com/baseq)                                                                                             | PR [#1851](https://github.com/CyberTimon/RapidRAW/issues/1851)                                                                                                                                                                                                                     |
 | Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons                                                                                                                                                                                                | performance | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Read the latest MCP previews across GUI edits and explain stale mutation conflicts                                                                                                                                                                                                | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Opening a full-frame Crop view keeps edits, history and sidecars unchanged                                                                                                                                                                                                        | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
@@ -94,6 +95,15 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-04.
 
 ## Details
+
+### Open JPEG and PNG images saved with RAW extensions
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-09
+- **By:** [@baseq](https://github.com/baseq), from CyberTimon/RapidRAW (harvested commit; original author and co-author trailer retained)
+- **Upstream:** PR [#1851](https://github.com/CyberTimon/RapidRAW/issues/1851)
+- **Commits:** [0ac65d5](https://github.com/CyberTimon/RapidRAW/commit/0ac65d57e8e2cdbf46d148f697d37fcce9a4ac70)
+- **Notes:** At the byte-decoding boundary, recognize JPEG/PNG signatures even when a file has a RAW suffix, and use the standard image decoder instead of the RAW pipeline. Path-only RAW extension checks remain unchanged.
 
 ### Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons
 

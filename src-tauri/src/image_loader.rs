@@ -1136,6 +1136,28 @@ mod embedded_preview_tests {
         out
     }
 
+    fn png(w: u32, h: u32) -> Vec<u8> {
+        let img = image::RgbImage::from_pixel(w, h, image::Rgb([50, 100, 200]));
+        let mut out = std::io::Cursor::new(Vec::new());
+        DynamicImage::ImageRgb8(img)
+            .write_to(&mut out, image::ImageFormat::Png)
+            .unwrap();
+        out.into_inner()
+    }
+
+    #[test]
+    fn standard_images_with_raw_extensions_use_standard_decoder() {
+        let settings = crate::app_settings::AppSettings::default();
+        for (path, bytes, expected) in [
+            ("photo.ARW", jpeg(80, 48), (80, 48)),
+            ("photo.NEF", png(72, 40), (72, 40)),
+        ] {
+            let decoded = load_base_image_from_bytes(&bytes, path, false, &settings, None)
+                .unwrap_or_else(|error| panic!("failed to decode {path}: {error}"));
+            assert_eq!((decoded.width(), decoded.height()), expected);
+        }
+    }
+
     fn tiff(le: bool, orientation: u16, ifd0_jpeg: &[u8], sub_jpeg: &[u8]) -> Vec<u8> {
         let w16 = |v: u16| if le { v.to_le_bytes() } else { v.to_be_bytes() };
         let w32 = |v: u32| if le { v.to_le_bytes() } else { v.to_be_bytes() };
