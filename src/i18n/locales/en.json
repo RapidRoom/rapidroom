@@ -1709,9 +1709,20 @@
         "lensProfile": "Adobe lens profile",
         "pointColor": "point color",
         "orientationAndCrop": "unsupported orientation and crop",
-        "virtualCopyName": "virtual-copy name (shown here only)"
+        "virtualCopyName": "virtual-copy name (shown here only)",
+        "orientationAndMasks": "masks with an unsupported orientation",
+        "brushDabParameters": "radius or flow changes within a brush stroke (all stroke points are imported)"
       },
-      "refresh": "Refresh preview"
+      "refresh": "Refresh preview",
+      "catalogPreferred": "A matching XMP sidecar exists. This import uses the catalog’s develop settings and masks.",
+      "sources": {
+        "catalogDevelopSettings": "Catalog develop settings",
+        "catalogDevelopSettingsAndAsShotHistory": "Catalog develop settings and as-shot history",
+        "catalogOrientationAndPhotoExif": "Catalog orientation and photo EXIF",
+        "catalogOrientationAndCatalogMetadata": "Catalog orientation and catalog metadata",
+        "catalogRating": "Catalog star rating"
+      },
+      "maskSummary": "{{total}}: {{names}}"
     }
   },
   "settings": {

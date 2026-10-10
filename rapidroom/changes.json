@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "catalog-develop-masks",
+      "title": "Import catalog mask resources and show each adjustment’s source",
+      "category": "feature",
+      "landed": "2026-10-09",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original bounded mask encoding; existing catalog importer attribution retained)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Catalog develop rows preserve ordered mask resources and every inline brush position through the existing image-aware XMP converter. Supported gradients, radial masks and brush strokes import from the catalog even when an XMP sidecar differs. The preview identifies catalog, history and orientation sources per value; existing RapidRoom edits still require explicit replacement. AI masks without recoverable pixels, unsupported resources and radius/flow changes within brush strokes are reported. Lightroom imports remain uncalibrated until full import calibration is complete."
+    },
+    {
       "id": "mcp-compact-replies",
       "title": "Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons",
       "category": "performance",
