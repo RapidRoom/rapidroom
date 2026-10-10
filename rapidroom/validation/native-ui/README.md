@@ -308,3 +308,14 @@ The zoom-only test injector (`native_wheel.c`) is compiled into the owned case
 and preloaded into the isolated app. It receives only scroll direction and
 viewport coordinates through an owned file, then calls the WebView GTK event
 handler. It is never bundled in the app. Physical devices remain untested.
+
+## Optional command palette scenario
+
+Build normally and run `smoke.py --palette`. Public Ctrl+K and keyboard input
+set Exposure to 0.7; one Undo must restore the value and exact preview pixels.
+Search checks Lightroom Presence and Color Mixer aliases. Keyboard slider
+nudges preview without changing the actual slider, and Escape restores the
+pixels. A typed `crop 4:3` must alter the preview and be reversible in one Undo.
+The normal edit/Undo/Compact/export/clean-exit smoke follows. No model requests,
+React store fixtures or private photos are used. Physical input and other
+platforms remain untested.

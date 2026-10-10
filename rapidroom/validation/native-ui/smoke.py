@@ -392,6 +392,9 @@ class Smoke:
             wait_for(lambda: self.slider("Exposure")["value"] == 0, "neutral fit-resolution preview")
             baseline = self.stable_preview("post-zoom-fit")
             self.step("post-zoom fit preview", {"capture": str(baseline.relative_to(self.case))})
+        if (self.case / "palette-test.json").exists():
+            from palette import run_palette_checks
+            run_palette_checks(self, wait_for, baseline)
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
         edited = self.stable_preview("edited")
         difference = ImageStat.Stat(ImageChops.difference(self.crop(baseline), self.crop(edited)))
@@ -556,6 +559,8 @@ def launch(args):
                         str(wheel_source), "-o", str(case / "native-wheel.so"), *flags], check=True)
         save(case / "native-wheel-injector.json", {"source_sha256": sha(wheel_source),
              "library_sha256": sha(case / "native-wheel.so"), "method": "GTK GDK_SCROLL_UP/DOWN through gtk_widget_event(WebView)"})
+    if args.palette:
+        save(case / "palette-test.json", {"issue": 162, "real_model_requests": False})
     if args.dock_layout:
         save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
         for index in range(1, 24):
@@ -681,6 +686,7 @@ def main():
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
+    parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     global WIDTH, HEIGHT
