@@ -43,13 +43,32 @@ export const stepZoomIn = (percent: number, fit = 0): number =>
 export const stepZoomOut = (percent: number, fit = 0): number =>
   zoomStops(fit).findLast((stop) => stop < percent - 1e-6) ?? Math.min(MIN_ZOOM_PERCENT, fit || MIN_ZOOM_PERCENT);
 
-// DOM has no device-type flag. Recognise line/page notches and the common
-// 100/120-pixel wheel ticks; fractional/small pixel deltas and pinch stay smooth.
-export const isDiscreteWheel = (event: Pick<WheelEvent, 'ctrlKey' | 'deltaMode' | 'deltaX' | 'deltaY'>): boolean => {
-  if (event.ctrlKey || event.deltaY === 0 || event.deltaX !== 0) return false;
+// WebKitGTK converts a native wheel tick using the whole WebView height,
+// while preserving its signed tick count in the legacy wheelDeltaY field.
+export const gtkWheelStep = (viewHeight: number): number => Math.trunc(viewHeight ** (2 / 3));
+
+type WheelInput = Pick<WheelEvent, 'ctrlKey' | 'deltaMode' | 'deltaX' | 'deltaY'> & { wheelDeltaY?: number };
+export const isDiscreteWheel = (
+  event: WheelInput,
+  viewHeight = typeof window !== 'undefined' ? window.innerHeight : 0,
+): boolean => {
+  if (event.ctrlKey || event.deltaY === 0 || event.deltaX !== 0 || !Number.isFinite(event.deltaY)) return false;
   const delta = Math.abs(event.deltaY);
-  return event.deltaMode !== 0 || (Number.isInteger(delta) && (delta % 100 === 0 || delta % 120 === 0));
+  if (event.deltaMode !== 0) return true;
+  const ticks = (event.wheelDeltaY ?? 0) / 120;
+  const nativeStep = Number.isFinite(viewHeight) && viewHeight > 0 ? gtkWheelStep(viewHeight) : 0;
+  const gtkNotch =
+    nativeStep > 0 &&
+    Number.isFinite(ticks) &&
+    Number.isInteger(ticks) &&
+    ticks !== 0 &&
+    ticks * event.deltaY < 0 &&
+    Math.abs(delta - nativeStep * Math.abs(ticks)) < 1e-6;
+  // DOM has no device-type flag. Other common wheel ticks are 100/120 px;
+  // fine/fractional or two-axis pixel deltas and pinch remain continuous.
+  return gtkNotch || (Number.isInteger(delta) && (delta % 100 === 0 || delta % 120 === 0));
 };
+
 export const isAtMaxZoom = (scale: number, maximum: number): boolean => scale >= maximum * (1 - 1e-6);
 
 export const zoomReferenceSize = (originalSize: Size, orientationSteps: number, crop?: Size | null): Size => {

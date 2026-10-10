@@ -316,6 +316,9 @@ class Smoke:
             port = sock.getsockname()[1]
         env = os.environ.copy()
         env["RAPIDROOM_NATIVE_UI_TEST_PORT"] = str(port)
+        if (self.case / "native-wheel.so").exists():
+            env["LD_PRELOAD"] = str(self.case / "native-wheel.so")
+            env["RAPIDROOM_TEST_NATIVE_WHEEL_FILE"] = str(self.case / "native-wheel.command")
         app = self.start([str(self.case / "engine/rapidroom")], "app", env)
         base = f"http://127.0.0.1:{port}"
 
@@ -536,6 +539,13 @@ def launch(args):
     shutil.copy2(raw, case / "input/smoke.ARW")
     if args.zoom:
         save(case / "zoom-test.json", {"issue": 142, "viewport": [WIDTH, HEIGHT]})
+        wheel_source = ROOT / "rapidroom/validation/native-ui/native_wheel.c"
+        flags = shlex.split(subprocess.check_output(
+            ["pkg-config", "--cflags", "--libs", "gtk+-3.0", "webkit2gtk-4.1"], text=True))
+        subprocess.run(["cc", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror",
+                        str(wheel_source), "-o", str(case / "native-wheel.so"), *flags], check=True)
+        save(case / "native-wheel-injector.json", {"source_sha256": sha(wheel_source),
+             "library_sha256": sha(case / "native-wheel.so"), "method": "GTK GDK_SCROLL_UP/DOWN through gtk_widget_event(WebView)"})
     if args.dock_layout:
         save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
         for index in range(1, 24):

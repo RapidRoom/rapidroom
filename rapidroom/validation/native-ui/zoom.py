@@ -32,6 +32,37 @@ def run_zoom_checks(smoke, wait_for):
             deltaY:arguments[0],ctrlKey:arguments[1],clientX:r.left+r.width/2,clientY:r.top+r.height/2}));return true;""", [delta, ctrl])
         time.sleep(0.2)
 
+    def native_notch(direction, expected):
+        before = read()
+        point = smoke.execute("""const v=document.querySelector('[data-editor-viewport]'),r=v.getBoundingClientRect();
+          const x=r.left+r.width*0.55,y=r.top+r.height*0.55;
+          window.__RR_NATIVE_WHEEL__=null;
+          v.addEventListener('wheel',e=>{window.__RR_NATIVE_WHEEL__={trusted:e.isTrusted,
+            deltaY:e.deltaY,deltaMode:e.deltaMode,wheelDeltaY:e.wheelDeltaY,innerHeight,
+            clientX:e.clientX,clientY:e.clientY};},{once:true});
+          const m=new DOMMatrix(v.firstElementChild.style.transform);
+          return {x,y,anchor:[(x-r.left-m.m41)/m.a,(y-r.top-m.m42)/m.d]};""")
+        command = smoke.case / 'native-wheel.command'
+        temporary = command.with_suffix('.tmp')
+        temporary.write_text(f"{direction} {point['x']} {point['y']}\n")
+        temporary.replace(command)
+        event = wait_for(lambda: smoke.execute('return window.__RR_NATIVE_WHEEL__;'), 'trusted native wheel event')
+        if not event['trusted'] or event['deltaMode'] != 0:
+            raise RuntimeError('GTK wheel did not pass through native conversion: ' + str(event))
+        result = at(expected)
+        after_anchor = smoke.execute("""const v=document.querySelector('[data-editor-viewport]'),r=v.getBoundingClientRect();
+          const m=new DOMMatrix(v.firstElementChild.style.transform);
+          return [(arguments[0]-r.left-m.m41)/m.a,(arguments[1]-r.top-m.m42)/m.d];""", [point['x'], point['y']])
+        error = max(abs(a-b) for a,b in zip(point['anchor'],after_anchor))
+        if error > 0.02:
+            raise RuntimeError('Native wheel moved cursor anchor: ' + str(error))
+        smoke.step(f'native {direction} wheel adjacent stop {expected} percent', {
+            'before': before, 'after': result, 'native_event': event, 'anchor_error_css_px': error})
+
+    percent(100)
+    at(100)
+    native_notch('u', 150)
+    native_notch('d', 100)
     percent(100)
     at(100)
     wheel(-100)

@@ -3,6 +3,7 @@ import {
   MAX_ZOOM_PERCENT,
   MIN_ZOOM_PERCENT,
   clampZoomPercent,
+  gtkWheelStep,
   isAtMaxZoom,
   isDiscreteWheel,
   maxZoomPercent,
@@ -97,6 +98,19 @@ describe('wheel input classification', () => {
   });
   it.each([0, -1, 2.5, 16, 99.5])('leaves fine and smooth deltas %f continuous', (deltaY) => {
     expect(isDiscreteWheel({ ...event, deltaY })).toBe(false);
+  });
+  it.each([900, 1200])('recognizes native WebKitGTK ticks for WebView height %f', (height) => {
+    const step = gtkWheelStep(height);
+    expect(step).toBe(height === 900 ? 93 : 112);
+    for (const ticks of [-2, -1, 1, 2]) {
+      expect(isDiscreteWheel({ ...event, deltaY: -step * ticks, wheelDeltaY: 120 * ticks }, height)).toBe(true);
+    }
+    expect(isDiscreteWheel({ ...event, deltaY: -step, wheelDeltaY: -120 }, height)).toBe(false);
+    expect(isDiscreteWheel({ ...event, deltaY: -step, wheelDeltaY: 120.1 }, height)).toBe(false);
+    expect(isDiscreteWheel({ ...event, deltaY: -step, wheelDeltaY: NaN }, height)).toBe(false);
+    expect(isDiscreteWheel({ ...event, deltaY: -step + 0.5, wheelDeltaY: 120 }, height)).toBe(false);
+    expect(isDiscreteWheel({ ...event, deltaY: -step, wheelDeltaY: 120, ctrlKey: true }, height)).toBe(false);
+    expect(isDiscreteWheel({ ...event, deltaY: -16, wheelDeltaY: 48 }, height)).toBe(false);
   });
   it('never snaps a pinch or two-axis scroll', () => {
     expect(isDiscreteWheel({ ...event, ctrlKey: true })).toBe(false);

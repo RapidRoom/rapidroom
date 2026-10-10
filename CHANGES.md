@@ -103,7 +103,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@yojen7](https://github.com/yojen7), [@SebastianEggli](https://github.com/SebastianEggli), from rapidroom; physical zoom and DPR fixes adapted from SebastianEggli/RapidRAW
 - **Upstream:** [#1638](https://github.com/CyberTimon/RapidRAW/issues/1638); PR [#1869](https://github.com/CyberTimon/RapidRAW/issues/1869)
 - **Commits:** [4a14440](https://github.com/CyberTimon/RapidRAW/commit/4a14440611ed6cb7d064efda139b6ca133511023)
-- **Notes:** Shared limits measure cropped/oriented image pixels on each display. Normal photos stop at 400%; tiny images retain at least twice their fitted size on every path. Wheel notches and keyboard steps share ordered percentage stops with fit inserted; pinch and fine scrolling remain continuous. DOM wheel events have no hardware identity: line/page deltas and common 100/120-pixel ticks snap, while fine/fractional and diagonal pixel deltas do not. Codex implementation; no new dependency or network connection.
+- **Notes:** Shared limits measure cropped/oriented image pixels on each display. Normal photos stop at 400%; tiny images retain at least twice their fitted size on every path. Wheel notches and keyboard steps share ordered percentage stops with fit inserted; pinch and fine scrolling remain continuous. DOM wheel events have no hardware identity: line/page deltas, WebKitGTK native dimension-dependent ticks with matching signed legacy tick counts, and common 100/120-pixel ticks snap, while fine/fractional and diagonal pixel deltas do not. Codex implementation; no new dependency or network connection.
 
 ### Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons
 

@@ -12,7 +12,7 @@
       "upstream_issues": ["CyberTimon/RapidRAW#1638"],
       "upstream_prs": ["CyberTimon/RapidRAW#1869"],
       "rendering_change": false,
-      "notes": "Shared limits measure cropped/oriented image pixels on each display. Normal photos stop at 400%; tiny images retain at least twice their fitted size on every path. Wheel notches and keyboard steps share ordered percentage stops with fit inserted; pinch and fine scrolling remain continuous. DOM wheel events have no hardware identity: line/page deltas and common 100/120-pixel ticks snap, while fine/fractional and diagonal pixel deltas do not. Codex implementation; no new dependency or network connection."
+      "notes": "Shared limits measure cropped/oriented image pixels on each display. Normal photos stop at 400%; tiny images retain at least twice their fitted size on every path. Wheel notches and keyboard steps share ordered percentage stops with fit inserted; pinch and fine scrolling remain continuous. DOM wheel events have no hardware identity: line/page deltas, WebKitGTK native dimension-dependent ticks with matching signed legacy tick counts, and common 100/120-pixel ticks snap, while fine/fractional and diagonal pixel deltas do not. Codex implementation; no new dependency or network connection."
     },
     {
       "id": "mcp-compact-replies",
