@@ -294,3 +294,14 @@ Point Color: pass `--point-color` to pick a swatch on the real canvas, verify
 zero-shift pixels are identical, edit its range and Hue Shift, and verify one
 Undo restores the shift and exact preview. The usual edit/export/exit checks
 follow. Uses an owned sample copy and native GPU processing.
+
+## Optional command palette scenario
+
+Build normally and run `smoke.py --palette`. Public Ctrl+K and keyboard input
+set Exposure to 0.7; one Undo must restore the value and exact preview pixels.
+Search checks Lightroom Presence and Color Mixer aliases. Keyboard slider
+nudges preview without changing the actual slider, and Escape restores the
+pixels. A typed `crop 4:3` must alter the preview and be reversible in one Undo.
+The normal edit/Undo/Compact/export/clean-exit smoke follows. No model requests,
+React store fixtures or private photos are used. Physical input and other
+platforms remain untested.

@@ -275,6 +275,7 @@ export default function LUTControl({
           >
             <div className="mt-3">
               <Slider
+                data-adjustment-key="lutIntensity"
                 label={t('ui.lut.intensity')}
                 min={0}
                 max={100}

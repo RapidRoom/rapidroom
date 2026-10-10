@@ -10,7 +10,8 @@
     "src/components/adjustments/Effects.tsx",
     "src/components/adjustments/PointColor.tsx",
     "src/components/panel/right/CropPanel.tsx",
-    "src/components/ui/ColorWheel.tsx"
+    "src/components/ui/ColorWheel.tsx",
+    "src/components/ui/LUTControl.tsx"
   ],
   "conventions": {
     "values": "Native RapidRoom adjustment values, identical to the editor controls. Ranges below are UI limits; MCP validation may accept other finite values.",
@@ -1616,7 +1617,20 @@
       "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
     },
     "lutData": { "defaultType": "null", "default": null },
-    "lutIntensity": { "defaultType": "number", "default": 100 },
+    "lutIntensity": {
+      "defaultType": "number",
+      "default": 100,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/ui/LUTControl.tsx",
+          "valueExpression": "lutIntensity"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
     "lutName": { "defaultType": "null", "default": null },
     "lutPath": { "defaultType": "null", "default": null },
     "lutSize": { "defaultType": "number", "default": 0 },
@@ -2110,7 +2124,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 533,
+      "line": 540,
       "valueExpression": "hsl[color][property]",
       "changeExpression": "(e: any) => handleHslChange(color, property, e.target.value)",
       "labelExpression": "label",
@@ -2146,7 +2160,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 567,
+      "line": 574,
       "valueExpression": "adjustments.temperature || 0",
       "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Temperature, e.target.value)",
       "labelExpression": "t('adjustments.color.temperature')",
@@ -2157,7 +2171,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 577,
+      "line": 584,
       "valueExpression": "adjustments.tint || 0",
       "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Tint, e.target.value)",
       "labelExpression": "t('adjustments.color.tint')",
@@ -2168,7 +2182,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 596,
+      "line": 603,
       "valueExpression": "adjustments.vibrance || 0",
       "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Vibrance, e.target.value)",
       "labelExpression": "t('adjustments.color.vibrance')",
@@ -2179,7 +2193,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 605,
+      "line": 612,
       "valueExpression": "adjustments.saturation || 0",
       "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Saturation, e.target.value)",
       "labelExpression": "t('adjustments.color.saturation')",
@@ -2190,7 +2204,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 623,
+      "line": 630,
       "valueExpression": "adjustments.hue || 0",
       "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Hue, e.target.value)",
       "labelExpression": "t('adjustments.color.hue')",
@@ -2727,6 +2741,17 @@
         "colorGrading.midtones.luminance",
         "colorGrading.shadows.luminance"
       ]
+    },
+    {
+      "source": "src/components/ui/LUTControl.tsx",
+      "line": 277,
+      "valueExpression": "lutIntensity",
+      "changeExpression": "(e) => onIntensityChange(Number(e.target.value))",
+      "labelExpression": "t('ui.lut.intensity')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["lutIntensity"]
     }
   ]
 }

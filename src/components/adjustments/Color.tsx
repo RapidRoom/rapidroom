@@ -479,11 +479,18 @@ export default function ColorPanel({
 
   const isMixerExpanded = useUIStore((state) => state.isColorMixerExpanded);
   const setUI = useUIStore((state) => state.setUI);
+  const pointPickerActive = useEditorStore((state) => state.isPointColorPickerActive);
+  const pointPickerMask = useEditorStore((state) => state.pointColorPickerMaskId);
+  const activeMask = useEditorStore((state) => state.activeMaskContainerId);
   const [mixerMode, setMixerMode] = useState<'hsl' | 'pointColor'>('hsl');
   const [mixerTab, setMixerTab] = useState<HslMixerProperty>('hue');
   const mixerPickerProperty = useEditorStore((state) => (isForMask ? null : state.mixerPickerProperty));
   const isMixerPickerDragging = useEditorStore((state) => mixerPickerProperty !== null && state.isSliderDragging);
   const setEditor = useEditorStore((state) => state.setEditor);
+
+  useEffect(() => {
+    if (pointPickerActive && pointPickerMask === (isForMask ? activeMask : null)) setMixerMode('pointColor');
+  }, [pointPickerActive, pointPickerMask, isForMask, activeMask]);
 
   const mixerTabs = useMemo<Array<{ id: HslMixerProperty; label: string }>>(
     () => [

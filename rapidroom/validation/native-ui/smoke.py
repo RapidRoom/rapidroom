@@ -379,6 +379,9 @@ class Smoke:
         if (self.case / "point-color-test.json").exists():
             from point_color import run_point_color_checks
             run_point_color_checks(self, wait_for, baseline)
+        if (self.case / "palette-test.json").exists():
+            from palette import run_palette_checks
+            run_palette_checks(self, wait_for, baseline)
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
         edited = self.stable_preview("edited")
         difference = ImageStat.Stat(ImageChops.difference(self.crop(baseline), self.crop(edited)))
@@ -536,6 +539,8 @@ def launch(args):
     shutil.copy2(raw, case / "input/smoke.ARW")
     if args.point_color:
         save(case / "point-color-test.json", {"issue": 160})
+    if args.palette:
+        save(case / "palette-test.json", {"issue": 162, "real_model_requests": False})
     if args.dock_layout:
         save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
         for index in range(1, 24):
@@ -660,6 +665,7 @@ def main():
     parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
     parser.add_argument("--point-color", action="store_true", help="Pick a Point Color and verify zero-shift pixels, shifts and Undo")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
+    parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     global WIDTH, HEIGHT
