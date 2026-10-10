@@ -94,7 +94,7 @@ interface ColorSwatchProps {
   onClick: (name: string) => void;
 }
 
-const ColorSwatch = ({ color, name, isActive, ariaLabel, onClick }: ColorSwatchProps) => {
+export const ColorSwatch = ({ color, name, isActive, ariaLabel, onClick }: ColorSwatchProps) => {
   const [isPressed, setIsPressed] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -520,7 +520,11 @@ export default function ColorPanel({
   };
 
   const toggleMixerPicker = () => {
-    setEditor({ mixerPickerProperty: mixerPickerProperty ? null : mixerTab, isWbPickerActive: false });
+    setEditor({
+      mixerPickerProperty: mixerPickerProperty ? null : mixerTab,
+      isWbPickerActive: false,
+      isRelightPickerActive: false,
+    });
   };
 
   const selectMixerTab = (tab: HslMixerProperty) => {

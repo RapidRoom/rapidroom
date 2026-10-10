@@ -169,3 +169,5 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 - **Compact MCP payloads, local schema definitions and comparison layout (#147):**
   original work by Yojen with Codex/sora. Existing MCP/renderer/font authorship
   and full notices retained; no dependency or network connection added.
+
+- Current upstream sync through `eb3556bc`: CyberTimon, lalibertemarc and fabian-co; original history and licences retained. E-M1X Bayer metadata correction adapts Timon Käch’s [rawler a32bc1ff](https://github.com/CyberTimon/RapidRAW-DngLab/commit/a32bc1ff1f4f3c56d4d3226082f6eb17414f9159) while retaining RapidRoom’s pinned decoder extensions. Sony reduced-RGB white balance guard and picker reconciliation: Yojen with Codex.

@@ -71,6 +71,20 @@ fn metadata_orientation(decoder: &dyn Decoder, source: &RawSource) -> Result<Ori
         .unwrap_or(Orientation::Normal))
 }
 
+// Equivalent to upstream rawler a32bc1ff; retain RapidRoom's pinned decoder fixes.
+fn reconcile_camera_cfa(raw_image: &mut RawImage) {
+    if raw_image.make == "OLYMPUS CORPORATION"
+        && raw_image.model == "E-M1X"
+        && raw_image.cpp == 1
+        && let RawPhotometricInterpretation::Cfa(config) = &mut raw_image.photometric
+        && config.cfa.name == "BGGR"
+    {
+        let cfa = rawler::cfa::CFA::new("RGGB");
+        config.cfa = cfa.clone();
+        raw_image.camera.cfa = cfa;
+    }
+}
+
 fn is_linear_raw_format(raw_image: &RawImage) -> bool {
     matches!(
         raw_image.photometric,
@@ -178,6 +192,7 @@ fn develop_internal(
         ..Default::default()
     };
     let mut raw_image: RawImage = decoder.raw_image(&source, &decode_params, false)?;
+    reconcile_camera_cfa(&mut raw_image);
 
     // Retain the full recommended sensor image for editable camera aspect crops.
     if let Some(default_area) = raw_image.default_crop_area {
@@ -452,6 +467,33 @@ mod as_shot_white_balance_tests {
             Some(WhiteLevel::new(vec![16383; cpp])),
             false,
         )
+    }
+
+    #[test]
+    fn upstream_em1x_cfa_correction_is_scoped_to_its_native_bayer_metadata() {
+        let mut image = sony_metadata(1, [1.0; 4]);
+        image.make = "OLYMPUS CORPORATION".into();
+        image.model = "E-M1X".into();
+        image.camera.cfa = CFA::new("BGGR");
+        image.photometric =
+            RawPhotometricInterpretation::Cfa(CFAConfig::new_from_camera(&image.camera));
+        let unchanged = image.clone();
+        reconcile_camera_cfa(&mut image);
+        assert_eq!(image.camera.cfa.name, "RGGB");
+        let RawPhotometricInterpretation::Cfa(config) = image.photometric else {
+            panic!("expected Bayer metadata");
+        };
+        assert_eq!(config.cfa.name, "RGGB");
+        let mut other = unchanged.clone();
+        other.model = "E-M1".into();
+        reconcile_camera_cfa(&mut other);
+        assert_eq!(other.photometric, unchanged.photometric);
+        let mut linear = unchanged;
+        linear.cpp = 3;
+        linear.photometric = RawPhotometricInterpretation::LinearRaw;
+        reconcile_camera_cfa(&mut linear);
+        assert_eq!(linear.photometric, RawPhotometricInterpretation::LinearRaw);
+        assert_eq!(linear.camera.cfa.name, "BGGR");
     }
 
     #[test]

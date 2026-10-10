@@ -50,6 +50,8 @@ export const clearLibrarySelection = () => {
     activeAiSubMaskId: null,
     isWbPickerActive: false,
     mixerPickerProperty: null,
+    isRelightPickerActive: false,
+    activeRelightLightId: null,
   });
 };
 

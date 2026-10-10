@@ -556,6 +556,7 @@ function App() {
     setEditor({
       isWbPickerActive: false,
       mixerPickerProperty: null,
+      isRelightPickerActive: false,
       isStraightenActive: false,
       isGuidedPerspectiveActive: false,
       activeMaskId: null,
