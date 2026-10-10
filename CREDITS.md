@@ -170,6 +170,7 @@ Terminal dock containment, compact header and stepped native layout checks: orig
   and full notices retained; no dependency or network connection added.
 
 - Physical editor zoom/cropped-orientation math and reactive DPR hook adapted from Sebastian Eggli (SebastianEggli), `SebastianEggli/RapidRAW@4a14440611ed6cb7d064efda139b6ca133511023`, with Claude Opus 5.5 co-authorship. Original AGPL-3.0 licence retained. Shared 400% ceiling, tiny-image exception, regular stops and native tests by Yojen with Codex.
+
 ### RAWmakase starter presets
 
 24 Lightroom XMP starter presets adapted from [pch/rawmakase](https://github.com/pch/rawmakase/commit/a0bda901ada403fc48d926960f3dce8016670bcb), copyright 2026 RAWmakase contributors, MIT. The original licence, per-file hashes and exclusions are retained in `src-tauri/resources/starter-presets/`. Piotr Chmolowski authored the source. Both Creative presets naming Adobe Standard are excluded. The React browser and Rust XMP export are original RapidRoom implementations.
