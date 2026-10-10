@@ -144,4 +144,3 @@ regressions and independent re-review remain separate from the full gates above.
 ![Sony as-shot, absolute Kelvin or relative WB comparison](sony-a7rv-pixls-6234-busy-tone-color-detail.png)
 
 ![Sony as-shot, absolute Kelvin or relative WB comparison](sony-a7rv-pixls-6235-as-shot-absolute.png)
-
