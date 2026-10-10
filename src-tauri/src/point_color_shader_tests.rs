@@ -1,6 +1,6 @@
-//! Exercises the production colour functions on a GPU, including HDR/negative
-//! inputs that cannot survive an ordinary clamped export. Run explicitly with
-//! `cargo test --lib hsl_shader_tests -- --ignored --nocapture` on a GPU host.
+//! Executes production Point Color WGSL on a GPU: exact no-ops, signed shifts,
+//! eight overlapping ranges, near-greys and hue wrapping. Run the ignored
+//! test under the shared build lock on a GPU host.
 
 use std::{sync::mpsc, time::Duration};
 

@@ -115,7 +115,7 @@ it('does not apply a sample after a competing edit', async () => {
 });
 it('writes only the selected mask swatches', async () => {
   await act(async () => {
-    useUIStore.getState().setUI({ activePanel: Panel.Masks });
+    useUIStore.getState().setPanel(Panel.Masks);
     useEditorStore.getState().setEditor({
       activeMaskContainerId: 'mask',
       pointColorPickerMaskId: 'mask',
@@ -128,5 +128,81 @@ it('writes only the selected mask swatches', async () => {
 });
 it('ends when a competing picker starts', async () => {
   await act(async () => useEditorStore.getState().setEditor({ isWbPickerActive: true }));
+  expect(useEditorStore.getState().isPointColorPickerActive).toBe(false);
+});
+it('keeps picking from a visible Adjustments dock when another dock is active', async () => {
+  await act(async () =>
+    useUIStore.getState().setUI({
+      activePanel: Panel.Masks,
+      activePanels: { ...useUIStore.getState().activePanels, leftTop: Panel.Masks, rightTop: Panel.Adjustments },
+      uiVisibility: { ...useUIStore.getState().uiVisibility, leftPanel: true, rightPanel: true },
+    }),
+  );
+  expect(useEditorStore.getState().isPointColorPickerActive).toBe(true);
+});
+it('does not apply a canceled sample after restarting the picker', async () => {
+  let resolve!: (value: PointColorSample) => void;
+  mockCommand(
+    Invokes.SamplePointColorInput,
+    () =>
+      new Promise<PointColorSample>((done) => {
+        resolve = done;
+      }),
+  );
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = picker.start(event);
+  });
+  await act(async () => useEditorStore.getState().setEditor({ isPointColorPickerActive: false }));
+  await act(async () => useEditorStore.getState().setEditor({ isPointColorPickerActive: true }));
+  await act(async () => {
+    resolve(color);
+    await pending;
+  });
+  expect(setAdjustments).not.toHaveBeenCalled();
+  expect(useEditorStore.getState().isPointColorPickerActive).toBe(true);
+});
+it('permits a new request after cancellation and ignores old success/finally', async () => {
+  const resolves: Array<(value: PointColorSample) => void> = [];
+  mockCommand(Invokes.SamplePointColorInput, () => new Promise<PointColorSample>((done) => resolves.push(done)));
+  let old!: Promise<void>, next!: Promise<void>;
+  await act(async () => {
+    old = picker.start(event);
+  });
+  await act(async () => {
+    useEditorStore.getState().setEditor({ isPointColorPickerActive: false });
+    useEditorStore.getState().setEditor({ isPointColorPickerActive: true });
+  });
+  await act(async () => {
+    next = picker.start(event);
+  });
+  expect(resolves).toHaveLength(2);
+  await act(async () => {
+    resolves[0]({ ...color, hue: 100 });
+    await old;
+  });
+  expect(setAdjustments).not.toHaveBeenCalled();
+  await act(async () => {
+    resolves[1](color);
+    await next;
+  });
+  expect(setAdjustments).toHaveBeenCalledOnce();
+  expect(useEditorStore.getState().adjustments.pointColor![0].color).toEqual(color);
+});
+it('keeps mask picking active in another visible dock and cancels when it hides', async () => {
+  await act(async () => {
+    useUIStore
+      .getState()
+      .setUI({
+        activePanel: Panel.Adjustments,
+        activePanels: { ...useUIStore.getState().activePanels, leftTop: Panel.Masks, rightTop: Panel.Adjustments },
+        uiVisibility: { ...useUIStore.getState().uiVisibility, leftPanel: true, rightPanel: true },
+      });
+    useEditorStore.getState().setEditor({ activeMaskContainerId: 'mask', pointColorPickerMaskId: 'mask' });
+  });
+  expect(useEditorStore.getState().isPointColorPickerActive).toBe(true);
+  await act(async () =>
+    useUIStore.getState().setUI({ uiVisibility: { ...useUIStore.getState().uiVisibility, leftPanel: false } }),
+  );
   expect(useEditorStore.getState().isPointColorPickerActive).toBe(false);
 });

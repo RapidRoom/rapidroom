@@ -92,8 +92,12 @@ export default function PointColorPanel({ points, onChange, isForMask = false, o
                       : 50
             }
             onDragStateChange={onDragStateChange}
-            onChange={(value) =>
-              onChange(points.map((point) => (point.id === selected.id ? { ...point, [key]: value } : point)))
+            onChange={(event) =>
+              onChange(
+                points.map((point) =>
+                  point.id === selected.id ? { ...point, [key]: Number(event.target.value) } : point,
+                ),
+              )
             }
           />
         ))}

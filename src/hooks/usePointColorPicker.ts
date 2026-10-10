@@ -18,6 +18,21 @@ interface Options {
   zoomScale: number;
   setAdjustments(fn: (prev: Adjustments) => Adjustments): void;
 }
+function scopeVisible(maskId: string | null, ui: ReturnType<typeof useUIStore.getState>): boolean {
+  const target = maskId === null ? Panel.Adjustments : Panel.Masks;
+  return Object.entries(ui.activePanels).some(([region, panel]) => {
+    const actual = panel ?? ui.panelLayout[region as keyof typeof ui.panelLayout][0];
+    return (
+      actual === target &&
+      (region.startsWith('left')
+        ? ui.uiVisibility.leftPanel
+        : region.startsWith('right')
+          ? ui.uiVisibility.rightPanel
+          : true)
+    );
+  });
+}
+
 export function usePointColorPicker({ getCanvasPointer, imageRenderSize, zoomScale, setAdjustments }: Options) {
   const { t } = useTranslation();
   const active = useEditorStore((state) => state.isPointColorPickerActive);
@@ -27,24 +42,49 @@ export function usePointColorPicker({ getCanvasPointer, imageRenderSize, zoomSca
   const selectedMask = useEditorStore((state) => state.activeMaskContainerId);
   const scope = useEditorStore((state) => state.pointColorPickerMaskId);
   const view = useUIStore((state) => state.activeView);
-  const panel = useUIStore((state) => state.activePanel);
+  const panelVisible = useUIStore((state) => scopeVisible(scope, state));
   const visibility = useEditorStore(
     (state) =>
       (state.adjustments.sectionVisibility?.color ?? true) && (state.adjustments.sectionVisibility?.colorMixer ?? true),
   );
-  const pending = useRef(false);
+  const pending = useRef<number | null>(null);
+  const generation = useRef(0);
+  useEffect(() => {
+    const invalidate = () => {
+      generation.current++;
+      pending.current = null;
+    };
+    const unsubscribeEditor = useEditorStore.subscribe((next, previous) => {
+      if (
+        next.isPointColorPickerActive !== previous.isPointColorPickerActive ||
+        next.pointColorPickerMaskId !== previous.pointColorPickerMaskId ||
+        next.selectedImage?.path !== previous.selectedImage?.path ||
+        next.adjustments !== previous.adjustments ||
+        next.isWbPickerActive !== previous.isWbPickerActive ||
+        next.mixerPickerProperty !== previous.mixerPickerProperty ||
+        next.activeMaskContainerId !== previous.activeMaskContainerId ||
+        next.selectedPointColorId !== previous.selectedPointColorId
+      )
+        invalidate();
+    });
+    const unsubscribeUI = useUIStore.subscribe((next, previous) => {
+      const scope = useEditorStore.getState().pointColorPickerMaskId;
+      if (next.activeView !== previous.activeView || scopeVisible(scope, next) !== scopeVisible(scope, previous))
+        invalidate();
+    });
+    return () => {
+      invalidate();
+      unsubscribeEditor();
+      unsubscribeUI();
+    };
+  }, []);
   useEffect(() => {
     if (
       active &&
-      (wb ||
-        mixer ||
-        view !== 'editor' ||
-        (scope === null ? panel !== Panel.Adjustments : panel !== Panel.Masks) ||
-        !visibility ||
-        (scope !== null && selectedMask !== scope))
+      (wb || mixer || view !== 'editor' || !panelVisible || !visibility || (scope !== null && selectedMask !== scope))
     )
       useEditorStore.getState().setEditor({ isPointColorPickerActive: false });
-  }, [active, wb, mixer, selectedMask, scope, view, panel, visibility]);
+  }, [active, wb, mixer, selectedMask, scope, view, panelVisible, visibility]);
   useEffect(
     () => () => {
       useEditorStore.getState().setEditor({ isPointColorPickerActive: false });
@@ -53,7 +93,7 @@ export function usePointColorPicker({ getCanvasPointer, imageRenderSize, zoomSca
   );
   const start = useCallback(
     async (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
-      if (!active || pending.current) return;
+      if (!useEditorStore.getState().isPointColorPickerActive || pending.current !== null) return;
       const stage = event.target.getStage();
       if (!stage) return;
       const position = getCanvasPointer(stage);
@@ -67,7 +107,8 @@ export function usePointColorPicker({ getCanvasPointer, imageRenderSize, zoomSca
       const maskId = state.pointColorPickerMaskId;
       const selectedId = state.selectedPointColorId;
       if (!path || !state.selectedImage?.isReady) return;
-      pending.current = true;
+      const request = ++generation.current;
+      pending.current = request;
       try {
         const color = await invoke<PointColorSample>(Invokes.SamplePointColorInput, {
           path,
@@ -79,6 +120,7 @@ export function usePointColorPicker({ getCanvasPointer, imageRenderSize, zoomSca
         });
         const current = useEditorStore.getState();
         if (
+          generation.current !== request ||
           !current.isPointColorPickerActive ||
           current.selectedImage?.path !== path ||
           current.adjustments !== original ||
@@ -111,9 +153,9 @@ export function usePointColorPicker({ getCanvasPointer, imageRenderSize, zoomSca
         );
         current.setEditor({ selectedPointColorId: id, isPointColorPickerActive: false });
       } catch {
-        toast.error(t('pointColor.sampleFailed'));
+        if (generation.current === request) toast.error(t('pointColor.sampleFailed'));
       } finally {
-        pending.current = false;
+        if (pending.current === request) pending.current = null;
       }
     },
     [active, getCanvasPointer, imageRenderSize.width, imageRenderSize.height, zoomScale, setAdjustments, t],

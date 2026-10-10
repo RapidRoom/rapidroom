@@ -2541,7 +2541,7 @@
       "source": "src/components/adjustments/PointColor.tsx",
       "line": 75,
       "valueExpression": "selected[key as keyof typeof POINT_COLOR_RANGES]",
-      "changeExpression": "(value) =>\n              onChange(points.map((point) => (point.id === selected.id ? { ...point, [key]: value } : point)))",
+      "changeExpression": "(event) =>\n              onChange(\n                points.map((point) =>\n                  point.id === selected.id ? { ...point, [key]: Number(event.target.value) } : point,\n                ),\n              )",
       "labelExpression": "t(`pointColor.${key}` as never)",
       "minimum": null,
       "maximum": null,

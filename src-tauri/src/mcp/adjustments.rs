@@ -1074,6 +1074,10 @@ mod tests {
             assert!(validate_adjustments(&invalid).is_err(), "{invalid}");
         }
         assert_eq!(point_color_schema()["maxItems"], 8);
+        assert!(crate::all_available_adjustments().contains("pointColor"));
+        assert!(crate::app_settings::default_included_adjustments().contains("pointColor"));
+        let (compact, _) = compact_schema();
+        assert_eq!(compact["properties"]["pointColor"]["maxItems"], 8);
     }
 
     #[test]
