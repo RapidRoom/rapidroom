@@ -95,6 +95,27 @@ pub enum PasteMode {
     Replace,
 }
 
+pub(crate) const SPATIAL_EFFECT_ADJUSTMENTS: &[&str] = &[
+    "relightEnabled",
+    "relightNormalMap",
+    "relightLights",
+    "relightAmbient",
+    "relightSoftness",
+    "relightShine",
+    "relightShadows",
+    "relightShadowSoftness",
+    "fogEnabled",
+    "fogDepthMap",
+    "fogAmount",
+    "fogStart",
+    "fogDensity",
+    "fogHeight",
+    "fogVariation",
+    "fogGlow",
+    "fogTemperature",
+    "fogTint",
+];
+
 pub fn all_available_adjustments() -> HashSet<String> {
     [
         "exposure",
@@ -171,6 +192,7 @@ pub fn all_available_adjustments() -> HashSet<String> {
         "guidedPerspective",
     ]
     .iter()
+    .chain(SPATIAL_EFFECT_ADJUSTMENTS)
     .map(|s| s.to_string())
     .collect()
 }
@@ -206,7 +228,8 @@ pub fn default_included_adjustments() -> HashSet<String> {
         "guidedPerspective",
     ];
 
-    for item in off_by_default.iter() {
+    // Spatial maps and placed lights belong to the source image, just like masks.
+    for item in off_by_default.iter().chain(SPATIAL_EFFECT_ADJUSTMENTS) {
         defaults.remove(*item);
     }
 
