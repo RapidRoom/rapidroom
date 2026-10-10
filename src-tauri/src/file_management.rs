@@ -343,6 +343,18 @@ pub struct Preset {
     pub preset_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub favorite: Option<bool>,
+    #[serde(
+        rename = "cameraModelRestriction",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub camera_model_restriction: Option<String>,
+    #[serde(
+        rename = "unavailableReason",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub unavailable_reason: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -3843,7 +3855,7 @@ fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String
 pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
     let path = get_presets_path(&app_handle)?;
     if !path.exists() {
-        return Ok(Vec::new());
+        return crate::starter_presets::library();
     }
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
     serde_json::from_str(&content).map_err(|e| e.to_string())
@@ -3930,13 +3942,27 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
         content
     };
 
-    let converted_preset = preset_converter::convert_xmp_to_preset(&xmp_content)?;
+    let mut converted_preset = preset_converter::convert_xmp_to_preset(&xmp_content)?;
+    let exact = crate::preset_xmp::exact_adjustments(&xmp_content)?;
+    let is_exact = exact.is_some();
+    if let Some(exact) = exact {
+        converted_preset.adjustments = exact;
+    }
     for item in
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset)
     {
         if !not_imported.iter().any(|existing| existing == item) {
             not_imported.push(item.to_string());
         }
+    }
+    if is_exact {
+        not_imported.clear();
+    }
+    if !not_imported.is_empty() && converted_preset.unavailable_reason.is_none() {
+        converted_preset.unavailable_reason = Some(format!(
+            "Settings not supported: {}",
+            not_imported.join(", ")
+        ));
     }
     let warnings = if not_imported.is_empty() {
         Vec::new()
@@ -3946,7 +3972,16 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
             not_imported.join(", ")
         )]
     };
-    Ok((vec![PresetItem::Preset(converted_preset)], warnings))
+    let item = if let Some(name) = crate::preset_xmp::group_name(&xmp_content) {
+        PresetItem::Folder(PresetFolder {
+            id: format!("xmp-group:{name}"),
+            name,
+            children: vec![converted_preset],
+        })
+    } else {
+        PresetItem::Preset(converted_preset)
+    };
+    Ok((vec![item], warnings))
 }
 
 fn merge_imported_items(
@@ -3955,6 +3990,27 @@ fn merge_imported_items(
     imported: Vec<PresetItem>,
 ) {
     for mut imported_item in imported {
+        if let PresetItem::Folder(incoming) = &mut imported_item
+            && incoming.id.starts_with("xmp-group:")
+            && let Some(PresetItem::Folder(existing)) = target
+                .iter_mut()
+                .find(|item| matches!(item, PresetItem::Folder(f) if f.name == incoming.name))
+        {
+            let mut names: HashSet<String> =
+                existing.children.iter().map(|p| p.name.clone()).collect();
+            for mut preset in incoming.children.drain(..) {
+                preset.id = Uuid::new_v4().to_string();
+                let name = preset.name.clone();
+                let mut suffix = 1;
+                while names.contains(&preset.name) {
+                    preset.name = format!("{name} ({suffix})");
+                    suffix += 1;
+                }
+                names.insert(preset.name.clone());
+                existing.children.push(preset);
+            }
+            continue;
+        }
         let original_name = match &mut imported_item {
             PresetItem::Preset(p) => {
                 p.id = Uuid::new_v4().to_string();
@@ -4080,6 +4136,14 @@ pub fn handle_export_presets_to_file(
 }
 
 #[tauri::command]
+pub fn export_lightroom_preset(preset: Preset, file_path: String) -> Result<Vec<String>, String> {
+    ensure_card_writable(Path::new(&file_path))?;
+    let (xml, unsupported) = crate::preset_xmp::serialize(&preset)?;
+    fs::write(file_path, xml).map_err(|e| e.to_string())?;
+    Ok(unsupported)
+}
+
+#[tauri::command]
 pub fn save_community_preset(
     name: String,
     adjustments: Value,
@@ -4119,6 +4183,8 @@ pub fn save_community_preset(
         include_crop_transform,
         preset_type: preset_type.or(Some("style".to_string())),
         favorite: None,
+        camera_model_restriction: None,
+        unavailable_reason: None,
     };
 
     if let Some(PresetItem::Folder(folder)) = current_presets.iter_mut().find(|item| {
@@ -7016,5 +7082,61 @@ mod rename_cache_tests {
                 assert_eq!(fs::read_to_string(cached).unwrap(), *old_path);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod xmp_preset_browser_tests {
+    use super::*;
+
+    #[test]
+    fn xmp_groups_merge_and_keep_profile_compatibility() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("preset.xmp");
+        fs::write(&path, r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" crs:Exposure2012="1" crs:CameraModelRestriction="Sony" crs:CameraProfile="Adobe Standard"><crs:Group><rdf:Alt><rdf:li>Color &amp; Tone</rdf:li></rdf:Alt></crs:Group><crs:Name><rdf:Alt><rdf:li>Warm</rdf:li></rdf:Alt></crs:Name></rdf:Description></rdf:RDF></x:xmpmeta>"#).unwrap();
+        let (items, _) = parse_preset_file(path.to_str().unwrap()).unwrap();
+        let mut library = Vec::new();
+        let mut names = HashSet::new();
+        merge_imported_items(&mut library, &mut names, items.clone());
+        merge_imported_items(&mut library, &mut names, items);
+        assert_eq!(library.len(), 1);
+        let PresetItem::Folder(group) = &library[0] else {
+            panic!("missing group")
+        };
+        assert_eq!(group.name, "Color & Tone");
+        assert_eq!(group.children.len(), 2);
+        assert_ne!(group.children[0].id, group.children[1].id);
+        assert_eq!(group.children[1].name, "Warm (1)");
+        assert_eq!(
+            group.children[0].camera_model_restriction.as_deref(),
+            Some("Sony")
+        );
+        assert!(
+            group.children[0]
+                .unavailable_reason
+                .as_ref()
+                .unwrap()
+                .contains("Adobe Standard")
+        );
+    }
+
+    #[test]
+    fn own_xmp_export_reimports_exact_sparse_adjustments() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("preset.xmp");
+        let mut preset = preset_converter::convert_xmp_to_preset(
+            r#"<rdf:Description crs:Exposure2012="1.25"/>"#,
+        )
+        .unwrap();
+        preset.adjustments =
+            serde_json::json!({"exposure":1.25,"brightness":8,"hsl":{"reds":{"hue":17}}});
+        let (xml, _) = crate::preset_xmp::serialize(&preset).unwrap();
+        fs::write(&path, xml).unwrap();
+        let (items, warnings) = parse_preset_file(path.to_str().unwrap()).unwrap();
+        let PresetItem::Folder(group) = &items[0] else {
+            panic!("missing group")
+        };
+        assert_eq!(group.children[0].adjustments, preset.adjustments);
+        assert!(warnings.is_empty());
     }
 }

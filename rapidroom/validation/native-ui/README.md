@@ -289,3 +289,5 @@ harness corrections. Startup now permits one script-timeout retry only for
 its first side-effect-free readiness probe, before Continue Session. The
 successful final run needed no retry; GUI actions and MCP calls are never
 silently retried.
+
+`--presets` checks Ctrl+Shift+N preset creation, grouped/name search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.

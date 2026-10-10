@@ -167,3 +167,7 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 - **Compact MCP payloads, local schema definitions and comparison layout (#147):**
   original work by Yojen with Codex/sora. Existing MCP/renderer/font authorship
   and full notices retained; no dependency or network connection added.
+
+### RAWmakase starter presets
+
+24 Lightroom XMP starter presets adapted from [pch/rawmakase](https://github.com/pch/rawmakase/commit/a0bda901ada403fc48d926960f3dce8016670bcb), copyright 2026 RAWmakase contributors, MIT. The original licence, per-file hashes and exclusions are retained in `src-tauri/resources/starter-presets/`. Piotr Chmolowski authored the source. Both Creative presets naming Adobe Standard are excluded. The React browser and Rust XMP export are original RapidRoom implementations.

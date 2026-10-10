@@ -376,6 +376,9 @@ class Smoke:
                  "GPU-processed editor preview")
         baseline = self.stable_preview("preview")
         self.step("native preview", {"roi": self.roi, "capture": str(baseline.relative_to(self.case))})
+        if (self.case / "presets-test.json").exists():
+            from presets import run_preset_checks
+            run_preset_checks(self, wait_for, baseline)
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
         edited = self.stable_preview("edited")
         difference = ImageStat.Stat(ImageChops.difference(self.crop(baseline), self.crop(edited)))
@@ -545,6 +548,8 @@ def launch(args):
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_packaging:
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
+    if args.presets:
+        save(case / "presets-test.json", {"issue": 169})
     if args.crop_noop:
         save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
@@ -654,6 +659,7 @@ def main():
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
     parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
+    parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     global WIDTH, HEIGHT

@@ -317,6 +317,7 @@ export interface UIState {
   collageModalState: CollageModalState;
 
   setUI: (updater: Partial<UIState> | ((state: UIState) => Partial<UIState>)) => void;
+  presetCreationRequested: boolean;
   setPanel: (panel: Panel | null) => void;
   customEscapeHandler: (() => void) | null;
   setCustomEscapeHandler: (handler: (() => void) | null) => void;
@@ -577,6 +578,7 @@ export const useUIStore = create<UIState>((set, get) => ({
       return updates;
     }),
 
+  presetCreationRequested: false,
   setPanel: (panelId) => {
     const state = get();
     if (!panelId) return;

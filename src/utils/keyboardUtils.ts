@@ -232,6 +232,12 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     section: 'panels',
   },
   {
+    action: 'save_preset_xmp',
+    description: 'settings.keybinds.actions.save_preset_xmp',
+    defaultCombo: ['ctrl', 'shift', 'KeyN'],
+    section: 'panels',
+  },
+  {
     action: 'toggle_presets',
     description: 'settings.keybinds.actions.toggle_presets',
     defaultCombo: ['shift', 'KeyP'],

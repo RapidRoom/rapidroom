@@ -386,6 +386,18 @@ export const useKeyboardShortcuts = ({
           s.ui.setPanel(Panel.Ai);
         },
       },
+      save_preset_xmp: {
+        shouldFire: () =>
+          useUIStore.getState().activeView === 'editor' &&
+          !!useEditorStore.getState().selectedImage?.isReady &&
+          !document.querySelector('[role="dialog"], [aria-modal="true"]'),
+        execute: (event: { preventDefault(): void }) => {
+          event.preventDefault();
+          const ui = useUIStore.getState();
+          ui.setUI({ presetCreationRequested: true });
+          ui.setPanel(Panel.Presets);
+        },
+      },
       toggle_presets: {
         shouldFire: () => true,
         execute: (e: any, s: any) => {
