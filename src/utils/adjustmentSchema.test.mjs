@@ -18,6 +18,13 @@ describe('generated MCP adjustment schema', () => {
       expect.objectContaining({ minimum: -100, maximum: 100 }),
     );
     expect(schema.controls.every((control) => control.adjustmentKeys.length > 0)).toBe(true);
+    expect(schema.parameters.relightLights.default).toEqual([]);
+    expect(schema.parameters.relightLights.itemUiRanges.elevation).toEqual(
+      expect.objectContaining({ minimum: -180, maximum: 180, step: 1 }),
+    );
+    expect(schema.controls.find((control) => control.valueExpression === 'activeLight.elevation')).toEqual(
+      expect.objectContaining({ adjustmentKeys: ['relightLights'], arrayItemProperty: 'elevation' }),
+    );
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'rapidroom-schema-'));
     try {
       for (const name of ['rapidroom/adjustment-schema.json', ...schema.generatedFrom]) {

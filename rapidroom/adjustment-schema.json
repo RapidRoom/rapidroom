@@ -1553,7 +1553,26 @@
     "lensBlurMinFade": { "defaultType": "number", "default": 20 },
     "relightEnabled": { "defaultType": "boolean", "default": false },
     "relightNormalMap": { "defaultType": "null", "default": null },
-    "relightLights": { "defaultType": "array", "default": [] },
+    "relightLights": {
+      "defaultType": "array",
+      "default": [],
+      "itemUiRanges": {
+        "intensity": { "minimum": 0, "maximum": 100, "step": 1, "source": "src/components/adjustments/Effects.tsx" },
+        "depth": { "minimum": 0, "maximum": 100, "step": 1, "source": "src/components/adjustments/Effects.tsx" },
+        "radius": { "minimum": 0, "maximum": 100, "step": 1, "source": "src/components/adjustments/Effects.tsx" },
+        "angle": { "minimum": 0, "maximum": 360, "step": 1, "source": "src/components/adjustments/Effects.tsx" },
+        "elevation": { "minimum": -180, "maximum": 180, "step": 1, "source": "src/components/adjustments/Effects.tsx" },
+        "cone": { "minimum": 0, "maximum": 100, "step": 1, "source": "src/components/adjustments/Effects.tsx" },
+        "feather": { "minimum": 0, "maximum": 100, "step": 1, "source": "src/components/adjustments/Effects.tsx" },
+        "temperature": {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Effects.tsx"
+        },
+        "tint": { "minimum": -100, "maximum": 100, "step": 1, "source": "src/components/adjustments/Effects.tsx" }
+      }
+    },
     "relightAmbient": {
       "defaultType": "number",
       "default": 0,
@@ -2695,7 +2714,8 @@
       "minimum": 0,
       "maximum": 100,
       "step": 1,
-      "adjustmentKeys": []
+      "adjustmentKeys": ["relightLights"],
+      "arrayItemProperty": "intensity"
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
@@ -2706,7 +2726,8 @@
       "minimum": 0,
       "maximum": 100,
       "step": 1,
-      "adjustmentKeys": []
+      "adjustmentKeys": ["relightLights"],
+      "arrayItemProperty": "depth"
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
@@ -2717,7 +2738,8 @@
       "minimum": 0,
       "maximum": 100,
       "step": 1,
-      "adjustmentKeys": []
+      "adjustmentKeys": ["relightLights"],
+      "arrayItemProperty": "radius"
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
@@ -2728,7 +2750,8 @@
       "minimum": 0,
       "maximum": 360,
       "step": 1,
-      "adjustmentKeys": []
+      "adjustmentKeys": ["relightLights"],
+      "arrayItemProperty": "angle"
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
@@ -2739,7 +2762,8 @@
       "minimum": -180,
       "maximum": 180,
       "step": 1,
-      "adjustmentKeys": []
+      "adjustmentKeys": ["relightLights"],
+      "arrayItemProperty": "elevation"
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
@@ -2750,7 +2774,8 @@
       "minimum": 0,
       "maximum": 100,
       "step": 1,
-      "adjustmentKeys": []
+      "adjustmentKeys": ["relightLights"],
+      "arrayItemProperty": "cone"
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
@@ -2761,7 +2786,8 @@
       "minimum": 0,
       "maximum": 100,
       "step": 1,
-      "adjustmentKeys": []
+      "adjustmentKeys": ["relightLights"],
+      "arrayItemProperty": "feather"
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
@@ -2772,7 +2798,8 @@
       "minimum": -100,
       "maximum": 100,
       "step": 1,
-      "adjustmentKeys": []
+      "adjustmentKeys": ["relightLights"],
+      "arrayItemProperty": "temperature"
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
@@ -2783,7 +2810,8 @@
       "minimum": -100,
       "maximum": 100,
       "step": 1,
-      "adjustmentKeys": []
+      "adjustmentKeys": ["relightLights"],
+      "arrayItemProperty": "tint"
     },
     {
       "source": "src/components/adjustments/Effects.tsx",

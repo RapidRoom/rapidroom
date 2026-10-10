@@ -178,6 +178,8 @@ for (const file of sourceFiles) {
         referenced.add(whiteBalance[1]);
         referenced.add('whiteBalance');
       }
+      const lightProperty = /^activeLight\.(\w+)$/.exec(expression)?.[1];
+      if (lightProperty) referenced.add('relightLights');
       const direct = /adjustments\.([A-Za-z][A-Za-z0-9]*)/.exec(expression);
       if (direct && direct[1] in defaults) referenced.add(direct[1]);
       if (/^hsl\[/.test(expression))
@@ -193,6 +195,15 @@ for (const file of sourceFiles) {
         step: number('step'),
         adjustmentKeys: [...referenced].sort(),
       };
+      if (lightProperty) {
+        control.arrayItemProperty = lightProperty;
+        (parameters.relightLights.itemUiRanges ??= {})[lightProperty] = {
+          minimum: control.minimum,
+          maximum: control.maximum,
+          step: control.step,
+          source: control.source,
+        };
+      }
       if (whiteBalance)
         control.modeBindings = Object.fromEntries(
           ['relative', 'kelvin'].map((mode) => [
