@@ -817,6 +817,7 @@ pub async fn get_or_init_normal_model(
         state.normal_model = Some(normal_model.clone());
     } else {
         *ai_state_lock = Some(AiState {
+            tree_models: Default::default(),
             models: None,
             denoise_model: None,
             clip_models: None,
