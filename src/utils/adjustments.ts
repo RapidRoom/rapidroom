@@ -710,6 +710,20 @@ const deepCloneParametric = (pCurve: any): ParametricCurve => ({
   blue: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS, ...(pCurve?.blue || {}) },
 });
 
+const normalizeHsl = (loaded: Partial<Hsl> | undefined, defaults: Hsl): Hsl =>
+  Object.fromEntries(
+    Object.entries(defaults).map(([band, values]) => [band, { ...values, ...loaded?.[band as keyof Hsl] }]),
+  ) as Hsl;
+
+const normalizeColorGrading = (loaded: Partial<ColorGradingProps> | undefined): ColorGradingProps => ({
+  ...INITIAL_COLOR_GRADING,
+  ...loaded,
+  global: { ...INITIAL_COLOR_GRADING.global, ...loaded?.global },
+  highlights: { ...INITIAL_COLOR_GRADING.highlights, ...loaded?.highlights },
+  midtones: { ...INITIAL_COLOR_GRADING.midtones, ...loaded?.midtones },
+  shadows: { ...INITIAL_COLOR_GRADING.shadows, ...loaded?.shadows },
+});
+
 export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any => {
   if (!loadedAdjustments) {
     return INITIAL_ADJUSTMENTS;
@@ -752,8 +766,8 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
         glowAmount: containerAdjustments.glowAmount ?? INITIAL_MASK_ADJUSTMENTS.glowAmount,
         halationAmount: containerAdjustments.halationAmount ?? INITIAL_MASK_ADJUSTMENTS.halationAmount,
         hue: containerAdjustments.hue ?? INITIAL_MASK_ADJUSTMENTS.hue,
-        colorGrading: { ...INITIAL_MASK_ADJUSTMENTS.colorGrading, ...(containerAdjustments.colorGrading || {}) },
-        hsl: { ...INITIAL_MASK_ADJUSTMENTS.hsl, ...(containerAdjustments.hsl || {}) },
+        colorGrading: normalizeColorGrading(containerAdjustments.colorGrading),
+        hsl: normalizeHsl(containerAdjustments.hsl, INITIAL_MASK_ADJUSTMENTS.hsl),
         curves: containerAdjustments.curves ? deepCloneCurves(containerAdjustments.curves) : getDefaultCurves(),
         pointCurves: containerAdjustments.pointCurves
           ? deepCloneCurves(containerAdjustments.pointCurves)
@@ -829,8 +843,8 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
     transformXOffset: loadedAdjustments.transformXOffset ?? INITIAL_ADJUSTMENTS.transformXOffset,
     transformYOffset: loadedAdjustments.transformYOffset ?? INITIAL_ADJUSTMENTS.transformYOffset,
     colorCalibration: { ...INITIAL_ADJUSTMENTS.colorCalibration, ...(loadedAdjustments.colorCalibration || {}) },
-    colorGrading: { ...INITIAL_ADJUSTMENTS.colorGrading, ...(loadedAdjustments.colorGrading || {}) },
-    hsl: { ...INITIAL_ADJUSTMENTS.hsl, ...(loadedAdjustments.hsl || {}) },
+    colorGrading: normalizeColorGrading(loadedAdjustments.colorGrading),
+    hsl: normalizeHsl(loadedAdjustments.hsl, INITIAL_ADJUSTMENTS.hsl),
     curves: loadedAdjustments.curves ? deepCloneCurves(loadedAdjustments.curves) : getDefaultCurves(),
     pointCurves: loadedAdjustments.pointCurves ? deepCloneCurves(loadedAdjustments.pointCurves) : getDefaultCurves(),
     parametricCurve: loadedAdjustments.parametricCurve
