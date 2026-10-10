@@ -1,0 +1,153 @@
+{
+  "method": "Absolute Kelvin WB only, relative temperature/tint zero. Adjacent cumulative controls differ only by original LMS-clamp production change. Source CC0 Sony15MP, decoded16-bit TIFF, no new reference or tolerance. Screenshots generated from these measured exports.",
+  "source_sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+  "source": "sony-a7c2-15mp-uncompressed",
+  "cases": {
+    "2000-150": {
+      "whiteBalance": {
+        "temperature": 2000,
+        "tint": 150
+      },
+      "exports": {
+        "no-wb-clamp": {
+          "engine_sha256": "5893bd5f3fb393eac8ac7a6a92921a76e5e5455dea6bc0f98b0928bb964c58d3",
+          "source_head": "f33c7ae78e4578debdee9591af10b09d5a5dc8d4",
+          "pixel_sha256": "1ac6019ad4aa4838ad7af8a87989b5d55df615d85692f5d2b811fd1cbb47fa8f",
+          "mean_code": 0.0,
+          "nonzero_samples": 0,
+          "icc": "sRGB"
+        },
+        "no-guided": {
+          "engine_sha256": "adcc09f828a14f12609f40b54334fbde6993205f467edc20c228db28a30b0bd3",
+          "source_head": "8a548dd991cb1fdcb3d8071d826a72617aa9cec7",
+          "pixel_sha256": "bb2072c5ec0252e5c71c896c33843ba9ce48199c274d1e4be51e5f5b607981bf",
+          "mean_code": 20255.51754791354,
+          "nonzero_samples": 28356990,
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 65535,
+        "mean_abs": 20255.51754791354
+      }
+    },
+    "2000--150": {
+      "whiteBalance": {
+        "temperature": 2000,
+        "tint": -150
+      },
+      "exports": {
+        "no-wb-clamp": {
+          "engine_sha256": "5893bd5f3fb393eac8ac7a6a92921a76e5e5455dea6bc0f98b0928bb964c58d3",
+          "source_head": "f33c7ae78e4578debdee9591af10b09d5a5dc8d4",
+          "pixel_sha256": "6f9d1a2198fe6862f71b997d359890c11bcf204ed7a7ab73ba06478456172216",
+          "mean_code": 14565.902880327201,
+          "nonzero_samples": 28281375,
+          "icc": "sRGB"
+        },
+        "no-guided": {
+          "engine_sha256": "adcc09f828a14f12609f40b54334fbde6993205f467edc20c228db28a30b0bd3",
+          "source_head": "8a548dd991cb1fdcb3d8071d826a72617aa9cec7",
+          "pixel_sha256": "6f9d1a2198fe6862f71b997d359890c11bcf204ed7a7ab73ba06478456172216",
+          "mean_code": 14565.902880327201,
+          "nonzero_samples": 28281375,
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "2000-0": {
+      "whiteBalance": {
+        "temperature": 2000,
+        "tint": 0
+      },
+      "exports": {
+        "no-wb-clamp": {
+          "engine_sha256": "5893bd5f3fb393eac8ac7a6a92921a76e5e5455dea6bc0f98b0928bb964c58d3",
+          "source_head": "f33c7ae78e4578debdee9591af10b09d5a5dc8d4",
+          "pixel_sha256": "e1dcc9ddfea5af8719c201857eed6a1842d1a8c6596cd36f63cb1bd3a3c15621",
+          "mean_code": 20274.16518343231,
+          "nonzero_samples": 28403122,
+          "icc": "sRGB"
+        },
+        "no-guided": {
+          "engine_sha256": "adcc09f828a14f12609f40b54334fbde6993205f467edc20c228db28a30b0bd3",
+          "source_head": "8a548dd991cb1fdcb3d8071d826a72617aa9cec7",
+          "pixel_sha256": "e1dcc9ddfea5af8719c201857eed6a1842d1a8c6596cd36f63cb1bd3a3c15621",
+          "mean_code": 20274.16518343231,
+          "nonzero_samples": 28403122,
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "6504-0": {
+      "whiteBalance": {
+        "temperature": 6504,
+        "tint": 0
+      },
+      "exports": {
+        "no-wb-clamp": {
+          "engine_sha256": "5893bd5f3fb393eac8ac7a6a92921a76e5e5455dea6bc0f98b0928bb964c58d3",
+          "source_head": "f33c7ae78e4578debdee9591af10b09d5a5dc8d4",
+          "pixel_sha256": "c51042c16632ea6cf02f466a1b74d0661429e88bf9bc28197ccf57b7ea4a4bda",
+          "mean_code": 19845.544728102508,
+          "nonzero_samples": 42444287,
+          "icc": "sRGB"
+        },
+        "no-guided": {
+          "engine_sha256": "adcc09f828a14f12609f40b54334fbde6993205f467edc20c228db28a30b0bd3",
+          "source_head": "8a548dd991cb1fdcb3d8071d826a72617aa9cec7",
+          "pixel_sha256": "c51042c16632ea6cf02f466a1b74d0661429e88bf9bc28197ccf57b7ea4a4bda",
+          "mean_code": 19845.544728102508,
+          "nonzero_samples": 42444287,
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "50000-150": {
+      "whiteBalance": {
+        "temperature": 50000,
+        "tint": 150
+      },
+      "exports": {
+        "no-wb-clamp": {
+          "engine_sha256": "5893bd5f3fb393eac8ac7a6a92921a76e5e5455dea6bc0f98b0928bb964c58d3",
+          "source_head": "f33c7ae78e4578debdee9591af10b09d5a5dc8d4",
+          "pixel_sha256": "84cef0ff3d1f5f592b42714b9169f0d8f73afca46830f176218270efa188dd9b",
+          "mean_code": 20548.15556573279,
+          "nonzero_samples": 42250891,
+          "icc": "sRGB"
+        },
+        "no-guided": {
+          "engine_sha256": "adcc09f828a14f12609f40b54334fbde6993205f467edc20c228db28a30b0bd3",
+          "source_head": "8a548dd991cb1fdcb3d8071d826a72617aa9cec7",
+          "pixel_sha256": "84cef0ff3d1f5f592b42714b9169f0d8f73afca46830f176218270efa188dd9b",
+          "mean_code": 20548.15556573279,
+          "nonzero_samples": 42250891,
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    }
+  },
+  "complete": true
+}

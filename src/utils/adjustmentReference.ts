@@ -5,6 +5,7 @@
 // adjustmentReference.test.ts fails when the committed file differs from what this builds.
 import {
   ADJUSTMENT_GROUPS,
+  createRelightLight,
   INITIAL_ADJUSTMENTS,
   INITIAL_MASK_ADJUSTMENTS,
   INITIAL_MASK_CONTAINER,
@@ -14,6 +15,7 @@ import { createSubMask } from './maskUtils';
 import { Mask, SubMaskMode } from '../components/panel/right/Masks';
 import type { Curves, ParametricCurve } from './adjustments';
 import type { ImageDimensions } from '../hooks/useImageRenderSize';
+import { RELATIVE_RANGE } from './whiteBalance';
 
 interface MaskPanelConfig {
   parameters?: Array<{
@@ -41,6 +43,8 @@ export interface SliderRange {
 // `<primary>` stand for each HSL band, curve channel and calibration primary.
 const VALUE_PATHS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^adjustments\.([\wé]+)$/, (m) => m[1]],
+  [/^activeLight\.(\w+)$/, (m) => `relightLights.<light>.${m[1]}`],
+  [/^displayedWhiteBalance\.(temperature|tint)$/, (m) => m[1]],
   [/^colorGrading\.(\w+)$/, (m) => `colorGrading.${m[1]}`],
   [/^colorCalibration\.(\w+)$/, (m) => `colorCalibration.${m[1]}`],
   [/^currentHsl\.(\w+)$/, (m) => `hsl.<band>.${m[1]}`],
@@ -104,7 +108,14 @@ export const parseSliderProps = (source: string): Array<Record<string, string>> 
 const parseBound = (expression: string): { value: number; maskValue?: number } => {
   const forMask = /^isForMask\s*\?\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)$/.exec(expression);
   if (forMask) return { value: Number(forMask[2]), maskValue: Number(forMask[1]) };
-  const value = Number(expression);
+  // These sliders display both modes; relative scalar keys keep their relative range.
+  const relative = /^kelvinAsShot\s*\?[^:]+:\s*(.+)$/.exec(expression)?.[1] ?? expression;
+  const value =
+    relative === 'tintRange' || relative === 'RELATIVE_RANGE'
+      ? RELATIVE_RANGE
+      : relative === '-RELATIVE_RANGE' || relative === '-tintRange'
+        ? -RELATIVE_RANGE
+        : Number(relative);
   if (Number.isNaN(value)) throw new Error(`Can't read slider bound "${expression}"`);
   return { value };
 };
@@ -177,7 +188,8 @@ interface Row {
 
 const typeOf = (value: unknown, path: string): string => {
   if (value === null) {
-    if (/^(lutPath|lutName|lutData|lensMaker|lensModel|lensBlurDepthMap)$/.test(path)) return 'string | null';
+    if (/^(lutPath|lutName|lutData|lensMaker|lensModel|lensBlurDepthMap|relightNormalMap|fogDepthMap)$/.test(path))
+      return 'string | null';
     if (path === 'aspectRatio') return 'number | null';
     return 'object | null';
   }
@@ -187,6 +199,10 @@ const typeOf = (value: unknown, path: string): string => {
 
 const rowsFor = (path: string, value: unknown, inMasks: boolean): Row[] => {
   const row = (p: string, v: unknown): Row => ({ path: p, type: typeOf(v, p), defaultValue: v, inMasks });
+  if (path === 'relightLights') {
+    const light = { ...createRelightLight(0.5, 0.5), id: '<uuid>' };
+    return [row(path, value), ...Object.entries(light).map(([key, item]) => row(`relightLights.<light>.${key}`, item))];
+  }
   if (path === 'hsl') {
     return ['hue', 'saturation', 'luminance'].map((k) => row(`hsl.<band>.${k}`, 0));
   }
@@ -329,6 +345,7 @@ export const buildAdjustmentReference = (inputs: {
     '',
     '- **Slider range** is what the editor slider shows. The MCP server validates against its own schema (`tools/list`), which is sometimes wider; stay inside the slider range so the user can see and adjust your value. Blank means there is no slider for it.',
     `- \`<band>\` is one of ${HSL_BANDS.map((b) => `\`${b}\``).join(', ')}. \`<channel>\` is one of ${CURVE_CHANNELS.map((c) => `\`${c}\``).join(', ')}. \`<primary>\` is one of ${CALIBRATION_PRIMARIES.map((p) => `\`${p}\``).join(', ')} (for example \`colorCalibration.redHue\`).`,
+    '- `relightLights.<light>` describes one item in the `relightLights` array; its defaults apply to a newly placed light, while the array itself defaults to empty. Preserve other lights when replacing the array.',
     '- **Masks: yes** means a mask container has the key too, under `masks[i].adjustments`.',
     '- `update_adjustments` merges nested objects, so `{"hsl": {"blues": {"saturation": -20}}}` changes one value.',
     '',

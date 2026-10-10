@@ -1,9 +1,13 @@
 use crate::image_processing::{Crop, apply_orientation};
+use crate::white_balance::WhiteBalance;
 use anyhow::{Result, anyhow};
 use image::{DynamicImage, ImageBuffer, Rgba};
 use rawler::{
-    decoders::{Decoder, Orientation, RawDecodeParams},
-    imgop::develop::{DemosaicAlgorithm, Intermediate, ProcessingStep, RawDevelop},
+    decoders::{Decoder, FormatHint, Orientation, RawDecodeParams},
+    imgop::{
+        develop::{DemosaicAlgorithm, Intermediate, ProcessingStep, RawDevelop},
+        xyz::Illuminant,
+    },
     rawimage::{RawImage, RawPhotometricInterpretation},
     rawsource::RawSource,
 };
@@ -65,6 +69,21 @@ fn metadata_orientation(decoder: &dyn Decoder, source: &RawSource) -> Result<Ori
         .orientation
         .map(Orientation::from_u16)
         .unwrap_or(Orientation::Normal))
+}
+
+// Equivalent to upstream rawler a32bc1ff; retain RapidRoom's pinned decoder fixes.
+fn reconcile_camera_cfa(raw_image: &mut RawImage, format: FormatHint) {
+    if format == FormatHint::ORF
+        && raw_image.make == "OLYMPUS CORPORATION"
+        && raw_image.model == "E-M1X"
+        && raw_image.cpp == 1
+        && let RawPhotometricInterpretation::Cfa(config) = &mut raw_image.photometric
+        && config.cfa.name == "BGGR"
+    {
+        let cfa = rawler::cfa::CFA::new("RGGB");
+        config.cfa = cfa.clone();
+        raw_image.camera.cfa = cfa;
+    }
 }
 
 fn is_linear_raw_format(raw_image: &RawImage) -> bool {
@@ -174,6 +193,7 @@ fn develop_internal(
         ..Default::default()
     };
     let mut raw_image: RawImage = decoder.raw_image(&source, &decode_params, false)?;
+    reconcile_camera_cfa(&mut raw_image, decoder.format_hint());
 
     // Retain the full recommended sensor image for editable camera aspect crops.
     if let Some(default_area) = raw_image.default_crop_area {
@@ -356,6 +376,168 @@ fn mono_pixels_to_rgba(
         .ok_or_else(|| anyhow!("Developed image size does not match its dimensions"))
 }
 
+pub fn read_as_shot_white_balance(file_bytes: &[u8]) -> Option<WhiteBalance> {
+    let source = borrowed_raw_source(file_bytes);
+    let decoder = rawler::get_decoder(&source).ok()?;
+    let raw_image = decoder
+        .raw_image(&source, &RawDecodeParams::default(), true)
+        .ok()?;
+    as_shot_white_balance_from_raw(&raw_image, file_bytes)
+}
+
+fn as_shot_white_balance_from_raw(raw_image: &RawImage, file_bytes: &[u8]) -> Option<WhiteBalance> {
+    if raw_image.cpp == 1 && !matches!(raw_image.photometric, RawPhotometricInterpretation::Cfa(_))
+    {
+        return None;
+    }
+
+    // Sony lossless M/S ARWs contain already white-balanced RGB. Rawler replaces
+    // their sensor WB coefficients with unity; these are development gains, not
+    // a camera neutral. Inverting the sensor matrices invents an extreme tint,
+    // which the first relative edit clamps and turns the whole image magenta.
+    // Use the existing reference fallback until original sensor WB is available.
+    if raw_image.make.eq_ignore_ascii_case("SONY")
+        && raw_image.cpp == 3
+        && is_linear_raw_format(raw_image)
+        && raw_image.wb_coeffs[..3] == [1.0; 3]
+    {
+        return None;
+    }
+
+    let wb_coeffs =
+        crate::multi_exposure::neutralize_wb_if_multiexposure(raw_image.wb_coeffs, file_bytes);
+    let neutral = if wb_coeffs[0].is_nan() {
+        [1.0; 4]
+    } else {
+        wb_coeffs.map(|c| 1.0 / c)
+    };
+
+    let matrices = &raw_image.color_matrix;
+    if let (Some(matrix_a), Some(matrix_d65)) =
+        (matrices.get(&Illuminant::A), matrices.get(&Illuminant::D65))
+    {
+        return WhiteBalance::from_dual_illuminant_camera_neutral(matrix_a, matrix_d65, &neutral);
+    }
+
+    let color_matrix = matrices
+        .get(&Illuminant::D65)
+        .or_else(|| matrices.values().next())?;
+    WhiteBalance::from_camera_neutral(color_matrix, &neutral)
+}
+
+#[cfg(test)]
+mod as_shot_white_balance_tests {
+    use super::*;
+    use rawler::{
+        cfa::CFA,
+        decoders::Camera,
+        pixarray::PixU16,
+        rawimage::{BlackLevel, CFAConfig, WhiteLevel},
+    };
+
+    fn sony_metadata(cpp: usize, wb: [f32; 4]) -> RawImage {
+        let mut camera = Camera::new();
+        camera.make = "SONY".into();
+        camera.model = "ILCE-7CR".into();
+        camera.cfa = CFA::new("RGGB");
+        // Pinned rawler's ILCE-7CR matrices and CC0 sample's sensor coefficients.
+        camera.color_matrix.insert(
+            Illuminant::A,
+            vec![
+                0.9185, -0.4857, 0.0505, -0.3651, 1.1061, 0.2982, -0.0161, 0.0698, 0.6769,
+            ],
+        );
+        camera.color_matrix.insert(
+            Illuminant::D65,
+            vec![
+                0.82, -0.2976, -0.0719, -0.4296, 1.2053, 0.2532, -0.0429, 0.1282, 0.5774,
+            ],
+        );
+        let photometric = if cpp == 3 {
+            RawPhotometricInterpretation::LinearRaw
+        } else {
+            RawPhotometricInterpretation::Cfa(CFAConfig::new_from_camera(&camera))
+        };
+        RawImage::new(
+            camera,
+            PixU16::new_with(vec![0; 4 * cpp], 2 * cpp, 2),
+            cpp,
+            wb,
+            photometric,
+            Some(BlackLevel::zero(1, 1, cpp)),
+            Some(WhiteLevel::new(vec![16383; cpp])),
+            false,
+        )
+    }
+
+    #[test]
+    fn upstream_em1x_cfa_correction_is_scoped_to_its_native_bayer_metadata() {
+        let mut image = sony_metadata(1, [1.0; 4]);
+        image.make = "OLYMPUS CORPORATION".into();
+        image.model = "E-M1X".into();
+        image.camera.cfa = CFA::new("BGGR");
+        image.photometric =
+            RawPhotometricInterpretation::Cfa(CFAConfig::new_from_camera(&image.camera));
+        let unchanged = image.clone();
+        reconcile_camera_cfa(&mut image, FormatHint::ORF);
+        assert_eq!(image.camera.cfa.name, "RGGB");
+        let RawPhotometricInterpretation::Cfa(config) = image.photometric else {
+            panic!("expected Bayer metadata");
+        };
+        assert_eq!(config.cfa.name, "RGGB");
+        let mut dng = unchanged.clone();
+        reconcile_camera_cfa(&mut dng, FormatHint::DNG);
+        assert_eq!(dng.photometric, unchanged.photometric);
+        let mut other = unchanged.clone();
+        other.model = "E-M1".into();
+        reconcile_camera_cfa(&mut other, FormatHint::ORF);
+        assert_eq!(other.photometric, unchanged.photometric);
+        let mut linear = unchanged;
+        linear.cpp = 3;
+        linear.photometric = RawPhotometricInterpretation::LinearRaw;
+        reconcile_camera_cfa(&mut linear, FormatHint::ORF);
+        assert_eq!(linear.photometric, RawPhotometricInterpretation::LinearRaw);
+        assert_eq!(linear.camera.cfa.name, "BGGR");
+    }
+
+    #[test]
+    fn sony_reduced_rgb_does_not_invent_a_sensor_white_balance() {
+        let image = sony_metadata(3, [1.0, 1.0, 1.0, f32::NAN]);
+        let invented = WhiteBalance::from_dual_illuminant_camera_neutral(
+            &image.color_matrix[&Illuminant::A],
+            &image.color_matrix[&Illuminant::D65],
+            &[1.0; 3],
+        )
+        .unwrap();
+        assert!(invented.tint < -150.0);
+        let wb =
+            as_shot_white_balance_from_raw(&image, &[0; 8]).unwrap_or_else(WhiteBalance::reference);
+        assert_eq!(wb, WhiteBalance::reference());
+        for (temperature, tint) in [(8.0, -4.0), (-5.0, 0.0)] {
+            let gains =
+                crate::white_balance::adaptation_log_gains(wb, wb.shifted(temperature, tint));
+            assert!(
+                gains
+                    .iter()
+                    .all(|gain| gain.is_finite() && gain.abs() < 0.25)
+            );
+        }
+    }
+
+    #[test]
+    fn sony_cfa_and_original_linear_sensor_coefficients_remain_available() {
+        let sensor_wb = [2688.0 / 1024.0, 1.0, 1636.0 / 1024.0, f32::NAN];
+        let cfa = as_shot_white_balance_from_raw(&sony_metadata(1, sensor_wb), &[0; 8]).unwrap();
+        assert!((cfa.temperature - 6021.31).abs() < 0.1);
+        assert!((cfa.tint - 19.012).abs() < 0.01);
+        let linear = as_shot_white_balance_from_raw(&sony_metadata(3, sensor_wb), &[0; 8]).unwrap();
+        assert_eq!(linear, cfa);
+        let mut other_linear = sony_metadata(3, [1.0, 1.0, 1.0, f32::NAN]);
+        other_linear.make = "Apple".into();
+        assert!(as_shot_white_balance_from_raw(&other_linear, &[0; 8]).is_some());
+    }
+}
+
 pub fn get_fast_demosaic_scale_factor(
     file_bytes: &[u8],
     decoded_width: u32,
@@ -510,7 +692,7 @@ fn oriented_camera_crop(
 /// Camera aspect crop in the full developed image's oriented pixel coordinates.
 /// Dummy decoding reads metadata without developing the sensor pixels.
 pub fn camera_crop_from_bytes(file_bytes: &[u8]) -> Option<Crop> {
-    let source = RawSource::new_from_slice(file_bytes);
+    let source = borrowed_raw_source(file_bytes);
     let decoder = rawler::get_decoder(&source).ok()?;
     let raw_image = decoder
         .raw_image(&source, &RawDecodeParams::default(), true)

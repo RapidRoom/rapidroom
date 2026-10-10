@@ -6,7 +6,16 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTranslation } from 'react-i18next';
 
 import Filmstrip from './Filmstrip';
-import { GLOBAL_KEYS, ImageFile, ImageFlag, SelectedImage, ThumbnailAspectRatio } from '../ui/AppProperties';
+import {
+  GLOBAL_KEYS,
+  ImageFile,
+  ImageFlag,
+  FlagStatus,
+  RATING_OPERATORS,
+  SelectedImage,
+  ThumbnailAspectRatio,
+} from '../ui/AppProperties';
+import { FLAG_ICONS } from '../../utils/imageFlags';
 import FlagToggles from '../ui/FlagToggles';
 import Text from '../ui/Text';
 import { useEditorStore } from '../../store/useEditorStore';
@@ -154,6 +163,12 @@ export default function BottomBar({
 }: BottomBarProps) {
   const { t } = useTranslation();
   const { handleToggleFlag } = useLibraryActions();
+  const handleToggleFlagFilter = (status: FlagStatus) => {
+    setFilterCriteria((prev) => ({
+      ...prev,
+      flagStatus: prev.flagStatus === status ? FlagStatus.All : status,
+    }));
+  };
 
   const { isInstantTransition, uiVisibility, setUI } = useUIStore(
     useShallow((state) => ({
@@ -236,9 +251,9 @@ export default function BottomBar({
       setFilterCriteria: state.setFilterCriteria,
     })),
   );
+  const ratingOp = RATING_OPERATORS[filterCriteria.ratingOperator ?? (filterCriteria.ratingExact ? 'eq' : 'gte')];
 
   const allColors = [...COLOR_LABELS, { name: 'none', color: '#9ca3af' }];
-  const ratingComparisonSymbol = filterCriteria.ratingExact ? '=' : '≥';
   const currentHeight = filmstripHeight ?? 120;
   const isCollapsed = !isFilmstripVisible;
   const effectiveHeight = isFilmstripVisible ? currentHeight : 0;
@@ -486,16 +501,19 @@ export default function BottomBar({
             <div
               className={clsx(
                 'flex items-center transition-all duration-300 ease-in-out overflow-hidden',
-                isFilterExpanded ? 'max-w-100 opacity-100 pr-2 ml-1' : 'max-w-0 opacity-0 pr-0 ml-0',
+                // Increased max-w so stars + flags + colors all fit without clipping
+                isFilterExpanded ? 'max-w-xl opacity-100 pr-2 ml-1' : 'max-w-0 opacity-0 pr-0 ml-0',
               )}
             >
               <div className="flex items-center gap-3 whitespace-nowrap">
+                {/* 1. Star Rating Filter */}
                 <div className="flex items-center gap-0.5">
                   {[1, 2, 3, 4, 5].map((starValue) => {
                     const isFilled = filterCriteria.rating > 0 && starValue <= filterCriteria.rating;
                     return (
                       <button
                         key={`qf-star-${starValue}`}
+                        data-tooltip={`${starValue} ${t(ratingOp.suffixKey)}`}
                         onClick={() =>
                           setFilterCriteria((prev) => ({
                             ...prev,
@@ -514,20 +532,62 @@ export default function BottomBar({
                       </button>
                     );
                   })}
-                  <button
-                    data-tooltip={
-                      filterCriteria.ratingExact
-                        ? t('library.filters.rating.matchExactlyTooltip')
-                        : t('library.filters.rating.matchAtLeastTooltip')
-                    }
-                    onClick={() => setFilterCriteria((prev) => ({ ...prev, ratingExact: !prev.ratingExact }))}
-                    className={clsx(
-                      'ml-0.5 w-4 text-xs font-semibold focus:outline-none transition-colors',
-                      filterCriteria.ratingExact ? 'text-accent' : 'text-text-secondary hover:text-text-primary',
-                    )}
-                  >
-                    {ratingComparisonSymbol}
-                  </button>
+                  {(() => {
+                    const op = ratingOp;
+                    return (
+                      <button
+                        onClick={() => setFilterCriteria((prev) => ({ ...prev, ratingOperator: op.next }))}
+                        data-tooltip={t(op.labelKey)}
+                        className="ml-1 w-5 h-5 flex items-center justify-center rounded text-sm font-semibold text-text-secondary hover:text-text-primary focus:outline-none"
+                      >
+                        {op.symbol}
+                      </button>
+                    );
+                  })()}
+                </div>
+
+                <div className="h-4 w-px bg-border-color"></div>
+
+                <div className="flex items-center gap-1.5">
+                  {(() => {
+                    const PickIcon = FLAG_ICONS[ImageFlag.Pick];
+                    const isPickedActive = filterCriteria.flagStatus === FlagStatus.Picked;
+                    return (
+                      <button
+                        className="focus:outline-none transition-transform active:scale-95 hover:scale-110"
+                        onClick={() => handleToggleFlagFilter(FlagStatus.Picked)}
+                        data-tooltip={t('library.filters.flag.picked')}
+                      >
+                        <PickIcon
+                          size={16}
+                          className={clsx(
+                            'transition-colors duration-150',
+                            isPickedActive ? 'text-accent fill-accent' : 'text-text-secondary hover:text-accent',
+                          )}
+                        />
+                      </button>
+                    );
+                  })()}
+
+                  {(() => {
+                    const RejectIcon = FLAG_ICONS[ImageFlag.Reject];
+                    const isRejectActive = filterCriteria.flagStatus === FlagStatus.Rejected;
+                    return (
+                      <button
+                        className="focus:outline-none transition-transform active:scale-95 hover:scale-110"
+                        onClick={() => handleToggleFlagFilter(FlagStatus.Rejected)}
+                        data-tooltip={t('library.filters.flag.rejected')}
+                      >
+                        <RejectIcon
+                          size={16}
+                          className={clsx(
+                            'transition-colors duration-150',
+                            isRejectActive ? 'text-accent' : 'text-text-secondary hover:text-accent',
+                          )}
+                        />
+                      </button>
+                    );
+                  })()}
                 </div>
 
                 <div className="h-4 w-px bg-border-color"></div>

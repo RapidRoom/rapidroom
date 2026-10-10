@@ -1,6 +1,7 @@
 import { ExportPreset } from './ExportImportProperties';
 import { Adjustments, CopyPasteSettings } from '../../utils/adjustments';
 import { ToolType } from '../panel/right/Masks';
+import type { WhiteBalance, WhiteBalanceMode } from '../../utils/whiteBalance';
 
 export const GLOBAL_KEYS = [
   ' ',
@@ -276,6 +277,7 @@ export interface AppSettings {
   useWgpuRenderer?: boolean;
   editorNeutralGreyBg?: boolean;
   canvasInputMode?: 'mouse' | 'trackpad';
+  whiteBalanceMode?: WhiteBalanceMode;
   zoomSpeedMultiplier?: number;
   zoomPhotoToPixelClick?: boolean;
   keybinds?: { [action: string]: string[] };
@@ -354,9 +356,33 @@ export const FlagStatus = {
 
 export type FlagStatus = (typeof FlagStatus)[keyof typeof FlagStatus];
 
+export type RatingOperator = 'gte' | 'eq' | 'lte';
+
+export const RATING_OPERATORS = {
+  lte: {
+    symbol: '≤',
+    next: 'eq',
+    labelKey: 'library.header.viewOptions.ratingOperator.lte',
+    suffixKey: 'library.filters.rating.andDownSuffix',
+  },
+  eq: {
+    symbol: '=',
+    next: 'gte',
+    labelKey: 'library.header.viewOptions.ratingOperator.eq',
+    suffixKey: 'library.filters.rating.onlySuffix',
+  },
+  gte: {
+    symbol: '≥',
+    next: 'lte',
+    labelKey: 'library.header.viewOptions.ratingOperator.gte',
+    suffixKey: 'library.filters.rating.andUpSuffix',
+  },
+} as const;
+
 export interface FilterCriteria {
   colors: Array<string>;
   rating: number;
+  ratingOperator?: RatingOperator;
   ratingExact?: boolean;
   rawStatus: RawStatus;
   editedStatus?: EditedStatus;
@@ -419,6 +445,7 @@ export interface Progress {
 }
 
 export interface SelectedImage {
+  asShotWhiteBalance?: WhiteBalance;
   exif: any;
   group_id?: string | null;
   height: number;

@@ -71,6 +71,8 @@ interface EditorState {
   isStraightenActive: boolean;
   isWbPickerActive: boolean;
   mixerPickerProperty: HslMixerProperty | null;
+  isRelightPickerActive: boolean;
+  activeRelightLightId: string | null;
   isGuidedPerspectiveActive: boolean;
   liveRotation: number | null;
   brushSettings: BrushSettings | null;
@@ -141,6 +143,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   isStraightenActive: false,
   isWbPickerActive: false,
   mixerPickerProperty: null,
+  isRelightPickerActive: false,
+  activeRelightLightId: null,
   isGuidedPerspectiveActive: false,
   liveRotation: null,
 

@@ -1,0 +1,279 @@
+diff --git a/src-tauri/src/image_processing.rs b/src-tauri/src/image_processing.rs
+index 740b302b..326ea3f6 100644
+--- a/src-tauri/src/image_processing.rs
++++ b/src-tauri/src/image_processing.rs
+@@ -1504,13 +1504,13 @@ pub struct GlobalAdjustments {
+     pub whites: f32,
+     pub blacks: f32,
+     pub saturation: f32,
++    pub temperature: f32,
++    pub tint: f32,
+     pub vibrance: f32,
+     pub hue: f32,
+-    pub wb_log_gain_l: f32,
+-    pub wb_log_gain_m: f32,
+-    pub wb_log_gain_s: f32,
+     _pad_color1: f32,
+     _pad_color2: f32,
++    _pad_color3: f32,
+ 
+     pub sharpness: f32,
+     pub luma_noise_reduction: f32,
+@@ -1593,6 +1593,8 @@ pub struct MaskAdjustments {
+     pub whites: f32,
+     pub blacks: f32,
+     pub saturation: f32,
++    pub temperature: f32,
++    pub tint: f32,
+     pub vibrance: f32,
+ 
+     pub sharpness: f32,
+@@ -1608,10 +1610,8 @@ pub struct MaskAdjustments {
+     pub sharpness_threshold: f32,
+ 
+     pub hue: f32,
+-    pub wb_log_gain_l: f32,
+-    pub wb_log_gain_m: f32,
+-    pub wb_log_gain_s: f32,
+-    _pad_wb: f32,
++    _pad_cg1: f32,
++    _pad_cg2: f32,
+     pub color_grading_shadows: ColorGradeSettings,
+     pub color_grading_midtones: ColorGradeSettings,
+     pub color_grading_highlights: ColorGradeSettings,
+@@ -1658,6 +1658,8 @@ struct AdjustmentScales {
+     whites: f32,
+     blacks: f32,
+     saturation: f32,
++    temperature: f32,
++    tint: f32,
+     vibrance: f32,
+ 
+     sharpness: f32,
+@@ -1705,6 +1707,8 @@ const SCALES: AdjustmentScales = AdjustmentScales {
+     whites: 30.0,
+     blacks: 40.0,
+     saturation: 100.0,
++    temperature: 25.0,
++    tint: 100.0,
+     vibrance: 100.0,
+ 
+     sharpness: 50.0,
+@@ -2125,7 +2129,6 @@ fn is_color_tool_visible(adjustments: &serde_json::Value, tool: &str) -> bool {
+ fn get_global_adjustments_from_json(
+     js_adjustments: &serde_json::Value,
+     is_raw: bool,
+-    white_balance_gains: [f32; 3],
+     tonemapper_override: Option<u32>,
+ ) -> GlobalAdjustments {
+     let visibility = js_adjustments.get("sectionVisibility");
+@@ -2264,13 +2267,13 @@ fn get_global_adjustments_from_json(
+         blacks: get_val("basic", "blacks", SCALES.blacks, None),
+ 
+         saturation: get_val("color", "saturation", SCALES.saturation, None),
++        temperature: get_val("color", "temperature", SCALES.temperature, None),
++        tint: get_val("color", "tint", SCALES.tint, None),
+         vibrance: get_val("color", "vibrance", SCALES.vibrance, None),
+         hue: get_val("color", "hue", 1.0, None),
+-        wb_log_gain_l: white_balance_gains[0],
+-        wb_log_gain_m: white_balance_gains[1],
+-        wb_log_gain_s: white_balance_gains[2],
+         _pad_color1: 0.0,
+         _pad_color2: 0.0,
++        _pad_color3: 0.0,
+ 
+         sharpness: get_val("details", "sharpness", SCALES.sharpness, None),
+         luma_noise_reduction: get_val(
+@@ -2423,10 +2426,7 @@ fn get_global_adjustments_from_json(
+     }
+ }
+ 
+-fn get_mask_adjustments_from_json(
+-    adj: &serde_json::Value,
+-    global_white_balance: WhiteBalance,
+-) -> MaskAdjustments {
++fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
+     if adj.is_null() {
+         return MaskAdjustments::default();
+     }
+@@ -2472,17 +2472,6 @@ fn get_mask_adjustments_from_json(
+     let color_mixer_visible = is_color_tool_visible(adj, "colorMixer");
+ 
+     let cg_obj = adj.get("colorGrading").cloned().unwrap_or_default();
+-    let [wb_log_gain_l, wb_log_gain_m, wb_log_gain_s] = if is_visible("color") {
+-        white_balance::adaptation_log_gains(
+-            global_white_balance,
+-            global_white_balance.shifted(
+-                adj["temperature"].as_f64().unwrap_or(0.0),
+-                adj["tint"].as_f64().unwrap_or(0.0),
+-            ),
+-        )
+-    } else {
+-        [0.0; 3]
+-    };
+ 
+     MaskAdjustments {
+         exposure: get_val("basic", "exposure", SCALES.exposure),
+@@ -2494,6 +2483,8 @@ fn get_mask_adjustments_from_json(
+         blacks: get_val("basic", "blacks", SCALES.blacks),
+ 
+         saturation: get_val("color", "saturation", SCALES.saturation),
++        temperature: get_val("color", "temperature", SCALES.temperature),
++        tint: get_val("color", "tint", SCALES.tint),
+         vibrance: get_val("color", "vibrance", SCALES.vibrance),
+ 
+         sharpness: get_val("details", "sharpness", SCALES.sharpness),
+@@ -2514,10 +2505,8 @@ fn get_mask_adjustments_from_json(
+         sharpness_threshold: get_val("details", "sharpnessThreshold", SCALES.sharpness_threshold),
+ 
+         hue: get_val("color", "hue", 1.0),
+-        wb_log_gain_l,
+-        wb_log_gain_m,
+-        wb_log_gain_s,
+-        _pad_wb: 0.0,
++        _pad_cg1: 0.0,
++        _pad_cg2: 0.0,
+         color_grading_shadows: if color_grading_visible {
+             parse_color_grade_settings(&cg_obj["shadows"])
+         } else {
+@@ -2574,25 +2563,10 @@ fn get_mask_adjustments_from_json(
+ pub fn get_all_adjustments_from_json(
+     js_adjustments: &serde_json::Value,
+     is_raw: bool,
+-    as_shot_white_balance: WhiteBalance,
++    _as_shot_white_balance: WhiteBalance,
+     tonemapper_override: Option<u32>,
+ ) -> AllAdjustments {
+-    let color_visible = js_adjustments
+-        .get("sectionVisibility")
+-        .and_then(|v| v.get("color"))
+-        .and_then(|s| s.as_bool())
+-        .unwrap_or(true);
+-    let target_white_balance = if color_visible {
+-        white_balance::from_adjustments(js_adjustments, as_shot_white_balance)
+-    } else {
+-        as_shot_white_balance
+-    };
+-    let global = get_global_adjustments_from_json(
+-        js_adjustments,
+-        is_raw,
+-        white_balance::adaptation_log_gains(as_shot_white_balance, target_white_balance),
+-        tonemapper_override,
+-    );
++    let global = get_global_adjustments_from_json(js_adjustments, is_raw, tonemapper_override);
+     let mut mask_adjustments = [MaskAdjustments::default(); MAX_MASKS];
+     let mut mask_count = 0;
+ 
+@@ -2605,8 +2579,7 @@ pub fn get_all_adjustments_from_json(
+         .enumerate()
+         .take(MAX_MASKS)
+     {
+-        mask_adjustments[i] =
+-            get_mask_adjustments_from_json(&mask_def.adjustments, target_white_balance);
++        mask_adjustments[i] = get_mask_adjustments_from_json(&mask_def.adjustments);
+         mask_count += 1;
+     }
+ 
+diff --git a/src-tauri/src/shaders/shader.wgsl b/src-tauri/src/shaders/shader.wgsl
+index 1295f8aa..7b63f6b2 100644
+--- a/src-tauri/src/shaders/shader.wgsl
++++ b/src-tauri/src/shaders/shader.wgsl
+@@ -39,13 +39,13 @@ struct GlobalAdjustments {
+     whites: f32,
+     blacks: f32,
+     saturation: f32,
++    temperature: f32,
++    tint: f32,
+     vibrance: f32,
+     hue: f32,
+-    wb_log_gain_l: f32,
+-    wb_log_gain_m: f32,
+-    wb_log_gain_s: f32,
+     _pad_color1: f32,
+     _pad_color2: f32,
++    _pad_color3: f32,
+ 
+     sharpness: f32,
+     luma_noise_reduction: f32,
+@@ -126,6 +126,8 @@ struct MaskAdjustments {
+     whites: f32,
+     blacks: f32,
+     saturation: f32,
++    temperature: f32,
++    tint: f32,
+     vibrance: f32,
+ 
+     sharpness: f32,
+@@ -141,10 +143,8 @@ struct MaskAdjustments {
+     sharpness_threshold: f32,
+ 
+     hue: f32,
+-    wb_log_gain_l: f32,
+-    wb_log_gain_m: f32,
+-    wb_log_gain_s: f32,
+-    _pad_wb: f32,
++    _pad_cg1: f32,
++    _pad_cg2: f32,
+     color_grading_shadows: ColorGradeSettings,
+     color_grading_midtones: ColorGradeSettings,
+     color_grading_highlights: ColorGradeSettings,
+@@ -686,24 +686,12 @@ fn apply_color_calibration(color: vec3<f32>, cal: ColorCalibrationSettings) -> v
+     return c;
+ }
+ 
+-const RGB_TO_LMS = mat3x3<f32>(
+-    vec3<f32>(0.4227253, 0.0556998, 0.0213826),
+-    vec3<f32>(0.4913453, 0.9615341, 0.0876419),
+-    vec3<f32>(0.0273579, 0.0231838, 0.9805081)
+-);
+-const LMS_TO_RGB = mat3x3<f32>(
+-    vec3<f32>(2.5380445, -0.1460041, -0.0422985),
+-    vec3<f32>(-1.2932770, 1.1166483, -0.0716072),
+-    vec3<f32>(-0.0402369, -0.0223290, 1.0227527)
+-);
+-
+-fn apply_white_balance(color: vec3<f32>, log_gains: vec3<f32>) -> vec3<f32> {
+-    if (all(log_gains == vec3<f32>(0.0))) {
+-        return color;
+-    }
+-    let gains = exp(log_gains);
+-    let white = LMS_TO_RGB * (gains * (RGB_TO_LMS * vec3<f32>(1.0)));
+-    return LMS_TO_RGB * (gains * (RGB_TO_LMS * color)) / get_luma(white);
++fn apply_white_balance(color: vec3<f32>, temp: f32, tnt: f32) -> vec3<f32> {
++    var rgb = color;
++    let temp_kelvin_mult = vec3<f32>(1.0 + temp * 0.2, 1.0 + temp * 0.05, 1.0 - temp * 0.2);
++    let tint_mult = vec3<f32>(1.0 + tnt * 0.25, 1.0 - tnt * 0.25, 1.0 + tnt * 0.25);
++    rgb *= temp_kelvin_mult * tint_mult;
++    return rgb;
+ }
+ 
+ fn apply_creative_color(color: vec3<f32>, sat: f32, vib: f32) -> vec3<f32> {
+@@ -1764,7 +1752,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+     var t_whites = adjustments.global.whites;
+     var t_blacks = adjustments.global.blacks;
+     var t_saturation = adjustments.global.saturation;
+-    var t_wb_log_gains = vec3<f32>(adjustments.global.wb_log_gain_l, adjustments.global.wb_log_gain_m, adjustments.global.wb_log_gain_s);
++    var t_temperature = adjustments.global.temperature;
++    var t_tint = adjustments.global.tint;
+     var t_vibrance = adjustments.global.vibrance;
+     var t_luma_nr = adjustments.global.luma_noise_reduction;
+     var t_color_nr = adjustments.global.color_noise_reduction;
+@@ -1801,7 +1790,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+             t_blacks += m.blacks * influence;
+ 
+             t_saturation += m.saturation * influence;
+-            t_wb_log_gains += vec3<f32>(m.wb_log_gain_l, m.wb_log_gain_m, m.wb_log_gain_s) * influence;
++            t_temperature += m.temperature * influence;
++            t_tint += m.tint * influence;
+             t_vibrance += m.vibrance * influence;
+ 
+             t_luma_nr += m.luma_noise_reduction * influence;
+@@ -1887,7 +1877,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+     }
+ 
+     var composite_rgb_linear = apply_dehaze(processed_rgb, structure_blurred, is_raw, t_dehaze);
+-    composite_rgb_linear = apply_white_balance(composite_rgb_linear, t_wb_log_gains);
++    composite_rgb_linear = apply_white_balance(composite_rgb_linear, t_temperature, t_tint);
+     composite_rgb_linear = apply_centre_tonal_and_color(composite_rgb_linear, adjustments.global.centre, absolute_coord_i);
+     composite_rgb_linear = apply_tonal_adjustments(composite_rgb_linear, tonal_blurred, is_raw, t_contrast, t_shadows, t_whites, t_blacks);
+     composite_rgb_linear = apply_highlights_adjustment(composite_rgb_linear, absolute_coord_i, scale, is_raw, t_highlights);

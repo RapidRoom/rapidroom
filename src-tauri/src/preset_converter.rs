@@ -8,6 +8,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::file_management::Preset;
+use crate::white_balance::{MIRED_PER_RELATIVE_UNIT, TINT_PER_RELATIVE_UNIT};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum XmpImageKind {
@@ -1469,22 +1470,19 @@ fn convert_xmp_to_preset_with_crop(
     if can_convert_white_balance
         && !white_balance_is_as_shot
         && let Some(adjusted_k) = get_attr_as_f64(&attrs, "Temperature")
-    {
-        const MAX_MIRED_SHIFT: f64 = 150.0;
-        if let Some(as_shot_k) = get_attr_as_f64(&attrs, "AsShotTemperature")
+        && let Some(as_shot_k) = get_attr_as_f64(&attrs, "AsShotTemperature")
             .or(as_shot_temperature)
             .filter(|temperature| *temperature > 0.0)
-            && adjusted_k > 0.0
-        {
-            let mired_adjusted = 1_000_000.0 / adjusted_k;
-            let mired_as_shot = 1_000_000.0 / as_shot_k;
-            let mired_delta = mired_adjusted - mired_as_shot;
-            let temp_value = (-mired_delta / MAX_MIRED_SHIFT) * 100.0;
-            adjustments.insert(
-                "temperature".to_string(),
-                json!(temp_value.clamp(-100.0, 100.0)),
-            );
-        }
+        && adjusted_k > 0.0
+    {
+        let mired_adjusted = 1_000_000.0 / adjusted_k;
+        let mired_as_shot = 1_000_000.0 / as_shot_k;
+        let mired_delta = mired_adjusted - mired_as_shot;
+        let temp_value = -mired_delta / MIRED_PER_RELATIVE_UNIT;
+        adjustments.insert(
+            "temperature".to_string(),
+            json!(temp_value.clamp(-100.0, 100.0)),
+        );
     }
 
     if can_convert_white_balance
@@ -1500,7 +1498,7 @@ fn convert_xmp_to_preset_with_crop(
             .map(|as_shot_tint| tint_val - as_shot_tint)
             .or((!include_crop_transform).then_some(tint_val));
         if let Some(tint_delta) = tint_delta {
-            let scaled_tint = (tint_delta / 150.0) * 100.0;
+            let scaled_tint = tint_delta / TINT_PER_RELATIVE_UNIT;
             adjustments.insert("tint".to_string(), json!(scaled_tint.clamp(-100.0, 100.0)));
         }
     }

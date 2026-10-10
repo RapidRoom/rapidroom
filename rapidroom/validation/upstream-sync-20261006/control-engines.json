@@ -1,0 +1,91 @@
+{
+  "merged_source": "4bea590bbd66b074877cad96626b427783c6d9a0",
+  "method": "Cumulative reverse production-path controls. Every control includes the final strict-Clippy precondition fold. UI/read-only metadata APIs remain current; old-relative-wb ignores the added as-shot parser argument and does not implement new Kelvin recipes. Guide controls retain RapidRoom per-image scheduling with the actual prior Gaussian consumer graph. Final-code tests run only on the final branch; controls are release-compiled and exported. Each control also contains the same final queued-metadata fix and retained denoise tests; renderer tree is identical to its earlier113 control.",
+  "complete": true,
+  "controls": [
+    {
+      "label": "no-whites",
+      "head": "9a609b9e9f981d7900d186724d68d3dbd80c6009",
+      "tree": "861588e537d139e6df7aff8ed7f22e765d2b6c53",
+      "control_parent": "7d1795a26afc4d48f618a23f71e0b639600b9ed7",
+      "additionally_reversed_upstream": "c91e0bf7ed328fb1d6af0c805409304ea0ae58dc",
+      "historical113_head": "8c34d83a74c6c0ceffa552b0fec27964e6f7fe6c",
+      "engine_sha256": "6413e5c99c1f03ce6d52f39e4af184feb9c9d0bafcf258d4730fcd37970bf1d8",
+      "cargo_locked": true,
+      "features": ["tauri/custom-protocol"],
+      "onnxruntime_sha256": "3da6146e14e7b8aaec625dde11d6114c7457c87a5f93d744897da8781e35c673"
+    },
+    {
+      "label": "no-detail",
+      "head": "0215cc4d72240a97322203b35efab03017ce9503",
+      "tree": "dd556b059d36261f3488efd22ae9ca824feae0cb",
+      "control_parent": "b06f941e1b48bc01a2b94e74a5909be3530c52b8",
+      "additionally_reversed_upstream": "1cc99d56c0ff39a2f85d6bb8fb5721bbff1975cd",
+      "historical113_head": "6aeadec84c7548b758730dcffdc714730a9b6fa9",
+      "engine_sha256": "314789ca6ab85bbdab1d6020d704f05fbf8cd18d8632564b70941e3483002c1d",
+      "cargo_locked": true,
+      "features": ["tauri/custom-protocol"],
+      "onnxruntime_sha256": "3da6146e14e7b8aaec625dde11d6114c7457c87a5f93d744897da8781e35c673"
+    },
+    {
+      "label": "no-guided",
+      "head": "8a548dd991cb1fdcb3d8071d826a72617aa9cec7",
+      "tree": "f9be92050ee54dde3501891b10119f76ffb29ccf",
+      "control_parent": "dd2e842dcded5ebf68e1abd1f3757b7e017389c5",
+      "additionally_reversed_upstream": "66fa1600b0513aeb6a7f007b88b6de3a6a12869c",
+      "historical113_head": "f4fddc00e08f949eceb790cc52094383af635a97",
+      "engine_sha256": "adcc09f828a14f12609f40b54334fbde6993205f467edc20c228db28a30b0bd3",
+      "cargo_locked": true,
+      "features": ["tauri/custom-protocol"],
+      "onnxruntime_sha256": "3da6146e14e7b8aaec625dde11d6114c7457c87a5f93d744897da8781e35c673"
+    },
+    {
+      "label": "no-wb-clamp",
+      "head": "f33c7ae78e4578debdee9591af10b09d5a5dc8d4",
+      "tree": "3b59d8215798b22ecce7a4d0fe3ee0a6c45f9401",
+      "control_parent": "62b48555586809777f137066dc79dee7d201716e",
+      "additionally_reversed_upstream": "73bc73f41044c7d5ad4b669621620423e96572fd",
+      "historical113_head": "463096caca3b7422c20e5e381a1a769f3b05800b",
+      "engine_sha256": "5893bd5f3fb393eac8ac7a6a92921a76e5e5455dea6bc0f98b0928bb964c58d3",
+      "cargo_locked": true,
+      "features": ["tauri/custom-protocol"],
+      "onnxruntime_sha256": "3da6146e14e7b8aaec625dde11d6114c7457c87a5f93d744897da8781e35c673"
+    },
+    {
+      "label": "no-wb-refactor",
+      "head": "c0ce5603ab65ebd2a62389692716069d6d6cd67a",
+      "tree": "52e359f75c8f2486cd2ac95de2aa018411cb4ab6",
+      "control_parent": "0fb6cb00c45835496fa2e0193a13778664daf5e4",
+      "additionally_reversed_upstream": "28fa51207de79867fb21d829262b7dfc125d70d9",
+      "historical113_head": "eb9d8450912c8eb8183b0f8b37a3b08c7e620560",
+      "engine_sha256": "cee1131cd2785b73989d50c4fed23446c2eb8c2343f7c961eb0cb73adf3c66a3",
+      "cargo_locked": true,
+      "features": ["tauri/custom-protocol"],
+      "onnxruntime_sha256": "3da6146e14e7b8aaec625dde11d6114c7457c87a5f93d744897da8781e35c673"
+    },
+    {
+      "label": "no-wb-interpolation",
+      "head": "d60ebc7257a21fb7563c53b2c63f2e0e39e7380b",
+      "tree": "ad28b0a7e3098c0fb03c0da32a6890ef28ba2358",
+      "control_parent": "cb98263b9a35f249c82cca30af64a128c0c3288a",
+      "additionally_reversed_upstream": "11e20e77a846e3e81c8befd431762c2d41cec4b0",
+      "historical113_head": "1e2019092617dd62290402442e3a8bfaea6ab67c",
+      "engine_sha256": "253c3842f6d6b5ae38df64a04b99dabd669e4570d9111a55d6f0a9284c88eddc",
+      "cargo_locked": true,
+      "features": ["tauri/custom-protocol"],
+      "onnxruntime_sha256": "3da6146e14e7b8aaec625dde11d6114c7457c87a5f93d744897da8781e35c673"
+    },
+    {
+      "label": "old-relative-wb",
+      "head": "0f5685b1161f8335b227bae775d5da41ed0f5480",
+      "tree": "3e6921d8eb586a6996654058c8111ab64e2284f0",
+      "control_parent": "db805c04746f8956eadf60797f543f740ae76883",
+      "additionally_reversed_upstream": "9ba20c02cde632da11b86dfab55b938ab57d43b6",
+      "historical113_head": "2ab8b1d4bc00d35474358add7aa0238c3fe1f737",
+      "engine_sha256": "f2bb8ad14ecbfcaeff55776a4b04b5a39269647ea39c9038206b6b431cbd75d7",
+      "cargo_locked": true,
+      "features": ["tauri/custom-protocol"],
+      "onnxruntime_sha256": "3da6146e14e7b8aaec625dde11d6114c7457c87a5f93d744897da8781e35c673"
+    }
+  ]
+}

@@ -60,9 +60,10 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
       const rating = imageRatings[image.path] || 0;
       if (filterCriteria.rating === -1 && rating !== 0) return false;
       if (filterCriteria.rating > 0) {
-        if (filterCriteria.ratingExact || filterCriteria.rating === 5) {
-          if (rating !== filterCriteria.rating) return false;
-        } else if (rating < filterCriteria.rating) return false;
+        const op = filterCriteria.ratingOperator ?? (filterCriteria.ratingExact ? 'eq' : 'gte');
+        if (op === 'eq' && rating !== filterCriteria.rating) return false;
+        if (op === 'gte' && rating < filterCriteria.rating) return false;
+        if (op === 'lte' && rating > filterCriteria.rating) return false;
       }
     }
 

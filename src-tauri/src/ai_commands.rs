@@ -270,12 +270,20 @@ pub async fn generate_ai_depth_mask(
     })
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedImageMap {
+    pub image_path: String,
+    pub data_url: String,
+}
+
 #[tauri::command]
 pub async fn generate_full_image_depth_map(
-    js_adjustments: serde_json::Value,
+    image_path: String,
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, String> {
+) -> Result<GeneratedImageMap, String> {
+    let loaded_image = get_map_source(&state, &image_path)?;
     let models = crate::ai_processing::get_or_init_ai_models(
         &app_handle,
         &state.ai_state,
@@ -284,21 +292,73 @@ pub async fn generate_full_image_depth_map(
     .await
     .map_err(|e| e.to_string())?;
 
-    let warped_image = crate::get_cached_full_warped_image(&state, &js_adjustments)?;
+    let source_image =
+        crate::mask_generation::build_full_source_image(&loaded_image.image, loaded_image.is_raw);
 
     let depth_img = crate::ai_processing::run_depth_anything_model(
-        warped_image.as_ref(),
+        source_image.as_ref(),
         &models.depth_anything,
     )
     .map_err(|e| e.to_string())?;
 
-    let mut buf = std::io::Cursor::new(Vec::new());
-    depth_img
-        .write_to(&mut buf, image::ImageFormat::Png)
-        .map_err(|e| e.to_string())?;
-    let base64_str = base64::engine::general_purpose::STANDARD.encode(buf.get_ref());
+    Ok(GeneratedImageMap {
+        image_path: loaded_image.path,
+        data_url: crate::effect_maps::encode_source_space_map(&image::DynamicImage::ImageLuma8(
+            depth_img,
+        ))?,
+    })
+}
 
-    Ok(format!("data:image/png;base64,{}", base64_str))
+#[tauri::command]
+pub async fn generate_relight_normal_map(
+    image_path: String,
+    state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<GeneratedImageMap, String> {
+    let loaded_image = get_map_source(&state, &image_path)?;
+    let normal_model = crate::ai_processing::get_or_init_normal_model(
+        &app_handle,
+        &state.ai_state,
+        &state.ai_init_lock,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let source_image =
+        crate::mask_generation::build_full_source_image(&loaded_image.image, loaded_image.is_raw);
+
+    let normal_img =
+        crate::ai_processing::run_normal_model(source_image.as_ref(), normal_model.as_ref())
+            .map_err(|e| e.to_string())?;
+
+    Ok(GeneratedImageMap {
+        image_path: loaded_image.path,
+        data_url: crate::effect_maps::encode_source_space_map(&image::DynamicImage::ImageRgba8(
+            normal_img,
+        ))?,
+    })
+}
+
+fn get_map_source(
+    state: &tauri::State<'_, AppState>,
+    image_path: &str,
+) -> Result<crate::LoadedImage, String> {
+    let loaded_image = state
+        .original_image
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    capture_map_source(loaded_image.as_ref(), image_path)
+}
+
+fn capture_map_source(
+    loaded_image: Option<&crate::LoadedImage>,
+    image_path: &str,
+) -> Result<crate::LoadedImage, String> {
+    let image = loaded_image.ok_or("No original image loaded")?;
+    if image.path != image_path {
+        return Err("Effect map source is no longer the loaded image".to_string());
+    }
+    Ok(image.clone())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -312,6 +372,7 @@ pub async fn generate_ai_subject_mask(
     flip_horizontal: bool,
     flip_vertical: bool,
     orientation_steps: u8,
+    skip_refinement: Option<bool>,
     task_id: Option<String>,
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
@@ -469,7 +530,11 @@ pub async fn generate_ai_subject_mask(
         &embeddings,
         unrotated_start_point,
         unrotated_end_point,
-        Some(warped_image.as_ref()),
+        if skip_refinement.unwrap_or(false) {
+            None
+        } else {
+            Some(warped_image.as_ref())
+        },
     )
     .map_err(|e| e.to_string())?;
 
@@ -562,5 +627,53 @@ pub async fn test_ai_connector_connection(address: String) -> Result<(), String>
         Ok(true) => Ok(()),
         Ok(false) => Err("Server reachable but returned bad health status".to_string()),
         Err(e) => Err(e.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod effect_map_source_tests {
+    use super::*;
+    use std::sync::Arc;
+
+    fn loaded(path: &str, color: [u8; 3]) -> crate::LoadedImage {
+        crate::LoadedImage {
+            path: path.to_string(),
+            image: Arc::new(image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+                2,
+                2,
+                image::Rgb(color),
+            ))),
+            is_raw: false,
+            as_shot_white_balance: crate::white_balance::WhiteBalance {
+                temperature: 6504.0,
+                tint: 0.0,
+            },
+        }
+    }
+
+    #[test]
+    fn captured_map_source_survives_selection_during_model_initialization() {
+        let mut current = Some(loaded("/a.raw", [255, 0, 0]));
+        let source = capture_map_source(current.as_ref(), "/a.raw").unwrap();
+        current = Some(loaded("/b.raw", [0, 0, 255]));
+        assert_eq!(source.path, "/a.raw");
+        assert_eq!(source.image.to_rgb8().get_pixel(0, 0).0, [255, 0, 0]);
+        assert!(capture_map_source(current.as_ref(), "/a.raw").is_err());
+        assert!(capture_map_source(None, "/a.raw").is_err());
+        let response = serde_json::to_value(GeneratedImageMap {
+            image_path: source.path,
+            data_url: "map-from-a".to_string(),
+        })
+        .unwrap();
+        assert_eq!(response["imagePath"], "/a.raw");
+        assert_eq!(response["dataUrl"], "map-from-a");
+    }
+
+    #[test]
+    fn map_source_preserves_virtual_copy_identity() {
+        let current = loaded("/a.raw?vc=first", [255, 0, 0]);
+        assert!(capture_map_source(Some(&current), "/a.raw?vc=first").is_ok());
+        assert!(capture_map_source(Some(&current), "/a.raw?vc=second").is_err());
+        assert!(capture_map_source(Some(&current), "/a.raw").is_err());
     }
 }

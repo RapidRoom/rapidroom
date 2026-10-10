@@ -14,7 +14,8 @@ export async function setMcpControl(enabled: boolean): Promise<void> {
   const result = await invoke<McpControlStatus>(Invokes.SetMcpEnabled, { enabled });
   if (result.enabled !== enabled) throw new Error('AI control did not reach the requested state');
   const settings = useSettingsStore.getState();
-  if (settings.appSettings) settings.setAppSettings({ ...settings.appSettings, mcpEnabled: enabled });
+  if (settings.appSettings)
+    useSettingsStore.setState({ appSettings: { ...settings.appSettings, mcpEnabled: enabled } });
 }
 
 let pendingEnable: Promise<boolean> | null = null;

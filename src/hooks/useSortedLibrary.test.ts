@@ -5,12 +5,12 @@ import { FlagStatus, ImageFlag, RawStatus } from '../components/ui/AppProperties
 const ratings: Record<string, number> = { '/a.raw': 0, '/b.raw': 2, '/c.raw': 3, '/d.raw': 4, '/e.raw': 5 };
 const imageList = Object.keys(ratings).map((path, i) => ({ path, modified: i, is_raw: true, tags: [] }));
 
-const filtered = (rating: number, ratingExact?: boolean) =>
+const filtered = (rating: number, ratingExact?: boolean, ratingOperator?: 'gte' | 'eq' | 'lte') =>
   computeSortedLibrary(
     {
       imageList,
       imageRatings: ratings,
-      filterCriteria: { colors: [], rating, ratingExact, rawStatus: RawStatus.All },
+      filterCriteria: { colors: [], rating, ratingExact, ratingOperator, rawStatus: RawStatus.All },
       searchCriteria: { tags: [], text: '', mode: 'AND' },
       sortCriteria: { key: 'name', order: 'asc' },
     },
@@ -18,6 +18,12 @@ const filtered = (rating: number, ratingExact?: boolean) =>
   ).map((image) => image.path);
 
 describe('rating filter', () => {
+  it('supports upstream operators while respecting old exact preferences unless explicitly overridden', () => {
+    expect(filtered(3, false, 'eq')).toEqual(['/c.raw']);
+    expect(filtered(3, false, 'lte')).toEqual(['/a.raw', '/b.raw', '/c.raw']);
+    expect(filtered(3, true, 'gte')).toEqual(['/c.raw', '/d.raw', '/e.raw']);
+  });
+
   it('shows the rating and higher by default', () => {
     expect(filtered(3)).toEqual(['/c.raw', '/d.raw', '/e.raw']);
     expect(filtered(5)).toEqual(['/e.raw']);

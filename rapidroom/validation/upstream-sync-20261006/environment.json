@@ -1,0 +1,19 @@
+{
+  "kernel": "7.2.5-3-omarchy",
+  "cpu_count": 8,
+  "gpus": [
+    {
+      "card": "card0",
+      "driver": "xe",
+      "pci_id": "8086:64A0"
+    }
+  ],
+  "packages": [
+    "mesa 1:26.2.2-1",
+    "vulkan-intel 1:26.2.2-1",
+    "intel-media-driver 26.2.4-1",
+    "vulkan-icd-loader 1.4.357.0-1"
+  ],
+  "python": "3.14.7",
+  "numpy": "2.5.3"
+}

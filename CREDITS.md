@@ -7,6 +7,8 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.
 - **[RapidRAW-DngLab](https://github.com/CyberTimon/RapidRAW-DngLab)**, CyberTimon's fork of [dnglab/rawler](https://github.com/dnglab/dnglab) by Daniel Vogelbacher and contributors (raw decoding).
 
+The v1.6.5 sync retains contributions by Timon Käch, marclaliberte, Ramon Speets, MartinBspheroid, Reda Jamil and Yojen in normal merge history. Rendering, library, translations and curve changes are credited in the upstream commits; the RapidRoom integration was reconciled by Yojen with Codex.
+
 ## AI raw denoise
 
 The native preprocessing and model contract are adapted from [RawForge](https://github.com/rymuelle/RawForge/commit/79f17700c29765b28a4cf5bd1b6d90bc7e3eb7f2) and RawHandler by rymuelle (MIT), overlap masks from blended-tiling-numpy by ProGamerGov (MIT), and Malvar kernels from colour-demosaicing by Colour Developers (BSD-3-Clause). Adapted for RapidRoom by yojen7 with Codex. [Licence check and retained notices](rapidroom/DENOISE.md). No model weights are bundled.
@@ -167,3 +169,5 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 - **Compact MCP payloads, local schema definitions and comparison layout (#147):**
   original work by Yojen with Codex/sora. Existing MCP/renderer/font authorship
   and full notices retained; no dependency or network connection added.
+
+- Current upstream sync through `eb3556bc`: CyberTimon, lalibertemarc and fabian-co; original history and licences retained. E-M1X Bayer metadata correction adapts Timon Käch’s [rawler a32bc1ff](https://github.com/CyberTimon/RapidRAW-DngLab/commit/a32bc1ff1f4f3c56d4d3226082f6eb17414f9159) while retaining RapidRoom’s pinned decoder extensions. Sony reduced-RGB white balance guard and picker reconciliation: Yojen with Codex.

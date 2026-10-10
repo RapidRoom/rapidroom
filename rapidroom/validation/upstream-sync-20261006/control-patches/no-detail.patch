@@ -1,0 +1,96 @@
+diff --git a/src-tauri/src/shaders/shader.wgsl b/src-tauri/src/shaders/shader.wgsl
+index 59e5217f..18bbef0b 100644
+--- a/src-tauri/src/shaders/shader.wgsl
++++ b/src-tauri/src/shaders/shader.wgsl
+@@ -220,7 +220,6 @@ const GF_LUMA_FLOOR: f32 = 1.0e-4;
+ const GF_DETAIL_SIGMA: f32 = 1.5;
+ const SHARPEN_EDGE_SIGMA: f32 = 0.12;
+ const SHARPEN_DARK_SCALE: f32 = 0.55;
+-const GF_REINJECT_SIGMA: f32 = 0.8;
+ const DEHAZE_STRENGTH: f32 = 1.5;
+ const GF_CLARITY_GAIN: f32 = 1.8;
+ const GF_STRUCTURE_GAIN: f32 = 1.8;
+@@ -410,7 +409,6 @@ fn apply_curve(val: f32, points: array<Point, 16>, count: u32) -> f32 {
+ fn apply_tonal_adjustments(
+     color: vec3<f32>,
+     local_log_detail: f32,
+-    mid_log_detail: f32,
+     is_raw: u32,
+     con: f32,
+     sh: f32,
+@@ -457,7 +455,7 @@ fn apply_tonal_adjustments(
+ 
+         let noise_protection = smoothstep(0.0, 0.1, t_blurred);
+ 
+-        let detail_amp = 1.0 + (lift_amount * detail_focus * 1.5 * noise_protection);
++        let detail_amp = 1.0 + (lift_amount * detail_focus * 3.4 * noise_protection);
+ 
+         let enhanced_detail = pow(safe_detail, detail_amp);
+         let detail_correction = enhanced_detail / safe_detail;
+@@ -465,8 +463,8 @@ fn apply_tonal_adjustments(
+         let linear_correction = pow(detail_correction, 2.2);
+         rgb *= linear_correction;
+ 
+-        let lift_structure = lift_amount * detail_focus * noise_protection * 6.0;
+-        rgb *= exp2(shape_detail(mid_log_detail, GF_REINJECT_SIGMA) * lift_structure);
++        let lift_structure = lift_amount * detail_focus * noise_protection * 7.2;
++        rgb *= exp2(shape_detail_gf(local_log_detail) * lift_structure);
+ 
+         if (luma_ratio > 1.0) {
+             let recovered_luma = get_luma(rgb);
+@@ -495,7 +493,6 @@ fn apply_tonal_adjustments(
+ fn apply_highlights_adjustment(
+     color_in: vec3<f32>,
+     local_log_detail: f32,
+-    mid_log_detail: f32,
+     is_raw: u32,
+     highlights_adj: f32
+ ) -> vec3<f32> {
+@@ -531,9 +528,9 @@ fn apply_highlights_adjustment(
+         let compressed_delta = delta_base / (1.0 + compression_strength * (delta_base / (1.0 + delta_base * 0.35)));
+         let target_base = l_pivot + compressed_delta;
+ 
+-        let neg_soft_detail = local_log_detail / (1.0 + abs(local_log_detail) * 0.80);
+-        let restoration_gain = 1.0 + k * 0.3;
+-        let structure_gain = shape_detail(mid_log_detail, GF_REINJECT_SIGMA) * k * 0.6;
++        let neg_soft_detail = local_log_detail / (1.0 + abs(local_log_detail) * 0.40);
++        let restoration_gain = 1.0 + k * 0.4;
++        let structure_gain = shape_detail_gf(local_log_detail) * k * 0.5;
+         let recovered_detail = exp2(neg_soft_detail * restoration_gain + structure_gain);
+ 
+         let recovered_target = target_base * recovered_detail;
+@@ -1544,7 +1541,7 @@ fn apply_glow_bloom(
+ 
+     blurred_linear = apply_linear_exposure(blurred_linear, exp);
+     blurred_linear = apply_filmic_exposure(blurred_linear, bright);
+-    blurred_linear = apply_tonal_adjustments(blurred_linear, 0.0, 0.0, is_raw, 0.0, 0.0, wh, 0.0);
++    blurred_linear = apply_tonal_adjustments(blurred_linear, 0.0, is_raw, 0.0, 0.0, wh, 0.0);
+ 
+     let linear_luma = get_luma(max(blurred_linear, vec3<f32>(0.0)));
+ 
+@@ -1612,7 +1609,7 @@ fn apply_halation(
+ 
+     blurred_linear = apply_linear_exposure(blurred_linear, exp);
+     blurred_linear = apply_filmic_exposure(blurred_linear, bright);
+-    blurred_linear = apply_tonal_adjustments(blurred_linear, 0.0, 0.0, is_raw, 0.0, 0.0, wh, 0.0);
++    blurred_linear = apply_tonal_adjustments(blurred_linear, 0.0, is_raw, 0.0, 0.0, wh, 0.0);
+ 
+     let linear_luma = get_luma(max(blurred_linear, vec3<f32>(0.0)));
+ 
+@@ -1840,14 +1837,11 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+     composite_rgb_linear = apply_white_balance(composite_rgb_linear, t_wb_log_gains);
+     composite_rgb_linear = apply_centre_tonal_and_color(composite_rgb_linear, adjustments.global.centre, absolute_coord_i);
+     var tonal_log_detail = 0.0;
+-    var tonal_mid_detail = 0.0;
+     if (t_shadows != 0.0 || t_blacks != 0.0 || t_highlights != 0.0) {
+         tonal_log_detail = (gf_i - (gf.z * gf_i + gf.w)) + lc_log_gain;
+-        let gf_broad = sample_gf_tex(gf_dehaze_texture, absolute_coord).xy;
+-        tonal_mid_detail = (gf.z * gf_i + gf.w) - (gf_broad.x * gf_i + gf_broad.y);
+     }
+-    composite_rgb_linear = apply_tonal_adjustments(composite_rgb_linear, tonal_log_detail, tonal_mid_detail, is_raw, t_contrast, t_shadows, t_whites, t_blacks);
+-    composite_rgb_linear = apply_highlights_adjustment(composite_rgb_linear, tonal_log_detail, tonal_mid_detail, is_raw, t_highlights);
++    composite_rgb_linear = apply_tonal_adjustments(composite_rgb_linear, tonal_log_detail, is_raw, t_contrast, t_shadows, t_whites, t_blacks);
++    composite_rgb_linear = apply_highlights_adjustment(composite_rgb_linear, tonal_log_detail, is_raw, t_highlights);
+     composite_rgb_linear = apply_color_calibration(composite_rgb_linear, adjustments.global.color_calibration);
+     composite_rgb_linear = apply_hsl_panel(composite_rgb_linear, final_hsl, absolute_coord_i);
+     composite_rgb_linear = apply_hue_shift(composite_rgb_linear, t_hue);

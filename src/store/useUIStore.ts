@@ -250,6 +250,13 @@ export function reconcileWorkspace(
   };
 }
 
+export const isPanelVisible = (state: UIState, panel: Panel) =>
+  (Object.keys(state.activePanels) as PanelRegion[]).some(
+    (region) =>
+      state.activePanels[region] === panel &&
+      state.uiVisibility[region.startsWith('left') ? 'leftPanel' : 'rightPanel'],
+  );
+
 export interface UIState {
   activeView: string;
   isFullScreen: boolean;
@@ -320,6 +327,8 @@ export interface UIState {
   setPanel: (panel: Panel | null) => void;
   customEscapeHandler: (() => void) | null;
   setCustomEscapeHandler: (handler: (() => void) | null) => void;
+  imageSelectHandler: ((path: string, openInEditor?: boolean) => void) | null;
+  setImageSelectHandler: (handler: ((path: string, openInEditor?: boolean) => void) | null) => void;
   searchFocusRequest: number;
   requestSearchFocus: () => void;
   cycleLightsOut: (direction?: 1 | -1) => void;
@@ -630,6 +639,8 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   customEscapeHandler: null,
   setCustomEscapeHandler: (handler) => set({ customEscapeHandler: handler }),
+  imageSelectHandler: null,
+  setImageSelectHandler: (handler) => set({ imageSelectHandler: handler }),
   searchFocusRequest: 0,
   requestSearchFocus: () => set((state) => ({ searchFocusRequest: state.searchFocusRequest + 1 })),
   cycleLightsOut: (direction = 1) =>

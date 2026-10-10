@@ -6,8 +6,9 @@
 //   npm i --no-save --package-lock=false playwright-core
 //   node rapidroom/validation/csp/measure.mjs [policy] [--cloud]
 //
-// policy: proposed (default), strict-style, current. --cloud starts with the AI provider set
-// to "cloud", which mounts Clerk. CHROMIUM_PATH overrides the browser.
+// policy: configured (default), proposed, strict-style, current. --cloud starts with a
+// persisted cloud preference; the auth backend remains unavailable in this stub bridge.
+// CHROMIUM_PATH overrides the browser.
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -43,7 +44,20 @@ const serialize = (p) =>
 const config = JSON.parse(fs.readFileSync(path.resolve(DIST, '../src-tauri/tauri.conf.json'), 'utf8'));
 const configured = config.app.security.csp;
 if (!configured || typeof configured !== 'object') throw new Error('Production CSP must be a directive map');
-if (configured['script-src'] !== "'self'") throw new Error('Production scripts must be local only');
+const cloudOrigin = 'https://clerk.getrapidraw.com';
+const expected = {
+  ...base,
+  'script-src': [...base['script-src'], cloudOrigin],
+  'connect-src': [...base['connect-src'], cloudOrigin],
+};
+if (Object.keys(configured).sort().join(',') !== Object.keys(expected).sort().join(',')) {
+  throw new Error('Production CSP directive set differs from the approved policy');
+}
+for (const [directive, sources] of Object.entries(expected)) {
+  if (configured[directive]?.split(/\s+/).sort().join(' ') !== [...sources].sort().join(' ')) {
+    throw new Error(`Production ${directive} differs from the approved source allowlist`);
+  }
+}
 if (config.app.security.dangerousDisableAssetCspModification?.join(',') !== 'style-src') {
   throw new Error('Only runtime styles may opt out of Tauri CSP rewriting');
 }
@@ -96,7 +110,10 @@ const violations = new Set();
 const pageErrors = [];
 const clerkRequests = [];
 page.on('request', (request) => {
-  if (/clerk\.(accounts\.dev|com)/.test(request.url())) clerkRequests.push(request.url());
+  const host = new URL(request.url()).hostname;
+  if (/^(?:.*\.)?(?:clerk\.accounts\.dev|clerk\.com|getrapidraw\.com)$/.test(host)) {
+    clerkRequests.push(request.url());
+  }
 });
 page.on('pageerror', (error) => pageErrors.push(error.message));
 await page.exposeFunction('__reportViolation', (v) => violations.add(v));
@@ -107,6 +124,7 @@ await page.addInitScript(
       window.__reportViolation(`${e.effectiveDirective}: ${e.blockedURI || 'inline'}${where}`);
     });
     let id = 0;
+    window.__authBridgeCalls = [];
     window.__TAURI_OS_PLUGIN_INTERNALS__ = {
       platform: 'linux',
       version: '6',
@@ -122,6 +140,10 @@ await page.addInitScript(
       unregisterCallback() {},
       convertFileSrc: (p, protocol = 'asset') => `http://${protocol}.localhost/${encodeURIComponent(p)}`,
       async invoke(cmd) {
+        if (cmd.startsWith('plugin:clerk|')) {
+          window.__authBridgeCalls.push(cmd);
+          throw new Error('Auth backend is intentionally unavailable in the browser CSP harness');
+        }
         if (cmd === 'load_settings') return cloud ? { aiProvider: 'cloud', rootFolders: [] } : { rootFolders: [] };
         if (cmd === 'plugin:app|version') return '2.2.0';
         if (cmd === 'plugin:os|os_type') return 'linux';
@@ -137,6 +159,7 @@ await page.addInitScript(
 await page.goto(`http://127.0.0.1:${server.address().port}/`);
 await page.waitForTimeout(6000);
 const rendered = await page.evaluate(() => (document.getElementById('root')?.childElementCount ?? 0) > 0);
+const authBridgeCalls = await page.evaluate(() => window.__authBridgeCalls);
 const startupViolations = [...violations];
 let remoteScriptBlocked = null;
 if (probe) {
@@ -160,6 +183,8 @@ console.log(
       pageErrors,
       violations: startupViolations,
       clerkRequests,
+      authBridgeCalls,
+      authBackendStubbed: true,
       remoteScriptBlocked,
     },
     null,
@@ -172,6 +197,7 @@ if (
   !rendered ||
   pageErrors.length ||
   (policyName === 'configured' && (startupViolations.length || clerkRequests.length)) ||
+  (cloud ? !authBridgeCalls.length : authBridgeCalls.length) ||
   (probe && !remoteScriptBlocked)
 )
   process.exitCode = 1;

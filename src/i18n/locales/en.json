@@ -65,7 +65,8 @@
       "vibrance": "Vibrance",
       "wbPickerTooltip": "White Balance Picker",
       "wbPickerWgpuDisabled": "WB Picker: Disable WGPU in Settings.",
-      "whiteBalance": "White Balance"
+      "whiteBalance": "White Balance",
+      "kelvinModeTooltip": "Show temperature in Kelvin"
     },
     "curves": {
       "channelTitle": "{{channel}} Channel",
@@ -123,6 +124,11 @@
       "bokehShape": "Bokeh Shape",
       "creative": "Creative",
       "feather": "Feather",
+      "fog": "Fog",
+      "fogDensity": "Density",
+      "fogHeight": "Ground Fog",
+      "fogStart": "Start",
+      "fogVariation": "Variation",
       "glow": "Glow",
       "grain": "Grain",
       "halation": "Halation",
@@ -131,9 +137,33 @@
       "lightFlares": "Light Flares",
       "lut": "LUT",
       "midpoint": "Midpoint",
+      "relight": "Relight",
+      "relightAddLight": "Add Light",
+      "relightAmbient": "Ambient",
+      "relightAngle": "Angle",
+      "relightColor": "Light Color",
+      "relightCone": "Cone",
+      "relightDepth": "Depth",
+      "relightElevation": "Elevation",
+      "relightFalloff": "Falloff",
+      "relightHint": "Add or select a light, then click or drag on the image to position it.",
+      "relightIntensity": "Intensity",
+      "relightLight": "Light {{index}}",
+      "relightRemoveLight": "Remove Light",
+      "relightShadowSoftness": "Shadow Softness",
+      "relightShadows": "Shadows",
+      "relightShine": "Shine",
+      "relightSoftness": "Softness",
+      "relightType": "Light Type",
+      "relightTypes": {
+        "directional": "Directional",
+        "point": "Point",
+        "spot": "Spot"
+      },
       "roughness": "Roughness",
       "roundness": "Roundness",
       "size": "Size",
+      "spatial": "Spatial",
       "vignette": "Vignette"
     }
   },
@@ -428,6 +458,7 @@
       "editSettingsTitle": "Edit Settings",
       "editsTitle": "Edits",
       "generatingDepthMap": "Calculating AI Depth Map...",
+      "generatingNormalMap": "Calculating AI Normal Map...",
       "generativeEditTitle": "Generative Edit",
       "inpaintingTitle": "Inpainting",
       "liquify": {
@@ -1077,7 +1108,8 @@
         "threeOnly": "3 only",
         "twoAndUp": "2 & up",
         "twoOnly": "2 only",
-        "unrated": "Unrated Only"
+        "unrated": "Unrated Only",
+        "andDownSuffix": "& down"
       },
       "raw": {
         "all": "All Types",
@@ -1167,7 +1199,12 @@
         "sortDescending": "Sort Descending",
         "thumbnailFit": "Thumbnail Fit",
         "thumbnailSize": "Thumbnail Size",
-        "title": "View Options"
+        "title": "View Options",
+        "ratingOperator": {
+          "eq": "Exactly this rating",
+          "gte": "This rating or higher",
+          "lte": "This rating or lower"
+        }
       }
     },
     "import": {
@@ -1895,7 +1932,9 @@
         "zoom_in": "Zoom in",
         "zoom_in_step": "Zoom in (by step)",
         "zoom_out": "Zoom out",
-        "zoom_out_step": "Zoom out (by step)"
+        "zoom_out_step": "Zoom out (by step)",
+        "toggle_pick": "Toggle pick flag",
+        "toggle_reject": "Toggle reject flag"
       },
       "sections": {
         "editing": "Editing",
@@ -1941,7 +1980,12 @@
           },
           "title": "Cloud Service",
           "unavailableTitle": "Cloud sign-in is unavailable",
-          "unavailableDesc": "Choose Built-in CPU or AI Connector to continue. Cloud sign-in is disabled in RapidRoom."
+          "unavailableDesc": "Choose Built-in CPU or AI Connector to continue. Cloud sign-in is disabled in RapidRoom.",
+          "statuses": {
+            "connecting": "Connecting…",
+            "retry": "Retry connection",
+            "unsupported": "Cloud sign-in is currently only available on desktop."
+          }
         },
         "connector": {
           "address": "AI Connector Address",
@@ -1966,10 +2010,18 @@
         "description": "RapidRAW's AI is built for flexibility. Choose your ideal workflow, from fast local tools to powerful self-hosting.",
         "providers": {
           "aiConnector": "AI Connector",
+          "aiFree": "AI-Free",
           "cloud": "Cloud",
           "cpu": "CPU"
         },
-        "title": "Generative AI"
+        "title": "Generative AI",
+        "aiFree": {
+          "description": "Turn off every AI feature. All AI-related controls are hidden from the interface so RapidRAW works as a purely traditional RAW editor.",
+          "feature1": "No AI masks, lens blur or generative edits in the UI",
+          "feature2": "Existing AI edits still render normally",
+          "feature3": "A cleaner, more focused interface",
+          "title": "AI-Free"
+        }
       },
       "alwaysDecodeRaw": "Always Decode RAW",
       "alwaysDecodeRawDesc": "Force full RAW decoding for thumbnails instead of using embedded JPEG previews. Enable this if your thumbnails look different in color or contrast compared to the opened image.",

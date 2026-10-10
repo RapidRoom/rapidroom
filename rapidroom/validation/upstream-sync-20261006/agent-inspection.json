@@ -1,0 +1,95 @@
+{
+  "tested_application_head": "4bea590bbd66b074877cad96626b427783c6d9a0",
+  "inspector": "Yojen with Codex",
+  "inspected_at": "2026-10-07T10:49:01.979548+00:00",
+  "method": "Viewed every original generated PNG with view_image; numerical conclusions use recorded 16-bit export metrics.",
+  "human_approval_received": false,
+  "findings": [
+    "Ten CC0 before/after panels retain matching framing and readable labels; six representative views plus four metric-selected worst cases were visually inspected.",
+    "2000 K / +150 tint is black without the floor and visibly blue with the floor.",
+    "The other four WB pairs have matching previews and exact full-resolution pixels.",
+    "Sony A7CR18MP small-lossless raw shows a strong magenta cast in both busy recipes; mean dE00 14.056 (tone) and8.252 (AgX). Highlighted for explicit human judgment; attribution does not constitute quality acceptance."
+  ],
+  "files": [
+    {
+      "file": "2000--150-no-guided.png",
+      "sha256": "ca5eb93a1a1d48ec82f82c92682aef5563ebcc1b1a8501d67ceccc640701bb33"
+    },
+    {
+      "file": "2000--150-no-wb-clamp.png",
+      "sha256": "ca5eb93a1a1d48ec82f82c92682aef5563ebcc1b1a8501d67ceccc640701bb33"
+    },
+    {
+      "file": "2000-0-no-guided.png",
+      "sha256": "fe006ba9e47255bde3c7f9bf20832569e8927528f2b69486ac27b67073055ce7"
+    },
+    {
+      "file": "2000-0-no-wb-clamp.png",
+      "sha256": "fe006ba9e47255bde3c7f9bf20832569e8927528f2b69486ac27b67073055ce7"
+    },
+    {
+      "file": "2000-150-no-guided.png",
+      "sha256": "2d15b8cc00602ff32b0e4ac1165d7b460db230400587e96aeee51594527a98d3"
+    },
+    {
+      "file": "2000-150-no-wb-clamp.png",
+      "sha256": "e548f48385bb1dc586dd1fccbd65545dc778579c5aa18feaa124bb217f9c4247"
+    },
+    {
+      "file": "50000-150-no-guided.png",
+      "sha256": "d25319e53a383ce26a705172906da15b7c6a527e2cd87ab208de4a1569eae703"
+    },
+    {
+      "file": "50000-150-no-wb-clamp.png",
+      "sha256": "d25319e53a383ce26a705172906da15b7c6a527e2cd87ab208de4a1569eae703"
+    },
+    {
+      "file": "6504-0-no-guided.png",
+      "sha256": "207b5447f8668f242acf8b527695a749ff1d5c7665c2d844e7987859189ec6da"
+    },
+    {
+      "file": "6504-0-no-wb-clamp.png",
+      "sha256": "207b5447f8668f242acf8b527695a749ff1d5c7665c2d844e7987859189ec6da"
+    },
+    {
+      "file": "busy-agx-lut-effects-apple-iphone12pro-proraw.png",
+      "sha256": "1f2219dbc619d9d27cd5c08dd659f7991012fa2df8757f8fa1efcd4bf1324a1b"
+    },
+    {
+      "file": "busy-agx-lut-effects-om-om1-20mp.png",
+      "sha256": "32249a33d9a13e287c3dcc4f93fe18918cb258658d710d1cc3c5ff7384a2cabd"
+    },
+    {
+      "file": "busy-agx-lut-effects-sony-a7c2-15mp-uncompressed.png",
+      "sha256": "99abc9261f62db34d6e5502a69f1e79d270957d3529244229e9ea99cb26caabb"
+    },
+    {
+      "file": "busy-agx-lut-effects-sony-a7cr-18mp-lossless-s.png",
+      "sha256": "e713b99b920e87fc8037d4cea5ccb76d13aa446debe6e8253880760e40752ba8"
+    },
+    {
+      "file": "busy-tone-color-detail-apple-iphone12pro-proraw.png",
+      "sha256": "3ca028bb207346d57a6c152a1cd3d182d9217ff18d4e4e7895476b76670bc8b9"
+    },
+    {
+      "file": "busy-tone-color-detail-canon-r50-24mp-craw.png",
+      "sha256": "71fcd541179c7adf590ada9fa702cbd316005dce4cb27707bd55bb1f26c1f947"
+    },
+    {
+      "file": "busy-tone-color-detail-fuji-xt4-26mp-lossless.png",
+      "sha256": "77058f24b7af4d6f9cdc9e9c701cf66734ef381dcbbb11fb9ebc667b066572fa"
+    },
+    {
+      "file": "busy-tone-color-detail-om-om1-20mp.png",
+      "sha256": "1f704c9f51b955f69807049f5b5d6f87f759f91ab0b8ed64dc3e04635a692c2b"
+    },
+    {
+      "file": "busy-tone-color-detail-sony-a7c2-15mp-uncompressed.png",
+      "sha256": "413cf7c4c9445bd7a5078656d23bdb82be0fc8cda8e16a594f499364f3ac6043"
+    },
+    {
+      "file": "busy-tone-color-detail-sony-a7cr-18mp-lossless-s.png",
+      "sha256": "32c8f95a3f494c0d069cb5259e6af2902fa509f22ea8604b07d30c9f9deb962e"
+    }
+  ]
+}

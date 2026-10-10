@@ -1188,6 +1188,35 @@ mod tests {
         );
 
         let schema = adjustments::adjustments_schema();
+        for tool in definitions.iter().filter(|tool| {
+            matches!(
+                tool["name"].as_str(),
+                Some("set_adjustments" | "update_adjustments" | "get_preview")
+            )
+        }) {
+            let property = if tool["name"] == "update_adjustments" {
+                "changes"
+            } else {
+                "adjustments"
+            };
+            let controls = &tool["inputSchema"]["properties"][property];
+            for key in crate::app_settings::SPATIAL_EFFECT_ADJUSTMENTS {
+                assert!(
+                    !controls["properties"][*key].is_null(),
+                    "{} omits {key}",
+                    tool["name"]
+                );
+                assert!(
+                    controls["propertyNames"]["enum"]
+                        .as_array()
+                        .unwrap()
+                        .contains(&json!(key))
+                );
+            }
+            let light = &tool["inputSchema"]["$defs"]["relightLight"];
+            assert_eq!(light["properties"]["elevation"]["minimum"], -180.0);
+            assert_eq!(light["required"], json!(["id", "type", "x", "y"]));
+        }
         assert_eq!(schema["properties"]["exposure"]["minimum"], -5.0);
         assert_eq!(schema["properties"]["hue"]["maximum"], 180.0);
         assert_eq!(schema["properties"]["toneMapper"]["enum"][0], "basic");

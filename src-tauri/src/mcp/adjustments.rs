@@ -2,6 +2,35 @@ use serde_json::{Map, Value, json};
 
 use crate::guided_perspective::{GuideLine, GuideOrientation};
 
+const SPATIAL_EFFECT_RANGES: &[(&str, f64, f64)] = &[
+    ("relightAmbient", -100.0, 100.0),
+    ("relightSoftness", 0.0, 100.0),
+    ("relightShine", 0.0, 100.0),
+    ("relightShadowSoftness", 0.0, 100.0),
+    ("fogAmount", 0.0, 100.0),
+    ("fogStart", 0.0, 100.0),
+    ("fogDensity", 0.0, 100.0),
+    ("fogHeight", 0.0, 100.0),
+    ("fogVariation", 0.0, 100.0),
+    ("fogGlow", 0.0, 100.0),
+    ("fogTemperature", -100.0, 100.0),
+    ("fogTint", -100.0, 100.0),
+];
+
+const RELIGHT_LIGHT_RANGES: &[(&str, f64, f64)] = &[
+    ("x", 0.0, 1.0),
+    ("y", 0.0, 1.0),
+    ("depth", 0.0, 100.0),
+    ("intensity", 0.0, 100.0),
+    ("radius", 0.0, 100.0),
+    ("angle", 0.0, 360.0),
+    ("elevation", -180.0, 180.0),
+    ("cone", 0.0, 100.0),
+    ("feather", 0.0, 100.0),
+    ("temperature", -100.0, 100.0),
+    ("tint", -100.0, 100.0),
+];
+
 pub(super) fn changed_keys(before: &Value, after: &Value) -> Vec<String> {
     let keys: std::collections::BTreeSet<_> = before
         .as_object()
@@ -23,6 +52,7 @@ pub(super) fn compact_schema() -> (Value, Value) {
         "parametricChannel": controls["parametricCurve"]["properties"]["luma"],
         "hslBand": controls["hsl"]["properties"]["reds"],
         "gradingWheel": controls["colorGrading"]["properties"]["shadows"],
+        "relightLight": controls["relightLights"]["items"],
     });
     let reference = |name: &str| json!({"$ref":format!("#/$defs/{name}")});
     for key in ["curves", "pointCurves"] {
@@ -49,11 +79,29 @@ pub(super) fn compact_schema() -> (Value, Value) {
     for wheel in ["shadows", "midtones", "highlights", "global"] {
         controls["colorGrading"]["properties"][wheel] = reference("gradingWheel");
     }
+    controls["relightLights"]["items"] = reference("relightLight");
     (schema, definitions)
 }
 
 pub(super) fn adjustments_schema() -> Value {
     let mut properties = Map::new();
+    for &(key, min, max) in SPATIAL_EFFECT_RANGES {
+        properties.insert(
+            key.to_string(),
+            ranged_number_schema(min, max, "Spatial effect control."),
+        );
+    }
+    for key in ["fogEnabled", "relightEnabled", "relightShadows"] {
+        properties.insert(key.to_string(), json!({ "type": "boolean" }));
+    }
+    for key in ["fogDepthMap", "relightNormalMap"] {
+        properties.insert(key.to_string(), json!({ "type": ["string", "null"] }));
+    }
+    properties.insert("relightLights".to_string(), json!({
+        "type": "array",
+        "description": "Placed lights; replace the array while preserving other lights. Optional settings use new-light defaults.",
+        "items": relight_light_schema(),
+    }));
     for (key, min, max, description) in [
         (
             "exposure",
@@ -202,6 +250,16 @@ pub(super) fn adjustments_schema() -> Value {
     properties.insert("hsl".to_string(), hsl_schema());
     properties.insert("colorGrading".to_string(), color_grading_schema());
     properties.insert("colorCalibration".to_string(), color_calibration_schema());
+    properties.insert("whiteBalance".to_string(), json!({
+        "type": ["object", "null"],
+        "description": "Absolute Kelvin baseline; null uses camera as-shot. Set relative temperature/tint to0 for a pure absolute target.",
+        "properties": {
+            "temperature": {"type":"number", "minimum": crate::white_balance::MIN_TEMPERATURE, "maximum":crate::white_balance::MAX_TEMPERATURE},
+            "tint": {"type":"number", "minimum":-crate::white_balance::MAX_TINT, "maximum":crate::white_balance::MAX_TINT}
+        },
+        "required": ["temperature", "tint"],
+        "additionalProperties": false
+    }));
     properties.insert("crop".to_string(), json!({ "type": ["object", "null"] }));
     properties.insert("masks".to_string(), json!({ "type": "array" }));
     properties.insert("lutPath".to_string(), json!({ "type": ["string", "null"] }));
@@ -282,6 +340,34 @@ fn strict_object_schema(description: &str, properties: Map<String, Value>) -> Va
         "additionalProperties": false,
         "properties": properties,
     })
+}
+
+fn relight_light_schema() -> Value {
+    let mut properties = Map::new();
+    for &(key, min, max) in RELIGHT_LIGHT_RANGES {
+        properties.insert(
+            key.to_string(),
+            ranged_number_schema(min, max, "Light control in editor units."),
+        );
+    }
+    properties.insert(
+        "id".to_string(),
+        json!({ "type": "string", "minLength": 1 }),
+    );
+    properties.insert(
+        "type".to_string(),
+        json!({ "type": "string", "enum": ["point", "spot", "directional"] }),
+    );
+    properties.insert(
+        "color".to_string(),
+        json!({ "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }),
+    );
+    properties.insert("visible".to_string(), json!({ "type": "boolean" }));
+    strict_object_schema_with_required(
+        "Relight light with a unique id and normalized source-image position.",
+        properties,
+        &["id", "type", "x", "y"],
+    )
 }
 
 fn strict_object_schema_with_required(
@@ -558,6 +644,18 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "colorGrading" => validate_color_grading(value)?,
                 "colorCalibration" => validate_color_calibration(value)?,
                 "guidedPerspective" => validate_guided_perspective(value)?,
+                "whiteBalance" => validate_white_balance(value)?,
+                "relightLights" => validate_relight_lights(value)?,
+                "fogEnabled" | "relightEnabled" | "relightShadows" => {
+                    if !value.is_boolean() {
+                        return Err(format!("adjustment {key} must be a boolean"));
+                    }
+                }
+                "fogDepthMap" | "relightNormalMap" => {
+                    if !value.is_null() && !value.is_string() {
+                        return Err(format!("adjustment {key} must be a string or null"));
+                    }
+                }
                 "curveMode" => validate_string_enum(value, key, &["point", "parametric"])?,
                 "toneMapper" => validate_string_enum(value, key, &["basic", "agx"])?,
                 "lensCorrectionMode" => validate_string_enum(value, key, &["auto", "manual"])?,
@@ -566,6 +664,85 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 }
                 _ => {}
             }
+        }
+    }
+    Ok(())
+}
+
+fn validate_white_balance(value: &Value) -> Result<(), String> {
+    if value.is_null() {
+        return Ok(());
+    }
+    let object = validate_nested_object(value, "whiteBalance")?;
+    validate_nested_keys(object, "whiteBalance", &["temperature", "tint"])?;
+    for (key, min, max) in [
+        (
+            "temperature",
+            crate::white_balance::MIN_TEMPERATURE,
+            crate::white_balance::MAX_TEMPERATURE,
+        ),
+        (
+            "tint",
+            -crate::white_balance::MAX_TINT,
+            crate::white_balance::MAX_TINT,
+        ),
+    ] {
+        let value = object
+            .get(key)
+            .ok_or_else(|| format!("whiteBalance requires {key}"))?;
+        validate_number(value, &format!("whiteBalance.{key}"), min, max)?;
+    }
+    Ok(())
+}
+
+fn validate_relight_lights(value: &Value) -> Result<(), String> {
+    let lights = value.as_array().ok_or("relightLights must be an array")?;
+    let mut ids = std::collections::HashSet::new();
+    let mut allowed: Vec<_> = RELIGHT_LIGHT_RANGES
+        .iter()
+        .map(|(key, _, _)| *key)
+        .collect();
+    allowed.extend(["id", "type", "color", "visible"]);
+    for (index, light) in lights.iter().enumerate() {
+        let key = format!("relightLights[{index}]");
+        let object = validate_nested_object(light, &key)?;
+        validate_nested_keys(object, &key, &allowed)?;
+        let id = object
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| format!("{key}.id must be a non-empty string"))?;
+        if !ids.insert(id) {
+            return Err(format!("{key}.id must be unique"));
+        }
+        validate_string_enum(
+            object
+                .get("type")
+                .ok_or_else(|| format!("{key}.type is required"))?,
+            &format!("{key}.type"),
+            &["point", "spot", "directional"],
+        )?;
+        for &(field, min, max) in RELIGHT_LIGHT_RANGES {
+            if let Some(value) = object.get(field) {
+                validate_number(value, &format!("{key}.{field}"), min, max)?;
+            } else if matches!(field, "x" | "y") {
+                return Err(format!("{key}.{field} is required"));
+            }
+        }
+        if let Some(color) = object.get("color") {
+            let valid = color.as_str().is_some_and(|color| {
+                color.len() == 7
+                    && color.starts_with('#')
+                    && color[1..].bytes().all(|b| b.is_ascii_hexdigit())
+            });
+            if !valid {
+                return Err(format!("{key}.color must be a #RRGGBB string"));
+            }
+        }
+        if let Some(visible) = object.get("visible")
+            && !visible.is_boolean()
+        {
+            return Err(format!("{key}.visible must be a boolean"));
         }
     }
     Ok(())
@@ -925,7 +1102,10 @@ fn numeric_adjustment_range(key: &str) -> Option<(f64, f64)> {
         "orientationSteps" => Some((0.0, 3.0)),
         "transformScale" => Some((0.0, 500.0)),
         "lutIntensity" => Some((0.0, 100.0)),
-        _ => None,
+        _ => SPATIAL_EFFECT_RANGES
+            .iter()
+            .find(|(name, _, _)| *name == key)
+            .map(|(_, min, max)| (*min, *max)),
     }
 }
 
@@ -949,6 +1129,145 @@ pub(super) fn merge_adjustments(current: Value, changes: Value) -> Result<Value,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spatial_effect_schema_and_validator_match_editor_defaults_and_ranges() {
+        let editor: Value =
+            serde_json::from_str(include_str!("../../../rapidroom/adjustment-schema.json"))
+                .unwrap();
+        let schema = adjustments_schema();
+        let mut defaults = Map::new();
+        for key in crate::app_settings::SPATIAL_EFFECT_ADJUSTMENTS {
+            assert!(adjustment_keys().iter().any(|allowed| allowed == key));
+            assert!(
+                !schema["properties"][*key].is_null(),
+                "missing {key} schema"
+            );
+            defaults.insert(
+                (*key).to_string(),
+                editor["parameters"][*key]["default"].clone(),
+            );
+        }
+        assert!(validate_adjustments(&Value::Object(defaults)).is_ok());
+        assert!(validate_adjustments(&json!({"fogAmount":20,"relightAmbient":10})).is_ok());
+
+        for &(key, min, max) in SPATIAL_EFFECT_RANGES {
+            assert_eq!(schema["properties"][key]["minimum"], min);
+            assert_eq!(schema["properties"][key]["maximum"], max);
+            let ui = &editor["parameters"][key]["uiRanges"][0];
+            assert_eq!(ui["minimum"], min, "{key}");
+            assert_eq!(ui["maximum"], max, "{key}");
+            for valid in [json!(min), json!(max)] {
+                let mut changes = json!({});
+                changes[key] = valid;
+                assert!(validate_adjustments(&changes).is_ok(), "{changes}");
+            }
+            for invalid in [json!(min - 1.0), json!(max + 1.0), json!("20"), json!(null)] {
+                let mut changes = json!({});
+                changes[key] = invalid;
+                assert!(validate_adjustments(&changes).is_err(), "{changes}");
+            }
+        }
+        for key in ["fogEnabled", "relightEnabled", "relightShadows"] {
+            for value in [json!(true), json!(false)] {
+                let mut changes = json!({});
+                changes[key] = value;
+                assert!(validate_adjustments(&changes).is_ok());
+            }
+            for value in [json!(1), json!("true"), json!(null)] {
+                let mut changes = json!({});
+                changes[key] = value;
+                assert!(validate_adjustments(&changes).is_err());
+            }
+        }
+        for key in ["fogDepthMap", "relightNormalMap"] {
+            for value in [json!(null), json!("data:image/png;base64,encoded")] {
+                let mut changes = json!({});
+                changes[key] = value;
+                assert!(validate_adjustments(&changes).is_ok());
+            }
+            let mut changes = json!({});
+            changes[key] = json!(false);
+            assert!(validate_adjustments(&changes).is_err());
+        }
+    }
+
+    #[test]
+    fn relight_lights_support_editor_variants_with_validated_nested_fields() {
+        let editor: Value =
+            serde_json::from_str(include_str!("../../../rapidroom/adjustment-schema.json"))
+                .unwrap();
+        let schema = adjustments_schema();
+        let light = json!({
+            "id":"light-1","type":"point","x":0.5,"y":0.5,
+            "depth":0,"intensity":60,"radius":30,"angle":135,"elevation":60,
+            "cone":40,"feather":50,"temperature":0,"tint":0,"color":"#ffffff",
+        });
+        for kind in ["point", "spot", "directional"] {
+            let mut variant = light.clone();
+            variant["type"] = json!(kind);
+            assert!(validate_adjustments(&json!({"relightLights":[variant]})).is_ok());
+        }
+        assert!(validate_adjustments(&json!({"relightLights":[]})).is_ok());
+        assert!(
+            validate_adjustments(&json!({"relightLights":[{
+                "id":"minimal","type":"spot","x":0,"y":1,
+            }]}))
+            .is_ok()
+        );
+        for &(key, min, max) in RELIGHT_LIGHT_RANGES {
+            let native = &schema["properties"]["relightLights"]["items"]["properties"][key];
+            assert_eq!(native["minimum"], min);
+            assert_eq!(native["maximum"], max);
+            if !matches!(key, "x" | "y") {
+                let ui = &editor["parameters"]["relightLights"]["itemUiRanges"][key];
+                assert_eq!(ui["minimum"], min, "{key}");
+                assert_eq!(ui["maximum"], max, "{key}");
+            }
+            for value in [json!(min), json!(max)] {
+                let mut variant = light.clone();
+                variant[key] = value;
+                assert!(validate_adjustments(&json!({"relightLights":[variant]})).is_ok());
+            }
+            for value in [json!(min - 1.0), json!(max + 1.0), json!("20"), json!(null)] {
+                let mut variant = light.clone();
+                variant[key] = value;
+                assert!(validate_adjustments(&json!({"relightLights":[variant]})).is_err());
+            }
+        }
+        for (field, value) in [
+            ("id", json!("")),
+            ("type", json!("laser")),
+            ("type", json!(null)),
+            ("color", json!("#gg0000")),
+            ("color", json!("#fff")),
+            ("color", json!(1)),
+            ("visible", json!(1)),
+            ("unknown", json!(0)),
+        ] {
+            let mut variant = light.clone();
+            variant[field] = value;
+            assert!(validate_adjustments(&json!({"relightLights":[variant]})).is_err());
+        }
+        for field in ["id", "type", "x", "y"] {
+            let mut variant = light.clone();
+            variant.as_object_mut().unwrap().remove(field);
+            assert!(validate_adjustments(&json!({"relightLights":[variant]})).is_err());
+        }
+        assert!(validate_adjustments(&json!({"relightLights":[light.clone(),light]})).is_err());
+        assert!(validate_adjustments(&json!({"relightLights":{}})).is_err());
+        assert!(validate_adjustments(&json!({"relightLights":[null]})).is_err());
+    }
+
+    #[test]
+    fn spatial_maps_and_lights_are_available_but_not_copied_by_default() {
+        let all = crate::all_available_adjustments();
+        let default_copy = crate::app_settings::default_included_adjustments();
+        for key in crate::app_settings::SPATIAL_EFFECT_ADJUSTMENTS {
+            assert!(all.contains(*key));
+            assert!(!default_copy.contains(*key));
+        }
+    }
 
     #[test]
     fn revision_is_stable_for_same_edit() {
@@ -1035,5 +1354,39 @@ mod tests {
         assert_eq!(merged["hsl"]["red"]["hue"], 4.0);
         assert_eq!(merged["hsl"]["red"]["saturation"], 2.0);
         assert_eq!(merged["hsl"]["blue"]["hue"], 3.0);
+    }
+}
+
+#[cfg(test)]
+mod upstream_white_balance_tests {
+    use super::*;
+
+    #[test]
+    fn kelvin_baseline_schema_and_validation_are_consistent() {
+        let schema = adjustments_schema();
+        assert_eq!(
+            schema["properties"]["whiteBalance"]["properties"]["temperature"]["minimum"],
+            crate::white_balance::MIN_TEMPERATURE
+        );
+        assert!(validate_adjustments(&json!({"whiteBalance":null})).is_ok());
+        assert!(
+            validate_adjustments(
+                &json!({"whiteBalance":{"temperature":6504.0,"tint":0.0},"temperature":0,"tint":0})
+            )
+            .is_ok()
+        );
+        for bad in [
+            json!({"temperature":1999,"tint":0}),
+            json!({"temperature":50001,"tint":0}),
+            json!({"temperature":6504,"tint":151}),
+            json!({"temperature":6504}),
+            json!({"temperature":"6504","tint":0}),
+            json!({"temperature":6504,"tint":0,"unknown":1}),
+        ] {
+            assert!(
+                validate_adjustments(&json!({"whiteBalance":bad})).is_err(),
+                "{bad}"
+            );
+        }
     }
 }

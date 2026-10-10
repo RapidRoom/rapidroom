@@ -6,6 +6,7 @@ import { DEFAULT_THEME_ID } from '../utils/themes';
 
 interface SettingsState {
   appSettings: AppSettings | null;
+  persistedAiProvider: string | null;
   theme: string;
   supportedTypes: SupportedTypes | null;
   osPlatform: string;
@@ -20,6 +21,7 @@ interface SettingsState {
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   appSettings: null,
+  persistedAiProvider: null,
   theme: DEFAULT_THEME_ID,
   supportedTypes: null,
   osPlatform: '',
@@ -32,7 +34,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
-  setAppSettings: (settings) => set({ appSettings: settings }),
+  setAppSettings: (settings) => set({ appSettings: settings, persistedAiProvider: settings?.aiProvider ?? 'cpu' }),
 
   setTheme: (theme) => set({ theme }),
 
@@ -53,6 +55,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
     try {
       await invoke(Invokes.SaveSettings, { settings: settingsToSave });
+      set({ persistedAiProvider: newSettings.aiProvider ?? 'cpu' });
     } catch (err) {
       console.error('Failed to save settings:', err);
     }
