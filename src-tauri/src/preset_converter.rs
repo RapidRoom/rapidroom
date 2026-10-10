@@ -1726,15 +1726,23 @@ fn convert_xmp_to_preset_with_crop(
         include_crop_transform: Some(include_crop_transform),
         preset_type: Some("style".to_string()),
         favorite: None,
-        camera_model_restriction: extract_namespaced_scalar(
+        camera_model_restriction: crate::xmp::preset_scalar(
             xmp_content,
-            "crs",
+            "http://ns.adobe.com/camera-raw-settings/1.0/",
             "CameraModelRestriction",
         )
+        .ok()
+        .flatten()
         .filter(|v| !v.is_empty()),
-        unavailable_reason: extract_namespaced_scalar(xmp_content, "crs", "CameraProfile")
-            .filter(|v| !v.is_empty())
-            .map(|v| format!("Requires camera profile: {v}")),
+        unavailable_reason: crate::xmp::preset_scalar(
+            xmp_content,
+            "http://ns.adobe.com/camera-raw-settings/1.0/",
+            "CameraProfile",
+        )
+        .ok()
+        .flatten()
+        .filter(|v| !v.is_empty())
+        .map(|v| format!("Requires camera profile: {v}")),
     })
 }
 

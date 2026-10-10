@@ -140,6 +140,23 @@ pub fn serialize(preset: &Preset) -> Result<(String, Vec<String>), String> {
 mod tests {
     use super::*;
     #[test]
+    fn applicability_decodes_attributes_and_elements_with_namespace_aliases() {
+        for content in [
+            r#"<root xmlns:p="http://ns.adobe.com/camera-raw-settings/1.0/" p:CameraModelRestriction="Sony &amp; Fujifilm" p:CameraProfile="A &amp; B"/>"#,
+            r#"<root xmlns:p="http://ns.adobe.com/camera-raw-settings/1.0/"><p:CameraModelRestriction>Sony &amp; Fujifilm</p:CameraModelRestriction><p:CameraProfile>A &amp; B</p:CameraProfile></root>"#,
+        ] {
+            let preset = crate::preset_converter::convert_xmp_to_preset(content).unwrap();
+            assert_eq!(
+                preset.camera_model_restriction.as_deref(),
+                Some("Sony & Fujifilm")
+            );
+            assert_eq!(
+                preset.unavailable_reason.as_deref(),
+                Some("Requires camera profile: A & B")
+            );
+        }
+    }
+    #[test]
     fn crs_hue_uses_inverse_units_without_private_payload() {
         let mut preset = crate::preset_converter::convert_xmp_to_preset(
             r#"<rdf:Description crs:Exposure2012="1"/>"#,

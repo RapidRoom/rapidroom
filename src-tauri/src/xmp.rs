@@ -327,6 +327,25 @@ pub(crate) fn validate(content: &str) -> Result<(), Error> {
     Document::parse(content).map(|_| ())
 }
 
+/// New preset metadata requires a real namespace binding and decoded XML values.
+pub(crate) fn preset_scalar(
+    content: &str,
+    uri: &str,
+    local: &str,
+) -> Result<Option<String>, Error> {
+    let doc = Document::parse(content)?;
+    for (index, node) in doc.nodes.iter().enumerate() {
+        for attribute in &node.attributes {
+            if let Some((prefix, actual)) = attribute.name.split_once(':') {
+                if actual == local && doc.namespace(index, prefix) == Some(uri) {
+                    return Ok(Some(attribute.value.trim().to_string()));
+                }
+            }
+        }
+    }
+    element_text(content, uri, local).map(|value| value.map(|v| v.trim().to_string()))
+}
+
 pub(crate) fn element_text(content: &str, uri: &str, local: &str) -> Result<Option<String>, Error> {
     let doc = Document::parse(content)?;
     let Some(index) = doc.nodes.iter().enumerate().find_map(|(i, node)| {
