@@ -1,5 +1,6 @@
 """Exercise native zoom handlers without accessing React stores."""
 import time
+import json
 
 
 def run_zoom_checks(smoke, wait_for):
@@ -41,7 +42,7 @@ def run_zoom_checks(smoke, wait_for):
             deltaY:e.deltaY,deltaMode:e.deltaMode,wheelDeltaY:e.wheelDeltaY,innerHeight,
             clientX:e.clientX,clientY:e.clientY};},{once:true});
           const m=new DOMMatrix(v.firstElementChild.style.transform);
-          return {x,y,anchor:[(x-r.left-m.m41)/m.a,(y-r.top-m.m42)/m.d]};""")
+          return {x,y,viewport:[r.left,r.top],matrix:[m.a,m.d,m.m41,m.m42]};""")
         command = smoke.case / 'native-wheel.command'
         temporary = command.with_suffix('.tmp')
         temporary.write_text(f"{direction} {point['x']} {point['y']}\n")
@@ -49,11 +50,17 @@ def run_zoom_checks(smoke, wait_for):
         event = wait_for(lambda: smoke.execute('return window.__RR_NATIVE_WHEEL__;'), 'trusted native wheel event')
         if not event['trusted'] or event['deltaMode'] != 0:
             raise RuntimeError('GTK wheel did not pass through native conversion: ' + str(event))
+        record = smoke.case / 'native-wheel-events.json'
+        events = json.loads(record.read_text()) if record.exists() else []
+        events.append({'before':before,'requested_point':point,'event':event})
+        record.write_text(json.dumps(events,indent=2)+'\n')
         result = at(expected)
+        before_anchor = [(event['clientX']-point['viewport'][0]-point['matrix'][2])/point['matrix'][0],
+                         (event['clientY']-point['viewport'][1]-point['matrix'][3])/point['matrix'][1]]
         after_anchor = smoke.execute("""const v=document.querySelector('[data-editor-viewport]'),r=v.getBoundingClientRect();
           const m=new DOMMatrix(v.firstElementChild.style.transform);
-          return [(arguments[0]-r.left-m.m41)/m.a,(arguments[1]-r.top-m.m42)/m.d];""", [point['x'], point['y']])
-        error = max(abs(a-b) for a,b in zip(point['anchor'],after_anchor))
+          return [(arguments[0]-r.left-m.m41)/m.a,(arguments[1]-r.top-m.m42)/m.d];""", [event['clientX'], event['clientY']])
+        error = max(abs(a-b) for a,b in zip(before_anchor,after_anchor))
         if error > 0.02:
             raise RuntimeError('Native wheel moved cursor anchor: ' + str(error))
         smoke.step(f'native {direction} wheel adjacent stop {expected} percent', {
