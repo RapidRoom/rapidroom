@@ -8,7 +8,10 @@ from mcp_clients import image_state, rpc, run_client_checks
 def run_point_color_mcp_checks(smoke, wait_for, baseline):
     endpoint = smoke.case / "config/io.github.CyberTimon.RapidRAW/mcp-endpoint.json"
     wait_for(endpoint.exists, 'local Point Color MCP endpoint')
-    smoke.step('Point Color authenticated MCP discovery', run_client_checks(smoke.case, smoke, wire_only=True))
+    wire = run_client_checks(smoke.case, smoke, wire_only=True)
+    wire['transport'] = 'authenticated local HTTP JSON-RPC'
+    (smoke.case / 'client-tests/result.json').write_text(json.dumps(wire, indent=2) + '\n')
+    smoke.step('Point Color authenticated MCP discovery', wire)
     connection = json.loads(endpoint.read_text())
     url, token = connection['url'], connection['token']
     path = str(smoke.case / 'input/smoke.ARW')
