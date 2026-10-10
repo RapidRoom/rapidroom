@@ -376,6 +376,9 @@ class Smoke:
                  "GPU-processed editor preview")
         baseline = self.stable_preview("preview")
         self.step("native preview", {"roi": self.roi, "capture": str(baseline.relative_to(self.case))})
+        if (self.case / "palette-test.json").exists():
+            from palette import run_palette_checks
+            run_palette_checks(self, wait_for, baseline)
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
         edited = self.stable_preview("edited")
         difference = ImageStat.Stat(ImageChops.difference(self.crop(baseline), self.crop(edited)))
@@ -531,6 +534,8 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.palette:
+        save(case / "palette-test.json", {"issue": 162, "real_model_requests": False})
     if args.dock_layout:
         save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
         for index in range(1, 24):
@@ -654,6 +659,7 @@ def main():
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
     parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
+    parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     global WIDTH, HEIGHT

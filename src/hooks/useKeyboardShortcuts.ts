@@ -7,8 +7,10 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
-import { useEditorActions } from './useEditorActions';
+import { debouncedSetHistory, useEditorActions } from './useEditorActions';
+import { createResetAdjustmentsForImage } from '../utils/adjustments';
 import { useLibraryActions } from './useLibraryActions';
+import { registerAppActions, executeAppAction } from '../utils/appActions';
 
 interface KeyboardShortcutsProps {
   sortedImageList: Array<ImageFile>;
@@ -31,7 +33,14 @@ export const useKeyboardShortcuts = ({
   handlePasteFiles,
   handleZoomChange,
 }: KeyboardShortcutsProps) => {
-  const { handleRotate, handleCopyAdjustments, handlePasteAdjustments, toggleShowOriginal } = useEditorActions();
+  const {
+    handleRotate,
+    handleCopyAdjustments,
+    handlePasteAdjustments,
+    toggleShowOriginal,
+    handleAutoAdjustments,
+    setAdjustments,
+  } = useEditorActions();
   const { handleRate, handleSetFlag, handleSetColorLabel } = useLibraryActions();
 
   const sortedListRef = useRef(sortedImageList);
@@ -111,6 +120,32 @@ export const useKeyboardShortcuts = ({
     };
 
     const actions: Record<string, any> = {
+      reset_adjustments: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
+        execute: (_event: unknown, s: StoreState) => {
+          debouncedSetHistory.flush();
+          setAdjustments(createResetAdjustmentsForImage(s.editor.selectedImage));
+          debouncedSetHistory.flush();
+        },
+      },
+      auto_adjustments: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
+        execute: () => handleAutoAdjustments(),
+      },
+      white_balance_picker: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
+        execute: (_event: unknown, s: StoreState) => {
+          s.ui.setPanel(Panel.Adjustments);
+          s.editor.setEditor({ isWbPickerActive: true, mixerPickerProperty: null });
+        },
+      },
+      color_mixer_picker: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
+        execute: (_event: unknown, s: StoreState) => {
+          s.ui.setPanel(Panel.Adjustments);
+          s.editor.setEditor({ mixerPickerProperty: 'hue', isWbPickerActive: false });
+        },
+      },
       open_image: {
         shouldFire: (s: any) => s.ui.activeView === 'library' && s.library.libraryActivePath !== null,
         execute: (e: any, s: any) => {
@@ -631,6 +666,18 @@ export const useKeyboardShortcuts = ({
       },
     };
 
+    const unregisterActions = registerAppActions(
+      Object.fromEntries(
+        Object.entries(actions).map(([id, action]) => [
+          id,
+          {
+            available: () => !action.shouldFire || action.shouldFire(getStoreState()),
+            execute: () => action.execute({ preventDefault() {} }, getStoreState()),
+          },
+        ]),
+      ),
+    );
+
     const builtinShortcuts = [
       {
         match: (e: KeyboardEvent) => e.code === 'Escape',
@@ -742,9 +789,8 @@ export const useKeyboardShortcuts = ({
       const action = comboMap.get(normalized.join('+'));
 
       if (action) {
-        const handler = actions[action];
-        if (handler && (!handler.shouldFire || handler.shouldFire(state))) {
-          handler.execute(event, state);
+        if (executeAppAction(action)) {
+          event.preventDefault();
           return;
         }
       }
@@ -753,8 +799,11 @@ export const useKeyboardShortcuts = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      unregisterActions();
     };
   }, [
+    handleAutoAdjustments,
+    setAdjustments,
     handleBackToLibrary,
     handleDeleteSelected,
     handleDeleteRejected,
