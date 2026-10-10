@@ -71,6 +71,7 @@ export function usePointColorPicker({ getCanvasPointer, imageRenderSize, zoomSca
       try {
         const color = await invoke<PointColorSample>(Invokes.SamplePointColorInput, {
           path,
+          maskId,
           adjustments: original,
           x,
           y,

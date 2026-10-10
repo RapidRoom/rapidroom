@@ -773,6 +773,11 @@ fn point_hue_distance(hue: f32, center: f32) -> f32 {
     return distance - 360.0 * floor((distance + 180.0) / 360.0);
 }
 
+fn point_encode_sample(rgb: vec3<f32>) -> vec4<f32> {
+    let lab = point_rgb_to_lab(rgb);
+    return vec4<f32>(lab.x / 4.0, (lab.y + 1.0) / 2.0, (lab.z + 1.0) / 2.0, 1.0);
+}
+
 fn apply_point_color(rgb: vec3<f32>, points: array<PointColor, 8>) -> vec3<f32> {
     let count = points[0].color.w;
     if (count == 0.0) { return rgb; }
@@ -1952,18 +1957,23 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     composite_rgb_linear = apply_highlights_adjustment(composite_rgb_linear, absolute_coord_i, scale, is_raw, t_highlights);
     composite_rgb_linear = apply_color_calibration(composite_rgb_linear, adjustments.global.color_calibration);
     composite_rgb_linear = apply_hsl_panel(composite_rgb_linear, final_hsl, absolute_coord_i);
-    if (adjustments.global.point_color_input != 0u) {
-        let lab = point_rgb_to_lab(composite_rgb_linear);
-        textureStore(output_texture, id.xy, vec4<f32>(lab.x / 4.0, (lab.y + 1.0) / 2.0, (lab.z + 1.0) / 2.0, 1.0));
+    if (adjustments.global.point_color_input == 1u) {
+        textureStore(output_texture, id.xy, point_encode_sample(composite_rgb_linear));
         return;
     }
     composite_rgb_linear = apply_point_color(composite_rgb_linear, adjustments.global.point_color);
     for (var i = 0u; i < adjustments.mask_count; i++) {
+        if (adjustments.global.point_color_input == i + 2u) {
+            textureStore(output_texture, id.xy, point_encode_sample(composite_rgb_linear)); return;
+        }
         let influence = get_mask_influence(i, absolute_coord);
         if (influence > 0.0) {
             let shifted = apply_point_color(composite_rgb_linear, adjustments.mask_adjustments[i].point_color);
             if (any(shifted != composite_rgb_linear)) { composite_rgb_linear = mix(composite_rgb_linear, shifted, influence); }
         }
+    }
+    if (adjustments.global.point_color_input >= 2u) {
+        textureStore(output_texture, id.xy, point_encode_sample(composite_rgb_linear)); return;
     }
     composite_rgb_linear = apply_hue_shift(composite_rgb_linear, t_hue);
     composite_rgb_linear = apply_creative_color(composite_rgb_linear, t_saturation, t_vibrance);

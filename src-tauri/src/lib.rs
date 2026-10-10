@@ -459,6 +459,7 @@ async fn sample_display_area(
 #[tauri::command]
 async fn sample_point_color_input(
     path: String,
+    mask_id: Option<String>,
     mut adjustments: serde_json::Value,
     x: f32,
     y: f32,
@@ -502,11 +503,26 @@ async fn sample_point_color_input(
                 )
             })
             .collect();
-        let parsed = get_all_adjustments_from_json(
+        let mut parsed = get_all_adjustments_from_json(
             &adjustments,
             loaded.is_raw,
             resolve_tonemapper_override_from_handle(&app_handle, loaded.is_raw),
         );
+        if let Some(id) = mask_id {
+            if !definitions.iter().any(|mask| mask.id == id) {
+                return Err("Selected mask changed".into());
+            }
+            let active_masks: Vec<_> = definitions
+                .iter()
+                .filter(|mask| mask.visible && !mask.sub_masks.is_empty())
+                .take(image_processing::MAX_MASKS)
+                .collect();
+            let index = active_masks
+                .iter()
+                .position(|mask| mask.id == id)
+                .unwrap_or(active_masks.len());
+            parsed.global.point_color_input = index as u32 + 2;
+        }
         let output = crate::gpu_processing::render_point_color_input(
             &context,
             &state,

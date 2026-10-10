@@ -1870,7 +1870,9 @@ pub fn render_point_color_input(
     base_image: &DynamicImage,
     mut request: RenderRequest,
 ) -> Result<DynamicImage, String> {
-    request.adjustments.global.point_color_input = 1;
+    if request.adjustments.global.point_color_input == 0 {
+        request.adjustments.global.point_color_input = 1;
+    }
     process_and_get_dynamic_image_inner(
         context,
         state,
