@@ -1102,3 +1102,8 @@ export const showSectionAndTools = (visibility: SectionVisibility, section: stri
 
 export const getAdjustmentToolOrder = (section: string, toolOrder?: Record<string, string[]>): string[] =>
   reconcileOrder(getAdjustmentSectionToolIds(section), toolOrder?.[section]);
+
+export function createResetAdjustmentsForImage(image: { width: number; height: number } | null): Adjustments {
+  const aspectRatio = image && image.width > 0 && image.height > 0 ? image.width / image.height : null;
+  return { ...INITIAL_ADJUSTMENTS, aspectRatio, aiPatches: [] };
+}

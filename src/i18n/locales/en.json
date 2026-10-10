@@ -2296,5 +2296,18 @@
     "resizeLeftDock": "Resize left panel",
     "resizeRightDock": "Resize right panel",
     "collapsePanel": "Collapse terminal panel"
+  },
+  "commandPalette": {
+    "title": "Command palette",
+    "search": "Search commands and adjustments",
+    "searchHint": "Search actions, sliders or type exposure 0.7…",
+    "valueHint": "Type a value or use Left / Right",
+    "setValue": "Set {{name}} to {{value}}",
+    "cropRatio": "Crop {{ratio}}",
+    "noResults": "No matching commands",
+    "listKeys": "↑ ↓ Choose · Enter Apply · Esc Close · Ctrl+K Toggle",
+    "sliderKeys": "← → Preview · Shift ×10 · Alt Fine · Enter Apply · Esc Cancel",
+    "autoAdjustments": "Auto adjustments",
+    "resetCurrentPhoto": "Reset current photo"
   }
 }

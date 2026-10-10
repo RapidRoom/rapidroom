@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "keyboard-command-palette",
+      "title": "Find actions and edit sliders from a keyboard command palette",
+      "category": "feature",
+      "landed": "2026-10-09",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex; interaction ideas from pdcgomes/redlamp command-palette design)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Ctrl+K opens searchable application actions and schema-backed numeric controls with Lightroom aliases, typed values and crop ratios. Shortcuts and palette share guarded action handlers. Arrow-key slider and local-preset previews revert on Escape; confirmation creates one undoable edit. Focus is restored and stale photo/edit previews are discarded. Default adjustment values and image-rendering algorithms are unchanged."
+    },
+    {
       "id": "mcp-compact-replies",
       "title": "Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons",
       "category": "performance",

@@ -1,3 +1,4 @@
+import { createResetAdjustmentsForImage } from '../utils/adjustments';
 import { toast } from 'react-toastify';
 import { isPathInCardRoot } from '../utils/cardMode';
 import { describeHistoryChange, sameAdjustmentValue } from '../utils/editHistory';
@@ -8,12 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useEditorStore } from '../store/useEditorStore';
 import { debouncedSetHistory } from './useEditorActions';
-import {
-  INITIAL_ADJUSTMENTS,
-  buildParametricCurves,
-  normalizeLoadedAdjustments,
-  type Adjustments,
-} from '../utils/adjustments';
+import { buildParametricCurves, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
 
 interface McpCommand {
   requestId: string;
@@ -319,8 +315,7 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
             // Same result as the library's reset, but as an undoable step;
             // autosave writes it to the sidecar like any other edit.
             const image = useEditorStore.getState().selectedImage;
-            const aspectRatio = image && image.width > 0 && image.height > 0 ? image.width / image.height : null;
-            nextAdjustments = { ...INITIAL_ADJUSTMENTS, aspectRatio, aiPatches: [] };
+            nextAdjustments = createResetAdjustmentsForImage(image);
           } else if (command.adjustments) {
             nextAdjustments = normalizeMcpAdjustments(command.adjustments);
           } else {
