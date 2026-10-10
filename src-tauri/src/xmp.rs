@@ -336,10 +336,11 @@ pub(crate) fn preset_scalar(
     let doc = Document::parse(content)?;
     for (index, node) in doc.nodes.iter().enumerate() {
         for attribute in &node.attributes {
-            if let Some((prefix, actual)) = attribute.name.split_once(':') {
-                if actual == local && doc.namespace(index, prefix) == Some(uri) {
-                    return Ok(Some(attribute.value.trim().to_string()));
-                }
+            if let Some((prefix, actual)) = attribute.name.split_once(':')
+                && actual == local
+                && doc.namespace(index, prefix) == Some(uri)
+            {
+                return Ok(Some(attribute.value.trim().to_string()));
             }
         }
     }
