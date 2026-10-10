@@ -1,0 +1,79 @@
+{
+  "source": {
+    "head": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": ""
+  },
+  "engine_sha256": "079e04a308744830be953c736c65459cae9a76fe6feddcfe13ba55919344bcf5",
+  "features": [
+    "native-ui-test",
+    "terminal",
+    "mcp"
+  ],
+  "cargo_locked": true,
+  "passed": true,
+  "minimum_default_ui": true,
+  "actual_clients": true,
+  "mcp_compact_three_masks": true,
+  "passed_steps": [
+    "library thumbnail",
+    "native preview",
+    "edits change preview",
+    "Undo restores preview exactly",
+    "Compact enabled and persisted",
+    "GUI JPEG export",
+    "authenticated endpoint and MCP discovery",
+    "three real radial masks: measured default/verbose mutation replies and discovery",
+    "summary/histogram bytes, tight labels and unchanged read-only geometry",
+    "actual claude nested schemas, compact edit reply and summary/compare",
+    "actual codex nested schemas, compact edit reply and summary/compare",
+    "clean exit and no frontend/native errors"
+  ],
+  "actual_client_evidence": {
+    "actual claude nested schemas, compact edit reply and summary/compare": {
+      "version": "2.1.294 (Claude Code)",
+      "calls": [
+        "get_editor_context",
+        "update_adjustments",
+        "analyze",
+        "render_compare"
+      ],
+      "nested_local_schema_patch_accepted": true,
+      "compact_revision_changed_keys_reply": true,
+      "changed_keys": [
+        "colorGrading",
+        "exposure",
+        "hsl",
+        "parametricCurve"
+      ],
+      "history_changed_keys_same_membership": true,
+      "three_masks_preserved": true,
+      "one_shared_assistant_history_entry": true,
+      "native_preview_changed": true,
+      "summary_histogram_omitted": true
+    },
+    "actual codex nested schemas, compact edit reply and summary/compare": {
+      "version": "codex-cli 0.160.0",
+      "calls": [
+        "get_editor_context",
+        "update_adjustments",
+        "analyze",
+        "render_compare"
+      ],
+      "nested_local_schema_patch_accepted": true,
+      "compact_revision_changed_keys_reply": true,
+      "changed_keys": [
+        "colorGrading",
+        "exposure",
+        "hsl",
+        "parametricCurve"
+      ],
+      "history_changed_keys_same_membership": true,
+      "three_masks_preserved": true,
+      "one_shared_assistant_history_entry": true,
+      "native_preview_changed": true,
+      "summary_histogram_omitted": true
+    }
+  },
+  "cloud_sign_in_not_tested": true
+}

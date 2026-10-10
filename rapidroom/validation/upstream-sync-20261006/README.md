@@ -1,3 +1,7 @@
+# Historical pre-fix integration evidence
+
+**Superseded for current PR179 validation by [current upstream and corrected Sony WB evidence](current-eb3556bc/README.md), tested at `6b3ac875`.** This parent directory records the earlier pre-fix `4bea590b` attribution controls; its Sony output contains the diagnosed cast. References remain frozen pending Josh approval.
+
 # RapidRAW v1.6.5 integration review (#175)
 
 Tested application commit `4bea590bbd66b074877cad96626b427783c6d9a0` merges upstream

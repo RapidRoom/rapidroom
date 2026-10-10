@@ -1,0 +1,92 @@
+{
+  "tested_application_head": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+  "upstream": "eb3556bcdc5bef3f8fbbcfa4f418470260c063e9",
+  "production_sony_fix": "e0e19532c349d8631cf36455d39212444ba1267b",
+  "source_trees": {
+    "src-tauri": "2309cf7d1aacba07304ccec758fecfdf087d61e9",
+    "src": "5ca661a0ee73fff083f16629743db28d951d72f5",
+    "package.json": "cd254f889bf51c044f6d8c23ac0ee0d9bba7c1fe",
+    "package-lock.json": "35129713df8095c7e17d230b4af0456236ac95e2"
+  },
+  "configs": {
+    "default": {
+      "engine_sha256": "cb80ddfb57ebe00d624b8370adb7124988511d2f9ccc0354acd3c6393a3e0a98",
+      "complete": true
+    },
+    "combined": {
+      "engine_sha256": "68a430dfc216c0c7a6e6ac6ec5791d9c7ed91118d489f5b540069dd1788b1af6",
+      "complete": true
+    }
+  },
+  "checks": {
+    "fmt": {
+      "exit": 0,
+      "finished": "2026-10-10T07:16:55.752532+00:00"
+    },
+    "clippy": {
+      "exit": 0,
+      "finished": "2026-10-10T07:20:31.558068+00:00"
+    },
+    "tests-default": {
+      "exit": 0,
+      "finished": "2026-10-10T07:25:13.664373+00:00",
+      "passed": 326,
+      "failed": 0,
+      "ignored": 8
+    },
+    "tests-combined": {
+      "exit": 0,
+      "finished": "2026-10-10T08:00:02.654761+00:00",
+      "passed": 366,
+      "failed": 0,
+      "ignored": 8
+    },
+    "build-default": {
+      "exit": 0,
+      "finished": "2026-10-10T08:32:37.997924+00:00"
+    },
+    "render-default": {
+      "exit": 0,
+      "finished": "2026-10-10T08:47:14.592167+00:00"
+    },
+    "compare-int7-default": {
+      "exit": 1,
+      "finished": "2026-10-10T08:52:58.010853+00:00"
+    },
+    "compare-pre-fix": {
+      "exit": 1,
+      "finished": "2026-10-10T09:00:44.165870+00:00"
+    },
+    "build-combined": {
+      "exit": 0,
+      "finished": "2026-10-10T09:17:50.376290+00:00"
+    },
+    "render-combined": {
+      "exit": 0,
+      "finished": "2026-10-10T09:21:50.789538+00:00"
+    },
+    "compare-int7-combined": {
+      "exit": 1,
+      "finished": "2026-10-10T09:23:08.079161+00:00"
+    },
+    "compare-configs": {
+      "exit": 0,
+      "finished": "2026-10-10T09:23:18.951053+00:00"
+    },
+    "vitest": {
+      "passed": 197,
+      "failed": 0
+    },
+    "schema": {
+      "exit": 0
+    },
+    "status": {
+      "exit": 0
+    }
+  },
+  "original_guards_unchanged": true,
+  "reference_updated": false,
+  "historical_attribution_source": "4bea590bbd66b074877cad96626b427783c6d9a0",
+  "additional_upstream_control_source": "06c4eae3fffc19d14880e74804b5519caf438264",
+  "additional_upstream_control_engine_sha256": "80c7aacbe9b2d7a7506ac59ea5e273b912178e386633fa4d582e3f3606d13955"
+}

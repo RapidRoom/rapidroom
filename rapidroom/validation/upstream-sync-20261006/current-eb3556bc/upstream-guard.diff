@@ -1,0 +1,22 @@
+--- a/src-tauri/src/raw_processing.rs
++++ b/src-tauri/src/raw_processing.rs
+@@ -298,6 +298,19 @@
+         .raw_image(&source, &RawDecodeParams::default(), true)
+         .ok()?;
+     if raw_image.cpp == 1 && !matches!(raw_image.photometric, RawPhotometricInterpretation::Cfa(_))
++    {
++        return None;
++    }
++
++    // Sony lossless M/S ARWs contain already white-balanced RGB. Rawler replaces
++    // their sensor WB coefficients with unity; these are development gains, not
++    // a camera neutral. Inverting the sensor matrices invents an extreme tint,
++    // which the first relative edit clamps and turns the whole image magenta.
++    // Use the existing reference fallback until original sensor WB is available.
++    if raw_image.make.eq_ignore_ascii_case("SONY")
++        && raw_image.cpp == 3
++        && is_linear_raw_format(&raw_image)
++        && raw_image.wb_coeffs[..3] == [1.0; 3]
+     {
+         return None;
+     }

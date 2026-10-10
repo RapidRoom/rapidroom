@@ -1,0 +1,73 @@
+{
+  "application": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+  "checks": [
+    {
+      "name": "regression",
+      "status": "COMPLETED",
+      "conclusion": "FAILURE",
+      "detailsUrl": "https://github.com/RapidRoom/rapidroom/actions/runs/38033220945/job/114158317654"
+    },
+    {
+      "name": "build (ubuntu-24.04, 03) / build",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/RapidRoom/rapidroom/actions/runs/38033221179/job/114158280497"
+    },
+    {
+      "name": "Vitest",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/RapidRoom/rapidroom/actions/runs/38033220900/job/114158269109"
+    },
+    {
+      "name": "Frontend Lint & Format",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/RapidRoom/rapidroom/actions/runs/38033220976/job/114158269483"
+    },
+    {
+      "name": "csp",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/RapidRoom/rapidroom/actions/runs/38033220959/job/114158269292"
+    },
+    {
+      "name": "check",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/RapidRoom/rapidroom/actions/runs/38033221045/job/114158269461"
+    },
+    {
+      "name": "refresh",
+      "status": "COMPLETED",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/RapidRoom/rapidroom/actions/runs/38033221045/job/114158270247"
+    },
+    {
+      "name": "cargo fmt",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/RapidRoom/rapidroom/actions/runs/38033220976/job/114158269458"
+    },
+    {
+      "name": "cargo clippy",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/RapidRoom/rapidroom/actions/runs/38033220976/job/114158269316"
+    },
+    {
+      "name": "Headless CLI exit codes",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/RapidRoom/rapidroom/actions/runs/38033220976/job/114158269408"
+    }
+  ],
+  "regression": {
+    "determinism_identical": 18,
+    "reference_identical": 6,
+    "reference_changed": 12,
+    "neutral_exact": true,
+    "expected_human_approval_gate": true
+  },
+  "reference_updated": false
+}

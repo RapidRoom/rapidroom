@@ -1,0 +1,1711 @@
+{
+  "source": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+  "engines": {
+    "pre-fix": "de59b7fccf62d77c7db80fc8f196ec63c2c6eeec0d49e2ee2d4bbd263cea2915",
+    "fixed": "cb80ddfb57ebe00d624b8370adb7124988511d2f9ccc0354acd3c6393a3e0a98"
+  },
+  "sources": {
+    "sony-a7c2-33mp-uncompressed": {
+      "model": "ILCE-7CM2",
+      "mode": "14bit 14bit uncompressed (3:2)",
+      "sha256": "55de0ff9abbd11c2d166fdd8cfa99129ef8478f2895a65105253e6fcdfdba430",
+      "url": "https://raw.pixls.us/getfile.php/6865/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW",
+      "license": "CC0-1.0"
+    },
+    "sony-a7c2-33mp-compressed": {
+      "model": "ILCE-7CM2",
+      "mode": "14bit (3:2)",
+      "sha256": "3c1214b447b29fafd32b3a4c0a873362bcd516978037c77c31009bb598938fbc",
+      "url": "https://raw.pixls.us/getfile.php/6868/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%20%283%3A2%29.ARW",
+      "license": "CC0-1.0"
+    },
+    "sony-a7cr-18mp-lossless-s": {
+      "model": "ILCE-7CR",
+      "mode": "losseless compressed (4:3)",
+      "sha256": "21f61c98fd7671cd6057520a5afab3b4a12d139c7833ead5f782736dee2d6b9e",
+      "url": "https://raw.pixls.us/getfile.php/7034/nice/Sony%20-%20ILCE-7CR%20-%20losseless%20compressed%20%284%3A3%29.ARW",
+      "license": "CC0-1.0"
+    },
+    "sony-a7rv-pixls-6231": {
+      "model": "ILCE-7RM5",
+      "mode": "14bit 14bit uncompressed (3:2)",
+      "source_url": "https://raw.pixls.us/getfile.php/6231/nice/Sony - ILCE-7RM5 - 14bit 14bit uncompressed (3:2).ARW",
+      "sha256": "8918ba274f0919be4f9902f9eebcab4663445ebe441d22fb48f3f328198ac2ee",
+      "license": "CC0-1.0"
+    },
+    "sony-a7rv-pixls-6232": {
+      "model": "ILCE-7RM5",
+      "mode": "14bit (4:3)",
+      "source_url": "https://raw.pixls.us/getfile.php/6232/nice/Sony - ILCE-7RM5 - 14bit (4:3).ARW",
+      "sha256": "c294c388ad9bccbee169f87b9ceb661001515fb039d63f587dcabba76df5636d",
+      "license": "CC0-1.0"
+    },
+    "sony-a7rv-pixls-6233": {
+      "model": "ILCE-7RM5",
+      "mode": "4:3",
+      "source_url": "https://raw.pixls.us/getfile.php/6233/nice/Sony - ILCE-7RM5 - 4:3.ARW",
+      "sha256": "6c30cd7121f790402f98099f3a4c90eeb7b9279c72dd1d20a2fcc64a6f8ac2f2",
+      "license": "CC0-1.0"
+    },
+    "sony-a7rv-pixls-6234": {
+      "model": "ILCE-7RM5",
+      "mode": "4:3",
+      "source_url": "https://raw.pixls.us/getfile.php/6234/nice/Sony - ILCE-7RM5 - 4:3.ARW",
+      "sha256": "036eb3875b4ab8823c22e0d01c3a2b13224584e98690f771a7f8001c16b6dff4",
+      "license": "CC0-1.0"
+    },
+    "sony-a7rv-pixls-6235": {
+      "model": "ILCE-7RM5",
+      "mode": "14bit 14bit compressed (3:2)",
+      "source_url": "https://raw.pixls.us/getfile.php/6235/nice/Sony - ILCE-7RM5 - 14bit 14bit compressed (3:2).ARW",
+      "sha256": "92d962578abe59f686ae57016e87d5f81e03f17404bd1959aa9628bd5a52ca91",
+      "license": "CC0-1.0"
+    }
+  },
+  "cases": {
+    "sony-a7c2-33mp-uncompressed/as-shot": {
+      "recipe": {},
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "db30f8e897c80a8ff7c7dd0cb5cf629aa982007e90947b067f7f544709590c2d",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            15630.360986813748,
+            20148.825807656955,
+            19774.554105881194
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "db30f8e897c80a8ff7c7dd0cb5cf629aa982007e90947b067f7f544709590c2d",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            15630.360986813748,
+            20148.825807656955,
+            19774.554105881194
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7c2-33mp-uncompressed/absolute-3200": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 3200,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "f2066ac59f18311ed3abed221dcf5c7092c8fff0530bb801ead7e376a34cd500",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            5851.699749973855,
+            20905.121789017052,
+            27425.02108869829
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "f2066ac59f18311ed3abed221dcf5c7092c8fff0530bb801ead7e376a34cd500",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            5851.699749973855,
+            20905.121789017052,
+            27425.02108869829
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7c2-33mp-uncompressed/absolute-6504": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 6504,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "5ab28ee42070c5e096243895fd4602f38a8e8956c9ac1ffc953e9e64c91af1c3",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            17024.072912971038,
+            20187.306245436965,
+            15814.314010046493
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "5ab28ee42070c5e096243895fd4602f38a8e8956c9ac1ffc953e9e64c91af1c3",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            17024.072912971038,
+            20187.306245436965,
+            15814.314010046493
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7c2-33mp-uncompressed/absolute-9000": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 9000,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "e3e0d13de850124e37275682d7b23c4d2b4af2a9ab8148308686b8c303702660",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            18713.813390402407,
+            19932.308220094354,
+            13155.346068717454
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "e3e0d13de850124e37275682d7b23c4d2b4af2a9ab8148308686b8c303702660",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            18713.813390402407,
+            19932.308220094354,
+            13155.346068717454
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7c2-33mp-compressed/as-shot": {
+      "recipe": {},
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "5617fa6a9aa773d42e5cd127215a60f9527dda346b1dc33a9cee1fc33d521824",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            14440.86125720556,
+            19012.953607997417,
+            19403.277021894253
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "5617fa6a9aa773d42e5cd127215a60f9527dda346b1dc33a9cee1fc33d521824",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            14440.86125720556,
+            19012.953607997417,
+            19403.277021894253
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7c2-33mp-compressed/absolute-3200": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 3200,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "2181d8cef9a006efc56e49d3e31f48ee9e66e861f997f835aaf4cef1c38d8132",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            5104.914608536917,
+            19726.173110867425,
+            27058.781641675658
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "2181d8cef9a006efc56e49d3e31f48ee9e66e861f997f835aaf4cef1c38d8132",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            5104.914608536917,
+            19726.173110867425,
+            27058.781641675658
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7c2-33mp-compressed/absolute-6504": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 6504,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "b6b14168994d3ead8434c101371757431ef7acbcc0b988d7791ca20999d74499",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            15833.29992129836,
+            19048.23884109208,
+            15424.767613829059
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "b6b14168994d3ead8434c101371757431ef7acbcc0b988d7791ca20999d74499",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            15833.29992129836,
+            19048.23884109208,
+            15424.767613829059
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7c2-33mp-compressed/absolute-9000": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 9000,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "fd76d362a57d5a5f20b79c747e56656ad87b95b5b5415c2f3cc8d1e010f97cee",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            17459.998186239944,
+            18805.217613334273,
+            12819.448541136451
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "fd76d362a57d5a5f20b79c747e56656ad87b95b5b5415c2f3cc8d1e010f97cee",
+          "width": 7008,
+          "height": 4672,
+          "mean_rgb": [
+            17459.998186239944,
+            18805.217613334273,
+            12819.448541136451
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7cr-18mp-lossless-s/as-shot": {
+      "recipe": {},
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "d9170bf9b8693fb364674b2f619b8a720146d23011bf79563792fead6d56a270",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            22566.091043802928,
+            21617.892393327744,
+            20930.48614385915
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "d9170bf9b8693fb364674b2f619b8a720146d23011bf79563792fead6d56a270",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            22566.091043802928,
+            21617.892393327744,
+            20930.48614385915
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7cr-18mp-lossless-s/absolute-3200": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 3200,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "ea7d182386d36a79da24509e5eca2bba30c33df65f66aa594624fdded049e6c7",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            29990.919865346437,
+            14731.089991614375,
+            34721.08102403188
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "40a1fab3e64d425f609476b512124cd8082e701687b83a19e1ce8a0c1843ee3c",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            11859.03083078523,
+            22197.874939220168,
+            31869.35309840301
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 35743,
+        "mean_abs": 9483.467302598623
+      }
+    },
+    "sony-a7cr-18mp-lossless-s/absolute-6504": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 6504,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "f42306d332141e9cbe55d7987c39a15f2b4c74b41b9c6e38d4200ad8d603298a",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            34800.75140524298,
+            13999.945655590522,
+            23788.367945221897
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "a0a6456194955452978a5b24c5fb70482847f0a21bd0a726eb3aabd1f652c71e",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            22031.121536413164,
+            21818.371426145928,
+            20516.923841277356
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 22784,
+        "mean_abs": 7953.166581109921
+      }
+    },
+    "sony-a7cr-18mp-lossless-s/absolute-9000": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 9000,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "0dd7326ae87a6c7e1eae4b4bc3984d97c2e2b89f25d2c98dc83ab304c6fe3e66",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            35483.42321036278,
+            13691.403489931407,
+            20555.218826456377
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "0f1c8091a4f85c8f5a7d73e59b2847454730241e0fea4e8831a5d9f421ad21df",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            23608.57808653932,
+            21617.339638294245,
+            17509.779979668318
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 21375,
+        "mean_abs": 7615.406706501923
+      }
+    },
+    "sony-a7rv-pixls-6231/as-shot": {
+      "recipe": {},
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "de142130bbd1cbc8e0654bbe1d6e33a255722b5ef2961518c9cc5afaeafbbfad",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            22461.416360857762,
+            26356.162895095473,
+            11808.775390043773
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "de142130bbd1cbc8e0654bbe1d6e33a255722b5ef2961518c9cc5afaeafbbfad",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            22461.416360857762,
+            26356.162895095473,
+            11808.775390043773
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6231/absolute-3200": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 3200,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "32a1663ad9cd0979c20a17ae3b2e112b33ed59e53c2051eeb2f716b57c2645c9",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            11038.992481435249,
+            27569.25676144069,
+            19829.478706085076
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "32a1663ad9cd0979c20a17ae3b2e112b33ed59e53c2051eeb2f716b57c2645c9",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            11038.992481435249,
+            27569.25676144069,
+            19829.478706085076
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6231/absolute-6504": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 6504,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "343f9f98d05af37e3ff405c691b5bd6da3e0410d9ed2f5a56d83f89462b52898",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            22769.02687469909,
+            26584.99932582546,
+            8599.355021985028
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "343f9f98d05af37e3ff405c691b5bd6da3e0410d9ed2f5a56d83f89462b52898",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            22769.02687469909,
+            26584.99932582546,
+            8599.355021985028
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6231/absolute-9000": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 9000,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "6e33da720d5435662b6a120c7af682f4a60188d7ddf2487071fe8833fb5380eb",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            24625.011940480137,
+            26270.277453402792,
+            6185.698953776507
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "6e33da720d5435662b6a120c7af682f4a60188d7ddf2487071fe8833fb5380eb",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            24625.011940480137,
+            26270.277453402792,
+            6185.698953776507
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6232/as-shot": {
+      "recipe": {},
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "a213a11d91d91ab13d3804a4d4a98ed975ef6951831ea6fd1293d6cf024260d8",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            23242.689732147603,
+            27245.284408840747,
+            12198.941521067418
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "a213a11d91d91ab13d3804a4d4a98ed975ef6951831ea6fd1293d6cf024260d8",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            23242.689732147603,
+            27245.284408840747,
+            12198.941521067418
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6232/absolute-3200": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 3200,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "bb575a29cd9309c1de00bb26fde932516258f837d8fc472fe201e33984b975b9",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            11520.889629057701,
+            28477.391835598064,
+            20408.77750006709
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "bb575a29cd9309c1de00bb26fde932516258f837d8fc472fe201e33984b975b9",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            11520.889629057701,
+            28477.391835598064,
+            20408.77750006709
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6232/absolute-6504": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 6504,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "544565165cd8552d989887799d6402a639ad281822348faee893d3c7ab65f0d0",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            23579.48796341798,
+            27473.76167909365,
+            8861.82072105339
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "544565165cd8552d989887799d6402a639ad281822348faee893d3c7ab65f0d0",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            23579.48796341798,
+            27473.76167909365,
+            8861.82072105339
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6232/absolute-9000": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 9000,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "3e08106699956a808db2570b3811cce7f2746f646cf577cc96344bce19ad11ad",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            25473.367528066334,
+            27153.106405689363,
+            6364.634825541292
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "3e08106699956a808db2570b3811cce7f2746f646cf577cc96344bce19ad11ad",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            25473.367528066334,
+            27153.106405689363,
+            6364.634825541292
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6233/as-shot": {
+      "recipe": {},
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "a1fdf29aba4c64ace6ff508d1eeb291614331fa398b6718fbba9280bf7c7ae1a",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            24205.115666181275,
+            28287.232854759925,
+            12755.180178670487
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "a1fdf29aba4c64ace6ff508d1eeb291614331fa398b6718fbba9280bf7c7ae1a",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            24205.115666181275,
+            28287.232854759925,
+            12755.180178670487
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6233/absolute-3200": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 3200,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "6aaa80d5f1dbd02096ef427755eaa9bbbe101eb77c62db16ca738f209bbbdf69",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            34931.29858115292,
+            20627.125295049,
+            29750.794965290617
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "c135efc09c867963f63ca49af0e68c7c76a3a02fc82ae80f618bd28a226e394f",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            10139.933884561453,
+            29188.97220375678,
+            25035.62634438178
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 45743,
+        "mean_abs": 12689.460075402696
+      }
+    },
+    "sony-a7rv-pixls-6233/absolute-6504": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 6504,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "54ae2943f2f5ab759f819e173d9ecb024eeb4fff63f8cc136304f49cb3e5329d",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            40610.194371879625,
+            19286.399149793517,
+            15783.889500200321
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "aa905c2ba72b90f39874c2bbb26fd978e174bfe5123a9567d818859ca1741ced",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            23445.396617511095,
+            28519.301845606817,
+            12351.151365068725
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 27919,
+        "mean_abs": 9943.479528437809
+      }
+    },
+    "sony-a7rv-pixls-6233/absolute-9000": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 9000,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "dbbdb35e848beee02a887b85c088c24c77c77de935b52d45e282cd8dd196d3bc",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            41447.06421955899,
+            18845.57766437839,
+            12660.03610611594
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "c63313ae84eaeaeb0332f8c0b9a8cb8a4a862793c2d01497aa15152c56cb9209",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            25500.418230861687,
+            28246.670349482247,
+            9535.987189503205
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 26015,
+        "mean_abs": 9490.595863522662
+      }
+    },
+    "sony-a7rv-pixls-6233/busy-agx-lut-effects": {
+      "recipe": {
+        "toneMapper": "agx",
+        "exposure": -0.2,
+        "contrast": 10,
+        "highlights": -20,
+        "shadows": 15,
+        "temperature": -5,
+        "vibrance": 10,
+        "hue": 0,
+        "colorCalibration": {
+          "shadowsTint": 6,
+          "redHue": 8,
+          "redSaturation": 10,
+          "greenHue": -6,
+          "greenSaturation": -8,
+          "blueHue": 4,
+          "blueSaturation": 12
+        },
+        "lutPath": "baseline/adjustments/baseline-warm-teal-9.cube",
+        "lutIntensity": 70,
+        "lutIsSceneReferred": false,
+        "centr\u00e9": 15,
+        "glowAmount": 20,
+        "halationAmount": 15,
+        "flareAmount": 0,
+        "chromaticAberrationRedCyan": 3,
+        "chromaticAberrationBlueYellow": -2,
+        "grainAmount": 15,
+        "grainSize": 30,
+        "grainRoughness": 50,
+        "sharpness": 20,
+        "lumaNoiseReduction": 10,
+        "vignetteAmount": 20,
+        "vignetteMidpoint": 60,
+        "vignetteFeather": 40,
+        "rotation": 1.5
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "fc667605ae78592e3c12e290afe575508d2bebf4aded1b8e5e2489f63fa714cb",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            26395.956870069032,
+            25236.66905583549,
+            17096.424684533715
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "929a1b5b2c4b975ca054b0d80d47bf876aecef17c55452553819ca1518f800af",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            24248.019444572856,
+            26026.558948163216,
+            14706.844098519168
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 5856,
+        "mean_abs": 1775.8087178074663
+      }
+    },
+    "sony-a7rv-pixls-6233/busy-tone-color-detail": {
+      "recipe": {
+        "toneMapper": "basic",
+        "exposure": 0.35,
+        "brightness": 0.15,
+        "contrast": 22,
+        "highlights": -45,
+        "shadows": 38,
+        "whites": 12,
+        "blacks": -14,
+        "temperature": 8,
+        "tint": -4,
+        "vibrance": 18,
+        "saturation": -6,
+        "curves": {
+          "luma": [
+            {
+              "x": 0,
+              "y": 6
+            },
+            {
+              "x": 64,
+              "y": 54
+            },
+            {
+              "x": 192,
+              "y": 206
+            },
+            {
+              "x": 255,
+              "y": 250
+            }
+          ],
+          "red": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 128,
+              "y": 134
+            },
+            {
+              "x": 255,
+              "y": 255
+            }
+          ],
+          "green": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 255,
+              "y": 255
+            }
+          ],
+          "blue": [
+            {
+              "x": 0,
+              "y": 8
+            },
+            {
+              "x": 128,
+              "y": 122
+            },
+            {
+              "x": 255,
+              "y": 255
+            }
+          ]
+        },
+        "hsl": {
+          "reds": {
+            "hue": 6,
+            "saturation": 10,
+            "luminance": -4
+          },
+          "oranges": {
+            "hue": -4,
+            "saturation": -8,
+            "luminance": 6
+          },
+          "yellows": {
+            "hue": -10,
+            "saturation": 15,
+            "luminance": 0
+          },
+          "greens": {
+            "hue": 12,
+            "saturation": -20,
+            "luminance": -6
+          },
+          "aquas": {
+            "hue": 0,
+            "saturation": 12,
+            "luminance": 0
+          },
+          "blues": {
+            "hue": -8,
+            "saturation": 20,
+            "luminance": -12
+          },
+          "purples": {
+            "hue": 5,
+            "saturation": -10,
+            "luminance": 0
+          },
+          "magentas": {
+            "hue": 0,
+            "saturation": -15,
+            "luminance": 4
+          }
+        },
+        "colorGrading": {
+          "shadows": {
+            "hue": 200,
+            "saturation": 18,
+            "luminance": -4
+          },
+          "midtones": {
+            "hue": 35,
+            "saturation": 6,
+            "luminance": 0
+          },
+          "highlights": {
+            "hue": 45,
+            "saturation": 14,
+            "luminance": 3
+          },
+          "global": {
+            "hue": 0,
+            "saturation": 0,
+            "luminance": 0
+          },
+          "blending": 60,
+          "balance": -10
+        },
+        "sharpness": 45,
+        "sharpnessThreshold": 20,
+        "lumaNoiseReduction": 30,
+        "colorNoiseReduction": 40,
+        "clarity": 20,
+        "structure": 15,
+        "dehaze": 10,
+        "vignetteAmount": -30,
+        "vignetteMidpoint": 40,
+        "vignetteRoundness": 10,
+        "vignetteFeather": 60
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "0c1445becf86071e4cfe7b8be1a82073fe8d469933f4bcf48b2ba3bcba8b8929",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            33280.05462197208,
+            30648.034154531866,
+            14966.795852479352
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "1f5da3709f498660dfdc155815e9236288fada60a06794d07183201a1b242018",
+          "width": 6240,
+          "height": 4160,
+          "mean_rgb": [
+            28244.617823979905,
+            32345.81970483543,
+            10812.128827431583
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 22367,
+        "mean_abs": 3629.381927918002
+      }
+    },
+    "sony-a7rv-pixls-6234/as-shot": {
+      "recipe": {},
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "d47964e1ad984178db514f162e4d11c4c60da5c6a73be7c66be609582e375645",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            23013.158847856193,
+            27103.09848491491,
+            12422.195998481766
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "d47964e1ad984178db514f162e4d11c4c60da5c6a73be7c66be609582e375645",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            23013.158847856193,
+            27103.09848491491,
+            12422.195998481766
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6234/absolute-3200": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 3200,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "ed9f90f8a84b840da17d5ffd7b50043fd1c3024e2e41781e6c78245a3c0330b4",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            33682.744441867115,
+            19608.36110453493,
+            28994.2483376218
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "826ee3f0dafa4261bf72d4e59eaf7eb8059959391454c0996eb84f6a26de2932",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            9386.453222314156,
+            27989.46888172285,
+            24360.91283003116
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 45567,
+        "mean_abs": 12436.911501443836
+      }
+    },
+    "sony-a7rv-pixls-6234/absolute-6504": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 6504,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "99633aed5435424542c4e6dc8811de0dfb7d8d3b27fa8e9a0c80a7416569e9f3",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            39562.157620635015,
+            18322.181358580012,
+            15341.260008545047
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "be87d8022de430a9d8688b75a503ee2858bdce2ca0c21cb4119a227df42a6546",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            22270.078810716062,
+            27332.23977955587,
+            12033.277242848837
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 27919,
+        "mean_abs": 9870.03999895224
+      }
+    },
+    "sony-a7rv-pixls-6234/absolute-9000": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 9000,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "a9c7c83f89c1d75e9b74567a899334a3413fe76edaf75b102db9e65e6b20b042",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            40446.08506572458,
+            17898.18565116389,
+            12320.371757944024
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "19e6e72682ad272aff51d347c4fbe47d54d395d4c330d3c6b6d23f939cc727b6",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            24284.17080647064,
+            27063.92328847981,
+            9327.737158118432
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 26095,
+        "mean_abs": 9440.095498798486
+      }
+    },
+    "sony-a7rv-pixls-6234/busy-agx-lut-effects": {
+      "recipe": {
+        "toneMapper": "agx",
+        "exposure": -0.2,
+        "contrast": 10,
+        "highlights": -20,
+        "shadows": 15,
+        "temperature": -5,
+        "vibrance": 10,
+        "hue": 0,
+        "colorCalibration": {
+          "shadowsTint": 6,
+          "redHue": 8,
+          "redSaturation": 10,
+          "greenHue": -6,
+          "greenSaturation": -8,
+          "blueHue": 4,
+          "blueSaturation": 12
+        },
+        "lutPath": "baseline/adjustments/baseline-warm-teal-9.cube",
+        "lutIntensity": 70,
+        "lutIsSceneReferred": false,
+        "centr\u00e9": 15,
+        "glowAmount": 20,
+        "halationAmount": 15,
+        "flareAmount": 0,
+        "chromaticAberrationRedCyan": 3,
+        "chromaticAberrationBlueYellow": -2,
+        "grainAmount": 15,
+        "grainSize": 30,
+        "grainRoughness": 50,
+        "sharpness": 20,
+        "lumaNoiseReduction": 10,
+        "vignetteAmount": 20,
+        "vignetteMidpoint": 60,
+        "vignetteFeather": 40,
+        "rotation": 1.5
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "7bd8e67dfbbfe053b2c4ca2be6379daeb48f037c1bb5632e28c396dea3aa7cfc",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            25417.1938743097,
+            24374.88182833172,
+            16725.956301028487
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "275c51a126b63aa9bfb80c455e95d03db93df4dc6014334bcfb8948b36d1a1be",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            23283.780045895084,
+            25159.710983931804,
+            14337.567466476105
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 5824,
+        "mean_abs": 1768.8779522170003
+      }
+    },
+    "sony-a7rv-pixls-6234/busy-tone-color-detail": {
+      "recipe": {
+        "toneMapper": "basic",
+        "exposure": 0.35,
+        "brightness": 0.15,
+        "contrast": 22,
+        "highlights": -45,
+        "shadows": 38,
+        "whites": 12,
+        "blacks": -14,
+        "temperature": 8,
+        "tint": -4,
+        "vibrance": 18,
+        "saturation": -6,
+        "curves": {
+          "luma": [
+            {
+              "x": 0,
+              "y": 6
+            },
+            {
+              "x": 64,
+              "y": 54
+            },
+            {
+              "x": 192,
+              "y": 206
+            },
+            {
+              "x": 255,
+              "y": 250
+            }
+          ],
+          "red": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 128,
+              "y": 134
+            },
+            {
+              "x": 255,
+              "y": 255
+            }
+          ],
+          "green": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 255,
+              "y": 255
+            }
+          ],
+          "blue": [
+            {
+              "x": 0,
+              "y": 8
+            },
+            {
+              "x": 128,
+              "y": 122
+            },
+            {
+              "x": 255,
+              "y": 255
+            }
+          ]
+        },
+        "hsl": {
+          "reds": {
+            "hue": 6,
+            "saturation": 10,
+            "luminance": -4
+          },
+          "oranges": {
+            "hue": -4,
+            "saturation": -8,
+            "luminance": 6
+          },
+          "yellows": {
+            "hue": -10,
+            "saturation": 15,
+            "luminance": 0
+          },
+          "greens": {
+            "hue": 12,
+            "saturation": -20,
+            "luminance": -6
+          },
+          "aquas": {
+            "hue": 0,
+            "saturation": 12,
+            "luminance": 0
+          },
+          "blues": {
+            "hue": -8,
+            "saturation": 20,
+            "luminance": -12
+          },
+          "purples": {
+            "hue": 5,
+            "saturation": -10,
+            "luminance": 0
+          },
+          "magentas": {
+            "hue": 0,
+            "saturation": -15,
+            "luminance": 4
+          }
+        },
+        "colorGrading": {
+          "shadows": {
+            "hue": 200,
+            "saturation": 18,
+            "luminance": -4
+          },
+          "midtones": {
+            "hue": 35,
+            "saturation": 6,
+            "luminance": 0
+          },
+          "highlights": {
+            "hue": 45,
+            "saturation": 14,
+            "luminance": 3
+          },
+          "global": {
+            "hue": 0,
+            "saturation": 0,
+            "luminance": 0
+          },
+          "blending": 60,
+          "balance": -10
+        },
+        "sharpness": 45,
+        "sharpnessThreshold": 20,
+        "lumaNoiseReduction": 30,
+        "colorNoiseReduction": 40,
+        "clarity": 20,
+        "structure": 15,
+        "dehaze": 10,
+        "vignetteAmount": -30,
+        "vignetteMidpoint": 40,
+        "vignetteRoundness": 10,
+        "vignetteFeather": 60
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "5b53114110594e2d610da43fce02107f9123c07bc02d94e1b021331f856b6f9e",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            32187.822903912867,
+            29622.266851490494,
+            14784.211370398534
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "e79ea6a1bd78371cd56832d41ca5237e793cbc4a58c62ed3284113c5fba69fa2",
+          "width": 4752,
+          "height": 3168,
+          "mean_rgb": [
+            26997.774796045473,
+            31350.320358865378,
+            10808.647678980993
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": false,
+        "max_abs": 21007,
+        "mean_abs": 3631.3324708575656
+      }
+    },
+    "sony-a7rv-pixls-6235/as-shot": {
+      "recipe": {},
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "7a02d1472a072c8dfdb3670f1b21b327cc04085e00cd94e5fca19a3ac8d01b79",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            22628.275648573937,
+            26792.08114222042,
+            11989.809465857545
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "7a02d1472a072c8dfdb3670f1b21b327cc04085e00cd94e5fca19a3ac8d01b79",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            22628.275648573937,
+            26792.08114222042,
+            11989.809465857545
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6235/absolute-3200": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 3200,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "7011877800fe01b0e8e81251b1a9aae4501370fd7fbc2f900cccb5cb5739be1c",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            10960.171455104362,
+            28036.160584681384,
+            20078.71003480326
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "7011877800fe01b0e8e81251b1a9aae4501370fd7fbc2f900cccb5cb5739be1c",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            10960.171455104362,
+            28036.160584681384,
+            20078.71003480326
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6235/absolute-6504": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 6504,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "f7942ad87fa1fbbe44c7b8145714e436ca29cb600b23d3cb5aa67af999b03767",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            22965.443171488932,
+            27022.74567310707,
+            8725.742655438275
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "f7942ad87fa1fbbe44c7b8145714e436ca29cb600b23d3cb5aa67af999b03767",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            22965.443171488932,
+            27022.74567310707,
+            8725.742655438275
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    },
+    "sony-a7rv-pixls-6235/absolute-9000": {
+      "recipe": {
+        "whiteBalance": {
+          "temperature": 9000,
+          "tint": 0
+        }
+      },
+      "exports": {
+        "pre-fix": {
+          "pixel_sha256": "98200e20745e8db26157a6d44333b8b0e73747180f1c5f0f912029cd8eb743ff",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            24871.536286024173,
+            26699.49943571075,
+            6293.465131673692
+          ],
+          "icc": "sRGB"
+        },
+        "fixed": {
+          "pixel_sha256": "98200e20745e8db26157a6d44333b8b0e73747180f1c5f0f912029cd8eb743ff",
+          "width": 9504,
+          "height": 6336,
+          "mean_rgb": [
+            24871.536286024173,
+            26699.49943571075,
+            6293.465131673692
+          ],
+          "icc": "sRGB"
+        }
+      },
+      "comparison": {
+        "identical": true,
+        "max_abs": 0,
+        "mean_abs": 0.0
+      }
+    }
+  },
+  "complete": true,
+  "reference_updated": false,
+  "original_guards_unchanged": true,
+  "finished": "2026-10-10T09:41:05.783817+00:00"
+}

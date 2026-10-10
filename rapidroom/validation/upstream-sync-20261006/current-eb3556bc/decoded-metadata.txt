@@ -1,0 +1,50 @@
+Actual pinned rawler53b3dce fields plus pre-fix Kelvin solver estimates. Affected unity-WB RGB uses the reference fallback in the corrected reader; these invented Kelvin values are not its return.
+
+FILE sony-a7c2-33mp-uncompressed.ARW
+make=SONY model=ILCE-7CM2 cpp=1 photometric=Cfa(CFAConfig { cfa: CFA { RGGB }, colors: PlaneColors { [RED, GREEN, BLUE] } }) coeffs=[2.3164063, 1.0, 1.6513672, NaN]
+matrices={A: [0.8784, -0.4791, 0.1177, -0.3468, 1.0693, 0.3213, 0.0009, 0.0507, 0.7395], D65: [0.746, -0.2365, -0.0588, -0.5687, 1.3442, 0.2474, -0.0624, 0.1156, 0.6584]}
+single=WhiteBalance { temperature: 5061.179268231923, tint: 9.306260763120806 } dual=WhiteBalance { temperature: 5061.325939176981, tint: 15.056465763741384 } reference=WhiteBalance { temperature: 6503.70718479529, tint: 9.769990121404899 }
+relative 8 -4 target=WhiteBalance { temperature: 5388.607953723835, tint: 9.056465763741384 } gains=[0.008643182, 0.001472229, -0.10598372]
+relative -5 0 target=WhiteBalance { temperature: 4876.224719250973, tint: 15.056465763741384 } gains=[-0.009446906, 0.00403944, 0.04896989]
+FILE sony-a7c2-33mp-compressed.ARW
+make=SONY model=ILCE-7CM2 cpp=1 photometric=Cfa(CFAConfig { cfa: CFA { RGGB }, colors: PlaneColors { [RED, GREEN, BLUE] } }) coeffs=[2.3105469, 1.0, 1.65625, NaN]
+matrices={A: [0.8784, -0.4791, 0.1177, -0.3468, 1.0693, 0.3213, 0.0009, 0.0507, 0.7395], D65: [0.746, -0.2365, -0.0588, -0.5687, 1.3442, 0.2474, -0.0624, 0.1156, 0.6584]}
+single=WhiteBalance { temperature: 5041.060000186192, tint: 9.20080321840073 } dual=WhiteBalance { temperature: 5040.310788215578, tint: 14.996231367279867 } reference=WhiteBalance { temperature: 6503.70718479529, tint: 9.769990121404899 }
+relative 8 -4 target=WhiteBalance { temperature: 5364.793507313087, tint: 8.996231367279867 } gains=[0.008630998, 0.0014701373, -0.10645877]
+relative -5 0 target=WhiteBalance { temperature: 4856.715617306539, tint: 14.996231367279867 } gains=[-0.009486388, 0.0041237283, 0.048645724]
+FILE sony-a7cr-18mp-lossless-s.ARW
+make=SONY model=ILCE-7CR cpp=3 photometric=LinearRaw coeffs=[1.0, 1.0, 1.0, NaN]
+matrices={A: [0.9185, -0.4857, 0.0505, -0.3651, 1.1061, 0.2982, -0.0161, 0.0698, 0.6769], D65: [0.82, -0.2976, -0.0719, -0.4296, 1.2053, 0.2532, -0.0429, 0.1282, 0.5774]}
+single=WhiteBalance { temperature: 2165.4094041981884, tint: -213.57832848536054 } dual=WhiteBalance { temperature: 2358.327452785219, tint: -194.97964561055068 } reference=WhiteBalance { temperature: 6503.70718479529, tint: 9.769990121404899 }
+relative 8 -4 target=WhiteBalance { temperature: 2427.0117129971277, tint: -150.0 } gains=[0.0301626, -0.09377718, 0.24073279]
+relative -5 0 target=WhiteBalance { temperature: 2317.3396106264663, tint: -150.0 } gains=[0.014124587, -0.071130574, 0.2656393]
+FILE pixls-6231.ARW
+make=SONY model=ILCE-7RM5 cpp=1 photometric=Cfa(CFAConfig { cfa: CFA { RGGB }, colors: PlaneColors { [RED, GREEN, BLUE] } }) coeffs=[2.4794922, 1.0, 1.734375, NaN]
+matrices={D65: [0.82, -0.2976, -0.0719, -0.4296, 1.2053, 0.2532, -0.0429, 0.1282, 0.5774], A: [0.9185, -0.4857, 0.0505, -0.3651, 1.1061, 0.2982, -0.0161, 0.0698, 0.6769]}
+single=WhiteBalance { temperature: 5397.89743651243, tint: 19.513181377574416 } dual=WhiteBalance { temperature: 5359.436735544861, tint: 22.33599116812697 } reference=WhiteBalance { temperature: 6503.70718479529, tint: 9.769990121404899 }
+relative 8 -4 target=WhiteBalance { temperature: 5727.81081168565, tint: 16.33599116812697 } gains=[0.00920694, 0.0013045395, -0.10372383]
+relative -5 0 target=WhiteBalance { temperature: 5152.334648622501, tint: 22.33599116812697 } gains=[-0.009631648, 0.00362266, 0.051767077]
+FILE pixls-6232.ARW
+make=SONY model=ILCE-7RM5 cpp=1 photometric=Cfa(CFAConfig { cfa: CFA { RGGB }, colors: PlaneColors { [RED, GREEN, BLUE] } }) coeffs=[2.4765625, 1.0, 1.7363281, NaN]
+matrices={D65: [0.82, -0.2976, -0.0719, -0.4296, 1.2053, 0.2532, -0.0429, 0.1282, 0.5774], A: [0.9185, -0.4857, 0.0505, -0.3651, 1.1061, 0.2982, -0.0161, 0.0698, 0.6769]}
+single=WhiteBalance { temperature: 5388.50346050237, tint: 19.470151874370032 } dual=WhiteBalance { temperature: 5349.675398397469, tint: 22.30466823143237 } reference=WhiteBalance { temperature: 6503.70718479529, tint: 9.769990121404899 }
+relative 8 -4 target=WhiteBalance { temperature: 5716.662888162271, tint: 16.30466823143237 } gains=[0.009231903, 0.0012663006, -0.103750125]
+relative -5 0 target=WhiteBalance { temperature: 5143.312505567678, tint: 22.30466823143237 } gains=[-0.009621189, 0.0036215559, 0.051843725]
+FILE pixls-6233.ARW
+make=SONY model=ILCE-7RM5 cpp=3 photometric=LinearRaw coeffs=[1.0, 1.0, 1.0, NaN]
+matrices={D65: [0.82, -0.2976, -0.0719, -0.4296, 1.2053, 0.2532, -0.0429, 0.1282, 0.5774], A: [0.9185, -0.4857, 0.0505, -0.3651, 1.1061, 0.2982, -0.0161, 0.0698, 0.6769]}
+single=WhiteBalance { temperature: 2165.4094041981884, tint: -213.57832848536054 } dual=WhiteBalance { temperature: 2358.327452785219, tint: -194.97964561055068 } reference=WhiteBalance { temperature: 6503.70718479529, tint: 9.769990121404899 }
+relative 8 -4 target=WhiteBalance { temperature: 2427.0117129971277, tint: -150.0 } gains=[0.0301626, -0.09377718, 0.24073279]
+relative -5 0 target=WhiteBalance { temperature: 2317.3396106264663, tint: -150.0 } gains=[0.014124587, -0.071130574, 0.2656393]
+FILE pixls-6234.ARW
+make=SONY model=ILCE-7RM5 cpp=3 photometric=LinearRaw coeffs=[1.0, 1.0, 1.0, NaN]
+matrices={D65: [0.82, -0.2976, -0.0719, -0.4296, 1.2053, 0.2532, -0.0429, 0.1282, 0.5774], A: [0.9185, -0.4857, 0.0505, -0.3651, 1.1061, 0.2982, -0.0161, 0.0698, 0.6769]}
+single=WhiteBalance { temperature: 2165.4094041981884, tint: -213.57832848536054 } dual=WhiteBalance { temperature: 2358.327452785219, tint: -194.97964561055068 } reference=WhiteBalance { temperature: 6503.70718479529, tint: 9.769990121404899 }
+relative 8 -4 target=WhiteBalance { temperature: 2427.0117129971277, tint: -150.0 } gains=[0.0301626, -0.09377718, 0.24073279]
+relative -5 0 target=WhiteBalance { temperature: 2317.3396106264663, tint: -150.0 } gains=[0.014124587, -0.071130574, 0.2656393]
+FILE pixls-6235.ARW
+make=SONY model=ILCE-7RM5 cpp=1 photometric=Cfa(CFAConfig { cfa: CFA { RGGB }, colors: PlaneColors { [RED, GREEN, BLUE] } }) coeffs=[2.4765625, 1.0, 1.7363281, NaN]
+matrices={D65: [0.82, -0.2976, -0.0719, -0.4296, 1.2053, 0.2532, -0.0429, 0.1282, 0.5774], A: [0.9185, -0.4857, 0.0505, -0.3651, 1.1061, 0.2982, -0.0161, 0.0698, 0.6769]}
+single=WhiteBalance { temperature: 5388.50346050237, tint: 19.470151874370032 } dual=WhiteBalance { temperature: 5349.675398397469, tint: 22.30466823143237 } reference=WhiteBalance { temperature: 6503.70718479529, tint: 9.769990121404899 }
+relative 8 -4 target=WhiteBalance { temperature: 5716.662888162271, tint: 16.30466823143237 } gains=[0.009231903, 0.0012663006, -0.103750125]
+relative -5 0 target=WhiteBalance { temperature: 5143.312505567678, tint: 22.30466823143237 } gains=[-0.009621189, 0.0036215559, 0.051843725]

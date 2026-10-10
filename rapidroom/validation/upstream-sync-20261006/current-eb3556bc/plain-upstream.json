@@ -1,0 +1,42 @@
+{
+  "upstream": "8387fc12097a541093d796bf216c6e831f9ba5c0",
+  "stages": {
+    "metadata-probe-build": {
+      "exit": 0
+    },
+    "metadata-probe": {
+      "exit": 0
+    },
+    "plain-npm-ci": {
+      "exit": 0
+    },
+    "plain-frontend-build": {
+      "exit": 0
+    },
+    "plain-release-build": {
+      "exit": 0
+    },
+    "plain-export-busy-tone-color-detail": {
+      "exit": 0
+    },
+    "plain-export-busy-agx-lut-effects": {
+      "exit": 0
+    }
+  },
+  "complete": true,
+  "onnx_sha256": "3da6146e14e7b8aaec625dde11d6114c7457c87a5f93d744897da8781e35c673",
+  "engine_sha256": "eb3111d21194d513795d27ff80ecb7c7d04166f67152669b1ab217cbc988006f",
+  "exports": {
+    "busy-tone-color-detail": {
+      "source_sha256": "21f61c98fd7671cd6057520a5afab3b4a12d139c7833ead5f782736dee2d6b9e",
+      "recipe_sha256": "897598d6979dca8d191c0beadfe736292199030a4233c264843e5f09814d0ece",
+      "file_sha256": "59e4a2a7f1d44f35b0f9ecc22135f24cd9eab9a2402a7c00e5ea925c2a119d7a"
+    },
+    "busy-agx-lut-effects": {
+      "source_sha256": "21f61c98fd7671cd6057520a5afab3b4a12d139c7833ead5f782736dee2d6b9e",
+      "recipe_sha256": "dc1363bb839a9302999dbf0aaf51fbc8839c6b9d767b4b11239ee9b94be0cdba",
+      "file_sha256": "2cd6d05a376b45a98540cbcbf95c386e63958dbb890a1c390066b416cb00897e"
+    }
+  },
+  "source_unchanged": true
+}
