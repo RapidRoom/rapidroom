@@ -359,3 +359,77 @@ it('Point Color keyboard slider Escape restores pixels recipe and history withou
   expect(useEditorStore.getState().adjustments).toEqual(before);
   expect(useEditorStore.getState().history).toHaveLength(1);
 });
+
+it('does not preview or apply a preset whose camera/profile is unavailable', async () => {
+  mockCommand(Invokes.LoadPresets, () => [
+    {
+      preset: {
+        id: 'restricted',
+        name: 'Restricted camera look',
+        cameraModelRestriction: 'Sony A7CR',
+        adjustments: { exposure: 2 },
+      },
+    },
+  ]);
+  const before = useEditorStore.getState().adjustments;
+  open();
+  await act(async () => {
+    await Promise.resolve();
+  });
+  type('Restricted camera look');
+  const option = container.querySelector('[role=option]')!;
+  expect(option.getAttribute('aria-disabled')).toBe('true');
+  expect(option.getAttribute('title')).toContain('Requires camera: Sony A7CR');
+  act(() => vi.advanceTimersByTime(151));
+  expect(useEditorStore.getState().previewOverride).toBeNull();
+  key('Enter');
+  expect(useEditorStore.getState().adjustments).toBe(before);
+  expect(useEditorStore.getState().history).toHaveLength(1);
+});
+it('rechecks camera compatibility and clears a preview when metadata changes', async () => {
+  mockCommand(Invokes.LoadPresets, () => [
+    {
+      preset: {
+        id: 'restricted',
+        name: 'Camera look',
+        cameraModelRestriction: 'Sony A7CR',
+        adjustments: { exposure: 2 },
+      },
+    },
+  ]);
+  const photo = useEditorStore.getState().selectedImage!;
+  act(() => useEditorStore.setState({ selectedImage: { ...photo, exif: { Model: 'Sony A7CR' } } }));
+  open();
+  await act(async () => {
+    await Promise.resolve();
+  });
+  type('Camera look');
+  act(() => vi.advanceTimersByTime(151));
+  expect(useEditorStore.getState().previewOverride?.exposure).toBe(2);
+  act(() => useEditorStore.setState({ selectedImage: { ...photo, exif: { Model: 'Fujifilm' } } }));
+  expect(useEditorStore.getState().previewOverride).toBeNull();
+  key('Enter');
+  expect(useEditorStore.getState().adjustments.exposure).toBe(0);
+});
+it('uses the browser merge semantics to retain omitted nested settings and one Undo', async () => {
+  const before = {
+    ...INITIAL_ADJUSTMENTS,
+    hsl: { ...INITIAL_ADJUSTMENTS.hsl, reds: { ...INITIAL_ADJUSTMENTS.hsl.reds, luminance: 15 } },
+  };
+  act(() => useEditorStore.getState().resetHistory(before));
+  mockCommand(Invokes.LoadPresets, () => [
+    { preset: { id: 'partial', name: 'Partial mixer', adjustments: { hsl: { reds: { hue: 20 } } } } },
+  ]);
+  open();
+  await act(async () => {
+    await Promise.resolve();
+  });
+  type('Partial mixer');
+  act(() => vi.advanceTimersByTime(151));
+  expect(useEditorStore.getState().previewOverride?.hsl.reds).toMatchObject({ hue: 20, luminance: 15 });
+  key('Enter');
+  expect(useEditorStore.getState().adjustments.hsl.reds).toMatchObject({ hue: 20, luminance: 15 });
+  expect(useEditorStore.getState().history).toHaveLength(2);
+  act(() => useEditorStore.getState().undo());
+  expect(useEditorStore.getState().adjustments).toEqual(before);
+});

@@ -813,7 +813,13 @@
         "preset": "Preset",
         "style": "Style",
         "tool": "Tool"
-      }
+      },
+      "search": "Search presets or groups",
+      "compatibleOnly": "Compatible only",
+      "lightroomXmp": "Export Lightroom XMP…",
+      "newXmp": "Save new XMP preset (Ctrl+Shift+N)",
+      "xmpSaved": "XMP preset saved",
+      "xmpExportLimited": "Saved XMP. These settings are preserved for RapidRoom only: {{keys}}. Lightroom rendering may differ."
     },
     "referenceView": {
       "active": "Active",
@@ -1895,7 +1901,8 @@
         "zoom_in": "Zoom in",
         "zoom_in_step": "Zoom in (by step)",
         "zoom_out": "Zoom out",
-        "zoom_out_step": "Zoom out (by step)"
+        "zoom_out_step": "Zoom out (by step)",
+        "save_preset_xmp": "Save new XMP preset"
       },
       "sections": {
         "editing": "Editing",
