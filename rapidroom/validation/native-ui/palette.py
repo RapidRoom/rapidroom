@@ -1,6 +1,24 @@
 """Keyboard-only command-palette scenario in the native WebKit app."""
 import time
-from PIL import ImageChops, ImageDraw, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageStat
+
+
+def _photo_only(image, roi, dialog):
+    image = image.copy()
+    visible = Image.new('L', image.size, 255)
+    left,top,right,bottom = dialog
+    excluded = [left-roi[0],top-roi[1],right-roi[0],bottom-roi[1]]
+    ImageDraw.Draw(image).rectangle(excluded, fill=0)
+    ImageDraw.Draw(visible).rectangle(excluded, fill=0)
+    return image, visible
+
+
+def _require_visible_photo(image, visible):
+    if visible.histogram()[255] < 256:
+        raise RuntimeError('Palette leaves insufficient unobscured photo area to verify')
+    stats = ImageStat.Stat(image, visible)
+    if max(stats.stddev) < 10 or max(stats.mean) < 10:
+        raise RuntimeError('Unobscured palette preview is blank or untextured')
 
 
 def run_palette_checks(smoke, wait_for, baseline):
@@ -87,20 +105,14 @@ def run_palette_checks(smoke, wait_for, baseline):
     dialog = smoke.execute("""const e=document.querySelector('[role=dialog][aria-label="Command palette"]');
       if(!e)throw Error('Preview dialog missing');const r=e.getBoundingClientRect();
       return [r.left-100,r.top-100,r.right+100,r.bottom+100];""")
-    def photo_only(path):
-        image = smoke.crop(path)
-        left,top,right,bottom = dialog
-        ImageDraw.Draw(image).rectangle([left-smoke.roi[0],top-smoke.roi[1],
-          right-smoke.roi[0],bottom-smoke.roi[1]], fill=0)
-        return image
-    before = photo_only(baseline)
+    before, visible = _photo_only(smoke.crop(baseline), smoke.roi, dialog)
+    _require_visible_photo(before, visible)
     previous = None
     for attempt in range(12):
         time.sleep(0.5)
-        preview = photo_only(smoke.capture('palette-slider-preview-' + str(attempt)))
+        preview, _ = _photo_only(smoke.crop(smoke.capture('palette-slider-preview-' + str(attempt))), smoke.roi, dialog)
         if previous is not None and ImageChops.difference(previous,preview).getbbox() is None:
-            if max(ImageStat.Stat(preview).stddev) < 10:
-                raise RuntimeError('Palette leaves no textured photo area to verify')
+            _require_visible_photo(preview, visible)
             break
         previous = preview
     else:
