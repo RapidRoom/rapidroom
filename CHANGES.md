@@ -102,7 +102,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Landed in RapidRoom:** 2026-10-09
 - **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
 - **Upstream:** not yet offered
-- **Notes:** Import opposing crop corners through EXIF orientation before fine rotation, preserving their identity for rotated and reflected images. Unrotated crop rounding and existing stored edits are unchanged. Rotated Lightroom imports intentionally receive corrected bounds; default render regression and private native/export checks pending.
+- **Notes:** Import opposing crop corners through EXIF orientation before fine rotation, preserving their identity for rotated and reflected images. Unrotated crop rounding and existing stored edits are unchanged. Rotated Lightroom imports intentionally receive corrected bounds.
 
 ### Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons
 

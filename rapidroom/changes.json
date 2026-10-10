@@ -12,7 +12,7 @@
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": true,
-      "notes": "Import opposing crop corners through EXIF orientation before fine rotation, preserving their identity for rotated and reflected images. Unrotated crop rounding and existing stored edits are unchanged. Rotated Lightroom imports intentionally receive corrected bounds; default render regression and private native/export checks pending."
+      "notes": "Import opposing crop corners through EXIF orientation before fine rotation, preserving their identity for rotated and reflected images. Unrotated crop rounding and existing stored edits are unchanged. Rotated Lightroom imports intentionally receive corrected bounds."
     },
     {
       "id": "mcp-compact-replies",
