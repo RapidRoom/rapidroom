@@ -3,6 +3,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { debouncedSetHistory } from './useEditorActions';
+import { executeAppAction, isAppActionAvailable } from '../utils/appActions';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useUIStore } from '../store/useUIStore';
 import { useEditorStore } from '../store/useEditorStore';
@@ -41,6 +43,7 @@ beforeEach(async () => {
   await act(async () => root.render(<Harness />));
 });
 afterEach(async () => {
+  debouncedSetHistory.cancel();
   await act(async () => root.unmount());
   node.remove();
   document.querySelector('[role=dialog]')?.remove();
@@ -123,4 +126,39 @@ it('reviewer: custom Before/After wins over a conflicting optional default', asy
   );
   await key('KeyR');
   expect(useUIStore.getState().beforeAfterVisible).toBe(true);
+});
+
+it('shares guarded module, comparison and clipping actions with the command palette', async () => {
+  const history = useEditorStore.getState().history;
+  await act(async () => {
+    expect(executeAppAction('toggle_before_after')).toBe(true);
+  });
+  expect(useUIStore.getState().beforeAfterVisible).toBe(true);
+  expect(useEditorStore.getState().history).toBe(history);
+  await act(async () => {
+    expect(executeAppAction('open_library')).toBe(true);
+  });
+  expect(callbacks.handleBackToLibrary).toHaveBeenCalledOnce();
+  await act(async () => {
+    expect(executeAppAction('open_develop')).toBe(true);
+  });
+  const clipping = useEditorStore.getState().adjustments.showClipping;
+  await act(async () => {
+    expect(executeAppAction('toggle_clipping')).toBe(true);
+  });
+  expect(useEditorStore.getState().adjustments.showClipping).toBe(!clipping);
+  await act(async () => useUIStore.setState({ activeView: 'library' }));
+  expect(isAppActionAvailable('toggle_before_after')).toBe(false);
+  expect(executeAppAction('toggle_clipping')).toBe(false);
+});
+
+it('shares reset with the palette and preserves one Undo', async () => {
+  useEditorStore.getState().resetHistory({ ...useEditorStore.getState().adjustments, exposure: 1 });
+  await act(async () => {
+    expect(executeAppAction('reset_adjustments')).toBe(true);
+  });
+  expect(useEditorStore.getState().adjustments.exposure).toBe(0);
+  expect(useEditorStore.getState().history).toHaveLength(2);
+  await act(async () => useEditorStore.getState().undo());
+  expect(useEditorStore.getState().adjustments.exposure).toBe(1);
 });

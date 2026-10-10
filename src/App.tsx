@@ -34,6 +34,7 @@ import SettingsPanel from './components/panel/SettingsPanel';
 import ExportPanel from './components/panel/right/ExportPanel';
 import GlobalTooltip from './components/ui/GlobalTooltip';
 import AppModals from './components/modals/AppModals';
+import CommandPalette from './components/ui/CommandPalette';
 
 import SidePanelArea from './components/panel/SidePanelArea';
 import BottomDock from './components/panel/BottomDock';
@@ -1119,6 +1120,7 @@ function App() {
             </DragOverlay>
           </DndContext>
         </div>
+        <CommandPalette />
         <AppModals
           handleImageSelect={handleImageSelect}
           handleSavePanorama={handleSavePanorama}

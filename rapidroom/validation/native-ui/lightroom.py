@@ -56,6 +56,19 @@ def run_lightroom_checks(smoke, wait_for, baseline):
     wait_for(lambda: smoke.execute('return !document.querySelector("button[aria-label=\\"Delete snapshot Native warm\\"]");'), 'snapshot deleted')
     smoke.step('Snapshot save, restore exact pixels, one Undo and delete')
 
+    smoke.key('KeyK','k',True)
+    wait_for(lambda: smoke.execute("return !!document.querySelector('[role=dialog][aria-label=\"Command palette\"]');"), 'Lightroom command palette opens')
+    smoke.execute("""const e=document.querySelector('[role=combobox]');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'Before / After');
+      e.dispatchEvent(new Event('input',{bubbles:true}));return true;""")
+    time.sleep(.2)
+    smoke.execute("""document.activeElement.dispatchEvent(new KeyboardEvent('keydown',
+      {key:'Enter',code:'Enter',bubbles:true}));return true;""")
+    wait_for(lambda: smoke.execute('return document.body.innerText.includes("Before (Original)");'), 'palette shares Before/After action')
+    smoke.key('KeyY','y')
+    wait_for(lambda: not smoke.execute('return document.body.innerText.includes("Before (Original)");'), 'optional key exits palette comparison')
+    smoke.step('Lightroom palette and optional key share Before/After action')
+
     smoke.key('KeyY','y')
     wait_for(lambda: smoke.execute('return document.body.innerText.includes("Before (Original)");'),'Y opens before/after')
     smoke.capture('lightroom-before-after')

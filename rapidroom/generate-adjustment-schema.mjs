@@ -90,6 +90,7 @@ const sourceFiles = files(path.join(root, 'src/components/adjustments'))
   .concat([
     path.join(root, 'src/components/panel/right/CropPanel.tsx'),
     path.join(root, 'src/components/ui/ColorWheel.tsx'),
+    path.join(root, 'src/components/ui/LUTControl.tsx'),
   ])
   .sort();
 for (const file of sourceFiles) {
