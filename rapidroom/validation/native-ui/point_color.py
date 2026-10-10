@@ -35,6 +35,9 @@ def run_point_color_checks(smoke, wait_for, baseline):
     smoke.drag('Hue Range', 100)
     smoke.drag('Saturation Range', 0.3)
     smoke.drag('Luminance Range', 0.6)
+    if (smoke.case / "point-color-mcp-test.json").exists():
+        from point_color_mcp import run_point_color_mcp_checks
+        run_point_color_mcp_checks(smoke, wait_for, baseline)
     palette_command('point color hue shift 70')
     wait_for(lambda: smoke.slider('Hue Shift')['value']==70, 'palette shifts selected Point Color')
     edited = smoke.stable_preview('point-color-shift')

@@ -324,3 +324,5 @@ pixels. A typed `crop 4:3` must alter the preview and be reversible in one Undo.
 The normal edit/Undo/Compact/export/clean-exit smoke follows. No model requests,
 React store fixtures or private photos are used. Physical input and other
 platforms remain untested.
+
+`--point-color-mcp` implies `--point-color` and enables MCP only in the isolated test settings. Build with `build.py --mcp-clients`. The scenario uses authenticated local JSON-RPC discovery and edits, checks the eight-swatch/bounded schema and rejection without mutation, applies a selected-swatch Hue Shift through the real editor, and requires one GUI Undo to restore state and exact pixels. It verifies endpoint cleanup on exit. No Claude/Codex processes or model requests are launched.
