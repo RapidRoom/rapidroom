@@ -230,7 +230,7 @@ fn production_shader_noop_wrap_and_monotonic_shifts() {
         case(lab_to_rgb(0.7, 0.15, 0.0), a),
         case(lab_to_rgb(0.7, 0.15, 0.0), b),
     ]);
-    for channel in 0..3 {
-        assert!((near_wrap[0][channel] - near_wrap[1][channel]).abs() < 0.0001);
+    for (left, right) in near_wrap[0][..3].iter().zip(&near_wrap[1][..3]) {
+        assert!((left - right).abs() < 0.0001);
     }
 }
