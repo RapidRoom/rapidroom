@@ -1,3 +1,4 @@
+import { usePointColorPicker } from '../../../hooks/usePointColorPicker';
 import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -1714,6 +1715,12 @@ const ImageCanvas = memo(
       zoomScale: effectiveZoomScale,
       setAdjustments,
     });
+    const { isActive: isPointColorPickerActive, start: startPointColorPick } = usePointColorPicker({
+      getCanvasPointer,
+      imageRenderSize,
+      zoomScale: effectiveZoomScale,
+      setAdjustments,
+    });
     const brushStageSize = (brushSettings?.size ?? 0) / effectiveZoomScale;
     const brushImageSpaceSize = brushStageSize / (imageRenderSize.scale || 1);
 
@@ -2243,6 +2250,10 @@ const ImageCanvas = memo(
           return;
         }
 
+        if (isPointColorPickerActive) {
+          void startPointColorPick(e);
+          return;
+        }
         if (isMixerPickerActive) {
           startMixerPick(e);
           return;
@@ -2445,6 +2456,8 @@ const ImageCanvas = memo(
         isWbPickerActive,
         isInsideImage,
         isMixerPickerActive,
+        isPointColorPickerActive,
+        startPointColorPick,
         startMixerPick,
         isInitialDrawing,
         isBrushActive,
@@ -2487,6 +2500,7 @@ const ImageCanvas = memo(
           return;
         }
 
+        if (isPointColorPickerActive) return;
         if (isMixerPickerActive) {
           return;
         }
@@ -2720,6 +2734,8 @@ const ImageCanvas = memo(
         isToolActive,
         isWbPickerActive,
         isMixerPickerActive,
+        isPointColorPickerActive,
+        startPointColorPick,
         isInitialDrawing,
         activeMaskId,
         activeAiSubMaskId,
@@ -3135,7 +3151,7 @@ const ImageCanvas = memo(
       if (isGuidedPerspectiveActive && isCropping) return 'crosshair';
       if (isWbPickerActive) return 'crosshair';
       if (isMixerPickerDragging) return 'ns-resize';
-      if (isMixerPickerActive) return 'crosshair';
+      if (isMixerPickerActive || isPointColorPickerActive) return 'crosshair';
       if (isParametricActive) return 'crosshair';
       if (isInitialDrawing) return 'crosshair';
 
@@ -3165,6 +3181,7 @@ const ImageCanvas = memo(
       isWbPickerActive,
       isMixerPickerDragging,
       isMixerPickerActive,
+      isPointColorPickerActive,
       isInitialDrawing,
       isBrushActive,
       isCloneOrHealActive,
@@ -3388,7 +3405,7 @@ const ImageCanvas = memo(
             </div>
           </div>
 
-          {(isMasking || isAiEditing || isWbPickerActive || isMixerPickerActive) && (
+          {(isMasking || isAiEditing || isWbPickerActive || isMixerPickerActive || isPointColorPickerActive) && (
             <div
               style={{
                 position: 'absolute',

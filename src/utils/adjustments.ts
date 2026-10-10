@@ -1,3 +1,4 @@
+import { normalizePointColors, type PointColor } from './pointColor';
 import { Crop } from 'react-image-crop';
 import { v4 as uuidv4 } from 'uuid';
 import { SubMask, SubMaskMode } from '../components/panel/right/Masks';
@@ -204,6 +205,7 @@ export interface Adjustments {
   halationAmount: number;
   highlights: number;
   hsl: Hsl;
+  pointColor?: PointColor[];
   hue: number;
   lensBlurAmount: number;
   lensBlurDiffusion: number;
@@ -410,6 +412,7 @@ export interface MaskAdjustments {
   halationAmount: number;
   highlights: number;
   hsl: Hsl;
+  pointColor?: PointColor[];
   hue: number;
   id?: string;
   lumaNoiseReduction: number;
@@ -539,6 +542,7 @@ export const INITIAL_MASK_ADJUSTMENTS: MaskAdjustments = {
   glowAmount: 0,
   halationAmount: 0,
   highlights: 0,
+  pointColor: [],
   hsl: {
     aquas: { hue: 0, saturation: 0, luminance: 0 },
     blues: { hue: 0, saturation: 0, luminance: 0 },
@@ -610,6 +614,7 @@ export const INITIAL_ADJUSTMENTS: Adjustments = {
   guidedPerspective: { enabled: false, lines: [], autoCrop: true },
   halationAmount: 0,
   highlights: 0,
+  pointColor: [],
   hsl: {
     aquas: { hue: 0, saturation: 0, luminance: 0 },
     blues: { hue: 0, saturation: 0, luminance: 0 },
@@ -753,6 +758,7 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
         halationAmount: containerAdjustments.halationAmount ?? INITIAL_MASK_ADJUSTMENTS.halationAmount,
         hue: containerAdjustments.hue ?? INITIAL_MASK_ADJUSTMENTS.hue,
         colorGrading: { ...INITIAL_MASK_ADJUSTMENTS.colorGrading, ...(containerAdjustments.colorGrading || {}) },
+        pointColor: normalizePointColors(containerAdjustments.pointColor),
         hsl: { ...INITIAL_MASK_ADJUSTMENTS.hsl, ...(containerAdjustments.hsl || {}) },
         curves: containerAdjustments.curves ? deepCloneCurves(containerAdjustments.curves) : getDefaultCurves(),
         pointCurves: containerAdjustments.pointCurves
@@ -830,6 +836,7 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
     transformYOffset: loadedAdjustments.transformYOffset ?? INITIAL_ADJUSTMENTS.transformYOffset,
     colorCalibration: { ...INITIAL_ADJUSTMENTS.colorCalibration, ...(loadedAdjustments.colorCalibration || {}) },
     colorGrading: { ...INITIAL_ADJUSTMENTS.colorGrading, ...(loadedAdjustments.colorGrading || {}) },
+    pointColor: normalizePointColors(loadedAdjustments.pointColor),
     hsl: { ...INITIAL_ADJUSTMENTS.hsl, ...(loadedAdjustments.hsl || {}) },
     curves: loadedAdjustments.curves ? deepCloneCurves(loadedAdjustments.curves) : getDefaultCurves(),
     pointCurves: loadedAdjustments.pointCurves ? deepCloneCurves(loadedAdjustments.pointCurves) : getDefaultCurves(),
@@ -882,7 +889,7 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
       keys: [ColorAdjustment.Hue],
     },
     { label: 'modals.copyPaste.groups.colorGrading', keys: [ColorAdjustment.ColorGrading] },
-    { label: 'modals.copyPaste.groups.colorMixer', keys: [ColorAdjustment.Hsl] },
+    { label: 'modals.copyPaste.groups.colorMixer', keys: [ColorAdjustment.Hsl, 'pointColor'] },
     { label: 'modals.copyPaste.groups.colorCalibration', keys: ['colorCalibration'] },
   ],
   details: [
@@ -993,6 +1000,7 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     ColorAdjustment.Tint,
     ColorAdjustment.Vibrance,
     ColorAdjustment.Hsl,
+    'pointColor',
     ColorAdjustment.ColorGrading,
     'colorCalibration',
     ColorAdjustment.Hue,

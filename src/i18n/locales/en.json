@@ -2296,5 +2296,22 @@
     "resizeLeftDock": "Resize left panel",
     "resizeRightDock": "Resize right panel",
     "collapsePanel": "Collapse terminal panel"
+  },
+  "pointColor": {
+    "title": "Point Color",
+    "hsl": "HSL",
+    "pick": "Pick a Point Color on the photo",
+    "select": "Select Point Color {{index}}",
+    "delete": "Delete selected Point Color",
+    "empty": "Pick a color on the photo to adjust nearby colors.",
+    "bounded": "Shifts adapt to the selected range to keep colors in order.",
+    "sampleFailed": "Could not sample this color. Try again on the photo.",
+    "hueShift": "Hue Shift",
+    "saturationShift": "Saturation Shift",
+    "luminanceShift": "Luminance Shift",
+    "hueRange": "Hue Range",
+    "chromaRange": "Saturation Range",
+    "lightnessRange": "Luminance Range",
+    "smoothness": "Smoothness"
   }
 }

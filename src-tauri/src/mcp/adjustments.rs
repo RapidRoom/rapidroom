@@ -200,6 +200,7 @@ pub(super) fn adjustments_schema() -> Value {
     );
     properties.insert("parametricCurve".to_string(), parametric_curve_schema());
     properties.insert("hsl".to_string(), hsl_schema());
+    properties.insert("pointColor".to_string(), point_color_schema());
     properties.insert("colorGrading".to_string(), color_grading_schema());
     properties.insert("colorCalibration".to_string(), color_calibration_schema());
     properties.insert("crop".to_string(), json!({ "type": ["object", "null"] }));
@@ -430,6 +431,103 @@ fn hue_sat_lum_schema(
     strict_object_schema(description, properties)
 }
 
+const POINT_COLOR_FIELDS: [(&str, f64, f64); 7] = [
+    ("hueShift", -100.0, 100.0),
+    ("saturationShift", -100.0, 100.0),
+    ("luminanceShift", -100.0, 100.0),
+    ("hueRange", 0.1, 180.0),
+    ("chromaRange", 0.001, 0.5),
+    ("lightnessRange", 0.001, 1.0),
+    ("smoothness", 10.0, 100.0),
+];
+
+fn point_color_schema() -> Value {
+    let mut fields = Map::new();
+    fields.insert("id".into(), json!({"type":"string","minLength":1}));
+    fields.insert(
+        "color".into(),
+        json!({"type":"object","additionalProperties":false,
+        "required":["lightness","chroma","hue"], "properties":{
+            "lightness":{"type":"number","minimum":0,"maximum":4},
+            "chroma":{"type":"number","minimum":0,"maximum":2},
+            "hue":{"type":"number","minimum":0,"maximum":360}}}),
+    );
+    fields.insert(
+        "picked".into(),
+        json!({"type":"object","additionalProperties":false,
+        "required":["x","y"],"properties":{"x":{"type":"number","minimum":0,"maximum":1},
+        "y":{"type":"number","minimum":0,"maximum":1}}}),
+    );
+    for (key, minimum, maximum) in POINT_COLOR_FIELDS {
+        fields.insert(
+            key.into(),
+            ranged_number_schema(minimum, maximum, "Point Color setting."),
+        );
+    }
+    json!({"type":"array","maxItems":8,"description":"Up to eight OKLCh color swatches. Replace this array to edit/remove swatches. Shifts are range-bounded to keep colors ordered; zero shifts render unchanged.",
+        "items":{"type":"object","required":["id","color"],"additionalProperties":false,"properties":fields}})
+}
+
+fn validate_point_color(value: &Value) -> Result<(), String> {
+    let points = value.as_array().ok_or("pointColor must be an array")?;
+    if points.len() > 8 {
+        return Err("pointColor supports at most eight swatches".into());
+    }
+    let mut ids = std::collections::HashSet::new();
+    let mut allowed = vec!["id", "color", "picked"];
+    allowed.extend(POINT_COLOR_FIELDS.iter().map(|(key, _, _)| *key));
+    for (index, point) in points.iter().enumerate() {
+        let path = format!("pointColor.{index}");
+        let fields = validate_nested_object(point, &path)?;
+        validate_nested_keys(fields, &path, &allowed)?;
+        let id = fields
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+            .ok_or("Point Color id is required")?;
+        if !ids.insert(id) {
+            return Err("Point Color ids must be unique".into());
+        }
+        let color = fields.get("color").ok_or("Point Color color is required")?;
+        let color = validate_nested_object(color, &format!("{path}.color"))?;
+        validate_nested_keys(
+            color,
+            &format!("{path}.color"),
+            &["lightness", "chroma", "hue"],
+        )?;
+        for (key, maximum) in [("lightness", 4.0), ("chroma", 2.0), ("hue", 360.0)] {
+            validate_number(
+                color
+                    .get(key)
+                    .ok_or("Point Color color channel is required")?,
+                &format!("{path}.color.{key}"),
+                0.0,
+                maximum,
+            )?;
+        }
+        for (key, minimum, maximum) in POINT_COLOR_FIELDS {
+            if let Some(value) = fields.get(key) {
+                validate_number(value, &format!("{path}.{key}"), minimum, maximum)?;
+            }
+        }
+        if let Some(picked) = fields.get("picked") {
+            let picked = validate_nested_object(picked, &format!("{path}.picked"))?;
+            validate_nested_keys(picked, &format!("{path}.picked"), &["x", "y"])?;
+            for key in ["x", "y"] {
+                validate_number(
+                    picked
+                        .get(key)
+                        .ok_or("Point Color picked coordinate is required")?,
+                    &format!("{path}.picked.{key}"),
+                    0.0,
+                    1.0,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn hsl_schema() -> Value {
     let mut properties = Map::new();
     for color in [
@@ -555,6 +653,19 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "curves" | "pointCurves" => validate_curves(value, key)?,
                 "parametricCurve" => validate_parametric_curve(value)?,
                 "hsl" => validate_hsl(value)?,
+                "pointColor" => validate_point_color(value)?,
+                "masks" => {
+                    if let Some(masks) = value.as_array() {
+                        for mask in masks {
+                            if let Some(points) = mask
+                                .get("adjustments")
+                                .and_then(|adjustments| adjustments.get("pointColor"))
+                            {
+                                validate_point_color(points)?;
+                            }
+                        }
+                    }
+                }
                 "colorGrading" => validate_color_grading(value)?,
                 "colorCalibration" => validate_color_calibration(value)?,
                 "guidedPerspective" => validate_guided_perspective(value)?,
@@ -949,6 +1060,25 @@ pub(super) fn merge_adjustments(current: Value, changes: Value) -> Result<Value,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn point_color_schema_and_validation_agree_on_bounds() {
+        let valid = json!({"pointColor":[{"id":"skin","color":{"lightness":0.7,"chroma":0.1,"hue":30},"hueShift":20,"smoothness":50}]});
+        assert!(validate_adjustments(&valid).is_ok());
+        for invalid in [
+            json!({"pointColor":[{"id":"missing-color"}]}),
+            json!({"pointColor":[{"id":"skin","color":{"lightness":0.7,"chroma":0.1,"hue":30},"hueShift":101}]}),
+            json!({"pointColor":[{"id":"skin","color":{"lightness":0.7,"chroma":0.1,"hue":30},"smoothness":0}]}),
+            json!({"pointColor":vec![valid["pointColor"][0].clone();9]}),
+        ] {
+            assert!(validate_adjustments(&invalid).is_err(), "{invalid}");
+        }
+        assert_eq!(point_color_schema()["maxItems"], 8);
+        assert!(crate::all_available_adjustments().contains("pointColor"));
+        assert!(crate::app_settings::default_included_adjustments().contains("pointColor"));
+        let (compact, _) = compact_schema();
+        assert_eq!(compact["properties"]["pointColor"]["maxItems"], 8);
+    }
 
     #[test]
     fn revision_is_stable_for_same_edit() {
