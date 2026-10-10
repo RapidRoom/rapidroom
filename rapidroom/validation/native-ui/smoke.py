@@ -382,8 +382,14 @@ class Smoke:
         if (self.case / "zoom-test.json").exists():
             from zoom import run_zoom_checks
             run_zoom_checks(self, wait_for)
-            # Zoom changes the requested preview resolution. Compare subsequent
-            # edits/Undo against the settled render at the restored fit geometry.
+            # HiFi zoom keeps the full-resolution preview on zoom-out. The
+            # next adjustment renders at fit resolution, so normalize through
+            # an ordinary public Exposure edit/reset before the Undo comparison.
+            self.drag("Exposure", 0.5)
+            self.execute("""const e=[...document.querySelectorAll('input[type=range]')]
+              .find(e=>e.parentElement.parentElement.textContent.trim().startsWith('Exposure'));
+              e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true}));return true;""")
+            wait_for(lambda: self.slider("Exposure")["value"] == 0, "neutral fit-resolution preview")
             baseline = self.stable_preview("post-zoom-fit")
             self.step("post-zoom fit preview", {"capture": str(baseline.relative_to(self.case))})
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
