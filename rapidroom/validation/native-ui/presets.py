@@ -12,12 +12,17 @@ def run_preset_checks(smoke, wait_for, baseline):
     shortcut('KeyN','N',True,True)
     wait_for(lambda: smoke.execute("return !!document.querySelector('[role=dialog] input');"), 'Ctrl+Shift+N opens new preset dialog from Develop')
     smoke.capture('preset-create-dialog')
-    shortcut('Escape','Escape')
-    # The modal handles keydown on its input/container, so activate its close button.
+    # Cancel through the modal's public button. The global shortcut helper blurs
+    # inputs, so dispatching Escape through it would navigate back to Library.
     smoke.execute("""const dialog=document.querySelector('[role=dialog]');
       const button=dialog && [...dialog.querySelectorAll('button')].find(e=>e.textContent.trim()==='Cancel');
       if(button)button.click();return true;""")
     wait_for(lambda: smoke.execute("return !document.querySelector('[role=dialog]');"), 'preset dialog cancels')
+    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('svg')].some(e=>e.getBoundingClientRect().width>500 && e.getBoundingClientRect().height>300);"), 'preset dialog cancellation retains Develop photo')
+    cancelled=smoke.stable_preview('preset-dialog-cancel')
+    if ImageChops.difference(smoke.crop(baseline),smoke.crop(cancelled)).getbbox() is not None:
+        raise RuntimeError('Preset dialog cancellation changed photo pixels')
+    smoke.step('global preset creation cancels in Develop without changing pixels')
     wait_for(lambda: smoke.execute("return !!document.querySelector('input[aria-label=\"Search presets or groups\"]');"), 'preset browser visible')
 
     def search(query):
