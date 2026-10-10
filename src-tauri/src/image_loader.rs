@@ -1163,7 +1163,6 @@ pub async fn load_image(
         path,
         image: pristine_arc,
         is_raw,
-        used_embedded_preview,
     });
 
     Ok(LoadImageResult {

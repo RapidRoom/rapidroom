@@ -7,7 +7,7 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { Invokes } from '../components/ui/AppProperties';
 import { INITIAL_ADJUSTMENTS, normalizeLoadedAdjustments } from '../utils/adjustments';
 
-export function useImageLoader(cachedEditStateRef: React.RefObject<any>) {
+export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string, unknown> | null>) {
   const selectedImage = useEditorStore((s) => s.selectedImage);
   const adjustments = useEditorStore((s) => s.adjustments);
   const histogram = useEditorStore((s) => s.histogram);

@@ -110,7 +110,6 @@ pub struct LoadedImage {
     pub path: String,
     pub image: Arc<DynamicImage>,
     pub is_raw: bool,
-    pub used_embedded_preview: bool,
 }
 
 #[derive(Clone)]
