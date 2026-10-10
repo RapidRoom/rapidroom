@@ -137,7 +137,7 @@ class Smoke:
           .find(e=>e.parentElement.parentElement.textContent.trim().startsWith(arguments[0]));
           const r=e.getBoundingClientRect(),x=r.left+(arguments[1]-Number(e.min)) /
             (Number(e.max)-Number(e.min))*r.width;
-          e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0,buttons:1,
+        e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,buttons:1,
             clientX:x,clientY:r.top+r.height/2}));return true;""", [label, value])
         time.sleep(0.3)  # React installs the document drag listeners after mousedown.
         self.execute("""document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0}));return true;""")
