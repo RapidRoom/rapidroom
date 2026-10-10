@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect, useImperativeHandle } from 'react';
 import { Crop, PercentCrop } from 'react-image-crop';
-import { Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
@@ -2349,6 +2349,15 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onPointerCancel={handlePointerUp}
           onClick={handleClick}
         >
+          {selectedImage?.isReady && selectedImage.usedEmbeddedPreview && (
+            <div
+              role="alert"
+              className="absolute top-3 left-3 right-3 z-40 flex items-center gap-2 rounded-md bg-amber-950/90 px-3 py-2 text-sm text-amber-50 shadow-lg pointer-events-none"
+            >
+              <AlertTriangle size={18} className="shrink-0" aria-hidden="true" />
+              <span>{t('editor.embeddedPreviewWarning')}</span>
+            </div>
+          )}
           {showSpinner && (
             <div
               className={clsx(

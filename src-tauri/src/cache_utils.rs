@@ -249,7 +249,7 @@ pub fn calculate_full_job_hash(path: &str, adjustments: &serde_json::Value) -> u
 
 pub struct DecodedImageCache {
     capacity: usize,
-    items: Vec<(String, Arc<DynamicImage>, HashMap<String, String>)>,
+    items: Vec<(String, Arc<DynamicImage>, HashMap<String, String>, bool)>,
 }
 
 impl DecodedImageCache {
@@ -267,10 +267,13 @@ impl DecodedImageCache {
         }
     }
 
-    pub fn get(&mut self, path: &str) -> Option<(Arc<DynamicImage>, HashMap<String, String>)> {
-        if let Some(pos) = self.items.iter().position(|(p, _, _)| p == path) {
+    pub fn get(
+        &mut self,
+        path: &str,
+    ) -> Option<(Arc<DynamicImage>, HashMap<String, String>, bool)> {
+        if let Some(pos) = self.items.iter().position(|(p, _, _, _)| p == path) {
             let item = self.items.remove(pos);
-            let result = (item.1.clone(), item.2.clone());
+            let result = (item.1.clone(), item.2.clone(), item.3);
             self.items.push(item);
             Some(result)
         } else {
@@ -287,13 +290,14 @@ impl DecodedImageCache {
         path: String,
         image: Arc<DynamicImage>,
         exif: HashMap<String, String>,
+        used_embedded_preview: bool,
     ) {
-        if let Some(pos) = self.items.iter().position(|(p, _, _)| *p == path) {
+        if let Some(pos) = self.items.iter().position(|(p, _, _, _)| *p == path) {
             self.items.remove(pos);
         } else if self.items.len() >= self.capacity {
             self.items.remove(0);
         }
-        self.items.push((path, image, exif));
+        self.items.push((path, image, exif, used_embedded_preview));
     }
 }
 
@@ -334,7 +338,9 @@ pub fn clear_session_caches(state: tauri::State<AppState>) {
 
 #[cfg(test)]
 mod tests {
-    use super::calculate_image_cache_hash;
+    use super::{DecodedImageCache, calculate_image_cache_hash};
+    use image::{DynamicImage, RgbImage};
+    use std::{collections::HashMap, sync::Arc};
 
     #[test]
     fn virtual_copies_have_distinct_renderer_cache_identity() {
@@ -345,5 +351,19 @@ mod tests {
             calculate_image_cache_hash("/synthetic/image.jpg?vc=abcdef", transform_hash);
 
         assert_ne!(first_copy, second_copy);
+    }
+
+    #[test]
+    fn decoded_cache_preserves_embedded_preview_marker() {
+        let mut cache = DecodedImageCache::new(2);
+        cache.insert(
+            "fallback.NEF".to_string(),
+            Arc::new(DynamicImage::ImageRgb8(RgbImage::new(1, 1))),
+            HashMap::new(),
+            true,
+        );
+
+        let (_, _, used_embedded_preview) = cache.get("fallback.NEF").unwrap();
+        assert!(used_embedded_preview);
     }
 }
