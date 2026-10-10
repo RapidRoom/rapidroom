@@ -327,6 +327,32 @@ pub(crate) fn validate(content: &str) -> Result<(), Error> {
     Document::parse(content).map(|_| ())
 }
 
+pub(crate) fn element_text(content: &str, uri: &str, local: &str) -> Result<Option<String>, Error> {
+    let doc = Document::parse(content)?;
+    let Some(index) = doc.nodes.iter().enumerate().find_map(|(i, node)| {
+        let (prefix, actual) = node.name.split_once(':').unwrap_or(("", &node.name));
+        (actual == local && doc.namespace(i, prefix) == Some(uri)).then_some(i)
+    }) else {
+        return Ok(None);
+    };
+    if let Some(text) = doc.text(index) {
+        return Ok(Some(text));
+    }
+    for (i, node) in doc.nodes.iter().enumerate() {
+        let mut parent = node.parent;
+        while let Some(p) = parent {
+            if p == index {
+                if let Some(text) = doc.text(i).filter(|t| !t.trim().is_empty()) {
+                    return Ok(Some(text));
+                }
+                break;
+            }
+            parent = doc.nodes[p].parent;
+        }
+    }
+    Ok(None)
+}
+
 #[derive(Default)]
 pub(crate) struct Metadata {
     pub rating: Option<i8>,

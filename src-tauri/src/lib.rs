@@ -70,7 +70,9 @@ mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
 mod preset_converter;
+mod preset_xmp;
 mod raw_processing;
+mod starter_presets;
 mod tagging;
 mod tagging_utils;
 mod terminal;
@@ -2591,6 +2593,7 @@ pub fn run() {
             file_management::handle_import_legacy_presets_from_file,
             file_management::handle_import_presets_from_files,
             file_management::handle_export_presets_to_file,
+            file_management::export_lightroom_preset,
             file_management::save_community_preset,
             file_management::clear_all_sidecars,
             file_management::clear_thumbnail_cache,

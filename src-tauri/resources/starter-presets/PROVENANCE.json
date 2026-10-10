@@ -1,0 +1,164 @@
+{
+  "source": "pch/rawmakase",
+  "commit": "a0bda901ada403fc48d926960f3dce8016670bcb",
+  "copyright": "2026 RAWmakase contributors",
+  "license": "MIT",
+  "files": [
+    {
+      "file": "BandW/Green Filter.xmp",
+      "sha256": "33e13c746a8048aa9c9058e1f2a27b19da984f5eddb659356e54f94c350ae338",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "BandW/High Contrast.xmp",
+      "sha256": "60a769da8128209396dc2a995b2219532bfffc67db3691b51cfd6a1331f64279",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "BandW/Neutral.xmp",
+      "sha256": "70205b4b9aea81e35ba0a40fa13bc9d7b463960972b0f36fefc52f655a185aa5",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "BandW/Red Filter.xmp",
+      "sha256": "83fc8029ec1c84636523f765c86c5adad7cf5f85d32c5f9ae2b8bc175a233736",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "BandW/Sepia.xmp",
+      "sha256": "28069a521596bbc032496254b0304d46db628de2c8df711c1efe89402b775adf",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "BandW/Soft.xmp",
+      "sha256": "1f5514c0dc5a421c71c19a704ca99cd7bd85dd628550af645e38a3e5da7f5939",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Color/Cool.xmp",
+      "sha256": "b5537ba5e53c60b3ed49dd73cc91f86711166e3ee5955335785c2b2a5ea8413f",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Color/Matte.xmp",
+      "sha256": "669ec6ffd31634609f786d780d9bd1942034b54a219c6c5a892d512c0b510a98",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Color/Muted.xmp",
+      "sha256": "14ee51ad6ee42f61430e77e50160237ad83da3d9a672d8dda932f8e81295df7d",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Color/Punch.xmp",
+      "sha256": "59a8303f93d1eaf866033abf2c5b8276872d0f3ff18ff7addb38b5a5339afa28",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Color/Warm.xmp",
+      "sha256": "447d7561b1f7453cd8ffb9366faf62adb369a9c2d1b682a00eda66cc9657867f",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Creative/Concrete Haze.xmp",
+      "sha256": "ffe023c547d5337b76cce8b855e41506a1b8be4f2c45227df1d1cd86c00980a5",
+      "included": false,
+      "excluded_reason": "Adobe profile dependency"
+    },
+    {
+      "file": "Creative/Faded Gold.xmp",
+      "sha256": "1b10576370af3aa49cf8c472a86a190e51ae4e8db8de0733b7b838751384b021",
+      "included": false,
+      "excluded_reason": "Adobe profile dependency"
+    },
+    {
+      "file": "Curve/Darken.xmp",
+      "sha256": "5d738ba776f3d3190c4523b67c9f2182cab9cc35904403e1eb3b94b392141931",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Curve/Flat.xmp",
+      "sha256": "77254388ff48fc143be611a51bd6b7cda547101d1de327aa9586beb65d387d4f",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Curve/Lighten.xmp",
+      "sha256": "5e1885712b1dd729db56296710c0b7e307937a25123ae01fef75d6fb8ae4d99b",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Curve/Linear.xmp",
+      "sha256": "125701c7446c265f6693075601995cfd8739b6997adcd60770f662e5e64333fe",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Curve/Matte.xmp",
+      "sha256": "56039a4ac7d7a83daef223ae6d17314a44a803b2566a7fff4c16b7975e16a475",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Curve/Medium Contrast.xmp",
+      "sha256": "a8697cc6d9098076747e07d58401002dfa571affaaa1d5be7f3fa8aa4c11d9fe",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Curve/Strong Contrast.xmp",
+      "sha256": "881ba44dc30d0f3afc9668a721fb45fe861e2e0236573617517b2f7a45b8b911",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Grain/Heavy.xmp",
+      "sha256": "afd45111dd08a6a16a31b2eceb02ce6f7f7e642bccc44df1907e294b9757bde2",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Grain/Light.xmp",
+      "sha256": "db972e62545499fac4e5e7bb121bd69e107109d0c00b62518a89ae81440f465b",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Grain/Medium.xmp",
+      "sha256": "08ee9a3f4e3baad79379616c5e192d2779ca9e33fa00921c84b91ae292b9eec8",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Vignetting/Light.xmp",
+      "sha256": "b20af4d57b69c9f862573b21f5d970c4321e7255436018dc23f5930d10ad402c",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Vignetting/Strong.xmp",
+      "sha256": "f43eaa8531a849f09600b26ffadfa368292e9fcf4521ba1ae4f91ed5110b24e4",
+      "included": true,
+      "excluded_reason": null
+    },
+    {
+      "file": "Vignetting/Subtle.xmp",
+      "sha256": "93ca4dcb84c446e8214e51c3641b0883177055c1e9f15f654d4be43a6f5121c6",
+      "included": true,
+      "excluded_reason": null
+    }
+  ]
+}
