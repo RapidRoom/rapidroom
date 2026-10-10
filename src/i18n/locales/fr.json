@@ -875,7 +875,8 @@
         "undo": "Annuler (Ctrl+Z) ou Historique (Clic-droit)"
       },
       "vc": "CV"
-    }
+    },
+    "embeddedPreviewWarning": "Le développement RAW a échoué ; l’aperçu intégré est affiché à la place."
   },
   "export": {
     "advanced": {

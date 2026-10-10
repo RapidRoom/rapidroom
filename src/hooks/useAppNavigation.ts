@@ -242,7 +242,16 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
             if (selectedImagePathRef.current !== path) return;
             isBackendReadyRef.current = true;
             currentResRef.current = 0;
-            setEditor({ originalSize: { width: _result.width, height: _result.height } });
+            setEditor((state) => {
+              if (state.selectedImage?.path !== path) return state;
+              return {
+                originalSize: { width: _result.width, height: _result.height },
+                selectedImage: {
+                  ...state.selectedImage,
+                  usedEmbeddedPreview: _result.used_embedded_preview,
+                },
+              };
+            });
           })
           .catch((err: any) => {
             if (String(err).includes('cancelled')) return;

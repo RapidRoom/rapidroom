@@ -430,6 +430,7 @@ export interface SelectedImage {
   height: number;
   isRaw: boolean;
   isReady: boolean;
+  usedEmbeddedPreview?: boolean;
   metadata?: any;
   original_base64?: string;
   path: string;

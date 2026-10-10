@@ -854,7 +854,8 @@
         "undo": "Desfer (Ctrl+Z) o Historial (Clic dret)"
       },
       "vc": "CV"
-    }
+    },
+    "embeddedPreviewWarning": "Ha fallat el revelatge RAW; es mostra la previsualització incrustada."
   },
   "export": {
     "advanced": {

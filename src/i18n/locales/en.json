@@ -862,76 +862,208 @@
     "selectPhoto": "Select a photo to use Quick Develop."
   },
   "editor": {
+    "adjustments": {
+      "actions": {
+        "copySectionSettings": "Copy {{section}} Settings",
+        "customizePanels": "Customize Panels",
+        "pasteLabel": "Paste {{section}} Settings",
+        "pasteSettings": "Paste Settings",
+        "resetPanelLayout": "Reset to Default",
+        "resetSectionSettings": "Reset {{section}} Settings"
+      },
+      "sections": {
+        "basic": "Basic",
+        "color": "Color",
+        "curves": "Curves",
+        "details": "Details",
+        "effects": "Effects"
+      },
+      "title": "Adjustments",
+      "tooltips": {
+        "autoAdjust": "Auto Adjust Image",
+        "hideFromPanel": "Hide from Panel",
+        "resetAdjustments": "Reset Adjustments",
+        "showInPanel": "Show in Panel",
+        "toggleAnalytics": "Toggle Analytics Display"
+      }
+    },
+    "ai": {
+      "actions": {
+        "addNewComponent": "Add New Component",
+        "copyComponent": "Copy Component",
+        "copyEdit": "Copy Edit",
+        "deleteComponent": "Delete Component",
+        "deleteEdit": "Delete Edit",
+        "duplicateAndInvertComponent": "Duplicate and Invert Component",
+        "duplicateAndInvertEdit": "Duplicate and Invert Edit",
+        "duplicateComponent": "Duplicate Component",
+        "duplicateEdit": "Duplicate Edit",
+        "hideEdit": "Hide Edit",
+        "intersectEditWith": "Intersect Edit with",
+        "pasteComponent": "Paste Component",
+        "pasteEdit": "Paste Edit",
+        "rename": "Rename",
+        "resetSelection": "Reset Selection",
+        "showEdit": "Show Edit",
+        "subtractFromEdit": "Subtract from Edit",
+        "switchToAdd": "Switch to Add",
+        "switchToIntersect": "Switch to Intersect",
+        "switchToSubtract": "Switch to Subtract"
+      },
+      "addNewEdit": "Add New Edit",
+      "brush": {
+        "add": "Add",
+        "erase": "Erase",
+        "feather": "Brush Feather",
+        "size": "Brush Size"
+      },
+      "comingSoon": "Coming Soon",
+      "connection": {
+        "backendLabel": "AI Backend:",
+        "builtinDesc": "Using basic local CPU. Select Cloud or AI Connector in settings for generative replace.",
+        "builtinLabel": "Built-in AI:",
+        "cloudLabel": "Cloud AI:",
+        "connectorConnectedDesc": "Connected to local generative backend.",
+        "connectorDisconnectedDesc": "Only simple inpainting available. Start your local backend.",
+        "connectorLabel": "AI Connector:",
+        "loginRequiredDesc": "Log in via Settings to use Cloud AI.",
+        "monthlyUsage": "Monthly Usage",
+        "notDetected": "Not Detected",
+        "notLoggedIn": "Not Logged In",
+        "proRequiredDesc": "Pro subscription required. Upgrade in Settings.",
+        "ready": "Ready",
+        "upgradeRequired": "Upgrade Required"
+      },
+      "createNewTitle": "Create New Generative Edit",
+      "createNewTooltip": "Create New {{name}} Edit",
+      "dropzoneText": "Drop here to create a new edit",
+      "editSettingsTitle": "Edit Settings",
+      "editsTitle": "Edits",
+      "generatingDepthMap": "Calculating AI Depth Map...",
+      "generativeEditTitle": "Generative Edit",
+      "inpaintingTitle": "Inpainting",
+      "liquify": {
+        "mode": "Liquify Mode",
+        "modes": {
+          "expand": "Expand",
+          "pinch": "Pinch",
+          "push": "Push",
+          "twirl": "Twirl"
+        }
+      },
+      "manualCleanupTitle": "Manual Cleanup",
+      "noImageSelected": "No image selected.",
+      "params": {
+        "feather": "Feather",
+        "grow": "Grow",
+        "intensity": "Intensity",
+        "pressure": "Pressure"
+      },
+      "patches": {
+        "aiEdit": "AI Edit {{count}}",
+        "aiEdit_one": "AI Edit {{count}}",
+        "aiEdit_other": "AI Edit {{count}}",
+        "clone": "Clone {{count}}",
+        "clone_one": "Clone {{count}}",
+        "clone_other": "Clone {{count}}",
+        "heal": "Heal {{count}}",
+        "heal_one": "Heal {{count}}",
+        "heal_other": "Heal {{count}}",
+        "invertedName": "{{name}} Inverted",
+        "liquify": "Liquify {{count}}",
+        "liquify_one": "Liquify {{count}}",
+        "liquify_other": "Liquify {{count}}",
+        "quickErase": "Quick Erase {{count}}",
+        "quickErase_one": "Quick Erase {{count}}",
+        "quickErase_other": "Quick Erase {{count}}",
+        "retouch": "Retouch {{count}}"
+      },
+      "resetInpaintingTooltip": "Reset Inpainting",
+      "settings": {
+        "aiModelDownloading": "AI Model Downloading: ",
+        "basicInpaintTooltipDisabled": "Generative backend not available or not configured. Basic inpainting is required.",
+        "basicInpaintTooltipEnabled": "Basic inpainting is quicker but not generative. Uncheck to use Generative AI with a text prompt.",
+        "cancelGeneration": "Cancel Generation",
+        "componentPropertiesTitle": "{{name}} Properties",
+        "downloading": "Downloading: ",
+        "fastInpaintDesc": "Fill selection based on surrounding pixels.",
+        "generateWithAiButton": "Generate with AI",
+        "generating": "Generating...",
+        "generativeDesc": "Describe what you want to generate in the selected area.",
+        "generativeReplaceTitle": "Generative Replace",
+        "inpaintSelectionButton": "Inpaint Selection",
+        "invertComponent": "Invert Component",
+        "invertSelection": "Invert Selection",
+        "placeholder": "e.g., a field of flowers",
+        "quickEraseDesc": "Fill selection to remove the object.",
+        "selectionPropertiesTitle": "Selection Properties",
+        "useBasicInpaint": "Use basic inpainting"
+      },
+      "touchUpTitle": "Touch Up"
+    },
     "crop": {
+      "aspectRatioHeading": "Aspect Ratio",
+      "custom": {
+        "hPlaceholder": "H",
+        "hTooltip": "Height",
+        "removeTooltip": "Remove saved aspect ratio",
+        "saveTooltip": "Save aspect ratio as preset",
+        "savedTooltip": "Saved aspect ratio {{ratio}}",
+        "wPlaceholder": "W",
+        "wTooltip": "Width"
+      },
+      "geometryHeading": "Geometry",
+      "labels": {
+        "flipHoriz": "Flip Horiz",
+        "flipVert": "Flip Vert",
+        "lens": "Lens",
+        "rotateLeft": "Rotate Left",
+        "rotateRight": "Rotate Right",
+        "transform": "Transform"
+      },
       "orientationHeading": "Orientation",
       "overlays": {
-        "spiral": {
-          "desc": "Golden Spiral (Fibonacci)",
-          "name": "Spiral"
-        },
-        "triangle": {
-          "desc": "Golden Triangle",
-          "name": "Triangle"
+        "armature": {
+          "desc": "Armature",
+          "name": "Armature"
         },
         "center": {
           "desc": "Center Lines",
           "name": "Center"
         },
+        "diagonal": {
+          "desc": "Diagonal Lines",
+          "name": "Diagonal Lines"
+        },
         "none": {
           "desc": "No overlay",
           "name": "None"
         },
-        "armature": {
-          "desc": "Armature",
-          "name": "Armature"
+        "phiGrid": {
+          "desc": "Phi Grid (Golden Ratio)",
+          "name": "Phi Grid"
         },
-        "diagonal": {
-          "desc": "Diagonal Lines",
-          "name": "Diagonal Lines"
+        "spiral": {
+          "desc": "Golden Spiral (Fibonacci)",
+          "name": "Spiral"
         },
         "thirds": {
           "desc": "Rule of Thirds",
           "name": "Thirds"
         },
-        "phiGrid": {
-          "desc": "Phi Grid (Golden Ratio)",
-          "name": "Phi Grid"
+        "triangle": {
+          "desc": "Golden Triangle",
+          "name": "Triangle"
         }
       },
-      "aspectRatioHeading": "Aspect Ratio",
-      "labels": {
-        "rotateRight": "Rotate Right",
-        "lens": "Lens",
-        "transform": "Transform",
-        "flipHoriz": "Flip Horiz",
-        "flipVert": "Flip Vert",
-        "rotateLeft": "Rotate Left"
-      },
-      "geometryHeading": "Geometry",
-      "tooltips": {
-        "rotateRight": "Rotate 90° clockwise",
-        "lens": "Lens distortion correction",
-        "transform": "Perspective and keystone correction",
-        "compositionOverlay": "Composition Overlay",
-        "switchToPortrait": "Switch to portrait",
-        "resetFineRotation": "Reset Fine Rotation",
-        "switchOrientation": "Switch orientation",
-        "rotateHint": " (Shift+O to rotate)",
-        "flipHoriz": "Flip image horizontally",
-        "flipVert": "Flip image vertically",
-        "switchToLandscape": "Switch to landscape",
-        "overlayDetails": "Overlay: {{name}}{{rotateHint}}",
-        "straighten": "Straighten Tool (S)",
-        "rotateLeft": "Rotate 90° counter-clockwise"
-      },
       "presets": {
-        "sq": {
-          "desc": "Square - Instagram, profile pictures",
-          "name": "1:1"
+        "custom": {
+          "name": "Custom",
+          "tooltip": "Enter custom aspect ratio"
         },
-        "r43": {
-          "desc": "4:3 - Traditional monitors, tablets",
-          "name": "4:3"
+        "free": {
+          "desc": "Freeform crop",
+          "name": "Free"
         },
         "original": {
           "desc": "Original image aspect ratio",
@@ -945,434 +1077,303 @@
           "desc": "21:9 - Ultrawide monitors, cinematic",
           "name": "21:9"
         },
-        "r6524": {
-          "desc": "65:24 - Panoramic 35mm wide format",
-          "name": "65:24"
-        },
-        "free": {
-          "desc": "Freeform crop",
-          "name": "Free"
-        },
-        "custom": {
-          "tooltip": "Enter custom aspect ratio",
-          "name": "Custom"
-        },
         "r32": {
           "desc": "3:2 - 35mm film, DSLR cameras",
           "name": "3:2"
         },
+        "r43": {
+          "desc": "4:3 - Traditional monitors, tablets",
+          "name": "4:3"
+        },
         "r54": {
           "desc": "5:4 - Instagram landscape, 8x10 prints",
           "name": "5:4"
+        },
+        "r6524": {
+          "desc": "65:24 - Panoramic 35mm wide format",
+          "name": "65:24"
+        },
+        "sq": {
+          "desc": "Square - Instagram, profile pictures",
+          "name": "1:1"
         }
       },
-      "rotationHeading": "Rotation",
-      "custom": {
-        "hPlaceholder": "H",
-        "removeTooltip": "Remove saved aspect ratio",
-        "savedTooltip": "Saved aspect ratio {{ratio}}",
-        "hTooltip": "Height",
-        "wTooltip": "Width",
-        "saveTooltip": "Save aspect ratio as preset",
-        "wPlaceholder": "W"
-      },
       "resetTooltip": "Reset Crop & Transform",
-      "title": "Crop & Transform"
-    },
-    "adjustments": {
-      "actions": {
-        "resetPanelLayout": "Reset to Default",
-        "pasteLabel": "Paste {{section}} Settings",
-        "pasteSettings": "Paste Settings",
-        "copySectionSettings": "Copy {{section}} Settings",
-        "resetSectionSettings": "Reset {{section}} Settings",
-        "customizePanels": "Customize Panels"
-      },
+      "rotationHeading": "Rotation",
+      "title": "Crop & Transform",
       "tooltips": {
-        "autoAdjust": "Auto Adjust Image",
-        "showInPanel": "Show in Panel",
-        "toggleAnalytics": "Toggle Analytics Display",
-        "hideFromPanel": "Hide from Panel",
-        "resetAdjustments": "Reset Adjustments"
-      },
-      "title": "Adjustments",
-      "sections": {
-        "effects": "Effects",
-        "color": "Color",
-        "basic": "Basic",
-        "details": "Details",
-        "curves": "Curves"
-      }
-    },
-    "layout": {
-      "split": "Split"
-    },
-    "masks": {
-      "toggleAnalyticsInAdjustments": "Toggle analytics in Adjustments panel",
-      "depthRange": {
-        "reset": "Reset",
-        "near": "Near",
-        "title": "Depth Range",
-        "far": "Far"
-      },
-      "patches": {
-        "maskName_other": "Mask {{count}}",
-        "invertedName": "{{name}} Inverted",
-        "maskName": "Mask {{count}}",
-        "copyName": "{{name}} Copy",
-        "maskName_one": "Mask {{count}}"
-      },
-      "tooltips": {
-        "createNew": "Create New {{name}} Mask",
-        "addToCurrent": "Add {{name}} to Current Mask or Create New (Right-click)",
-        "selectNewSourcePoint": "{{modifier}} + Click to select a new source point"
-      },
-      "rangeTitle": "Ranges & Global",
-      "resetMaskingTooltip": "Reset Masking",
-      "comingSoon": "Coming Soon",
-      "actions": {
-        "switchToSubtract": "Switch to Subtract",
-        "deleteMask": "Delete Mask",
-        "showComponent": "Show Component",
-        "switchToIntersect": "Switch to Intersect",
-        "addNewComponent": "Add New Component",
-        "pasteComponent": "Paste Component",
-        "resetMaskAdjustments": "Reset Mask Adjustments",
-        "switchToAdd": "Switch to Add",
-        "duplicateAndInvertMask": "Duplicate and Invert Mask",
-        "duplicateComponent": "Duplicate Component",
-        "duplicateAndInvertComponent": "Duplicate and Invert Component",
-        "copyMask": "Copy Mask",
-        "applyPreset": "Apply Preset",
-        "copyComponent": "Copy Component",
-        "hideComponent": "Hide Component",
-        "intersectMaskWith": "Intersect Mask with",
-        "pasteMaskAdjustments": "Paste Mask Adjustments",
-        "subtractFromMask": "Subtract from Mask",
-        "rename": "Rename",
-        "noPresets": "No presets",
-        "deleteComponent": "Delete Component",
-        "showMask": "Show Mask",
-        "pasteMask": "Paste Mask",
-        "duplicateMask": "Duplicate Mask",
-        "hideMask": "Hide Mask"
-      },
-      "maskingTitle": "Masking",
-      "params": {
-        "tolerance": "Tolerance",
-        "grow": "Grow",
-        "feather": "Feather",
-        "globalFeather": "Global Feather"
-      },
-      "toggleAnalyticsTooltip": "Toggle Analytics Display",
-      "addNewMask": "Add New Mask",
-      "basicTitle": "Basic Tools",
-      "masksTitle": "Masks",
-      "brush": {
-        "feather": "Brush Feather",
-        "eraser": "Eraser",
-        "flow": "Flow",
-        "size": "Brush Size",
-        "brush": "Brush"
-      },
-      "dropzoneText": "Drop here to create a new mask",
-      "aiTitle": "AI Selections",
-      "maskAdjustmentsTitle": "Mask Adjustments",
-      "settings": {
-        "maskPropertiesTitle": "Mask Properties",
-        "applyPreset": "Apply Preset",
-        "invertComponent": "Invert Component",
-        "componentPropertiesTitle": "{{name}} Properties",
-        "resetSectionSettings": "Reset {{section}} Settings",
-        "invertMask": "Invert Mask",
-        "pasteSettings": "Paste Settings",
-        "aiModelDownloading": "AI Model Downloading: ",
-        "select": "Select",
-        "pasteSectionSettings": "Paste {{section}} Settings",
-        "copySectionSettings": "Copy {{section}} Settings",
-        "selectPresetTooltip": "Select a preset to apply",
-        "opacity": "Opacity",
-        "noPresetsFound": "No presets found"
-      }
-    },
-    "switcher": {
-      "tooltips": {
-        "adjust": "Adjust",
-        "crop": "Crop",
-        "masks": "Masks",
-        "presets": "Presets",
-        "tethering": "Tethering",
-        "inpaint": "Inpaint",
-        "export": "Export",
-        "info": "Info"
-      }
-    },
-    "ai": {
-      "touchUpTitle": "Touch Up",
-      "patches": {
-        "clone": "Clone {{count}}",
-        "liquify_other": "Liquify {{count}}",
-        "invertedName": "{{name}} Inverted",
-        "retouch": "Retouch {{count}}",
-        "heal": "Heal {{count}}",
-        "aiEdit_one": "AI Edit {{count}}",
-        "quickErase_one": "Quick Erase {{count}}",
-        "quickErase_other": "Quick Erase {{count}}",
-        "liquify": "Liquify {{count}}",
-        "aiEdit": "AI Edit {{count}}",
-        "liquify_one": "Liquify {{count}}",
-        "quickErase": "Quick Erase {{count}}",
-        "aiEdit_other": "AI Edit {{count}}",
-        "heal_other": "Heal {{count}}",
-        "clone_other": "Clone {{count}}",
-        "heal_one": "Heal {{count}}",
-        "clone_one": "Clone {{count}}"
-      },
-      "resetInpaintingTooltip": "Reset Inpainting",
-      "noImageSelected": "No image selected.",
-      "editSettingsTitle": "Edit Settings",
-      "liquify": {
-        "modes": {
-          "pinch": "Pinch",
-          "push": "Push",
-          "twirl": "Twirl",
-          "expand": "Expand"
-        },
-        "mode": "Liquify Mode"
-      },
-      "createNewTitle": "Create New Generative Edit",
-      "comingSoon": "Coming Soon",
-      "createNewTooltip": "Create New {{name}} Edit",
-      "inpaintingTitle": "Inpainting",
-      "editsTitle": "Edits",
-      "actions": {
-        "deleteEdit": "Delete Edit",
-        "showEdit": "Show Edit",
-        "switchToIntersect": "Switch to Intersect",
-        "duplicateAndInvertEdit": "Duplicate and Invert Edit",
-        "pasteEdit": "Paste Edit",
-        "copyEdit": "Copy Edit",
-        "addNewComponent": "Add New Component",
-        "resetSelection": "Reset Selection",
-        "pasteComponent": "Paste Component",
-        "hideEdit": "Hide Edit",
-        "switchToAdd": "Switch to Add",
-        "duplicateComponent": "Duplicate Component",
-        "duplicateAndInvertComponent": "Duplicate and Invert Component",
-        "intersectEditWith": "Intersect Edit with",
-        "copyComponent": "Copy Component",
-        "rename": "Rename",
-        "deleteComponent": "Delete Component",
-        "duplicateEdit": "Duplicate Edit",
-        "subtractFromEdit": "Subtract from Edit",
-        "switchToSubtract": "Switch to Subtract"
-      },
-      "params": {
-        "grow": "Grow",
-        "feather": "Feather",
-        "pressure": "Pressure",
-        "intensity": "Intensity"
-      },
-      "connection": {
-        "proRequiredDesc": "Pro subscription required. Upgrade in Settings.",
-        "builtinDesc": "Using basic local CPU. Select Cloud or AI Connector in settings for generative replace.",
-        "notLoggedIn": "Not Logged In",
-        "monthlyUsage": "Monthly Usage",
-        "ready": "Ready",
-        "cloudLabel": "Cloud AI:",
-        "connectorLabel": "AI Connector:",
-        "connectorDisconnectedDesc": "Only simple inpainting available. Start your local backend.",
-        "connectorConnectedDesc": "Connected to local generative backend.",
-        "builtinLabel": "Built-in AI:",
-        "upgradeRequired": "Upgrade Required",
-        "backendLabel": "AI Backend:",
-        "notDetected": "Not Detected",
-        "loginRequiredDesc": "Log in via Settings to use Cloud AI."
-      },
-      "manualCleanupTitle": "Manual Cleanup",
-      "brush": {
-        "add": "Add",
-        "feather": "Brush Feather",
-        "erase": "Erase",
-        "size": "Brush Size"
-      },
-      "addNewEdit": "Add New Edit",
-      "dropzoneText": "Drop here to create a new edit",
-      "generativeEditTitle": "Generative Edit",
-      "generatingDepthMap": "Calculating AI Depth Map...",
-      "settings": {
-        "inpaintSelectionButton": "Inpaint Selection",
-        "invertComponent": "Invert Component",
-        "basicInpaintTooltipEnabled": "Basic inpainting is quicker but not generative. Uncheck to use Generative AI with a text prompt.",
-        "cancelGeneration": "Cancel Generation",
-        "generateWithAiButton": "Generate with AI",
-        "fastInpaintDesc": "Fill selection based on surrounding pixels.",
-        "generating": "Generating...",
-        "aiModelDownloading": "AI Model Downloading: ",
-        "generativeReplaceTitle": "Generative Replace",
-        "useBasicInpaint": "Use basic inpainting",
-        "invertSelection": "Invert Selection",
-        "selectionPropertiesTitle": "Selection Properties",
-        "generativeDesc": "Describe what you want to generate in the selected area.",
-        "quickEraseDesc": "Fill selection to remove the object.",
-        "basicInpaintTooltipDisabled": "Generative backend not available or not configured. Basic inpainting is required.",
-        "placeholder": "e.g., a field of flowers",
-        "downloading": "Downloading: ",
-        "componentPropertiesTitle": "{{name}} Properties"
-      }
-    },
-    "presets": {
-      "types": {
-        "tool": "Tool",
-        "style": "Style",
-        "preset": "Preset",
-        "folder": "Folder"
-      },
-      "dialog": {
-        "rapidRawPreset": "RapidRAW Preset",
-        "allPresetFiles": "All Preset Files",
-        "exportTitle": "Export {{type}}",
-        "importPresetsTitle": "Import Presets",
-        "legacyPreset": "Legacy Preset",
-        "exportAllTitle": "Export All Presets",
-        "presetFile": "Preset File"
-      },
-      "search": "Search presets or groups",
-      "supports": {
-        "label": "Supports {{features}}",
-        "masks": "Masks",
-        "cropTransform": "Crop & Transform"
-      },
-      "favorites": "Favorites",
-      "xmpSaved": "XMP preset saved",
-      "amount": "Amount",
-      "tooltips": {
-        "saveNew": "Save as new preset",
-        "export": "Export all presets to .rrpreset file",
-        "import": "Import presets from .rrpreset file",
-        "unfavorite": "Remove from favorites",
-        "explore": "Explore Community Presets",
-        "favorite": "Add to favorites"
-      },
-      "lightroomXmp": "Export Lightroom XMP…",
-      "compatibleOnly": "Compatible only",
-      "newXmp": "Save new XMP preset (Ctrl+Shift+N)",
-      "menu": {
-        "deletePreset": "Delete Preset",
-        "configurePreset": "Configure Preset",
-        "deleteFolder": "Delete Folder",
-        "exportFolder": "Export Folder",
-        "renameFolder": "Rename Folder",
-        "sortAll": "Sort All Alphabetically",
-        "newPreset": "New Preset",
-        "newFolder": "New Folder",
-        "overwrite": "Overwrite",
-        "exportPreset": "Export Preset",
-        "duplicatePreset": "Duplicate Preset"
-      },
-      "title": "Presets",
-      "status": {
-        "getCommunity": "Get Community Presets",
-        "loading": "Loading Presets...",
-        "empty": "No presets saved yet. Create your own, import from a file, or explore community presets."
-      },
-      "xmpExportLimited": "Saved XMP. These settings are preserved for RapidRoom only: {{keys}}. Lightroom rendering may differ."
-    },
-    "metadata": {
-      "emptyClickToAdd": "Empty (Click to add)",
-      "fields": {
-        "comments": "Comments",
-        "copyright": "Copyright",
-        "author": "Author",
-        "title": "Title"
-      },
-      "gps": {
-        "latitude": "Latitude",
-        "longitude": "Longitude",
-        "title": "GPS Location",
-        "altitude": "Altitude",
-        "clickToOpenTooltip": "Click to open map in a new tab"
-      },
-      "clickToEdit": "Click to edit",
-      "organization": {
-        "none": "None",
-        "tags": "Tags",
-        "noTags": "No tags",
-        "colorLabel": "Color Label",
-        "rating": "Rating",
-        "ratingLabels": "Rating & Labels",
-        "addTagPlaceholder": "Add tag...",
-        "title": "Organization"
-      },
-      "extendedExif": {
-        "title": "Extended EXIF"
-      },
-      "copy": "Copy",
-      "copied": "Copied",
-      "title": "Metadata",
-      "author": {
-        "title": "Author & Copyright",
-        "creatorDetails": "Creator Details"
-      },
-      "camera": {
-        "aperture": "Aperture",
-        "focalLength": "Focal Length",
-        "lens": "Lens",
-        "title": "Camera Details",
-        "shutterSpeed": "Shutter Speed",
-        "iso": "ISO"
-      },
-      "fileInfo": {
-        "virtualCopy": "Virtual Copy",
-        "emptyDimensions": "- × - px",
-        "dimensionsNoMp": "{{width}} × {{height}} px",
-        "dimensions": "{{width}} × {{height}} px • {{megapixels}} MP",
-        "title": "File Information"
-      }
-    },
-    "referenceView": {
-      "chooseHint": "Click a photo in the filmstrip to use it as the reference.",
-      "replace": "Choose another reference",
-      "readOnly": "Read-only",
-      "unavailable": "Reference image unavailable",
-      "active": "Active",
-      "clear": "Clear reference",
-      "reference": "Reference",
-      "cancel": "Cancel",
-      "close": "Close reference view"
-    },
-    "toolbar": {
-      "tooltips": {
-        "undo": "Undo (Ctrl+Z) or History (Right-click)",
-        "focalLength": "Focal Length",
-        "showEdited": "Show Edited (B)",
-        "referenceView": "Reference View (Shift+R)",
-        "aperture": "Aperture",
-        "iso": "ISO",
-        "shutterSpeed": "Shutter Speed",
-        "showOriginal": "Show Original (B)",
-        "redo": "Redo (Ctrl+Y) or History (Right-click)",
-        "fullscreen": "Toggle Fullscreen (F)",
-        "backToLibrary": "Back to Library"
-      },
-      "switchToVariant": "Switch to {{label}}",
-      "vc": "VC"
-    },
-    "guided": {
-      "drawingActive": "Drawing Active",
-      "hint": "Draw along edges in your photo that should be vertical or horizontal.",
-      "cancel": "Cancel",
-      "linesStatus": "Active Guide Lines",
-      "toast": {
-        "maxLines": "Maximum 2 vertical and 2 horizontal lines allowed",
-        "angleRejected": "Line angle is too far from horizontal or vertical"
+        "compositionOverlay": "Composition Overlay",
+        "flipHoriz": "Flip image horizontally",
+        "flipVert": "Flip image vertically",
+        "lens": "Lens distortion correction",
+        "overlayDetails": "Overlay: {{name}}{{rotateHint}}",
+        "resetFineRotation": "Reset Fine Rotation",
+        "rotateHint": " (Shift+O to rotate)",
+        "rotateLeft": "Rotate 90° counter-clockwise",
+        "rotateRight": "Rotate 90° clockwise",
+        "straighten": "Straighten Tool (S)",
+        "switchOrientation": "Switch orientation",
+        "switchToLandscape": "Switch to landscape",
+        "switchToPortrait": "Switch to portrait",
+        "transform": "Perspective and keystone correction"
       }
     },
     "externalEdit": {
       "done": "Done",
       "exporting": "Exporting…",
       "savesTo": "External edit — saves to"
-    }
+    },
+    "guided": {
+      "cancel": "Cancel",
+      "drawingActive": "Drawing Active",
+      "hint": "Draw along edges in your photo that should be vertical or horizontal.",
+      "linesStatus": "Active Guide Lines",
+      "toast": {
+        "angleRejected": "Line angle is too far from horizontal or vertical",
+        "maxLines": "Maximum 2 vertical and 2 horizontal lines allowed"
+      }
+    },
+    "layout": {
+      "split": "Split"
+    },
+    "masks": {
+      "actions": {
+        "addNewComponent": "Add New Component",
+        "applyPreset": "Apply Preset",
+        "copyComponent": "Copy Component",
+        "copyMask": "Copy Mask",
+        "deleteComponent": "Delete Component",
+        "deleteMask": "Delete Mask",
+        "duplicateAndInvertComponent": "Duplicate and Invert Component",
+        "duplicateAndInvertMask": "Duplicate and Invert Mask",
+        "duplicateComponent": "Duplicate Component",
+        "duplicateMask": "Duplicate Mask",
+        "hideComponent": "Hide Component",
+        "hideMask": "Hide Mask",
+        "intersectMaskWith": "Intersect Mask with",
+        "noPresets": "No presets",
+        "pasteComponent": "Paste Component",
+        "pasteMask": "Paste Mask",
+        "pasteMaskAdjustments": "Paste Mask Adjustments",
+        "rename": "Rename",
+        "resetMaskAdjustments": "Reset Mask Adjustments",
+        "showComponent": "Show Component",
+        "showMask": "Show Mask",
+        "subtractFromMask": "Subtract from Mask",
+        "switchToAdd": "Switch to Add",
+        "switchToIntersect": "Switch to Intersect",
+        "switchToSubtract": "Switch to Subtract"
+      },
+      "addNewMask": "Add New Mask",
+      "aiTitle": "AI Selections",
+      "basicTitle": "Basic Tools",
+      "brush": {
+        "brush": "Brush",
+        "eraser": "Eraser",
+        "feather": "Brush Feather",
+        "flow": "Flow",
+        "size": "Brush Size"
+      },
+      "comingSoon": "Coming Soon",
+      "depthRange": {
+        "far": "Far",
+        "near": "Near",
+        "reset": "Reset",
+        "title": "Depth Range"
+      },
+      "dropzoneText": "Drop here to create a new mask",
+      "maskAdjustmentsTitle": "Mask Adjustments",
+      "maskingTitle": "Masking",
+      "masksTitle": "Masks",
+      "params": {
+        "feather": "Feather",
+        "globalFeather": "Global Feather",
+        "grow": "Grow",
+        "tolerance": "Tolerance"
+      },
+      "patches": {
+        "copyName": "{{name}} Copy",
+        "invertedName": "{{name}} Inverted",
+        "maskName": "Mask {{count}}",
+        "maskName_one": "Mask {{count}}",
+        "maskName_other": "Mask {{count}}"
+      },
+      "rangeTitle": "Ranges & Global",
+      "resetMaskingTooltip": "Reset Masking",
+      "settings": {
+        "aiModelDownloading": "AI Model Downloading: ",
+        "applyPreset": "Apply Preset",
+        "componentPropertiesTitle": "{{name}} Properties",
+        "copySectionSettings": "Copy {{section}} Settings",
+        "invertComponent": "Invert Component",
+        "invertMask": "Invert Mask",
+        "maskPropertiesTitle": "Mask Properties",
+        "noPresetsFound": "No presets found",
+        "opacity": "Opacity",
+        "pasteSectionSettings": "Paste {{section}} Settings",
+        "pasteSettings": "Paste Settings",
+        "resetSectionSettings": "Reset {{section}} Settings",
+        "select": "Select",
+        "selectPresetTooltip": "Select a preset to apply"
+      },
+      "toggleAnalyticsInAdjustments": "Toggle analytics in Adjustments panel",
+      "toggleAnalyticsTooltip": "Toggle Analytics Display",
+      "tooltips": {
+        "addToCurrent": "Add {{name}} to Current Mask or Create New (Right-click)",
+        "createNew": "Create New {{name}} Mask",
+        "selectNewSourcePoint": "{{modifier}} + Click to select a new source point"
+      }
+    },
+    "metadata": {
+      "author": {
+        "creatorDetails": "Creator Details",
+        "title": "Author & Copyright"
+      },
+      "camera": {
+        "aperture": "Aperture",
+        "focalLength": "Focal Length",
+        "iso": "ISO",
+        "lens": "Lens",
+        "shutterSpeed": "Shutter Speed",
+        "title": "Camera Details"
+      },
+      "clickToEdit": "Click to edit",
+      "copied": "Copied",
+      "copy": "Copy",
+      "emptyClickToAdd": "Empty (Click to add)",
+      "extendedExif": {
+        "title": "Extended EXIF"
+      },
+      "fields": {
+        "author": "Author",
+        "comments": "Comments",
+        "copyright": "Copyright",
+        "title": "Title"
+      },
+      "fileInfo": {
+        "dimensions": "{{width}} × {{height}} px • {{megapixels}} MP",
+        "dimensionsNoMp": "{{width}} × {{height}} px",
+        "emptyDimensions": "- × - px",
+        "title": "File Information",
+        "virtualCopy": "Virtual Copy"
+      },
+      "gps": {
+        "altitude": "Altitude",
+        "clickToOpenTooltip": "Click to open map in a new tab",
+        "latitude": "Latitude",
+        "longitude": "Longitude",
+        "title": "GPS Location"
+      },
+      "organization": {
+        "addTagPlaceholder": "Add tag...",
+        "colorLabel": "Color Label",
+        "noTags": "No tags",
+        "none": "None",
+        "rating": "Rating",
+        "ratingLabels": "Rating & Labels",
+        "tags": "Tags",
+        "title": "Organization"
+      },
+      "title": "Metadata"
+    },
+    "presets": {
+      "amount": "Amount",
+      "dialog": {
+        "allPresetFiles": "All Preset Files",
+        "exportAllTitle": "Export All Presets",
+        "exportTitle": "Export {{type}}",
+        "importPresetsTitle": "Import Presets",
+        "legacyPreset": "Legacy Preset",
+        "presetFile": "Preset File",
+        "rapidRawPreset": "RapidRAW Preset"
+      },
+      "favorites": "Favorites",
+      "menu": {
+        "configurePreset": "Configure Preset",
+        "deleteFolder": "Delete Folder",
+        "deletePreset": "Delete Preset",
+        "duplicatePreset": "Duplicate Preset",
+        "exportFolder": "Export Folder",
+        "exportPreset": "Export Preset",
+        "newFolder": "New Folder",
+        "newPreset": "New Preset",
+        "overwrite": "Overwrite",
+        "renameFolder": "Rename Folder",
+        "sortAll": "Sort All Alphabetically"
+      },
+      "status": {
+        "empty": "No presets saved yet. Create your own, import from a file, or explore community presets.",
+        "getCommunity": "Get Community Presets",
+        "loading": "Loading Presets..."
+      },
+      "supports": {
+        "cropTransform": "Crop & Transform",
+        "label": "Supports {{features}}",
+        "masks": "Masks"
+      },
+      "title": "Presets",
+      "tooltips": {
+        "explore": "Explore Community Presets",
+        "export": "Export all presets to .rrpreset file",
+        "favorite": "Add to favorites",
+        "import": "Import presets from .rrpreset file",
+        "saveNew": "Save as new preset",
+        "unfavorite": "Remove from favorites"
+      },
+      "types": {
+        "folder": "Folder",
+        "preset": "Preset",
+        "style": "Style",
+        "tool": "Tool"
+      },
+      "search": "Search presets or groups",
+      "compatibleOnly": "Compatible only",
+      "lightroomXmp": "Export Lightroom XMP…",
+      "newXmp": "Save new XMP preset (Ctrl+Shift+N)",
+      "xmpSaved": "XMP preset saved",
+      "xmpExportLimited": "Saved XMP. These settings are preserved for RapidRoom only: {{keys}}. Lightroom rendering may differ."
+    },
+    "referenceView": {
+      "active": "Active",
+      "cancel": "Cancel",
+      "chooseHint": "Click a photo in the filmstrip to use it as the reference.",
+      "clear": "Clear reference",
+      "close": "Close reference view",
+      "readOnly": "Read-only",
+      "reference": "Reference",
+      "replace": "Choose another reference",
+      "unavailable": "Reference image unavailable"
+    },
+    "switcher": {
+      "tooltips": {
+        "adjust": "Adjust",
+        "crop": "Crop",
+        "export": "Export",
+        "info": "Info",
+        "inpaint": "Inpaint",
+        "masks": "Masks",
+        "presets": "Presets",
+        "tethering": "Tethering"
+      }
+    },
+    "toolbar": {
+      "switchToVariant": "Switch to {{label}}",
+      "tooltips": {
+        "aperture": "Aperture",
+        "backToLibrary": "Back to Library",
+        "focalLength": "Focal Length",
+        "fullscreen": "Toggle Fullscreen (F)",
+        "iso": "ISO",
+        "redo": "Redo (Ctrl+Y) or History (Right-click)",
+        "referenceView": "Reference View (Shift+R)",
+        "showEdited": "Show Edited (B)",
+        "showOriginal": "Show Original (B)",
+        "shutterSpeed": "Shutter Speed",
+        "undo": "Undo (Ctrl+Z) or History (Right-click)"
+      },
+      "vc": "VC"
+    },
+    "embeddedPreviewWarning": "RAW development failed; showing the embedded preview instead."
   },
   "library": {
     "folders": {

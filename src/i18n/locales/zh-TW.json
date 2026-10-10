@@ -848,7 +848,8 @@
         "undo": "復原（Ctrl+Z）或歷史記錄（右鍵單擊）"
       },
       "vc": "VC"
-    }
+    },
+    "embeddedPreviewWarning": "RAW 顯影失敗；目前顯示內嵌預覽。"
   },
   "export": {
     "advanced": {
