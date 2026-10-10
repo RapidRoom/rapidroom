@@ -15,7 +15,20 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Bring your Lightroom collections along:** import collection sets and collections from a catalog
 - **Rename photos, not just files.** RAW+JPEG pairs and all their sidecars move together, bursts number in shooting order, and you see every new name before anything changes, with undo.
 - **Reference View like Lightroom.** Pin one photo next to the one you are editing, then match the look while you move through the filmstrip.
+- **Pick and reject flags for culling,** separate from stars: P, X and U as in Lightroom, a flag filter, and rejects that darktable, Bridge and Lightroom understand.
+- **Presets at your fingertips.** Presets sit in the left sidebar as compact rows: hover to preview one on your photo, click to apply, and star favorites to pin them on top.
+- **Lights Out, Lightroom-style.** Press L to dim everything but the photo, again for pure black, Escape to come back. Good for judging night shots.
+- **Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains.
+- **More sliders on a laptop screen.** An optional compact layout puts each slider's label, track and value on one line, so more controls fit without scrolling.
+- **Lens profiles that actually fit.** Distortion and vignetting from the Lensfun database are applied the way Lensfun defines them, including full frame lenses on APS-C bodies.
+- **Export for Instagram and print.** Built-in Instagram 4:5, 1:1 and 1.91:1 presets, optional output sharpening for screen or print, and `--preset` to use any export preset from the command line.
 - **A white balance picker you can trust.** It reads the untouched raw data, averages a square or a dragged area, and shows a live preview before you click, which helps with mixed-light night shots.
+- **Your keywords travel with your exports.** Tags you add show up as keywords in Lightroom, digiKam, photo sites and stock agencies.
+- **Browse memory cards safely:** read-only Card mode never writes to the card
+- **Star ratings you set in the camera show up in the library.**
+- **Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars.
+- **Bring your Lightroom edits along:** import XMP sidecars
+- **Sony camera aspect ratios are respected.** 4:3, square and 16:9 shots start with the camera framing, and you can expand the crop back to the full image.
 - **At home on Linux tiling desktops.** The native title bar works with Wayland compositors like Hyprland instead of fighting them.
 - **Colour-managed exports.** JPEG, PNG and TIFF files carry an sRGB profile, so browsers, other apps and print labs show your colours as intended.
 - **Sony lossless M/S and Canon mRAW/sRAW raws open correctly**, without the green borders upstream still shows.
@@ -23,21 +36,8 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Your edits are safer.** Edits are saved crash-safe, a damaged mask no longer wipes out the others, and a corrupt panel layout no longer resets your settings.
 - **Keyboard-friendly.** You can always see where keyboard focus is when you Tab through the app.
 - **Reliable batch exports.** Large exports no longer slip another photo into some images, and colour and luminance masks now apply correctly when exporting.
-- **Your keywords travel with your exports.** Tags you add show up as keywords in Lightroom, digiKam, photo sites and stock agencies.
-- **Browse memory cards safely:** read-only Card mode never writes to the card
-- **Star ratings you set in the camera show up in the library.**
-- **Faster culling:** rate with 0–5 and jump straight to the next photo, and filter for exactly N stars.
-- **Bring your Lightroom edits along:** import XMP sidecars
-- **Pick and reject flags for culling,** separate from stars: P, X and U as in Lightroom, a flag filter, and rejects that darktable, Bridge and Lightroom understand.
-- **Presets at your fingertips.** Presets sit in the left sidebar as compact rows: hover to preview one on your photo, click to apply, and star favorites to pin them on top.
-- **Lights Out, Lightroom-style.** Press L to dim everything but the photo, again for pure black, Escape to come back. Good for judging night shots.
-- **Targeted colour adjustment.** Pick Hue, Saturation or Luminance in the expanded Color Mixer, then drag up or down on a colour in the photo to change just the bands it contains.
-- **More sliders on a laptop screen.** An optional compact layout puts each slider's label, track and value on one line, so more controls fit without scrolling.
-- **Sony camera aspect ratios are respected.** 4:3, square and 16:9 shots start with the camera framing, and you can expand the crop back to the full image.
-- **Lens profiles that actually fit.** Distortion and vignetting from the Lensfun database are applied the way Lensfun defines them, including full frame lenses on APS-C bodies.
-- **Export for Instagram and print.** Built-in Instagram 4:5, 1:1 and 1.91:1 presets, optional output sharpening for screen or print, and `--preset` to use any export preset from the command line.
 
-79 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+80 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Lightroom import calibration
