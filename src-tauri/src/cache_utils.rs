@@ -44,26 +44,9 @@ fn hash_ai_patches(adjustments: &serde_json::Value, hasher: &mut DefaultHasher) 
             is_visible.hash(hasher);
 
             if let Some(patch_data) = patch.get("patchData") {
-                let color_len = patch_data
-                    .get("color")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .len();
-                color_len.hash(hasher);
-
-                let mask_len = patch_data
-                    .get("mask")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .len();
-                mask_len.hash(hasher);
+                patch_data.to_string().hash(hasher);
             } else {
-                let data_len = patch
-                    .get("patchDataBase64")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .len();
-                data_len.hash(hasher);
+                patch["patchDataBase64"].as_str().unwrap_or("").hash(hasher);
             }
 
             if let Some(sub_masks_val) = patch.get("subMasks") {
@@ -300,83 +283,7 @@ pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
     let flip_v = adjustments["flipVertical"].as_bool().unwrap_or(false);
     flip_v.hash(&mut hasher);
 
-    let effects_visible = adjustments
-        .get("sectionVisibility")
-        .and_then(|v| v.get("effects"))
-        .and_then(|s| s.as_bool())
-        .unwrap_or(true);
-
-    let blur_enabled = effects_visible && adjustments["lensBlurEnabled"].as_bool().unwrap_or(false);
-    blur_enabled.hash(&mut hasher);
-    if blur_enabled {
-        if let Some(val) = adjustments.get("lensBlurAmount") {
-            val.to_string().hash(&mut hasher);
-        }
-        if let Some(val) = adjustments.get("lensBlurDiffusion") {
-            val.to_string().hash(&mut hasher);
-        }
-        if let Some(val) = adjustments.get("lensBlurShape") {
-            val.as_str().unwrap_or("").hash(&mut hasher);
-        }
-        if let Some(val) = adjustments.get("lensBlurMinDepth") {
-            val.to_string().hash(&mut hasher);
-        }
-        if let Some(val) = adjustments.get("lensBlurMaxDepth") {
-            val.to_string().hash(&mut hasher);
-        }
-        if let Some(val) = adjustments.get("lensBlurMinFade") {
-            val.to_string().hash(&mut hasher);
-        }
-        if let Some(val) = adjustments.get("lensBlurMaxFade") {
-            val.to_string().hash(&mut hasher);
-        }
-        if let Some(val) = adjustments.get("lensBlurDepthMap") {
-            val.as_str().unwrap_or("").len().hash(&mut hasher);
-        }
-    }
-
-    let relight_enabled =
-        effects_visible && adjustments["relightEnabled"].as_bool().unwrap_or(false);
-    relight_enabled.hash(&mut hasher);
-    if relight_enabled {
-        for key in [
-            "relightLights",
-            "relightAmbient",
-            "relightSoftness",
-            "relightShine",
-            "relightShadows",
-            "relightShadowSoftness",
-        ] {
-            if let Some(val) = adjustments.get(key) {
-                val.to_string().hash(&mut hasher);
-            }
-        }
-        if let Some(val) = adjustments.get("relightNormalMap") {
-            val.as_str().unwrap_or("").len().hash(&mut hasher);
-        }
-    }
-
-    let fog_enabled = effects_visible && adjustments["fogEnabled"].as_bool().unwrap_or(false);
-    fog_enabled.hash(&mut hasher);
-    if fog_enabled {
-        for key in [
-            "fogAmount",
-            "fogStart",
-            "fogDensity",
-            "fogHeight",
-            "fogVariation",
-            "fogGlow",
-            "fogTemperature",
-            "fogTint",
-        ] {
-            if let Some(val) = adjustments.get(key) {
-                val.to_string().hash(&mut hasher);
-            }
-        }
-        if let Some(val) = adjustments.get("fogDepthMap") {
-            val.as_str().unwrap_or("").len().hash(&mut hasher);
-        }
-    }
+    calculate_effects_hash(adjustments).hash(&mut hasher);
 
     if let Some(crop_val) = adjustments.get("crop")
         && !crop_val.is_null()
@@ -508,7 +415,147 @@ pub fn clear_session_caches(state: tauri::State<AppState>) {
 
 #[cfg(test)]
 mod tests {
-    use super::calculate_image_cache_hash;
+    use super::*;
+    use base64::{Engine as _, engine::general_purpose};
+    use serde_json::{Value, json};
+
+    const RED_PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAD0lEQVR4AQEEAPv/AP8AAAMBAQCNHeWCAAAAAElFTkSuQmCC";
+    const BLUE_PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAD0lEQVR4AQEEAPv/AAAA/wEDAQB8wnTbAAAAAElFTkSuQmCC";
+
+    fn equal_length_pngs() -> (&'static str, &'static str) {
+        assert_eq!(RED_PNG.len(), BLUE_PNG.len());
+        for (encoded, expected) in [(RED_PNG, [255, 0, 0]), (BLUE_PNG, [0, 0, 255])] {
+            let bytes = general_purpose::STANDARD.decode(encoded).unwrap();
+            let image = image::load_from_memory(&bytes).unwrap().to_rgb8();
+            assert_eq!(image.dimensions(), (1, 1));
+            assert_eq!(image.get_pixel(0, 0).0, expected);
+        }
+        (RED_PNG, BLUE_PNG)
+    }
+
+    fn assert_patch_stages_invalidated(before: &Value, after: &Value) {
+        for (stage, hash) in [
+            ("patch", calculate_patch_hash as fn(&Value) -> u64),
+            ("geometry", calculate_geometry_hash),
+            ("patched/warped", calculate_patched_warped_hash),
+            ("transform", calculate_transform_hash),
+            ("thumbnail", calculate_thumbnail_base_hash),
+        ] {
+            assert_ne!(hash(before), hash(after), "stale {stage} cache");
+        }
+    }
+
+    #[test]
+    fn equal_length_effect_maps_invalidate_transformed_and_downstream_caches() {
+        let (red, blue) = equal_length_pngs();
+        for (enabled, map) in [
+            ("lensBlurEnabled", "lensBlurDepthMap"),
+            ("fogEnabled", "fogDepthMap"),
+            ("relightEnabled", "relightNormalMap"),
+        ] {
+            let mut before = json!({});
+            before[enabled] = json!(true);
+            before[map] = json!(format!("data:image/png;base64,{red}"));
+            let mut after = before.clone();
+            after[map] = json!(format!("data:image/png;base64,{blue}"));
+            assert_eq!(before.to_string().len(), after.to_string().len());
+
+            for hash in [
+                calculate_effects_hash as fn(&Value) -> u64,
+                calculate_transform_hash,
+                calculate_patched_warped_hash,
+                calculate_thumbnail_base_hash,
+            ] {
+                assert_ne!(hash(&before), hash(&after), "stale {map} cache");
+            }
+            assert_eq!(calculate_patch_hash(&before), calculate_patch_hash(&after));
+            assert_eq!(
+                calculate_geometry_hash(&before),
+                calculate_geometry_hash(&after)
+            );
+        }
+    }
+
+    #[test]
+    fn regenerated_same_id_equal_length_patch_invalidates_every_dependent_stage() {
+        let (red, blue) = equal_length_pngs();
+        for field in ["color", "mask", "legacy"] {
+            let mut before = json!({"aiPatches": [{
+                "id": "same-patch", "visible": true,
+                "patchData": {"color": red, "mask": red},
+            }]});
+            if field == "legacy" {
+                before["aiPatches"][0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("patchData");
+                before["aiPatches"][0]["patchDataBase64"] = json!(red);
+            }
+            let mut after = before.clone();
+            if field == "legacy" {
+                after["aiPatches"][0]["patchDataBase64"] = json!(blue);
+            } else {
+                after["aiPatches"][0]["patchData"][field] = json!(blue);
+            }
+            assert_eq!(before.to_string().len(), after.to_string().len());
+            assert_patch_stages_invalidated(&before, &after);
+
+            // Another spatial edit invalidates the outer cache, but must also
+            // rebuild the patched and warped images from the replacement data.
+            before["rotation"] = json!(15);
+            after["rotation"] = json!(15);
+            assert_patch_stages_invalidated(&before, &after);
+        }
+    }
+
+    #[test]
+    fn patch_placement_and_encoding_changes_invalidate_dependent_stages() {
+        let before = json!({"aiPatches": [{
+            "id": "same-patch", "patchData": {
+                "color": RED_PNG, "mask": RED_PNG,
+                "offsetX": 0, "offsetY": 0, "width": 1, "height": 1,
+                "isSrgbEncoded": false,
+            },
+        }]});
+        for field in ["offsetX", "offsetY", "width", "height", "isSrgbEncoded"] {
+            let mut after = before.clone();
+            after["aiPatches"][0]["patchData"][field] = if field == "isSrgbEncoded" {
+                json!(true)
+            } else {
+                json!(2)
+            };
+            assert_patch_stages_invalidated(&before, &after);
+        }
+    }
+
+    #[test]
+    fn disabled_or_hidden_effect_maps_do_not_invalidate_spatial_caches() {
+        for (enabled, map) in [
+            ("lensBlurEnabled", "lensBlurDepthMap"),
+            ("fogEnabled", "fogDepthMap"),
+            ("relightEnabled", "relightNormalMap"),
+        ] {
+            for hidden in [false, true] {
+                let mut before = json!({"sectionVisibility": {"effects": !hidden}});
+                before[enabled] = json!(hidden);
+                before[map] = json!(RED_PNG);
+                let mut after = before.clone();
+                after[map] = json!(BLUE_PNG);
+                assert_eq!(
+                    calculate_effects_hash(&before),
+                    calculate_effects_hash(&after)
+                );
+                assert_eq!(
+                    calculate_transform_hash(&before),
+                    calculate_transform_hash(&after)
+                );
+                assert_eq!(
+                    calculate_thumbnail_base_hash(&before),
+                    calculate_thumbnail_base_hash(&after)
+                );
+            }
+        }
+    }
 
     #[test]
     fn virtual_copies_have_distinct_renderer_cache_identity() {
