@@ -1527,6 +1527,7 @@ pub fn write_image_with_metadata(
         },
         "tiff" => FileExtension::TIFF,
         "webp" => FileExtension::WEBP,
+        "jxl" => FileExtension::JXL,
         _ => return Ok(()),
     };
 
@@ -2331,6 +2332,46 @@ mod xmp_keyword_tests {
         assert_eq!(jpeg_xmp_insert_pos(&bytes), xmp_pos - 4);
         assert!(find(&bytes, b"<rdf:li>Tom &amp; Jerry</rdf:li>").is_some());
         image::load_from_memory_with_format(&bytes, ImageFormat::Jpeg).unwrap();
+    }
+
+    #[test]
+    fn jxl_export_preserves_source_exif_in_container() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source.jpg");
+        let mut source_bytes = encode("jpg");
+        let mut source_metadata = Metadata::new();
+        source_metadata.set_tag(ExifTag::Make("Sony".to_string()));
+        source_metadata
+            .write_to_vec(&mut source_bytes, FileExtension::JPEG)
+            .unwrap();
+        fs::write(&source, source_bytes).unwrap();
+
+        let jxl_bytes = jxl_encoder::LosslessConfig::new()
+            .encode(&[200, 80, 40], 1, 1, jxl_encoder::PixelLayout::Rgb8)
+            .unwrap();
+        let mut output = jxl_bytes;
+        write_image_with_metadata(
+            &mut output,
+            source.to_str().unwrap(),
+            "jxl",
+            true,
+            false,
+            None,
+        )
+        .unwrap();
+
+        let output_metadata = Metadata::new_from_vec(&output, FileExtension::JXL).unwrap();
+        assert!(
+            output_metadata
+                .get_tag(&ExifTag::Make(String::new()))
+                .next()
+                .is_some()
+        );
+        let decoded = jxl_oxide::JxlImage::builder()
+            .read(Cursor::new(output.as_slice()))
+            .unwrap();
+        assert_eq!(decoded.num_loaded_keyframes(), 1);
+        decoded.render_frame(0).unwrap();
     }
 
     #[test]

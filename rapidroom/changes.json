@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "jxl-exif-metadata",
+      "title": "Preserve source EXIF metadata in JPEG XL exports",
+      "category": "fix",
+      "landed": "2026-10-10",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "JXL exports retain supported source EXIF in an ISO BMFF container when metadata preservation is enabled. The export panel exposes metadata and GPS controls for JXL."
+    },
+    {
       "id": "keyboard-command-palette",
       "title": "Find actions and edit sliders from a keyboard command palette",
       "category": "feature",
