@@ -12,6 +12,7 @@ import { INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
 import type { SelectedImage } from './AppProperties';
 import { registerAppActions } from '../../utils/appActions';
 import { debouncedSetHistory } from '../../hooks/useEditorActions';
+import { getOrientedDimensions, isCropWithinBounds } from '../../utils/cropUtils';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const initialEditor = useEditorStore.getState();
@@ -69,6 +70,72 @@ function type(value: string) {
 function key(key: string) {
   act(() => input().dispatchEvent(new KeyboardEvent('keydown', { key, code: key, bubbles: true })));
 }
+
+describe('reviewer regression proofs', () => {
+  it('typed shadows selects the Basic Shadows control', () => {
+    open();
+    type('shadows 20');
+    key('Enter');
+    expect(useEditorStore.getState().adjustments.shadows).toBe(20);
+    expect(useEditorStore.getState().adjustments.colorGrading.shadows.hue).toBe(0);
+  });
+  it('changing a parametric slider regenerates the rendered curve', () => {
+    act(() =>
+      useEditorStore.getState().setEditor({
+        adjustments: { ...useEditorStore.getState().adjustments, curveMode: 'parametric' },
+      }),
+    );
+    const originalCurve = useEditorStore.getState().adjustments.curves.luma;
+    open();
+    type('parametricCurve.luma.shadows 20');
+    key('Enter');
+    expect(useEditorStore.getState().adjustments.parametricCurve.luma.shadows).toBe(20);
+    expect(useEditorStore.getState().adjustments.curves.luma).not.toEqual(originalCurve);
+  });
+  it('parametric preview switches modes and preserves point curves for Undo', () => {
+    const original = useEditorStore.getState().adjustments;
+    open();
+    type('parametricCurve.luma.shadows 20');
+    act(() => vi.advanceTimersByTime(151));
+    const preview = useEditorStore.getState().previewOverride!;
+    expect(preview.curveMode).toBe('parametric');
+    expect(preview.pointCurves).toBe(original.curves);
+    expect(preview.curves.luma).not.toEqual(original.curves.luma);
+    expect(useEditorStore.getState().adjustments).toBe(original);
+    key('Enter');
+    expect(useEditorStore.getState().adjustments.curveMode).toBe('parametric');
+    expect(useEditorStore.getState().history).toHaveLength(2);
+    act(() => useEditorStore.getState().undo());
+    expect(useEditorStore.getState().adjustments).toEqual(original);
+  });
+  it.each([0, 1, 2, 3].flatMap((orientation) => [-45, -15, 15, 45].map((rotation) => [orientation, rotation])))(
+    'crop honors orientation %s and rotation %s',
+    (orientationSteps, rotation) => {
+      act(() =>
+        useEditorStore
+          .getState()
+          .setEditor({ adjustments: { ...useEditorStore.getState().adjustments, orientationSteps, rotation } }),
+      );
+      open();
+      type('crop 4:3');
+      key('Enter');
+      const { width, height } = getOrientedDimensions(6000, 4000, orientationSteps);
+      expect(isCropWithinBounds(useEditorStore.getState().adjustments.crop!, width, height, rotation)).toBe(true);
+    },
+  );
+  it('typed crop stays inside a rotated image', () => {
+    act(() =>
+      useEditorStore.getState().setEditor({
+        adjustments: { ...useEditorStore.getState().adjustments, rotation: 30 },
+      }),
+    );
+    open();
+    type('crop 4:3');
+    key('Enter');
+    const crop = useEditorStore.getState().adjustments.crop!;
+    expect(isCropWithinBounds(crop, 6000, 4000, 30)).toBe(true);
+  });
+});
 
 describe('keyboard palette editing', () => {
   it('sets typed Exposure and records one undoable action', () => {

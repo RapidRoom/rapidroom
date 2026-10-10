@@ -42,6 +42,31 @@ def run_palette_checks(smoke, wait_for, baseline):
     smoke.step('one Undo restores palette edit and pixels')
 
     open_palette()
+    type_query('shadows 20')
+    key('Enter')
+    wait_for(lambda: not shown() and smoke.slider('Shadows')['value']==20, 'typed Basic Shadows wins exact match')
+    undo()
+    time.sleep(0.3)
+    shadows_undo = smoke.stable_preview('palette-shadows-undo')
+    if ImageChops.difference(smoke.crop(baseline),smoke.crop(shadows_undo)).getbbox() is not None:
+        raise RuntimeError('Basic Shadows Undo failed to restore preview')
+    smoke.step('typed Shadows targets Basic control and Undo restores pixels')
+
+    open_palette()
+    type_query('parametricCurve.luma.shadows 20')
+    key('Enter')
+    wait_for(lambda: not shown(), 'typed parametric curve')
+    parametric = smoke.stable_preview('palette-parametric')
+    if ImageChops.difference(smoke.crop(baseline),smoke.crop(parametric)).getbbox() is None:
+        raise RuntimeError('Parametric slider failed to change rendered curve')
+    undo()
+    time.sleep(0.3)
+    parametric_undo = smoke.stable_preview('palette-parametric-undo')
+    if ImageChops.difference(smoke.crop(baseline),smoke.crop(parametric_undo)).getbbox() is not None:
+        raise RuntimeError('Parametric Undo failed to restore preview')
+    smoke.step('parametric curve updates real render and one Undo restores pixels')
+
+    open_palette()
     type_query('presence')
     aliases = smoke.execute("return [...document.querySelectorAll('[role=option]')].map(e=>e.textContent);")
     if not any('Clarity' in title for title in aliases) or not any('Structure' in title for title in aliases):

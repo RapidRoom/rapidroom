@@ -19,7 +19,7 @@ import {
 } from '../../utils/commandPalette';
 import type { Adjustments } from '../../utils/adjustments';
 import { Invokes, type Preset } from './AppProperties';
-import { calculateCenteredCrop } from '../../utils/cropUtils';
+import { calculateCenteredCrop, forceCropInBounds, getOrientedDimensions } from '../../utils/cropUtils';
 
 interface Entry {
   id: string;
@@ -205,7 +205,10 @@ export default function CommandPalette() {
     const typed = parseTypedValue(query);
     const typedEntries: Entry[] = typed
       ? controls
-          .filter((entry) => searchScore(typed.name, entry.title, entry.terms) >= 40)
+          .map((entry) => ({ entry, score: searchScore(typed.name, entry.title, entry.terms) }))
+          .filter(({ score }) => score >= 40)
+          .sort((a, b) => b.score - a.score)
+          .map(({ entry }) => entry)
           .map((entry) => {
             const p = entry.parameter!;
             const requested = typed.value + (typed.relative ? getParameterValue(editor.adjustments, p.id) : 0);
@@ -233,15 +236,14 @@ export default function CommandPalette() {
                 const photo = state.selectedImage;
                 if (!photo) return;
                 const aspectRatio = Number(crop[1]) / Number(crop[2]);
+                const orientation = state.adjustments.orientationSteps || 0;
+                const rotation = state.adjustments.rotation || 0;
+                const { width, height } = getOrientedDimensions(photo.width, photo.height, orientation);
+                const centered = calculateCenteredCrop(photo.width, photo.height, orientation, aspectRatio, rotation);
                 commit({
                   ...state.adjustments,
                   aspectRatio,
-                  crop: calculateCenteredCrop(
-                    photo.width,
-                    photo.height,
-                    state.adjustments.orientationSteps || 0,
-                    aspectRatio,
-                  ),
+                  crop: centered ? forceCropInBounds(centered, width, height, rotation) : null,
                 });
               },
             },
