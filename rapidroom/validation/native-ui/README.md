@@ -291,3 +291,14 @@ successful final run needed no retry; GUI actions and MCP calls are never
 silently retried.
 
 `--presets` checks Ctrl+Shift+N preset creation, grouped/name search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.
+
+## Optional command palette scenario
+
+Build normally and run `smoke.py --palette`. Public Ctrl+K and keyboard input
+set Exposure to 0.7; one Undo must restore the value and exact preview pixels.
+Search checks Lightroom Presence and Color Mixer aliases. Keyboard slider
+nudges preview without changing the actual slider, and Escape restores the
+pixels. A typed `crop 4:3` must alter the preview and be reversible in one Undo.
+The normal edit/Undo/Compact/export/clean-exit smoke follows. No model requests,
+React store fixtures or private photos are used. Physical input and other
+platforms remain untested.
