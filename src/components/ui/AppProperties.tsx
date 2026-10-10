@@ -195,6 +195,7 @@ export interface FolderTreeSort {
 export enum Theme {
   Arctic = 'arctic',
   Blue = 'blue',
+  Classic = 'classic',
   Dark = 'dark',
   Grey = 'grey',
   Light = 'light',
@@ -275,6 +276,8 @@ export interface AppSettings {
   activeWaveformChannel?: string;
   useWgpuRenderer?: boolean;
   editorNeutralGreyBg?: boolean;
+  /** Editor surround; `undefined` retains the pre-Classic theme/neutral-grey behaviour. */
+  editorCanvasBackground?: 'theme' | 'black' | 'dark-grey' | 'mid-grey' | 'white';
   canvasInputMode?: 'mouse' | 'trackpad';
   zoomSpeedMultiplier?: number;
   zoomPhotoToPixelClick?: boolean;

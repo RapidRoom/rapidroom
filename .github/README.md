@@ -12,6 +12,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 
 <!-- rapidroom-changes:start -->
 
+- Classic adds a compact Lightroom-like dark workspace with a blue accent and selectable editor surrounds.
 - **Bring your Lightroom collections along:** import collection sets and collections from a catalog
 - **Rename photos, not just files.** RAW+JPEG pairs and all their sidecars move together, bursts number in shooting order, and you see every new name before anything changes, with undo.
 - **Reference View like Lightroom.** Pin one photo next to the one you are editing, then match the look while you move through the filmstrip.
@@ -37,7 +38,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Lens profiles that actually fit.** Distortion and vignetting from the Lensfun database are applied the way Lensfun defines them, including full frame lenses on APS-C bodies.
 - **Export for Instagram and print.** Built-in Instagram 4:5, 1:1 and 1.91:1 presets, optional output sharpening for screen or print, and `--preset` to use any export preset from the command line.
 
-78 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+79 improvements on top of RapidRAW so far, including fixes for 18 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Lightroom import calibration
