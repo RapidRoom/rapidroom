@@ -238,6 +238,22 @@ impl<'a> Document<'a> {
         })
     }
 
+    fn about(&self, index: usize) -> Option<&str> {
+        self.nodes[index]
+            .attributes
+            .iter()
+            .find(|a| a.name.contains(':') && self.matches(index, &a.name, RDF, "about"))
+            .map(|a| a.value.as_str())
+    }
+
+    fn image_descriptions(&self) -> impl Iterator<Item = usize> + '_ {
+        let first = self.descriptions().next();
+        let about = first.and_then(|i| self.about(i));
+        self.descriptions().filter(move |&i| {
+            Some(i) == first || about.is_some_and(|value| self.about(i) == Some(value))
+        })
+    }
+
     fn children<'b>(
         &'b self,
         parent: usize,
@@ -273,7 +289,7 @@ impl<'a> Document<'a> {
     }
 
     fn scalar(&self, local: &str) -> Option<String> {
-        for i in self.descriptions() {
+        for i in self.image_descriptions() {
             for a in &self.nodes[i].attributes {
                 if a.name.contains(':') && self.matches(i, &a.name, XMP, local) {
                     return Some(a.value.clone());
@@ -323,7 +339,7 @@ pub(crate) fn metadata(content: &str) -> Metadata {
         return Metadata::default();
     };
     let mut tags = Vec::new();
-    for description in doc.descriptions() {
+    for description in doc.image_descriptions() {
         for subject in doc.children(description, DC, "subject") {
             for bag in doc.children(subject, RDF, "Bag") {
                 for li in doc.children(bag, RDF, "li") {
@@ -366,19 +382,21 @@ pub(crate) fn update(
     let (dc, dc_ns) = doc.prefix(index, "dc", DC);
     let (rdf, rdf_ns) = doc.prefix(index, "rdf", RDF);
     let mut edits: Vec<(Range<usize>, String)> = Vec::new();
-    for a in &n.attributes {
-        if a.name.contains(':')
-            && ["Rating", "Label"]
-                .iter()
-                .any(|local| doc.matches(index, &a.name, XMP, local))
-        {
-            edits.push((a.range.clone(), String::new()));
+    for description in doc.image_descriptions() {
+        for a in &doc.nodes[description].attributes {
+            if a.name.contains(':')
+                && ["Rating", "Label"]
+                    .iter()
+                    .any(|local| doc.matches(description, &a.name, XMP, local))
+            {
+                edits.push((a.range.clone(), String::new()));
+            }
         }
-    }
-    for (uri, local) in [(XMP, "Rating"), (XMP, "Label"), (DC, "subject")] {
-        for i in doc.children(index, uri, local) {
-            let node = &doc.nodes[i];
-            edits.push((node.start.start..node.end.end, String::new()));
+        for (uri, local) in [(XMP, "Rating"), (XMP, "Label"), (DC, "subject")] {
+            for i in doc.children(description, uri, local) {
+                let node = &doc.nodes[i];
+                edits.push((node.start.start..node.end.end, String::new()));
+            }
         }
     }
     let mut attributes = xmp_ns;
@@ -444,6 +462,49 @@ mod tests {
             update(&result, 4, Some("Red & <gold>"), &tags).unwrap(),
             result
         );
+    }
+
+    #[test]
+    fn replaces_and_removes_metadata_across_same_subject_descriptions() {
+        let nested = "<f:item><rdf:Description rdf:about='' xmp:Label='nested'/></f:item>";
+        let foreign = "<rdf:Description rdf:about='other' xmp:Rating='1' xmp:Label='foreign'><dc:subject><rdf:Bag><rdf:li>foreign tag</rdf:li></rdf:Bag></dc:subject></rdf:Description>";
+        let source = format!(
+            "<rdf:RDF xmlns:rdf='{RDF}' xmlns:xmp='{XMP}' xmlns:dc='{DC}' xmlns:f='urn:foreign'><rdf:Description rdf:about='' xmp:Rating='2'/><rdf:Description rdf:about='' xmp:Label='Red' f:keep='yes'><dc:subject><rdf:Bag><rdf:li>old</rdf:li></rdf:Bag></dc:subject>{nested}</rdf:Description><rdf:Description rdf:about=''><xmp:Rating>3</xmp:Rating><xmp:Label>Blue</xmp:Label><dc:subject><rdf:Bag><rdf:li>second</rdf:li></rdf:Bag></dc:subject></rdf:Description>{foreign}</rdf:RDF>"
+        );
+        assert_eq!(metadata(&source).tags, ["old", "second"]);
+        for label in [Some("Gold & green"), None] {
+            for tags in [vec!["new & tag".into()], Vec::new()] {
+                let updated = update(&source, 5, label, &tags).unwrap();
+                let actual = metadata(&updated);
+                assert_eq!(actual.rating, Some(5));
+                assert_eq!(actual.label.as_deref(), label);
+                assert_eq!(actual.tags, tags);
+                assert!(updated.contains(nested));
+                assert!(updated.contains(foreign));
+                assert!(updated.contains("f:keep='yes'"));
+                assert_eq!(update(&updated, 5, label, &tags).unwrap(), updated);
+            }
+        }
+    }
+
+    #[test]
+    fn scopes_image_metadata_by_decoded_rdf_subject() {
+        let source = format!(
+            "<r:RDF xmlns:r='{RDF}' xmlns:a='{XMP}' xmlns:d='{DC}'><r:Description r:about='photo&amp;one'/><r:Description r:about='photo&#38;one' a:Label='Red'><d:subject><r:Bag><r:li>old</r:li></r:Bag></d:subject></r:Description><r:Description r:about='other' a:Label='other'/></r:RDF>"
+        );
+        assert_eq!(metadata(&source).label.as_deref(), Some("Red"));
+        let result = update(&source, 4, None, &[]).unwrap();
+        assert_eq!(metadata(&result).rating, Some(4));
+        assert_eq!(metadata(&result).label, None);
+        assert!(metadata(&result).tags.is_empty());
+        assert!(result.contains("r:about='other' a:Label='other'"));
+
+        let anonymous = format!(
+            "<r:RDF xmlns:r='{RDF}' xmlns:a='{XMP}'><r:Description a:Label='first'/><r:Description a:Label='second'/></r:RDF>"
+        );
+        let result = update(&anonymous, 3, None, &[]).unwrap();
+        assert_eq!(metadata(&result).label, None);
+        assert!(result.contains("a:Label='second'"));
     }
 
     #[test]

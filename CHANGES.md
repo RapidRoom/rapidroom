@@ -102,7 +102,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Landed in RapidRoom:** 2026-10-07
 - **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
 - **Upstream:** not yet offered
-- **Notes:** Keyword and label entities round-trip, including Unicode and numeric references. Metadata updates handle self-closing RDF descriptions and declare missing namespaces while preserving foreign attributes and nested content. XMP reads require regular files up to16MiB; parsing refuses DOCTYPE, excessive depth and node counts. Malformed sidecars are backed up to exclusive .bak names before repair; backup failures and safety-limit refusals leave the original untouched. Existing reject, virtual-copy and Card protection semantics are retained. Default rendering is unchanged.
+- **Notes:** Keyword and label entities round-trip, including Unicode and numeric references. Metadata reads and updates consistently scope the image RDF subject; clearing/replacing rating, label and keywords removes stale fields from every same-subject description while preserving unrelated subjects. Metadata updates handle self-closing RDF descriptions and declare missing namespaces while preserving foreign attributes and nested content. XMP reads require regular files up to16MiB; parsing refuses DOCTYPE, excessive depth and node counts. Malformed sidecars are backed up to exclusive .bak names before repair; backup failures and safety-limit refusals leave the original untouched. Existing reject, virtual-copy and Card protection semantics are retained. Default rendering is unchanged.
 
 ### Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons
 
