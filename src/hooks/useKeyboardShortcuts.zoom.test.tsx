@@ -36,7 +36,15 @@ beforeEach(async () => {
     ...editor,
     selectedImage: { path: '/test.raw', isReady: true, width: 1000, height: 500 } as SelectedImage,
     zoom: 5,
-    baseRenderSize: { width: 200, height: 100, renderScale: 0.2 },
+    baseRenderSize: {
+      width: 200,
+      height: 100,
+      renderScale: 0.2,
+      containerWidth: 200,
+      containerHeight: 100,
+      offsetX: 0,
+      offsetY: 0,
+    },
     originalSize: { width: 1000, height: 500 },
     displaySize: { width: 1000, height: 500 },
   });

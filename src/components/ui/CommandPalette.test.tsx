@@ -89,7 +89,7 @@ describe('reviewer regression proofs', () => {
     open();
     type('parametricCurve.luma.shadows 20');
     key('Enter');
-    expect(useEditorStore.getState().adjustments.parametricCurve.luma.shadows).toBe(20);
+    expect(useEditorStore.getState().adjustments.parametricCurve?.luma.shadows).toBe(20);
     expect(useEditorStore.getState().adjustments.curves.luma).not.toEqual(originalCurve);
   });
   it('parametric preview switches modes and preserves point curves for Undo', () => {
