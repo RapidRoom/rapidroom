@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { sameAdjustmentValue } from '../../utils/editHistory';
+import { presetUnavailableReason } from '../../utils/presetBrowser';
+import { mixAdjustments } from '../../utils/presetAmount';
 import type { UserPreset } from '../../hooks/usePresets';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
@@ -29,6 +31,7 @@ interface Entry {
   section: string;
   shortcut?: string;
   available: boolean;
+  unavailableReason?: string;
   parameter?: PaletteParameter;
   value?: number;
   execute?(): void;
@@ -196,15 +199,20 @@ export default function CommandPalette() {
         preview: (base: Adjustments) => ({ ...base, toneMapper }),
         execute: () => commit({ ...editor.adjustments, toneMapper }),
       })),
-      ...presets.map((preset) => ({
-        id: `apply_preset:${preset.id}`,
-        title: preset.name,
-        terms: ['preset recipe style look'],
-        section: translate('editor.presets.title'),
-        available: canEdit,
-        preview: (base: Adjustments) => ({ ...base, ...preset.adjustments }),
-        execute: () => commit({ ...editor.adjustments, ...preset.adjustments }),
-      })),
+      ...presets.map((preset) => {
+        const reason = presetUnavailableReason(preset, editor.selectedImage?.exif?.Model);
+        return {
+          id: `apply_preset:${preset.id}`,
+          title: preset.name,
+          terms: ['preset recipe style look'],
+          section: translate('editor.presets.title'),
+          available: canEdit && !reason,
+          unavailableReason: reason ?? undefined,
+          preview: (base: Adjustments) => ({ ...base, ...mixAdjustments(preset.adjustments, 100, base) }),
+          execute: () =>
+            commit({ ...editor.adjustments, ...mixAdjustments(preset.adjustments, 100, editor.adjustments) }),
+        };
+      }),
     ];
     const typed = parseTypedValue(query);
     const typedEntries: Entry[] = typed
@@ -285,7 +293,12 @@ export default function CommandPalette() {
     const original = base.current;
     const p = parameter ?? highlighted?.parameter;
     const nextValue = parameter ? value : highlighted?.value;
-    if (!original || !canEdit || (!highlighted?.preview && (!p || nextValue === undefined))) {
+    if (
+      !original ||
+      !canEdit ||
+      (!parameter && !highlighted?.available) ||
+      (!highlighted?.preview && (!p || nextValue === undefined))
+    ) {
       revert();
       return;
     }
@@ -300,7 +313,7 @@ export default function CommandPalette() {
       state.setEditor({ previewOverride: next, showOriginal: false });
     }, 150);
     return () => clearTimeout(timer);
-  }, [open, parameter, value, highlighted?.id, highlighted?.value, canEdit, revert]);
+  }, [open, parameter, value, highlighted?.id, highlighted?.value, highlighted?.available, canEdit, revert]);
 
   const choose = (entry: Entry | undefined) => {
     if (!entry?.available) return;
@@ -399,6 +412,7 @@ export default function CommandPalette() {
                 type="button"
                 role="option"
                 aria-selected={index === selected}
+                title={entry.unavailableReason}
                 aria-disabled={!entry.available}
                 tabIndex={-1}
                 id={`palette-${entry.id}`}
