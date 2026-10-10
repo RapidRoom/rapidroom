@@ -1,6 +1,6 @@
 """Keyboard-only command-palette scenario in the native WebKit app."""
 import time
-from PIL import ImageChops
+from PIL import ImageChops, ImageDraw, ImageStat
 
 
 def run_palette_checks(smoke, wait_for, baseline):
@@ -81,9 +81,33 @@ def run_palette_checks(smoke, wait_for, baseline):
     for _ in range(4):
         key('ArrowRight', True)
     time.sleep(0.2)
-    preview = smoke.stable_preview('palette-slider-preview')
-    if smoke.slider('Exposure')['value']!=0 or ImageChops.difference(smoke.crop(baseline),smoke.crop(preview)).getbbox() is None:
-        raise RuntimeError('Keyboard preview changed edits or did not render')
+    # The focused input caret blinks inside the photo ROI. Compare only the
+    # unobscured photo, excluding the dialog and its painted shadow from BOTH
+    # images so opening the palette cannot masquerade as a rendered preview.
+    dialog = smoke.execute("""const e=document.querySelector('[role=dialog][aria-label="Command palette"]');
+      if(!e)throw Error('Preview dialog missing');const r=e.getBoundingClientRect();
+      return [r.left-100,r.top-100,r.right+100,r.bottom+100];""")
+    def photo_only(path):
+        image = smoke.crop(path)
+        left,top,right,bottom = dialog
+        ImageDraw.Draw(image).rectangle([left-smoke.roi[0],top-smoke.roi[1],
+          right-smoke.roi[0],bottom-smoke.roi[1]], fill=0)
+        return image
+    before = photo_only(baseline)
+    previous = None
+    for attempt in range(12):
+        time.sleep(0.5)
+        preview = photo_only(smoke.capture('palette-slider-preview-' + str(attempt)))
+        if previous is not None and ImageChops.difference(previous,preview).getbbox() is None:
+            if max(ImageStat.Stat(preview).stddev) < 10:
+                raise RuntimeError('Palette leaves no textured photo area to verify')
+            break
+        previous = preview
+    else:
+        raise RuntimeError('Unobscured palette preview did not settle')
+    if smoke.slider('Exposure')['value']!=0 or ImageChops.difference(before,preview).getbbox() is None:
+        raise RuntimeError('Keyboard preview changed edits or did not render outside the dialog')
+    smoke.step('keyboard preview changes real pixels outside dialog', {'excluded_dialog_shadow':dialog})
     key('Escape')
     key('Escape')
     wait_for(lambda: not shown(), 'palette preview cancels')
