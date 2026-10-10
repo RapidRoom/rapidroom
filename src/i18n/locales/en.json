@@ -1832,7 +1832,11 @@
       "xmpSync": "XMP Metadata Sync",
       "xmpSyncDesc": "Sync ratings, color labels and tags to standard XMP sidecar files for compatibility with other photo editors.",
       "mcpControl": "Let AI assistants control RapidRoom",
-      "mcpControlDescription": "Control is local only, with a fresh key each time it starts."
+      "mcpControlDescription": "Control is local only, with a fresh key each time it starts.",
+      "workspacePreset": "Workspace preset",
+      "workspacePresetDesc": "Lightroom Classic arranges the existing controls in a familiar layout. Your current workspace is saved and restored when you switch back to RapidRoom.",
+      "lightroomKeymap": "Lightroom shortcuts",
+      "lightroomKeymapDesc": "Use G/D for Library/Develop, R Crop, K Masks, Y Before/After, J clipping, and backslash Original. Custom shortcuts take precedence."
     },
     "keybinds": {
       "actions": {
@@ -1895,7 +1899,11 @@
         "zoom_in": "Zoom in",
         "zoom_in_step": "Zoom in (by step)",
         "zoom_out": "Zoom out",
-        "zoom_out_step": "Zoom out (by step)"
+        "zoom_out_step": "Zoom out (by step)",
+        "open_library": "Library module",
+        "open_develop": "Develop module",
+        "toggle_clipping": "Toggle clipping warnings",
+        "toggle_before_after": "Before / After"
       },
       "sections": {
         "editing": "Editing",
@@ -2296,5 +2304,52 @@
     "resizeLeftDock": "Resize left panel",
     "resizeRightDock": "Resize right panel",
     "collapsePanel": "Collapse terminal panel"
+  },
+  "lightroomWorkspace": {
+    "navigator": "Navigator",
+    "fit": "Fit",
+    "presets": "Presets",
+    "snapshots": "Snapshots",
+    "history": "History",
+    "collections": "Folders / Collections",
+    "snapshotName": "Snapshot name",
+    "save": "Save",
+    "deleteSnapshot": "Delete snapshot {{name}}",
+    "cardReadOnly": "Snapshots cannot be saved on a read-only card.",
+    "loadFailed": "Failed to load snapshots: {{error}}",
+    "saveFailed": "Failed to save snapshots: {{error}}",
+    "opened": "Opened photo",
+    "basic": "Basic",
+    "curve": "Tone Curve",
+    "mixer": "Color Mixer",
+    "grading": "Color Grading",
+    "detail": "Detail",
+    "lens": "Lens Corrections",
+    "transform": "Transform",
+    "effects": "Effects",
+    "calibration": "Calibration",
+    "crop": "Crop",
+    "healing": "Healing",
+    "masks": "Masks",
+    "tools": "Develop tools",
+    "profile": "Profile",
+    "profileLabel": "Rendering profile",
+    "basicProfile": "RapidRoom Basic",
+    "agxProfile": "RapidRoom AgX",
+    "treatment": "Treatment",
+    "color": "Color",
+    "bw": "B&W",
+    "texture": "Texture",
+    "clarity": "Clarity",
+    "dehaze": "Dehaze",
+    "presence": "Presence",
+    "before": "Before (Original)",
+    "beforeAfter": "Before / After",
+    "modules": "Modules",
+    "library": "Library",
+    "develop": "Develop",
+    "calibrationInfo": "Color chart calibration. Adobe camera primary controls are not available.",
+    "quickDevelop": "Quick Develop",
+    "selectPhoto": "Select a photo to use Quick Develop."
   }
 }

@@ -86,7 +86,7 @@ const formatRatioLabel = (width: number, height: number): string => {
   return `${Number((width / height).toFixed(2))}:1`;
 };
 
-export default function CropPanel() {
+export default function CropPanel({ section = 'all' }: { section?: 'all' | 'transform' | 'lens' } = {}) {
   const { t } = useTranslation();
   const { showContextMenu } = useContextMenu();
   const { appSettings, handleSettingsChange } = useSettingsStore(
@@ -128,8 +128,8 @@ export default function CropPanel() {
     })),
   );
 
-  const isTransformExpanded = cropSectionsState.transform;
-  const isLensExpanded = cropSectionsState.lens;
+  const isTransformExpanded = section === 'transform' || cropSectionsState.transform;
+  const isLensExpanded = section === 'lens' || cropSectionsState.lens;
 
   const toggleSection = (section: 'transform' | 'lens') => {
     setUI((state) => ({
@@ -380,13 +380,13 @@ export default function CropPanel() {
   );
 
   useEffect(() => {
-    if (selectedPreset?.value === ORIGINAL_RATIO) {
+    if (section === 'all' && selectedPreset?.value === ORIGINAL_RATIO) {
       const newOriginalRatio = getEffectiveOriginalRatio();
       if (newOriginalRatio !== null && aspectRatio && Math.abs(aspectRatio - newOriginalRatio) > RATIO_TOLERANCE) {
         applyAspectRatio(newOriginalRatio);
       }
     }
-  }, [orientationSteps, selectedPreset, aspectRatio, getEffectiveOriginalRatio, applyAspectRatio]);
+  }, [section, orientationSteps, selectedPreset, aspectRatio, getEffectiveOriginalRatio, applyAspectRatio]);
 
   const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -836,814 +836,829 @@ export default function CropPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 flex justify-between items-center shrink-0 border-b border-surface">
-        <Text variant={TextVariants.title}>{t('editor.crop.title')}</Text>
-        <button
-          className="p-2 rounded-full hover:bg-surface transition-colors"
-          onClick={handleReset}
-          data-tooltip={t('editor.crop.resetTooltip')}
-        >
-          <RotateCcw size={18} />
-        </button>
-      </div>
+      {section === 'all' && (
+        <div className="p-3 flex justify-between items-center shrink-0 border-b border-surface">
+          <Text variant={TextVariants.title}>{t('editor.crop.title')}</Text>
+          <button
+            className="p-2 rounded-full hover:bg-surface transition-colors"
+            onClick={handleReset}
+            data-tooltip={t('editor.crop.resetTooltip')}
+          >
+            <RotateCcw size={18} />
+          </button>
+        </div>
+      )}
 
       <div className="grow overflow-y-auto p-3 space-y-6 custom-scrollbar">
         {selectedImage ? (
           <>
-            <div className="space-y-4">
-              <Text variant={TextVariants.heading} className="mb-2 flex items-center justify-between">
-                {t('editor.crop.aspectRatioHeading')}
-                <div className="flex items-center gap-2">
-                  <button
-                    className="p-1.5 rounded-md hover:bg-surface transition-colors"
-                    onClick={handleOverlayCycle}
-                    data-tooltip={getOverlayTooltip()}
-                  >
-                    <Grid3x3 size={16} />
-                  </button>
-                  <button
-                    className="p-1.5 rounded-md hover:bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isOrientationToggleDisabled}
-                    onClick={handleOrientationToggle}
-                    data-tooltip={getOrientationTooltip()}
-                  >
-                    {orientation === Orientation.Vertical ? (
-                      <RectangleVertical size={16} />
-                    ) : (
-                      <RectangleHorizontal size={16} />
-                    )}
-                  </button>
-                </div>
-              </Text>
-              <div className="grid grid-cols-3 gap-2">
-                {ALL_PRESETS.map((preset: CropPreset, index: number) => {
-                  const savedIndex = index - PRESETS.length;
-                  return (
+            {section === 'all' && (
+              <>
+                {' '}
+                <div className="space-y-4">
+                  <Text variant={TextVariants.heading} className="mb-2 flex items-center justify-between">
+                    {t('editor.crop.aspectRatioHeading')}
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="p-1.5 rounded-md hover:bg-surface transition-colors"
+                        onClick={handleOverlayCycle}
+                        data-tooltip={getOverlayTooltip()}
+                      >
+                        <Grid3x3 size={16} />
+                      </button>
+                      <button
+                        className="p-1.5 rounded-md hover:bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isOrientationToggleDisabled}
+                        onClick={handleOrientationToggle}
+                        data-tooltip={getOrientationTooltip()}
+                      >
+                        {orientation === Orientation.Vertical ? (
+                          <RectangleVertical size={16} />
+                        ) : (
+                          <RectangleHorizontal size={16} />
+                        )}
+                      </button>
+                    </div>
+                  </Text>
+                  <div className="grid grid-cols-3 gap-2">
+                    {ALL_PRESETS.map((preset: CropPreset, index: number) => {
+                      const savedIndex = index - PRESETS.length;
+                      return (
+                        <motion.div
+                          className={clsx(
+                            'relative group px-2 py-1.5 rounded-md transition-colors text-center cursor-pointer',
+                            isPresetActive(preset) ? 'bg-accent' : 'bg-surface hover:bg-card-active',
+                          )}
+                          key={savedIndex < 0 ? preset.name : `saved-${savedIndex}`}
+                          onClick={() => handlePresetClick(preset)}
+                          data-tooltip={preset.tooltip}
+                          whileTap={{ scale: 0.98 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                        >
+                          <Text color={isPresetActive(preset) ? TextColors.button : TextColors.secondary}>
+                            {preset.name}
+                          </Text>
+                          {savedIndex >= 0 && (
+                            <button
+                              className="absolute -top-1 -right-1 z-10 p-0.5 rounded-full bg-card-active text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-500 transition-all"
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                handleRemoveSavedRatio(savedIndex);
+                              }}
+                              data-tooltip={t('editor.crop.custom.removeTooltip')}
+                            >
+                              <X size={10} />
+                            </button>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                  <div>
                     <motion.div
                       className={clsx(
-                        'relative group px-2 py-1.5 rounded-md transition-colors text-center cursor-pointer',
-                        isPresetActive(preset) ? 'bg-accent' : 'bg-surface hover:bg-card-active',
+                        'w-full px-2 py-1.5 rounded-md transition-colors cursor-pointer text-center',
+                        isCustomActive ? 'bg-accent' : 'bg-surface hover:bg-card-active',
                       )}
-                      key={savedIndex < 0 ? preset.name : `saved-${savedIndex}`}
-                      onClick={() => handlePresetClick(preset)}
-                      data-tooltip={preset.tooltip}
+                      onClick={() => {
+                        const imageRatio = getEffectiveOriginalRatio();
+                        let newAspectRatio = BASE_RATIO;
+                        if (preferPortrait || (imageRatio && imageRatio < 1)) {
+                          newAspectRatio = 1 / BASE_RATIO;
+                        }
+                        setIsCustomMode(true);
+                        applyAspectRatio(newAspectRatio);
+                      }}
+                      data-tooltip={t('editor.crop.presets.custom.tooltip')}
                       whileTap={{ scale: 0.98 }}
                       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                     >
-                      <Text color={isPresetActive(preset) ? TextColors.button : TextColors.secondary}>
-                        {preset.name}
+                      <Text color={isCustomActive ? TextColors.button : TextColors.secondary}>
+                        {t('editor.crop.presets.custom.name')}
                       </Text>
-                      {savedIndex >= 0 && (
-                        <button
-                          className="absolute -top-1 -right-1 z-10 p-0.5 rounded-full bg-card-active text-text-secondary opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-500 transition-all"
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            handleRemoveSavedRatio(savedIndex);
-                          }}
-                          data-tooltip={t('editor.crop.custom.removeTooltip')}
-                        >
-                          <X size={10} />
-                        </button>
-                      )}
                     </motion.div>
-                  );
-                })}
-              </div>
-              <div>
-                <motion.div
-                  className={clsx(
-                    'w-full px-2 py-1.5 rounded-md transition-colors cursor-pointer text-center',
-                    isCustomActive ? 'bg-accent' : 'bg-surface hover:bg-card-active',
-                  )}
-                  onClick={() => {
-                    const imageRatio = getEffectiveOriginalRatio();
-                    let newAspectRatio = BASE_RATIO;
-                    if (preferPortrait || (imageRatio && imageRatio < 1)) {
-                      newAspectRatio = 1 / BASE_RATIO;
-                    }
-                    setIsCustomMode(true);
-                    applyAspectRatio(newAspectRatio);
-                  }}
-                  data-tooltip={t('editor.crop.presets.custom.tooltip')}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                >
-                  <Text color={isCustomActive ? TextColors.button : TextColors.secondary}>
-                    {t('editor.crop.presets.custom.name')}
-                  </Text>
-                </motion.div>
-                <div
-                  className={clsx(
-                    'mt-2 bg-surface p-2 rounded-md transition-opacity',
-                    isCustomActive ? 'opacity-100' : 'opacity-50 pointer-events-none',
-                  )}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <input
-                      className="w-full bg-bg-primary text-center rounded-md p-1 border border-surface focus:border-accent focus:ring-accent text-text-secondary focus:text-text-primary"
-                      min="0"
-                      name="customW"
-                      onBlur={handleApplyCustomRatio}
-                      onChange={handleCustomInputChange}
-                      onFocus={handleCustomInputFocus}
-                      onKeyDown={handleCustomInputKeyDown}
-                      placeholder={t('editor.crop.custom.wPlaceholder')}
-                      data-tooltip={t('editor.crop.custom.wTooltip')}
-                      type="number"
-                      value={customW}
-                    />
-                    <X size={16} className={`shrink-0 ${TEXT_COLOR_KEYS[TextColors.secondary]}`} />
-                    <input
-                      className="w-full bg-bg-primary text-center rounded-md p-1 border border-surface focus:border-accent focus:ring-accent text-text-secondary focus:text-text-primary"
-                      min="0"
-                      name="customH"
-                      onBlur={handleApplyCustomRatio}
-                      onChange={handleCustomInputChange}
-                      onFocus={handleCustomInputFocus}
-                      onKeyDown={handleCustomInputKeyDown}
-                      placeholder={t('editor.crop.custom.hPlaceholder')}
-                      data-tooltip={t('editor.crop.custom.hTooltip')}
-                      type="number"
-                      value={customH}
-                    />
-                    <button
-                      className="shrink-0 p-1.5 rounded-md text-text-secondary hover:bg-card-active hover:text-text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      disabled={!appSettings || !customRatioToSave}
-                      onClick={handleSaveCustomRatio}
-                      data-tooltip={t('editor.crop.custom.saveTooltip')}
+                    <div
+                      className={clsx(
+                        'mt-2 bg-surface p-2 rounded-md transition-opacity',
+                        isCustomActive ? 'opacity-100' : 'opacity-50 pointer-events-none',
+                      )}
                     >
-                      <Save size={16} />
-                    </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <input
+                          className="w-full bg-bg-primary text-center rounded-md p-1 border border-surface focus:border-accent focus:ring-accent text-text-secondary focus:text-text-primary"
+                          min="0"
+                          name="customW"
+                          onBlur={handleApplyCustomRatio}
+                          onChange={handleCustomInputChange}
+                          onFocus={handleCustomInputFocus}
+                          onKeyDown={handleCustomInputKeyDown}
+                          placeholder={t('editor.crop.custom.wPlaceholder')}
+                          data-tooltip={t('editor.crop.custom.wTooltip')}
+                          type="number"
+                          value={customW}
+                        />
+                        <X size={16} className={`shrink-0 ${TEXT_COLOR_KEYS[TextColors.secondary]}`} />
+                        <input
+                          className="w-full bg-bg-primary text-center rounded-md p-1 border border-surface focus:border-accent focus:ring-accent text-text-secondary focus:text-text-primary"
+                          min="0"
+                          name="customH"
+                          onBlur={handleApplyCustomRatio}
+                          onChange={handleCustomInputChange}
+                          onFocus={handleCustomInputFocus}
+                          onKeyDown={handleCustomInputKeyDown}
+                          placeholder={t('editor.crop.custom.hPlaceholder')}
+                          data-tooltip={t('editor.crop.custom.hTooltip')}
+                          type="number"
+                          value={customH}
+                        />
+                        <button
+                          className="shrink-0 p-1.5 rounded-md text-text-secondary hover:bg-card-active hover:text-text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          disabled={!appSettings || !customRatioToSave}
+                          onClick={handleSaveCustomRatio}
+                          data-tooltip={t('editor.crop.custom.saveTooltip')}
+                        >
+                          <Save size={16} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <Text variant={TextVariants.heading} className="mb-2">
-                {t('editor.crop.rotationHeading')}
-              </Text>
-              <div className="bg-surface px-4 pt-3 pb-4 rounded-lg">
-                <Slider
-                  data-adjustment-key="rotation"
-                  label={
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setEditor((state) => ({
-                            isStraightenActive: !state.isStraightenActive,
-                          }));
-                        }}
-                        className={clsx(
-                          'p-1.5 rounded-md transition-colors',
-                          isStraightenActive
-                            ? 'bg-accent text-button-text'
-                            : 'text-text-secondary hover:bg-card-active hover:text-text-primary',
-                        )}
-                        data-tooltip={t('editor.crop.tooltips.straighten')}
-                      >
-                        <Ruler size={14} />
-                      </button>
-                      <button
-                        className="p-1.5 rounded-md text-text-secondary transition-colors cursor-pointer hover:bg-card-active hover:text-text-primary"
-                        onClick={resetFineRotation}
-                        data-tooltip={t('editor.crop.tooltips.resetFineRotation')}
-                        disabled={displayRotation === 0}
-                      >
-                        <RotateCcw size={14} />
-                      </button>
-                    </div>
-                  }
-                  min={-45}
-                  max={45}
-                  step={0.1}
-                  value={displayRotation}
-                  defaultValue={0}
-                  suffix="°"
-                  onChange={handleFineRotationChange}
-                  onDragStateChange={handleDragStateChange}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <Text variant={TextVariants.heading} className="mb-2">
-                {t('editor.crop.orientationHeading')}
-              </Text>
-              <div className="grid grid-cols-2 gap-2">
-                <motion.div
-                  className="flex flex-col items-center justify-center p-3 cursor-pointer rounded-lg transition-colors bg-surface text-text-secondary hover:bg-card-active hover:text-text-primary"
-                  onClick={() => handleRotate(-90)}
-                  data-tooltip={t('editor.crop.tooltips.rotateLeft')}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                >
-                  <RotateCcw size={20} className="transition-none" />
-                  <span className="text-xs mt-2 transition-none">{t('editor.crop.labels.rotateLeft')}</span>
-                </motion.div>
-                <motion.div
-                  className="flex flex-col items-center justify-center p-3 cursor-pointer rounded-lg transition-colors bg-surface text-text-secondary hover:bg-card-active hover:text-text-primary"
-                  onClick={() => handleRotate(90)}
-                  data-tooltip={t('editor.crop.tooltips.rotateRight')}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                >
-                  <RotateCw size={20} className="transition-none" />
-                  <span className="text-xs mt-2 transition-none">{t('editor.crop.labels.rotateRight')}</span>
-                </motion.div>
-                <motion.div
-                  className={clsx(
-                    'flex flex-col items-center justify-center p-3 cursor-pointer rounded-lg transition-colors',
-                    flipHorizontal
-                      ? 'bg-accent text-button-text'
-                      : 'bg-surface text-text-secondary hover:bg-card-active hover:text-text-primary',
-                  )}
-                  onClick={() =>
-                    setAdjustments((prev: Adjustments) => ({
-                      ...prev,
-                      flipHorizontal: !prev.flipHorizontal,
-                    }))
-                  }
-                  data-tooltip={t('editor.crop.tooltips.flipHoriz')}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                >
-                  <FlipHorizontal size={20} className="transition-none" />
-                  <span className="text-xs mt-2 transition-none">{t('editor.crop.labels.flipHoriz')}</span>
-                </motion.div>
-                <motion.div
-                  className={clsx(
-                    'flex flex-col items-center justify-center p-3 cursor-pointer rounded-lg transition-colors',
-                    flipVertical
-                      ? 'bg-accent text-button-text'
-                      : 'bg-surface text-text-secondary hover:bg-card-active hover:text-text-primary',
-                  )}
-                  onClick={() => setAdjustments((prev: Adjustments) => ({ ...prev, flipVertical: !prev.flipVertical }))}
-                  data-tooltip={t('editor.crop.tooltips.flipVert')}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                >
-                  <FlipVertical size={20} className="transition-none" />
-                  <span className="text-xs mt-2 transition-none">{t('editor.crop.labels.flipVert')}</span>
-                </motion.div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <Text variant={TextVariants.heading} className="mb-2">
-                {t('modals.transform.title')}
-              </Text>
-              <div className="bg-surface rounded-xl overflow-hidden" onContextMenu={handleTransformContextMenu}>
-                <button
-                  onClick={() => toggleSection('transform')}
-                  className="w-full flex items-center justify-between p-4 text-text-secondary hover:text-text-primary hover:bg-card-active transition-colors"
-                >
-                  <Text as="span" variant={TextVariants.label} className="flex items-center gap-3">
-                    <Scan size={16} /> {t('modals.transform.geometry')}
+                <div className="space-y-4">
+                  <Text variant={TextVariants.heading} className="mb-2">
+                    {t('editor.crop.rotationHeading')}
                   </Text>
-                  {isTransformExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                </button>
-
-                <AnimatePresence initial={false}>
-                  {isTransformExpanded && (
+                  <div className="bg-surface px-4 pt-3 pb-4 rounded-lg">
+                    <Slider
+                      data-adjustment-key="rotation"
+                      label={
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditor((state) => ({
+                                isStraightenActive: !state.isStraightenActive,
+                              }));
+                            }}
+                            className={clsx(
+                              'p-1.5 rounded-md transition-colors',
+                              isStraightenActive
+                                ? 'bg-accent text-button-text'
+                                : 'text-text-secondary hover:bg-card-active hover:text-text-primary',
+                            )}
+                            data-tooltip={t('editor.crop.tooltips.straighten')}
+                          >
+                            <Ruler size={14} />
+                          </button>
+                          <button
+                            className="p-1.5 rounded-md text-text-secondary transition-colors cursor-pointer hover:bg-card-active hover:text-text-primary"
+                            onClick={resetFineRotation}
+                            data-tooltip={t('editor.crop.tooltips.resetFineRotation')}
+                            disabled={displayRotation === 0}
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                        </div>
+                      }
+                      min={-45}
+                      max={45}
+                      step={0.1}
+                      value={displayRotation}
+                      defaultValue={0}
+                      suffix="°"
+                      onChange={handleFineRotationChange}
+                      onDragStateChange={handleDragStateChange}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <Text variant={TextVariants.heading} className="mb-2">
+                    {t('editor.crop.orientationHeading')}
+                  </Text>
+                  <div className="grid grid-cols-2 gap-2">
                     <motion.div
-                      key="transform-accordion"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{
-                        height: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] },
-                        opacity: { duration: 0.25, ease: 'easeOut' },
-                      }}
-                      style={{ overflow: 'hidden' }}
-                      className="overflow-hidden"
+                      className="flex flex-col items-center justify-center p-3 cursor-pointer rounded-lg transition-colors bg-surface text-text-secondary hover:bg-card-active hover:text-text-primary"
+                      onClick={() => handleRotate(-90)}
+                      data-tooltip={t('editor.crop.tooltips.rotateLeft')}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                     >
-                      <div className="px-4 pb-4 pt-3 border-t border-surface/50 flex flex-col gap-6">
-                        <div>
-                          <Text variant={TextVariants.heading} className="mb-2">
-                            {t('modals.transform.guided')}
-                          </Text>
-                          <div className="space-y-3">
-                            <motion.button
-                              type="button"
-                              onClick={() => setEditor({ isGuidedPerspectiveActive: !isGuidedPerspectiveActive })}
-                              whileTap={{ scale: 0.98 }}
-                              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                      <RotateCcw size={20} className="transition-none" />
+                      <span className="text-xs mt-2 transition-none">{t('editor.crop.labels.rotateLeft')}</span>
+                    </motion.div>
+                    <motion.div
+                      className="flex flex-col items-center justify-center p-3 cursor-pointer rounded-lg transition-colors bg-surface text-text-secondary hover:bg-card-active hover:text-text-primary"
+                      onClick={() => handleRotate(90)}
+                      data-tooltip={t('editor.crop.tooltips.rotateRight')}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                    >
+                      <RotateCw size={20} className="transition-none" />
+                      <span className="text-xs mt-2 transition-none">{t('editor.crop.labels.rotateRight')}</span>
+                    </motion.div>
+                    <motion.div
+                      className={clsx(
+                        'flex flex-col items-center justify-center p-3 cursor-pointer rounded-lg transition-colors',
+                        flipHorizontal
+                          ? 'bg-accent text-button-text'
+                          : 'bg-surface text-text-secondary hover:bg-card-active hover:text-text-primary',
+                      )}
+                      onClick={() =>
+                        setAdjustments((prev: Adjustments) => ({
+                          ...prev,
+                          flipHorizontal: !prev.flipHorizontal,
+                        }))
+                      }
+                      data-tooltip={t('editor.crop.tooltips.flipHoriz')}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                    >
+                      <FlipHorizontal size={20} className="transition-none" />
+                      <span className="text-xs mt-2 transition-none">{t('editor.crop.labels.flipHoriz')}</span>
+                    </motion.div>
+                    <motion.div
+                      className={clsx(
+                        'flex flex-col items-center justify-center p-3 cursor-pointer rounded-lg transition-colors',
+                        flipVertical
+                          ? 'bg-accent text-button-text'
+                          : 'bg-surface text-text-secondary hover:bg-card-active hover:text-text-primary',
+                      )}
+                      onClick={() =>
+                        setAdjustments((prev: Adjustments) => ({ ...prev, flipVertical: !prev.flipVertical }))
+                      }
+                      data-tooltip={t('editor.crop.tooltips.flipVert')}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                    >
+                      <FlipVertical size={20} className="transition-none" />
+                      <span className="text-xs mt-2 transition-none">{t('editor.crop.labels.flipVert')}</span>
+                    </motion.div>
+                  </div>
+                </div>
+              </>
+            )}
+            {section !== 'lens' && (
+              <div className="space-y-4">
+                <Text variant={TextVariants.heading} className="mb-2">
+                  {t('modals.transform.title')}
+                </Text>
+                <div className="bg-surface rounded-xl overflow-hidden" onContextMenu={handleTransformContextMenu}>
+                  {section === 'all' && (
+                    <button
+                      onClick={() => toggleSection('transform')}
+                      className="w-full flex items-center justify-between p-4 text-text-secondary hover:text-text-primary hover:bg-card-active transition-colors"
+                    >
+                      <Text as="span" variant={TextVariants.label} className="flex items-center gap-3">
+                        <Scan size={16} /> {t('modals.transform.geometry')}
+                      </Text>
+                      {isTransformExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </button>
+                  )}
+
+                  <AnimatePresence initial={false}>
+                    {isTransformExpanded && (
+                      <motion.div
+                        key="transform-accordion"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{
+                          height: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] },
+                          opacity: { duration: 0.25, ease: 'easeOut' },
+                        }}
+                        style={{ overflow: 'hidden' }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-4 pb-4 pt-3 border-t border-surface/50 flex flex-col gap-6">
+                          <div>
+                            <Text variant={TextVariants.heading} className="mb-2">
+                              {t('modals.transform.guided')}
+                            </Text>
+                            <div className="space-y-3">
+                              <motion.button
+                                type="button"
+                                onClick={() => setEditor({ isGuidedPerspectiveActive: !isGuidedPerspectiveActive })}
+                                whileTap={{ scale: 0.98 }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                                className={clsx(
+                                  'w-full flex items-center justify-center p-2.5 rounded-lg text-sm font-medium cursor-pointer transition-colors',
+                                  isGuidedPerspectiveActive
+                                    ? 'bg-accent text-button-text group hover:bg-red-600 hover:text-white'
+                                    : 'bg-bg-secondary text-text-secondary hover:bg-card-active hover:text-text-primary',
+                                )}
+                              >
+                                {isGuidedPerspectiveActive ? (
+                                  <>
+                                    <span className="flex items-center gap-2 group-hover:hidden">
+                                      <Cuboid size={16} />
+                                      {t('editor.guided.drawingActive')}
+                                    </span>
+                                    <span className="hidden items-center gap-2 group-hover:flex">
+                                      <Ban size={16} />
+                                      {t('editor.guided.cancel')}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="flex items-center gap-2">
+                                    <Cuboid size={16} />
+                                    {t('modals.transform.guided')}
+                                  </span>
+                                )}
+                              </motion.button>
+
+                              {adjustments.guidedPerspective?.lines &&
+                                adjustments.guidedPerspective.lines.length > 0 && (
+                                  <div className="p-3 bg-bg-primary rounded-md border border-surface flex flex-col gap-2">
+                                    <div className="flex justify-between items-center text-xs font-medium">
+                                      <span>{t('editor.guided.linesStatus')}</span>
+                                      <span
+                                        className={clsx(
+                                          adjustments.guidedPerspective.lines.length >= 2
+                                            ? 'text-accent'
+                                            : 'text-text-secondary',
+                                        )}
+                                      >
+                                        {adjustments.guidedPerspective.lines.length} / 4
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col gap-1 mt-1">
+                                      {adjustments.guidedPerspective.lines.map((line: any, idx: number) => (
+                                        <div
+                                          key={line.id}
+                                          className="flex items-center gap-2 p-2 rounded-md bg-surface transition-colors group"
+                                        >
+                                          <Text
+                                            as="div"
+                                            color={TextColors.secondary}
+                                            className="p-0.5 rounded transition-colors shrink-0 flex items-center justify-center"
+                                          >
+                                            <Minus size={16} />
+                                          </Text>
+                                          <div className="flex-1 min-w-0">
+                                            <Text
+                                              color={TextColors.primary}
+                                              weight={TextWeights.medium}
+                                              className="truncate select-none text-xs capitalize"
+                                            >
+                                              {line.type} Guide #{idx + 1}
+                                            </Text>
+                                          </div>
+                                          <button
+                                            className="p-1 hover:text-red-500 text-text-secondary transition-colors"
+                                            onClick={() => {
+                                              const newLines = adjustments.guidedPerspective!.lines.filter(
+                                                (l: any) => l.id !== line.id,
+                                              );
+                                              setAdjustments((prev) => ({
+                                                ...prev,
+                                                guidedPerspective: {
+                                                  ...prev.guidedPerspective,
+                                                  lines: newLines,
+                                                  enabled: newLines.length >= 2,
+                                                },
+                                              }));
+                                            }}
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <Text variant={TextVariants.heading} className="mb-2">
+                              {t('modals.transform.distortion')}
+                            </Text>
+                            <div className="space-y-3">
+                              <Slider
+                                label={t('modals.transform.amount')}
+                                step={1}
+                                value={adjustments.transformDistortion || 0}
+                                min={-100}
+                                max={100}
+                                defaultValue={0}
+                                onChange={(e) =>
+                                  setAdjustments((prev) => ({
+                                    ...prev,
+                                    transformDistortion: Number(e.target.value),
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <Text variant={TextVariants.heading} className="mb-2">
+                              {t('modals.transform.perspective')}
+                            </Text>
+                            <div className="space-y-3">
+                              <Slider
+                                label={t('modals.transform.vertical')}
+                                step={1}
+                                value={adjustments.transformVertical || 0}
+                                min={-100}
+                                max={100}
+                                defaultValue={0}
+                                onChange={(e) =>
+                                  setAdjustments((prev) => ({
+                                    ...prev,
+                                    transformVertical: Number(e.target.value),
+                                  }))
+                                }
+                              />
+                              <Slider
+                                label={t('modals.transform.horizontal')}
+                                step={1}
+                                value={adjustments.transformHorizontal || 0}
+                                min={-100}
+                                max={100}
+                                defaultValue={0}
+                                onChange={(e) =>
+                                  setAdjustments((prev) => ({
+                                    ...prev,
+                                    transformHorizontal: Number(e.target.value),
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <Text variant={TextVariants.heading} className="mb-2">
+                              {t('modals.transform.title')}
+                            </Text>
+                            <div className="space-y-3">
+                              <Slider
+                                label={t('modals.transform.rotate')}
+                                step={0.1}
+                                value={adjustments.transformRotate || 0}
+                                min={-45}
+                                max={45}
+                                defaultValue={0}
+                                onChange={(e) =>
+                                  setAdjustments((prev) => ({
+                                    ...prev,
+                                    transformRotate: Number(e.target.value),
+                                  }))
+                                }
+                              />
+                              <Slider
+                                label={t('modals.transform.aspect')}
+                                step={1}
+                                value={adjustments.transformAspect || 0}
+                                min={-100}
+                                max={100}
+                                defaultValue={0}
+                                onChange={(e) =>
+                                  setAdjustments((prev) => ({
+                                    ...prev,
+                                    transformAspect: Number(e.target.value),
+                                  }))
+                                }
+                              />
+                              <Slider
+                                label={t('modals.transform.scale')}
+                                step={1}
+                                value={adjustments.transformScale || 100}
+                                min={50}
+                                max={150}
+                                defaultValue={100}
+                                onChange={(e) =>
+                                  setAdjustments((prev) => ({
+                                    ...prev,
+                                    transformScale: Number(e.target.value),
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <Text variant={TextVariants.heading} className="mb-2">
+                              {t('modals.transform.offset')}
+                            </Text>
+                            <div className="space-y-3">
+                              <Slider
+                                label={t('modals.transform.xAxis')}
+                                step={1}
+                                value={adjustments.transformXOffset || 0}
+                                min={-100}
+                                max={100}
+                                defaultValue={0}
+                                onChange={(e) =>
+                                  setAdjustments((prev) => ({
+                                    ...prev,
+                                    transformXOffset: Number(e.target.value),
+                                  }))
+                                }
+                              />
+                              <Slider
+                                label={t('modals.transform.yAxis')}
+                                step={1}
+                                value={adjustments.transformYOffset || 0}
+                                min={-100}
+                                max={100}
+                                defaultValue={0}
+                                onChange={(e) =>
+                                  setAdjustments((prev) => ({
+                                    ...prev,
+                                    transformYOffset: Number(e.target.value),
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            )}
+            {section !== 'transform' && (
+              <div className="space-y-4">
+                <Text variant={TextVariants.heading} className="mb-2">
+                  {t('modals.lensCorrection.title')}
+                </Text>
+                <div className="bg-surface rounded-xl overflow-hidden mb-6" onContextMenu={handleLensContextMenu}>
+                  {section === 'all' && (
+                    <button
+                      onClick={() => toggleSection('lens')}
+                      className="w-full flex items-center justify-between p-4 text-text-secondary hover:text-text-primary hover:bg-card-active transition-colors"
+                    >
+                      <Text as="span" variant={TextVariants.label} className="flex items-center gap-3">
+                        <Aperture size={16} /> {t('modals.lensCorrection.title')}
+                      </Text>
+                      {isLensExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </button>
+                  )}
+
+                  <AnimatePresence initial={false}>
+                    {isLensExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-4 pb-4 pt-2 border-t border-surface/50 flex flex-col gap-4">
+                          <div className="w-full p-1 bg-card-active rounded-md">
+                            <div className="relative flex w-full">
+                              <motion.div
+                                className="absolute top-0 bottom-0 z-0 bg-accent"
+                                style={{ borderRadius: 6 }}
+                                animate={modeBubbleStyle}
+                                transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                              />
+                              <button
+                                onClick={() => handleModeChange('auto')}
+                                className={clsx(
+                                  'relative flex-1 flex items-center justify-center gap-2 px-3 p-1.5 text-sm font-medium rounded-md transition-colors',
+                                  lensMode === 'auto' ? 'text-button-text' : 'text-text-primary hover:bg-surface/50',
+                                )}
+                                style={{ WebkitTapHighlightColor: 'transparent' }}
+                              >
+                                <span className="relative z-10 flex items-center">
+                                  {t('modals.lensCorrection.modeAuto')}
+                                </span>
+                              </button>
+                              <button
+                                onClick={() => handleModeChange('manual')}
+                                className={clsx(
+                                  'relative flex-1 flex items-center justify-center gap-2 px-3 p-1.5 text-sm font-medium rounded-md transition-colors',
+                                  lensMode === 'manual' ? 'text-button-text' : 'text-text-primary hover:bg-surface/50',
+                                )}
+                                style={{ WebkitTapHighlightColor: 'transparent' }}
+                              >
+                                <span className="relative z-10 flex items-center">
+                                  {t('modals.lensCorrection.modeManual')}
+                                </span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {lensMode === 'auto' ? (
+                            <div
                               className={clsx(
-                                'w-full flex items-center justify-center p-2.5 rounded-lg text-sm font-medium cursor-pointer transition-colors',
-                                isGuidedPerspectiveActive
-                                  ? 'bg-accent text-button-text group hover:bg-red-600 hover:text-white'
-                                  : 'bg-bg-secondary text-text-secondary hover:bg-card-active hover:text-text-primary',
+                                'w-full flex items-center justify-center gap-2 p-3 text-sm rounded-md border transition-colors',
+                                detectionStatus === 'not_found'
+                                  ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                  : adjustments.lensMaker
+                                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                    : 'bg-bg-primary border-surface text-text-secondary',
                               )}
                             >
-                              {isGuidedPerspectiveActive ? (
+                              {detectionStatus === 'detecting' ? (
                                 <>
-                                  <span className="flex items-center gap-2 group-hover:hidden">
-                                    <Cuboid size={16} />
-                                    {t('editor.guided.drawingActive')}
-                                  </span>
-                                  <span className="hidden items-center gap-2 group-hover:flex">
-                                    <Ban size={16} />
-                                    {t('editor.guided.cancel')}
-                                  </span>
+                                  <Loader size={16} className="animate-spin" />{' '}
+                                  {t('modals.lensCorrection.detectingExif')}
+                                </>
+                              ) : detectionStatus === 'not_found' ? (
+                                t('modals.lensCorrection.lensProfileNotFound')
+                              ) : adjustments.lensMaker && adjustments.lensModel ? (
+                                <>
+                                  <Check size={16} /> {adjustments.lensMaker} - {adjustments.lensModel}
                                 </>
                               ) : (
-                                <span className="flex items-center gap-2">
-                                  <Cuboid size={16} />
-                                  {t('modals.transform.guided')}
-                                </span>
+                                <>
+                                  <Search size={16} /> {t('modals.lensCorrection.waitingAutoDetect')}
+                                </>
                               )}
-                            </motion.button>
-
-                            {adjustments.guidedPerspective?.lines && adjustments.guidedPerspective.lines.length > 0 && (
-                              <div className="p-3 bg-bg-primary rounded-md border border-surface flex flex-col gap-2">
-                                <div className="flex justify-between items-center text-xs font-medium">
-                                  <span>{t('editor.guided.linesStatus')}</span>
-                                  <span
-                                    className={clsx(
-                                      adjustments.guidedPerspective.lines.length >= 2
-                                        ? 'text-accent'
-                                        : 'text-text-secondary',
-                                    )}
-                                  >
-                                    {adjustments.guidedPerspective.lines.length} / 4
-                                  </span>
-                                </div>
-                                <div className="flex flex-col gap-1 mt-1">
-                                  {adjustments.guidedPerspective.lines.map((line: any, idx: number) => (
-                                    <div
-                                      key={line.id}
-                                      className="flex items-center gap-2 p-2 rounded-md bg-surface transition-colors group"
-                                    >
-                                      <Text
-                                        as="div"
-                                        color={TextColors.secondary}
-                                        className="p-0.5 rounded transition-colors shrink-0 flex items-center justify-center"
-                                      >
-                                        <Minus size={16} />
-                                      </Text>
-                                      <div className="flex-1 min-w-0">
-                                        <Text
-                                          color={TextColors.primary}
-                                          weight={TextWeights.medium}
-                                          className="truncate select-none text-xs capitalize"
-                                        >
-                                          {line.type} Guide #{idx + 1}
-                                        </Text>
-                                      </div>
-                                      <button
-                                        className="p-1 hover:text-red-500 text-text-secondary transition-colors"
-                                        onClick={() => {
-                                          const newLines = adjustments.guidedPerspective!.lines.filter(
-                                            (l: any) => l.id !== line.id,
-                                          );
-                                          setAdjustments((prev) => ({
-                                            ...prev,
-                                            guidedPerspective: {
-                                              ...prev.guidedPerspective,
-                                              lines: newLines,
-                                              enabled: newLines.length >= 2,
-                                            },
-                                          }));
-                                        }}
-                                      >
-                                        <Trash2 size={16} />
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div>
-                          <Text variant={TextVariants.heading} className="mb-2">
-                            {t('modals.transform.distortion')}
-                          </Text>
-                          <div className="space-y-3">
-                            <Slider
-                              label={t('modals.transform.amount')}
-                              step={1}
-                              value={adjustments.transformDistortion || 0}
-                              min={-100}
-                              max={100}
-                              defaultValue={0}
-                              onChange={(e) =>
-                                setAdjustments((prev) => ({
-                                  ...prev,
-                                  transformDistortion: Number(e.target.value),
-                                }))
-                              }
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <Text variant={TextVariants.heading} className="mb-2">
-                            {t('modals.transform.perspective')}
-                          </Text>
-                          <div className="space-y-3">
-                            <Slider
-                              label={t('modals.transform.vertical')}
-                              step={1}
-                              value={adjustments.transformVertical || 0}
-                              min={-100}
-                              max={100}
-                              defaultValue={0}
-                              onChange={(e) =>
-                                setAdjustments((prev) => ({
-                                  ...prev,
-                                  transformVertical: Number(e.target.value),
-                                }))
-                              }
-                            />
-                            <Slider
-                              label={t('modals.transform.horizontal')}
-                              step={1}
-                              value={adjustments.transformHorizontal || 0}
-                              min={-100}
-                              max={100}
-                              defaultValue={0}
-                              onChange={(e) =>
-                                setAdjustments((prev) => ({
-                                  ...prev,
-                                  transformHorizontal: Number(e.target.value),
-                                }))
-                              }
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <Text variant={TextVariants.heading} className="mb-2">
-                            {t('modals.transform.title')}
-                          </Text>
-                          <div className="space-y-3">
-                            <Slider
-                              label={t('modals.transform.rotate')}
-                              step={0.1}
-                              value={adjustments.transformRotate || 0}
-                              min={-45}
-                              max={45}
-                              defaultValue={0}
-                              onChange={(e) =>
-                                setAdjustments((prev) => ({
-                                  ...prev,
-                                  transformRotate: Number(e.target.value),
-                                }))
-                              }
-                            />
-                            <Slider
-                              label={t('modals.transform.aspect')}
-                              step={1}
-                              value={adjustments.transformAspect || 0}
-                              min={-100}
-                              max={100}
-                              defaultValue={0}
-                              onChange={(e) =>
-                                setAdjustments((prev) => ({
-                                  ...prev,
-                                  transformAspect: Number(e.target.value),
-                                }))
-                              }
-                            />
-                            <Slider
-                              label={t('modals.transform.scale')}
-                              step={1}
-                              value={adjustments.transformScale || 100}
-                              min={50}
-                              max={150}
-                              defaultValue={100}
-                              onChange={(e) =>
-                                setAdjustments((prev) => ({
-                                  ...prev,
-                                  transformScale: Number(e.target.value),
-                                }))
-                              }
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <Text variant={TextVariants.heading} className="mb-2">
-                            {t('modals.transform.offset')}
-                          </Text>
-                          <div className="space-y-3">
-                            <Slider
-                              label={t('modals.transform.xAxis')}
-                              step={1}
-                              value={adjustments.transformXOffset || 0}
-                              min={-100}
-                              max={100}
-                              defaultValue={0}
-                              onChange={(e) =>
-                                setAdjustments((prev) => ({
-                                  ...prev,
-                                  transformXOffset: Number(e.target.value),
-                                }))
-                              }
-                            />
-                            <Slider
-                              label={t('modals.transform.yAxis')}
-                              step={1}
-                              value={adjustments.transformYOffset || 0}
-                              min={-100}
-                              max={100}
-                              defaultValue={0}
-                              onChange={(e) =>
-                                setAdjustments((prev) => ({
-                                  ...prev,
-                                  transformYOffset: Number(e.target.value),
-                                }))
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <Text variant={TextVariants.heading} className="mb-2">
-                {t('modals.lensCorrection.title')}
-              </Text>
-              <div className="bg-surface rounded-xl overflow-hidden mb-6" onContextMenu={handleLensContextMenu}>
-                <button
-                  onClick={() => toggleSection('lens')}
-                  className="w-full flex items-center justify-between p-4 text-text-secondary hover:text-text-primary hover:bg-card-active transition-colors"
-                >
-                  <Text as="span" variant={TextVariants.label} className="flex items-center gap-3">
-                    <Aperture size={16} /> {t('modals.lensCorrection.title')}
-                  </Text>
-                  {isLensExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                </button>
-
-                <AnimatePresence initial={false}>
-                  {isLensExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-4 pb-4 pt-2 border-t border-surface/50 flex flex-col gap-4">
-                        <div className="w-full p-1 bg-card-active rounded-md">
-                          <div className="relative flex w-full">
-                            <motion.div
-                              className="absolute top-0 bottom-0 z-0 bg-accent"
-                              style={{ borderRadius: 6 }}
-                              animate={modeBubbleStyle}
-                              transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                            />
-                            <button
-                              onClick={() => handleModeChange('auto')}
-                              className={clsx(
-                                'relative flex-1 flex items-center justify-center gap-2 px-3 p-1.5 text-sm font-medium rounded-md transition-colors',
-                                lensMode === 'auto' ? 'text-button-text' : 'text-text-primary hover:bg-surface/50',
-                              )}
-                              style={{ WebkitTapHighlightColor: 'transparent' }}
-                            >
-                              <span className="relative z-10 flex items-center">
-                                {t('modals.lensCorrection.modeAuto')}
-                              </span>
-                            </button>
-                            <button
-                              onClick={() => handleModeChange('manual')}
-                              className={clsx(
-                                'relative flex-1 flex items-center justify-center gap-2 px-3 p-1.5 text-sm font-medium rounded-md transition-colors',
-                                lensMode === 'manual' ? 'text-button-text' : 'text-text-primary hover:bg-surface/50',
-                              )}
-                              style={{ WebkitTapHighlightColor: 'transparent' }}
-                            >
-                              <span className="relative z-10 flex items-center">
-                                {t('modals.lensCorrection.modeManual')}
-                              </span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {lensMode === 'auto' ? (
-                          <div
-                            className={clsx(
-                              'w-full flex items-center justify-center gap-2 p-3 text-sm rounded-md border transition-colors',
-                              detectionStatus === 'not_found'
-                                ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                                : adjustments.lensMaker
-                                  ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                  : 'bg-bg-primary border-surface text-text-secondary',
-                            )}
-                          >
-                            {detectionStatus === 'detecting' ? (
-                              <>
-                                <Loader size={16} className="animate-spin" /> {t('modals.lensCorrection.detectingExif')}
-                              </>
-                            ) : detectionStatus === 'not_found' ? (
-                              t('modals.lensCorrection.lensProfileNotFound')
-                            ) : adjustments.lensMaker && adjustments.lensModel ? (
-                              <>
-                                <Check size={16} /> {adjustments.lensMaker} - {adjustments.lensModel}
-                              </>
-                            ) : (
-                              <>
-                                <Search size={16} /> {t('modals.lensCorrection.waitingAutoDetect')}
-                              </>
-                            )}
-                          </div>
-                        ) : (
-                          <>
-                            <Dropdown
-                              options={myLensOptions}
-                              value=""
-                              onChange={handleMyLensSelect}
-                              placeholder={t('modals.lensCorrection.chooseSavedLens')}
-                            />
-                            <Dropdown
-                              options={makers.map((m) => ({ label: m, value: m }))}
-                              value={adjustments.lensMaker || ''}
-                              onChange={handleMakerChange}
-                              placeholder={t('modals.lensCorrection.selectManufacturer')}
-                            />
-                            {adjustments.lensMaker && (
+                            </div>
+                          ) : (
+                            <>
                               <Dropdown
-                                options={lenses.map((l) => ({ label: l, value: l }))}
-                                value={adjustments.lensModel || ''}
-                                onChange={handleModelChange}
-                                placeholder={t('modals.lensCorrection.selectLensModel')}
+                                options={myLensOptions}
+                                value=""
+                                onChange={handleMyLensSelect}
+                                placeholder={t('modals.lensCorrection.chooseSavedLens')}
                               />
-                            )}
-                          </>
-                        )}
-
-                        <div className="flex flex-col gap-3 mt-2">
-                          <div
-                            className={clsx(
-                              'bg-bg-primary p-3 rounded-md border border-surface transition-colors',
-                              hasDistortion ? '' : 'opacity-50 grayscale',
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              <SquareDashed size={16} className="text-text-secondary shrink-0" />
-                              <Switch
-                                className="grow"
-                                label={t('modals.lensCorrection.distortion')}
-                                disabled={!hasDistortion}
-                                checked={(adjustments.lensDistortionEnabled ?? true) && hasDistortion}
-                                onChange={(v) => setAdjustments((prev) => ({ ...prev, lensDistortionEnabled: v }))}
+                              <Dropdown
+                                options={makers.map((m) => ({ label: m, value: m }))}
+                                value={adjustments.lensMaker || ''}
+                                onChange={handleMakerChange}
+                                placeholder={t('modals.lensCorrection.selectManufacturer')}
                               />
-                            </div>
-                            <AnimatePresence initial={false}>
-                              {hasDistortion && (adjustments.lensDistortionEnabled ?? true) && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                                  animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
-                                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                                  className="px-2 overflow-hidden"
-                                >
-                                  <Slider
-                                    label={t('modals.lensCorrection.amount')}
-                                    step={1}
-                                    value={adjustments.lensDistortionAmount ?? 100}
-                                    min={0}
-                                    max={200}
-                                    defaultValue={100}
-                                    onChange={(e) =>
-                                      setAdjustments((prev) => ({
-                                        ...prev,
-                                        lensDistortionAmount: Number(e.target.value),
-                                      }))
-                                    }
-                                  />
-                                </motion.div>
+                              {adjustments.lensMaker && (
+                                <Dropdown
+                                  options={lenses.map((l) => ({ label: l, value: l }))}
+                                  value={adjustments.lensModel || ''}
+                                  onChange={handleModelChange}
+                                  placeholder={t('modals.lensCorrection.selectLensModel')}
+                                />
                               )}
-                            </AnimatePresence>
+                            </>
+                          )}
+
+                          <div className="flex flex-col gap-3 mt-2">
+                            <div
+                              className={clsx(
+                                'bg-bg-primary p-3 rounded-md border border-surface transition-colors',
+                                hasDistortion ? '' : 'opacity-50 grayscale',
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <SquareDashed size={16} className="text-text-secondary shrink-0" />
+                                <Switch
+                                  className="grow"
+                                  label={t('modals.lensCorrection.distortion')}
+                                  disabled={!hasDistortion}
+                                  checked={(adjustments.lensDistortionEnabled ?? true) && hasDistortion}
+                                  onChange={(v) => setAdjustments((prev) => ({ ...prev, lensDistortionEnabled: v }))}
+                                />
+                              </div>
+                              <AnimatePresence initial={false}>
+                                {hasDistortion && (adjustments.lensDistortionEnabled ?? true) && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                                    animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
+                                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                                    className="px-2 overflow-hidden"
+                                  >
+                                    <Slider
+                                      label={t('modals.lensCorrection.amount')}
+                                      step={1}
+                                      value={adjustments.lensDistortionAmount ?? 100}
+                                      min={0}
+                                      max={200}
+                                      defaultValue={100}
+                                      onChange={(e) =>
+                                        setAdjustments((prev) => ({
+                                          ...prev,
+                                          lensDistortionAmount: Number(e.target.value),
+                                        }))
+                                      }
+                                    />
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+
+                            <div
+                              className={clsx(
+                                'bg-bg-primary p-3 rounded-md border border-surface transition-colors',
+                                hasTca ? '' : 'opacity-50 grayscale',
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <Activity size={16} className="text-text-secondary shrink-0" />
+                                <Switch
+                                  className="grow"
+                                  label={t('modals.lensCorrection.chromaticAberration')}
+                                  disabled={!hasTca}
+                                  checked={(adjustments.lensTcaEnabled ?? true) && hasTca}
+                                  onChange={(v) => setAdjustments((prev) => ({ ...prev, lensTcaEnabled: v }))}
+                                />
+                              </div>
+                              <AnimatePresence initial={false}>
+                                {hasTca && (adjustments.lensTcaEnabled ?? true) && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                                    animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
+                                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                                    className="px-2 overflow-hidden"
+                                  >
+                                    <Slider
+                                      label={t('modals.lensCorrection.amount')}
+                                      step={1}
+                                      value={adjustments.lensTcaAmount ?? 100}
+                                      min={0}
+                                      max={200}
+                                      defaultValue={100}
+                                      onChange={(e) =>
+                                        setAdjustments((prev) => ({
+                                          ...prev,
+                                          lensTcaAmount: Number(e.target.value),
+                                        }))
+                                      }
+                                    />
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+
+                            <div
+                              className={clsx(
+                                'bg-bg-primary p-3 rounded-md border border-surface transition-colors',
+                                hasVignetting ? '' : 'opacity-50 grayscale',
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <CircleDashed size={16} className="text-text-secondary shrink-0" />
+                                <Switch
+                                  className="grow"
+                                  label={t('modals.lensCorrection.vignetting')}
+                                  disabled={!hasVignetting}
+                                  checked={(adjustments.lensVignetteEnabled ?? true) && hasVignetting}
+                                  onChange={(v) => setAdjustments((prev) => ({ ...prev, lensVignetteEnabled: v }))}
+                                />
+                              </div>
+                              <AnimatePresence initial={false}>
+                                {hasVignetting && (adjustments.lensVignetteEnabled ?? true) && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                                    animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
+                                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                                    className="px-2 overflow-hidden"
+                                  >
+                                    <Slider
+                                      label={t('modals.lensCorrection.amount')}
+                                      step={1}
+                                      value={adjustments.lensVignetteAmount ?? 100}
+                                      min={0}
+                                      max={200}
+                                      defaultValue={100}
+                                      onChange={(e) =>
+                                        setAdjustments((prev) => ({
+                                          ...prev,
+                                          lensVignetteAmount: Number(e.target.value),
+                                        }))
+                                      }
+                                    />
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
                           </div>
 
-                          <div
-                            className={clsx(
-                              'bg-bg-primary p-3 rounded-md border border-surface transition-colors',
-                              hasTca ? '' : 'opacity-50 grayscale',
-                            )}
+                          <Text
+                            as="div"
+                            variant={TextVariants.small}
+                            className="p-3 mt-2 bg-bg-primary rounded-md border border-surface flex items-start gap-3"
                           >
-                            <div className="flex items-center gap-3">
-                              <Activity size={16} className="text-text-secondary shrink-0" />
-                              <Switch
-                                className="grow"
-                                label={t('modals.lensCorrection.chromaticAberration')}
-                                disabled={!hasTca}
-                                checked={(adjustments.lensTcaEnabled ?? true) && hasTca}
-                                onChange={(v) => setAdjustments((prev) => ({ ...prev, lensTcaEnabled: v }))}
+                            <Info size={16} className="shrink-0 mt-0.5" />
+                            <div className="leading-tight space-y-1">
+                              <Trans
+                                i18nKey="modals.lensCorrection.databaseNotice"
+                                components={[
+                                  <a
+                                    key="0"
+                                    href="https://lensfun.github.io/"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="underline hover:text-primary transition-colors"
+                                  />,
+                                  <a
+                                    key="1"
+                                    href="https://creativecommons.org/licenses/by-sa/3.0/"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="underline hover:text-primary transition-colors"
+                                  />,
+                                ]}
                               />
                             </div>
-                            <AnimatePresence initial={false}>
-                              {hasTca && (adjustments.lensTcaEnabled ?? true) && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                                  animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
-                                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                                  className="px-2 overflow-hidden"
-                                >
-                                  <Slider
-                                    label={t('modals.lensCorrection.amount')}
-                                    step={1}
-                                    value={adjustments.lensTcaAmount ?? 100}
-                                    min={0}
-                                    max={200}
-                                    defaultValue={100}
-                                    onChange={(e) =>
-                                      setAdjustments((prev) => ({
-                                        ...prev,
-                                        lensTcaAmount: Number(e.target.value),
-                                      }))
-                                    }
-                                  />
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-
-                          <div
-                            className={clsx(
-                              'bg-bg-primary p-3 rounded-md border border-surface transition-colors',
-                              hasVignetting ? '' : 'opacity-50 grayscale',
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              <CircleDashed size={16} className="text-text-secondary shrink-0" />
-                              <Switch
-                                className="grow"
-                                label={t('modals.lensCorrection.vignetting')}
-                                disabled={!hasVignetting}
-                                checked={(adjustments.lensVignetteEnabled ?? true) && hasVignetting}
-                                onChange={(v) => setAdjustments((prev) => ({ ...prev, lensVignetteEnabled: v }))}
-                              />
-                            </div>
-                            <AnimatePresence initial={false}>
-                              {hasVignetting && (adjustments.lensVignetteEnabled ?? true) && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                                  animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
-                                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                                  className="px-2 overflow-hidden"
-                                >
-                                  <Slider
-                                    label={t('modals.lensCorrection.amount')}
-                                    step={1}
-                                    value={adjustments.lensVignetteAmount ?? 100}
-                                    min={0}
-                                    max={200}
-                                    defaultValue={100}
-                                    onChange={(e) =>
-                                      setAdjustments((prev) => ({
-                                        ...prev,
-                                        lensVignetteAmount: Number(e.target.value),
-                                      }))
-                                    }
-                                  />
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
+                          </Text>
                         </div>
-
-                        <Text
-                          as="div"
-                          variant={TextVariants.small}
-                          className="p-3 mt-2 bg-bg-primary rounded-md border border-surface flex items-start gap-3"
-                        >
-                          <Info size={16} className="shrink-0 mt-0.5" />
-                          <div className="leading-tight space-y-1">
-                            <Trans
-                              i18nKey="modals.lensCorrection.databaseNotice"
-                              components={[
-                                <a
-                                  key="0"
-                                  href="https://lensfun.github.io/"
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="underline hover:text-primary transition-colors"
-                                />,
-                                <a
-                                  key="1"
-                                  href="https://creativecommons.org/licenses/by-sa/3.0/"
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="underline hover:text-primary transition-colors"
-                                />,
-                              ]}
-                            />
-                          </div>
-                        </Text>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
-            </div>
+            )}{' '}
           </>
         ) : (
           <div className="flex items-center justify-center h-full">

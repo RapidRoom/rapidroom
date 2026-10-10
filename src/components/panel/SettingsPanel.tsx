@@ -46,7 +46,8 @@ import Text from '../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
 import { useOsPlatform } from '../../hooks/useOsPlatform';
 import { RotateCcw } from 'lucide-react';
-import { useUIStore } from '../../store/useUIStore';
+import { createLightroomWorkspace, lightroomDefaultCombo } from '../../utils/lightroomWorkspace';
+import { useUIStore, WORKSPACE_LAYOUT_VERSION } from '../../store/useUIStore';
 
 interface ConfirmModalState {
   confirmText: string;
@@ -76,6 +77,7 @@ interface KeybindRowProps {
   recordingAction: string | null;
   onStartRecording: (action: string) => void;
   isConflicting: boolean;
+  lightroomKeymap?: boolean;
 }
 
 interface SettingItemProps {
@@ -144,6 +146,7 @@ const KeybindRow = ({
   recordingAction,
   onStartRecording,
   isConflicting,
+  lightroomKeymap,
 }: KeybindRowProps) => {
   const { t } = useTranslation();
   const recording = recordingAction === def.action;
@@ -168,7 +171,11 @@ const KeybindRow = ({
   }, [recording, def.action, onSave, onStartRecording]);
 
   const displayCombo =
-    currentCombo !== undefined ? (currentCombo.length ? currentCombo : null) : getDefaultCombo(def, osPlatform);
+    currentCombo !== undefined
+      ? currentCombo.length
+        ? currentCombo
+        : null
+      : lightroomDefaultCombo(def, getDefaultCombo(def, osPlatform), !!lightroomKeymap);
 
   return (
     <div className="flex justify-between items-center py-2">
@@ -702,6 +709,32 @@ export default function SettingsPanel({
     }
   };
 
+  const selectWorkspacePreset = async (value: 'rapidroom' | 'lightroom') => {
+    if (value === (appSettings?.workspacePreset ?? 'rapidroom')) return;
+    const ui = useUIStore.getState();
+    const current = {
+      leftPanelWidth: ui.leftPanelWidth,
+      rightPanelWidth: ui.rightPanelWidth,
+      leftTopHeight: ui.leftTopHeight,
+      rightTopHeight: ui.rightTopHeight,
+      bottomDockHeight: ui.bottomDockHeight,
+      bottomPanelHeight: ui.bottomPanelHeight,
+      panelLayout: ui.panelLayout,
+      activePanels: ui.activePanels,
+      panelSwitcherPlacement: ui.panelSwitcherPlacement,
+      layoutVersion: WORKSPACE_LAYOUT_VERSION,
+    };
+    const workspace =
+      value === 'lightroom' ? createLightroomWorkspace(current) : (appSettings?.rapidroomWorkspaceBackup ?? current);
+    ui.setUI(workspace);
+    await onSettingsChange({
+      ...appSettings,
+      workspacePreset: value,
+      workspace,
+      rapidroomWorkspaceBackup: value === 'lightroom' ? current : appSettings?.rapidroomWorkspaceBackup,
+    });
+  };
+
   const executeResetLayout = async () => {
     setIsResettingLayout(true);
     setLayoutResetMessage(t('settings.data.statuses.resettingLayout'));
@@ -712,6 +745,8 @@ export default function SettingsPanel({
       await onSettingsChange({
         ...appSettings,
         workspace: defaultWorkspace,
+        workspacePreset: 'rapidroom',
+        rapidroomWorkspaceBackup: undefined,
       });
 
       setLayoutResetMessage(t('settings.data.statuses.layoutResetSuccess'));
@@ -931,7 +966,7 @@ export default function SettingsPanel({
       const effective = userCombo?.length
         ? userCombo
         : userCombo === undefined
-          ? getDefaultCombo(def, osPlatform)
+          ? lightroomDefaultCombo(def, getDefaultCombo(def, osPlatform), !!appSettings?.lightroomKeymap)
           : null;
       if (!effective) continue;
       const key = effective.join('+');
@@ -1118,6 +1153,32 @@ export default function SettingsPanel({
                           id="neutral-grey-bg-toggle"
                           label={t('settings.general.enableNeutralGreyCanvas')}
                           onChange={(checked) => onSettingsChange({ ...appSettings, editorNeutralGreyBg: checked })}
+                        />
+                      </SettingItem>
+
+                      <SettingItem
+                        label={t('settings.general.workspacePreset')}
+                        description={t('settings.general.workspacePresetDesc')}
+                      >
+                        <select
+                          aria-label={t('settings.general.workspacePreset')}
+                          value={appSettings?.workspacePreset ?? 'rapidroom'}
+                          onChange={(e) => selectWorkspacePreset(e.target.value as 'rapidroom' | 'lightroom')}
+                          className="rounded bg-surface px-3 py-2"
+                        >
+                          <option value="rapidroom">RapidRoom</option>
+                          <option value="lightroom">Lightroom Classic</option>
+                        </select>
+                      </SettingItem>
+                      <SettingItem
+                        label={t('settings.general.lightroomKeymap')}
+                        description={t('settings.general.lightroomKeymapDesc')}
+                      >
+                        <Switch
+                          id="lightroom-keymap-toggle"
+                          checked={!!appSettings?.lightroomKeymap}
+                          label={t('settings.general.lightroomKeymap')}
+                          onChange={(checked) => onSettingsChange({ ...appSettings, lightroomKeymap: checked })}
                         />
                       </SettingItem>
 
@@ -2362,6 +2423,7 @@ export default function SettingsPanel({
                                 <KeybindRow
                                   key={def.action}
                                   def={def}
+                                  lightroomKeymap={!!appSettings?.lightroomKeymap}
                                   currentCombo={userKb[def.action]}
                                   osPlatform={osPlatform}
                                   onSave={handleKeybindSave}

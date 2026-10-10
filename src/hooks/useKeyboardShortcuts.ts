@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { ImageFile, ImageFlag, Panel, ExifOverlay } from '../components/ui/AppProperties';
+import { lightroomDefaultCombo } from '../utils/lightroomWorkspace';
 import { KEYBIND_DEFINITIONS, getDefaultCombo, normalizeCombo } from '../utils/keyboardUtils';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
@@ -31,7 +32,10 @@ export const useKeyboardShortcuts = ({
   handlePasteFiles,
   handleZoomChange,
 }: KeyboardShortcutsProps) => {
-  const { handleRotate, handleCopyAdjustments, handlePasteAdjustments, toggleShowOriginal } = useEditorActions();
+  const shortcutSettings = useSettingsStore((s) => s.appSettings);
+  const shortcutPlatform = useSettingsStore((s) => s.osPlatform);
+  const { handleRotate, handleCopyAdjustments, handlePasteAdjustments, toggleShowOriginal, setAdjustments } =
+    useEditorActions();
   const { handleRate, handleSetFlag, handleSetColorLabel } = useLibraryActions();
 
   const sortedListRef = useRef(sortedImageList);
@@ -68,8 +72,11 @@ export const useKeyboardShortcuts = ({
 
     for (const def of KEYBIND_DEFINITIONS) {
       const userCombo = keybinds?.[def.action];
-      const effective = userCombo && userCombo.length > 0 ? userCombo : getDefaultCombo(def, osPlatform);
-      if (effective) {
+      const effective =
+        userCombo !== undefined
+          ? userCombo
+          : lightroomDefaultCombo(def, getDefaultCombo(def, osPlatform), !!appSettings?.lightroomKeymap);
+      if (effective.length) {
         comboMap.set(effective.join('+'), def.action);
       }
     }
@@ -111,6 +118,39 @@ export const useKeyboardShortcuts = ({
     };
 
     const actions: Record<string, any> = {
+      open_library: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor',
+        execute: (event: KeyboardEvent) => {
+          event.preventDefault();
+          handleBackToLibrary();
+        },
+      },
+      open_develop: {
+        shouldFire: (s: StoreState) => !!(s.editor.selectedImage?.path || s.library.libraryActivePath),
+        execute: (event: KeyboardEvent, s: StoreState) => {
+          event.preventDefault();
+          const path =
+            s.ui.activeView === 'library'
+              ? (s.library.libraryActivePath ?? s.editor.selectedImage?.path)
+              : s.editor.selectedImage?.path;
+          if (s.ui.activeView !== 'editor' && path) handleImageSelect(path, true);
+          s.ui.setPanel(Panel.Adjustments);
+        },
+      },
+      toggle_before_after: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.ui.setUI({ beforeAfterVisible: !s.ui.beforeAfterVisible });
+        },
+      },
+      toggle_clipping: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
+        execute: (event: KeyboardEvent) => {
+          event.preventDefault();
+          setAdjustments((prev) => ({ ...prev, showClipping: !prev.showClipping }));
+        },
+      },
       open_image: {
         shouldFire: (s: any) => s.ui.activeView === 'library' && s.library.libraryActivePath !== null,
         execute: (e: any, s: any) => {
@@ -717,7 +757,7 @@ export const useKeyboardShortcuts = ({
         state.ui.denoiseModalState.isOpen ||
         state.ui.negativeModalState.isOpen;
 
-      if (isModalOpen) return;
+      if (isModalOpen || document.querySelector('[role="dialog"]')) return;
 
       if (state.ui.isSettingsOpen) {
         if (event.code === 'Escape') {
@@ -727,8 +767,7 @@ export const useKeyboardShortcuts = ({
         return;
       }
 
-      const isInputFocused =
-        document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+      const isInputFocused = !!document.activeElement?.closest('input,textarea,select,[contenteditable="true"]');
       if (isInputFocused) return;
 
       for (const builtin of builtinShortcuts) {
@@ -770,5 +809,8 @@ export const useKeyboardShortcuts = ({
     handleSetFlag,
     handleSetColorLabel,
     toggleShowOriginal,
+    setAdjustments,
+    shortcutSettings,
+    shortcutPlatform,
   ]);
 };

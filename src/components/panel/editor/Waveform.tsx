@@ -7,6 +7,7 @@ import { DisplayMode } from '../../../utils/adjustments';
 
 interface WaveformProps {
   waveformData: WaveformData | null;
+  histogramOnly?: boolean;
   histogram?: any;
   displayMode: string;
   setDisplayMode: (mode: string) => void;
@@ -450,6 +451,7 @@ const FakeWaveformLoader = ({ mode }: { mode: string }) => {
 
 export default function Waveform({
   waveformData,
+  histogramOnly = false,
   histogram,
   displayMode,
   setDisplayMode,
@@ -620,25 +622,27 @@ export default function Waveform({
                 </>
               )}
 
-              <LayoutGroup>
-                {modeButtons.map(({ mode, label, tooltip, bgClass, textActiveClass }) => (
-                  <button
-                    key={mode}
-                    onClick={() => setDisplayMode(mode)}
-                    data-tooltip={t(tooltip)}
-                    className={`${baseButtonClass} ${displayMode === mode ? textActiveClass : inactiveButtonClass}`}
-                  >
-                    {displayMode === mode && (
-                      <motion.div
-                        layoutId="waveform-mode-indicator"
-                        className={`absolute inset-0 ${bgClass} rounded-lg`}
-                        transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
-                      />
-                    )}
-                    <span className="relative z-10">{label}</span>
-                  </button>
-                ))}
-              </LayoutGroup>
+              {!histogramOnly && (
+                <LayoutGroup>
+                  {modeButtons.map(({ mode, label, tooltip, bgClass, textActiveClass }) => (
+                    <button
+                      key={mode}
+                      onClick={() => setDisplayMode(mode)}
+                      data-tooltip={t(tooltip)}
+                      className={`${baseButtonClass} ${displayMode === mode ? textActiveClass : inactiveButtonClass}`}
+                    >
+                      {displayMode === mode && (
+                        <motion.div
+                          layoutId="waveform-mode-indicator"
+                          className={`absolute inset-0 ${bgClass} rounded-lg`}
+                          transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                        />
+                      )}
+                      <span className="relative z-10">{label}</span>
+                    </button>
+                  ))}
+                </LayoutGroup>
+              )}
             </motion.div>
           </motion.div>
         )}

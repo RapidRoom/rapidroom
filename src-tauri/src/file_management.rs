@@ -2898,6 +2898,55 @@ fn move_files_on_disk(
     Ok(renames)
 }
 
+// Serialize snapshot and ordinary editor saves through the metadata write.
+static EDIT_SIDECAR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn read_snapshot_metadata(sidecar: &Path) -> Result<ImageMetadata, String> {
+    match fs::read(sidecar) {
+        Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| format!("Invalid sidecar: {e}")),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(ImageMetadata::default()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn get_photo_snapshots(
+    path: String,
+) -> Result<Vec<crate::image_processing::PhotoSnapshot>, String> {
+    let (_, sidecar) = parse_virtual_path(&path);
+    Ok(read_snapshot_metadata(&sidecar)?.snapshots)
+}
+
+#[tauri::command]
+pub fn save_photo_snapshots(
+    path: String,
+    snapshots: Vec<crate::image_processing::PhotoSnapshot>,
+) -> Result<(), String> {
+    let (source, sidecar) = parse_virtual_path(&path);
+    ensure_card_writable(&source)?;
+    ensure_card_writable(&sidecar)?;
+    if snapshots.len() > 64 {
+        return Err("At most 64 snapshots per photo".into());
+    }
+    let mut ids = HashSet::new();
+    for snapshot in &snapshots {
+        if snapshot.id.is_empty()
+            || snapshot.id.len() > 128
+            || !ids.insert(&snapshot.id)
+            || snapshot.name.trim().is_empty()
+            || snapshot.name.len() > 256
+            || !snapshot.adjustments.is_object()
+        {
+            return Err("Invalid photo snapshot".into());
+        }
+    }
+    let _guard = EDIT_SIDECAR_LOCK.lock().map_err(|e| e.to_string())?;
+    let mut metadata = read_snapshot_metadata(&sidecar)?;
+    metadata.snapshots = snapshots;
+    let json = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
+    write_file_atomically(&sidecar, json).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn save_metadata_and_update_thumbnail(
     path: String,
@@ -2908,6 +2957,7 @@ pub fn save_metadata_and_update_thumbnail(
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     ensure_card_writable(&source_path)?;
 
+    let metadata_guard = EDIT_SIDECAR_LOCK.lock().map_err(|e| e.to_string())?;
     let mut metadata = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
 
     let mut final_adjustments = adjustments;
@@ -2925,6 +2975,7 @@ pub fn save_metadata_and_update_thumbnail(
     let json_string = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
     write_file_atomically(&sidecar_path, json_string).map_err(|e| e.to_string())?;
 
+    drop(metadata_guard);
     if let Ok(settings) = load_settings(app_handle.clone())
         && settings.enable_xmp_sync.unwrap_or(false)
     {
@@ -7016,5 +7067,76 @@ mod rename_cache_tests {
                 assert_eq!(fs::read_to_string(cached).unwrap(), *old_path);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod photo_snapshot_tests {
+    use super::*;
+    use crate::image_processing::PhotoSnapshot;
+    fn snapshot() -> PhotoSnapshot {
+        PhotoSnapshot {
+            id: "warm".into(),
+            name: "Warm".into(),
+            adjustments: serde_json::json!({"exposure":1.25}),
+        }
+    }
+    #[test]
+    fn snapshots_preserve_metadata_and_are_independent_for_virtual_copies() {
+        let _mode = card_mode_test_support::CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.arw");
+        let path = source.to_str().unwrap().to_string();
+        let (_, sidecar) = parse_virtual_path(&path);
+        let metadata = ImageMetadata {
+            rating: 4,
+            rating_is_explicit: true,
+            tags: Some(vec!["user:trip".into()]),
+            adjustments: serde_json::json!({"exposure":0.5}),
+            ..Default::default()
+        };
+        fs::write(&sidecar, serde_json::to_vec(&metadata).unwrap()).unwrap();
+        save_photo_snapshots(path.clone(), vec![snapshot()]).unwrap();
+        let stored = read_snapshot_metadata(&sidecar).unwrap();
+        assert_eq!(stored.rating, 4);
+        assert!(stored.rating_is_explicit);
+        assert_eq!(stored.tags, metadata.tags);
+        assert_eq!(stored.adjustments, metadata.adjustments);
+        assert_eq!(get_photo_snapshots(path.clone()).unwrap()[0].name, "Warm");
+        assert!(
+            get_photo_snapshots(format!("{path}?vc=second"))
+                .unwrap()
+                .is_empty()
+        );
+        save_photo_snapshots(
+            format!("{path}?vc=second"),
+            vec![PhotoSnapshot {
+                name: "Cool".into(),
+                ..snapshot()
+            }],
+        )
+        .unwrap();
+        assert_eq!(get_photo_snapshots(path.clone()).unwrap()[0].name, "Warm");
+        save_photo_snapshots(path.clone(), vec![]).unwrap();
+        let empty = fs::read_to_string(&sidecar).unwrap();
+        assert!(!empty.contains("snapshots"));
+        let duplicate = vec![snapshot(), snapshot()];
+        assert!(save_photo_snapshots(path.clone(), duplicate).is_err());
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), empty);
+        fs::write(&sidecar, b"malformed sidecar").unwrap();
+        assert!(save_photo_snapshots(path, vec![snapshot()]).is_err());
+        assert_eq!(fs::read(&sidecar).unwrap(), b"malformed sidecar");
+    }
+    #[test]
+    fn snapshots_reject_card_writes_before_creating_sidecars() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.arw");
+        fs::write(&source, b"raw").unwrap();
+        let _mode = card_mode_test_support::CardMode::on(dir.path());
+        let path = source.to_str().unwrap().to_string();
+        assert!(save_photo_snapshots(path.clone(), vec![snapshot()]).is_err());
+        let (_, sidecar) = parse_virtual_path(&path);
+        assert!(!sidecar.exists());
+        assert_eq!(fs::read(source).unwrap(), b"raw");
     }
 }

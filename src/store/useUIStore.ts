@@ -140,6 +140,7 @@ export function reconcileWorkspace(
   );
 
   const defaultWorkspace: NormalizedWorkspace = {
+    bottomPanelHeight: DEFAULT_BOTTOM_PANEL_HEIGHT,
     leftPanelWidth: DEFAULT_PANEL_WIDTH,
     rightPanelWidth: DEFAULT_PANEL_WIDTH,
     leftTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
@@ -246,12 +247,14 @@ export function reconcileWorkspace(
       ...(savedWorkspace.panelSwitcherPlacement || {}),
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
+    bottomPanelHeight: Math.max(64, Math.min(400, savedWorkspace.bottomPanelHeight || DEFAULT_BOTTOM_PANEL_HEIGHT)),
     bottomDockHeight: Math.max(80, Math.min(800, savedWorkspace.bottomDockHeight || 240)),
   };
 }
 
 export interface UIState {
   activeView: string;
+  beforeAfterVisible: boolean;
   isFullScreen: boolean;
   isWindowFullScreen: boolean;
   isInstantTransition: boolean;
@@ -329,6 +332,7 @@ export interface UIState {
 
 export const useUIStore = create<UIState>((set, get) => ({
   activeView: 'library',
+  beforeAfterVisible: false,
   isFullScreen: false,
   isWindowFullScreen: false,
   isInstantTransition: false,

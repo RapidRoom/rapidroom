@@ -1,3 +1,5 @@
+import LightroomLibrarySidebar from './components/panel/right/LightroomLibrarySidebar';
+import LightroomSidebar from './components/panel/LightroomSidebar';
 import { createLightsOutFullscreenController } from './utils/lightsOutFullscreen';
 import {
   type PointerEvent as ReactPointerEvent,
@@ -163,6 +165,7 @@ function ImageDragOverlayNode({ activeItem }: { activeItem: { path: string; path
 }
 
 function App() {
+  const { t } = useTranslation();
   const [activeImageDragItem, setActiveImageDragItem] = useState<{ path: string; paths: string[] } | null>(null);
 
   const { appSettings, theme, osPlatform, handleSettingsChange } = useSettingsStore(
@@ -214,15 +217,17 @@ function App() {
     })),
   );
 
-  const { rootPaths, currentFolderPath, expandedFolders, multiSelectedPaths, setLibrary } = useLibraryStore(
-    useShallow((state) => ({
-      rootPaths: state.rootPaths,
-      currentFolderPath: state.currentFolderPath,
-      expandedFolders: state.expandedFolders,
-      multiSelectedPaths: state.multiSelectedPaths,
-      setLibrary: state.setLibrary,
-    })),
-  );
+  const { rootPaths, currentFolderPath, expandedFolders, multiSelectedPaths, libraryActivePath, setLibrary } =
+    useLibraryStore(
+      useShallow((state) => ({
+        rootPaths: state.rootPaths,
+        currentFolderPath: state.currentFolderPath,
+        expandedFolders: state.expandedFolders,
+        multiSelectedPaths: state.multiSelectedPaths,
+        libraryActivePath: state.libraryActivePath,
+        setLibrary: state.setLibrary,
+      })),
+    );
 
   const { selectedImage, activeMaskContainerId, activeAiPatchContainerId, hasRenderedFirstFrame, setEditor } =
     useEditorStore(
@@ -741,8 +746,8 @@ function App() {
   const renderAppPanel = useCallback(
     (panelId: Panel) => {
       switch (panelId) {
-        case Panel.FolderTree:
-          return (
+        case Panel.FolderTree: {
+          const tree = (
             <FolderTree
               isResizing={isResizing}
               onContextMenu={handleFolderTreeContextMenu}
@@ -759,6 +764,17 @@ function App() {
               isInstantTransition={isInstantTransition}
             />
           );
+          return appSettings?.workspacePreset === 'lightroom' && activeView === 'editor' ? (
+            <LightroomSidebar
+              onNavigateToCommunity={() => setUI({ activeView: 'community' })}
+              onZoom={handleZoomChange}
+            >
+              {tree}
+            </LightroomSidebar>
+          ) : (
+            tree
+          );
+        }
         case Panel.Export:
           return (
             <ExportPanel
@@ -776,7 +792,11 @@ function App() {
         case Panel.Adjustments:
           return <Controls />;
         case Panel.Metadata:
-          return <MetadataPanel />;
+          return appSettings?.workspacePreset === 'lightroom' && activeView === 'library' ? (
+            <LightroomLibrarySidebar />
+          ) : (
+            <MetadataPanel />
+          );
         case Panel.Crop:
           return <CropPanel />;
         case Panel.Masks:
@@ -798,6 +818,8 @@ function App() {
       }
     },
     [
+      activeView,
+      handleZoomChange,
       isResizing,
       handleFolderTreeContextMenu,
       handleAlbumTreeContextMenu,
@@ -915,6 +937,38 @@ function App() {
             {appSettings?.decorations || (!isWindowFullScreen && <TitleBar />)}
           </div>
         )}
+        {appSettings?.workspacePreset === 'lightroom' &&
+          (activeView === 'library' || activeView === 'editor') &&
+          !isFullScreen && (
+            <nav
+              aria-label={t('lightroomWorkspace.modules')}
+              className="lights-out-chrome h-11 shrink-0 flex items-center justify-end gap-6 px-6 border-b border-surface"
+            >
+              <button
+                aria-current={activeView === 'library' ? 'page' : undefined}
+                onClick={handleBackToLibrary}
+                className={activeView === 'library' ? 'text-text-primary font-semibold' : 'text-text-secondary'}
+              >
+                {t('lightroomWorkspace.library')}
+              </button>
+              <button
+                aria-current={activeView === 'editor' ? 'page' : undefined}
+                disabled={!selectedImage && !libraryActivePath}
+                onClick={() => {
+                  const path =
+                    activeView === 'library' ? (libraryActivePath ?? selectedImage?.path) : selectedImage?.path;
+                  if (path && activeView !== 'editor') handleImageSelect(path, true);
+                }}
+                className={
+                  activeView === 'editor'
+                    ? 'text-text-primary font-semibold'
+                    : 'text-text-secondary disabled:opacity-40'
+                }
+              >
+                {t('lightroomWorkspace.develop')}
+              </button>
+            </nav>
+          )}
         <div
           className={clsx(
             'lights-out-content flex-1 flex flex-col min-h-0',

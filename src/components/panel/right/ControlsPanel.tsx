@@ -3,6 +3,7 @@ import { RotateCcw, Copy, ClipboardPaste, PencilSparkles, ChartArea, LayoutList 
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
+import LightroomDevelopSections from './LightroomDevelopSections';
 import BasicAdjustments from '../../adjustments/Basic';
 import CurveGraph from '../../adjustments/Curves';
 import ColorPanel from '../../adjustments/Color';
@@ -290,49 +291,57 @@ export default function Controls() {
 
       <SliderDensityScope
         className="grow overflow-y-scroll p-3 flex flex-col gap-2"
-        density={getAdjustmentDensity(appSettings?.adjustmentDensity)}
+        density={
+          appSettings?.workspacePreset === 'lightroom'
+            ? 'compact'
+            : getAdjustmentDensity(appSettings?.adjustmentDensity)
+        }
       >
         {selectedImage ? (
-          visibleSections.map((sectionName: string) => {
-            const SectionComponent: any = {
-              basic: BasicAdjustments,
-              curves: CurveGraph,
-              color: ColorPanel,
-              details: DetailsPanel,
-              effects: EffectsPanel,
-            }[sectionName];
+          appSettings?.workspacePreset === 'lightroom' ? (
+            <LightroomDevelopSections />
+          ) : (
+            visibleSections.map((sectionName: string) => {
+              const SectionComponent: any = {
+                basic: BasicAdjustments,
+                curves: CurveGraph,
+                color: ColorPanel,
+                details: DetailsPanel,
+                effects: EffectsPanel,
+              }[sectionName];
 
-            const title = t(`editor.adjustments.sections.${sectionName}`);
-            const sectionVisibility = adjustments.sectionVisibility || INITIAL_ADJUSTMENTS.sectionVisibility;
+              const title = t(`editor.adjustments.sections.${sectionName}`);
+              const sectionVisibility = adjustments.sectionVisibility || INITIAL_ADJUSTMENTS.sectionVisibility;
 
-            return (
-              <div className="shrink-0 group" key={sectionName}>
-                <CollapsibleSection
-                  isContentVisible={sectionVisibility[sectionName as keyof SectionVisibility]}
-                  isOpen={collapsibleSectionsState[sectionName as keyof typeof collapsibleSectionsState]}
-                  onContextMenu={(e: any) => handleSectionContextMenu(e, sectionName)}
-                  onToggle={() => handleToggleSection(sectionName)}
-                  onToggleVisibility={() => handleToggleVisibility(sectionName)}
-                  title={title}
-                >
-                  <SectionComponent
-                    adjustments={adjustments}
-                    setAdjustments={setAdjustments}
-                    histogram={histogram}
-                    theme={theme}
-                    handleLutSelect={handleLutSelect}
-                    onLutHover={setLutPreviewOverride}
-                    appSettings={appSettings}
-                    isWbPickerActive={isWbPickerActive}
-                    toggleWbPicker={toggleWbPicker}
-                    onDragStateChange={onDragStateChange}
-                    onToggleVisibility={handleToggleVisibility}
-                    sectionVisibility={sectionVisibility}
-                  />
-                </CollapsibleSection>
-              </div>
-            );
-          })
+              return (
+                <div className="shrink-0 group" key={sectionName}>
+                  <CollapsibleSection
+                    isContentVisible={sectionVisibility[sectionName as keyof SectionVisibility]}
+                    isOpen={collapsibleSectionsState[sectionName as keyof typeof collapsibleSectionsState]}
+                    onContextMenu={(e: any) => handleSectionContextMenu(e, sectionName)}
+                    onToggle={() => handleToggleSection(sectionName)}
+                    onToggleVisibility={() => handleToggleVisibility(sectionName)}
+                    title={title}
+                  >
+                    <SectionComponent
+                      adjustments={adjustments}
+                      setAdjustments={setAdjustments}
+                      histogram={histogram}
+                      theme={theme}
+                      handleLutSelect={handleLutSelect}
+                      onLutHover={setLutPreviewOverride}
+                      appSettings={appSettings}
+                      isWbPickerActive={isWbPickerActive}
+                      toggleWbPicker={toggleWbPicker}
+                      onDragStateChange={onDragStateChange}
+                      onToggleVisibility={handleToggleVisibility}
+                      sectionVisibility={sectionVisibility}
+                    />
+                  </CollapsibleSection>
+                </div>
+              );
+            })
+          )
         ) : (
           <div className="flex items-center justify-center h-full">
             <Text

@@ -8,6 +8,7 @@ import { useCollapsibleHeight } from '../../hooks/useCollapsibleHeight';
 
 interface CollapsibleSectionProps {
   canToggleVisibility?: boolean;
+  compact?: boolean;
   children: any;
   isContentVisible: boolean;
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface CollapsibleSectionProps {
 
 export default function CollapsibleSection({
   canToggleVisibility = true,
+  compact = false,
   children,
   isContentVisible,
   isOpen,
@@ -51,7 +53,23 @@ export default function CollapsibleSection({
   return (
     <div className="bg-surface rounded-lg overflow-hidden shrink-0" onContextMenu={onContextMenu}>
       <div
-        className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-card-active transition-colors duration-200"
+        className={clsx(
+          'w-full flex items-center justify-between text-left hover:bg-card-active transition-colors duration-200',
+          compact ? 'px-3 py-2' : 'px-4 py-3',
+        )}
+        role={compact ? 'button' : undefined}
+        tabIndex={compact ? 0 : undefined}
+        aria-expanded={compact ? isOpen : undefined}
+        onKeyDown={
+          compact
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onToggle();
+                }
+              }
+            : undefined
+        }
         onClick={onToggle}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}

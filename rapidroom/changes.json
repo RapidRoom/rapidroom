@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lightroom-workspace-preset",
+      "title": "Optional Lightroom Classic workspace and shortcuts",
+      "category": "feature",
+      "landed": "2026-10-10",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex; design ideas from rawmakase, lightcraft and Redlamp)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Settings can arrange existing controls as Basic, Tone Curve, Color Mixer, Color Grading, Detail, Lens Corrections, Transform, Effects and colour-chart Calibration, with compact sliders, Histogram, module bar, Navigator, Presets, real History and per-photo named Snapshots. Library exposes Quick Develop and existing keyword/metadata controls. Previous custom workspace and filmstrip height restore when returning to RapidRoom. Optional Lightroom keys preserve custom bindings and do not fire in inputs or dialogs. Before/After renders a neutral comparison without editing history. Snapshots preserve sidecar metadata and reject read-only Card writes. Native colour-chart calibration and Basic/AgX profiles retain their RapidRoom meanings; Adobe camera primaries, DCP profiles and red-eye correction are not implemented. No rendering algorithm or default adjustment changes."
+    },
+    {
       "id": "bounded-xmp-metadata-roundtrips",
       "title": "Escape XMP keywords and safely update self-closing sidecars",
       "category": "fix",

@@ -2,6 +2,10 @@
 
 RapidRoom is built on other people's work. This file lists where every non-upstream change came from. Upstream's own thanks are in the [RapidRAW README](README.md#special-thanks).
 
+## Optional Lightroom workspace
+
+Original implementation by [Yojen](https://github.com/yojen7) with Codex. Layout and keyboard design ideas were studied in `pdcgomes/rawmakase`, `lightcraft`, and `pdcgomes/redlamp`; no reference source was ported. Existing RapidRoom controls and their original credits remain intact.
+
 ## Upstream
 
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.

@@ -6,10 +6,12 @@ import { useTranslation } from 'react-i18next';
 import { Invokes } from '../../ui/AppProperties';
 import { useUIStore } from '../../../store/useUIStore';
 import { useProcessStore } from '../../../store/useProcessStore';
+import type { Adjustments } from '../../../utils/adjustments';
 import { ReferenceViewImage } from '../../../utils/referenceView';
 
 interface ReferencePaneProps {
   isChooserOpen: boolean;
+  adjustmentOverride?: Partial<Adjustments>;
   reference: ReferenceViewImage | null;
   onCancelChooser(): void;
   onChoose(): void;
@@ -32,6 +34,7 @@ const blurOnKey = (e: React.KeyboardEvent<HTMLButtonElement>) => {
 
 export default function ReferencePane({
   isChooserOpen,
+  adjustmentOverride,
   reference,
   onCancelChooser,
   onChoose,
@@ -63,11 +66,14 @@ export default function ReferencePane({
 
     const render = async () => {
       try {
-        const metadata = await invoke<{ adjustments?: { is_null?: boolean } } | null>(Invokes.LoadMetadata, {
-          path: referencePath,
-        }).catch(() => null);
+        const metadata = adjustmentOverride
+          ? null
+          : await invoke<{ adjustments?: { is_null?: boolean } } | null>(Invokes.LoadMetadata, {
+              path: referencePath,
+            }).catch(() => null);
         if (!active) return;
-        const adjustments = metadata?.adjustments && !metadata.adjustments.is_null ? metadata.adjustments : {};
+        const adjustments =
+          adjustmentOverride ?? (metadata?.adjustments && !metadata.adjustments.is_null ? metadata.adjustments : {});
         const bytes = await invoke<Uint8Array>(Invokes.GeneratePreviewForPath, {
           path: referencePath,
           jsAdjustments: adjustments,
@@ -87,7 +93,7 @@ export default function ReferencePane({
       active = false;
       if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
-  }, [referencePath]);
+  }, [referencePath, adjustmentOverride]);
 
   const getMaxScale = useCallback(() => {
     const container = containerRef.current;
@@ -247,17 +253,17 @@ export default function ReferencePane({
           <span className="shrink-0 rounded bg-text-secondary/25 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-primary">
             {t('editor.referenceView.reference')}
           </span>
-          {reference && (
+          {reference && !adjustmentOverride && (
             <span className="truncate text-xs text-text-primary" data-tooltip={reference.path}>
               {reference.label}
             </span>
           )}
-          {reference && (
+          {reference && !adjustmentOverride && (
             <span className="shrink-0 text-[10px] text-text-secondary">{t('editor.referenceView.readOnly')}</span>
           )}
         </div>
         <div className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-md bg-surface/90 p-0.5 shadow">
-          {reference && (
+          {reference && !adjustmentOverride && (
             <>
               <button
                 className="rounded p-1 text-text-primary hover:bg-card-active"

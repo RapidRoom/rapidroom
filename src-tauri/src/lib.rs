@@ -2581,6 +2581,8 @@ pub fn run() {
             file_management::import_matching_xmp_sidecars_in_folder,
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
+            file_management::get_photo_snapshots,
+            file_management::save_photo_snapshots,
             file_management::load_presets,
             file_management::save_presets,
             file_management::get_or_create_internal_library_root,

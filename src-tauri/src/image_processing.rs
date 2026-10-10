@@ -64,8 +64,17 @@ where
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PhotoSnapshot {
+    pub id: String,
+    pub name: String,
+    pub adjustments: Value,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImageMetadata {
     pub version: u32,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub snapshots: Vec<PhotoSnapshot>,
     pub rating: u8,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub rating_is_explicit: bool,
@@ -88,6 +97,7 @@ impl Default for ImageMetadata {
     fn default() -> Self {
         ImageMetadata {
             version: 1,
+            snapshots: Vec::new(),
             rating: 0,
             rating_is_explicit: false,
             flag: None,
