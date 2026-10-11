@@ -4,10 +4,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**85 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
+**86 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
 
 | Change                                                                                                                                                                                                                                                                            | Type        | By                                                                                                                             | Upstream                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Preserve source EXIF metadata in JPEG XL exports                                                                                                                                                                                                                                  | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Show a warning when RAW development falls back to an embedded preview                                                                                                                                                                                                             | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [#1873](https://github.com/CyberTimon/RapidRAW/issues/1873)                                                                                                                                                                                                                        |
 | Pick and shift nearby colors with Point Color ⚑                                                                                                                                                                                                                                   | feature     | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Find actions and edit sliders from a keyboard command palette                                                                                                                                                                                                                     | feature     | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
@@ -101,6 +102,14 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-10.
 
 ## Details
+
+### Preserve source EXIF metadata in JPEG XL exports
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-10
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
+- **Upstream:** not yet offered
+- **Notes:** JXL exports retain supported source EXIF in an ISO BMFF container when metadata preservation is enabled. The export panel exposes metadata and GPS controls for JXL.
 
 ### Show a warning when RAW development falls back to an embedded preview
 

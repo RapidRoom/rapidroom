@@ -1108,7 +1108,7 @@ export default function ExportPanel({
                   )}
                 </Section>
 
-                {fileFormat == FileFormats.Jpeg && (
+                {(fileFormat === FileFormats.Jpeg || fileFormat === FileFormats.Jxl) && (
                   <Section title={t('export.sections.metadata')}>
                     <Switch
                       checked={keepMetadata}
