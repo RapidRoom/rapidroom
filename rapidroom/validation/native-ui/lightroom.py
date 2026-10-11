@@ -35,6 +35,15 @@ def run_lightroom_checks(smoke, wait_for, baseline):
     smoke.key('Escape','Escape')
     wait_for(lambda: smoke.execute('return !!document.querySelector("[data-workspace=lightroom-sidebar]");'), 'Develop sidebar visible')
     wait_for(lambda: smoke.execute('return !!document.querySelector("select[aria-label=Treatment]");'), 'Basic controls visible')
+    controls_space=smoke.execute("""const e=[...document.querySelectorAll('input[type=range]')]
+      .find(e=>e.parentElement.parentElement.textContent.trim().startsWith('Exposure'));
+      if(!e)throw Error('Exposure control unavailable');
+      let p=e.parentElement;while(p&&!['scroll','auto'].includes(getComputedStyle(p).overflowY))p=p.parentElement;
+      if(!p)throw Error('Develop scroll region unavailable');
+      return {height:p.getBoundingClientRect().height,viewport:window.innerHeight};""")
+    if controls_space['height'] < controls_space['viewport']*0.5:
+        raise RuntimeError('Secondary panels crowd the Develop controls')
+    smoke.step('Develop controls retain at least half the viewport height',controls_space)
     smoke.roi=tuple(round(v) for v in smoke.execute("""const e=[...document.querySelectorAll('svg')].filter(e=>e.getBoundingClientRect().width>500 && e.getBoundingClientRect().height>300)[0];
       if(!e)throw Error('Lightroom preview bounds missing');const r=e.getBoundingClientRect();return [r.left,r.top,r.right,r.bottom];"""))
     smoke.stable_preview('lightroom-develop')

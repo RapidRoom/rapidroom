@@ -13,15 +13,24 @@ export function createLightroomWorkspace(current: WorkspaceState): WorkspaceStat
     panelLayout: {
       leftTop: [Panel.FolderTree, Panel.Presets],
       leftBottom: [],
-      rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai],
-      rightBottom: [Panel.Metadata, Panel.Export, ...(panels.has(Panel.Tethering) ? [Panel.Tethering] : [])],
+      // Develop needs the whole sidebar height; secondary tools remain tabs.
+      rightTop: [
+        Panel.Adjustments,
+        Panel.Crop,
+        Panel.Masks,
+        Panel.Ai,
+        Panel.Metadata,
+        Panel.Export,
+        ...(panels.has(Panel.Tethering) ? [Panel.Tethering] : []),
+      ],
+      rightBottom: [],
       bottom: panels.has(Panel.Terminal) ? [Panel.Terminal] : [],
     },
     activePanels: {
       leftTop: Panel.FolderTree,
       leftBottom: null,
       rightTop: Panel.Adjustments,
-      rightBottom: Panel.Metadata,
+      rightBottom: null,
       bottom: null,
     },
     panelSwitcherPlacement: {

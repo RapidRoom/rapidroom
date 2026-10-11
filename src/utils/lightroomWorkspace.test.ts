@@ -16,7 +16,11 @@ describe('optional Lightroom workspace', () => {
     const panels = Object.values(workspace.panelLayout).flat();
     expect(new Set(panels).size).toBe(panels.length);
     expect(new Set(panels)).toEqual(new Set(Object.values(original.panelLayout).flat()));
-    expect(workspace.panelLayout.rightBottom).toContain(Panel.Metadata);
+    expect(workspace.panelLayout.rightBottom).toEqual([]);
+    expect(workspace.activePanels.rightBottom).toBeNull();
+    expect(workspace.panelLayout.rightTop).toEqual(
+      expect.arrayContaining([Panel.Adjustments, Panel.Metadata, Panel.Export, Panel.Tethering]),
+    );
     expect(workspace.panelLayout.bottom).toEqual([Panel.Terminal]);
   });
   it('leaves unsupported optional panels out', () => {
