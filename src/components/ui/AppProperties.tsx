@@ -410,6 +410,8 @@ export interface Preset {
   includeCropTransform?: boolean;
   presetType?: 'tool' | 'style';
   favorite?: boolean;
+  cameraModelRestriction?: string;
+  unavailableReason?: string;
 }
 
 export interface Progress {
