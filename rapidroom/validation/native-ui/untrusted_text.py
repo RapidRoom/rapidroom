@@ -48,6 +48,15 @@ def run_untrusted_checks(case, smoke, wait_for, baseline):
     edited = image_state(url, image, token=token)
     name = edited['adjustments']['masks'][0]['name']
     assert len(name.encode()) <= 256 and 'planted' not in name and '\u202e' not in name and '\0' not in name
+    context = tool_data(rpc(url, 'tools/call', {'name': 'get_editor_context', 'arguments': {}}, token=token))
+    echoed = dict(edited['adjustments']['masks'][0], name=context['masks'][0]['name'], opacity=50)
+    echo = rpc(url, 'tools/call', {'name': 'update_adjustments', 'arguments': {
+        'imagePath': image, 'expectedRevision': edited['editRevision'], 'changes': {'masks': [echoed]}}}, token=token)
+    assert not echo.get('isError'), echo
+    edited = image_state(url, image, token=token)
+    assert edited['adjustments']['masks'][0]['name'] == name
+    assert edited['adjustments']['masks'][0]['opacity'] == 50
+    smoke.step('editor-context displayed name echoed by stable ID preserves the native stored name')
     invalid = rpc(url, 'tools/call', {'name': 'update_adjustments', 'arguments': {
         'imagePath': image, 'expectedRevision': edited['editRevision'], 'changes': {
             'masks': [dict(mask, adjustments={'exposure': 999})]}}}, token=token)

@@ -106,6 +106,8 @@ fn opaque(key: &str, value: &str) -> bool {
         "type"
             | "actor"
             | "mode"
+            | "tool"
+            | "liquifyMode"
             | "curveMode"
             | "toneMapper"
             | "lensBlurShape"
@@ -153,6 +155,11 @@ fn opaque(key: &str, value: &str) -> bool {
             | "manual"
             | "pick"
             | "reject"
+            | "eraser"
+            | "push"
+            | "expand"
+            | "pinch"
+            | "twirl"
     ) {
         return true;
     }
@@ -176,7 +183,7 @@ fn trusted_key(key: &str) -> bool {
     use std::{collections::HashSet, sync::OnceLock};
     static KEYS: OnceLock<HashSet<String>> = OnceLock::new();
     KEYS.get_or_init(|| {
-        let mut keys: HashSet<String> = "total hasMore modified is_edited is_raw is_virtual_copy is_cloud_placeholder group_id flag tags displayName path imagePath imagePaths filePath filePaths outputDirectory lutPath lensBlurDepthMap editRevision expectedRevision currentRevision id activeMaskId activeMaskContainerId virtualCopy data maskDataBase64 mimeType type actor mode curveMode toneMapper lensBlurShape stage adjustments changes content text name title caption description note notes rationale keywords reference look exif Make Model LensModel FNumber ExposureTime PhotographicSensitivity ISO FocalLength DateTimeOriginal masks subMasks parameters visible opacity invert startX startY endX endY centerX centerY radiusX radiusY name x y width height imageCount maskCount dimensions canUndo canRedo historyIndex entries index active undone changedKeys timestamp sourceCommit sourceDirty appVersion activePanel activePanels cardMode error validationError isSelected renderPending labels variants count offset limit recursive images cameraModel isRaw thumbnailUrl metadata history exposureMean meanRGB medianRGB meanLuminance medianLuminance histogram red green blue luma pixelCount shadowPixels highlightPixels shadowPercent highlightPercent clipping percentileMethod luminancePercentiles clippingDefinition rgbUnits luminanceUnits bins smoothed normalized transport renderStage suggestedWhiteBalance changesKnown currentKeys expectedKeys written report losses field reason preservedInPayload".split_whitespace().map(str::to_owned).collect();
+        let mut keys: HashSet<String> = "aiPatches patchData color mask offsetX offsetY isSrgbEncoded prompt feather grow range tool brushSize points lines flow targetX targetY tolerance minDepth maxDepth minFade maxFade liquifyMode pressure intensity sourceX sourceY total hasMore modified is_edited is_raw is_virtual_copy is_cloud_placeholder group_id flag tags displayName path imagePath imagePaths filePath filePaths outputDirectory lutPath lensBlurDepthMap editRevision expectedRevision currentRevision id activeMaskId activeMaskContainerId virtualCopy data maskDataBase64 mimeType type actor mode curveMode toneMapper lensBlurShape stage adjustments changes content text name title caption description note notes rationale keywords reference look exif Make Model LensModel FNumber ExposureTime PhotographicSensitivity ISO FocalLength DateTimeOriginal masks subMasks parameters visible opacity invert startX startY endX endY centerX centerY radiusX radiusY name x y width height imageCount maskCount dimensions canUndo canRedo historyIndex entries index active undone changedKeys timestamp sourceCommit sourceDirty appVersion activePanel activePanels cardMode error validationError isSelected renderPending labels variants count offset limit recursive images cameraModel isRaw thumbnailUrl metadata history exposureMean meanRGB medianRGB meanLuminance medianLuminance histogram red green blue luma pixelCount shadowPixels highlightPixels shadowPercent highlightPercent clipping percentileMethod luminancePercentiles clippingDefinition rgbUnits luminanceUnits bins smoothed normalized transport renderStage suggestedWhiteBalance changesKnown currentKeys expectedKeys written report losses field reason preservedInPayload".split_whitespace().map(str::to_owned).collect();
         if let Ok(schema) = serde_json::from_str::<Value>(include_str!("../../rapidroom/adjustment-schema.json"))
             && let Some(parameters) = schema["parameters"].as_object() {
             for key in parameters.keys() { keys.extend(key.split('.').map(str::to_owned)); }
@@ -188,10 +195,20 @@ fn trusted_key(key: &str) -> bool {
 /// Paths remain exact for local operations, per the coordinator's scope.
 /// All strings remain untrusted; the enclosing JSON escapes control bytes.
 pub(crate) fn project(value: &Value) -> Value {
-    fn visit(value: &Value, key: &str, budget: &mut TextBudget, image_data: bool) -> Value {
+    fn visit(
+        value: &Value,
+        key: &str,
+        budget: &mut TextBudget,
+        image_data: bool,
+        patch_data: bool,
+    ) -> Value {
         match value {
             Value::String(text)
-                if operational(key) || ((key != "data" || image_data) && opaque(key, text)) =>
+                if operational(key)
+                    || ((key != "data" || image_data) && opaque(key, text))
+                    || (patch_data
+                        && matches!(key, "color" | "mask")
+                        && opaque("maskDataBase64", text)) =>
             {
                 value.clone()
             }
@@ -210,46 +227,53 @@ pub(crate) fn project(value: &Value) -> Value {
             Value::Array(items) => Value::Array(
                 items
                     .iter()
-                    .map(|item| visit(item, key, budget, image_data))
+                    .map(|item| visit(item, key, budget, image_data, patch_data))
                     .collect(),
             ),
-            Value::Object(object) => Value::Object(
-                object
-                    .iter()
-                    .map(|(key, value)| {
-                        let clean_key = if trusted_key(key) {
-                            key.clone()
-                        } else {
-                            bounded(key, 128, budget)
-                        };
-                        (
-                            clean_key,
-                            visit(
-                                value,
-                                key,
-                                budget,
-                                key == "data"
-                                    && object.get("type").and_then(Value::as_str) == Some("image")
-                                    && object.get("mimeType").and_then(Value::as_str).is_some_and(
-                                        |mime| {
-                                            matches!(
-                                                mime,
-                                                "image/png"
-                                                    | "image/jpeg"
-                                                    | "image/webp"
-                                                    | "image/avif"
-                                            )
-                                        },
-                                    ),
-                            ),
-                        )
-                    })
-                    .collect(),
-            ),
+            Value::Object(object) => {
+                let key_of_parent = key;
+                Value::Object(
+                    object
+                        .iter()
+                        .map(|(key, value)| {
+                            let clean_key = if trusted_key(key) {
+                                key.clone()
+                            } else {
+                                bounded(key, 128, budget)
+                            };
+                            (
+                                clean_key,
+                                visit(
+                                    value,
+                                    key,
+                                    budget,
+                                    key == "data"
+                                        && object.get("type").and_then(Value::as_str)
+                                            == Some("image")
+                                        && object
+                                            .get("mimeType")
+                                            .and_then(Value::as_str)
+                                            .is_some_and(|mime| {
+                                                matches!(
+                                                    mime,
+                                                    "image/png"
+                                                        | "image/jpeg"
+                                                        | "image/webp"
+                                                        | "image/avif"
+                                                )
+                                            }),
+                                    (key_of_parent == "patchData" && patch_data)
+                                        || (key == "patchData" && key_of_parent == "aiPatches"),
+                                ),
+                            )
+                        })
+                        .collect(),
+                )
+            }
             _ => value.clone(),
         }
     }
-    visit(value, "", &mut TextBudget::default(), false)
+    visit(value, "", &mut TextBudget::default(), false, false)
 }
 
 pub(crate) fn envelope(value: &Value) -> Value {
@@ -345,7 +369,17 @@ pub(crate) fn input_with_current(value: &mut Value, current: &Value) {
                     && current.get("id").and_then(Value::as_str) == Some(id)
                     && let Some(name) = original.get("name").and_then(Value::as_str)
                     && (current.get("name").and_then(Value::as_str) == Some(name)
-                        || displayed.get("name").and_then(Value::as_str) == Some(name))
+                        || displayed.get("name").and_then(Value::as_str) == Some(name)
+                        || current
+                            .get("name")
+                            .and_then(Value::as_str)
+                            .is_some_and(|raw| {
+                                let prefix: String =
+                                    char::decode_utf16(raw.encode_utf16().take(128))
+                                        .map(|c| c.unwrap_or(char::REPLACEMENT_CHARACTER))
+                                        .collect();
+                                display(&prefix) == name
+                            }))
                     && let Some(name) = current.get("name")
                 {
                     object.insert("name".into(), name.clone());
@@ -465,5 +499,86 @@ mod tests {
         assert_eq!(projected["data"], "[REDACTED]");
         assert!(projected["metadata"]["data"].as_str().unwrap().len() <= FIELD);
         assert_eq!(projected["content"][0]["data"], "YWJj");
+    }
+    #[test]
+    fn native_patch_binary_must_survive_outbound_projection() {
+        let binary = "YWJj".repeat(500);
+        let value = serde_json::json!({"adjustments":{"aiPatches":[{"id":"patch-id","name":"Patch","patchData":{"color":binary,"mask":binary,"offsetX":10,"offsetY":20,"width":10,"height":10}}]}});
+        let displayed = project(&value);
+        assert!(
+            displayed["adjustments"]["aiPatches"][0]["patchData"]
+                == value["adjustments"]["aiPatches"][0]["patchData"],
+            "binary patch data was truncated"
+        );
+    }
+    #[test]
+    fn editor_context_name_echo_must_not_rename_mask() {
+        let name = "z".repeat(200);
+        let current =
+            serde_json::json!({"masks":[{"id":"mask-id","name":name,"opacity":100,"subMasks":[]}]});
+        // Actual useMcpBridge editor-context truncates mask.name to 128 UTF-16 chars.
+        let context = project(
+            &serde_json::json!({"masks":[{"id":"mask-id","name":"z".repeat(128),"opacity":100}]}),
+        );
+        let mut args = serde_json::json!({"changes":{"masks":[{"id":"mask-id","name":context["masks"][0]["name"],"opacity":50,"subMasks":[]}]}});
+        input_with_current(&mut args, &current);
+        assert_eq!(
+            args["changes"]["masks"][0]["name"],
+            current["masks"][0]["name"]
+        );
+    }
+
+    #[test]
+    fn exhausted_display_budget_must_preserve_mask_geometry_keys() {
+        let masks:Vec<_>=(0..20).map(|i|serde_json::json!({"id":format!("mask-{i}"),"name":"z".repeat(256),"subMasks":[{"id":format!("sub-{i}"),"type":"radial","name":"z".repeat(256),"parameters":{"centerX":100,"feather":0.5,"rotation":10}}]})).collect();
+        let value = serde_json::json!({"adjustments":{"masks":masks}});
+        let projected = project(&value);
+        assert_eq!(
+            projected["adjustments"]["masks"][19]["subMasks"][0]["parameters"],
+            value["adjustments"]["masks"][19]["subMasks"][0]["parameters"]
+        );
+    }
+    #[test]
+    fn native_brush_flow_and_patch_shape_survive_exhausted_descriptive_budget() {
+        let binary = "YWJj".repeat(500);
+        let native = json!({"aiPatches":[{"id":"p", "name":"z".repeat(256),
+            "patchData":{"color":binary,"mask":binary,"offsetX":1,"offsetY":2,"width":3,"height":4,"isSrgbEncoded":true},
+            "subMasks":[{"id":"s","type":"flow","mode":"subtractive","parameters":{
+                "feather":0.5,"grow":2,"minDepth":0.1,"maxDepth":0.9,"minFade":0.1,"maxFade":0.2,
+                "liquifyMode":"twirl","pressure":40,"intensity":30,
+                "lines":[{"tool":"eraser","brushSize":20,"flow":15,"feather":0.4,"points":[{"x":1,"y":2}]}]}}]}]});
+        let value = json!({"a_caption":"x".repeat(4096), "adjustments":native});
+        // Several prior descriptive fields drain the shared budget completely.
+        let mut value = value;
+        for i in 0..16 {
+            value[format!("a{i:02}")] = json!("z".repeat(256));
+        }
+        let projected = project(&value);
+        assert_eq!(
+            projected["adjustments"]["aiPatches"][0]["patchData"],
+            native["aiPatches"][0]["patchData"]
+        );
+        assert_eq!(
+            projected["adjustments"]["aiPatches"][0]["subMasks"],
+            native["aiPatches"][0]["subMasks"]
+        );
+        let fake = project(
+            &json!({"metadata":{"patchData":{"color":"password=planted " .repeat(100),"mask":"x".repeat(1000)}}}),
+        );
+        assert!(
+            fake["metadata"]["patchData"]["color"]
+                .as_str()
+                .unwrap()
+                .len()
+                <= FIELD
+        );
+        assert!(!fake.to_string().contains("planted"));
+        assert!(
+            fake["metadata"]["patchData"]["mask"]
+                .as_str()
+                .unwrap()
+                .len()
+                <= FIELD
+        );
     }
 }
