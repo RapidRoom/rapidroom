@@ -48,6 +48,7 @@ import {
   Mask,
   MaskType,
   SubMask,
+  SubMaskConfig,
   SubMaskMode,
   ToolType,
   MASK_ICON_MAP,
@@ -98,7 +99,7 @@ const PLACEHOLDER_PATCH: AiPatch = {
   patchData: null,
 };
 
-const SUB_MASK_CONFIG: any = {
+const SUB_MASK_CONFIG: Partial<Record<Mask, SubMaskConfig>> = {
   [Mask.Radial]: {
     parameters: [{ key: 'feather', min: 0, max: 100, step: 1, multiplier: 100, defaultValue: 50 }],
   },
@@ -506,7 +507,7 @@ export default function AIPanel() {
 
   const createMaskLogic = (type: Mask, mode: SubMaskMode = SubMaskMode.Additive) => {
     if (!selectedImage) return createSubMask(type, {} as any, mode);
-    const subMask = createSubMask(type, selectedImage, mode);
+    const subMask: SubMask = createSubMask(type, selectedImage, mode);
 
     const steps = adjustments?.orientationSteps || 0;
     const isRotated = steps === 1 || steps === 3;
@@ -1438,7 +1439,7 @@ function ContainerRow({
   const { showContextMenu } = useContextMenu();
 
   const isStandalone = isStandaloneContainer(container);
-  const firstSubMask = container.subMasks[0];
+  const firstSubMask: SubMask | undefined = container.subMasks[0];
   const isRowSelected = isStandalone ? container.id === activePatchContainerId : isSelected;
 
   const isContainerGenerating = Boolean(activeAiTasks[container.id]) || Boolean(container.isLoading);
@@ -1535,7 +1536,7 @@ function ContainerRow({
                 ${borderClass}`}
         onClick={(e) => {
           e.stopPropagation();
-          if (isStandalone) {
+          if (isStandalone && firstSubMask) {
             onSelectContainer(container.id);
             onSelectSubMask(firstSubMask.id);
           } else {
@@ -1549,7 +1550,7 @@ function ContainerRow({
           color={hasActiveChild || isExpanded || isStandalone ? TextColors.primary : TextColors.secondary}
           onClick={(e) => {
             e.stopPropagation();
-            if (isStandalone) {
+            if (isStandalone && firstSubMask) {
               onSelectContainer(container.id);
               onSelectSubMask(firstSubMask.id);
             } else {
@@ -1581,7 +1582,7 @@ function ContainerRow({
               >
                 {isStandalone ? (
                   (() => {
-                    const StandaloneIcon = MASK_ICON_MAP[firstSubMask.type] || Circle;
+                    const StandaloneIcon = firstSubMask ? MASK_ICON_MAP[firstSubMask.type] || Circle : Circle;
                     return <StandaloneIcon size={18} />;
                   })()
                 ) : isExpanded ? (
@@ -1753,7 +1754,8 @@ function SubMaskRow({
     setNodeRef(node);
     setDroppableRef(node);
   };
-  const MaskIcon = MASK_ICON_MAP[subMask.type] || Circle;
+  const maskType: Mask = subMask.type;
+  const MaskIcon = MASK_ICON_MAP[maskType] || Circle;
   const { showContextMenu } = useContextMenu();
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1991,7 +1993,8 @@ function SettingsPanel({
     }
   }, [isGenerativeAvailable, container, isQuickErasePatch]);
 
-  const subMaskConfig = activeSubMask ? SUB_MASK_CONFIG[activeSubMask.type] || {} : {};
+  const typedActiveSubMask: SubMask | null | undefined = activeSubMask;
+  const subMaskConfig = typedActiveSubMask ? SUB_MASK_CONFIG[typedActiveSubMask.type] || {} : {};
   const isAiMask =
     activeSubMask &&
     (activeSubMask.type === Mask.AiSubject ||

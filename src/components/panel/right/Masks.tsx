@@ -74,6 +74,21 @@ export interface SubMask {
   visible: boolean;
 }
 
+export interface SubMaskParameterConfig {
+  defaultValue?: number;
+  key: string;
+  max: number;
+  min: number;
+  multiplier?: number;
+  step: number;
+}
+
+export interface SubMaskConfig {
+  parameters?: SubMaskParameterConfig[];
+  showBrushTools?: boolean;
+  showFlowControl?: boolean;
+}
+
 export function formatMaskTypeName(type: string) {
   if (type === Mask.AiDepth) return i18n.t('masks.types.depth');
   if (type === Mask.AiSubject) return i18n.t('masks.types.subject');
