@@ -292,6 +292,37 @@ mod tests {
     }
 
     #[test]
+    fn removing_all_projected_hsl_resets_only_projected_native_leaves() {
+        let image = Path::new("photo.ARW");
+        let adjustments =
+            json!({"hsl":{"blues":{"hue":90,"saturation":30,"luminance":0}},"halationAmount":20});
+        let document = serialize(crate::xmp::SKELETON, &adjustments, image).unwrap();
+        assert!(
+            document
+                .losses
+                .iter()
+                .any(|loss| loss.field == "hsl.blues.hue")
+        );
+        let keys = scalar_keys();
+        let hsl_keys: Vec<&str> = keys
+            .iter()
+            .filter(|key| {
+                key.starts_with("HueAdjustment")
+                    || key.starts_with("SaturationAdjustment")
+                    || key.starts_with("LuminanceAdjustment")
+            })
+            .map(String::as_str)
+            .collect();
+        let removed =
+            crate::xmp::replace_image_properties(&document.xml, CRS, "crs", &hsl_keys, &[])
+                .unwrap();
+        let restored = restore(&removed, image).unwrap().unwrap();
+        assert_eq!(restored["hsl"]["blues"]["hue"], 90);
+        assert_eq!(restored["hsl"]["blues"]["saturation"], 0.0);
+        assert_eq!(restored["halationAmount"], 20);
+    }
+
+    #[test]
     fn losses_name_external_lut_files_and_native_mask_names() {
         let document = serialize(crate::xmp::SKELETON, &json!({"lutPath":"/owned/look.cube","halationAmount":20,"masks":[{"name":"Painted sky","subMasks":[]}]}), Path::new("photo.ARW")).unwrap();
         let lut = document

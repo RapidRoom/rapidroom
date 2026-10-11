@@ -179,10 +179,11 @@ pub(crate) fn restore(payload: &Payload, current: &Value, defaults: &Value) -> V
         }
         if let Some(Value::Object(p)) = p
             && (w.is_none() || w.is_some_and(Value::is_object))
-            && c.is_some_and(Value::is_object)
+            && (c.is_none() || c.is_some_and(Value::is_object))
         {
             let mut result = Map::new();
-            let current = c.and_then(Value::as_object).expect("checked object");
+            let empty = Map::new();
+            let current = c.and_then(Value::as_object).unwrap_or(&empty);
             let mut keys: Vec<&String> = p.keys().chain(current.keys()).collect();
             if let Some(w) = w.and_then(Value::as_object) {
                 keys.extend(w.keys());
