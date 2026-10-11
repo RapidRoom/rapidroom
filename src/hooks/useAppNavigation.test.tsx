@@ -148,6 +148,20 @@ describe('useAppNavigation cached image refresh', () => {
   });
 });
 
+function setWorkspaceView(activeView: 'library' | 'editor') {
+  const layout = createLightroomWorkspace(initialUiState);
+  useUIStore.setState({
+    ...layout,
+    activeView,
+    panelLayout: { ...layout.panelLayout, bottom: layout.panelLayout.bottom ?? [] },
+    activePanels: { ...layout.activePanels, bottom: layout.activePanels.bottom ?? null },
+    panelSwitcherPlacement: {
+      ...layout.panelSwitcherPlacement,
+      bottom: layout.panelSwitcherPlacement.bottom ?? 'top',
+    },
+  });
+}
+
 describe('workspace module panel routing', () => {
   it.each(['rapidroom', 'lightroom'] as const)(
     'selects the Library module panel only in %s mode',
@@ -158,7 +172,7 @@ describe('workspace module panel routing', () => {
       useSettingsStore.setState({
         appSettings: { ...initialSettingsState.appSettings, workspacePreset: workspace } as AppSettings,
       });
-      useUIStore.setState({ ...createLightroomWorkspace(initialUiState), activeView: 'editor' });
+      setWorkspaceView('editor');
       useUIStore.getState().setPanel(Panel.Metadata);
       const { navigation, unmount } = await mountNavigation(createRefs());
       try {
@@ -183,7 +197,7 @@ describe('workspace module panel routing', () => {
       useSettingsStore.setState({
         appSettings: { ...initialSettingsState.appSettings, workspacePreset: workspace } as AppSettings,
       });
-      useUIStore.setState({ ...createLightroomWorkspace(initialUiState), activeView: 'library' });
+      setWorkspaceView('library');
       useUIStore.getState().setPanel(Panel.Metadata);
       const { navigation, unmount } = await mountNavigation(createRefs());
       try {
