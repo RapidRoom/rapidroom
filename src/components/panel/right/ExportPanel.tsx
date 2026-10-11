@@ -27,6 +27,7 @@ import {
 } from '../../ui/ExportImportProperties';
 import { Invokes, SelectedImage, AppSettings, Panel } from '../../ui/AppProperties';
 import ExportPresetsList from '../../ui/ExportPresetsList';
+import XmpSidecarExport from './XmpSidecarExport';
 import { useExportSettings } from '../../../hooks/useExportSettings';
 import { useOsPlatform } from '../../../hooks/useOsPlatform';
 import Text from '../../ui/Text';
@@ -824,6 +825,8 @@ export default function ExportPanel({
                 onApplyPreset={handleApplyPreset}
               />
             </div>
+
+            {!isLibraryContext && <XmpSidecarExport disabled={isExporting} />}
 
             <Section title={t('export.sections.fileSettings')}>
               <div className="grid grid-cols-3 gap-2">

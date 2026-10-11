@@ -174,3 +174,7 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 ### RAWmakase starter presets
 
 24 Lightroom XMP starter presets adapted from [pch/rawmakase](https://github.com/pch/rawmakase/commit/a0bda901ada403fc48d926960f3dce8016670bcb), copyright 2026 RAWmakase contributors, MIT. The original licence, per-file hashes and exclusions are retained in `src-tauri/resources/starter-presets/`. Piotr Chmolowski authored the source. Both Creative presets naming Adobe Standard are excluded. The React browser and Rust XMP export are original RapidRoom implementations.
+
+### AutoShade XMP round-trip design
+
+The full photo-edit payload, bounded decompression, three-way reconciliation and named-loss design were studied in [AutoShade by skymanbp](https://github.com/skymanbp/autoshade/tree/cbca12b5a903ff8d71faf25a3966ed3712e839ba/src/xmp), under the [MIT licence](rapidroom/LICENSES/autoshade-MIT.txt). RapidRoom's namespace, schema, span-preserving XML integration, SHA-256 integrity and UI/MCP implementation are original adaptations. AutoShade's Lightroom survival measurements do not establish that RapidRoom's payload survives a real Lightroom rewrite; that remains a human acceptance check.

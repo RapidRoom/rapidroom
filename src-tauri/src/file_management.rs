@@ -538,6 +538,7 @@ struct ImportedXmpSidecar {
     sidecar_path: PathBuf,
     metadata: ImageMetadata,
     not_transferred: Vec<&'static str>,
+    restored_payload: bool,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -2917,13 +2918,23 @@ pub fn save_metadata_and_update_thumbnail(
     app_handle: AppHandle,
     state: tauri::State<AppState>,
 ) -> Result<(), String> {
+    save_metadata_and_update_thumbnail_inner(path, adjustments, app_handle, state, true)
+}
+
+fn save_metadata_and_update_thumbnail_inner(
+    path: String,
+    adjustments: Value,
+    app_handle: AppHandle,
+    state: tauri::State<AppState>,
+    resolve_lens: bool,
+) -> Result<(), String> {
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     ensure_card_writable(&source_path)?;
 
     let mut metadata = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
 
     let mut final_adjustments = adjustments;
-    {
+    if resolve_lens {
         let lens_db_guard = state.lens_db.lock().unwrap();
         resolve_lens_params_in_adjustments(
             &mut final_adjustments,
@@ -3063,8 +3074,13 @@ fn import_xmp_adjustments_to_sidecar(
     ensure_card_writable(&source_path)?;
     let xmp_content = crate::xmp::read(xmp_path)
         .map_err(|error| format!("Failed to read XMP file: {}", error))?;
-    let converted_preset =
+    let mut converted_preset =
         preset_converter::convert_xmp_sidecar_to_preset_for_image(&xmp_content, &source_path)?;
+    let restored = crate::xmp_roundtrip::restore(&xmp_content, &source_path)?;
+    let restored_payload = restored.is_some();
+    if let Some(adjustments) = restored {
+        converted_preset.adjustments = adjustments;
+    }
 
     let has_supported_adjustments = converted_preset
         .adjustments
@@ -3081,7 +3097,9 @@ fn import_xmp_adjustments_to_sidecar(
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
     metadata.adjustments = converted_preset.adjustments;
-    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    if !restored_payload {
+        resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    }
     merge_xmp_metadata_fields(&xmp_content, &mut metadata);
 
     let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
@@ -3092,6 +3110,7 @@ fn import_xmp_adjustments_to_sidecar(
         sidecar_path,
         metadata,
         not_transferred,
+        restored_payload,
     })
 }
 
@@ -3113,7 +3132,13 @@ pub fn import_xmp_adjustments_for_image(
     let sidecar_path = imported.sidecar_path.clone();
     let not_transferred = imported.not_transferred;
 
-    save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
+    save_metadata_and_update_thumbnail_inner(
+        path,
+        imported_adjustments,
+        app_handle,
+        state,
+        !imported.restored_payload,
+    )?;
 
     log::info!(
         "Imported XMP adjustments from {} to {}",
@@ -5136,6 +5161,10 @@ pub fn sync_metadata_to_xmp(
     if ensure_card_writable(source_path).is_err() {
         return;
     }
+    let Ok(_xmp_lock) = crate::xmp_roundtrip::WRITE_LOCK.lock() else {
+        log::error!("XMP writer is unavailable");
+        return;
+    };
     let existing = resolve_xmp_path(source_path);
     if existing.is_none() && !create_if_missing {
         return;
@@ -6232,6 +6261,34 @@ mod lightroom_xmp_import_tests {
                     .is_some_and(|name| name.to_string_lossy().starts_with(".rapidraw-"))
             })
             .collect()
+    }
+
+    #[test]
+    fn native_round_trip_import_is_exact_and_corrupt_payload_keeps_existing_sidecar() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        let adjustments = serde_json::json!({"exposure":0.1234567,"halationAmount":23,"autoLensCorrections":true,"masks":[{"id":"native","name":"Paint","subMasks":[]}],"curves":{"luma":[{"x":0,"y":0},{"x":255,"y":252}]}});
+        let document =
+            crate::xmp_roundtrip::serialize(crate::xmp::SKELETON, &adjustments, &raw).unwrap();
+        fs::write(&xmp, &document.xml).unwrap();
+        let imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+        assert!(imported.restored_payload);
+        assert_eq!(imported.metadata.adjustments, adjustments);
+        let before = fs::read(&imported.sidecar_path).unwrap();
+        let corrupt = crate::xmp::replace_image_properties(
+            &document.xml,
+            crate::xmp_payload::URI,
+            "rr",
+            &["RecipeSha256"],
+            &[("RecipeSha256", "wrong".into())],
+        )
+        .unwrap();
+        fs::write(&xmp, corrupt).unwrap();
+        assert!(import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).is_err());
+        assert_eq!(fs::read(&imported.sidecar_path).unwrap(), before);
     }
 
     #[test]

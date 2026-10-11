@@ -1029,6 +1029,16 @@
       "scale": "Масштаб",
       "spacing": "Отступы",
       "watermarkImage": "Изображение водяного знака"
+    },
+    "xmp": {
+      "title": "Lightroom XMP sidecar",
+      "description": "Export your full RapidRoom edit beside the settings Lightroom can read. Review what Lightroom will not display before writing.",
+      "chooseDestination": "Choose another destination",
+      "preview": "Review sidecar next to photo",
+      "working": "Preparing sidecar…",
+      "stored": "Stored for RapidRoom",
+      "write": "Write XMP sidecar",
+      "written": "XMP sidecar written."
     }
   },
   "library": {

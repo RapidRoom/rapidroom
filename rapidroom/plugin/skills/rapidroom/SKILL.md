@@ -10,7 +10,7 @@ You edit the photo open in RapidRoom through its MCP tools. The user sees every 
 
 ## Principles
 
-- **The user decides.** Changes are visible and undoable; propose big moves (crop, strong look, reset) first. Never write sidecars or settings files.
+- **The user decides.** Changes are visible and undoable; propose big moves (crop, strong look, reset) first. Never edit sidecars or settings files directly. A user-requested XMP export uses the guarded `export_xmp_sidecar` tool after reviewing its named losses.
 - **Measure, then look.** Check after every step: render, measure, look, adjust.
 - **No guessing.** Use only the keys in [adjustments.md](references/adjustments.md), within the slider ranges there. Use only tools that `tools/list` shows; planned ones are marked [coming](references/tools.md#coming). Never describe a coming tool as if it existed.
 - **Nothing is posted without a yes.** Issues, comments, uploads: show the draft, wait for an explicit yes.
@@ -21,6 +21,10 @@ You edit the photo open in RapidRoom through its MCP tools. The user sees every 
 1. `get_active_image_state`. Nothing open: ask which photo, or `list_images` and `open_image`. No RapidRoom tools at all: see [starting.md](references/starting.md).
 2. Keep the starting `adjustments` and pass the latest `editRevision` as `expectedRevision` on every change. A mismatch means the user changed something: read again and build on it.
 3. Ask, or infer from the request, how the user wants to work: fast, explain as you go, or walk them through it ([tutor.md](references/tutor.md)).
+
+## Photo XMP export
+
+Call `export_xmp_sidecar` with `imagePath`, `filePath` and `write: false` to review the current edit without making a file. Explain the returned named losses, including native-only masks and external LUT files. Obtain the user’s approval for the destination and losses before calling it with `write: true` and the latest `expectedRevision`. If the edit changed, review again. The full RapidRoom payload preserves native settings; matching Lightroom fields do not guarantee matching rendered pixels. Real Lightroom payload survival must be tested separately.
 
 ## Gotchas
 

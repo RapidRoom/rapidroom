@@ -229,6 +229,11 @@ impl<'a> Document<'a> {
                 .map_or(prefix == canonical, |ns| ns == uri)
     }
 
+    fn bound_matches(&self, index: usize, name: &str, uri: &str, local: &str) -> bool {
+        let (prefix, actual) = name.split_once(':').unwrap_or(("", name));
+        actual == local && self.namespace(index, prefix) == Some(uri)
+    }
+
     fn descriptions(&self) -> impl Iterator<Item = usize> + '_ {
         self.nodes.iter().enumerate().filter_map(|(i, n)| {
             (self.matches(i, &n.name, RDF, "Description")
@@ -325,6 +330,277 @@ fn xml_char(c: char) -> bool {
 
 pub(crate) fn validate(content: &str) -> Result<(), Error> {
     Document::parse(content).map(|_| ())
+}
+
+/// A property on the photo's RDF description, resolved by namespace URI.
+/// Nested profile/mask descriptions never supply photo payloads.
+pub(crate) fn image_property(
+    content: &str,
+    uri: &str,
+    local: &str,
+) -> Result<Option<String>, Error> {
+    let doc = Document::parse(content)?;
+    let mut values = Vec::new();
+    for index in doc.image_descriptions() {
+        for attribute in &doc.nodes[index].attributes {
+            if attribute.name.contains(':') && doc.bound_matches(index, &attribute.name, uri, local)
+            {
+                values.push(attribute.value.clone());
+            }
+        }
+        for child in doc.nodes[index]
+            .children
+            .iter()
+            .copied()
+            .filter(|&child| doc.bound_matches(child, &doc.nodes[child].name, uri, local))
+        {
+            values.push(
+                doc.text(child)
+                    .ok_or_else(|| malformed("expected scalar property"))?,
+            );
+        }
+    }
+    if values.len() > 1 {
+        return Err(malformed("duplicate image property"));
+    }
+    Ok(values.pop())
+}
+
+/// Replace only the listed photo properties. Everything outside their byte
+/// spans, including foreign namespaces and nested CRS fields, stays intact.
+pub(crate) fn replace_image_properties(
+    content: &str,
+    uri: &str,
+    preferred: &str,
+    owned: &[&str],
+    values: &[(&str, String)],
+) -> Result<String, Error> {
+    if values
+        .iter()
+        .any(|(key, value)| !owned.contains(key) || value.chars().any(|c| !xml_char(c)))
+    {
+        return Err(malformed("invalid owned property"));
+    }
+    let doc = Document::parse(content)?;
+    let index = doc
+        .descriptions()
+        .next()
+        .ok_or_else(|| malformed("no outer RDF description"))?;
+    let node = &doc.nodes[index];
+    let (prefix, mut attributes) = doc.prefix(index, preferred, uri);
+    let mut edits = Vec::new();
+    for description in doc.image_descriptions() {
+        for attribute in &doc.nodes[description].attributes {
+            if attribute.name.contains(':')
+                && owned
+                    .iter()
+                    .any(|key| doc.bound_matches(description, &attribute.name, uri, key))
+            {
+                edits.push((attribute.range.clone(), String::new()));
+            }
+        }
+        for key in owned {
+            for child in doc.nodes[description]
+                .children
+                .iter()
+                .copied()
+                .filter(|&child| doc.bound_matches(child, &doc.nodes[child].name, uri, key))
+            {
+                let old = &doc.nodes[child];
+                edits.push((old.start.start..old.end.end, String::new()));
+            }
+        }
+    }
+    for (key, value) in values {
+        attributes.push_str(&format!(
+            " {prefix}:{key}=\"{}\"",
+            quick_xml::escape::escape(value)
+        ));
+    }
+    let insert = node.start.end - if node.empty { 2 } else { 1 };
+    edits.push((insert..insert, attributes));
+    edits.sort_by_key(|(range, _)| std::cmp::Reverse(range.start));
+    let mut result = content.to_string();
+    for (range, replacement) in edits {
+        result.replace_range(range, &replacement);
+    }
+    validate(&result)?;
+    Ok(result)
+}
+
+pub(crate) fn image_sequence(
+    content: &str,
+    uri: &str,
+    local: &str,
+) -> Result<Option<Vec<String>>, Error> {
+    let doc = Document::parse(content)?;
+    let mut result = None;
+    for description in doc.image_descriptions() {
+        for child in doc.nodes[description]
+            .children
+            .iter()
+            .copied()
+            .filter(|&child| doc.bound_matches(child, &doc.nodes[child].name, uri, local))
+        {
+            if result.is_some() {
+                return Err(malformed("duplicate image sequence"));
+            }
+            let sequences: Vec<_> = doc.children(child, RDF, "Seq").collect();
+            if sequences.len() != 1 {
+                return Err(malformed("expected one RDF sequence"));
+            }
+            result = Some(
+                doc.children(sequences[0], RDF, "li")
+                    .map(|li| {
+                        doc.text(li)
+                            .ok_or_else(|| malformed("invalid sequence item"))
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
+        }
+    }
+    Ok(result)
+}
+
+/// A temporary, canonical CRS view for the legacy Lightroom converter. The
+/// real document is never rewritten through this view. Only namespace-bound
+/// photo CRS fields and RDF containers can enter it.
+pub(crate) fn camera_raw_view(content: &str) -> Result<String, Error> {
+    const CRS: &str = "http://ns.adobe.com/camera-raw-settings/1.0/";
+    const TIFF: &str = "http://ns.adobe.com/tiff/1.0/";
+    const EXIF: &str = "http://ns.adobe.com/exif/1.0/";
+    let doc = Document::parse(content)?;
+    fn qualified(doc: &Document<'_>, index: usize, name: &str) -> Option<String> {
+        let (prefix, local) = name.split_once(':').unwrap_or(("", name));
+        match doc.namespace(index, prefix) {
+            Some(CRS) => Some(format!("crs:{local}")),
+            Some(RDF) => Some(format!("rdf:{local}")),
+            Some(TIFF) if matches!(local, "Orientation" | "ImageWidth" | "ImageLength") => {
+                Some(format!("tiff:{local}"))
+            }
+            Some(EXIF) if matches!(local, "PixelXDimension" | "PixelYDimension") => {
+                Some(format!("exif:{local}"))
+            }
+            _ => None,
+        }
+    }
+    fn emit(doc: &Document<'_>, index: usize, out: &mut String) -> Result<(), Error> {
+        let node = &doc.nodes[index];
+        let Some(name) = qualified(doc, index, &node.name) else {
+            return Ok(());
+        };
+        out.push_str(&format!("<{name}"));
+        for attribute in &node.attributes {
+            if attribute.name.contains(':')
+                && let Some(name) = qualified(doc, index, &attribute.name)
+            {
+                out.push_str(&format!(
+                    " {name}=\"{}\"",
+                    quick_xml::escape::escape(&attribute.value)
+                ));
+            }
+        }
+        out.push('>');
+        if node.children.is_empty() {
+            let text = doc
+                .text(index)
+                .ok_or_else(|| malformed("invalid CRS text"))?;
+            out.push_str(&quick_xml::escape::escape(&text));
+        } else {
+            for &child in &node.children {
+                emit(doc, child, out)?;
+            }
+        }
+        out.push_str(&format!("</{name}>"));
+        Ok(())
+    }
+    let mut out = format!(
+        "<rdf:RDF xmlns:rdf=\"{RDF}\" xmlns:crs=\"{CRS}\" xmlns:tiff=\"{TIFF}\" xmlns:exif=\"{EXIF}\"><rdf:Description rdf:about=\"\""
+    );
+    let mut attributes = std::collections::HashSet::new();
+    for index in doc.image_descriptions() {
+        for attribute in &doc.nodes[index].attributes {
+            if attribute.name.contains(':')
+                && let Some(name) = qualified(&doc, index, &attribute.name)
+                && !name.starts_with("rdf:")
+            {
+                if !attributes.insert(name.clone()) {
+                    return Err(malformed("duplicate photo CRS property"));
+                }
+                out.push_str(&format!(
+                    " {name}=\"{}\"",
+                    quick_xml::escape::escape(&attribute.value)
+                ));
+            }
+        }
+    }
+    out.push('>');
+    for index in doc.image_descriptions() {
+        for &child in &doc.nodes[index].children {
+            let (prefix, _) = doc.nodes[child]
+                .name
+                .split_once(':')
+                .unwrap_or(("", &doc.nodes[child].name));
+            if doc.namespace(child, prefix) == Some(CRS)
+                || qualified(&doc, child, &doc.nodes[child].name)
+                    .is_some_and(|name| name.starts_with("tiff:") || name.starts_with("exif:"))
+            {
+                let name = qualified(&doc, child, &doc.nodes[child].name).expect("photo property");
+                if !attributes.insert(name) {
+                    return Err(malformed("duplicate photo CRS property"));
+                }
+                emit(&doc, child, &mut out)?;
+            }
+        }
+    }
+    out.push_str("</rdf:Description></rdf:RDF>");
+    validate(&out)?;
+    Ok(out)
+}
+
+pub(crate) fn replace_image_sequences(
+    content: &str,
+    uri: &str,
+    preferred: &str,
+    owned: &[&str],
+    sequences: &[(&str, Vec<String>)],
+) -> Result<String, Error> {
+    if sequences.iter().any(|(key, _)| !owned.contains(key)) {
+        return Err(malformed("invalid owned sequence"));
+    }
+    let mut result = replace_image_properties(content, uri, preferred, owned, &[])?;
+    let doc = Document::parse(&result)?;
+    let index = doc
+        .descriptions()
+        .next()
+        .ok_or_else(|| malformed("no image description"))?;
+    let node = &doc.nodes[index];
+    let (prefix, declaration) = doc.prefix(index, preferred, uri);
+    let mut children = String::new();
+    for (key, values) in sequences {
+        children.push_str(&format!("<{prefix}:{key}><rdf:Seq xmlns:rdf=\"{RDF}\">"));
+        for value in values {
+            if value.chars().any(|c| !xml_char(c)) {
+                return Err(malformed("invalid sequence text"));
+            }
+            children.push_str(&format!(
+                "<rdf:li>{}</rdf:li>",
+                quick_xml::escape::escape(value)
+            ));
+        }
+        children.push_str(&format!("</rdf:Seq></{prefix}:{key}>"));
+    }
+    let edit = if node.empty {
+        (
+            node.start.end - 2..node.start.end,
+            format!("{declaration}>{children}</{}>", node.name),
+        )
+    } else {
+        (node.end.start..node.end.start, children)
+    };
+    result.replace_range(edit.0, &edit.1);
+    validate(&result)?;
+    Ok(result)
 }
 
 /// New preset metadata requires a real namespace binding and decoded XML values.
@@ -490,6 +766,80 @@ pub(crate) fn update(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn projection_canonicalizes_bound_photo_properties_and_preserves_geometry() {
+        let source = format!(
+            r#"<r:RDF xmlns:r="{RDF}" xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:t="http://ns.adobe.com/tiff/1.0/" xmlns:e="http://ns.adobe.com/exif/1.0/" xmlns:crs="urn:impostor"><r:Description r:about="" a:Exposure2012="0.5" t:Orientation="6" e:PixelXDimension="6000" crs:Contrast2012="99"><t:ImageLength>4000</t:ImageLength><a:ToneCurvePV2012><r:Seq><r:li>0, 0</r:li><r:li>255, 255</r:li></r:Seq></a:ToneCurvePV2012><foreign><r:Description a:Exposure2012="7"/></foreign></r:Description></r:RDF>"#
+        );
+        let view = camera_raw_view(&source).unwrap();
+        assert!(view.contains("crs:Exposure2012=\"0.5\""));
+        assert!(view.contains("tiff:Orientation=\"6\""));
+        assert!(view.contains("exif:PixelXDimension=\"6000\""));
+        assert!(view.contains("<tiff:ImageLength>4000</tiff:ImageLength>"));
+        assert!(view.contains("<rdf:li>255, 255</rdf:li>"));
+        assert!(!view.contains("Contrast2012"));
+        assert!(!view.contains("Exposure2012=\"7\""));
+        let duplicate = source.replace(
+            "<t:ImageLength>",
+            "<a:Exposure2012>1</a:Exposure2012><t:ImageLength>",
+        );
+        assert!(camera_raw_view(&duplicate).is_err());
+    }
+
+    #[test]
+    fn photo_payload_uses_uri_and_rejects_duplicate_or_nested_properties() {
+        let uri = "urn:rapidroom:edit:1.0";
+        let xml = format!(
+            r#"<rdf:RDF xmlns:rdf="{RDF}" xmlns:renamed="{uri}"><rdf:Description rdf:about="" renamed:Recipe="top"><foreign><rdf:Description renamed:Recipe="nested"/></foreign></rdf:Description></rdf:RDF>"#
+        );
+        assert_eq!(
+            image_property(&xml, uri, "Recipe").unwrap().as_deref(),
+            Some("top")
+        );
+        let nested = xml.replace(" renamed:Recipe=\"top\"", "");
+        assert!(image_property(&nested, uri, "Recipe").unwrap().is_none());
+        let duplicate = xml.replace(
+            "<foreign>",
+            "<renamed:Recipe>second</renamed:Recipe><foreign>",
+        );
+        assert!(image_property(&duplicate, uri, "Recipe").is_err());
+    }
+
+    #[test]
+    fn photo_payload_merge_preserves_foreign_bytes_and_prefix_collisions() {
+        let uri = "urn:rapidroom:edit:1.0";
+        let foreign = r#"<other:keep xmlns:other="urn:other" data='raw &amp; spelling'><![CDATA[untouched <text>]]></other:keep>"#;
+        let xml = format!(
+            r#"<?xpacket begin=""?><rdf:RDF xmlns:rdf="{RDF}" xmlns:rr="urn:foreign" xmlns:old="{uri}"><rdf:Description rdf:about="" rr:Recipe="foreign" old:Recipe="stale">{foreign}<foreign><rdf:Description old:Recipe="nested"/></foreign></rdf:Description></rdf:RDF><?xpacket end="w"?>"#
+        );
+        let result = replace_image_properties(
+            &xml,
+            uri,
+            "rr",
+            &["Recipe"],
+            &[("Recipe", "fresh & safe".into())],
+        )
+        .unwrap();
+        assert!(result.contains(foreign));
+        assert!(result.contains(r#"rr:Recipe="foreign""#));
+        assert!(result.contains(r#"old:Recipe="nested""#));
+        assert!(!result.contains("stale"));
+        assert_eq!(
+            image_property(&result, uri, "Recipe").unwrap().as_deref(),
+            Some("fresh & safe")
+        );
+        assert!(result.ends_with(r#"<?xpacket end="w"?>"#));
+        let again = replace_image_properties(
+            &result,
+            uri,
+            "rr",
+            &["Recipe"],
+            &[("Recipe", "fresh & safe".into())],
+        )
+        .unwrap();
+        assert_eq!(again, result);
+    }
 
     #[test]
     fn round_trips_special_keywords_labels_and_numeric_entities() {

@@ -11,6 +11,26 @@ use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+fn correction_id(correction: &Resource) -> String {
+    use sha2::{Digest, Sha256};
+    let Some(sync_id) = correction
+        .scalars
+        .get("CorrectionSyncID")
+        .filter(|id| !id.is_empty())
+    else {
+        return Uuid::new_v4().to_string();
+    };
+    let mut digest = Sha256::new();
+    digest.update(b"rapidroom-lightroom-correction\0");
+    digest.update(sync_id.as_bytes());
+    let bytes = digest.finalize();
+    let mut id = [0; 16];
+    id.copy_from_slice(&bytes[..16]);
+    id[6] = (id[6] & 0x0f) | 0x80;
+    id[8] = (id[8] & 0x3f) | 0x80;
+    Uuid::from_bytes(id).to_string()
+}
+
 /// Lightroom stores local slider values normalised to -1..1. Exposure spans
 /// -4..+4 EV in the UI, so 1.0 is taken as 4 EV. This is unverified: local
 /// exposure seems to be normalised differently from global Exposure2012, and
@@ -250,7 +270,7 @@ fn convert_correction(
 
     Converted::Mask(
         Some(json!({
-            "id": Uuid::new_v4().to_string(),
+            "id": correction_id(correction),
             "name": name,
             "visible": visible,
             "invert": false,
@@ -847,6 +867,30 @@ pub(crate) mod tests {
     fn not_transferred(xmp: &str) -> Vec<&'static str> {
         let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
         lightroom_settings_not_transferred(xmp, &preset)
+    }
+
+    #[test]
+    fn correction_identity_survives_a_lightroom_rename() {
+        let mut resource = Resource {
+            scalars: HashMap::new(),
+            structs: HashMap::new(),
+        };
+        resource
+            .scalars
+            .insert("CorrectionSyncID".into(), "sync-a".into());
+        resource
+            .scalars
+            .insert("CorrectionName".into(), "Sky".into());
+        let before = correction_id(&resource);
+        resource
+            .scalars
+            .insert("CorrectionName".into(), "Renamed".into());
+        assert_eq!(correction_id(&resource), before);
+        resource
+            .scalars
+            .insert("CorrectionSyncID".into(), "sync-b".into());
+        assert_ne!(correction_id(&resource), before);
+        assert!(Uuid::parse_str(&before).is_ok());
     }
 
     #[test]
