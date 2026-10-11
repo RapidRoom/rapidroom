@@ -6,9 +6,7 @@
       "title": "Edit individual masks through MCP with typed crop and component schemas",
       "category": "feature",
       "landed": "2026-10-10",
-      "authors": [
-        "yojen7"
-      ],
+      "authors": ["yojen7"],
       "source": "rapidroom (original implementation with Codex)",
       "commits": [],
       "upstream_issues": [],
