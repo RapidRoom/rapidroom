@@ -17,6 +17,7 @@ import {
   SectionVisibility,
   INITIAL_ADJUSTMENTS,
   ADJUSTMENT_SECTIONS,
+  AdjustmentSectionName,
   getVisibleAdjustmentSections,
   showSectionAndTools,
 } from '../../../utils/adjustments';
@@ -104,7 +105,7 @@ export default function Controls() {
     [setUI],
   );
 
-  const handleToggleVisibility = (sectionName: string) => {
+  const handleToggleVisibility = (sectionName: AdjustmentSectionName) => {
     setAdjustments((prev: Adjustments) => {
       const currentVisibility: SectionVisibility = prev.sectionVisibility || INITIAL_ADJUSTMENTS.sectionVisibility;
       return {
@@ -145,7 +146,7 @@ export default function Controls() {
     });
   };
 
-  const handleSectionContextMenu = (event: any, sectionName: string) => {
+  const handleSectionContextMenu = (event: any, sectionName: AdjustmentSectionName) => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -293,7 +294,7 @@ export default function Controls() {
         density={getAdjustmentDensity(appSettings?.adjustmentDensity)}
       >
         {selectedImage ? (
-          visibleSections.map((sectionName: string) => {
+          visibleSections.map((sectionName) => {
             const SectionComponent: any = {
               basic: BasicAdjustments,
               curves: CurveGraph,

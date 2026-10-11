@@ -455,13 +455,13 @@ export interface SectionVisibility {
   effects: boolean;
 }
 
-export const COLOR_LABELS: Array<Color> = [
+export const COLOR_LABELS = [
   { name: 'red', color: '#ef4444' },
   { name: 'yellow', color: '#facc15' },
   { name: 'green', color: '#4ade80' },
   { name: 'blue', color: '#60a5fa' },
   { name: 'purple', color: '#a78bfa' },
-];
+] as const satisfies readonly Color[];
 
 const INITIAL_COLOR_GRADING: ColorGradingProps = {
   balance: 0,
@@ -852,7 +852,10 @@ export interface AdjustmentGroup {
   keys: string[];
 }
 
-export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
+export const ADJUSTMENT_GROUP_NAMES = ['basic', 'color', 'details', 'effects', 'geometry', 'masks'] as const;
+export type AdjustmentGroupName = (typeof ADJUSTMENT_GROUP_NAMES)[number];
+
+export const ADJUSTMENT_GROUPS = {
   basic: [
     {
       label: 'modals.copyPaste.groups.exposureToneMapper',
@@ -969,7 +972,7 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
     },
   ],
   masks: [{ label: 'modals.copyPaste.groups.masks', keys: ['masks'] }],
-};
+} satisfies Record<AdjustmentGroupName, AdjustmentGroup[]>;
 
 export const COPYABLE_ADJUSTMENT_KEYS: string[] = Object.values(ADJUSTMENT_GROUPS)
   .flat()
@@ -1037,15 +1040,21 @@ export const ADJUSTMENT_SECTIONS: Sections = {
   ],
 };
 
-const reconcileOrder = (defaultOrder: string[], order: string[] = []): string[] => {
-  const savedOrder = order.filter((id, index) => defaultOrder.includes(id) && order.indexOf(id) === index);
+const reconcileOrder = <T extends string>(defaultOrder: readonly T[], order: readonly string[] = []): T[] => {
+  const savedOrder = order
+    .map((id) => defaultOrder.find((defaultId) => defaultId === id))
+    .filter((id): id is T => id !== undefined)
+    .filter((id, index, values) => values.indexOf(id) === index);
   return [...savedOrder, ...defaultOrder.filter((id) => !savedOrder.includes(id))];
 };
 
-export const getAdjustmentSectionOrder = (order?: string[]): string[] =>
-  reconcileOrder(Object.keys(ADJUSTMENT_SECTIONS), order);
+export const ADJUSTMENT_SECTION_NAMES = ['basic', 'curves', 'color', 'details', 'effects'] as const;
+export type AdjustmentSectionName = (typeof ADJUSTMENT_SECTION_NAMES)[number];
 
-export const getVisibleAdjustmentSections = (layout?: AdjustmentLayout): string[] =>
+export const getAdjustmentSectionOrder = (order?: string[]): AdjustmentSectionName[] =>
+  reconcileOrder(ADJUSTMENT_SECTION_NAMES, order);
+
+export const getVisibleAdjustmentSections = (layout?: AdjustmentLayout): AdjustmentSectionName[] =>
   getAdjustmentSectionOrder(layout?.sectionOrder).filter((section) => !layout?.hiddenSections?.includes(section));
 
 export const DEFAULT_HIDDEN_ADJUSTMENT_TOOLS = ['chromaticAberration', 'colorCalibration'];

@@ -32,7 +32,7 @@ export const PANEL_ICONS: Record<Panel, LucideIcon> = {
   [Panel.Terminal]: TerminalIcon,
 };
 
-const PANEL_TITLES: Record<Panel, string> = {
+const PANEL_TITLES = {
   [Panel.Metadata]: 'editor.switcher.tooltips.info',
   [Panel.Adjustments]: 'editor.switcher.tooltips.adjust',
   [Panel.Crop]: 'editor.switcher.tooltips.crop',
@@ -43,7 +43,7 @@ const PANEL_TITLES: Record<Panel, string> = {
   [Panel.FolderTree]: 'library.folders.sourcesTitle',
   [Panel.Tethering]: 'editor.switcher.tooltips.tethering',
   [Panel.Terminal]: 'terminal.title',
-};
+} as const satisfies Record<Panel, string>;
 
 function PanelTab({
   panel,
