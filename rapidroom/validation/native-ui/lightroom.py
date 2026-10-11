@@ -1,11 +1,20 @@
 """Optional workspace, snapshot and keymap checks through the public native UI."""
 import json
+import re
 import time
 from PIL import ImageChops
 
 
 def run_lightroom_checks(smoke, wait_for, baseline):
     original_roi=smoke.roi
+
+    def preview_size():
+        sizes=re.findall(r'\[process_preview_job\] full (\d+)x(\d+)', (smoke.case / 'app.log').read_text())
+        if not sizes:
+            raise RuntimeError('Processed preview dimensions unavailable')
+        return tuple(map(int,sizes[-1]))
+
+    baseline_size=preview_size()
     settings_path = smoke.case / 'data/io.github.CyberTimon.RapidRAW/settings.json'
 
     def settings():
@@ -91,7 +100,22 @@ def run_lightroom_checks(smoke, wait_for, baseline):
         if current.get(key) != original.get(key):
             raise RuntimeError('Workspace did not restore '+key)
     smoke.roi=original_roi
+    # Resizing/module changes retain the larger HiFi preview until an edit.
+    # A public Exposure edit and one Undo restore the same fit resolution without
+    # resetting any other adjustment; hidden changes still fail the pixel check.
+    restored_roi=tuple(round(v) for v in smoke.execute("""const e=[...document.querySelectorAll('svg')].filter(e=>e.getBoundingClientRect().width>500 && e.getBoundingClientRect().height>300)[0];
+      if(!e)throw Error('Restored photo unavailable');const r=e.getBoundingClientRect();return [r.left,r.top,r.right,r.bottom];"""))
+    if restored_roi != original_roi:
+        raise RuntimeError('Workspace did not restore photo bounds')
+    wait_for(lambda: smoke.slider('Exposure')['value']==0, 'snapshot Undo retained original Exposure')
+    smoke.drag('Exposure',0.5)
+    smoke.stable_preview('workspace-fit-edit')
+    smoke.execute("""const e=document.querySelector('button[data-tooltip^=\"Undo (\"]');
+      if(!e||e.disabled)throw Error('Workspace normalization Undo unavailable');e.click();return true;""")
+    wait_for(lambda: smoke.slider('Exposure')['value']==0, 'one Undo restores fit normalization')
     final=smoke.stable_preview('workspace-restored')
+    if preview_size() != baseline_size:
+        raise RuntimeError('Workspace comparison uses different preview dimensions')
     if ImageChops.difference(smoke.crop(baseline),smoke.crop(final)).getbbox() is not None:
         raise RuntimeError('Workspace switching or snapshot Undo changed photo pixels')
     smoke.step('RapidRoom workspace and original photo restored exactly')
