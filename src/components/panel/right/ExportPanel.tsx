@@ -826,7 +826,7 @@ export default function ExportPanel({
               />
             </div>
 
-            {!isLibraryContext && <XmpSidecarExport disabled={isExporting} />}
+            <XmpSidecarExport disabled={isExporting} />
 
             <Section title={t('export.sections.fileSettings')}>
               <div className="grid grid-cols-3 gap-2">

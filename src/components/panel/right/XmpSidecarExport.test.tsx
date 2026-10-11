@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import '../../../i18n';
 import { mockCommand } from '../../../test/tauriMock';
 import { useEditorStore } from '../../../store/useEditorStore';
+import { useUIStore } from '../../../store/useUIStore';
 import { INITIAL_ADJUSTMENTS } from '../../../utils/adjustments';
 import XmpSidecarExport from './XmpSidecarExport';
 
@@ -12,12 +13,14 @@ const dialog = vi.hoisted(() => ({ save: vi.fn() }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ save: dialog.save }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const initial = useEditorStore.getState();
+const initialUI = useUIStore.getState();
 let root: Root;
 let container: HTMLDivElement;
 let calls: Array<Record<string, unknown>>;
 
 beforeEach(() => {
   calls = [];
+  useUIStore.setState({ activeView: 'editor' });
   dialog.save.mockReset().mockResolvedValue('/owned/test.xmp');
   mockCommand('export_xmp_round_trip', (args = {}) => {
     calls.push(args);
@@ -49,6 +52,7 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   useEditorStore.setState(initial, true);
+  useUIStore.setState(initialUI, true);
 });
 
 async function click(text: string) {
@@ -108,4 +112,14 @@ it('uses a separate sidecar name for a virtual copy', async () => {
     filePath: '/owned/test-copy-copy-id.xmp',
     write: false,
   });
+});
+
+it('hides the photo sidecar export and discards its report when switching to Library', async () => {
+  await click('Review sidecar next to photo');
+  expect(container.textContent).toContain('Write XMP sidecar');
+  act(() => useUIStore.setState({ activeView: 'library' }));
+  expect(container.textContent).toBe('');
+  act(() => useUIStore.setState({ activeView: 'editor' }));
+  expect(container.textContent).not.toContain('Write XMP sidecar');
+  expect(calls).toHaveLength(1);
 });

@@ -4,6 +4,7 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { useTranslation } from 'react-i18next';
 import Button from '../../ui/Button';
 import { useEditorStore } from '../../../store/useEditorStore';
+import { useUIStore } from '../../../store/useUIStore';
 import type { Adjustments } from '../../../utils/adjustments';
 
 interface NamedLoss {
@@ -28,6 +29,7 @@ interface Prepared {
 
 export default function XmpSidecarExport({ disabled }: { disabled: boolean }) {
   const { t } = useTranslation();
+  const activeView = useUIStore((state) => state.activeView);
   const owner = useEditorStore((state) => state.selectedImage?.path);
   const adjustments = useEditorStore((state) => state.adjustments);
   const [prepared, setPrepared] = useState<Prepared | null>(null);
@@ -45,15 +47,20 @@ export default function XmpSidecarExport({ disabled }: { disabled: boolean }) {
     return () => {
       epoch.current += 1;
     };
-  }, [owner, adjustments]);
+  }, [owner, adjustments, activeView]);
 
   function current(photo: string, reference: Adjustments, request: number) {
     const state = useEditorStore.getState();
-    return epoch.current === request && state.selectedImage?.path === photo && state.adjustments === reference;
+    return (
+      epoch.current === request &&
+      useUIStore.getState().activeView === 'editor' &&
+      state.selectedImage?.path === photo &&
+      state.adjustments === reference
+    );
   }
 
   async function preview(customDestination = false) {
-    if (!owner || busy || disabled) return;
+    if (activeView !== 'editor' || !owner || busy || disabled) return;
     const photo = owner;
     const reference = useEditorStore.getState().adjustments;
     const draft: Adjustments = structuredClone(reference);
@@ -115,6 +122,8 @@ export default function XmpSidecarExport({ disabled }: { disabled: boolean }) {
       if (epoch.current === request) setBusy(false);
     }
   }
+
+  if (activeView !== 'editor') return null;
 
   return (
     <section aria-label={t('export.xmp.title')} className="space-y-3 rounded-lg border border-border p-3">
