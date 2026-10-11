@@ -112,10 +112,15 @@ def run_lightroom_checks(smoke, wait_for, baseline):
     # Resizing/module changes retain the larger HiFi preview until an edit.
     # A public Exposure edit and one Undo restore the same fit resolution without
     # resetting any other adjustment; hidden changes still fail the pixel check.
-    restored_roi=tuple(round(v) for v in smoke.execute("""const e=[...document.querySelectorAll('svg')].filter(e=>e.getBoundingClientRect().width>500 && e.getBoundingClientRect().height>300)[0];
-      if(!e)throw Error('Restored photo unavailable');const r=e.getBoundingClientRect();return [r.left,r.top,r.right,r.bottom];"""))
-    if restored_roi != original_roi:
-        raise RuntimeError('Workspace did not restore photo bounds')
+    def restored_bounds():
+        return tuple(round(v) for v in smoke.execute("""const e=[...document.querySelectorAll('svg')].filter(e=>e.getBoundingClientRect().width>500 && e.getBoundingClientRect().height>300)[0];
+          if(!e)throw Error('Restored photo unavailable');const r=e.getBoundingClientRect();return [r.left,r.top,r.right,r.bottom];"""))
+    first_bounds=restored_bounds()
+    # Sidebar widths animate for 300 ms; check the exact original rectangle
+    # after that transition, rather than accepting an intermediate frame.
+    wait_for(lambda: restored_bounds() == original_roi, 'workspace restores exact photo bounds', 10)
+    smoke.step('Workspace photo bounds settle to the exact original rectangle', {
+        'original': original_roi, 'first_restore_frame': first_bounds, 'restored': restored_bounds()})
     wait_for(lambda: smoke.slider('Exposure')['value']==0, 'snapshot Undo retained original Exposure')
     smoke.drag('Exposure',0.5)
     smoke.stable_preview('workspace-fit-edit')
