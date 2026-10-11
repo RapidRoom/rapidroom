@@ -93,8 +93,17 @@ def run_mask_checks(case, smoke):
         return None
 
     sidecar = wait_for(saved_masks, "normal autosave of both masks")
+    # A frontend restart drops the image cache and creates a new history stack.
+    smoke.execute("setTimeout(() => location.reload(), 0);return true;")
+    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Continue Session');"), "fresh frontend session")
+    smoke.execute("const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Continue Session');e.click();return true;")
+    wait_for(lambda: smoke.execute("return [...document.images].some(e=>e.src.startsWith('asset:') && e.complete && e.naturalWidth>100);"), "reloaded library")
+    smoke.execute("const e=[...document.images].find(e=>e.src.startsWith('asset:'));e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;")
+    wait_for(lambda: smoke.execute("return document.body.innerText.includes('4608 × 3072') && document.body.innerText.includes('Exposure');"), "fresh editor loads sidecar")
     mutate("select_image")
     reloaded = state()
+    if len(history()["entries"]) != 1:
+        raise RuntimeError("Sidecar reload retained the previous frontend history/cache")
     if reloaded["adjustments"]["masks"] != patched["adjustments"]["masks"]:
         raise RuntimeError("Sidecar reload did not preserve masks/defaults")
     mutate("remove_mask", maskId="second")
