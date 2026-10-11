@@ -336,6 +336,8 @@ fn shell(path: &Path, version: &str, custom: Option<&str>) -> Result<CommandBuil
     command.env("TERM", "xterm-256color");
     command.env("COLORTERM", "truecolor");
     command.env("RAPIDROOM_FOLDER", path);
+    command.env("RAPIDROOM_CONTEXT_TRUST", crate::assistant_text::POLICY);
+    command.env("RAPIDROOM_UNTRUSTED_CONTEXT", crate::assistant_text::json_text(&serde_json::json!({(crate::assistant_text::ENVELOPE): {"folderPath":path, "folderDisplayName":crate::assistant_text::display(&path.to_string_lossy())}})));
     command.env("RAPIDROOM_VERSION", version);
     let (remove, rewrite) = crate::terminal::appimage_env_fixes(|name| std::env::var(name).ok());
     for name in remove {

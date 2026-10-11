@@ -500,6 +500,7 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
                     .unwrap_or_else(|| format!("Variant {}", (b'A' + index as u8) as char)),
             )
         };
+        let label = crate::assistant_text::display(&label);
         if label.trim().is_empty()
             || label.chars().count() > 80
             || label.chars().any(char::is_control)
