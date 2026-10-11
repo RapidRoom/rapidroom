@@ -4,13 +4,20 @@ import { toast } from 'react-toastify';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
-import { Invokes, ImageFile, ImageFlag, AlbumItem, Album, AlbumGroup } from '../components/ui/AppProperties';
+import {
+  Invokes,
+  ImageFile,
+  ImageFlag,
+  AlbumItem,
+  Album,
+  AlbumGroup,
+  FolderNode,
+} from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { computeSortedLibrary } from './useSortedLibrary';
 import { expandGroupedPaths } from '../utils/imageGrouping';
 import { getReferenceLabel, isReferenceCandidate } from '../utils/referenceView';
-import type { FolderTree } from '../components/panel/right/FolderTree';
 import { getImageFlag, restoreFlags, toggledFlag, withFlag } from '../utils/imageFlags';
 import { enqueueLibraryMetadataWrite } from '../utils/libraryMetadataWrites';
 
@@ -351,7 +358,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
       const updates: any = {};
 
       if (rootPaths && rootPaths.length > 0) {
-        const treesData = await invoke(Invokes.GetPinnedFolderTrees, {
+        const treesData = await invoke<FolderNode[]>(Invokes.GetPinnedFolderTrees, {
           paths: rootPaths,
           expandedFolders: expandedArray,
           showImageCounts,
@@ -362,7 +369,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
       }
 
       if (pinnedFolders && pinnedFolders.length > 0) {
-        const pinnedTreesData = await invoke(Invokes.GetPinnedFolderTrees, {
+        const pinnedTreesData = await invoke<FolderNode[]>(Invokes.GetPinnedFolderTrees, {
           paths: pinnedFolders,
           expandedFolders: expandedArray,
           showImageCounts,
@@ -394,7 +401,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     handleSettingsChange({ ...appSettings, pinnedFolders: newPins });
 
     try {
-      const trees = await invoke<FolderTree[]>(Invokes.GetPinnedFolderTrees, {
+      const trees = await invoke<FolderNode[]>(Invokes.GetPinnedFolderTrees, {
         paths: newPins,
         expandedFolders: Array.from(expandedFolders),
         showImageCounts: appSettings.enableFolderImageCounts ?? false,
