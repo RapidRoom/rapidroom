@@ -344,6 +344,14 @@ fn validate(value: &Value, schema: &Value, path: &str) -> Result<(), String> {
             }
         }
     }
+    if let Some(array) = value.as_array() {
+        let len = array.len() as u64;
+        if schema["minItems"].as_u64().is_some_and(|min| len < min)
+            || schema["maxItems"].as_u64().is_some_and(|max| len > max)
+        {
+            return Err(format!("{path} has invalid array length"));
+        }
+    }
     if let Some(array) = value.as_array()
         && let Some(items) = schema.get("items")
     {
@@ -383,6 +391,10 @@ pub(super) fn validate_mask(value: &Value, partial: bool) -> Result<(), String> 
         &mask_schema(local_adjustments_schema(), partial),
         "mask",
     )?;
+    if let Some(local) = value.get("adjustments") {
+        // Reuse curve ordering and parametric split validation from global edits.
+        adjustments::validate_adjustments(local)?;
+    }
     if let Some(sub_masks) = value["subMasks"].as_array() {
         unique_ids(sub_masks, "sub-mask")?;
         for component in sub_masks {
@@ -560,6 +572,15 @@ mod tests {
         assert!(validate_mask(&value, false).is_err());
         value = radial("local");
         value["subMasks"][0]["mode"] = json!("divide");
+        assert!(validate_mask(&value, false).is_err());
+        value = radial("local");
+        value["adjustments"]["curves"] = json!({"luma":[]});
+        assert!(validate_mask(&value, false).is_err());
+        value["adjustments"]["curves"] = json!({"luma":[{"x":100,"y":0},{"x":50,"y":255}]});
+        assert!(validate_mask(&value, false).is_err());
+        value = radial("local");
+        value["adjustments"]["parametricCurve"] =
+            json!({"luma":{"split1":80,"split2":20,"split3":60}});
         assert!(validate_mask(&value, false).is_err());
         assert!(validate_crop(&json!({"x":0,"y":0,"width":10,"height":10,"unit":"%"})).is_err());
         assert!(validate_crop(&json!({"x":0,"y":0,"width":0,"height":10})).is_err());
