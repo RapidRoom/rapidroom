@@ -320,3 +320,13 @@ pixels. A typed `crop 4:3` must alter the preview and be reversible in one Undo.
 The normal edit/Undo/Compact/export/clean-exit smoke follows. No model requests,
 React store fixtures or private photos are used. Physical input and other
 platforms remain untested.
+
+### Assistant untrusted text (#165)
+
+Build with `build.py --mcp-clients`, then run `smoke.py --untrusted-text`. The isolated native fixture exercises a hostile folder and filename through authenticated MCP, verifies the data-only envelope and exact operational paths, projects an assistant mask name before storage, refuses an out-of-range local mask exposure, and restores the original draft and exact native pixels. It sends no model requests. Unit fixtures separately cover EXIF, IPTC, XMP descriptions, presets, sidecars, errors, UTF-8/control/bidi handling, credential patterns and shared-budget exhaustion. Remote-model resistance is **not** claimed by these deterministic tests.
+
+The central tool result boundary labels both successes and errors as data-only. Descriptive strings have per-field UTF-8 byte caps (256 bytes normally, 1024 for longer text) and a shared 4096-byte budget. Controls/bidi are removed from descriptive text; secret-pattern matches are redacted. JSON display explicitly escapes bidi characters. Paths remain exact and must never be interpreted as shell commands or instructions. Only the user’s request can authorize operations. Binary data and validated opaque IDs retain their functional representations inside the same envelope.
+
+Assistant inputs project descriptive names/notes before UI storage. Names echoed from the current edit preserve the original stored name by identity, so reading a bounded display cannot silently rename an existing mask. Local numeric mask edits use the same existing numeric registry as global controls; invalid values are refused rather than applied. Terminal launches expose a data-only context and static trust policy without changing the actual working directory/path. The general terminal is not a photo-metadata prompt generator; arbitrary shell output remains data.
+
+Existing tool-result consumers must read the inner envelope. The native client helper `tool_data` supports that envelope and older results, while the hostile fixture asserts the envelope is actually present in the current build. Transport `isError`/protocol fields and image content blocks keep their roles.

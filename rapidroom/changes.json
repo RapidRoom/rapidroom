@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "assistant-untrusted-text-boundaries",
+      "title": "Fence and bound untrusted photo text at assistant boundaries",
+      "category": "privacy",
+      "landed": "2026-10-10",
+      "authors": ["yojen7", "skymanbp"],
+      "source": "rapidroom (original implementation with Codex; MIT AutoShade bounded-text/projection pattern)",
+      "commits": ["https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "MCP successes and errors carry a labelled data-only envelope. Descriptive metadata/display names lose control/bidi characters, share a 4 KiB UTF-8 budget, and redact credential patterns; exact operational paths remain untrusted data so local file tools still work, with escaped JSON display. New assistant names are projected before storage, echoed current edit names are preserved, and local mask numeric controls use the existing registry. Terminal launches provide an explicit untrusted context envelope. Deterministic hostile fixtures do not claim model-level injection immunity."
+    },
+    {
       "id": "jxl-exif-metadata",
       "title": "Preserve source EXIF metadata in JPEG XL exports",
       "category": "fix",
