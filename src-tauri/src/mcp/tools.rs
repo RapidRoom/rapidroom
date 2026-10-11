@@ -242,7 +242,18 @@ pub(super) async fn call_tool(
     mut arguments: Value,
 ) -> Result<Value, (i64, String)> {
     if let Some(current) = ui::active_session(app_handle) {
-        crate::assistant_text::input_with_current(&mut arguments, &current.adjustments);
+        app_handle
+            .state::<crate::AppState>()
+            .mcp
+            .name_echoes
+            .lock()
+            .unwrap()
+            .input(
+                &mut arguments,
+                &current.adjustments,
+                &current.path,
+                &current.revision,
+            );
     } else {
         crate::assistant_text::project_input(&mut arguments);
     }
@@ -268,7 +279,27 @@ pub(super) async fn call_tool(
     };
 
     match result {
-        Ok(value) => Ok(tool_success(value)),
+        Ok(value) => {
+            let projected = crate::assistant_text::project(&value);
+            if let Some(current) = ui::active_session(app_handle)
+                && value["imagePath"].as_str() == Some(current.path.as_str())
+                && value["editRevision"].as_str() == Some(current.revision.as_str())
+            {
+                app_handle
+                    .state::<crate::AppState>()
+                    .mcp
+                    .name_echoes
+                    .lock()
+                    .unwrap()
+                    .remember(
+                        &current.path,
+                        &current.revision,
+                        &current.adjustments,
+                        &projected,
+                    );
+            }
+            Ok(projected_success(projected))
+        }
         Err(error) => Ok(tool_error(&error)),
     }
 }
@@ -1017,8 +1048,11 @@ fn conflict_value(expected: &str, current: &Value, before: Option<&Value>, actor
         "changesKnown":before.is_some(),"actor":actor})
 }
 
+#[cfg(test)]
 fn tool_success(value: Value) -> Value {
-    let mut data = crate::assistant_text::project(&value);
+    projected_success(crate::assistant_text::project(&value))
+}
+fn projected_success(mut data: Value) -> Value {
     let content = data
         .as_object_mut()
         .and_then(|object| object.remove("content"));

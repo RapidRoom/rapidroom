@@ -356,13 +356,117 @@ pub(crate) fn project_input(value: &mut Value) {
     visit(value, &mut TextBudget::default());
 }
 
+#[derive(Default)]
+pub(crate) struct NameEchoes(std::collections::VecDeque<NameEcho>);
+struct NameEcho {
+    path: String,
+    revision: String,
+    id: String,
+    native_hash: [u8; 32],
+    shown: String,
+}
+impl NameEchoes {
+    fn hash(name: &str) -> [u8; 32] {
+        use sha2::Digest;
+        sha2::Sha256::digest(name.as_bytes()).into()
+    }
+    fn named<'a>(value: &'a Value, out: &mut Vec<(&'a str, &'a str)>) {
+        match value {
+            Value::Object(object) => {
+                if let (Some(id), Some(name)) = (
+                    object.get("id").and_then(Value::as_str),
+                    object.get("name").and_then(Value::as_str),
+                ) && id.len() <= 128
+                    && out.len() < 2048
+                {
+                    out.push((id, name));
+                }
+                for value in object.values() {
+                    Self::named(value, out);
+                }
+            }
+            Value::Array(items) => {
+                for item in items {
+                    Self::named(item, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    pub(crate) fn remember(&mut self, path: &str, revision: &str, current: &Value, shown: &Value) {
+        if path.len() > 4096 || revision.len() > 128 {
+            return;
+        }
+        let mut native = Vec::new();
+        Self::named(current, &mut native);
+        let mut displayed = Vec::new();
+        Self::named(shown, &mut displayed);
+        for (id, shown) in displayed {
+            if shown.len() > FIELD {
+                continue;
+            }
+            if let Some((_, raw)) = native.iter().find(|(native_id, _)| *native_id == id)
+                && native
+                    .iter()
+                    .filter(|(native_id, _)| *native_id == id)
+                    .count()
+                    == 1
+            {
+                let native_hash = Self::hash(raw);
+                if self.0.iter().any(|e| {
+                    e.path == path
+                        && e.revision == revision
+                        && e.id == id
+                        && e.native_hash == native_hash
+                        && e.shown == shown
+                }) {
+                    continue;
+                }
+                self.0.push_back(NameEcho {
+                    path: path.into(),
+                    revision: revision.into(),
+                    id: id.into(),
+                    native_hash,
+                    shown: shown.into(),
+                });
+                if self.0.len() > 2048 {
+                    self.0.pop_front();
+                }
+            }
+        }
+    }
+    pub(crate) fn input(&self, value: &mut Value, current: &Value, path: &str, revision: &str) {
+        input_names(value, current, Some((self, path, revision)));
+    }
+    fn matches(&self, path: &str, revision: &str, id: &str, raw: &str, shown: &str) -> bool {
+        let hash = Self::hash(raw);
+        self.0.iter().any(|e| {
+            e.path == path
+                && e.revision == revision
+                && e.id == id
+                && e.native_hash == hash
+                && e.shown == shown
+        })
+    }
+}
 /// Preserve names echoed from the current edit, even when the outgoing display
 /// projection was bounded. An assistant rename is still projected before store.
+#[cfg(test)]
 pub(crate) fn input_with_current(value: &mut Value, current: &Value) {
+    input_names(value, current, None);
+}
+
+fn input_names(value: &mut Value, current: &Value, aliases: Option<(&NameEchoes, &str, &str)>) {
     let original = value.clone();
     project_input(value);
     let displayed = project(&json!({"adjustments":current}));
-    fn names(value: &mut Value, original: &Value, current: &Value, displayed: &Value) {
+    fn names(
+        value: &mut Value,
+        original: &Value,
+        current: &Value,
+        displayed: &Value,
+        aliases: Option<(&NameEchoes, &str, &str)>,
+    ) {
         match value {
             Value::Object(object) => {
                 if let Some(id) = object.get("id").and_then(Value::as_str)
@@ -370,22 +474,24 @@ pub(crate) fn input_with_current(value: &mut Value, current: &Value) {
                     && let Some(name) = original.get("name").and_then(Value::as_str)
                     && (current.get("name").and_then(Value::as_str) == Some(name)
                         || displayed.get("name").and_then(Value::as_str) == Some(name)
-                        || current
-                            .get("name")
-                            .and_then(Value::as_str)
-                            .is_some_and(|raw| {
-                                let prefix: String =
-                                    char::decode_utf16(raw.encode_utf16().take(128))
-                                        .map(|c| c.unwrap_or(char::REPLACEMENT_CHARACTER))
-                                        .collect();
-                                display(&prefix) == name
-                            }))
+                        || aliases.is_some_and(|(cache, path, revision)| {
+                            current
+                                .get("name")
+                                .and_then(Value::as_str)
+                                .is_some_and(|raw| cache.matches(path, revision, id, raw, name))
+                        }))
                     && let Some(name) = current.get("name")
                 {
                     object.insert("name".into(), name.clone());
                 }
                 for (key, value) in object {
-                    names(value, &original[key], &current[key], &displayed[key]);
+                    names(
+                        value,
+                        &original[key],
+                        &current[key],
+                        &displayed[key],
+                        aliases,
+                    );
                 }
             }
             Value::Array(items) => {
@@ -398,7 +504,7 @@ pub(crate) fn input_with_current(value: &mut Value, current: &Value) {
                     });
                     let original = &original[index];
                     if let Some(index) = matched {
-                        names(item, original, &current[index], &displayed[index]);
+                        names(item, original, &current[index], &displayed[index], aliases);
                     }
                 }
             }
@@ -407,7 +513,13 @@ pub(crate) fn input_with_current(value: &mut Value, current: &Value) {
     }
     for key in ["adjustments", "changes"] {
         if let Some(value) = value.get_mut(key) {
-            names(value, &original[key], current, &displayed["adjustments"]);
+            names(
+                value,
+                &original[key],
+                current,
+                &displayed["adjustments"],
+                aliases,
+            );
         }
     }
 }
@@ -521,7 +633,9 @@ mod tests {
             &serde_json::json!({"masks":[{"id":"mask-id","name":"z".repeat(128),"opacity":100}]}),
         );
         let mut args = serde_json::json!({"changes":{"masks":[{"id":"mask-id","name":context["masks"][0]["name"],"opacity":50,"subMasks":[]}]}});
-        input_with_current(&mut args, &current);
+        let mut cache = NameEchoes::default();
+        cache.remember("photo", "rev", &current, &context);
+        cache.input(&mut args, &current, "photo", "rev");
         assert_eq!(
             args["changes"]["masks"][0]["name"],
             current["masks"][0]["name"]
@@ -580,5 +694,35 @@ mod tests {
                 .len()
                 <= FIELD
         );
+    }
+    #[test]
+    fn editor_context_budget_partial_name_echo_must_not_rename_mask() {
+        let masks:Vec<_>=(0..33).map(|i|serde_json::json!({"id":format!("mask-{i}"),"name":"z".repeat(200),"opacity":100,"subMasks":[]})).collect();
+        let current = serde_json::json!({"masks":masks});
+        let summaries:Vec<_>=current["masks"].as_array().unwrap().iter().map(|m|serde_json::json!({"id":m["id"],"name":"z".repeat(128),"opacity":m["opacity"],"visible":true})).collect();
+        let context = project(&serde_json::json!({"exif":{"Model":"Camera"},"masks":summaries}));
+        let mut args = serde_json::json!({"changes":{"masks":[{"id":"mask-31","name":context["masks"][31]["name"],"opacity":50,"subMasks":[]}]}});
+        let mut cache = NameEchoes::default();
+        cache.remember("photo", "rev", &current, &context);
+        cache.input(&mut args, &current, "photo", "rev");
+        assert_eq!(
+            args["changes"]["masks"][0]["name"],
+            current["masks"][31]["name"]
+        );
+        let mut rename = json!({"changes":{"masks":[{"id":"mask-31","name":"zz","opacity":50}]}});
+        cache.input(&mut rename, &current, "photo", "rev");
+        assert_eq!(rename["changes"]["masks"][0]["name"], "zz");
+        let alias = context["masks"][31]["name"].clone();
+        let mut modified = current.clone();
+        modified["masks"][31]["name"] = json!("different native name");
+        let mut stale_native = json!({"changes":{"masks":[{"id":"mask-31","name":alias}]}});
+        cache.input(&mut stale_native, &modified, "photo", "rev");
+        assert_eq!(stale_native["changes"]["masks"][0]["name"], alias);
+        for (path, revision) in [("other", "rev"), ("photo", "newrev")] {
+            let mut stale =
+                json!({"changes":{"masks":[{"id":"mask-31","name":alias,"opacity":50}]}});
+            cache.input(&mut stale, &current, path, revision);
+            assert_eq!(stale["changes"]["masks"][0]["name"], alias);
+        }
     }
 }
