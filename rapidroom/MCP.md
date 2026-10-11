@@ -120,6 +120,8 @@ Coordinates, radii, linear transition `range` and brush diameter are **original-
 }
 ```
 
+Mask/component IDs contain 1–128 ASCII letters, digits, underscore, colon, dot or hyphen, matching the untrusted-output opaque-ID policy. Names use the existing bounded text policy: echoed current display names retain the stored native name by ID and revision; an intentional rename is projected before storage. The full mask array supports at most 256 containers.
+
 Call `upsert_mask` with that recipe, then read the returned revision before further edits. For a nested update send only `mask: {id:"light1",adjustments:{hsl:{yellows:{hue:25,saturation:-20}}}}`. `get_editor_context` already identifies the running build with `appVersion`, `sourceCommit` and `sourceDirty`; no checkout search is needed.
 
 The native `--mcp-masks` scenario records an installed Claude client adding a second mask, checks sibling preservation and filled local defaults, and verifies GUI Undo, shared Redo, sidecar reload and invalid-write refusal on an isolated CC0 photo.

@@ -232,7 +232,7 @@ pub(super) fn adjustments_schema() -> Value {
     properties.insert("crop".to_string(), super::masks::crop_schema());
     properties.insert("sectionVisibility".to_string(), json!({ "type": "object" }));
     let local = super::masks::local_schema(&properties);
-    properties.insert("masks".to_string(), json!({ "type": "array", "items": super::masks::mask_schema(local, false), "description": "Replaces all mask containers; use upsert_mask/remove_mask to preserve siblings." }));
+    properties.insert("masks".to_string(), json!({ "type": "array", "maxItems":256, "items": super::masks::mask_schema(local, false), "description": "Replaces all mask containers; use upsert_mask/remove_mask to preserve siblings." }));
     json!({
         "type": "object",
         "description": "RapidRAW adjustment object. Scalar controls include min/max bounds. Curves, HSL, color grading, and color calibration expose their nested channels and bounds below. Omitted fields are allowed for sparse update_adjustments calls.",
@@ -524,24 +524,6 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
         }
         if let Some(value) = object.get(key) {
             match key.as_str() {
-                "masks" => {
-                    let masks = value.as_array().ok_or("masks must be an array")?;
-                    if masks.len() > 256 {
-                        return Err("MCP edits support at most 256 masks".into());
-                    }
-                    for mask in masks {
-                        let mask = mask.as_object().ok_or("Each mask must be an object")?;
-                        if let Some(opacity) = mask.get("opacity") {
-                            validate_number(opacity, "mask.opacity", 0.0, 100.0)?;
-                        }
-                        if let Some(local) = mask.get("adjustments") {
-                            if local.get("masks").is_some() {
-                                return Err("Local mask adjustments cannot contain masks".into());
-                            }
-                            validate_adjustments(local)?;
-                        }
-                    }
-                }
                 "curves" | "pointCurves" => validate_curves(value, key)?,
                 "parametricCurve" => validate_parametric_curve(value)?,
                 "hsl" => validate_hsl(value)?,

@@ -62,8 +62,18 @@ fn coordinate() -> Value {
         "Original-image pixels before crop; may lie outside the image.",
     )
 }
-fn identifier() -> Value {
-    json!({"type":"string","minLength":1,"maxLength":256})
+pub(super) fn identifier_schema() -> Value {
+    json!({"type":"string","minLength":1,"maxLength":128,"pattern":"^[A-Za-z0-9_:.-]+$",
+        "description":"Opaque ID: 1–128 ASCII letters, digits, underscore, colon, dot or hyphen."})
+}
+pub(super) fn validate_id(value: &str) -> Result<(), String> {
+    if value.is_empty() || !crate::assistant_text::valid_opaque_id(value) {
+        return Err(
+            "Mask id must contain 1–128 ASCII letters, digits, underscore, colon, dot or hyphen"
+                .into(),
+        );
+    }
+    Ok(())
 }
 fn object(properties: Value, required: &[&str]) -> Value {
     json!({"type":"object","additionalProperties":false,"properties":properties,"required":required})
@@ -231,7 +241,7 @@ fn parameters_schema(kind: &str) -> Value {
 fn sub_mask_schema(kind: &str) -> Value {
     object(
         json!({
-            "id":identifier(),"name":{"type":"string"},
+            "id":identifier_schema(),"name":{"type":"string"},
             "type":{"type":"string","enum":[kind]},
             "visible":{"type":"boolean","default":true},
             "invert":{"type":"boolean","default":false},
@@ -247,7 +257,7 @@ pub(super) fn mask_schema(local_adjustments: Value, partial: bool) -> Value {
     let variants: Vec<_> = TYPES.iter().map(|kind| sub_mask_schema(kind)).collect();
     let mut schema = object(
         json!({
-            "id":identifier(),"name":{"type":"string"},
+            "id":identifier_schema(),"name":{"type":"string"},
             "visible":{"type":"boolean","default":true},
             "invert":{"type":"boolean","default":false},
             "opacity":number(0.0,100.0,"Container opacity percent; default 100."),
@@ -391,6 +401,7 @@ pub(super) fn validate_mask(value: &Value, partial: bool) -> Result<(), String> 
         &mask_schema(local_adjustments_schema(), partial),
         "mask",
     )?;
+    validate_id(value["id"].as_str().expect("validated id"))?;
     if let Some(local) = value.get("adjustments") {
         // Reuse individual field bounds and curve ordering from global edits.
         adjustments::validate_adjustments(local)?;
@@ -429,6 +440,7 @@ fn unique_ids(values: &[Value], kind: &str) -> Result<(), String> {
         let id = value["id"]
             .as_str()
             .ok_or(format!("{kind}.id must be a string"))?;
+        validate_id(id)?;
         if !seen.insert(id) {
             return Err(format!("duplicate {kind} id: {id}"));
         }
@@ -437,6 +449,9 @@ fn unique_ids(values: &[Value], kind: &str) -> Result<(), String> {
 }
 pub(super) fn validate_masks(value: &Value) -> Result<(), String> {
     let masks = value.as_array().ok_or("masks must be an array")?;
+    if masks.len() > 256 {
+        return Err("MCP edits support at most 256 masks".into());
+    }
     unique_ids(masks, "mask")?;
     for mask in masks {
         validate_mask(mask, false)?;
@@ -467,6 +482,9 @@ pub(super) fn change_masks(
         }
     } else if let Some(id) = remove {
         values.retain(|value| value["id"] != id);
+    }
+    if values.len() > 256 {
+        return Err("MCP edits support at most 256 masks".into());
     }
     Ok(Value::Array(values))
 }
@@ -600,6 +618,30 @@ mod tests {
             validate_crop(&json!({"x":0,"y":0,"width":3000,"height":4000,"unit":"px"})).is_ok()
         );
     }
+    #[test]
+    fn identifiers_match_the_output_opaque_policy_and_mask_limit() {
+        let id = "a".repeat(128);
+        let value = json!({"id":id,"subMasks":[]});
+        validate_mask(&value, false).unwrap();
+        assert_eq!(crate::assistant_text::project(&value)["id"], value["id"]);
+        for id in [
+            "a".repeat(129),
+            "é".into(),
+            "bad id".into(),
+            "bad\0id".into(),
+            "".into(),
+        ] {
+            assert!(validate_mask(&json!({"id":id,"subMasks":[]}), false).is_err());
+            assert!(validate_id(&id).is_err());
+        }
+        let values: Vec<_> = (0..256)
+            .map(|i| json!({"id":format!("mask-{i}"),"subMasks":[]}))
+            .collect();
+        let values = json!(values);
+        assert!(change_masks(&values, Some(&json!({"id":"new","subMasks":[]})), None).is_err());
+        assert!(change_masks(&values, None, Some("mask-0")).is_ok());
+    }
+
     #[test]
     fn parametric_order_uses_new_defaults_or_merged_existing_values() {
         let invalid = json!({"id":"new","subMasks":[],"adjustments":{"parametricCurve":{"luma":{"split1":90}}}});

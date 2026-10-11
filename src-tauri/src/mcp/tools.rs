@@ -228,7 +228,7 @@ pub(super) fn tool_definitions() -> Vec<Value> {
             "remove_mask",
             "Remove one mask by id, preserving all siblings. Missing id is a no-op. Uses normal GUI history/autosave.",
             "maskId",
-            json!({"type":"string","minLength":1,"maxLength":256}),
+            super::masks::identifier_schema(),
         ),
     ] {
         let mut properties = json!({"imagePath":{"type":"string"},"expectedRevision":{"type":"string"},"verbose":{"type":"boolean","default":false}});
@@ -488,9 +488,7 @@ async fn mask_action(
         let id = arguments["maskId"]
             .as_str()
             .ok_or("maskId must be a string")?;
-        if id.is_empty() || id.chars().count() > 256 {
-            return Err("maskId must contain1–256 characters".into());
-        }
+        super::masks::validate_id(id)?;
         Some(id)
     } else {
         None

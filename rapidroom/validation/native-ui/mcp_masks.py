@@ -36,6 +36,16 @@ def run_mask_checks(case, smoke):
     context = read_tool(url, token, "get_editor_context", {})
     if build["source"]["status"] or context["sourceCommit"] != build["source"]["head"] or context["sourceDirty"]:
         raise RuntimeError("Mask regression requires exact clean build identity")
+    def fresh_editor():
+        # Drop the frontend cache/history before reading the actual sidecar again.
+        smoke.execute("setTimeout(() => location.reload(), 0);return true;")
+        wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Continue Session');"), "fresh frontend session")
+        smoke.execute("const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Continue Session');e.click();return true;")
+        wait_for(lambda: smoke.execute("return [...document.images].some(e=>e.src.startsWith('asset:') && e.complete && e.naturalWidth>100);"), "reloaded library")
+        smoke.execute("const e=[...document.images].find(e=>e.src.startsWith('asset:'));e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;")
+        wait_for(lambda: smoke.execute("return document.body.innerText.includes('4608 × 3072') && document.body.innerText.includes('Exposure');"), "fresh editor loads sidecar")
+        mutate("select_image")
+
     initial = state()
     if initial["adjustments"]["masks"]:
         raise RuntimeError("Mask fixture was not initially empty")
@@ -93,14 +103,7 @@ def run_mask_checks(case, smoke):
         return None
 
     sidecar = wait_for(saved_masks, "normal autosave of both masks")
-    # A frontend restart drops the image cache and creates a new history stack.
-    smoke.execute("setTimeout(() => location.reload(), 0);return true;")
-    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Continue Session');"), "fresh frontend session")
-    smoke.execute("const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Continue Session');e.click();return true;")
-    wait_for(lambda: smoke.execute("return [...document.images].some(e=>e.src.startsWith('asset:') && e.complete && e.naturalWidth>100);"), "reloaded library")
-    smoke.execute("const e=[...document.images].find(e=>e.src.startsWith('asset:'));e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;")
-    wait_for(lambda: smoke.execute("return document.body.innerText.includes('4608 × 3072') && document.body.innerText.includes('Exposure');"), "fresh editor loads sidecar")
-    mutate("select_image")
+    fresh_editor()
     reloaded = state()
     if len(history()["entries"]) != 1:
         raise RuntimeError("Sidecar reload retained the previous frontend history/cache")
@@ -118,11 +121,43 @@ def run_mask_checks(case, smoke):
         "expectedRevision": remaining["editRevision"], "mask": {"id": "first", "opacity": -1}}}, token=token)
     if not error.get("isError") or state() != remaining:
         raise RuntimeError("Invalid mask opacity was accepted or mutated state")
+    # Test #211/#212 together without sending hostile fixture text to a model.
+    saved = case / sidecar
+    wait_for(lambda: json.loads(saved.read_text()).get("adjustments", {}).get("masks") == remaining["adjustments"]["masks"], "single sibling autosave")
+    stored = json.loads(saved.read_text())
+    native_name = "z" * 200
+    stored["adjustments"]["masks"][0]["name"] = native_name
+    saved.write_text(json.dumps(stored))
+    fresh_editor()
+    displayed = read_tool(url, token, "get_editor_context", {})["masks"][0]["name"]
+    if displayed != native_name[:128]:
+        raise RuntimeError("Context did not produce the expected bounded native name")
+    mutate("upsert_mask", mask={"id": "first", "name": displayed, "opacity": 80})
+    echoed = state()
+    if echoed["adjustments"]["masks"][0]["name"] != native_name:
+        raise RuntimeError("Top-level single-mask echo renamed the stored native mask")
+    wait_for(lambda: json.loads(saved.read_text())["adjustments"]["masks"][0]["name"] == native_name, "native name echo preserved on disk")
+    mutate("upsert_mask", mask={"id": "first", "name": "New\0\u202e password=planted"})
+    if state()["adjustments"]["masks"][0]["name"] != "New [REDACTED]":
+        raise RuntimeError("Assistant single-mask name was not projected before UI storage")
+    long_id = "q" * 128
+    mutate("upsert_mask", mask={"id": long_id, "subMasks": []})
+    if state()["adjustments"]["masks"][-1]["id"] != long_id:
+        raise RuntimeError("Opaque mask ID was changed in the output projection")
+    mutate("remove_mask", maskId=long_id)
+    before_invalid_id = state()
+    for name, args in (("upsert_mask", {"mask": {"id": "q" * 129, "subMasks": []}}), ("remove_mask", {"maskId": "bad id"})):
+        error = rpc(url, "tools/call", {"name": name, "arguments": {"imagePath": path, **args}}, token=token)
+        if not error.get("isError") or state() != before_invalid_id:
+            raise RuntimeError("Invalid opaque identifier was accepted or changed the editor")
+    smoke.capture("single-mask-policy")
     result = {"sourceCommit": context["sourceCommit"], "appVersion": context["appVersion"],
         "client": {"name": "Claude", "version": version, "calls": [call[0] for call in recorded]},
         "first_mask_unchanged": True, "partial_hsl_defaults_filled": True, "native_preview_changed": True,
         "gui_undo_restores_exact_preview": True, "shared_redo_exact": True, "nested_patch_preserves_omitted_values": True,
         "sidecar": sidecar, "sidecar_reload_exact": True, "remove_preserves_sibling": True,
-        "missing_remove_is_noop": True, "invalid_mutation_refused": True, "compact_reply": reply}
+        "missing_remove_is_noop": True, "invalid_mutation_refused": True, "compact_reply": reply, "top_level_context_name_echo_preserved": True,
+        "assistant_rename_projected_before_storage": True, "opaque_128_byte_id_roundtrips": True,
+        "invalid_opaque_ids_refused": True, "hostile_name_phase_model_requests": False}
     save(folder / "result.json", result)
     smoke.step("actual-client single-mask add, local defaults, shared history and sidecar round-trip", result)

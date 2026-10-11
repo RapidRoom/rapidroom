@@ -77,6 +77,12 @@ fn operational(key: &str) -> bool {
             | "group_id"
     )
 }
+pub(crate) fn valid_opaque_id(value: &str) -> bool {
+    value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b':' | b'.'))
+}
 fn opaque(key: &str, value: &str) -> bool {
     if matches!(
         key,
@@ -88,10 +94,7 @@ fn opaque(key: &str, value: &str) -> bool {
             | "activeMaskContainerId"
             | "virtualCopy"
     ) {
-        return value.len() <= 128
-            && value.bytes().all(|byte| {
-                byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b':' | b'.')
-            });
+        return valid_opaque_id(value);
     }
     if matches!(key, "mimeType")
         && matches!(
@@ -511,6 +514,23 @@ fn input_names(value: &mut Value, current: &Value, aliases: Option<(&NameEchoes,
             _ => {}
         }
     }
+    if let Some(mask) = value.get_mut("mask") {
+        let id = mask["id"].as_str();
+        let matched = current["masks"].as_array().and_then(|items| {
+            items
+                .iter()
+                .position(|item| id.is_some() && item["id"].as_str() == id)
+        });
+        if let Some(index) = matched {
+            names(
+                mask,
+                &original["mask"],
+                &current["masks"][index],
+                &displayed["adjustments"]["masks"][index],
+                aliases,
+            );
+        }
+    }
     for key in ["adjustments", "changes"] {
         if let Some(value) = value.get_mut(key) {
             names(
@@ -623,6 +643,31 @@ mod tests {
             "binary patch data was truncated"
         );
     }
+    #[test]
+    fn single_mask_input_preserves_echoes_and_projects_new_names() {
+        let current = json!({"masks":[{"id":"first","name":"Sibling","subMasks":[]},
+            {"id":"second","name":"z".repeat(200),"subMasks":[{"id":"sub","name":"x".repeat(400)}]}]});
+        let shown = project(&json!({"masks":[{"id":"second","name":"z".repeat(128)}]}));
+        let mut cache = NameEchoes::default();
+        cache.remember("photo", "rev", &current, &shown);
+        let mut args = json!({"mask":{"id":"second","name":shown["masks"][0]["name"],"opacity":50,
+            "subMasks":[{"id":"sub","name":project(&json!({"name":"x".repeat(400)}))["name"]}]}});
+        cache.input(&mut args, &current, "photo", "rev");
+        assert_eq!(args["mask"]["name"], current["masks"][1]["name"]);
+        assert_eq!(
+            args["mask"]["subMasks"][0]["name"],
+            current["masks"][1]["subMasks"][0]["name"]
+        );
+        assert_eq!(args["mask"]["opacity"], 50);
+        let mut rename = json!({"mask":{"id":"second","name":"New\0\u{202e} password=planted"}});
+        cache.input(&mut rename, &current, "photo", "rev");
+        assert_eq!(rename["mask"]["name"], "New [REDACTED]");
+        let mut stale = json!({"mask":{"id":"second","name":"z".repeat(128)}});
+        cache.input(&mut stale, &current, "photo", "new-rev");
+        assert_eq!(stale["mask"]["name"], "z".repeat(128));
+        assert_eq!(current["masks"][0]["name"], "Sibling");
+    }
+
     #[test]
     fn editor_context_name_echo_must_not_rename_mask() {
         let name = "z".repeat(200);
