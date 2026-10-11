@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import zlib
 
 from PIL import ImageChops
-from mcp_clients import image_state, rpc, run_client_checks
+from mcp_clients import image_state, rpc, run_client_checks, tool_data
 
 RR = 'urn:rapidroom:edit:1.0'
 CRS = 'http://ns.adobe.com/camera-raw-settings/1.0/'
@@ -34,7 +34,7 @@ def run_xmp_checks(case, smoke, wait_for, baseline):
         result = rpc(url, 'tools/call', {'name': name, 'arguments': args}, token=token)
         if result.get('isError'):
             raise RuntimeError(name + ' failed: ' + str(result))
-        return result.get('structuredContent') or json.loads(next(v['text'] for v in result['content'] if v['type'] == 'text'))
+        return tool_data(result)
 
     call('update_adjustments', {'imagePath': image, 'expectedRevision': initial['editRevision'],
                               'changes': {'exposure': 0.5, 'halationAmount': 25}})

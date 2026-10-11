@@ -30,6 +30,8 @@ mod android_integration;
 mod app_settings;
 mod app_state;
 mod apple_raw;
+#[cfg(any(feature = "mcp", feature = "terminal", test))]
+mod assistant_text;
 mod batch_rename;
 mod bench;
 mod cache_utils;
