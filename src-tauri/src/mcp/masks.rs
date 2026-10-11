@@ -80,7 +80,7 @@ pub(super) fn local_schema(global_properties: &Map<String, Value>) -> Value {
     );
     let mut schema = object(Value::Object(properties), &[]);
     schema["description"] = json!(
-        "Sparse local adjustments; omitted nested defaults are filled on load/create. Updates preserve omitted existing values."
+        "Sparse local adjustments; omitted nested defaults are filled on load/create. Updates preserve omitted existing values. Parametric split1 < split2 < split3 after defaults 25/50/75 are filled."
     );
     schema
 }
@@ -392,8 +392,20 @@ pub(super) fn validate_mask(value: &Value, partial: bool) -> Result<(), String> 
         "mask",
     )?;
     if let Some(local) = value.get("adjustments") {
-        // Reuse curve ordering and parametric split validation from global edits.
+        // Reuse individual field bounds and curve ordering from global edits.
         adjustments::validate_adjustments(local)?;
+        if !partial {
+            for channel in ["luma", "red", "green", "blue"] {
+                let settings = &local["parametricCurve"][channel];
+                let splits = [("split1", 25.0), ("split2", 50.0), ("split3", 75.0)]
+                    .map(|(key, default)| settings[key].as_f64().unwrap_or(default));
+                if !(splits[0] < splits[1] && splits[1] < splits[2]) {
+                    return Err(format!(
+                        "mask.adjustments.parametricCurve.{channel} split1 < split2 < split3 is required after filling defaults 25/50/75"
+                    ));
+                }
+            }
+        }
     }
     if let Some(sub_masks) = value["subMasks"].as_array() {
         unique_ids(sub_masks, "sub-mask")?;
@@ -588,6 +600,31 @@ mod tests {
             validate_crop(&json!({"x":0,"y":0,"width":3000,"height":4000,"unit":"px"})).is_ok()
         );
     }
+    #[test]
+    fn parametric_order_uses_new_defaults_or_merged_existing_values() {
+        let invalid = json!({"id":"new","subMasks":[],"adjustments":{"parametricCurve":{"luma":{"split1":90}}}});
+        assert!(change_masks(&json!([]), Some(&invalid), None).is_err());
+        let existing = json!([{"id":"local","subMasks":[],"adjustments":{"parametricCurve":{"luma":{"split1":10,"split2":80,"split3":90}}}}]);
+        let patch = json!({"id":"local","adjustments":{"parametricCurve":{"luma":{"split1":55}}}});
+        let changed = change_masks(&existing, Some(&patch), None).unwrap();
+        assert_eq!(
+            changed[0]["adjustments"]["parametricCurve"]["luma"],
+            json!({"split1":55,"split2":80,"split3":90})
+        );
+        assert!(
+            change_masks(
+                &existing,
+                Some(
+                    &json!({"id":"local","adjustments":{"parametricCurve":{"luma":{"split2":95}}}})
+                ),
+                None
+            )
+            .is_err()
+        );
+        let valid = json!({"id":"new","subMasks":[],"adjustments":{"parametricCurve":{"luma":{"split1":10}}}});
+        assert!(change_masks(&json!([]), Some(&valid), None).is_ok());
+    }
+
     #[test]
     fn single_id_updates_preserve_siblings_nested_edits_and_array_replacement() {
         let first = radial("first");
