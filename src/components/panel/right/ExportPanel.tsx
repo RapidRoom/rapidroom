@@ -815,6 +815,7 @@ export default function ExportPanel({
         <Text variant={TextVariants.title}>{t('export.title')}</Text>
       </div>
       <div className="grow overflow-y-auto p-3 space-y-8">
+        <XmpSidecarExport disabled={isExporting} />
         {canExport ? (
           <>
             <div className={isExporting ? 'opacity-50 pointer-events-none' : ''}>
@@ -825,8 +826,6 @@ export default function ExportPanel({
                 onApplyPreset={handleApplyPreset}
               />
             </div>
-
-            <XmpSidecarExport disabled={isExporting} />
 
             <Section title={t('export.sections.fileSettings')}>
               <div className="grid grid-cols-3 gap-2">

@@ -30,7 +30,7 @@ interface Prepared {
 export default function XmpSidecarExport({ disabled }: { disabled: boolean }) {
   const { t } = useTranslation();
   const activeView = useUIStore((state) => state.activeView);
-  const owner = useEditorStore((state) => state.selectedImage?.path);
+  const owner = useEditorStore((state) => (state.selectedImage?.isReady ? state.selectedImage.path : undefined));
   const adjustments = useEditorStore((state) => state.adjustments);
   const [prepared, setPrepared] = useState<Prepared | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,7 +54,8 @@ export default function XmpSidecarExport({ disabled }: { disabled: boolean }) {
     return (
       epoch.current === request &&
       useUIStore.getState().activeView === 'editor' &&
-      state.selectedImage?.path === photo &&
+      state.selectedImage?.isReady === true &&
+      state.selectedImage.path === photo &&
       state.adjustments === reference
     );
   }
