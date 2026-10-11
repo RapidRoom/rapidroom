@@ -819,11 +819,11 @@ export default function MasksPanel() {
       const creationFn = () => {
         if (overData?.type === 'Container') {
           handleAddSubMask(overData.item!.id, dragData.maskType!);
-        } else if (over && overData?.type === 'SubMask') {
+        } else if (overData?.type === 'SubMask') {
           const container = adjustments.masks.find((m) => m.id === overData.parentId);
           if (container) {
             const targetIndex = container.subMasks.findIndex((sm) => sm.id === over.id);
-            handleAddSubMask(overData.parentId!, dragData.maskType!, SubMaskMode.Additive, targetIndex);
+            handleAddSubMask(overData.parentId!, dragData.maskType!, targetIndex);
           }
         } else {
           handleAddMaskContainer(dragData.maskType!);
