@@ -262,13 +262,15 @@ A new container looks like this (`id` can be a UUID):
 
 ```json
 {
-  "id": "local-mask",
-  "adjustments": { "exposure": 0.5 },
+  "adjustments": {
+    "exposure": 0.5
+  },
   "invert": false,
   "name": "New Mask",
   "opacity": 100,
   "subMasks": [],
-  "visible": true
+  "visible": true,
+  "id": "local-mask"
 }
 ```
 

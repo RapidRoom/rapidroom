@@ -498,6 +498,61 @@ mod tests {
             "adjustments":{"exposure":0.5,"hsl":{"yellows":{"hue":25,"saturation":-20}}}})
     }
     #[test]
+    fn every_typed_parameter_key_survives_exhausted_text_projection() {
+        fn fields(schema: &Value) -> Value {
+            if let Some(properties) = schema["properties"].as_object() {
+                Value::Object(
+                    properties
+                        .iter()
+                        .map(|(key, rule)| (key.clone(), fields(rule)))
+                        .collect(),
+                )
+            } else if let Some(items) = schema.get("items") {
+                json!([fields(items)])
+            } else {
+                json!(false)
+            }
+        }
+        for kind in TYPES {
+            let parameters = fields(&parameters_schema(kind));
+            let mut payload = json!({"mask":{"subMasks":[{"parameters":parameters}]}});
+            for i in 0..20 {
+                payload[format!("a{i:02}")] = json!("z".repeat(256));
+            }
+            let projected = crate::assistant_text::project(&payload);
+            assert_eq!(
+                projected["mask"]["subMasks"][0]["parameters"], parameters,
+                "{kind} structural fields must survive"
+            );
+        }
+    }
+    #[test]
+    fn exhausted_projection_echo_keeps_typed_masks_valid_and_siblings_exact() {
+        let masks: Vec<_> = (0..20)
+            .map(|i| {
+                let mut mask = radial(&format!("mask-{i}"));
+                mask["name"] = json!("z".repeat(256));
+                mask["subMasks"][0]["name"] = json!("x".repeat(256));
+                mask["subMasks"][0]["parameters"]["isInitialDraw"] = json!(false);
+                mask
+            })
+            .collect();
+        let current = json!({"masks":masks});
+        validate_masks(&current["masks"]).unwrap();
+        let shown = crate::assistant_text::project(&current);
+        assert_eq!(shown["masks"][19]["name"], "");
+        assert_eq!(
+            shown["masks"][19]["subMasks"][0]["parameters"],
+            current["masks"][19]["subMasks"][0]["parameters"]
+        );
+        let mut receipts = crate::assistant_text::NameEchoes::default();
+        receipts.remember("photo", "revision", &current, &shown);
+        let mut args = json!({"mask":shown["masks"][19]});
+        receipts.input(&mut args, &current, "photo", "revision");
+        let updated = change_masks(&current["masks"], Some(&args["mask"]), None).unwrap();
+        assert_eq!(updated, current["masks"]);
+    }
+    #[test]
     fn typed_fields_round_trip_into_the_renderer() {
         for kind in TYPES {
             let mut parameters = json!({});
