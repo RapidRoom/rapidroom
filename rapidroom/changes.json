@@ -28,17 +28,17 @@
       "notes": "When RAW development fails and the embedded preview is used, the editor displays a localized accessible warning. The fallback marker survives decoded-image and frontend cache hits. Image rendering is unchanged."
     },
     {
-      "id": "lightroom-preset-browser",
-      "title": "Search grouped presets, preview Amount from the prior edit and exchange XMP presets",
+      "id": "lightroom-workspace-preset",
+      "title": "Optional Lightroom Classic workspace and shortcuts",
       "category": "feature",
       "landed": "2026-10-10",
-      "authors": ["yojen7", "pch"],
-      "source": "rapidroom (original React/Rust implementation; 24 MIT starter preset files from pch/rawmakase)",
-      "commits": ["https://github.com/pch/rawmakase/commit/a0bda901ada403fc48d926960f3dce8016670bcb"],
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex; design ideas from rawmakase, lightcraft and Redlamp)",
+      "commits": [],
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "Existing groups, favourites and owned hover previews gain name/group search, compatibility filtering with reasons, and Amount scaling from the edit before the preset. Click applies one Undo step; unrelated edits/Undo/photo changes end Amount. Ctrl+Shift+N opens preset creation from Develop. XMP import retains groups and camera/profile compatibility metadata; export writes mapped Camera Raw fields plus exact RapidRoom settings, reporting fields retained only for RapidRoom. Includes 24 provenance-checked MIT RAWmakase starter presets, excluding both Creative presets referencing Adobe Standard. No rendering algorithm/default photo settings change."
+      "notes": "Settings can arrange existing controls as Basic, Tone Curve, Color Mixer, Color Grading, Detail, Lens Corrections, Transform, Effects and primary-colour Calibration, with compact sliders, Histogram, module bar, Navigator, Presets, real History and per-photo named Snapshots. Library exposes Quick Develop and existing keyword/metadata controls. Previous custom workspace and filmstrip height restore when returning to RapidRoom. Optional Lightroom keys preserve custom bindings and do not fire in inputs or dialogs. Before/After renders a neutral comparison without editing history. Snapshots preserve sidecar metadata and reject read-only Card writes. Native primary-colour calibration and Basic/AgX profiles retain their RapidRoom meanings; Adobe DCP profiles and red-eye correction are not implemented; Adobe calibration/profile matching is unverified. No rendering algorithm or default adjustment changes."
     },
     {
       "id": "keyboard-command-palette",
@@ -1180,6 +1180,19 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Editor and culling share a one-permit semaphore. Blocking tasks retain the permit if their awaiting task is cancelled. Culling requests are serialized, not cancelled."
+    },
+    {
+      "id": "lightroom-preset-browser",
+      "title": "Search grouped presets, preview Amount from the prior edit and exchange XMP presets",
+      "category": "feature",
+      "landed": "2026-10-10",
+      "authors": ["yojen7", "pch"],
+      "source": "rapidroom (original React/Rust implementation; 24 MIT starter preset files from pch/rawmakase)",
+      "commits": ["https://github.com/pch/rawmakase/commit/a0bda901ada403fc48d926960f3dce8016670bcb"],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Existing groups, favourites and owned hover previews gain name/group search, compatibility filtering with reasons, and Amount scaling from the edit before the preset. Click applies one Undo step; unrelated edits/Undo/photo changes end Amount. Ctrl+Shift+N opens preset creation from Develop. XMP import retains groups and camera/profile compatibility metadata; export writes mapped Camera Raw fields plus exact RapidRoom settings, reporting fields retained only for RapidRoom. Includes 24 provenance-checked MIT RAWmakase starter presets, excluding both Creative presets referencing Adobe Standard. No rendering algorithm/default photo settings change."
     },
     {
       "id": "editor-fixed-zoom",

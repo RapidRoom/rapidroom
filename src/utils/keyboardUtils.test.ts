@@ -6,6 +6,7 @@ describe('KEYBIND_DEFINITIONS', () => {
     const seen = new Map<string, string>();
     for (const def of KEYBIND_DEFINITIONS) {
       const combo = def.defaultCombo.join('+');
+      if (!combo) continue;
       expect(seen.get(combo), `${def.action} reuses ${combo}`).toBeUndefined();
       seen.set(combo, def.action);
     }

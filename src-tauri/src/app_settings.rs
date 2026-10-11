@@ -380,6 +380,8 @@ pub struct AdjustmentLayout {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bottom_panel_height: Option<u32>,
     pub left_panel_width: u32,
     pub right_panel_width: u32,
     pub left_top_height: u32,
@@ -444,6 +446,7 @@ impl Default for WorkspaceState {
             panel_switcher_placement,
             layout_version: 1,
             bottom_dock_height: None,
+            bottom_panel_height: None,
         }
     }
 }
@@ -619,6 +622,12 @@ pub struct AppSettings {
     #[serde(default)]
     pub workspace: WorkspaceState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_preset: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rapidroom_workspace_backup: Option<WorkspaceState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lightroom_keymap: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terminal_settings: Option<Value>,
     #[serde(default)]
     pub mcp_enabled: bool,
@@ -723,6 +732,9 @@ impl Default for AppSettings {
             adjustment_layout: AdjustmentLayout::default(),
             adjustment_density: None,
             workspace: WorkspaceState::default(),
+            workspace_preset: None,
+            rapidroom_workspace_backup: None,
+            lightroom_keymap: None,
             terminal_settings: None,
             mcp_enabled: false,
         }

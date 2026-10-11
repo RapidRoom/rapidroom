@@ -210,6 +210,7 @@ export enum ThumbnailAspectRatio {
 }
 
 export interface WorkspaceState {
+  bottomPanelHeight?: number;
   leftPanelWidth: number;
   rightPanelWidth: number;
   leftTopHeight: number;
@@ -230,6 +231,9 @@ export type GroupPreference = 'jpeg' | 'raw';
 export type GroupingMode = 'off' | GroupPreference;
 
 export interface AppSettings {
+  workspacePreset?: 'rapidroom' | 'lightroom';
+  rapidroomWorkspaceBackup?: WorkspaceState;
+  lightroomKeymap?: boolean;
   terminalSettings?: TerminalSettings;
   mcpEnabled?: boolean;
   aiConnectorAddress?: string;
@@ -471,6 +475,7 @@ export interface UiVisibility {
 }
 
 export interface CollapsibleSectionsState {
+  [key: string]: boolean;
   basic: boolean;
   color: boolean;
   curves: boolean;

@@ -11,6 +11,7 @@ interface BasicAdjustmentsProps {
   isForMask?: boolean;
   onDragStateChange?: (isDragging: boolean) => void;
   appSettings?: any;
+  includeBrightness?: boolean;
 }
 
 interface ToneMapperSwitchProps {
@@ -161,6 +162,7 @@ export default function BasicAdjustments({
   isForMask = false,
   onDragStateChange,
   appSettings,
+  includeBrightness = true,
 }: BasicAdjustmentsProps) {
   const { t } = useTranslation();
 
@@ -244,15 +246,17 @@ export default function BasicAdjustments({
         value={adjustments.blacks}
         onDragStateChange={onDragStateChange}
       />
-      <Slider
-        label={t('adjustments.basic.brightness')}
-        max={5}
-        min={-5}
-        onChange={(e: any) => handleAdjustmentChange(BasicAdjustment.Brightness, e.target.value)}
-        step={0.01}
-        value={adjustments.brightness}
-        onDragStateChange={onDragStateChange}
-      />
+      {includeBrightness && (
+        <Slider
+          label={t('adjustments.basic.brightness')}
+          max={5}
+          min={-5}
+          onChange={(e: any) => handleAdjustmentChange(BasicAdjustment.Brightness, e.target.value)}
+          step={0.01}
+          value={adjustments.brightness}
+          onDragStateChange={onDragStateChange}
+        />
+      )}
     </div>
   );
 }

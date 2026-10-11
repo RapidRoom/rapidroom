@@ -96,6 +96,7 @@ export const useAppInitialization = ({
       leftTopHeight: state.leftTopHeight,
       rightTopHeight: state.rightTopHeight,
       bottomDockHeight: state.bottomDockHeight,
+      bottomPanelHeight: state.bottomPanelHeight,
       panelLayout: state.panelLayout,
       activePanels: state.activePanels,
       panelSwitcherPlacement: state.panelSwitcherPlacement,
@@ -210,6 +211,7 @@ export const useAppInitialization = ({
         setUI({
           terminalSupported: isTerminalSupported,
           bottomDockHeight: reconciledWorkspace.bottomDockHeight,
+          bottomPanelHeight: reconciledWorkspace.bottomPanelHeight ?? 144,
           leftPanelWidth: reconciledWorkspace.leftPanelWidth,
           rightPanelWidth: reconciledWorkspace.rightPanelWidth,
           leftTopHeight: reconciledWorkspace.leftTopHeight,

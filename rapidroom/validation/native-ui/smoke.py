@@ -137,7 +137,7 @@ class Smoke:
           .find(e=>e.parentElement.parentElement.textContent.trim().startsWith(arguments[0]));
           const r=e.getBoundingClientRect(),x=r.left+(arguments[1]-Number(e.min)) /
             (Number(e.max)-Number(e.min))*r.width;
-        e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,buttons:1,
+          e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,buttons:1,
             clientX:x,clientY:r.top+r.height/2}));return true;""", [label, value])
         time.sleep(0.3)  # React installs the document drag listeners after mousedown.
         self.execute("""document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0}));return true;""")
@@ -378,6 +378,9 @@ class Smoke:
         wait_for(lambda: "[process_preview_job] full" in (self.case / "app.log").read_text(),
                  "GPU-processed editor preview")
         baseline = self.stable_preview("preview")
+        if (self.case / "lightroom-test.json").exists():
+            from lightroom import run_lightroom_checks
+            run_lightroom_checks(self, wait_for, baseline)
         self.step("native preview", {"roi": self.roi, "capture": str(baseline.relative_to(self.case))})
         if (self.case / "zoom-test.json").exists():
             from zoom import run_zoom_checks
@@ -572,6 +575,8 @@ def launch(args):
         save(case / "mcp-measure-test.json", {"issue": 117, "real_model_requests": True})
     if args.mcp_revisions:
         save(case / "mcp-revisions-test.json", {"issue": 148, "real_model_requests": True})
+    if args.lightroom:
+        save(case / "lightroom-test.json", {"issue":157})
     if args.mcp_compact or args.mcp_compact_baseline:
         save(case / "mcp-compact-test.json", {"issue": 147, "baseline": args.mcp_compact_baseline, "real_model_requests": not args.mcp_compact_baseline})
     if args.mcp_history:
@@ -678,6 +683,7 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--lightroom", action="store_true", help="Check optional Lightroom workspace, keymap and snapshots")
     parser.add_argument("--dock-layout", action="store_true", help="Check stepped dock resize overlap and compact terminal controls (implies --terminal)")
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")

@@ -121,7 +121,30 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const showOriginal = useEditorStore((s) => s.showOriginal);
   const referenceView = useEditorStore((s) => s.referenceView);
   const dispatchReferenceView = useEditorStore((s) => s.dispatchReferenceView);
-  const isReferenceViewOn = isReferenceViewActive(referenceView);
+  const beforeAfterVisible = useUIStore((s) => s.beforeAfterVisible);
+  const isReferenceViewOn = beforeAfterVisible || isReferenceViewActive(referenceView);
+  const beforeAdjustments = useMemo(
+    () => ({
+      ...INITIAL_ADJUSTMENTS,
+      crop: adjustments.crop,
+      rotation: adjustments.rotation,
+      orientationSteps: adjustments.orientationSteps,
+      flipHorizontal: adjustments.flipHorizontal,
+      flipVertical: adjustments.flipVertical,
+      aspectRatio: adjustments.aspectRatio,
+    }),
+    [
+      adjustments.crop,
+      adjustments.rotation,
+      adjustments.orientationSteps,
+      adjustments.flipHorizontal,
+      adjustments.flipVertical,
+      adjustments.aspectRatio,
+    ],
+  );
+  useEffect(() => {
+    useUIStore.getState().setUI({ beforeAfterVisible: false });
+  }, [selectedImage?.path]);
   const isSliderDragging = useEditorStore((s) => s.isSliderDragging);
   const targetZoom = useEditorStore((s) => s.zoom);
   const dpr = useDevicePixelRatio();
@@ -2315,8 +2338,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onRedo={redo}
           onToggleFullScreen={toggleFullScreen}
           onToggleShowOriginal={toggleShowOriginal}
-          isReferenceViewActive={isReferenceViewOn}
-          onToggleReferenceView={() => dispatchReferenceView({ type: 'toggle' })}
+          isReferenceViewActive={isReferenceViewActive(referenceView)}
+          onToggleReferenceView={() => {
+            setUI({ beforeAfterVisible: false });
+            dispatchReferenceView({ type: 'toggle' });
+          }}
           onUndo={undo}
           selectedImage={selectedImage}
           showOriginal={showOriginal}
@@ -2331,12 +2357,21 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       <div className={clsx('lights-out-content flex-1 flex min-h-0 min-w-0', isReferenceViewOn && 'gap-2')}>
         {isReferenceViewOn && (
           <ReferencePane
-            isChooserOpen={referenceView.isChooserOpen}
-            reference={referenceView.reference}
+            isChooserOpen={!beforeAfterVisible && referenceView.isChooserOpen}
+            reference={
+              beforeAfterVisible && selectedImage
+                ? { path: selectedImage.path, label: t('lightroomWorkspace.before') }
+                : referenceView.reference
+            }
+            adjustmentOverride={beforeAfterVisible ? beforeAdjustments : undefined}
             onCancelChooser={() => dispatchReferenceView({ type: 'close-chooser' })}
             onChoose={() => dispatchReferenceView({ type: 'open-chooser' })}
             onClear={() => dispatchReferenceView({ type: 'clear-reference' })}
-            onExit={() => dispatchReferenceView({ type: 'exit' })}
+            onExit={() =>
+              beforeAfterVisible
+                ? useUIStore.getState().setUI({ beforeAfterVisible: false })
+                : dispatchReferenceView({ type: 'exit' })
+            }
           />
         )}
         <div

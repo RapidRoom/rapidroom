@@ -255,24 +255,17 @@ pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
     };
 
     let mut meta = serde_json::from_str::<ImageMetadata>(&content).unwrap_or_default();
-    let mut healed = false;
 
     if let Some(ref mut exif_map) = meta.exif {
         for val in exif_map.values_mut() {
             if val.len() > 500 {
                 *val = truncate_large_exif(val);
-                healed = true;
             }
         }
     }
 
-    if healed && let Ok(json) = serde_json::to_string_pretty(&meta) {
-        let _ = crate::file_management::write_file_atomically(sidecar_path, json);
-        log::info!(
-            "Auto-healed bloated sidecar for: {}",
-            sidecar_path.display()
-        );
-    }
+    // Reading truncates bloated EXIF in memory. The next guarded metadata
+    // transaction persists it; a read must never overwrite a concurrent edit.
 
     meta
 }
@@ -300,9 +293,9 @@ pub fn load_sidecar_with_exif(sidecar_path: &Path, source_path: &Path) -> ImageM
             let source_path_str = source_path.to_string_lossy();
             let extracted_exif =
                 if let Ok(mmap) = crate::file_management::read_file_mapped(source_path) {
-                    read_exif_data(&source_path_str, &mmap)
+                    read_exif_data_from_bytes(&source_path_str, &mmap)
                 } else if let Ok(bytes) = std::fs::read(source_path) {
-                    read_exif_data(&source_path_str, &bytes)
+                    read_exif_data_from_bytes(&source_path_str, &bytes)
                 } else {
                     std::collections::HashMap::new()
                 };
@@ -1963,6 +1956,9 @@ pub fn read_exif_data(path: &str, file_bytes: &[u8]) -> HashMap<String, String> 
     if !exif_map.is_empty() {
         let primary = get_primary_sidecar_path(source_path);
         if primary.exists() {
+            let _guard = crate::file_management::EDIT_SIDECAR_LOCK
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             let mut metadata = load_primary_metadata(source_path);
             metadata.exif = Some(exif_map.clone());
             let _ = save_primary_metadata(source_path, &metadata);
@@ -1987,6 +1983,9 @@ pub fn persist_exif_if_missing(source_path: &Path, source_path_str: &str, file_b
     let primary = get_primary_sidecar_path(source_path);
 
     if primary.exists() {
+        let _guard = crate::file_management::EDIT_SIDECAR_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let mut metadata = load_primary_metadata(source_path);
         if metadata.exif.is_none() {
             metadata.exif = Some(exif_map);
@@ -2012,6 +2011,9 @@ pub fn write_rrexif_sidecar(source_path_str: &str, target_image_path: &Path) -> 
         return Ok(());
     }
 
+    let _guard = crate::file_management::EDIT_SIDECAR_LOCK
+        .lock()
+        .map_err(|e| e.to_string())?;
     let mut metadata = load_primary_metadata(target_image_path);
     metadata.exif = Some(exif_data);
     save_primary_metadata(target_image_path, &metadata)
@@ -2496,7 +2498,7 @@ mod card_mode_tests {
     }
 
     #[test]
-    fn sidecar_auto_heal_refuses_the_card() {
+    fn sidecar_reads_truncate_exif_without_writing_the_card_or_library() {
         let f = folders();
         let card_sidecar = f.dcim.join("IMG_0001.jpg.rrdata");
         let library_sidecar = f.library.join("IMG_0001.jpg.rrdata");
@@ -2510,8 +2512,10 @@ mod card_mode_tests {
             assert_eq!(snapshot(&f.card), before);
         }
         let _mode = CardMode::off();
-        load_sidecar(&library_sidecar);
-        assert!(fs::read_to_string(&library_sidecar).unwrap().len() < 1000);
+        let before = fs::read(&library_sidecar).unwrap();
+        let metadata = load_sidecar(&library_sidecar);
+        assert!(metadata.exif.unwrap()["MakerNote"].len() < 500);
+        assert_eq!(fs::read(&library_sidecar).unwrap(), before);
     }
 
     #[test]

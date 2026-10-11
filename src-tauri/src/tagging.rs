@@ -344,7 +344,7 @@ pub async fn start_background_indexing(
                     let path_str = path.to_string_lossy().to_string();
                     let (_, sidecar_path) = parse_virtual_path(&path_str);
 
-                    let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
+                    let metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
                     let should_generate_tags = match &metadata.tags {
                         None => true,
@@ -369,6 +369,11 @@ pub async fn start_background_indexing(
                                 ) {
                                     println!("Found AI tags for {}: {:?}", path_str, ai_tags);
 
+                                    let _guard = file_management::EDIT_SIDECAR_LOCK
+                                        .lock()
+                                        .unwrap_or_else(|e| e.into_inner());
+                                    let mut metadata =
+                                        crate::exif_processing::load_sidecar(&sidecar_path);
                                     let mut existing_tags: HashSet<String> =
                                         metadata.tags.unwrap_or_default().into_iter().collect();
 
@@ -445,6 +450,9 @@ fn modify_tags_for_path(
     let (source_path, sidecar_path) = parse_virtual_path(path_str);
     file_management::ensure_card_writable(&source_path)?;
 
+    let metadata_guard = file_management::EDIT_SIDECAR_LOCK
+        .lock()
+        .map_err(|e| e.to_string())?;
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
     let mut tags = metadata.tags.unwrap_or_default();
@@ -463,6 +471,7 @@ fn modify_tags_for_path(
     crate::file_management::write_file_atomically(&sidecar_path, json_string)
         .map_err(|e| e.to_string())?;
 
+    drop(metadata_guard);
     if let Some(create_if_missing) = xmp_sync {
         file_management::sync_metadata_to_xmp(
             &source_path,
@@ -573,6 +582,9 @@ fn clear_tags_in_tree(
 
     for entry in walker.filter_map(|e| e.ok()) {
         let path = entry.path();
+        let metadata_guard = file_management::EDIT_SIDECAR_LOCK
+            .lock()
+            .map_err(|e| e.to_string())?;
         if path.is_file()
             && path.extension().and_then(|s| s.to_str()) == Some("rrdata")
             && let Ok(content) = fs::read_to_string(path)
@@ -590,6 +602,7 @@ fn clear_tags_in_tree(
                     && crate::file_management::write_file_atomically(path, json_string).is_ok()
                 {
                     updated_count += 1;
+                    drop(metadata_guard);
                     if let Some(create_if_missing) = xmp_sync {
                         sync_xmp_for_rrdata(path, &metadata, create_if_missing);
                     }

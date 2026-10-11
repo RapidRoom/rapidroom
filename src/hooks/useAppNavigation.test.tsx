@@ -2,10 +2,12 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { Invokes, SelectedImage } from '../components/ui/AppProperties';
+import { Invokes, SelectedImage, Panel, type AppSettings } from '../components/ui/AppProperties';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useUIStore } from '../store/useUIStore';
+import { useSettingsStore } from '../store/useSettingsStore';
+import { createLightroomWorkspace } from '../utils/lightroomWorkspace';
 import { mockCommand } from '../test/tauriMock';
 import { INITIAL_ADJUSTMENTS } from '../utils/adjustments';
 import { globalImageCache } from '../utils/ImageLRUCache';
@@ -16,12 +18,14 @@ import { AppNavigationProps, useAppNavigation } from './useAppNavigation';
 const initialEditorState = useEditorStore.getState();
 const initialLibraryState = useLibraryStore.getState();
 const initialUiState = useUIStore.getState();
+const initialSettingsState = useSettingsStore.getState();
 
 afterEach(() => {
   globalImageCache.clear();
   useEditorStore.setState(initialEditorState, true);
   useLibraryStore.setState(initialLibraryState, true);
   useUIStore.setState(initialUiState, true);
+  useSettingsStore.setState(initialSettingsState, true);
 });
 
 function selectedImage(path: string, usedEmbeddedPreview: boolean): SelectedImage {
@@ -142,4 +146,70 @@ describe('useAppNavigation cached image refresh', () => {
       await unmount();
     }
   });
+});
+
+function setWorkspaceView(activeView: 'library' | 'editor') {
+  const layout = createLightroomWorkspace(initialUiState);
+  useUIStore.setState({
+    ...layout,
+    activeView,
+    panelLayout: { ...layout.panelLayout, bottom: layout.panelLayout.bottom ?? [] },
+    activePanels: { ...layout.activePanels, bottom: layout.activePanels.bottom ?? null },
+    panelSwitcherPlacement: {
+      ...layout.panelSwitcherPlacement,
+      bottom: layout.panelSwitcherPlacement.bottom ?? 'top',
+    },
+  });
+}
+
+describe('workspace module panel routing', () => {
+  it.each(['rapidroom', 'lightroom'] as const)(
+    'selects the Library module panel only in %s mode',
+    async (workspace) => {
+      const image = selectedImage('/photos/current.NEF', false);
+      const before = { ...INITIAL_ADJUSTMENTS, exposure: 0.4 };
+      useEditorStore.setState({ selectedImage: image, adjustments: before });
+      useSettingsStore.setState({
+        appSettings: { ...initialSettingsState.appSettings, workspacePreset: workspace } as AppSettings,
+      });
+      setWorkspaceView('editor');
+      useUIStore.getState().setPanel(Panel.Metadata);
+      const { navigation, unmount } = await mountNavigation(createRefs());
+      try {
+        await act(async () => navigation.handleBackToLibrary());
+        expect(useUIStore.getState().activeView).toBe('library');
+        expect(useUIStore.getState().activePanels.rightTop).toBe(
+          workspace === 'lightroom' ? Panel.Adjustments : Panel.Metadata,
+        );
+        expect(useEditorStore.getState().adjustments).toEqual(before);
+        expect(useLibraryStore.getState().libraryActivePath).toBe(image.path);
+      } finally {
+        await unmount();
+      }
+    },
+  );
+  it.each(['rapidroom', 'lightroom'] as const)(
+    'selects the Develop module panel only in %s mode, including the same photo',
+    async (workspace) => {
+      const image = selectedImage('/photos/current.NEF', false);
+      const before = { ...INITIAL_ADJUSTMENTS, exposure: 0.4 };
+      useEditorStore.setState({ selectedImage: image, adjustments: before });
+      useSettingsStore.setState({
+        appSettings: { ...initialSettingsState.appSettings, workspacePreset: workspace } as AppSettings,
+      });
+      setWorkspaceView('library');
+      useUIStore.getState().setPanel(Panel.Metadata);
+      const { navigation, unmount } = await mountNavigation(createRefs());
+      try {
+        await act(async () => navigation.handleImageSelect(image.path, true));
+        expect(useUIStore.getState().activeView).toBe('editor');
+        expect(useUIStore.getState().activePanels.rightTop).toBe(
+          workspace === 'lightroom' ? Panel.Adjustments : Panel.Metadata,
+        );
+        expect(useEditorStore.getState().adjustments).toEqual(before);
+      } finally {
+        await unmount();
+      }
+    },
+  );
 });

@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { ImageFile, ImageFlag, Panel, ExifOverlay } from '../components/ui/AppProperties';
+import { lightroomDefaultCombo } from '../utils/lightroomWorkspace';
 import { KEYBIND_DEFINITIONS, getDefaultCombo, normalizeCombo } from '../utils/keyboardUtils';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
-import { debouncedSetHistory, useEditorActions } from './useEditorActions';
+import { useEditorActions, debouncedSetHistory } from './useEditorActions';
 import { createResetAdjustmentsForImage } from '../utils/adjustments';
-import { useLibraryActions } from './useLibraryActions';
 import { registerAppActions, executeAppAction } from '../utils/appActions';
+import { useLibraryActions } from './useLibraryActions';
 import { fitPercent as getFitPercent, getDpr, percentFromTransform, stepZoomIn, stepZoomOut } from '../utils/zoom';
 
 // Use the requested transform so repeated key presses do not wait for the
@@ -41,6 +42,8 @@ export const useKeyboardShortcuts = ({
   handlePasteFiles,
   handleZoomChange,
 }: KeyboardShortcutsProps) => {
+  const shortcutSettings = useSettingsStore((s) => s.appSettings);
+  const shortcutPlatform = useSettingsStore((s) => s.osPlatform);
   const {
     handleRotate,
     handleCopyAdjustments,
@@ -83,12 +86,15 @@ export const useKeyboardShortcuts = ({
     const { appSettings, osPlatform } = useSettingsStore.getState();
     const keybinds = appSettings?.keybinds;
 
+    // Apply optional/default bindings first; explicit user choices have final precedence.
     for (const def of KEYBIND_DEFINITIONS) {
-      const userCombo = keybinds?.[def.action];
-      const effective = userCombo && userCombo.length > 0 ? userCombo : getDefaultCombo(def, osPlatform);
-      if (effective) {
-        comboMap.set(effective.join('+'), def.action);
-      }
+      if (keybinds?.[def.action] !== undefined) continue;
+      const combo = lightroomDefaultCombo(def, getDefaultCombo(def, osPlatform), !!appSettings?.lightroomKeymap);
+      if (combo.length) comboMap.set(combo.join('+'), def.action);
+    }
+    for (const def of KEYBIND_DEFINITIONS) {
+      const combo = keybinds?.[def.action];
+      if (combo?.length) comboMap.set(combo.join('+'), def.action);
     }
 
     const getImagePathsForCopy = (s: any): Array<string> => {
@@ -152,6 +158,40 @@ export const useKeyboardShortcuts = ({
         execute: (_event: unknown, s: StoreState) => {
           s.ui.setPanel(Panel.Adjustments);
           s.editor.setEditor({ mixerPickerProperty: 'hue', isWbPickerActive: false });
+        },
+      },
+
+      open_library: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor',
+        execute: (event: KeyboardEvent) => {
+          event.preventDefault();
+          handleBackToLibrary();
+        },
+      },
+      open_develop: {
+        shouldFire: (s: StoreState) => !!(s.editor.selectedImage?.path || s.library.libraryActivePath),
+        execute: (event: KeyboardEvent, s: StoreState) => {
+          event.preventDefault();
+          const path =
+            s.ui.activeView === 'library'
+              ? (s.library.libraryActivePath ?? s.editor.selectedImage?.path)
+              : s.editor.selectedImage?.path;
+          if (s.ui.activeView !== 'editor' && path) handleImageSelect(path, true);
+          s.ui.setPanel(Panel.Adjustments);
+        },
+      },
+      toggle_before_after: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.ui.setUI({ beforeAfterVisible: !s.ui.beforeAfterVisible });
+        },
+      },
+      toggle_clipping: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
+        execute: (event: KeyboardEvent) => {
+          event.preventDefault();
+          setAdjustments((prev) => ({ ...prev, showClipping: !prev.showClipping }));
         },
       },
       open_image: {
@@ -377,6 +417,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
+          s.ui.setUI({ beforeAfterVisible: false });
           s.editor.dispatchReferenceView({ type: 'toggle' });
         },
       },
@@ -763,7 +804,7 @@ export const useKeyboardShortcuts = ({
         state.ui.denoiseModalState.isOpen ||
         state.ui.negativeModalState.isOpen;
 
-      if (isModalOpen) return;
+      if (isModalOpen || document.querySelector('[role="dialog"]')) return;
 
       if (state.ui.isSettingsOpen) {
         if (event.code === 'Escape') {
@@ -773,8 +814,7 @@ export const useKeyboardShortcuts = ({
         return;
       }
 
-      const isInputFocused =
-        document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+      const isInputFocused = !!document.activeElement?.closest('input,textarea,select,[contenteditable="true"]');
       if (isInputFocused) return;
 
       for (const builtin of builtinShortcuts) {
@@ -802,7 +842,6 @@ export const useKeyboardShortcuts = ({
     };
   }, [
     handleAutoAdjustments,
-    setAdjustments,
     handleBackToLibrary,
     handleDeleteSelected,
     handleDeleteRejected,
@@ -818,5 +857,8 @@ export const useKeyboardShortcuts = ({
     handleSetFlag,
     handleSetColorLabel,
     toggleShowOriginal,
+    setAdjustments,
+    shortcutSettings,
+    shortcutPlatform,
   ]);
 };

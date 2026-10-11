@@ -595,6 +595,9 @@ fn apply_import(
     }
     let mut result = DevelopImportResult::default();
     for mut photo in photos {
+        let _guard = crate::file_management::EDIT_SIDECAR_LOCK
+            .lock()
+            .map_err(|e| e.to_string())?;
         let (source, _) = parse_virtual_path(&photo.preview.path);
         let unchanged = sidecar_bytes(&photo.sidecar)
             .is_ok_and(|bytes| bytes == photo.sidecar_bytes)

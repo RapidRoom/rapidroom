@@ -10,6 +10,7 @@ import { useUIStore } from '../../store/useUIStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { debouncedSetHistory, useEditorActions } from '../../hooks/useEditorActions';
 import { APP_ACTION_DEFINITIONS, executeAppAction, isAppActionAvailable } from '../../utils/appActions';
+import { lightroomDefaultCombo } from '../../utils/lightroomWorkspace';
 import { getDefaultCombo } from '../../utils/keyboardUtils';
 import {
   PALETTE_PARAMETERS,
@@ -178,7 +179,10 @@ export default function CommandPalette() {
       title: translate(definition.description),
       section: translate(`settings.keybinds.sections.${definition.section}`),
       terms: [definition.action, definition.action === 'toggle_export' ? 'export recipe' : ''],
-      shortcut: (appSettings?.keybinds?.[definition.action] ?? getDefaultCombo(definition, osPlatform)).join('+'),
+      shortcut: (
+        appSettings?.keybinds?.[definition.action] ??
+        lightroomDefaultCombo(definition, getDefaultCombo(definition, osPlatform), !!appSettings?.lightroomKeymap)
+      ).join('+'),
       available: isAppActionAvailable(definition.action),
       execute: () => {
         close();
@@ -263,7 +267,20 @@ export default function CommandPalette() {
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
       .map(({ entry }) => entry);
-  }, [query, translate, canEdit, appSettings?.keybinds, osPlatform, editor, ui, close, commit, presets, t]);
+  }, [
+    query,
+    translate,
+    canEdit,
+    appSettings?.keybinds,
+    appSettings?.lightroomKeymap,
+    osPlatform,
+    editor,
+    ui,
+    close,
+    commit,
+    presets,
+    t,
+  ]);
 
   useEffect(() => setSelected(0), [query]);
   const highlighted = entries[Math.min(selected, entries.length - 1)];

@@ -21,6 +21,30 @@ export const KEYBIND_SECTIONS: KeybindSection[] = [
 
 export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
   {
+    action: 'toggle_before_after',
+    description: 'settings.keybinds.actions.toggle_before_after',
+    defaultCombo: [],
+    section: 'view',
+  },
+  {
+    action: 'open_library',
+    description: 'settings.keybinds.actions.open_library',
+    defaultCombo: [],
+    section: 'library',
+  },
+  {
+    action: 'open_develop',
+    description: 'settings.keybinds.actions.open_develop',
+    defaultCombo: [],
+    section: 'library',
+  },
+  {
+    action: 'toggle_clipping',
+    description: 'settings.keybinds.actions.toggle_clipping',
+    defaultCombo: [],
+    section: 'view',
+  },
+  {
     action: 'open_image',
     description: 'settings.keybinds.actions.open_image',
     defaultCombo: ['Enter'],
