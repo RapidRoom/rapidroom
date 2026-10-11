@@ -791,13 +791,13 @@ function App() {
             />
           );
         case Panel.Adjustments:
-          return <Controls />;
-        case Panel.Metadata:
           return appSettings?.workspacePreset === 'lightroom' && activeView === 'library' ? (
             <LightroomLibrarySidebar />
           ) : (
-            <MetadataPanel />
+            <Controls />
           );
+        case Panel.Metadata:
+          return <MetadataPanel />;
         case Panel.Crop:
           return <CropPanel />;
         case Panel.Masks:

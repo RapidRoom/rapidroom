@@ -9,7 +9,7 @@ import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { Invokes, LibraryViewMode, ImageFile } from '../components/ui/AppProperties';
+import { Invokes, LibraryViewMode, ImageFile, Panel } from '../components/ui/AppProperties';
 import { INITIAL_ADJUSTMENTS, normalizeLoadedAdjustments } from '../utils/adjustments';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { debouncedSave, debouncedSetHistory } from './useEditorActions';
@@ -147,6 +147,9 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
     setLibrary({ libraryActivePath: lastActivePath });
     setUI({ activeView: 'library', slideDirection: 1 });
+    if (useSettingsStore.getState().appSettings?.workspacePreset === 'lightroom') {
+      useUIStore.getState().setPanel(Panel.Adjustments);
+    }
   }, [refs]);
 
   const handleImageSelect = useCallback(
@@ -157,6 +160,9 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
       if (openInEditor) {
         setUI({ activeView: 'editor' });
+        if (useSettingsStore.getState().appSettings?.workspacePreset === 'lightroom') {
+          useUIStore.getState().setPanel(Panel.Adjustments);
+        }
       }
 
       if (selectedImage?.path === path) return;
