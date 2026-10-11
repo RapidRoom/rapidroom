@@ -9,7 +9,8 @@
     "src/components/adjustments/Details.tsx",
     "src/components/adjustments/Effects.tsx",
     "src/components/panel/right/CropPanel.tsx",
-    "src/components/ui/ColorWheel.tsx"
+    "src/components/ui/ColorWheel.tsx",
+    "src/components/ui/LUTControl.tsx"
   ],
   "conventions": {
     "values": "Native RapidRoom adjustment values, identical to the editor controls. Ranges below are UI limits; MCP validation may accept other finite values.",
@@ -1614,7 +1615,20 @@
       "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
     },
     "lutData": { "defaultType": "null", "default": null },
-    "lutIntensity": { "defaultType": "number", "default": 100 },
+    "lutIntensity": {
+      "defaultType": "number",
+      "default": 100,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/ui/LUTControl.tsx",
+          "valueExpression": "lutIntensity"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
     "lutName": { "defaultType": "null", "default": null },
     "lutPath": { "defaultType": "null", "default": null },
     "lutSize": { "defaultType": "number", "default": 0 },
@@ -2714,6 +2728,17 @@
         "colorGrading.midtones.luminance",
         "colorGrading.shadows.luminance"
       ]
+    },
+    {
+      "source": "src/components/ui/LUTControl.tsx",
+      "line": 277,
+      "valueExpression": "lutIntensity",
+      "changeExpression": "(e) => onIntensityChange(Number(e.target.value))",
+      "labelExpression": "t('ui.lut.intensity')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["lutIntensity"]
     }
   ]
 }

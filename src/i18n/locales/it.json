@@ -875,7 +875,8 @@
         "undo": "Annulla (Ctrl+Z) o Cronologia (Tasto destro)"
       },
       "vc": "CV"
-    }
+    },
+    "embeddedPreviewWarning": "Lo sviluppo RAW non è riuscito; viene mostrata l’anteprima incorporata."
   },
   "export": {
     "advanced": {

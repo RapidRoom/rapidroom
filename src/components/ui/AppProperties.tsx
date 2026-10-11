@@ -410,6 +410,8 @@ export interface Preset {
   includeCropTransform?: boolean;
   presetType?: 'tool' | 'style';
   favorite?: boolean;
+  cameraModelRestriction?: string;
+  unavailableReason?: string;
 }
 
 export interface Progress {
@@ -424,6 +426,7 @@ export interface SelectedImage {
   height: number;
   isRaw: boolean;
   isReady: boolean;
+  usedEmbeddedPreview?: boolean;
   metadata?: any;
   original_base64?: string;
   path: string;

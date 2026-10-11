@@ -813,7 +813,13 @@
         "preset": "Preset",
         "style": "Style",
         "tool": "Tool"
-      }
+      },
+      "search": "Search presets or groups",
+      "compatibleOnly": "Compatible only",
+      "lightroomXmp": "Export Lightroom XMP…",
+      "newXmp": "Save new XMP preset (Ctrl+Shift+N)",
+      "xmpSaved": "XMP preset saved",
+      "xmpExportLimited": "Saved XMP. These settings are preserved for RapidRoom only: {{keys}}. Lightroom rendering may differ."
     },
     "referenceView": {
       "active": "Active",
@@ -854,7 +860,8 @@
         "undo": "Undo (Ctrl+Z) or History (Right-click)"
       },
       "vc": "VC"
-    }
+    },
+    "embeddedPreviewWarning": "RAW development failed; showing the embedded preview instead."
   },
   "export": {
     "advanced": {
@@ -1895,7 +1902,8 @@
         "zoom_in": "Zoom in",
         "zoom_in_step": "Zoom in (by step)",
         "zoom_out": "Zoom out",
-        "zoom_out_step": "Zoom out (by step)"
+        "zoom_out_step": "Zoom out (by step)",
+        "save_preset_xmp": "Save new XMP preset"
       },
       "sections": {
         "editing": "Editing",
@@ -2296,5 +2304,18 @@
     "resizeLeftDock": "Resize left panel",
     "resizeRightDock": "Resize right panel",
     "collapsePanel": "Collapse terminal panel"
+  },
+  "commandPalette": {
+    "title": "Command palette",
+    "search": "Search commands and adjustments",
+    "searchHint": "Search actions, sliders or type exposure 0.7…",
+    "valueHint": "Type a value or use Left / Right",
+    "setValue": "Set {{name}} to {{value}}",
+    "cropRatio": "Crop {{ratio}}",
+    "noResults": "No matching commands",
+    "listKeys": "↑ ↓ Choose · Enter Apply · Esc Close · Ctrl+K Toggle",
+    "sliderKeys": "← → Preview · Shift ×10 · Alt Fine · Enter Apply · Esc Cancel",
+    "autoAdjustments": "Auto adjustments",
+    "resetCurrentPhoto": "Reset current photo"
   }
 }
