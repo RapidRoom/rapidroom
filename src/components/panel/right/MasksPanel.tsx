@@ -80,6 +80,7 @@ import {
   INITIAL_MASK_CONTAINER,
   MaskContainer,
   ADJUSTMENT_SECTIONS,
+  AdjustmentSectionName,
   getVisibleAdjustmentSections,
   showSectionAndTools,
 } from '../../../utils/adjustments';
@@ -2033,7 +2034,7 @@ function SettingsPanel({
     });
   };
 
-  const handleToggleVisibility = (sectionName: string) => {
+  const handleToggleVisibility = (sectionName: AdjustmentSectionName) => {
     if (!isActive) return;
     const cur = container.adjustments;
     const vis = cur.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility;
@@ -2042,7 +2043,7 @@ function SettingsPanel({
     });
   };
 
-  const handleSectionContextMenu = (event: any, sectionName: string) => {
+  const handleSectionContextMenu = (event: any, sectionName: AdjustmentSectionName) => {
     if (!isActive) return;
     event.preventDefault();
     event.stopPropagation();
@@ -2231,7 +2232,7 @@ function SettingsPanel({
                   label={
                     param.key === 'feather' && activeSubMask.type === Mask.AiDepth
                       ? t('editor.masks.params.globalFeather')
-                      : t('editor.masks.params.' + param.key)
+                      : t(`editor.masks.params.${param.key}`, { defaultValue: param.key })
                   }
                   min={param.min}
                   max={param.max}

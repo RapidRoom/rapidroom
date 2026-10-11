@@ -51,7 +51,7 @@ const modeButtons = [
     bgClass: 'bg-accent',
     textActiveClass: 'text-button-text',
   },
-];
+] as const;
 
 const HistogramView = ({ histogram }: { histogram: any }) => {
   if (!histogram || !histogram.red || !histogram.green || !histogram.blue) return null;

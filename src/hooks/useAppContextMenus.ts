@@ -73,13 +73,7 @@ import {
   AlbumGroup,
 } from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
-import {
-  Color,
-  COLOR_LABELS,
-  INITIAL_ADJUSTMENTS,
-  normalizeLoadedAdjustments,
-  type Adjustments,
-} from '../utils/adjustments';
+import { COLOR_LABELS, INITIAL_ADJUSTMENTS, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
 import TaggingSubMenu from '../context/TaggingSubMenu';
 import { debouncedSave, debouncedSetHistory, useEditorActions } from './useEditorActions';
 import { useLibraryActions } from './useLibraryActions';
@@ -607,7 +601,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           icon: Palette,
           submenu: [
             { label: t('contextMenus.editor.noLabel'), onClick: () => handleSetColorLabel(null) },
-            ...COLOR_LABELS.map((label: Color) => ({
+            ...COLOR_LABELS.map((label) => ({
               label: t(`contextMenus.colors.${label.name}`),
               color: label.color,
               onClick: () => handleSetColorLabel(label.name),
@@ -1071,7 +1065,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           icon: Palette,
           submenu: [
             { label: t('contextMenus.editor.noLabel'), onClick: () => handleSetColorLabel(null, finalSelection) },
-            ...COLOR_LABELS.map((label: Color) => ({
+            ...COLOR_LABELS.map((label) => ({
               label: t(`contextMenus.colors.${label.name}`),
               color: label.color,
               onClick: () => handleSetColorLabel(label.name, finalSelection),

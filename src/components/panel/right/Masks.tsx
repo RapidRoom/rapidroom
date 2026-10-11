@@ -276,7 +276,13 @@ export const AI_SUB_MASK_COMPONENT_TYPES: Array<MaskType> = [
   ...AI_GENERATIVE_CREATION_TYPES,
 ];
 
-export function NewMaskDropZone({ isOver, textKey }: { isOver: boolean; textKey: string }) {
+export function NewMaskDropZone({
+  isOver,
+  textKey,
+}: {
+  isOver: boolean;
+  textKey: 'editor.ai.dropzoneText' | 'editor.masks.dropzoneText';
+}) {
   const { t } = useTranslation();
   return (
     <motion.div
