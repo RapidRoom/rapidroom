@@ -102,7 +102,7 @@ def run_xmp_checks(case, smoke, wait_for, baseline):
     if ImageChops.difference(smoke.crop(baseline), smoke.crop(restored)).getbbox() is not None:
         raise RuntimeError('Restoring the original draft failed to restore exact pixels')
     smoke.step('original draft and exact native pixels restored after XMP round trip')
-    run_client_checks(case, smoke, wire_only=True)
+    run_client_checks(case, smoke, wire_only=True, folder_name="xmp-client-tests")
     (case / 'xmp-round-trip-result.json').write_text(json.dumps({
         'real_model_requests': False, 'real_lightroom_tested': False,
         'gui_export_and_import': True, 'mcp_export_and_losses': True,
