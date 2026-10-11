@@ -214,6 +214,29 @@ pub(super) fn tool_definitions() -> Vec<Value> {
             }, "required": ["imagePaths"] }
         }),
     ];
+    let (_, mask_definitions) = adjustments::compact_schema();
+    let mut mask_patch = mask_definitions["mask"].clone();
+    mask_patch["required"] = json!(["id"]);
+    for (name, description, property, value) in [
+        (
+            "upsert_mask",
+            "Create or deep-update one mask by id, preserving every sibling. Omitted fields retain existing values; subMasks replaces only that container's component array. New masks require subMasks. Uses normal GUI history/autosave. Coordinates are original-image pixels before crop.",
+            "mask",
+            mask_patch,
+        ),
+        (
+            "remove_mask",
+            "Remove one mask by id, preserving all siblings. Missing id is a no-op. Uses normal GUI history/autosave.",
+            "maskId",
+            json!({"type":"string","minLength":1,"maxLength":256}),
+        ),
+    ] {
+        let mut properties = json!({"imagePath":{"type":"string"},"expectedRevision":{"type":"string"},"verbose":{"type":"boolean","default":false}});
+        properties[property] = value;
+        definitions.push(json!({"name":name,"description":description,"inputSchema":{
+            "type":"object","additionalProperties":false,"properties":properties,"required":["imagePath",property],"$defs":mask_definitions
+        }}));
+    }
     definitions.extend(super::measure::tool_definitions());
     for tool in &mut definitions {
         let property = match tool["name"].as_str() {
@@ -252,6 +275,9 @@ pub(super) async fn call_tool(
         "set_adjustments" => set_adjustments(app_handle, &arguments).await,
         "update_adjustments" => update_adjustments(app_handle, &arguments).await,
         "reset_adjustments" => reset_adjustments(app_handle, &arguments).await,
+        "upsert_mask" | "upsertMask" | "remove_mask" | "removeMask" => {
+            mask_action(app_handle, name, &arguments).await
+        }
         "apply_auto_adjustments" => apply_auto_adjustments(app_handle, &arguments).await,
         "get_preview" => get_preview(app_handle, &arguments).await,
         "analyze" | "sample_region" | "render_region" | "render_compare" => {
@@ -394,6 +420,41 @@ async fn update_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result
         json!({ "path": path, "adjustments": merged, "resetHistory": false }),
     )
     .await?;
+    Ok(mutation_response(&current, response, verbose))
+}
+
+async fn mask_action(
+    app_handle: &AppHandle,
+    name: &str,
+    arguments: &Value,
+) -> Result<Value, String> {
+    let path = required_image_path(arguments)?;
+    let verbose = preview::option(arguments, "verbose")?;
+    check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
+    let current = get_image_state(app_handle, arguments)?;
+    let remove = matches!(name, "remove_mask" | "removeMask");
+    let mask = if remove {
+        None
+    } else {
+        Some(arguments.get("mask").ok_or("mask is required")?)
+    };
+    let id = if remove {
+        let id = arguments["maskId"]
+            .as_str()
+            .ok_or("maskId must be a string")?;
+        if id.is_empty() || id.chars().count() > 256 {
+            return Err("maskId must contain1–256 characters".into());
+        }
+        Some(id)
+    } else {
+        None
+    };
+    let changed = super::masks::change_masks(&current["adjustments"]["masks"], mask, id)?;
+    let mut next = current["adjustments"].clone();
+    next["masks"] = changed;
+    let response = ui::request_ui(app_handle, "apply-adjustments", json!({
+        "path":path,"adjustments":next,"baseAdjustments":current["adjustments"],"resetHistory":false
+    })).await?;
     Ok(mutation_response(&current, response, verbose))
 }
 
@@ -1076,7 +1137,7 @@ mod tests {
     #[test]
     fn compact_tool_definitions_resolve_locally_to_the_full_adjustment_schema() {
         fn expand(value: &Value, definitions: &Value, depth: usize) -> Value {
-            assert!(depth < 16);
+            assert!(depth < 32);
             if let Some(reference) = value.get("$ref").and_then(Value::as_str) {
                 let name = reference.strip_prefix("#/$defs/").expect("local reference");
                 let mut expanded = expand(&definitions[name], definitions, depth + 1);
