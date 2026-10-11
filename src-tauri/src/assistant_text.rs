@@ -158,14 +158,10 @@ fn opaque(key: &str, value: &str) -> bool {
     }
     if matches!(key, "data" | "maskDataBase64") {
         let value = match value.split_once(";base64,") {
-            Some((mime, data))
-                if matches!(
-                    mime,
-                    "data:image/png" | "data:image/jpeg" | "data:image/webp" | "data:image/avif"
-                ) =>
-            {
-                data
-            }
+            Some((
+                "data:image/png" | "data:image/jpeg" | "data:image/webp" | "data:image/avif",
+                data,
+            )) => data,
             Some(_) => return false,
             None => value,
         };
