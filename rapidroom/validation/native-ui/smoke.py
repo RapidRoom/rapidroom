@@ -352,6 +352,11 @@ class Smoke:
                 return False
 
         wait_for(frontend_ready, "real frontend", 90)
+        # The root mounts before settings finish loading the welcome actions.
+        # Wait read-only for the actual control; execute its click only once.
+        wait_for(lambda: self.execute("return [...document.querySelectorAll('button')].some("
+                                      "e=>e.innerText.trim()==='Continue Session' && !e.disabled);"),
+                 "Continue Session control", 90)
         startup["phase"] = "frontend ready before Continue Session"
         save(self.case / "driver-startup.json", startup)
         self.execute("""const e=[...document.querySelectorAll('button')]
