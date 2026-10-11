@@ -210,10 +210,7 @@ pub(crate) fn restore(payload: &Payload, current: &Value, defaults: &Value) -> V
                             result.insert(key.clone(), value.clone());
                         }
                     } else {
-                        result.insert(
-                            key.clone(),
-                            masks(authored, written, returned, key == "subMasks"),
-                        );
+                        result.insert(key.clone(), masks(authored, written, returned));
                     }
                     continue;
                 }
@@ -230,16 +227,12 @@ pub(crate) fn restore(payload: &Payload, current: &Value, defaults: &Value) -> V
         }
         c.or(d).cloned()
     }
-    fn masks(p: &[Value], w: &[Value], c: &[Value], components: bool) -> Value {
-        fn pair(
-            items: &[Value],
-            item: &Value,
-            preferred: usize,
-            used: &[bool],
-            components: bool,
-        ) -> Option<usize> {
-            let id = item.get("id").and_then(Value::as_str);
-            let kind = item.get("type").and_then(Value::as_str);
+    fn masks(p: &[Value], w: &[Value], c: &[Value]) -> Value {
+        fn pair(items: &[Value], item: &Value, used: &[bool]) -> Option<usize> {
+            let id = item
+                .get("id")
+                .and_then(Value::as_str)
+                .filter(|id| !id.is_empty());
             items
                 .iter()
                 .enumerate()
@@ -247,25 +240,17 @@ pub(crate) fn restore(payload: &Payload, current: &Value, defaults: &Value) -> V
                     !used[*i] && id.is_some() && candidate.get("id").and_then(Value::as_str) == id
                 })
                 .map(|(i, _)| i)
-                .or_else(|| {
-                    (components
-                        && preferred < items.len()
-                        && !used[preferred]
-                        && kind.is_some()
-                        && items[preferred].get("type").and_then(Value::as_str) == kind)
-                        .then_some(preferred)
-                })
         }
         let mut w_used = vec![false; w.len()];
         let mut c_used = vec![false; c.len()];
         let mut out = Vec::new();
-        for (i, authored) in p.iter().enumerate() {
-            let Some(j) = pair(w, authored, i, &w_used, components) else {
+        for authored in p {
+            let Some(j) = pair(w, authored, &w_used) else {
                 out.push((None, authored.clone()));
                 continue;
             };
             w_used[j] = true;
-            if let Some(k) = pair(c, &w[j], j, &c_used, components) {
+            if let Some(k) = pair(c, &w[j], &c_used) {
                 c_used[k] = true;
                 if let Some(value) = merge(Some(authored), Some(&w[j]), Some(&c[k]), None) {
                     out.push((Some(k), value));
@@ -410,9 +395,9 @@ mod tests {
     {
         let payload = Payload {
             adjustments: json!({"masks":[{"id":"lr-sync","name":"Sky","adjustments":{"exposure":0.222222,"halationAmount":40},"subMasks":[{"id":"geometry","type":"linear","parameters":{"startX":0.2,"nativeOnly":17}}]},{"id":"bitmap","name":"Paint","subMasks":[]}]}),
-            projection: json!({"masks":[{"id":"lr-sync","name":"Sky","adjustments":{"exposure":0.22},"subMasks":[{"id":"generated-before","type":"linear","parameters":{"startX":0.2}}]}]}),
+            projection: json!({"masks":[{"id":"lr-sync","name":"Sky","adjustments":{"exposure":0.22},"subMasks":[{"id":"geometry","type":"linear","parameters":{"startX":0.2}}]}]}),
         };
-        let current = json!({"masks":[{"id":"lr-sync","name":"Renamed sky","adjustments":{"exposure":0.5},"subMasks":[{"id":"generated-after","type":"linear","parameters":{"startX":0.4}}]},{"id":"new","name":"New Lightroom mask","subMasks":[]}]});
+        let current = json!({"masks":[{"id":"lr-sync","name":"Renamed sky","adjustments":{"exposure":0.5},"subMasks":[{"id":"geometry","type":"linear","parameters":{"startX":0.4}}]},{"id":"new","name":"New Lightroom mask","subMasks":[]}]});
         let result = restore(&payload, &current, &json!({"masks":[]}));
         assert_eq!(result["masks"][0]["id"], "lr-sync");
         assert_eq!(result["masks"][0]["name"], "Renamed sky");
@@ -461,6 +446,40 @@ mod tests {
         assert_eq!(
             restore(&no_id, &json!({"masks":[]}), &json!({"masks":[]})),
             no_id.adjustments
+        );
+    }
+    #[test]
+    fn inserted_same_type_components_require_explicit_correspondence() {
+        let extra = json!({"id":"native-extra","type":"linear","parameters":{"startX":0.8}});
+        let imported = json!({"id":"mask-sync","type":"linear","parameters":{"startX":0.2}});
+        let payload = Payload {
+            adjustments: json!({"masks":[{"id":"sync-parent","subMasks":[extra, imported]}]}),
+            projection: json!({"masks":[{"id":"sync-parent","subMasks":[imported]}]}),
+        };
+        let changed = json!({"id":"mask-sync","type":"linear","parameters":{"startX":0.4}});
+        let current = json!({"masks":[{"id":"sync-parent","subMasks":[changed]}]});
+        let restored = restore(&payload, &current, &json!({"masks":[]}));
+        assert_eq!(restored["masks"][0]["subMasks"], json!([extra, changed]));
+        let reordered = Payload {
+            adjustments: json!({"masks":[{"id":"sync-parent","subMasks":[imported, extra]}]}),
+            projection: payload.projection.clone(),
+        };
+        assert_eq!(
+            restore(&reordered, &current, &json!({"masks":[]}))["masks"][0]["subMasks"],
+            json!([changed, extra])
+        );
+        let ambiguous = json!({"masks":[{"id":"sync-parent","subMasks":[{"id":"new-generated","type":"linear","parameters":{"startX":0.4}}]}]});
+        let preserved = restore(&payload, &ambiguous, &json!({"masks":[]}));
+        assert_eq!(preserved["masks"][0]["subMasks"][0], extra);
+        assert!(
+            restore(
+                &payload,
+                &json!({"masks":[{"id":"sync-parent","subMasks":[]}]}),
+                &json!({"masks":[]})
+            )["masks"][0]["subMasks"]
+                .as_array()
+                .unwrap()
+                .contains(&extra)
         );
     }
 }

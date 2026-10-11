@@ -11,17 +11,13 @@ use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-fn correction_id(correction: &Resource) -> String {
+fn resource_id(resource: &Resource, key: &str, domain: &[u8]) -> String {
     use sha2::{Digest, Sha256};
-    let Some(sync_id) = correction
-        .scalars
-        .get("CorrectionSyncID")
-        .filter(|id| !id.is_empty())
-    else {
+    let Some(sync_id) = resource.scalars.get(key).filter(|id| !id.is_empty()) else {
         return Uuid::new_v4().to_string();
     };
     let mut digest = Sha256::new();
-    digest.update(b"rapidroom-lightroom-correction\0");
+    digest.update(domain);
     digest.update(sync_id.as_bytes());
     let bytes = digest.finalize();
     let mut id = [0; 16];
@@ -29,6 +25,18 @@ fn correction_id(correction: &Resource) -> String {
     id[6] = (id[6] & 0x0f) | 0x80;
     id[8] = (id[8] & 0x3f) | 0x80;
     Uuid::from_bytes(id).to_string()
+}
+
+fn correction_id(correction: &Resource) -> String {
+    resource_id(
+        correction,
+        "CorrectionSyncID",
+        b"rapidroom-lightroom-correction\0",
+    )
+}
+
+fn component_id(component: &Resource) -> String {
+    resource_id(component, "MaskSyncID", b"rapidroom-lightroom-component\0")
 }
 
 /// Lightroom stores local slider values normalised to -1..1. Exposure spans
@@ -395,7 +403,7 @@ fn sub_mask(
     parameters: Value,
 ) -> Value {
     let mut sub_mask = json!({
-        "id": Uuid::new_v4().to_string(),
+        "id": component_id(component),
         "type": mask_type,
         "visible": component
             .scalars
@@ -867,6 +875,28 @@ pub(crate) mod tests {
     fn not_transferred(xmp: &str) -> Vec<&'static str> {
         let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
         lightroom_settings_not_transferred(xmp, &preset)
+    }
+
+    #[test]
+    fn component_identity_survives_geometry_edits_without_aliasing_parent_identity() {
+        let mut resource = Resource {
+            scalars: HashMap::new(),
+            structs: HashMap::new(),
+        };
+        resource
+            .scalars
+            .insert("MaskSyncID".into(), "sync-a".into());
+        resource
+            .scalars
+            .insert("CorrectionSyncID".into(), "sync-a".into());
+        let before = component_id(&resource);
+        resource.scalars.insert("ZeroX".into(), "0.4".into());
+        assert_eq!(component_id(&resource), before);
+        assert_ne!(component_id(&resource), correction_id(&resource));
+        resource
+            .scalars
+            .insert("MaskSyncID".into(), "sync-b".into());
+        assert_ne!(component_id(&resource), before);
     }
 
     #[test]
