@@ -130,10 +130,10 @@ export default function XmpSidecarExport({ disabled }: { disabled: boolean }) {
     <section aria-label={t('export.xmp.title')} className="space-y-3 rounded-lg border border-border p-3">
       <h3 className="text-sm font-semibold text-text-primary">{t('export.xmp.title')}</h3>
       <p className="text-xs text-text-secondary">{t('export.xmp.description')}</p>
-      <Button onClick={() => preview()} disabled={disabled || busy || !owner} className="w-full bg-surface">
+      <Button onClick={() => preview()} disabled={disabled || busy || !owner} className="w-full">
         {busy ? t('export.xmp.working') : t('export.xmp.preview')}
       </Button>
-      <Button onClick={() => preview(true)} disabled={disabled || busy || !owner} className="w-full bg-surface">
+      <Button onClick={() => preview(true)} disabled={disabled || busy || !owner} className="w-full">
         {t('export.xmp.chooseDestination')}
       </Button>
       {prepared && (
