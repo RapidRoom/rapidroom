@@ -9,7 +9,7 @@ import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { Invokes, LibraryViewMode, ImageFile } from '../components/ui/AppProperties';
+import { Invokes, LibraryViewMode, ImageFile, FolderNode } from '../components/ui/AppProperties';
 import { INITIAL_ADJUSTMENTS, normalizeLoadedAdjustments } from '../utils/adjustments';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { debouncedSave, debouncedSetHistory } from './useEditorActions';
@@ -530,9 +530,9 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
     const { appSettings } = useSettingsStore.getState();
     const rootFolders: string[] = appSettings?.rootFolders ?? [];
     await invoke(Invokes.SetCardBrowseRoot, { path: null });
-    let folderTrees: unknown[] = [];
+    let folderTrees: FolderNode[] = [];
     if (rootFolders.length > 0) {
-      folderTrees = await invoke<unknown[]>(Invokes.GetPinnedFolderTrees, {
+      folderTrees = await invoke<FolderNode[]>(Invokes.GetPinnedFolderTrees, {
         paths: rootFolders,
         expandedFolders: rootFolders,
         showImageCounts: appSettings?.enableFolderImageCounts || appSettings?.folderTreeSort?.key === 'imageCount',
@@ -577,7 +577,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
           setLibrary({ isTreeLoading: true });
           try {
-            const newTree = await invoke(Invokes.GetFolderTree, {
+            const newTree = await invoke<FolderNode>(Invokes.GetFolderTree, {
               path: selectedPath,
               expandedFolders: [selectedPath],
               showImageCounts:
@@ -607,7 +607,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       if (typeof selected !== 'string' || !selected) return;
 
       await invoke(Invokes.SetCardBrowseRoot, { path: selected });
-      const newTree = await invoke(Invokes.GetFolderTree, {
+      const newTree = await invoke<FolderNode>(Invokes.GetFolderTree, {
         path: selected,
         expandedFolders: [selected],
         showImageCounts: appSettings?.enableFolderImageCounts || appSettings?.folderTreeSort?.key === 'imageCount',
@@ -666,7 +666,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
           const expandedArr = folderState?.expandedFolders
             ? Array.from(new Set(folderState.expandedFolders))
             : rootFolders;
-          treesData = await invoke(Invokes.GetPinnedFolderTrees, {
+          treesData = await invoke<FolderNode[]>(Invokes.GetPinnedFolderTrees, {
             paths: rootFolders,
             expandedFolders: expandedArr,
             showImageCounts: appSettings?.enableFolderImageCounts || appSettings?.folderTreeSort?.key === 'imageCount',

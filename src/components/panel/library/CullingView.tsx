@@ -946,7 +946,7 @@ function CullingPreview({
   );
 }
 
-const Row = React.memo(
+const MemoizedRow = React.memo(
   ({
     index,
     style,
@@ -1001,6 +1001,8 @@ const Row = React.memo(
     );
   },
 );
+
+const Row = (props: Parameters<typeof MemoizedRow>[0]): React.ReactElement => <MemoizedRow {...props} />;
 
 export default function CullingView(props: any) {
   const { t } = useTranslation();

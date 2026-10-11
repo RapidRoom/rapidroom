@@ -40,19 +40,18 @@ import { useShallow } from 'zustand/react/shallow';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useUIStore } from '../../../store/useUIStore';
-import { AlbumItem, AlbumGroup, Album, Invokes, FolderTreeSort, SortDirection } from '../../ui/AppProperties';
+import {
+  AlbumItem,
+  AlbumGroup,
+  Album,
+  FolderNode,
+  Invokes,
+  FolderTreeSort,
+  SortDirection,
+} from '../../ui/AppProperties';
 import { useLibraryActions } from '../../../hooks/useLibraryActions';
 
-export interface FolderTree {
-  children: FolderTree[];
-  isDir: boolean;
-  name: string;
-  path: string;
-  imageCount?: number;
-  hasSubdirs?: boolean;
-  modified?: number;
-  created?: number;
-}
+export type FolderTree = FolderNode;
 
 interface FolderTreeProps {
   isResizing: boolean;
@@ -777,7 +776,7 @@ export default function FolderTree({
   const filteredTrees = useMemo(() => {
     let base = folderTrees;
     if (isSearching) {
-      base = base.map((tree: any) => filterTree(tree, trimmedQuery)).filter((t: any) => t !== null);
+      base = base.map((tree: FolderTree) => filterTree(tree, trimmedQuery)).filter((t): t is FolderTree => t !== null);
     }
     return sortFolderTree(base, folderTreeSort);
   }, [folderTrees, trimmedQuery, isSearching, folderTreeSort]);

@@ -434,6 +434,17 @@ export interface SelectedImage {
   width: number;
 }
 
+export interface FolderNode {
+  children: FolderNode[];
+  created?: number;
+  hasSubdirs?: boolean;
+  imageCount?: number;
+  isDir: boolean;
+  modified?: number;
+  name: string;
+  path: string;
+}
+
 export interface SortCriteria {
   key: string;
   label?: string;

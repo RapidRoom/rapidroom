@@ -3,7 +3,7 @@ import { List, useListCallbackRef } from 'react-window';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import debounce from 'lodash.debounce';
 import { useTranslation } from 'react-i18next';
-import { Row } from './LibraryItems';
+import { Row as MemoizedRow } from './LibraryItems';
 import { useShallow } from 'zustand/react/shallow';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import {
@@ -18,6 +18,8 @@ import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights, TEXT_COLOR_KEYS } from '../../../types/typography';
 import { useProcessStore } from '../../../store/useProcessStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
+
+const Row = (props: Parameters<typeof MemoizedRow>[0]): React.ReactElement => <MemoizedRow {...props} />;
 
 function ListHeader({ widths, setWidths, containerRef, sortCriteria, onSortChange }: any) {
   const { t } = useTranslation();
