@@ -65,6 +65,7 @@ def run_xmp_checks(case, smoke, wait_for, baseline):
     wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.textContent.trim()==='Write XMP sidecar');"), 'GUI named loss report')
     sidecar = case / 'input/smoke.xmp'
     assert not sidecar.exists()
+    smoke.stable_preview('xmp-report-painted')
     smoke.capture('xmp-loss-report')
     smoke.step('GUI displays named losses before sidecar write')
     smoke.execute("""const b=[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Write XMP sidecar');
