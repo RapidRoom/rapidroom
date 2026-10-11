@@ -24,6 +24,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import clsx from 'clsx';
 import Button from '../ui/Button';
 import ConfirmModal from '../modals/ConfirmModal';
@@ -799,7 +800,7 @@ export default function SettingsPanel({
     });
   };
 
-  const shortcutTagVariants = {
+  const shortcutTagVariants: Variants = {
     visible: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 500, damping: 30 } },
     exit: { opacity: 0, scale: 0.8, transition: { duration: 0.15 } },
   };
