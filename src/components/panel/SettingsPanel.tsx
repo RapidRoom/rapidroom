@@ -2,6 +2,7 @@ import { useDevicePixelRatio } from '../../hooks/useDevicePixelRatio';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
+  ChevronDown,
   Cloud,
   Cpu,
   ExternalLink as ExternalLinkIcon,
@@ -1145,15 +1146,22 @@ export default function SettingsPanel({
                         label={t('settings.general.workspacePreset')}
                         description={t('settings.general.workspacePresetDesc')}
                       >
-                        <select
-                          aria-label={t('settings.general.workspacePreset')}
-                          value={appSettings?.workspacePreset ?? 'rapidroom'}
-                          onChange={(e) => selectWorkspacePreset(e.target.value as 'rapidroom' | 'lightroom')}
-                          className="rounded bg-surface px-3 py-2"
-                        >
-                          <option value="rapidroom">RapidRoom</option>
-                          <option value="lightroom">Lightroom Classic</option>
-                        </select>
+                        <div className="relative w-fit">
+                          <select
+                            aria-label={t('settings.general.workspacePreset')}
+                            value={appSettings?.workspacePreset ?? 'rapidroom'}
+                            onChange={(e) => selectWorkspacePreset(e.target.value as 'rapidroom' | 'lightroom')}
+                            className="appearance-none rounded border border-border-color bg-surface px-3 py-2 pr-8 text-text-primary"
+                          >
+                            <option value="rapidroom">RapidRoom</option>
+                            <option value="lightroom">Lightroom Classic</option>
+                          </select>
+                          <ChevronDown
+                            aria-hidden="true"
+                            size={16}
+                            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2"
+                          />
+                        </div>
                       </SettingItem>
                       <SettingItem
                         label={t('settings.general.lightroomKeymap')}

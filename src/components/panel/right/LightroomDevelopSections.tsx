@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { ChevronDown } from 'lucide-react';
 import { useRef, type ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useEditorStore } from '../../../store/useEditorStore';
@@ -167,39 +168,56 @@ export default function LightroomDevelopSections() {
         t('lightroomWorkspace.basic'),
         <>
           <div className="flex items-center gap-2 mb-3">
-            <label className="flex-1">
+            <label className="min-w-0 flex-1">
               {t('lightroomWorkspace.profile')}
-              <select
-                aria-label={t('lightroomWorkspace.profileLabel')}
-                className="w-full rounded bg-surface p-1"
-                disabled={appSettings?.tonemapperOverrideEnabled}
-                value={effectiveToneMapper}
-                onChange={(event) =>
-                  setAdjustments((previous) => ({ ...previous, toneMapper: event.target.value as 'basic' | 'agx' }))
-                }
-              >
-                <option value="basic">{t('lightroomWorkspace.basicProfile')}</option>
-                <option value="agx">{t('lightroomWorkspace.agxProfile')}</option>
-              </select>
+              <span className="relative block">
+                <select
+                  aria-label={t('lightroomWorkspace.profileLabel')}
+                  title={t(
+                    effectiveToneMapper === 'agx' ? 'lightroomWorkspace.agxProfile' : 'lightroomWorkspace.basicProfile',
+                  )}
+                  className="w-full appearance-none rounded border border-border-color bg-surface p-1 pr-5 text-text-primary"
+                  disabled={appSettings?.tonemapperOverrideEnabled}
+                  value={effectiveToneMapper}
+                  onChange={(event) =>
+                    setAdjustments((previous) => ({ ...previous, toneMapper: event.target.value as 'basic' | 'agx' }))
+                  }
+                >
+                  <option value="basic">{t('lightroomWorkspace.basicProfile')}</option>
+                  <option value="agx">{t('lightroomWorkspace.agxProfile')}</option>
+                </select>
+                <ChevronDown
+                  aria-hidden="true"
+                  size={14}
+                  className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2"
+                />
+              </span>
             </label>
             {gated(
               'color',
-              <label className="flex-1">
+              <label className="min-w-0 flex-1">
                 {t('lightroomWorkspace.treatment')}
-                <select
-                  aria-label={t('lightroomWorkspace.treatment')}
-                  className="w-full rounded bg-surface p-1"
-                  value={adjustments.saturation === -100 ? 'bw' : 'color'}
-                  onChange={(event) =>
-                    setAdjustments((previous) => ({
-                      ...previous,
-                      saturation: event.target.value === 'bw' ? -100 : colorSaturation.current,
-                    }))
-                  }
-                >
-                  <option value="color">{t('lightroomWorkspace.color')}</option>
-                  <option value="bw">{t('lightroomWorkspace.bw')}</option>
-                </select>
+                <span className="relative block">
+                  <select
+                    aria-label={t('lightroomWorkspace.treatment')}
+                    className="w-full appearance-none rounded border border-border-color bg-surface p-1 pr-5 text-text-primary"
+                    value={adjustments.saturation === -100 ? 'bw' : 'color'}
+                    onChange={(event) =>
+                      setAdjustments((previous) => ({
+                        ...previous,
+                        saturation: event.target.value === 'bw' ? -100 : colorSaturation.current,
+                      }))
+                    }
+                  >
+                    <option value="color">{t('lightroomWorkspace.color')}</option>
+                    <option value="bw">{t('lightroomWorkspace.bw')}</option>
+                  </select>
+                  <ChevronDown
+                    aria-hidden="true"
+                    size={14}
+                    className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2"
+                  />
+                </span>
               </label>,
             )}
           </div>

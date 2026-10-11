@@ -8,6 +8,16 @@ from PIL import ImageChops
 def run_lightroom_checks(smoke, wait_for, baseline):
     original_roi=smoke.roi
 
+    def settled_capture(name):
+        roi=smoke.roi
+        viewport=smoke.execute('return [window.innerWidth,window.innerHeight];')
+        smoke.roi=(0,0,*viewport)
+        try:
+            smoke.stable_preview(name+'-paint')
+            return smoke.capture(name)
+        finally:
+            smoke.roi=roi
+
     def preview_size():
         sizes=re.findall(r'\[process_preview_job\] full (\d+)x(\d+)', (smoke.case / 'app.log').read_text())
         if not sizes:
@@ -89,12 +99,14 @@ def run_lightroom_checks(smoke, wait_for, baseline):
 
     smoke.key('KeyY','y')
     wait_for(lambda: smoke.execute('return document.body.innerText.includes("Before (Original)");'),'Y opens before/after')
-    smoke.capture('lightroom-before-after')
+    wait_for(lambda: smoke.execute("""const p=document.querySelector('[data-testid=editor-reference-pane][data-reference-state=ready]');
+      return !!p && [...p.querySelectorAll('img')].some(e=>e.complete&&e.naturalWidth>100&&e.src.startsWith('blob:'));"""), 'Before Original processed preview is ready')
+    settled_capture('lightroom-before-after')
     smoke.key('KeyY','y')
     wait_for(lambda: smoke.execute('return !document.body.innerText.includes("Before (Original)");'),'Y exits before/after')
     smoke.key('KeyG','g')
     wait_for(lambda: smoke.execute('return document.body.innerText.includes("Quick Develop");'),'G opens Library')
-    smoke.capture('lightroom-library')
+    settled_capture('lightroom-library')
     smoke.key('KeyD','d')
     wait_for(lambda: smoke.execute('return !!document.querySelector("[data-workspace=lightroom-sidebar]");'),'D opens Develop')
     smoke.step('Optional module and Before/After keys work through public UI')
