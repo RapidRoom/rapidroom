@@ -8,6 +8,7 @@
     "src/components/adjustments/Curves.tsx",
     "src/components/adjustments/Details.tsx",
     "src/components/adjustments/Effects.tsx",
+    "src/components/adjustments/PointColor.tsx",
     "src/components/panel/right/CropPanel.tsx",
     "src/components/ui/ColorWheel.tsx",
     "src/components/ui/LUTControl.tsx"
@@ -1145,6 +1146,7 @@
       ],
       "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
     },
+    "pointColor": { "defaultType": "array", "default": [] },
     "hsl": {
       "defaultType": "object",
       "default": {
@@ -2063,7 +2065,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 309,
+      "line": 310,
       "valueExpression": "colorGrading.blending",
       "changeExpression": "(e: any) => handleColorGradingSliderChange(ColorGrading.Blending, e.target.value)",
       "labelExpression": "t('adjustments.color.grading.blending')",
@@ -2074,7 +2076,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 319,
+      "line": 320,
       "valueExpression": "colorGrading.balance",
       "changeExpression": "(e: any) => handleColorGradingSliderChange(ColorGrading.Balance, e.target.value)",
       "labelExpression": "t('adjustments.color.grading.balance')",
@@ -2085,7 +2087,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 382,
+      "line": 383,
       "valueExpression": "colorCalibration.shadowsTint",
       "changeExpression": "(e: any) => handleShadowsChange(e.target.value)",
       "labelExpression": "t('adjustments.color.calibration.tint')",
@@ -2096,7 +2098,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 411,
+      "line": 412,
       "valueExpression": "currentValues.hue",
       "changeExpression": "(e: any) => handlePrimaryChange('Hue', e.target.value)",
       "labelExpression": "t('adjustments.color.calibration.hue')",
@@ -2107,7 +2109,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 423,
+      "line": 424,
       "valueExpression": "currentValues.saturation",
       "changeExpression": "(e: any) => handlePrimaryChange('Saturation', e.target.value)",
       "labelExpression": "t('adjustments.color.calibration.saturation')",
@@ -2122,7 +2124,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 531,
+      "line": 540,
       "valueExpression": "hsl[color][property]",
       "changeExpression": "(e: any) => handleHslChange(color, property, e.target.value)",
       "labelExpression": "label",
@@ -2158,7 +2160,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 565,
+      "line": 574,
       "valueExpression": "adjustments.temperature || 0",
       "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Temperature, e.target.value)",
       "labelExpression": "t('adjustments.color.temperature')",
@@ -2169,7 +2171,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 575,
+      "line": 584,
       "valueExpression": "adjustments.tint || 0",
       "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Tint, e.target.value)",
       "labelExpression": "t('adjustments.color.tint')",
@@ -2180,7 +2182,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 594,
+      "line": 603,
       "valueExpression": "adjustments.vibrance || 0",
       "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Vibrance, e.target.value)",
       "labelExpression": "t('adjustments.color.vibrance')",
@@ -2191,7 +2193,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 603,
+      "line": 612,
       "valueExpression": "adjustments.saturation || 0",
       "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Saturation, e.target.value)",
       "labelExpression": "t('adjustments.color.saturation')",
@@ -2202,7 +2204,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 621,
+      "line": 630,
       "valueExpression": "adjustments.hue || 0",
       "changeExpression": "(e: any) => handleAdjustmentChange(ColorAdjustment.Hue, e.target.value)",
       "labelExpression": "t('adjustments.color.hue')",
@@ -2548,6 +2550,17 @@
       "maximum": 100,
       "step": 1,
       "adjustmentKeys": ["grainRoughness"]
+    },
+    {
+      "source": "src/components/adjustments/PointColor.tsx",
+      "line": 75,
+      "valueExpression": "selected[key as keyof typeof POINT_COLOR_RANGES]",
+      "changeExpression": "(event) =>\n              onChange(\n                points.map((point) =>\n                  point.id === selected.id ? { ...point, [key]: Number(event.target.value) } : point,\n                ),\n              )",
+      "labelExpression": "t(`pointColor.${key}` as never)",
+      "minimum": null,
+      "maximum": null,
+      "step": null,
+      "adjustmentKeys": ["pointColor"]
     },
     {
       "source": "src/components/panel/right/CropPanel.tsx",

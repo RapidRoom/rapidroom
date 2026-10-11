@@ -13,6 +13,7 @@ import { APP_ACTION_DEFINITIONS, executeAppAction, isAppActionAvailable } from '
 import { getDefaultCombo } from '../../utils/keyboardUtils';
 import {
   PALETTE_PARAMETERS,
+  selectedPointColorParameters,
   getParameterValue,
   parseTypedValue,
   searchScore,
@@ -20,7 +21,8 @@ import {
   type PaletteParameter,
 } from '../../utils/commandPalette';
 import type { Adjustments } from '../../utils/adjustments';
-import { Invokes, type Preset } from './AppProperties';
+import { pointColorScope } from '../../utils/pointColorCommands';
+import { Invokes, Panel, type Preset } from './AppProperties';
 import { calculateCenteredCrop, forceCropInBounds, getOrientedDimensions } from '../../utils/cropUtils';
 
 interface Entry {
@@ -58,6 +60,7 @@ export default function CommandPalette() {
     adjustments: Adjustments;
     override: Adjustments | null;
     showOriginal: boolean;
+    pointScope: string;
   } | null>(null);
   const canEdit = ui.activeView === 'editor' && !!editor.selectedImage?.isReady;
   const translate = useCallback((key: string) => String(t(key as never)), [t]);
@@ -107,6 +110,7 @@ export default function CommandPalette() {
               adjustments: state.adjustments,
               override: state.previewOverride,
               showOriginal: state.showOriginal,
+              pointScope: JSON.stringify([ui.activePanel, state.activeMaskContainerId, state.selectedPointColorId]),
             }
           : null;
         setOpen(true);
@@ -122,9 +126,24 @@ export default function CommandPalette() {
     if (!open) return;
     input.current?.focus();
     const original = base.current;
-    if (original && (editor.selectedImage?.path !== original.path || editor.adjustments !== original.adjustments))
+    if (
+      original &&
+      (editor.selectedImage?.path !== original.path ||
+        editor.adjustments !== original.adjustments ||
+        original.pointScope !==
+          JSON.stringify([ui.activePanel, editor.activeMaskContainerId, editor.selectedPointColorId]))
+    )
       close();
-  }, [open, editor.selectedImage?.path, editor.adjustments, close, parameter]);
+  }, [
+    open,
+    editor.selectedImage?.path,
+    editor.adjustments,
+    editor.activeMaskContainerId,
+    editor.selectedPointColorId,
+    ui.activePanel,
+    close,
+    parameter,
+  ]);
   useEffect(() => () => revert(), [revert]);
 
   useEffect(() => {
@@ -146,7 +165,13 @@ export default function CommandPalette() {
     (next: Adjustments) => {
       const state = useEditorStore.getState();
       const original = base.current;
-      if (!original || state.selectedImage?.path !== original.path || state.adjustments !== original.adjustments) {
+      if (
+        !original ||
+        state.selectedImage?.path !== original.path ||
+        state.adjustments !== original.adjustments ||
+        original.pointScope !==
+          JSON.stringify([useUIStore.getState().activePanel, state.activeMaskContainerId, state.selectedPointColorId])
+      ) {
         close();
         return;
       }
@@ -165,7 +190,10 @@ export default function CommandPalette() {
   );
 
   const entries = useMemo<Entry[]>(() => {
-    const controls: Entry[] = PALETTE_PARAMETERS.map((parameter) => ({
+    const scope = pointColorScope(editor.adjustments, ui.activePanel === Panel.Masks, editor.activeMaskContainerId);
+    const pointParameters =
+      scope === undefined ? [] : selectedPointColorParameters(editor.adjustments, scope, editor.selectedPointColorId);
+    const controls: Entry[] = [...PALETTE_PARAMETERS, ...pointParameters].map((parameter) => ({
       id: parameter.id,
       title: parameter.labelKey ? translate(parameter.labelKey) : parameter.title,
       terms: [parameter.id, parameter.section, ...parameter.aliases],
@@ -287,7 +315,13 @@ export default function CommandPalette() {
     }
     const timer = window.setTimeout(() => {
       const state = useEditorStore.getState();
-      if (state.selectedImage?.path !== original.path || state.adjustments !== original.adjustments) return;
+      if (
+        state.selectedImage?.path !== original.path ||
+        state.adjustments !== original.adjustments ||
+        original.pointScope !==
+          JSON.stringify([useUIStore.getState().activePanel, state.activeMaskContainerId, state.selectedPointColorId])
+      )
+        return;
       const next =
         !parameter && highlighted?.preview
           ? highlighted.preview(original.adjustments)

@@ -309,6 +309,10 @@ and preloaded into the isolated app. It receives only scroll direction and
 viewport coordinates through an owned file, then calls the WebView GTK event
 handler. It is never bundled in the app. Physical devices remain untested.
 `--presets` checks Ctrl+Shift+N preset creation, grouped/name search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.
+Point Color: pass `--point-color` to pick a swatch on the real canvas, verify
+zero-shift pixels are identical, edit its range and Hue Shift, and verify one
+Undo restores the shift and exact preview. The usual edit/export/exit checks
+follow. Uses an owned sample copy and native GPU processing.
 
 ## Optional command palette scenario
 
@@ -320,3 +324,5 @@ pixels. A typed `crop 4:3` must alter the preview and be reversible in one Undo.
 The normal edit/Undo/Compact/export/clean-exit smoke follows. No model requests,
 React store fixtures or private photos are used. Physical input and other
 platforms remain untested.
+
+`--point-color-mcp` implies `--point-color` and enables MCP only in the isolated test settings. Build with `build.py --mcp-clients`. The scenario uses authenticated local JSON-RPC discovery and edits, checks the eight-swatch/bounded schema and rejection without mutation, applies a selected-swatch Hue Shift through the real editor, and requires one GUI Undo to restore state and exact pixels. It verifies endpoint cleanup on exit. No Claude/Codex processes or model requests are launched.

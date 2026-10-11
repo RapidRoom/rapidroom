@@ -10,6 +10,7 @@ import { useProcessStore } from '../store/useProcessStore';
 import { debouncedSetHistory, useEditorActions } from './useEditorActions';
 import { createResetAdjustmentsForImage } from '../utils/adjustments';
 import { useLibraryActions } from './useLibraryActions';
+import { pointColorScope, selectedPointColorTarget, removePointColor } from '../utils/pointColorCommands';
 import { registerAppActions, executeAppAction } from '../utils/appActions';
 import { fitPercent as getFitPercent, getDpr, percentFromTransform, stepZoomIn, stepZoomOut } from '../utils/zoom';
 
@@ -127,7 +128,57 @@ export const useKeyboardShortcuts = ({
       }
     };
 
+    const pointTarget = (s: StoreState) => {
+      const scope = pointColorScope(
+        s.editor.adjustments,
+        s.ui.activePanel === Panel.Masks,
+        s.editor.activeMaskContainerId,
+      );
+      return scope === undefined
+        ? null
+        : selectedPointColorTarget(s.editor.adjustments, scope, s.editor.selectedPointColorId);
+    };
     const actions: Record<string, any> = {
+      point_color_picker: {
+        shouldFire: (s: StoreState) =>
+          s.ui.activeView === 'editor' &&
+          !!s.editor.selectedImage?.isReady &&
+          pointColorScope(s.editor.adjustments, s.ui.activePanel === Panel.Masks, s.editor.activeMaskContainerId) !==
+            undefined,
+        execute: (_event: unknown, s: StoreState) => {
+          const scope = pointColorScope(
+            s.editor.adjustments,
+            s.ui.activePanel === Panel.Masks,
+            s.editor.activeMaskContainerId,
+          );
+          if (scope === undefined) return;
+          if (scope === null) {
+            s.ui.setPanel(Panel.Adjustments);
+            s.ui.setUI({
+              collapsibleSectionsState: { ...s.ui.collapsibleSectionsState, color: true },
+              isColorMixerExpanded: true,
+            });
+          }
+          s.editor.setEditor({
+            isPointColorPickerActive: true,
+            pointColorPickerMaskId: scope,
+            isWbPickerActive: false,
+            mixerPickerProperty: null,
+          });
+        },
+      },
+      remove_point_color: {
+        shouldFire: (s: StoreState) =>
+          s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady && !!pointTarget(s),
+        execute: (_event: unknown, s: StoreState) => {
+          const target = pointTarget(s);
+          if (!target) return;
+          debouncedSetHistory.flush();
+          setAdjustments(removePointColor(useEditorStore.getState().adjustments, target));
+          debouncedSetHistory.flush();
+          s.editor.setEditor({ selectedPointColorId: null, isPointColorPickerActive: false });
+        },
+      },
       reset_adjustments: {
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
         execute: (_event: unknown, s: StoreState) => {

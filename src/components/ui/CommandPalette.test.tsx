@@ -4,11 +4,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../i18n';
 import { mockCommand } from '../../test/tauriMock';
-import { Invokes } from './AppProperties';
+import { Invokes, Panel } from './AppProperties';
 import CommandPalette from './CommandPalette';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
-import { INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
+import { createPointColor } from '../../utils/pointColor';
+import { INITIAL_ADJUSTMENTS, INITIAL_MASK_ADJUSTMENTS } from '../../utils/adjustments';
 import type { SelectedImage } from './AppProperties';
 import { registerAppActions } from '../../utils/appActions';
 import { debouncedSetHistory } from '../../hooks/useEditorActions';
@@ -279,6 +280,84 @@ describe('keyboard palette editing', () => {
     expect(useEditorStore.getState().adjustments.crop).not.toBeNull();
     expect(useEditorStore.getState().history).toHaveLength(2);
   });
+});
+
+it('previews and commits a selected Point Color value with one Undo', () => {
+  const point = createPointColor({ lightness: 0.7, chroma: 0.1, hue: 30 }, 'picked');
+  const before = { ...INITIAL_ADJUSTMENTS, pointColor: [point] };
+  act(() => {
+    useEditorStore.getState().resetHistory(before);
+    useEditorStore.setState({ selectedPointColorId: 'picked' });
+    useUIStore.setState({ activePanel: Panel.Adjustments });
+  });
+  open();
+  type('point color hue shift 70');
+  act(() => vi.advanceTimersByTime(151));
+  expect(useEditorStore.getState().previewOverride?.pointColor?.[0].hueShift).toBe(70);
+  expect(useEditorStore.getState().adjustments.pointColor?.[0].hueShift).toBe(0);
+  key('Enter');
+  expect(useEditorStore.getState().adjustments.pointColor?.[0].hueShift).toBe(70);
+  expect(useEditorStore.getState().history).toHaveLength(2);
+  act(() => useEditorStore.getState().undo());
+  expect(useEditorStore.getState().adjustments).toEqual(before);
+});
+it('scopes Point Color to the selected mask and cancels on an owner change', () => {
+  const point = createPointColor({ lightness: 0.7, chroma: 0.1, hue: 30 }, 'shared');
+  const before = {
+    ...INITIAL_ADJUSTMENTS,
+    pointColor: [point],
+    masks: [
+      {
+        id: 'local',
+        name: 'Local',
+        opacity: 1,
+        visible: true,
+        invert: false,
+        subMasks: [],
+        adjustments: { ...INITIAL_MASK_ADJUSTMENTS, pointColor: [point] },
+      },
+    ],
+  };
+  act(() => {
+    useEditorStore.getState().resetHistory(before);
+    useEditorStore.setState({ activeMaskContainerId: 'local', selectedPointColorId: 'shared' });
+    useUIStore.setState({ activePanel: Panel.Masks });
+  });
+  open();
+  type('point color saturation shift 25');
+  act(() => vi.advanceTimersByTime(151));
+  expect(useEditorStore.getState().previewOverride?.masks[0].adjustments.pointColor?.[0].saturationShift).toBe(25);
+  expect(useEditorStore.getState().previewOverride?.pointColor?.[0].saturationShift).toBe(0);
+  key('Enter');
+  expect(useEditorStore.getState().adjustments.masks[0].adjustments.pointColor?.[0].saturationShift).toBe(25);
+  act(() => useEditorStore.getState().undo());
+  open();
+  type('point color hue shift 20');
+  act(() => vi.advanceTimersByTime(151));
+  act(() => useEditorStore.setState({ activeMaskContainerId: null }));
+  expect(container.querySelector('[role=dialog]')).toBeNull();
+  expect(useEditorStore.getState().previewOverride).toBeNull();
+  expect(useEditorStore.getState().adjustments).toEqual(before);
+});
+it('Point Color keyboard slider Escape restores pixels recipe and history without a commit', () => {
+  const point = createPointColor({ lightness: 0.7, chroma: 0.1, hue: 30 }, 'picked');
+  const before = { ...INITIAL_ADJUSTMENTS, pointColor: [point] };
+  act(() => {
+    useEditorStore.getState().resetHistory(before);
+    useEditorStore.setState({ selectedPointColorId: 'picked' });
+    useUIStore.setState({ activePanel: Panel.Adjustments });
+  });
+  open();
+  type('point color hue shift');
+  key('Enter');
+  key('ArrowRight');
+  act(() => vi.advanceTimersByTime(151));
+  expect(useEditorStore.getState().previewOverride?.pointColor?.[0].hueShift).toBe(1);
+  key('Escape');
+  key('Escape');
+  expect(useEditorStore.getState().previewOverride).toBeNull();
+  expect(useEditorStore.getState().adjustments).toEqual(before);
+  expect(useEditorStore.getState().history).toHaveLength(1);
 });
 
 it('does not preview or apply a preset whose camera/profile is unavailable', async () => {

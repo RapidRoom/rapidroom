@@ -21,6 +21,8 @@ export const APP_ACTION_DEFINITIONS: KeybindDefinition[] = [
     defaultCombo: [],
     section: 'editing',
   },
+  { action: 'point_color_picker', description: 'pointColor.pick', defaultCombo: [], section: 'editing' },
+  { action: 'remove_point_color', description: 'pointColor.delete', defaultCombo: [], section: 'editing' },
 ];
 
 // Shortcuts and command-palette entries use the same guarded application handlers.

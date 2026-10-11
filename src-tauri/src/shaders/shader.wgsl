@@ -5,6 +5,12 @@ struct Point {
     _pad2: f32,
 }
 
+struct PointColor {
+    color: vec4<f32>,
+    range: vec4<f32>,
+    shift: vec4<f32>,
+}
+
 struct HslColor {
     hue: f32,
     saturation: f32,
@@ -98,6 +104,7 @@ struct GlobalAdjustments {
     color_calibration: ColorCalibrationSettings,
 
     hsl: array<HslColor, 8>,
+    point_color: array<PointColor, 8>,
     luma_curve: array<Point, 16>,
     red_curve: array<Point, 16>,
     green_curve: array<Point, 16>,
@@ -106,7 +113,7 @@ struct GlobalAdjustments {
     red_curve_count: u32,
     green_curve_count: u32,
     blue_curve_count: u32,
-    _pad_end1: f32,
+    point_color_input: u32,
     _pad_end2: f32,
     _pad_end3: f32,
     _pad_end4: f32,
@@ -155,6 +162,7 @@ struct MaskAdjustments {
     _pad6: f32,
 
     hsl: array<HslColor, 8>,
+    point_color: array<PointColor, 8>,
     luma_curve: array<Point, 16>,
     red_curve: array<Point, 16>,
     green_curve: array<Point, 16>,
@@ -732,6 +740,72 @@ fn apply_creative_color(color: vec3<f32>, sat: f32, vib: f32) -> vec3<f32> {
     processed = mix(vec3<f32>(luma), processed, final_mult);
 
     return max(processed, vec3<f32>(0.0));
+}
+
+// OKLab matrices: Bjorn Ottosson's linear-sRGB transform. Signed cube roots
+// retain negative/HDR working channels; default points bypass conversion.
+fn point_rgb_to_lab(rgb: vec3<f32>) -> vec3<f32> {
+    let lms = vec3<f32>(dot(rgb, vec3<f32>(0.4122214708, 0.5363325363, 0.0514459929)),
+        dot(rgb, vec3<f32>(0.2119034982, 0.6806995451, 0.1073969566)),
+        dot(rgb, vec3<f32>(0.0883024619, 0.2817188376, 0.6299787005)));
+    let root = sign(lms) * pow(abs(lms), vec3<f32>(1.0 / 3.0));
+    return vec3<f32>(dot(root, vec3<f32>(0.2104542553, 0.7936177850, -0.0040720468)),
+        dot(root, vec3<f32>(1.9779984951, -2.4285922050, 0.4505937099)),
+        dot(root, vec3<f32>(0.0259040371, 0.7827717662, -0.8086757660)));
+}
+
+fn point_lab_to_rgb(lab: vec3<f32>) -> vec3<f32> {
+    let root = vec3<f32>(lab.x + 0.3963377774 * lab.y + 0.2158037573 * lab.z,
+        lab.x - 0.1055613458 * lab.y - 0.0638541728 * lab.z,
+        lab.x - 0.0894841775 * lab.y - 1.2914855480 * lab.z);
+    let lms = root * root * root;
+    return vec3<f32>(dot(lms, vec3<f32>(4.0767416621, -3.3077115913, 0.2309699292)),
+        dot(lms, vec3<f32>(-1.2684380046, 2.6097574011, -0.3413193965)),
+        dot(lms, vec3<f32>(-0.0041960863, -0.7034186147, 1.7076147010)));
+}
+
+fn point_axis_weight(distance: f32, width: f32, smoothness: f32) -> f32 {
+    return 1.0 - smoothstep(width * (1.0 - smoothness), width, abs(distance));
+}
+
+fn point_hue_distance(hue: f32, center: f32) -> f32 {
+    let distance = hue - center;
+    return distance - 360.0 * floor((distance + 180.0) / 360.0);
+}
+
+fn point_encode_sample(rgb: vec3<f32>) -> vec4<f32> {
+    let lab = point_rgb_to_lab(rgb);
+    return vec4<f32>(lab.x / 4.0, (lab.y + 1.0) / 2.0, (lab.z + 1.0) / 2.0, 1.0);
+}
+
+fn apply_point_color(rgb: vec3<f32>, points: array<PointColor, 8>) -> vec3<f32> {
+    let count = points[0].color.w;
+    if (count == 0.0) { return rgb; }
+    let lab = point_rgb_to_lab(rgb);
+    let chroma = length(lab.yz);
+    if (chroma < 0.00001) { return rgb; }
+    let hue = atan2(lab.z, lab.y) * 57.2957795131;
+    var displacement = vec3<f32>(0.0);
+    for (var i = 0u; i < 8u; i++) {
+        let p = points[i];
+        if (p.shift.w == 0.0) { continue; }
+        let distance = vec3<f32>(point_hue_distance(hue, p.color.z), chroma - p.color.y, lab.x - p.color.x);
+        let w = smoothstep(0.0, 0.03, chroma) * point_axis_weight(distance.x, p.range.x, p.range.w)
+            * point_axis_weight(distance.y, p.range.y, p.range.w)
+            * point_axis_weight(distance.z, p.range.z, p.range.w);
+        // |w'| <= 1.5/fade. Divide the displacement budget between every
+        // active swatch so their sum still has a same-axis slope >= .25.
+        var limit = p.range.xyz * p.range.w / (2.0 * count);
+        // The near-grey gate has derivative <= 50; include it in chroma
+        // displacement so near-greys remain ordered and grey stays grey.
+        limit.y = 0.75 / (count * (1.5 / (p.range.y * p.range.w) + 50.0));
+        displacement += p.shift.xyz * min(limit, vec3<f32>(60.0, 0.2, 0.25)) * w;
+    }
+    if (all(displacement == vec3<f32>(0.0))) { return rgb; }
+    let shifted_hue = (hue + displacement.x) * 0.01745329252;
+    let shifted_chroma = max(0.0, chroma + displacement.y);
+    return point_lab_to_rgb(vec3<f32>(lab.x + displacement.z,
+        shifted_chroma * cos(shifted_hue), shifted_chroma * sin(shifted_hue)));
 }
 
 fn apply_hsl_panel(color: vec3<f32>, hsl_adjustments: array<HslColor, 8>, coords_i: vec2<i32>) -> vec3<f32> {
@@ -1883,6 +1957,24 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     composite_rgb_linear = apply_highlights_adjustment(composite_rgb_linear, absolute_coord_i, scale, is_raw, t_highlights);
     composite_rgb_linear = apply_color_calibration(composite_rgb_linear, adjustments.global.color_calibration);
     composite_rgb_linear = apply_hsl_panel(composite_rgb_linear, final_hsl, absolute_coord_i);
+    if (adjustments.global.point_color_input == 1u) {
+        textureStore(output_texture, id.xy, point_encode_sample(composite_rgb_linear));
+        return;
+    }
+    composite_rgb_linear = apply_point_color(composite_rgb_linear, adjustments.global.point_color);
+    for (var i = 0u; i < adjustments.mask_count; i++) {
+        if (adjustments.global.point_color_input == i + 2u) {
+            textureStore(output_texture, id.xy, point_encode_sample(composite_rgb_linear)); return;
+        }
+        let influence = get_mask_influence(i, absolute_coord);
+        if (influence > 0.0) {
+            let shifted = apply_point_color(composite_rgb_linear, adjustments.mask_adjustments[i].point_color);
+            if (any(shifted != composite_rgb_linear)) { composite_rgb_linear = mix(composite_rgb_linear, shifted, influence); }
+        }
+    }
+    if (adjustments.global.point_color_input >= 2u) {
+        textureStore(output_texture, id.xy, point_encode_sample(composite_rgb_linear)); return;
+    }
     composite_rgb_linear = apply_hue_shift(composite_rgb_linear, t_hue);
     composite_rgb_linear = apply_creative_color(composite_rgb_linear, t_saturation, t_vibrance);
 

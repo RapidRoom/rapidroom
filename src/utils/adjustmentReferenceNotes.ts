@@ -51,6 +51,8 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   'colorGrading.shadows.saturation':
     'Strength of the shadow tint, 0–100. Weaker than the other zones at the same value.',
   'colorGrading.shadows.luminance': '+ lifts, − deepens the shadows (−100 to 100).',
+  pointColor:
+    'Up to eight swatches {id, color:{lightness,chroma,hue}, hueShift/saturationShift/luminanceShift, hueRange/chromaRange/lightnessRange, smoothness}. Centers use OKLCh before this stage; shifts are −100 to 100, range-bounded to keep colors ordered. Zero shifts leave pixels unchanged. Replace the array to edit; masks have their own array.',
   'hsl.<band>.hue':
     '+ shifts the band towards the next colour (reds → orange, yellows → green, blues → purple, magentas → red), up to ±60°.',
   'hsl.<band>.saturation': '+ more colour in that band only; −100 removes it. Neutral greys are not affected.',

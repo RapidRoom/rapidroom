@@ -1561,6 +1561,7 @@ pub struct GlobalAdjustments {
     pub color_calibration: ColorCalibrationSettings,
 
     pub hsl: [HslColor; 8],
+    pub point_color: [crate::point_color::GpuPointColor; 8],
     pub luma_curve: [Point; 16],
     pub red_curve: [Point; 16],
     pub green_curve: [Point; 16],
@@ -1569,7 +1570,7 @@ pub struct GlobalAdjustments {
     pub red_curve_count: u32,
     pub green_curve_count: u32,
     pub blue_curve_count: u32,
-    _pad_end1: f32,
+    pub point_color_input: u32,
     _pad_end2: f32,
     _pad_end3: f32,
     _pad_end4: f32,
@@ -1620,6 +1621,7 @@ pub struct MaskAdjustments {
     _pad6: f32,
 
     pub hsl: [HslColor; 8],
+    pub point_color: [crate::point_color::GpuPointColor; 8],
     pub luma_curve: [Point; 16],
     pub red_curve: [Point; 16],
     pub green_curve: [Point; 16],
@@ -2388,6 +2390,11 @@ fn get_global_adjustments_from_json(
         } else {
             [HslColor::default(); 8]
         },
+        point_color: if color_mixer_visible {
+            crate::point_color::parse(&js_adjustments["pointColor"])
+        } else {
+            [crate::point_color::GpuPointColor::default(); 8]
+        },
         luma_curve: convert_points_to_aligned(luma_points.clone()),
         red_curve: convert_points_to_aligned(red_points.clone()),
         green_curve: convert_points_to_aligned(green_points.clone()),
@@ -2396,7 +2403,7 @@ fn get_global_adjustments_from_json(
         red_curve_count: red_points.len() as u32,
         green_curve_count: green_points.len() as u32,
         blue_curve_count: blue_points.len() as u32,
-        _pad_end1: 0.0,
+        point_color_input: 0,
         _pad_end2: 0.0,
         _pad_end3: 0.0,
         _pad_end4: 0.0,
@@ -2525,6 +2532,11 @@ fn get_mask_adjustments_from_json(adj: &serde_json::Value) -> MaskAdjustments {
             parse_hsl_adjustments(&adj.get("hsl").cloned().unwrap_or_default())
         } else {
             [HslColor::default(); 8]
+        },
+        point_color: if color_mixer_visible {
+            crate::point_color::parse(&adj["pointColor"])
+        } else {
+            [crate::point_color::GpuPointColor::default(); 8]
         },
         luma_curve: convert_points_to_aligned(luma_points.clone()),
         red_curve: convert_points_to_aligned(red_points.clone()),
