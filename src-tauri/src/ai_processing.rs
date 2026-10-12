@@ -1899,7 +1899,11 @@ mod remove_evidence_tests {
                 // Match each persisted encoder: current local Remove JPEG 95,
                 // this adaptation PNG, both fed through the real compositor.
                 let mut color = std::io::Cursor::new(Vec::new());
-                let rgb = DynamicImage::ImageRgba8(fill).to_rgb8();
+                let full_color = DynamicImage::ImageRgba8(fill).to_rgb8();
+                let rgb =
+                    imageops::crop_imm(&full_color, area[0], area[1], area[2], area[3]).to_image();
+                let patch_mask =
+                    imageops::crop_imm(&mask, area[0], area[1], area[2], area[3]).to_image();
                 if restore {
                     rgb.write_to(&mut color, image::ImageFormat::Png).unwrap();
                 } else {
@@ -1909,13 +1913,14 @@ mod remove_evidence_tests {
                     .unwrap();
                 }
                 let mut mask_bytes = std::io::Cursor::new(Vec::new());
-                mask.write_to(&mut mask_bytes, image::ImageFormat::Png)
+                patch_mask
+                    .write_to(&mut mask_bytes, image::ImageFormat::Png)
                     .unwrap();
                 use base64::Engine as _;
                 let edits = serde_json::json!({"aiPatches":[{"visible":true,"patchData":{
                     "color":base64::engine::general_purpose::STANDARD.encode(color.get_ref()),
                     "mask":base64::engine::general_purpose::STANDARD.encode(mask_bytes.get_ref()),
-                    "offsetX":0,"offsetY":0,"isSrgbEncoded":true}}]});
+                    "offsetX":area[0],"offsetY":area[1],"isSrgbEncoded":true}}]});
                 let composite =
                     crate::image_loader::composite_patches_on_image(&native, &edits).unwrap();
                 crate::image_processing::apply_linear_to_srgb(composite)
