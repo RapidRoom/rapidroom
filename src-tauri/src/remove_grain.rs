@@ -66,12 +66,16 @@ impl Grain {
         let lowpass = gaussian_blur_rgb(scene.as_raw(), width, height, 2.5);
         let residual = scene
             .as_raw()
-            .chunks_exact(3)
-            .zip(lowpass.chunks_exact(3))
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .zip(lowpass.as_chunks::<3>().0.iter())
             .map(|(pixel, low)| [pixel[0] - low[0], pixel[1] - low[1], pixel[2] - low[2]])
             .collect::<Vec<_>>();
         let base_luma: Vec<f32> = lowpass
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .map(|low| luma([low[0], low[1], low[2]]))
             .collect();
         // The blur has an eight-pixel footprint. Exclude that entire footprint
@@ -356,8 +360,6 @@ fn dilate_square(mask: &[bool], width: usize, height: usize, radius: usize) -> V
     }
     out
 }
-
-/// The rendered crop as a 512x512 linear scene image.
 
 /// Model fills are encoded sRGB. Only the native mask pixels receive a scene
 /// residual; LaMa's existing blend and the persisted mask keep their feathering.
