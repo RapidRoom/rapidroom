@@ -1661,6 +1661,28 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn crs_audit_legacy_root_properties_stay_scoped_and_yield_to_rdf() {
+        let fragment = r#"<root xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" a:Exposure2012="1">
+          <a:Contrast2012>12</a:Contrast2012>
+          <a:Look><root a:Shadows2012="85" a:CameraModelRestriction="Nested"/></a:Look>
+        </root>"#;
+        let preset = convert_xmp_to_preset(fragment).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 1);
+        assert_eq!(preset.adjustments["contrast"], 12);
+        assert!(preset.adjustments.get("shadows").is_none());
+        assert!(preset.camera_model_restriction.is_none());
+
+        let document = r#"<root xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"
+          xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#" a:Exposure2012="4">
+          <a:Contrast2012>99</a:Contrast2012>
+          <r:RDF><r:Description r:about="photo" a:Exposure2012="0.5"/></r:RDF>
+        </root>"#;
+        let preset = convert_xmp_to_preset(document).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 0.5);
+        assert!(preset.adjustments.get("contrast").is_none());
+    }
+
+    #[test]
     fn crs_audit_namespace_forms_and_subject_scope() {
         let xmp = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
             xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:crs="urn:foreign">

@@ -12,7 +12,7 @@ Audit base: RapidRoom `f7805a7e35116b79edb5447e490d896ec269db44`. This table com
 
 Read scalar/list/language/qualified properties with the existing bounded XML reader instead of literal-prefix regexes. Resolve namespace bindings, restrict properties to the image's RDF subject, preserve first-property precedence, and keep nested profile/mask fields out. Attributes, elements, quoted whitespace and XML references decode consistently. Curve lists reject an invalid item rather than silently importing only valid points. Preset names prefer the `x-default` language; nested profile requirements do not become photo/preset requirements. Correct `HighlightRecovery` classification to match the converter's actual legacy key.
 
-Existing canonical unbound `crs`/`rdf` fragments remain accepted for legacy inputs; an explicitly wrong namespace binding is never treated as CRS. The new reader does not claim full RDF graph support. Profile look curves are read in a separate namespace-aware resource scope; other mask/profile payloads still have limitations, documented below.
+Existing canonical unbound `crs`/`rdf` fragments remain accepted for legacy inputs. Direct properties on a non-RDF root remain supported when no image RDF subject exists; nested fields stay excluded and an RDF subject takes precedence over wrapper properties; an explicitly wrong namespace binding is never treated as CRS. The new reader does not claim full RDF graph support. Profile look curves are read in a separate namespace-aware resource scope; other mask/profile payloads still have limitations, documented below.
 
 ## Field table
 

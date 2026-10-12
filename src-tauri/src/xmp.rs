@@ -356,7 +356,16 @@ pub(crate) fn photo_properties(
 ) -> Result<std::collections::HashMap<String, PhotoProperty>, Error> {
     let doc = Document::parse(content)?;
     let mut properties = std::collections::HashMap::new();
-    for description in doc.image_descriptions() {
+    let mut subjects: Vec<_> = doc.image_descriptions().collect();
+    // Older preset fragments store properties directly on a non-RDF root.
+    // Never use this fallback when an RDF image subject is present.
+    if subjects.is_empty()
+        && let Some(root) = doc.nodes.iter().position(|node| node.parent.is_none())
+        && !doc.matches(root, &doc.nodes[root].name, RDF, "RDF")
+    {
+        subjects.push(root);
+    }
+    for description in subjects {
         for attr in &doc.nodes[description].attributes {
             if let Some((_, local)) = attr.name.split_once(':')
                 && doc.matches(description, &attr.name, uri, local)
