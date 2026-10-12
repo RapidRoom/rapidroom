@@ -352,6 +352,9 @@ class Smoke:
                 return False
 
         wait_for(frontend_ready, "real frontend", 90)
+        wait_for(lambda: self.execute("return [...document.querySelectorAll('button')].some("
+                                      "e=>e.innerText.trim()==='Continue Session' && !e.disabled);"),
+                 "Continue Session control", 90)
         startup["phase"] = "frontend ready before Continue Session"
         save(self.case / "driver-startup.json", startup)
         self.execute("""const e=[...document.querySelectorAll('button')]
@@ -395,6 +398,9 @@ class Smoke:
         if (self.case / "presets-test.json").exists():
             from presets import run_preset_checks
             run_preset_checks(self, wait_for, baseline)
+        if (self.case / "crs-interop-test.json").exists():
+            from crs_interop import run_crs_checks
+            run_crs_checks(self, wait_for)
         if (self.case / "untrusted-text-test.json").exists():
             from untrusted_text import run_untrusted_checks
             run_untrusted_checks(self.case, self, wait_for, baseline)
@@ -583,12 +589,14 @@ def launch(args):
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
     if args.presets:
         save(case / "presets-test.json", {"issue": 169})
+    if args.crs_interop:
+        save(case / "crs-interop-test.json", {"issue": 161, "real_model_requests": False})
     if args.untrusted_text:
         save(case / "untrusted-text-test.json", {"issue": 165, "real_model_requests": False})
     if args.crop_noop:
         save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
-        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text:
+        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop:
             save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
@@ -697,6 +705,7 @@ def main():
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
     parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
+    parser.add_argument("--crs-interop", action="store_true", help="Check public CRS import and XML safety without model requests")
     parser.add_argument("--untrusted-text", action="store_true", help="Check hostile descriptive text against real authenticated MCP without model requests")
     parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
@@ -709,7 +718,7 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text:
+    if args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop:
         args.mcp_clients = True
     if args.mcp_packaging:
         args.terminal_clients = True

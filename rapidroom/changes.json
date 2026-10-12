@@ -2,6 +2,22 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "crs-interoperability-scoped-reader",
+      "title": "Read CRS import fields by namespace and RDF subject",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex; LightCraft/Redlamp interoperability cross-check)",
+      "commits": [
+        "https://github.com/storytold/lightcraft/commit/265248c86fa3267709aea45633d0d135331e180c",
+        "https://github.com/pdcgomes/redlamp/commit/a70c86dc01ab8ee5d831642520b76ed529f556c0"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Namespace-aware scalar, qualified, language and curve-list import keeps nested/foreign/other-subject fields out, scopes look curves to their own Parameters resource, preserves first-property precedence and existing canonical legacy fragments, and fixes HighlightRecovery classification. Audit covers 169 global fields plus local masks, formats and XML safety. Larger defaults, parametric, per-setting-report, cube-domain and already-applied policy gaps are tracked separately; no Adobe rendering parity is claimed."
+    },
+    {
       "id": "assistant-untrusted-text-boundaries",
       "title": "Fence and bound untrusted photo text at assistant boundaries",
       "category": "privacy",
