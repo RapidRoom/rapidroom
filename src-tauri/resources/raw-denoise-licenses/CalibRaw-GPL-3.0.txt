@@ -1,3 +1,4 @@
+Copyright (C) 2026 Duecki and CalibRaw contributors
 CalibRaw by Duecki, GPL-3.0-or-later. Adapted reflect_index from commit 2466ca6662c3fd1e901377c0450b19f5f96d3e85.
 
                     GNU GENERAL PUBLIC LICENSE
