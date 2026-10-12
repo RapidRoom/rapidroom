@@ -4,10 +4,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**86 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
+**87 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
 
 | Change                                                                                                                                                                                                                                                                            | Type        | By                                                                                                                             | Upstream                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Insert dropped masks at their target row                                                                                                                                                                                                                                          | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [#204](https://github.com/CyberTimon/RapidRAW/issues/204)                                                                                                                                                                                                                          |
 | Fence and bound untrusted photo text at assistant boundaries                                                                                                                                                                                                                      | privacy     | [@yojen7](https://github.com/yojen7), [@skymanbp](https://github.com/skymanbp)                                                 | not yet offered                                                                                                                                                                                                                                                                    |
 | Preserve source EXIF metadata in JPEG XL exports                                                                                                                                                                                                                                  | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Show a warning when RAW development falls back to an embedded preview                                                                                                                                                                                                             | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [#1873](https://github.com/CyberTimon/RapidRAW/issues/1873)                                                                                                                                                                                                                        |
@@ -102,6 +103,14 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-10.
 
 ## Details
+
+### Insert dropped masks at their target row
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
+- **Upstream:** [#204](https://github.com/CyberTimon/RapidRAW/issues/204)
+- **Notes:** Creating a mask by dropping it on an existing sub-mask inserts it before that row and uses Additive mode.
 
 ### Fence and bound untrusted photo text at assistant boundaries
 
