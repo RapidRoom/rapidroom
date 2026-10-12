@@ -39,12 +39,12 @@ def run_mask_checks(case, smoke):
     def fresh_editor():
         # Drop the frontend cache/history before reading the actual sidecar again.
         smoke.execute("setTimeout(() => location.reload(), 0);return true;")
-        wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Continue Session');"), "fresh frontend session")
+        wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Continue Session' && !e.disabled);"), "fresh frontend session")
         smoke.execute("const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Continue Session');e.click();return true;")
         wait_for(lambda: smoke.execute("return [...document.images].some(e=>e.src.startsWith('asset:') && e.complete && e.naturalWidth>100);"), "reloaded library")
-        smoke.execute("const e=[...document.images].find(e=>e.src.startsWith('asset:'));e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;")
+        # Export adds another library image; select the exact RAW, not the first thumbnail.
+        read_tool(url, token, "select_image", {"imagePath": path})
         wait_for(lambda: smoke.execute("return document.body.innerText.includes('4608 × 3072') && document.body.innerText.includes('Exposure');"), "fresh editor loads sidecar")
-        mutate("select_image")
 
     initial = state()
     if initial["adjustments"]["masks"]:
