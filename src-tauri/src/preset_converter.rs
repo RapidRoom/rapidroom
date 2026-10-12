@@ -1790,6 +1790,36 @@ mod tests {
     }
 
     #[test]
+    fn crs_audit_legacy_root_look_curve_and_report_stay_scoped() {
+        let look = r#"<a:Look><r:Description a:Amount="0.5"><a:Parameters><r:Description a:Exposure2012="4">
+          <a:ToneCurvePV2012><r:Seq><r:li>0, 0</r:li><r:li>255, 128</r:li></r:Seq></a:ToneCurvePV2012>
+        </r:Description></a:Parameters></r:Description></a:Look>"#;
+        let root = format!(
+            r#"<root xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"
+              xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:f="urn:foreign"
+              a:Exposure2012="0.5">{look}<nested>{look}</nested>{foreign}</root>"#,
+            foreign = look.replace("a:", "f:")
+        );
+        let preset = convert_xmp_to_preset(&root).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 0.5);
+        assert_eq!(luma_at(&preset, 85), 64);
+        assert_eq!(crate::xmp::photo_looks(&root).unwrap().len(), 1);
+        assert!(lightroom_settings_not_transferred(&root, &preset).contains(&"profileLook"));
+
+        let rdf_subject = root.replace(
+            "</root>",
+            r#"<r:RDF><r:Description r:about="photo" a:Exposure2012="1"/></r:RDF></root>"#,
+        );
+        let preset = convert_xmp_to_preset(&rdf_subject).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 1);
+        assert!(preset.adjustments.get("curves").is_none());
+        assert!(crate::xmp::photo_looks(&rdf_subject).unwrap().is_empty());
+        assert!(
+            !lightroom_settings_not_transferred(&rdf_subject, &preset).contains(&"profileLook")
+        );
+    }
+
+    #[test]
     fn crs_audit_namespace_declarations_cannot_be_adjustment_attributes() {
         let xmp = r#"<rdf:Description xmlns:xmlns="http://ns.adobe.com/camera-raw-settings/1.0/"
             xmlns:Exposure2012="4" xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"

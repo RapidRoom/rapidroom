@@ -259,6 +259,19 @@ impl<'a> Document<'a> {
         })
     }
 
+    fn photo_subjects(&self) -> Vec<usize> {
+        let mut subjects: Vec<_> = self.image_descriptions().collect();
+        // Older preset fragments store properties directly on a non-RDF root.
+        // Never use this fallback when an RDF image subject is present.
+        if subjects.is_empty()
+            && let Some(root) = self.nodes.iter().position(|node| node.parent.is_none())
+            && !self.matches(root, &self.nodes[root].name, RDF, "RDF")
+        {
+            subjects.push(root);
+        }
+        subjects
+    }
+
     fn children<'b>(
         &'b self,
         parent: usize,
@@ -356,16 +369,7 @@ pub(crate) fn photo_properties(
 ) -> Result<std::collections::HashMap<String, PhotoProperty>, Error> {
     let doc = Document::parse(content)?;
     let mut properties = std::collections::HashMap::new();
-    let mut subjects: Vec<_> = doc.image_descriptions().collect();
-    // Older preset fragments store properties directly on a non-RDF root.
-    // Never use this fallback when an RDF image subject is present.
-    if subjects.is_empty()
-        && let Some(root) = doc.nodes.iter().position(|node| node.parent.is_none())
-        && !doc.matches(root, &doc.nodes[root].name, RDF, "RDF")
-    {
-        subjects.push(root);
-    }
-    for description in subjects {
+    for description in doc.photo_subjects() {
         for attr in &doc.nodes[description].attributes {
             if let Some((_, local)) = attr.name.split_once(':')
                 && doc.matches(description, &attr.name, uri, local)
@@ -440,7 +444,7 @@ pub(crate) struct PhotoLook {
 pub(crate) fn photo_looks(content: &str) -> Result<Vec<PhotoLook>, Error> {
     let doc = Document::parse(content)?;
     let mut looks = Vec::new();
-    for description in doc.image_descriptions() {
+    for description in doc.photo_subjects() {
         for look in doc.children(description, CRS, "Look") {
             let resource = doc
                 .children(look, RDF, "Description")
