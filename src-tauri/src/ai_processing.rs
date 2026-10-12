@@ -777,9 +777,9 @@ impl TileParams {
     }
 }
 
-const TILE_BALANCED: TileParams = TileParams::new(504, 480, 6);
-const TILE_FASTER: TileParams = TileParams::new(504, 504, 0);
-const TILE_HIGHER_QUALITY: TileParams = TileParams::new(504, 448, 12);
+const TILE_BALANCED: TileParams = TileParams::new(504, 448, 32);
+const TILE_FASTER: TileParams = TileParams::new(504, 480, 24);
+const TILE_HIGHER_QUALITY: TileParams = TileParams::new(504, 376, 64);
 
 fn select_tile_params(quality_0_1: f32) -> TileParams {
     let q = quality_0_1.clamp(0.0, 1.0);
@@ -1777,4 +1777,22 @@ pub struct AiDepthMaskParameters {
     pub flip_vertical: Option<bool>,
     #[serde(default)]
     pub orientation_steps: Option<u8>,
+}
+
+#[cfg(test)]
+mod nind_margin_tests {
+    use super::*;
+
+    #[test]
+    fn every_nind_quality_uses_a_context_halo_and_overlap() {
+        let mut previous_halo = 0;
+        for quality in [0.0, 0.25, 0.5, 0.75, 1.0] {
+            let params = select_tile_params(quality);
+            assert_eq!(params.cs, 504);
+            assert!(params.overlap > 0 && params.overlap < params.ucs);
+            assert!(params.pad >= 12 && params.pad >= previous_halo);
+            assert_eq!(params.ucs + 2 * params.pad, params.cs);
+            previous_halo = params.pad;
+        }
+    }
 }

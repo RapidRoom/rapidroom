@@ -2,6 +2,24 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "nind-encoding-neutral-save",
+      "title": "Use encoded NIND inputs and save neutral denoised TIFFs without a baked curve",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex; existing sRGB transfer helpers)",
+      "commits": [],
+      "upstream_issues": [
+        "CyberTimon/RapidRAW#1513",
+        "CyberTimon/RapidRAW#1070",
+        "CyberTimon/RapidRAW#1680",
+        "CyberTimon/RapidRAW#1311"
+      ],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Legacy RGB NIND receives encoded RGB consistently for RAW and ordinary image inputs. Saved RAW-derived NIND TIFFs use the model output without the former gamma 2.38/contrast 1.28 curve, keeping shadow detail and avoiding that baked display look. Every quality setting retains a halo and overlap; higher quality uses a larger discarded border. Other denoise methods are unchanged. Seam geometry and whole-image colour restoration are tracked separately under issue 172."
+    },
+    {
       "id": "assistant-untrusted-text-boundaries",
       "title": "Fence and bound untrusted photo text at assistant boundaries",
       "category": "privacy",

@@ -331,7 +331,12 @@ async fn run_single_denoise(
     tokio::task::spawn_blocking(move || {
         let outcome = denoise_image(&path_str, &options, &app_handle, ai_session, &job).and_then(
             |(image, original, raw)| {
-                let payload = build_previews(&image, original, is_raw_file(&path_str), &job)?;
+                let payload = build_previews(
+                    &image,
+                    original,
+                    uses_default_raw_tone(is_raw_file(&path_str), &options.method),
+                    &job,
+                )?;
                 store_result(
                     &denoise_result_handle,
                     &job,
@@ -633,6 +638,20 @@ fn bm3d_denoise(
     Ok(merge_channels(&[r, g, b], width, height))
 }
 
+// Legacy RGB NIND is trained on encoded RGB files, not sensor-linear RGB.
+// Standard image files are already encoded by the base-image loader.
+fn nind_model_input(image: DynamicImage, is_raw: bool) -> Rgb32FImage {
+    if is_raw {
+        crate::image_processing::apply_linear_to_srgb(image).to_rgb32f()
+    } else {
+        image.to_rgb32f()
+    }
+}
+
+fn uses_default_raw_tone(is_raw: bool, method: &str) -> bool {
+    is_raw && method != "ai"
+}
+
 fn denoise_image(
     path_str: &str,
     options: &DenoiseOptions,
@@ -670,7 +689,11 @@ fn denoise_image(
     .map_err(|e| e.to_string())?;
     job.check()?;
 
-    let rgb_img_for_denoiser = dynamic_img.to_rgb32f();
+    let rgb_img_for_denoiser = if method == "ai" {
+        nind_model_input(dynamic_img, is_raw)
+    } else {
+        dynamic_img.to_rgb32f()
+    };
 
     let mut raw_output = None;
     let mut out_dynamic = if let DenoiseModels::Tree {
@@ -728,7 +751,7 @@ fn denoise_image(
     };
     job.check()?;
 
-    if is_raw {
+    if uses_default_raw_tone(is_raw, method) {
         apply_cpu_default_raw_processing(&mut out_dynamic);
     }
 
@@ -1433,6 +1456,95 @@ fn gaussian_blur_1ch(data: &[f32], width: usize, height: usize, sigma: f32) -> V
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nind_encodes_raw_once_and_preserves_already_encoded_rgb() {
+        let linear = Rgb32FImage::from_pixel(2, 2, Rgb([0.0, 0.001, 0.18]));
+        let encoded = nind_model_input(DynamicImage::ImageRgb32F(linear), true);
+        let pixel = encoded.get_pixel(0, 0);
+        assert_eq!(pixel[0], 0.0);
+        assert!((pixel[1] - 0.01292).abs() < 1e-7);
+        assert!((pixel[2] - 0.4613561).abs() < 1e-6);
+        let unchanged = nind_model_input(DynamicImage::ImageRgb32F(encoded.clone()), false);
+        assert_eq!(unchanged, encoded);
+    }
+
+    #[test]
+    fn nind_sensor_shadow_save_is_encoded_without_a_baked_tone_curve() {
+        let raw = Rgb32FImage::from_pixel(2, 2, Rgb([0.0, 0.0001, 0.18]));
+        let encoded = nind_model_input(DynamicImage::ImageRgb32F(raw), true);
+        assert!(!uses_default_raw_tone(true, "ai"));
+        assert!(!uses_default_raw_tone(false, "ai"));
+        assert!(uses_default_raw_tone(true, "bm3d"));
+        assert!(uses_default_raw_tone(true, "raw9"));
+        assert!(uses_default_raw_tone(true, "tree_best"));
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("result.tiff");
+        let result = DenoisedOutput::Image(DynamicImage::ImageRgb32F(encoded));
+        write_denoised_output(&result, &path, true, 1, None).unwrap();
+        let pixel = *image::open(&path).unwrap().to_rgb16().get_pixel(0, 0);
+        assert_eq!(pixel[0], 0);
+        assert!(
+            (pixel[1] as i32 - 85).abs() <= 1,
+            "faint signal was crushed: {pixel:?}"
+        );
+        assert!(
+            (pixel[2] as i32 - 30235).abs() <= 1,
+            "tone curve baked into save: {pixel:?}"
+        );
+    }
+
+    #[test]
+    #[ignore = "Local NIND encoding integration; set RAPIDROOM_NIND_MODEL and RAPIDROOM_NIND_OUTPUT, under flock"]
+    fn real_nind_encoded_raw_smoke() {
+        let model = std::env::var("RAPIDROOM_NIND_MODEL").unwrap();
+        let session = Mutex::new(
+            Session::builder()
+                .unwrap()
+                .with_intra_threads(4)
+                .unwrap()
+                .commit_from_file(model)
+                .unwrap(),
+        );
+        let input = Rgb32FImage::from_fn(513, 257, |x, y| {
+            Rgb([
+                0.0001 + x as f32 / 6412.5,
+                0.0002 + y as f32 / 3212.5,
+                0.003,
+            ])
+        });
+        let encoded = nind_model_input(DynamicImage::ImageRgb32F(input), true);
+        let root = std::path::PathBuf::from(std::env::var("RAPIDROOM_NIND_OUTPUT").unwrap());
+        let original = DenoisedOutput::Image(DynamicImage::ImageRgb32F(encoded.clone()));
+        write_denoised_output(
+            &original,
+            &root.join("nind-encoded-input.tiff"),
+            true,
+            1,
+            None,
+        )
+        .unwrap();
+        for intensity in [0.1, 0.5, 0.9] {
+            let result = crate::ai_processing::run_ai_denoise(
+                &encoded,
+                intensity,
+                &session,
+                &DenoiseJob::testing(),
+            )
+            .unwrap();
+            let output = result.to_rgb32f();
+            assert_eq!(output.dimensions(), encoded.dimensions());
+            assert!(output.pixels().all(|p| p.0.iter().all(|v| v.is_finite())));
+            write_denoised_output(
+                &DenoisedOutput::Image(result),
+                &root.join(format!("nind-encoded-{}.tiff", (intensity * 100.0) as u32)),
+                true,
+                1,
+                None,
+            )
+            .unwrap();
+        }
+    }
 
     struct Lcg(u64);
 
