@@ -19,6 +19,22 @@ fn prepare_source_image(
     current_adjustments: &Value,
     state: &tauri::State<'_, AppState>,
 ) -> Result<(DynamicImage, bool), String> {
+    let (composited, is_raw) = prepare_native_source_image(patch_id, current_adjustments, state)?;
+    Ok((
+        if is_raw {
+            apply_linear_to_srgb(composited)
+        } else {
+            composited
+        },
+        is_raw,
+    ))
+}
+
+fn prepare_native_source_image(
+    patch_id: &str,
+    current_adjustments: &Value,
+    state: &tauri::State<'_, AppState>,
+) -> Result<(DynamicImage, bool), String> {
     let mut source_image_adjustments = current_adjustments.clone();
     if let Some(patches) = source_image_adjustments
         .get_mut("aiPatches")
@@ -36,13 +52,7 @@ fn prepare_source_image(
     let composited = composite_patches_on_image(&base_image, &source_image_adjustments)
         .map_err(|e| format!("Failed to prepare source image: {}", e))?;
 
-    let source_image = if is_raw {
-        apply_linear_to_srgb(composited)
-    } else {
-        composited
-    };
-
-    Ok((source_image, is_raw))
+    Ok((composited, is_raw))
 }
 
 fn calculate_mask_bounds(
@@ -113,14 +123,21 @@ fn encode_patch_result(
     is_srgb: bool,
     quality: u8,
     mask_as_png: bool,
+    color_as_png: bool,
 ) -> Result<String, String> {
     let mut color_buf = Cursor::new(Vec::with_capacity(32768));
-    color_image
-        .write_with_encoder(image::codecs::jpeg::JpegEncoder::new_with_quality(
-            &mut color_buf,
-            quality,
-        ))
-        .map_err(|e| e.to_string())?;
+    if color_as_png {
+        color_image
+            .write_to(&mut color_buf, image::ImageFormat::Png)
+            .map_err(|e| e.to_string())?;
+    } else {
+        color_image
+            .write_with_encoder(image::codecs::jpeg::JpegEncoder::new_with_quality(
+                &mut color_buf,
+                quality,
+            ))
+            .map_err(|e| e.to_string())?;
+    }
     let color_base64 = general_purpose::STANDARD.encode(color_buf.get_ref());
 
     let mut mask_buf = Cursor::new(Vec::with_capacity(32768));
@@ -364,6 +381,7 @@ pub async fn generate_manual_cleanup_patch(
         is_raw,
         100,
         false,
+        false,
     )
 }
 
@@ -390,8 +408,14 @@ pub async fn invoke_generative_replace_with_mask_def(
 
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
-    let (source_image, is_raw) =
-        prepare_source_image(&patch_definition.id, &current_adjustments, &state)?;
+    let (native_source, is_raw) =
+        prepare_native_source_image(&patch_definition.id, &current_adjustments, &state)?;
+    let scene_source = use_fast_inpaint.then(|| native_source.clone());
+    let source_image = if is_raw {
+        apply_linear_to_srgb(native_source)
+    } else {
+        native_source
+    };
     let (img_w, img_h) = source_image.dimensions();
     let img_w_usize = img_w as usize;
     let img_h_usize = img_h as usize;
@@ -454,8 +478,16 @@ pub async fn invoke_generative_replace_with_mask_def(
             return Err("Task cancelled".to_string());
         }
 
-        ai_processing::run_lama_inpainting(&source_image, &mask_bitmap, &lama_model)
-            .map_err(|e| e.to_string())?
+        ai_processing::run_lama_inpainting(
+            &source_image,
+            scene_source
+                .as_ref()
+                .ok_or("Missing native Remove source")?,
+            is_raw,
+            &mask_bitmap,
+            &lama_model,
+        )
+        .map_err(|e| e.to_string())?
     } else if settings.ai_provider.as_deref() == Some("cloud")
         && let Some(auth_token) = token
     {
@@ -678,6 +710,7 @@ pub async fn invoke_generative_replace_with_mask_def(
         is_raw,
         95,
         true,
+        use_fast_inpaint,
     )
 }
 
@@ -1060,6 +1093,7 @@ pub async fn generate_liquify_patch(
         is_raw,
         100,
         false,
+        false,
     )
 }
 
@@ -1372,5 +1406,94 @@ pub async fn generate_retouch_patch(
         is_raw,
         100,
         false,
+        false,
     )
+}
+
+#[cfg(test)]
+mod grain_patch_tests {
+    use super::*;
+    use image::{GrayImage, Luma, Rgb32FImage};
+
+    #[test]
+    fn lossless_remove_patch_round_trips_grain_and_stays_in_native_rotated_crop_coordinates() {
+        let width = 160;
+        let height = 144;
+        let scene = Rgb32FImage::from_fn(width, height, |x, y| {
+            let seed = u64::from(y * width + x);
+            let noise =
+                (crate::remove_grain::mix64(seed) as f64 / u64::MAX as f64 - 0.5) as f32 * 0.06;
+            Rgb([0.2 + noise; 3])
+        });
+        let native_mask = GrayImage::from_fn(width, height, |x, y| {
+            Luma([if (60..92).contains(&x) && (48..80).contains(&y) {
+                128
+            } else {
+                0
+            }])
+        });
+        let adjustments = serde_json::json!({"orientationSteps": 1, "crop": {"x": 0.1, "y": 0.2, "width": 0.7, "height": 0.6}});
+        let rotated_mask = image::imageops::rotate90(&native_mask);
+        let recovered = crate::image_processing::inverse_transform_mask(rotated_mask, &adjustments);
+        assert_eq!(recovered, native_mask);
+        let mut fill = RgbaImage::from_pixel(width, height, image::Rgba([124, 124, 124, 255]));
+        crate::remove_grain::restore_grain(
+            &scene,
+            &recovered,
+            &mut fill,
+            crate::remove_grain::NativeRect {
+                x: 60,
+                y: 48,
+                width: 32,
+                height: 32,
+            },
+        );
+        let color = DynamicImage::ImageRgba8(fill).to_rgb8();
+        let cropped = image::imageops::crop_imm(&color, 60, 48, 32, 32).to_image();
+        let mask = image::imageops::crop_imm(&recovered, 60, 48, 32, 32).to_image();
+        let encoded =
+            encode_patch_result(&cropped, &mask, 60, 48, 32, 32, true, 95, true, true).unwrap();
+        let patch: Value = serde_json::from_str(&encoded).unwrap();
+        let bytes = general_purpose::STANDARD
+            .decode(patch["color"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(image::load_from_memory(&bytes).unwrap().to_rgb8(), cropped);
+        let base = DynamicImage::ImageRgb32F(scene.clone());
+        let edit = serde_json::json!({"aiPatches":[{"visible":true,"patchData":patch}],"orientationSteps":1,"crop":adjustments["crop"]});
+        let output = composite_patches_on_image(&base, &edit)
+            .unwrap()
+            .to_rgb32f();
+        let linear_color = crate::image_processing::apply_srgb_to_linear(
+            DynamicImage::ImageRgb32F(DynamicImage::ImageRgb8(cropped).to_rgb32f()),
+        )
+        .to_rgb32f();
+        for (x, y, pixel) in output.enumerate_pixels() {
+            if native_mask.get_pixel(x, y)[0] == 0 {
+                assert_eq!(pixel, scene.get_pixel(x, y));
+            } else {
+                let source = scene.get_pixel(x, y);
+                let fill = linear_color.get_pixel(x - 60, y - 48);
+                for c in 0..3 {
+                    let expected = fill[c] * (128.0 / 255.0) + source[c] * (127.0 / 255.0);
+                    assert!((pixel[c] - expected).abs() < 1e-6);
+                }
+            }
+        }
+        // Patches composite before the same existing GPU adjustment stage.
+        // Round-trip their linear values after exposure and per-channel gains
+        // to catch accidental persistence in an encoded colour domain.
+        for gain in [[0.5, 0.7, 1.0], [2.0, 1.0, 0.6]] {
+            let source = output.get_pixel(64, 64);
+            let decoded = linear_color.get_pixel(4, 16);
+            let original = scene.get_pixel(64, 64);
+            for c in 0..3 {
+                assert!(
+                    (source[c] * gain[c]
+                        - (decoded[c] * 128.0 / 255.0 + original[c] * 127.0 / 255.0) * gain[c])
+                        .abs()
+                        < 1e-6
+                );
+            }
+        }
+    }
 }

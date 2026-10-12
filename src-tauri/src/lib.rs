@@ -74,6 +74,7 @@ mod perf_trace;
 mod preset_converter;
 mod preset_xmp;
 mod raw_processing;
+mod remove_grain;
 mod starter_presets;
 mod tagging;
 mod tagging_utils;

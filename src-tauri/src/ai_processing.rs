@@ -1019,10 +1019,27 @@ pub fn run_ai_denoise(
 
 pub fn run_lama_inpainting(
     image: &DynamicImage,
+    native_source: &DynamicImage,
+    is_raw: bool,
     mask: &GrayImage,
     lama_session: &Mutex<Session>,
 ) -> Result<RgbaImage> {
+    run_lama_inpainting_impl(image, native_source, is_raw, mask, lama_session, true)
+}
+
+fn run_lama_inpainting_impl(
+    image: &DynamicImage,
+    native_source: &DynamicImage,
+    is_raw: bool,
+    mask: &GrayImage,
+    lama_session: &Mutex<Session>,
+    restore: bool,
+) -> Result<RgbaImage> {
     let (w, h) = image.dimensions();
+    anyhow::ensure!(
+        image.dimensions() == mask.dimensions() && native_source.dimensions() == image.dimensions(),
+        "Remove image, mask and scene dimensions must match"
+    );
 
     let (mut min_x, mut min_y) = (w, h);
     let (mut max_x, mut max_y) = (0u32, 0u32);
@@ -1124,11 +1141,37 @@ pub fn run_lama_inpainting(
         }
     }
 
-    let result_crop = if needs_downscale {
+    let mut result_crop = if needs_downscale {
         imageops::resize(&result_inf, crop_w, crop_h, FilterType::Lanczos3)
     } else {
         result_inf
     };
+
+    // RapidRoom's unedited RAW base is linear sRGB, independent of the current
+    // exposure/WB sliders. LaMa sees encoded sRGB; restore the native residual
+    // after decoding its result, before encoding the persisted patch again.
+    if restore {
+        let native_crop = native_source.crop_imm(x0, y0, crop_w, crop_h);
+        let scene = if is_raw {
+            native_crop.to_rgb32f()
+        } else {
+            crate::image_processing::apply_srgb_to_linear(DynamicImage::ImageRgb32F(
+                native_crop.to_rgb32f(),
+            ))
+            .to_rgb32f()
+        };
+        crate::remove_grain::restore_grain(
+            &scene,
+            &cropped_mask,
+            &mut result_crop,
+            crate::remove_grain::NativeRect {
+                x: min_x - x0,
+                y: min_y - y0,
+                width: mask_w,
+                height: mask_h,
+            },
+        );
+    }
 
     let mut final_image = image.to_rgba8();
 
@@ -1777,4 +1820,109 @@ pub struct AiDepthMaskParameters {
     pub flip_vertical: Option<bool>,
     #[serde(default)]
     pub orientation_steps: Option<u8>,
+}
+
+#[cfg(test)]
+mod remove_evidence_tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires local RAW fixtures and the current verified LaMa model; writes private evidence"]
+    fn render_remove_grain_evidence() {
+        let directory =
+            std::path::PathBuf::from(std::env::var("RAPIDROOM_REMOVE_EVIDENCE_DIR").unwrap());
+        let cases: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(directory.join("cases.json")).unwrap()).unwrap();
+        let session = Mutex::new(
+            Session::builder()
+                .unwrap()
+                .with_intra_threads(4)
+                .unwrap()
+                .commit_from_file(std::env::var("RAPIDROOM_REMOVE_MODEL").unwrap())
+                .unwrap(),
+        );
+        for case in cases.as_array().unwrap() {
+            let name = case["name"].as_str().unwrap();
+            let bytes = std::fs::read(case["source"].as_str().unwrap()).unwrap();
+            let native = crate::raw_processing::develop_raw_image(
+                &bytes,
+                false,
+                2.5,
+                crate::app_settings::default_linear_raw_mode(),
+                None,
+                None,
+            )
+            .unwrap();
+            let preview =
+                crate::image_processing::apply_linear_to_srgb(native.clone()).thumbnail(1200, 1200);
+            preview
+                .to_rgb8()
+                .save(directory.join(format!("{name}-source-preview.png")))
+                .unwrap();
+            let crop = case["crop"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_u64().unwrap() as u32)
+                .collect::<Vec<_>>();
+            let native = native.crop_imm(crop[0], crop[1], crop[2], crop[3]);
+            let encoded = crate::image_processing::apply_linear_to_srgb(native.clone());
+            encoded
+                .to_rgb8()
+                .save(directory.join(format!("{name}-source.png")))
+                .unwrap();
+            let area = case["mask"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_u64().unwrap() as u32)
+                .collect::<Vec<_>>();
+            let mask = GrayImage::from_fn(crop[2], crop[3], |x, y| {
+                image::Luma([
+                    if x >= area[0]
+                        && x < area[0] + area[2]
+                        && y >= area[1]
+                        && y < area[1] + area[3]
+                    {
+                        255
+                    } else {
+                        0
+                    },
+                ])
+            });
+            mask.save(directory.join(format!("{name}-mask.png")))
+                .unwrap();
+            for (label, restore) in [("before", false), ("after", true)] {
+                let fill =
+                    run_lama_inpainting_impl(&encoded, &native, true, &mask, &session, restore)
+                        .unwrap();
+                // Match each persisted encoder: current local Remove JPEG 95,
+                // this adaptation PNG, both fed through the real compositor.
+                let mut color = std::io::Cursor::new(Vec::new());
+                let rgb = DynamicImage::ImageRgba8(fill).to_rgb8();
+                if restore {
+                    rgb.write_to(&mut color, image::ImageFormat::Png).unwrap();
+                } else {
+                    rgb.write_with_encoder(image::codecs::jpeg::JpegEncoder::new_with_quality(
+                        &mut color, 95,
+                    ))
+                    .unwrap();
+                }
+                let mut mask_bytes = std::io::Cursor::new(Vec::new());
+                mask.write_to(&mut mask_bytes, image::ImageFormat::Png)
+                    .unwrap();
+                use base64::Engine as _;
+                let edits = serde_json::json!({"aiPatches":[{"visible":true,"patchData":{
+                    "color":base64::engine::general_purpose::STANDARD.encode(color.get_ref()),
+                    "mask":base64::engine::general_purpose::STANDARD.encode(mask_bytes.get_ref()),
+                    "offsetX":0,"offsetY":0,"isSrgbEncoded":true}}]});
+                let composite =
+                    crate::image_loader::composite_patches_on_image(&native, &edits).unwrap();
+                crate::image_processing::apply_linear_to_srgb(composite)
+                    .to_rgb8()
+                    .save(directory.join(format!("{name}-{label}.png")))
+                    .unwrap();
+            }
+        }
+    }
 }
