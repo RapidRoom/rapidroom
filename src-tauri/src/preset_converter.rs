@@ -1023,8 +1023,9 @@ fn extract_nested_look_luma_curves(xmp_content: &str) -> Vec<(f64, Vec<(f64, f64
     crate::xmp::photo_looks(xmp_content)
         .unwrap_or_default()
         .into_iter()
-        .filter_map(|(amount, curve)| {
-            let points = curve_points_as_f64(&parse_tone_curve_points(&curve?)?);
+        .filter_map(|look| {
+            let amount = look.amount;
+            let points = curve_points_as_f64(&parse_tone_curve_points(&look.curve?)?);
             let is_identity = points.iter().all(|(x, y)| x == y);
             (amount > 0.0 && !is_identity).then_some((amount, points))
         })
@@ -1147,7 +1148,7 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
     let has_profile_look = crate::xmp::photo_looks(xmp_content)
         .unwrap_or_default()
         .iter()
-        .any(|(amount, _)| *amount > 0.0);
+        .any(|look| look.amount > 0.0);
     if has_profile_look {
         items.push("profileLook");
     }
@@ -1764,6 +1765,16 @@ mod tests {
         assert_eq!(preset.adjustments["exposure"], 0.5);
         assert_eq!(luma_at(&preset, 85), 64);
         assert!(lightroom_settings_not_transferred(xmp, &preset).contains(&"profileLook"));
+    }
+
+    #[test]
+    fn crs_audit_namespace_declarations_cannot_be_adjustment_attributes() {
+        let xmp = r#"<rdf:Description xmlns:xmlns="http://ns.adobe.com/camera-raw-settings/1.0/"
+            xmlns:Exposure2012="4" xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"
+            a:Contrast2012="10"/>"#;
+        let preset = convert_xmp_to_preset(xmp).unwrap();
+        assert!(preset.adjustments.get("exposure").is_none());
+        assert_eq!(preset.adjustments["contrast"], 10);
     }
 
     #[test]

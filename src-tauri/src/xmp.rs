@@ -217,6 +217,9 @@ impl<'a> Document<'a> {
     }
 
     fn matches(&self, index: usize, name: &str, uri: &str, local: &str) -> bool {
+        if name == "xmlns" || name.starts_with("xmlns:") {
+            return false;
+        }
         let (prefix, actual) = name.split_once(':').unwrap_or(("", name));
         let canonical = match uri {
             RDF => "rdf",
@@ -420,7 +423,12 @@ pub(crate) fn photo_properties(
 }
 
 /// Profile curves are read in their own resource, never as global photo fields.
-pub(crate) fn photo_looks(content: &str) -> Result<Vec<(f64, Option<Vec<String>>)>, Error> {
+pub(crate) struct PhotoLook {
+    pub amount: f64,
+    pub curve: Option<Vec<String>>,
+}
+
+pub(crate) fn photo_looks(content: &str) -> Result<Vec<PhotoLook>, Error> {
     let doc = Document::parse(content)?;
     let mut looks = Vec::new();
     for description in doc.image_descriptions() {
@@ -455,7 +463,7 @@ pub(crate) fn photo_looks(content: &str) -> Result<Vec<(f64, Option<Vec<String>>
                 .children(parameters, CRS, "ToneCurvePV2012")
                 .next()
                 .and_then(|i| doc.list(i));
-            looks.push((amount, curve));
+            looks.push(PhotoLook { amount, curve });
         }
     }
     Ok(looks)
