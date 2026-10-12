@@ -178,3 +178,7 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 ### AutoShade assistant text boundaries
 
 The data-only envelope, bounded UTF-8 text, shared free-text budget and assistant-output projection pattern were studied in [AutoShade by skymanbp](https://github.com/skymanbp/autoshade/tree/cbca12b5a903ff8d71faf25a3966ed3712e839ba/src/advisor), under the [MIT licence](rapidroom/LICENSES/autoshade-MIT.txt). RapidRoom’s MCP, terminal context, secret-pattern redaction and edit-name preservation integration are original adaptations. These deterministic boundaries reduce injection exposure; they do not establish immunity of a remote model to hostile instructions.
+
+### AI denoise tiling and colour restoration
+
+Tile placement, raised-cosine overlap and whole-image five-level B3-spline colour restoration adapt [open-photo-ai by Vinicius Egidio](https://github.com/vegidio/open-photo-ai/tree/67f1dd10d17efcb191ce1bb099642e32b2918861), AGPL-3.0. Periodic reflect padding adapts [CalibRaw by Duecki](https://github.com/Duecki1/CalibRaw/blob/2466ca6662c3fd1e901377c0450b19f5f96d3e85/crates/calibraw-ai/src/ai_denoise/tiling.rs), GPL-3.0-or-later. Source notices are bundled in `src-tauri/resources/raw-denoise-licenses/`. Model weights, telemetry and scalar per-tile gain matching were not imported.
