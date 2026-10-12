@@ -10,6 +10,7 @@ import {
   GroupingMode,
 } from '../components/ui/AppProperties';
 import { buildImageGroups, GroupBadgeInfo, GroupId } from '../utils/imageGrouping';
+import { collapseStacks } from '../utils/photoStacks';
 import { matchesFlagStatus } from '../utils/imageFlags';
 
 export const ADVANCED_QUERY_REGEX =
@@ -273,7 +274,7 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
     ? buildImageGroups(imageList, groupingMode, appSettings?.groupEditedFiles ?? true).badges
     : null;
 
-  return { displayList: list, badges };
+  return { displayList: collapseStacks(list, libraryState.expandedStacks ?? new Set()), badges };
 }
 
 export function computeSortedLibrary(libraryState: any, settingsState: any): ImageFile[] {
@@ -281,6 +282,7 @@ export function computeSortedLibrary(libraryState: any, settingsState: any): Ima
 }
 
 export function useSortedLibrary() {
+  const expandedStacks = useLibraryStore((state) => state.expandedStacks);
   const imageList = useLibraryStore((state) => state.imageList);
   const imageRatings = useLibraryStore((state) => state.imageRatings);
   const filterCriteria = useLibraryStore((state) => state.filterCriteria);
@@ -291,10 +293,10 @@ export function useSortedLibrary() {
 
   const result = useMemo(() => {
     return computeGroupedLibrary(
-      { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria },
+      { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria, expandedStacks },
       { appSettings },
     );
-  }, [imageList, sortCriteria, imageRatings, filterCriteria, searchCriteria, appSettings]);
+  }, [expandedStacks, imageList, sortCriteria, imageRatings, filterCriteria, searchCriteria, appSettings]);
 
   return result;
 }

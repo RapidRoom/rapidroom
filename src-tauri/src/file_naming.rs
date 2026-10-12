@@ -77,6 +77,10 @@ impl PhotoFacts {
         })
     }
 
+    pub(crate) fn stack(&self) -> Option<&crate::photo_stacks::StackMember> {
+        self.sidecar().stack.as_ref()
+    }
+
     pub fn exif(&self) -> &HashMap<String, String> {
         self.exif.get_or_init(|| {
             if let Some(exif) = self.sidecar().exif.clone() {

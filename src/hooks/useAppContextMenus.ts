@@ -1,3 +1,4 @@
+import { editStack, stackKey, toggleStack } from '../utils/photoStacks';
 import { useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -870,7 +871,41 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         }
       };
 
+      const targetStack = imageList.find((i) => i.path === path)?.stack;
       const options = [
+        {
+          label: t('stacks.menu'),
+          icon: Layers,
+          submenu: [
+            {
+              label: t('stacks.create'),
+              disabled: finalSelection.length < 2,
+              onClick: () => void editStack(finalSelection, 'stack'),
+            },
+            {
+              label: t('stacks.unstack'),
+              disabled: !finalSelection.some((p) => imageList.find((i) => i.path === p)?.stack),
+              onClick: () => void editStack(finalSelection, 'unstack'),
+            },
+            { label: t('stacks.cover'), disabled: !targetStack, onClick: () => void editStack([path], 'cover') },
+            {
+              label: t('stacks.expandCollapse'),
+              disabled: !targetStack,
+              onClick: () => targetStack && toggleStack(stackKey(imageList.find((i) => i.path === path)!)),
+            },
+            { label: t('stacks.auto'), onClick: () => setLibrary({ stackPreviewOpen: true }) },
+            {
+              label: t('stacks.wholeMetadata'),
+              icon: useLibraryStore.getState().applyMetadataToStack ? Check : undefined,
+              onClick: () => setLibrary((s) => ({ applyMetadataToStack: !s.applyMetadataToStack })),
+            },
+            {
+              label: t('stacks.mergedResults'),
+              icon: useLibraryStore.getState().stackMergedResults ? Check : undefined,
+              onClick: () => setLibrary((s) => ({ stackMergedResults: !s.stackMergedResults })),
+            },
+          ],
+        },
         ...(!isEditingThisImage
           ? [
               {

@@ -2317,5 +2317,27 @@
     "sliderKeys": "← → Preview · Shift ×10 · Alt Fine · Enter Apply · Esc Cancel",
     "autoAdjustments": "Auto adjustments",
     "resetCurrentPhoto": "Reset current photo"
+  },
+  "stacks": {
+    "menu": "Stacks",
+    "create": "Stack selected photos (Ctrl+G)",
+    "unstack": "Unstack (Ctrl+Shift+G)",
+    "cover": "Use this photo as the cover",
+    "expandCollapse": "Expand / collapse stack",
+    "auto": "Auto-stack by capture time…",
+    "wholeMetadata": "Apply stars and flags to whole stacks (this session)",
+    "mergedResults": "Stack saved merge results with sources (this session)",
+    "badge_one": "Expand or collapse stack ({{count}} photo)",
+    "badge_other": "Expand or collapse stack ({{count}} photos)",
+    "failed": "Could not save stack: {{error}}",
+    "mergeSaved": "The merged image was saved, but stacking failed: {{error}}",
+    "explanation": "Groups consecutive shots in each folder by the gap between capture times, including sub-seconds. Existing stacks and photos without capture dates are skipped. Preview covers the loaded folder or album, including filtered-out photos.",
+    "gap": "Maximum gap (seconds)",
+    "previewCount_one": "{{count}} stack proposed",
+    "previewCount_other": "{{count}} stacks proposed",
+    "cancel": "Cancel",
+    "preview": "Preview",
+    "apply": "Apply stacks",
+    "renameGroups": "Use saved photo stacks"
   }
 }

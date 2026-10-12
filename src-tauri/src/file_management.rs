@@ -9,7 +9,9 @@ use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::{Arc, LazyLock, Mutex, RwLock};
+
+pub(crate) static SIDECAR_METADATA_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 use std::thread;
 
 use anyhow::Result;
@@ -208,6 +210,7 @@ struct ImageFileMetadata {
     rating: u8,
     flag: Option<ImageFlag>,
     is_raw: bool,
+    stack: Option<crate::photo_stacks::StackMember>,
 }
 
 fn resolve_image_metadata(
@@ -216,6 +219,9 @@ fn resolve_image_metadata(
     enable_xmp_sync: bool,
     settings: &AppSettings,
 ) -> ImageFileMetadata {
+    let _metadata_lock = SIDECAR_METADATA_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
 
     if enable_xmp_sync
@@ -225,6 +231,7 @@ fn resolve_image_metadata(
         let _ = write_file_atomically(sidecar_path, json);
     }
 
+    drop(_metadata_lock);
     let is_raw = crate::formats::is_raw_file(image_path);
     let tm_override = crate::image_processing::resolve_tonemapper_override(settings, is_raw);
     let is_edited =
@@ -234,6 +241,7 @@ fn resolve_image_metadata(
         rating: crate::exif_processing::resolve_rating(image_path, &metadata),
         tags: metadata.tags,
         flag: metadata.flag,
+        stack: metadata.stack.clone(),
         is_raw,
     }
 }
@@ -245,10 +253,11 @@ fn emit_image_metadata_loaded(
     flag: Option<ImageFlag>,
     is_edited: bool,
     tags: &Option<Vec<String>>,
+    stack: &Option<crate::photo_stacks::StackMember>,
 ) {
     let _ = app_handle.emit(
         "image-metadata-loaded",
-        serde_json::json!({ "path": path, "rating": rating, "flag": flag, "is_edited": is_edited, "tags": tags }),
+        serde_json::json!({ "path": path, "rating": rating, "flag": flag, "is_edited": is_edited, "tags": tags, "stack": stack }),
     );
 }
 
@@ -315,6 +324,7 @@ pub fn start_metadata_workers(app_handle: tauri::AppHandle) {
                     metadata.flag,
                     metadata.is_edited,
                     &metadata.tags,
+                    &metadata.stack,
                 );
 
                 manager_clone
@@ -438,6 +448,8 @@ pub struct ImageFile {
     is_cloud_placeholder: bool,
     is_raw: bool,
     group_id: Option<String>,
+    #[serde(default)]
+    stack: Option<crate::photo_stacks::StackMember>,
 }
 
 fn make_group_key(source_path: &Path) -> String {
@@ -847,6 +859,7 @@ pub fn list_images_in_dir(path: String, app_handle: AppHandle) -> Result<Vec<Ima
                         tags: None,
                         rating: 0,
                         flag: None,
+                        stack: None,
                         is_raw: crate::formats::is_raw_file(&path_buf),
                     }
                 } else {
@@ -864,6 +877,7 @@ pub fn list_images_in_dir(path: String, app_handle: AppHandle) -> Result<Vec<Ima
                     group_id: None,
                     rating: metadata.rating,
                     flag: metadata.flag,
+                    stack: metadata.stack.clone(),
                     is_cloud_placeholder,
                 });
             }
@@ -982,6 +996,7 @@ pub fn list_images_recursive(
                         tags: None,
                         rating: 0,
                         flag: None,
+                        stack: None,
                         is_raw: crate::formats::is_raw_file(&path_buf),
                     }
                 } else {
@@ -999,6 +1014,7 @@ pub fn list_images_recursive(
                     group_id: None,
                     rating: metadata.rating,
                     flag: metadata.flag,
+                    stack: metadata.stack.clone(),
                     is_cloud_placeholder,
                 });
             }
@@ -1255,6 +1271,7 @@ pub fn get_album_images(
                     tags: None,
                     rating: 0,
                     flag: None,
+                    stack: None,
                     is_raw: crate::formats::is_raw_file(&source_path),
                 }
             } else {
@@ -1272,6 +1289,7 @@ pub fn get_album_images(
                 group_id: None,
                 rating: metadata.rating,
                 flag: metadata.flag,
+                stack: metadata.stack.clone(),
                 is_cloud_placeholder,
             })
         })
@@ -2932,10 +2950,12 @@ pub fn save_metadata_and_update_thumbnail(
         );
     }
 
-    metadata.adjustments = final_adjustments;
-
-    let json_string = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
-    write_file_atomically(&sidecar_path, json_string).map_err(|e| e.to_string())?;
+    metadata = update_sidecar(&sidecar_path, |current| {
+        current.adjustments = final_adjustments.clone();
+        if current.exif.is_none() {
+            current.exif = metadata.exif.clone();
+        }
+    })?;
 
     if let Ok(settings) = load_settings(app_handle.clone())
         && settings.enable_xmp_sync.unwrap_or(false)
@@ -3694,10 +3714,11 @@ pub async fn apply_auto_adjustments_to_paths(
     Ok(())
 }
 
-fn update_sidecar(
+pub(crate) fn update_sidecar(
     sidecar_path: &Path,
     update: impl Fn(&mut ImageMetadata),
 ) -> Result<ImageMetadata, String> {
+    let _lock = SIDECAR_METADATA_LOCK.lock().map_err(|e| e.to_string())?;
     let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
     update(&mut metadata);
     let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
@@ -3794,8 +3815,17 @@ fn store_user_rating(sidecar_path: &Path, rating: u8) -> ImageMetadata {
 pub fn set_rating_for_paths(
     paths: Vec<String>,
     rating: u8,
+    apply_to_stack: Option<bool>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    let paths = if apply_to_stack.unwrap_or(false) {
+        crate::photo_stacks::expanded(&paths)?
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect()
+    } else {
+        paths
+    };
     update_metadata_for_paths(&paths, &app_handle, |metadata| {
         apply_user_rating(metadata, rating)
     })
@@ -3805,8 +3835,17 @@ pub fn set_rating_for_paths(
 pub fn set_flag_for_paths(
     paths: Vec<String>,
     flag: Option<ImageFlag>,
+    apply_to_stack: Option<bool>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    let paths = if apply_to_stack.unwrap_or(false) {
+        crate::photo_stacks::expanded(&paths)?
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect()
+    } else {
+        paths
+    };
     update_metadata_for_paths(&paths, &app_handle, |metadata| {
         apply_user_flag(metadata, flag)
     })

@@ -1890,8 +1890,9 @@ fn export_keywords(tags: &[String]) -> Vec<String> {
 
 fn save_primary_metadata(image_path: &Path, metadata: &ImageMetadata) -> std::io::Result<()> {
     let primary = get_primary_sidecar_path(image_path);
-    let json = serde_json::to_string_pretty(metadata).map_err(std::io::Error::other)?;
-    crate::file_management::write_file_atomically(&primary, json)
+    crate::file_management::update_sidecar(&primary, |current| current.exif = metadata.exif.clone())
+        .map(|_| ())
+        .map_err(std::io::Error::other)
 }
 
 pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>> {

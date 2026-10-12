@@ -63,6 +63,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTauriListeners } from './hooks/useTauriListeners';
 import { useFileOperations } from './hooks/useFileOperations';
 import { useAppContextMenus } from './hooks/useAppContextMenus';
+import AutoStackModal from './components/modals/AutoStackModal';
 import { useSortedLibrary } from './hooks/useSortedLibrary';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { useExternalEditSession } from './hooks/useExternalEditSession';
@@ -889,6 +890,7 @@ function App() {
 
   return (
     <CloudAuthProvider>
+      <AutoStackModal />
       <ImageProcessingManager
         transformWrapperRef={transformWrapperRef}
         prevAdjustmentsRef={prevAdjustmentsRef}

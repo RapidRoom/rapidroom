@@ -246,6 +246,15 @@ export default function RenameFileModal({ filesToRename, isOpen, onClose, onSave
                 />
                 <Text as="span">{t('modals.renameFile.groupSelection')}</Text>
               </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  checked={options.groupMode === 'stack'}
+                  name="rename-group-mode"
+                  onChange={() => setOptions({ ...options, groupMode: 'stack' })}
+                  type="radio"
+                />
+                <Text as="span">{t('stacks.renameGroups')}</Text>
+              </label>
             </div>
           )}
 

@@ -330,3 +330,15 @@ The central tool result boundary labels both successes and errors as data-only. 
 Assistant inputs project descriptive names/notes before UI storage. Names echoed from the current edit preserve the original stored name by identity, so reading a bounded display cannot silently rename an existing mask. Local numeric mask edits use the same existing numeric registry as global controls; invalid values are refused rather than applied. Terminal launches expose a data-only context and static trust policy without changing the actual working directory/path. The general terminal is not a photo-metadata prompt generator; arbitrary shell output remains data.
 
 Existing tool-result consumers must read the inner envelope. The native client helper `tool_data` supports that envelope and older results, while the hostile fixture asserts the envelope is actually present in the current build. Transport `isError`/protocol fields and image content blocks keep their roles.
+
+### Photo stacks (#86)
+
+Run `smoke.py --stacks` with a freshly pinned native engine. The harness creates
+three owned synthetic JPEGs with explicit sub-second capture times alongside
+the CC0 RAW. Native Ctrl+G, badges and context menus create a manual stack,
+choose a cover, expand grid and filmstrip, unstack, preview a 0.15-second auto
+stack without writing, apply it, and persist whole-stack stars. Captures and
+sidecar assertions are followed by the normal real-RAW edit/export smoke.
+Full application restart is covered by Rust disk persistence tests rather than
+claimed by this native scenario. Physical keyboard/mouse and other platforms
+remain human checks.

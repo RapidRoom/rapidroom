@@ -186,3 +186,23 @@ describe('flag actions in the library store', () => {
     expect(storedFlags()['/r.raw']).toBe(ImageFlag.Pick);
   });
 });
+
+it('rates only the stack cover by default and opts into all persisted members', async () => {
+  const saved: unknown[] = [];
+  mockCommand(Invokes.SetRatingForPaths, (args) => saved.push(args));
+  library({ '/photos/cover.raw': null, '/photos/member.raw': null });
+  useLibraryStore.setState((s) => ({
+    multiSelectedPaths: ['/photos/cover.raw'],
+    imageList: s.imageList.map((i, position) => ({ ...i, stack: { id: 'burst', position } })),
+  }));
+  const actions = await mountLibraryActions();
+  actions.handleRate(3);
+  await settle();
+  expect(saved[0]).toEqual({ paths: ['/photos/cover.raw'], rating: 3 });
+  expect(useLibraryStore.getState().imageRatings['/photos/member.raw']).toBeUndefined();
+  useLibraryStore.setState({ applyMetadataToStack: true });
+  actions.handleRate(4);
+  await settle();
+  expect(saved[1]).toEqual({ paths: ['/photos/cover.raw', '/photos/member.raw'], rating: 4, applyToStack: true });
+  expect(useLibraryStore.getState().imageRatings['/photos/member.raw']).toBe(4);
+});

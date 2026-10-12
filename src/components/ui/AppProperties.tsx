@@ -120,6 +120,9 @@ export enum Invokes {
   SetColorLabelForPaths = 'set_color_label_for_paths',
   SetRatingForPaths = 'set_rating_for_paths',
   SetFlagForPaths = 'set_flag_for_paths',
+  EditPhotoStack = 'edit_photo_stack',
+  PreviewPhotoStacks = 'preview_photo_stacks',
+  ApplyPhotoStacks = 'apply_photo_stacks',
   ShowInFinder = 'show_in_finder',
   StartBackgroundIndexing = 'start_background_indexing',
   StitchPanorama = 'stitch_panorama',
@@ -370,7 +373,13 @@ export interface Folder {
   imageCount?: number;
 }
 
+export interface StackMember {
+  id: string;
+  position: number;
+}
+
 export interface ImageFile {
+  stack?: StackMember | null;
   is_edited: boolean;
   modified: number;
   path: string;

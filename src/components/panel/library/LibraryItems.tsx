@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useDraggable } from '@dnd-kit/core';
 import { COLOR_LABELS, Color } from '../../../utils/adjustments';
 import FlagBadges from '../../ui/FlagBadges';
+import StackBadge from '../../ui/StackBadge';
 import { ThumbnailAspectRatio, ImageFile, ImageFlag, ExifOverlay } from '../../ui/AppProperties';
 import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights, TEXT_COLOR_KEYS } from '../../../types/typography';
@@ -46,6 +47,7 @@ const ThumbnailComponent = ({
   exif,
   isCloudPlaceholder,
   groupBadgeLabel,
+  stack,
   onAspectRatioLoaded,
 }: any) => {
   const { t } = useTranslation();
@@ -166,7 +168,7 @@ const ThumbnailComponent = ({
   const isRejected = flag === ImageFlag.Reject;
   const hasRating = rating > 0 && !isRejected;
   const hasGroupBadge = !!groupBadgeLabel;
-  const hasAnyOverlay = hasEditIcon || hasColorLabel || hasRating || !!flag || hasGroupBadge;
+  const hasAnyOverlay = hasEditIcon || hasColorLabel || hasRating || !!flag || hasGroupBadge || !!stack;
 
   return (
     <div
@@ -182,6 +184,7 @@ const ThumbnailComponent = ({
         e.stopPropagation();
         onImageClick(path, e);
       }}
+      data-image-path={path}
       onContextMenu={(e: any) => onContextMenu(e, path)}
       onDoubleClick={() => onImageDoubleClick(path)}
     >
@@ -302,6 +305,7 @@ const ThumbnailComponent = ({
             <StarIcon size={12} className="text-white fill-white" />
           </div>
 
+          <StackBadge path={path} />
           <FlagBadges flag={flag} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating} />
 
           <div
@@ -642,6 +646,7 @@ const ListItemComponent = ({
         e.stopPropagation();
         onImageClick(path, e);
       }}
+      data-image-path={path}
       onContextMenu={(e: any) => onContextMenu(e, path)}
       onDoubleClick={() => onImageDoubleClick(path)}
     >
@@ -709,6 +714,7 @@ const ListItemComponent = ({
         <Text variant={TextVariants.small} className="truncate" weight={TextWeights.medium} color={TextColors.primary}>
           {baseName}
         </Text>
+        <StackBadge path={path} />
         {isVirtualCopy && (
           <Text
             as="div"
@@ -975,6 +981,7 @@ const RowComponent = ({
                 isEdited={imageFile.is_edited}
                 aspectRatio={thumbnailAspectRatio}
                 isCloudPlaceholder={imageFile.is_cloud_placeholder}
+                stack={imageFile.stack}
                 groupBadgeLabel={imageFile.group_id && groupBadgeInfo?.get(imageFile.group_id)?.label}
                 onAspectRatioLoaded={onAspectRatioLoaded}
               />

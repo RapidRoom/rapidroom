@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { stackMergedResult } from '../utils/photoStacks';
 import { useUIStore } from '../store/useUIStore';
 import { Invokes } from '../components/ui/AppProperties';
 import type { DenoiseMethod } from '../components/modals/DenoiseModal';
@@ -54,6 +55,7 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
       const savedPath: string = await invoke(Invokes.SavePanorama, {
         firstPathStr: panoramaModalState.stitchingSourcePaths[0],
       });
+      await stackMergedResult(savedPath, panoramaModalState.stitchingSourcePaths);
       await refreshImageList();
       return savedPath;
     } catch (err) {
@@ -95,6 +97,7 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
       const savedPath: string = await invoke(Invokes.SaveFocusStack, {
         firstPathStr: focusStackModalState.sourcePaths[0],
       });
+      await stackMergedResult(savedPath, focusStackModalState.sourcePaths);
       await refreshImageList();
       return savedPath;
     } catch (err) {
@@ -131,6 +134,7 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
     }
     try {
       const savedPath: string = await invoke(Invokes.SaveHdr, { firstPathStr: hdrModalState.stitchingSourcePaths[0] });
+      await stackMergedResult(savedPath, hdrModalState.stitchingSourcePaths);
       await refreshImageList();
       return savedPath;
     } catch (err) {
