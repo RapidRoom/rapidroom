@@ -40,6 +40,12 @@ def run_stack_checks(smoke, wait_for):
     def saved():
         return [json.loads((case / f'input/stack-{i}.jpg.rrdata').read_text()).get('stack') for i in range(1, 4)]
     def capture(name):
+        # DOM assertions can beat the compositor by one frame. Wait for two
+        # browser frames and the presentation handoff before taking evidence.
+        from smoke import request
+        request(smoke.url + '/execute/async', {'script': """
+          const done=arguments[arguments.length-1];
+          requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(()=>done(true),100)));""", 'args': []})
         path = smoke.capture(name)
         with Image.open(path) as image:
             if max(ImageStat.Stat(image).stddev) < 10:
