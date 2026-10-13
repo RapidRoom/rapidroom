@@ -2,6 +2,23 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "assistant-plugin-source-acceptance",
+      "title": "Resolve assistant explanations to the running source and verify plugin workflows",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original plugin update and acceptance harness with Codex)",
+      "commits": [],
+      "upstream_issues": [
+        "RapidRoom/rapidroom#118"
+      ],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Source explanations prefer the MCP-reported clean source commit, preserve uncertainty for dirty/development builds and use a verified read-only cache. Slash commands use current context/comparison tools. A fresh Claude session with the shipped plugin exercises grading, three temporary looks, native detail, GPS-stripped feed export and a source-backed explanation; named virtual copies remain deferred."
+    },
+    {
       "id": "raw-repair-thumbnail-native-scale",
       "title": "Keep RAW repair patches aligned in regenerated thumbnails",
       "category": "fix",
