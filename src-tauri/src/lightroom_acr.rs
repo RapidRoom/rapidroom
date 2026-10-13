@@ -96,6 +96,9 @@ impl AcrMasks {
                 )
                 .map_err(|_| "Cannot encode mask PNG")?;
             let png = format!("data:image/png;base64,{}", STANDARD.encode(png));
+            if self.encoded_bytes.saturating_add(png.len()) > MAX_ENCODED {
+                return Err("Mask import PNG budget exceeded".into());
+            }
             self.cache.insert(key, png.clone());
             png
         };
@@ -335,23 +338,26 @@ struct Placement {
     area: [f64; 4],
 }
 fn numbers<const N: usize>(text: &str) -> Result<[f64; N]> {
-    let values: Vec<f64> = text
-        .split(',')
-        .map(|value| {
-            let (n, d) = value.trim().split_once('/').unwrap_or((value.trim(), "1"));
-            let v = n.parse::<f64>().map_err(|_| "Invalid mask geometry")?
-                / d.parse::<f64>().map_err(|_| "Invalid mask geometry")?;
-            if v.is_finite() {
-                Ok(v)
-            } else {
-                Err("Invalid mask geometry")
-            }
-        })
-        .collect::<std::result::Result<_, _>>()?;
-    values
-        .try_into()
-        .map_err(|_| "Invalid mask geometry tuple length".into())
+    let mut parts = text.split(',');
+    let mut values = [0.0; N];
+    for value in &mut values {
+        let part = parts
+            .next()
+            .ok_or("Invalid mask geometry tuple length")?
+            .trim();
+        let (n, d) = part.split_once('/').unwrap_or((part, "1"));
+        *value = n.parse::<f64>().map_err(|_| "Invalid mask geometry")?
+            / d.parse::<f64>().map_err(|_| "Invalid mask geometry")?;
+        if !value.is_finite() {
+            return Err("Invalid mask geometry".into());
+        }
+    }
+    if parts.next().is_some() {
+        return Err("Invalid mask geometry tuple length".into());
+    }
+    Ok(values)
 }
+
 impl Placement {
     fn parse(origin: &str, full: &str, area: &str) -> Result<Self> {
         let origin: [f64; 2] = numbers(origin)?;
@@ -673,6 +679,33 @@ mod tests {
             serde_json::from_value::<crate::mask_generation::MaskDefinition>(masks[0].clone())
                 .is_ok()
         );
+    }
+    #[test]
+    fn refused_pngs_never_expand_the_cache_past_the_import_budget() {
+        let properties = HashMap::from([
+            ("MaskDigest".into(), fixture_digest()),
+            ("Origin".into(), "1,1".into()),
+            ("FullMaskSize".into(), "5,4".into()),
+            ("WholeImageArea".into(), "1,1,3,4".into()),
+        ]);
+        let frame = ImageFrame {
+            width: 3.0,
+            height: 2.0,
+            orientation: 1,
+            rotation: 0.0,
+        };
+        let mut acr = AcrMasks::parse(fixture()).unwrap();
+        acr.encoded_bytes = MAX_ENCODED;
+        assert!(acr.image_parameters(&properties, &frame).is_err());
+        assert!(acr.cache.is_empty());
+        acr.encoded_bytes = 0;
+        assert!(acr.image_parameters(&properties, &frame).is_ok());
+        assert_eq!(acr.cache.len(), 1);
+        acr.encoded_bytes = MAX_ENCODED;
+        assert!(acr.image_parameters(&properties, &frame).is_err());
+        assert_eq!(acr.cache.len(), 1);
+        assert!(numbers::<2>("1").is_err());
+        assert!(numbers::<2>("1,2,3").is_err());
     }
     #[test]
     fn missing_or_invalid_ai_components_report_each_name_and_keep_correction_whole() {
