@@ -12,6 +12,12 @@ def run_crs_checks(smoke, wait_for):
     sidecar = case / 'input/smoke.xmp'
     assert not sidecar.exists()
     initial = image_state(url, image, token=token)
+
+    def dismiss_alerts():
+        smoke.execute("document.querySelectorAll('.Toastify__close-button').forEach(e=>e.click());return true;")
+        wait_for(lambda: smoke.execute("return !document.querySelector('[role=alert]');"), 'CRS alerts dismissed before pixel comparison')
+
+    dismiss_alerts()
     baseline = smoke.stable_preview('crs-original')
 
     def import_sidecar():
@@ -36,15 +42,29 @@ def run_crs_checks(smoke, wait_for):
     assert imported['adjustments']['shadows'] == initial['adjustments']['shadows']
     assert imported['adjustments']['blacks'] == initial['adjustments']['blacks']
     assert imported['adjustments']['curves']['luma'] == [{'x': 0, 'y': 0}, {'x': 128, 'y': 144}, {'x': 255, 'y': 255}]
+    smoke.capture('crs-import-report')
+    dismiss_alerts()
     changed = smoke.stable_preview('crs-imported')
     assert ImageChops.difference(smoke.crop(baseline), smoke.crop(changed)).getbbox() is not None
+    immediate = imported
+    imported = image_state(url, image, token=token)
+    snapshots = {'original': initial, 'imported_immediate': immediate, 'imported_after_render': imported}
+    (case / 'crs-state-snapshots.json').write_text(json.dumps(snapshots, indent=2) + '\n')
+    assert imported['adjustments']['exposure'] == 1.25
+    assert imported['adjustments']['curves']['luma'] == [{'x': 0, 'y': 0}, {'x': 128, 'y': 144}, {'x': 255, 'y': 255}]
+    for key in ('contrast', 'shadows', 'blacks'):
+        assert imported['adjustments'][key] == initial['adjustments'][key]
     smoke.step('public CRS import resolves namespace aliases and curves without foreign/nested/other-subject values')
 
-    smoke.execute("document.querySelectorAll('.Toastify__close-button').forEach(e=>e.click());return true;")
     sidecar.write_text('<!DOCTYPE root [<!ENTITY x SYSTEM "file:///etc/passwd">]><root>&x;</root>')
     import_sidecar()
     wait_for(lambda: smoke.execute("return [...document.querySelectorAll('[role=alert]')].some(e=>e.textContent.includes('DOCTYPE'))"), 'unsafe CRS import refused')
-    assert image_state(url, image, token=token) == imported
+    smoke.capture('crs-refusal-alert')
+    after_refusal = image_state(url, image, token=token)
+    snapshots['after_refusal'] = after_refusal
+    (case / 'crs-state-snapshots.json').write_text(json.dumps(snapshots, indent=2) + '\n')
+    assert after_refusal == imported, 'Refusal changed settled state; see crs-state-snapshots.json'
+    dismiss_alerts()
     refused = smoke.stable_preview('crs-unsafe-refused')
     assert ImageChops.difference(smoke.crop(changed), smoke.crop(refused)).getbbox() is None
     smoke.step('public import refuses DOCTYPE without changing the active draft or pixels')
