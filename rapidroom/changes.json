@@ -20,6 +20,24 @@
       "notes": "AI mask bitmaps are filtered before minification and sampled bilinearly at transformed pixel centers. Rotation, flip, crop and coarse orientation retain correct pixel alignment; subjects reaching frame edges do not gain an extra fade. Stored bitmap data and model selection are unchanged."
     },
     {
+      "id": "raw-repair-thumbnail-native-scale",
+      "title": "Keep RAW repair patches aligned in regenerated thumbnails",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [
+        "RapidRoom/rapidroom#240",
+        "CyberTimon/RapidRAW#1903"
+      ],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "RAW thumbnails with saved repair patches composite on a native-resolution base before resizing, preventing shifted, enlarged or missing repairs after copying settings. Photos without repair patches retain their fast decode path. Main-image processing and exports are unchanged."
+    },
+    {
       "id": "atomic-write-failure-injection",
       "title": "Test atomic file writes under failure conditions",
       "category": "ci",
@@ -33,6 +51,21 @@
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Injects partial-write disk-full, sync/finalization, and final-name collision failures into atomic sidecar writes. Each test verifies the existing file is preserved and the temporary file is removed. Production file-write behavior is unchanged."
+    },
+    {
+      "id": "recursive-view-folder-navigation",
+      "title": "Keep arrow-key navigation within folders in Recursive view",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Arrow-key navigation in Recursive library view stays within the selected image's parent folder and preserves that folder's sort order. Other view modes retain their existing global navigation order."
     },
     {
       "id": "crs-interoperability-scoped-reader",
