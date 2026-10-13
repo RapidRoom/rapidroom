@@ -6,16 +6,19 @@ import { invoke } from '../test/tauriMock';
 import { useLibraryActions } from './useLibraryActions';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
-import { SelectedImage } from '../components/ui/AppProperties';
+import { ImageFile, LibraryViewMode, RawStatus, SelectedImage, Theme } from '../components/ui/AppProperties';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const initialEditorState = useEditorStore.getState();
 const initialLibraryState = useLibraryStore.getState();
+const initialSettingsState = useSettingsStore.getState();
 
 afterEach(() => {
   useEditorStore.setState(initialEditorState, true);
   useLibraryStore.setState(initialLibraryState, true);
+  useSettingsStore.setState(initialSettingsState, true);
 });
 
 async function mountLibraryActions(handleImageSelect: (path: string) => void) {
@@ -86,6 +89,79 @@ describe('useLibraryActions.handleImageClick with Reference View', () => {
     expect(handleImageSelect).toHaveBeenCalledWith('/photos/next.raw');
     expect(useLibraryStore.getState().multiSelectedPaths).toEqual(['/photos/next.raw']);
     expect(useEditorStore.getState().referenceView.reference?.path).toBe('/photos/ref.raw');
+    await unmount();
+  });
+});
+
+describe('useLibraryActions.handleLibraryImageSingleClick recursive range selection', () => {
+  it('selects only the contiguous current-folder range in Recursive view', async () => {
+    const imageList = ['/photos/current/MG_8355.jpg', '/photos/current/IMG_1821.jpg', '/photos/child/IMG_5000.jpg'].map(
+      (path) => ({ path }) as ImageFile,
+    );
+    const anchor = '/photos/current/MG_8355.jpg';
+    useLibraryStore.setState({
+      ...initialLibraryState,
+      currentFolderPath: '/photos/current',
+      imageList,
+      multiSelectedPaths: [anchor],
+      selectionAnchorPath: anchor,
+      sortCriteria: { key: 'name', order: 'asc' },
+      filterCriteria: { colors: [], rating: 0, rawStatus: RawStatus.All },
+      searchCriteria: { tags: [], text: '', mode: 'OR' },
+    });
+    useSettingsStore.setState({
+      ...initialSettingsState,
+      appSettings: {
+        ...(initialSettingsState.appSettings ?? { lastRootPath: null, theme: Theme.Dark }),
+        libraryViewMode: LibraryViewMode.Recursive,
+      },
+    });
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+
+    actions.handleLibraryImageSingleClick('/photos/current/IMG_1821.jpg', { ...click, shiftKey: true }, [
+      '/photos/current/IMG_1821.jpg',
+      anchor,
+      '/photos/child/IMG_5000.jpg',
+    ]);
+
+    expect(useLibraryStore.getState().multiSelectedPaths).toEqual([
+      '/photos/current/IMG_1821.jpg',
+      '/photos/current/MG_8355.jpg',
+    ]);
+    await unmount();
+  });
+
+  it('keeps the globally sorted range in Flat view', async () => {
+    const imageList = ['/photos/current/MG_8355.jpg', '/photos/current/IMG_1821.jpg', '/photos/child/IMG_5000.jpg'].map(
+      (path) => ({ path }) as ImageFile,
+    );
+    const anchor = '/photos/current/MG_8355.jpg';
+    useLibraryStore.setState({
+      ...initialLibraryState,
+      currentFolderPath: '/photos/current',
+      imageList,
+      multiSelectedPaths: [anchor],
+      selectionAnchorPath: anchor,
+      sortCriteria: { key: 'name', order: 'asc' },
+      filterCriteria: { colors: [], rating: 0, rawStatus: RawStatus.All },
+      searchCriteria: { tags: [], text: '', mode: 'OR' },
+    });
+    useSettingsStore.setState({
+      ...initialSettingsState,
+      appSettings: {
+        ...(initialSettingsState.appSettings ?? { lastRootPath: null, theme: Theme.Dark }),
+        libraryViewMode: LibraryViewMode.Flat,
+      },
+    });
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+
+    actions.handleLibraryImageSingleClick('/photos/current/IMG_1821.jpg', { ...click, shiftKey: true }, [
+      '/photos/current/IMG_1821.jpg',
+      anchor,
+      '/photos/child/IMG_5000.jpg',
+    ]);
+
+    expect(useLibraryStore.getState().multiSelectedPaths).toContain('/photos/child/IMG_5000.jpg');
     await unmount();
   });
 });
