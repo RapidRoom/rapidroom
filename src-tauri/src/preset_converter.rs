@@ -1269,6 +1269,7 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
 }
 
 fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, String> {
+    crate::xmp::validate(xmp_content).map_err(|e| e.to_string())?;
     // Lightroom sidecars can contain nested rdf:Description elements for
     // profiles and looks. Only the outer description represents the image's
     // active settings; nested attributes must not overwrite those values.
@@ -1298,7 +1299,7 @@ fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, St
     Ok(attrs)
 }
 
-const BASIC_MAPPINGS: &[(&str, &str)] = &[
+pub(crate) const BASIC_MAPPINGS: &[(&str, &str)] = &[
     ("Exposure2012", "exposure"),
     ("Contrast2012", "contrast"),
     ("Highlights2012", "highlights"),
@@ -1723,6 +1724,23 @@ fn convert_xmp_to_preset_with_crop(
         include_crop_transform: Some(include_crop_transform),
         preset_type: Some("style".to_string()),
         favorite: None,
+        camera_model_restriction: crate::xmp::preset_scalar(
+            xmp_content,
+            "http://ns.adobe.com/camera-raw-settings/1.0/",
+            "CameraModelRestriction",
+        )
+        .ok()
+        .flatten()
+        .filter(|v| !v.is_empty()),
+        unavailable_reason: crate::xmp::preset_scalar(
+            xmp_content,
+            "http://ns.adobe.com/camera-raw-settings/1.0/",
+            "CameraProfile",
+        )
+        .ok()
+        .flatten()
+        .filter(|v| !v.is_empty())
+        .map(|v| format!("Requires camera profile: {v}")),
     })
 }
 

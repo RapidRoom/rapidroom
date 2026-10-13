@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Menu,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -40,18 +41,10 @@ import { useLibraryStore } from '../../../store/useLibraryStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useUIStore } from '../../../store/useUIStore';
 import { AlbumItem, AlbumGroup, Album, Invokes, FolderTreeSort, SortDirection } from '../../ui/AppProperties';
+import type { FolderTree } from '../../ui/AppProperties';
 import { useLibraryActions } from '../../../hooks/useLibraryActions';
 
-export interface FolderTree {
-  children: FolderTree[];
-  isDir: boolean;
-  name: string;
-  path: string;
-  imageCount?: number;
-  hasSubdirs?: boolean;
-  modified?: number;
-  created?: number;
-}
+export type { FolderTree } from '../../ui/AppProperties';
 
 interface FolderTreeProps {
   isResizing: boolean;
@@ -88,7 +81,7 @@ interface VisibleProps {
   total: number;
 }
 
-const ALBUM_ICONS: Record<string, React.ElementType> = {
+const ALBUM_ICONS: Record<string, LucideIcon> = {
   plane: Plane,
   mountain: Mountain,
   sun: Sun,
@@ -382,7 +375,7 @@ function AlbumTreeNode({
   const isImageDrag = active?.data?.current?.type === 'library-image';
   const isDropTarget = isOver && isImageDrag && !isGroup;
 
-  let ItemIcon = isGroup ? (isExpanded ? FolderOpen : Folder) : AlbumIcon;
+  let ItemIcon: LucideIcon = isGroup ? (isExpanded ? FolderOpen : Folder) : AlbumIcon;
   if (item.icon && ALBUM_ICONS[item.icon]) {
     ItemIcon = ALBUM_ICONS[item.icon];
   }
@@ -557,7 +550,7 @@ function TreeNode({
   };
 
   const currentFolderIconKey = folderIcons[node.path];
-  let ResolvedIcon = isExpanded ? FolderOpen : Folder;
+  let ResolvedIcon: LucideIcon = isExpanded ? FolderOpen : Folder;
 
   if (currentFolderIconKey && ALBUM_ICONS[currentFolderIconKey]) {
     ResolvedIcon = ALBUM_ICONS[currentFolderIconKey];
@@ -776,7 +769,7 @@ export default function FolderTree({
   const filteredTrees = useMemo(() => {
     let base = folderTrees;
     if (isSearching) {
-      base = base.map((tree: any) => filterTree(tree, trimmedQuery)).filter((t: any) => t !== null);
+      base = base.map((tree) => filterTree(tree, trimmedQuery)).filter((tree): tree is FolderTree => tree !== null);
     }
     return sortFolderTree(base, folderTreeSort);
   }, [folderTrees, trimmedQuery, isSearching, folderTreeSort]);
@@ -804,7 +797,9 @@ export default function FolderTree({
   const filteredAlbumTree = useMemo(() => {
     let base = albumTree;
     if (isSearching) {
-      base = base.map((item: any) => filterAlbumTree(item, trimmedQuery)).filter((t: any) => t !== null);
+      base = base
+        .map((item: AlbumItem) => filterAlbumTree(item, trimmedQuery))
+        .filter((t): t is AlbumItem => t !== null);
     }
     return base;
   }, [albumTree, trimmedQuery, isSearching]);

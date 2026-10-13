@@ -6,7 +6,7 @@ import math
 import time
 from pathlib import Path
 
-from mcp_clients import client_command, execute_client, image_state, objects, rpc, run_client_checks
+from mcp_clients import ENVELOPE, tool_data, client_command, execute_client, image_state, objects, rpc, run_client_checks
 from mcp_history import read_tool
 from mcp_measure import images, check_statistics
 from mcp_revisions import calls
@@ -24,12 +24,14 @@ def client_reply(events, client, identifier):
         content = value["content"]
         if isinstance(content, list):
             content = next(v["text"] for v in content if v.get("type") == "text")
-        return json.loads(content)
+        parsed = json.loads(content)
+        return parsed.get(ENVELOPE, parsed)
     value = {v["id"]: v for v in objects(events) if v.get("type") == "mcp_tool_call"}[identifier]
     if value["status"] != "completed":
         raise RuntimeError("Actual Codex mutation failed")
     result = value["result"]
-    return result.get("structured_content") or json.loads(next(v["text"] for v in result["content"] if v["type"] == "text"))
+    parsed = result.get("structured_content") or json.loads(next(v["text"] for v in result["content"] if v["type"] == "text"))
+    return parsed.get(ENVELOPE, parsed)
 
 
 def run_compact_checks(case, smoke):
@@ -56,7 +58,7 @@ def run_compact_checks(case, smoke):
         if response.get("isError"):
             raise RuntimeError(tool + " failed")
         after = state()
-        value = response["structuredContent"]
+        value = tool_data(response)
         actual_keys = sorted(key for key in before["adjustments"].keys() | after["adjustments"].keys()
                              if before["adjustments"].get(key) != after["adjustments"].get(key))
         if value["editRevision"] != after["editRevision"]:
@@ -131,7 +133,7 @@ def run_compact_checks(case, smoke):
         full = rpc(url, "tools/call", {"name": tool, "arguments": {**arguments, "histogram": True}}, token=token)
         if response.get("isError") or full.get("isError"):
             raise RuntimeError("Summary/histogram measurement failed")
-        summary, detailed = response["structuredContent"], full["structuredContent"]
+        summary, detailed = tool_data(response), tool_data(full)
         if not baseline and ("histogram" in summary or {k: v for k, v in detailed.items() if k != "histogram"} != summary):
             raise RuntimeError("Summary dropped exact statistics or kept default histograms")
         if "histogram" not in detailed:
@@ -153,7 +155,7 @@ def run_compact_checks(case, smoke):
         raise RuntimeError("Four landscape variants still have square padding")
     (case / "captures/mcp-tight-comparison.png").write_bytes(payloads[0])
     result["comparison"] = {"sheet_dimensions": list(sheets[0].size), "variant_dimensions": [list(v.size) for v in separate],
-                            "sheet_png_sha256": sha(case / "captures/mcp-tight-comparison.png"), "labels": response["structuredContent"]["labels"],
+                            "sheet_png_sha256": sha(case / "captures/mcp-tight-comparison.png"), "labels": tool_data(response)["labels"],
                             "separate_variant_pixels_identical": True}
     unchanged()
     # Independently verify the opt-in histograms against exactly decoded pre-JPEG pixels.

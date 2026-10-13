@@ -879,7 +879,8 @@
         "undo": "復原（Ctrl+Z）或歷史記錄（右鍵單擊）"
       },
       "vc": "VC"
-    }
+    },
+    "embeddedPreviewWarning": "RAW 顯影失敗；目前顯示內嵌預覽。"
   },
   "export": {
     "advanced": {
@@ -1005,6 +1006,11 @@
       "scale": "縮放",
       "spacing": "間距",
       "watermarkImage": "水印影像"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

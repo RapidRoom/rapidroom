@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { computeSortedLibrary } from './useSortedLibrary';
-import { FlagStatus, ImageFlag, RawStatus } from '../components/ui/AppProperties';
+import { FlagStatus, ImageFlag, RawStatus, type ImageFile } from '../components/ui/AppProperties';
 
 const ratings: Record<string, number> = { '/a.raw': 0, '/b.raw': 2, '/c.raw': 3, '/d.raw': 4, '/e.raw': 5 };
-const imageList = Object.keys(ratings).map((path, i) => ({ path, modified: i, is_raw: true, tags: [] }));
+const makeImage = (path: string, modified: number, flag: ImageFile['flag'] = null): ImageFile => ({
+  exif: null,
+  flag,
+  group_id: null,
+  is_cloud_placeholder: false,
+  is_edited: false,
+  is_raw: true,
+  is_virtual_copy: false,
+  modified,
+  path,
+  rating: 0,
+  tags: [],
+});
+
+const imageList = Object.keys(ratings).map((path, i) => makeImage(path, i));
 
 const filtered = (rating: number, ratingExact?: boolean, ratingOperator?: 'gte' | 'eq' | 'lte') =>
   computeSortedLibrary(
@@ -42,12 +56,12 @@ describe('rating filter', () => {
 });
 
 describe('flag filter and rating sort', () => {
-  const flagged = [
-    { path: '/pick.raw', flag: ImageFlag.Pick },
-    { path: '/none.raw', flag: null },
-    { path: '/reject.raw', flag: ImageFlag.Reject },
-    { path: '/old.raw' },
-  ].map((image, i) => ({ ...image, modified: i, is_raw: true, tags: [] }));
+  const flagged: ImageFile[] = [
+    makeImage('/pick.raw', 0, ImageFlag.Pick),
+    makeImage('/none.raw', 1),
+    makeImage('/reject.raw', 2, ImageFlag.Reject),
+    makeImage('/old.raw', 3),
+  ];
   const stars: Record<string, number> = { '/pick.raw': 2, '/none.raw': 1, '/reject.raw': 5, '/old.raw': 3 };
 
   const list = (flagStatus?: FlagStatus, sortCriteria = { key: 'name', order: 'asc' }) =>

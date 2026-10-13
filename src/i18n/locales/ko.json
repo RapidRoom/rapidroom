@@ -879,7 +879,8 @@
         "undo": "실행 취소 (Ctrl+Z) 또는 기록 (우클릭)"
       },
       "vc": "VC"
-    }
+    },
+    "embeddedPreviewWarning": "RAW 현상에 실패하여 내장 미리보기를 표시합니다."
   },
   "export": {
     "advanced": {
@@ -1005,6 +1006,11 @@
       "scale": "크기",
       "spacing": "간격",
       "watermarkImage": "워터마크 이미지"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

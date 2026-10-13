@@ -289,18 +289,23 @@ Masks live in the `masks` array. Each entry is a mask container with its own adj
 
 - Sub-masks are combined in order: each is inverted if set and scaled by its opacity, then `additive` takes the maximum, `subtractive` subtracts and `intersect` takes the minimum. The container’s `invert` and `opacity` apply last.
 - Positions and sizes are in full-resolution pixels of the image after rotation and flips, before the crop.
-- Over MCP today the `masks` array is accepted but not checked item by item, and writing it replaces every mask. Read the current masks first and keep the ones you aren’t changing. Mask tools, including AI masks, are [coming](tools.md#coming) (#120). Writing masks this way is untested: check the preview, and keep the user’s masks safe.
+- Discovery validates each container/component and local adjustment. `upsert_mask` creates or deep-updates one id while preserving siblings; `remove_mask` removes only that id. A supplied `subMasks` replaces only its container’s component array. Full `masks` arrays in set/update replace every container. Read the latest revision before each mutation.
+- IDs contain 1–128 ASCII letters, digits, underscore, colon, dot or hyphen. Sparse local settings receive defaults, including nested HSL/grading channels. Parametric `split1 < split2 < split3` is checked after existing-value merge or defaults 25/50/75. Echoed display names retain stored names; intentional new names use the existing bounded text policy.
+- Radial/brush feather is 0–1; colour/luminance/AI feather is 0–100. Coordinates are full-resolution image pixels before crop, independent of display/preview size. `crop` is `{x,y,width,height,unit:"px"}`, or null; set `aspectRatio` separately to width ÷ height. Last-preview coordinate conversion and AI generation remain #120 follow-ups. Editing a stored AI bitmap does not run a model.
 
-A new container looks like this (`id` is a UUID):
+A new container looks like this (`id` can be a UUID):
 
 ```json
 {
-  "adjustments": "{ …mask adjustments… }",
+  "adjustments": {
+    "exposure": 0.5
+  },
   "invert": false,
   "name": "New Mask",
   "opacity": 100,
   "subMasks": [],
-  "visible": true
+  "visible": true,
+  "id": "local-mask"
 }
 ```
 

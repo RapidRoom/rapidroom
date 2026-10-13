@@ -879,7 +879,8 @@
         "undo": "撤销（Ctrl+Z）或历史记录（右键单击）"
       },
       "vc": "VC"
-    }
+    },
+    "embeddedPreviewWarning": "RAW 显影失败；当前显示嵌入式预览。"
   },
   "export": {
     "advanced": {
@@ -1005,6 +1006,11 @@
       "scale": "缩放",
       "spacing": "间距",
       "watermarkImage": "水印图像"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

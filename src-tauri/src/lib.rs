@@ -31,6 +31,8 @@ mod app_settings;
 mod app_state;
 mod apple_raw;
 mod as_shot;
+#[cfg(any(feature = "mcp", feature = "terminal", test))]
+mod assistant_text;
 mod baseline_exposure;
 mod batch_rename;
 mod bench;
@@ -74,8 +76,10 @@ mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
 mod preset_converter;
+mod preset_xmp;
 mod raw_processing;
 mod relight;
+mod starter_presets;
 mod tagging;
 mod tagging_utils;
 mod terminal;
@@ -90,6 +94,7 @@ mod tree_denoise;
 mod two_phase_rename;
 mod white_balance;
 mod window_customizer;
+mod xmp;
 
 use std::collections::{HashMap, hash_map::DefaultHasher};
 use std::fs;
@@ -2716,6 +2721,7 @@ pub fn run() {
             file_management::handle_import_legacy_presets_from_file,
             file_management::handle_import_presets_from_files,
             file_management::handle_export_presets_to_file,
+            file_management::export_lightroom_preset,
             file_management::save_community_preset,
             file_management::clear_all_sidecars,
             file_management::clear_thumbnail_cache,

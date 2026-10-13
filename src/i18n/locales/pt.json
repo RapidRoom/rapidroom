@@ -906,7 +906,8 @@
         "undo": "Desfazer (Ctrl+Z) ou Histórico (Botão Direito)"
       },
       "vc": "CV"
-    }
+    },
+    "embeddedPreviewWarning": "A revelação RAW falhou; a pré-visualização incorporada está a ser apresentada."
   },
   "export": {
     "advanced": {
@@ -1034,6 +1035,11 @@
       "scale": "Escala",
       "spacing": "Espaçamento",
       "watermarkImage": "Imagem da Marca D'água"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

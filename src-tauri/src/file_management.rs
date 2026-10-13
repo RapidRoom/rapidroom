@@ -346,6 +346,18 @@ pub struct Preset {
     pub preset_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub favorite: Option<bool>,
+    #[serde(
+        rename = "cameraModelRestriction",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub camera_model_restriction: Option<String>,
+    #[serde(
+        rename = "unavailableReason",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub unavailable_reason: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -3059,7 +3071,7 @@ fn import_xmp_adjustments_to_sidecar(
 
     let (source_path, sidecar_path) = parse_virtual_path(path);
     ensure_card_writable(&source_path)?;
-    let xmp_content = fs::read_to_string(xmp_path)
+    let xmp_content = crate::xmp::read(xmp_path)
         .map_err(|error| format!("Failed to read XMP file: {}", error))?;
     let converted_preset =
         preset_converter::convert_xmp_sidecar_to_preset_for_image(&xmp_content, &source_path)?;
@@ -3860,7 +3872,7 @@ fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String
 pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
     let path = get_presets_path(&app_handle)?;
     if !path.exists() {
-        return Ok(Vec::new());
+        return crate::starter_presets::library();
     }
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
     serde_json::from_str(&content).map_err(|e| e.to_string())
@@ -3929,7 +3941,7 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
         return Ok((preset_file.presets, Vec::new()));
     }
 
-    let content = fs::read_to_string(file_path)
+    let content = String::from_utf8(crate::xmp::read_bytes(Path::new(file_path))?)
         .map_err(|e| format!("Failed to read legacy preset file: {}", e))?;
 
     let mut not_imported = Vec::new();
@@ -3947,13 +3959,30 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
         content
     };
 
-    let converted_preset = preset_converter::convert_xmp_to_preset(&xmp_content)?;
+    let mut converted_preset = preset_converter::convert_xmp_to_preset(&xmp_content)?;
+    if let Some(reason) = crate::preset_xmp::unavailable_reason(&xmp_content)? {
+        converted_preset.unavailable_reason = Some(reason);
+    }
+    let exact = crate::preset_xmp::exact_adjustments(&xmp_content)?;
+    let is_exact = exact.is_some();
+    if let Some(exact) = exact {
+        converted_preset.adjustments = exact;
+    }
     for item in
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset)
     {
         if !not_imported.iter().any(|existing| existing == item) {
             not_imported.push(item.to_string());
         }
+    }
+    if is_exact {
+        not_imported.clear();
+    }
+    if !not_imported.is_empty() && converted_preset.unavailable_reason.is_none() {
+        converted_preset.unavailable_reason = Some(format!(
+            "Settings not supported: {}",
+            not_imported.join(", ")
+        ));
     }
     let warnings = if not_imported.is_empty() {
         Vec::new()
@@ -3963,7 +3992,16 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
             not_imported.join(", ")
         )]
     };
-    Ok((vec![PresetItem::Preset(converted_preset)], warnings))
+    let item = if let Some(name) = crate::preset_xmp::group_name(&xmp_content) {
+        PresetItem::Folder(PresetFolder {
+            id: format!("xmp-group:{name}"),
+            name,
+            children: vec![converted_preset],
+        })
+    } else {
+        PresetItem::Preset(converted_preset)
+    };
+    Ok((vec![item], warnings))
 }
 
 fn merge_imported_items(
@@ -3972,6 +4010,27 @@ fn merge_imported_items(
     imported: Vec<PresetItem>,
 ) {
     for mut imported_item in imported {
+        if let PresetItem::Folder(incoming) = &mut imported_item
+            && incoming.id.starts_with("xmp-group:")
+            && let Some(PresetItem::Folder(existing)) = target
+                .iter_mut()
+                .find(|item| matches!(item, PresetItem::Folder(f) if f.name == incoming.name))
+        {
+            let mut names: HashSet<String> =
+                existing.children.iter().map(|p| p.name.clone()).collect();
+            for mut preset in incoming.children.drain(..) {
+                preset.id = Uuid::new_v4().to_string();
+                let name = preset.name.clone();
+                let mut suffix = 1;
+                while names.contains(&preset.name) {
+                    preset.name = format!("{name} ({suffix})");
+                    suffix += 1;
+                }
+                names.insert(preset.name.clone());
+                existing.children.push(preset);
+            }
+            continue;
+        }
         let original_name = match &mut imported_item {
             PresetItem::Preset(p) => {
                 p.id = Uuid::new_v4().to_string();
@@ -4097,6 +4156,14 @@ pub fn handle_export_presets_to_file(
 }
 
 #[tauri::command]
+pub fn export_lightroom_preset(preset: Preset, file_path: String) -> Result<Vec<String>, String> {
+    ensure_card_writable(Path::new(&file_path))?;
+    let (xml, unsupported) = crate::preset_xmp::serialize(&preset)?;
+    fs::write(file_path, xml).map_err(|e| e.to_string())?;
+    Ok(unsupported)
+}
+
+#[tauri::command]
 pub fn save_community_preset(
     name: String,
     adjustments: Value,
@@ -4136,6 +4203,8 @@ pub fn save_community_preset(
         include_crop_transform,
         preset_type: preset_type.or(Some("style".to_string())),
         favorite: None,
+        camera_model_restriction: None,
+        unavailable_reason: None,
     };
 
     if let Some(PresetItem::Folder(folder)) = current_presets.iter_mut().find(|item| {
@@ -4890,17 +4959,7 @@ fn create_virtual_copy_on_disk(source_virtual_path: &str) -> Result<String, Stri
 }
 
 pub fn extract_xmp_rating(content: &str) -> Option<i8> {
-    if let Some(idx) = content.find("xmp:Rating=\"") {
-        let start = idx + 12;
-        let end = content[start..].find('"').map(|i| start + i)?;
-        return content[start..end].parse().ok();
-    }
-    if let Some(idx) = content.find("<xmp:Rating>") {
-        let start = idx + 12;
-        let end = content[start..].find('<').map(|i| start + i)?;
-        return content[start..end].parse().ok();
-    }
-    None
+    crate::xmp::metadata(content).rating
 }
 
 const XMP_REJECTED_RATING: i8 = -1;
@@ -4936,37 +4995,11 @@ pub fn xmp_subject_bag<S: AsRef<str>>(items: &[S]) -> String {
 }
 
 pub fn extract_xmp_label(content: &str) -> Option<String> {
-    if let Some(idx) = content.find("xmp:Label=\"") {
-        let start = idx + 11;
-        let end = content[start..].find('"').map(|i| start + i)?;
-        return Some(content[start..end].to_string());
-    }
-    if let Some(idx) = content.find("<xmp:Label>") {
-        let start = idx + 11;
-        let end = content[start..].find('<').map(|i| start + i)?;
-        return Some(content[start..end].to_string());
-    }
-    None
+    crate::xmp::metadata(content).label
 }
 
 pub fn extract_xmp_tags(content: &str) -> Vec<String> {
-    let mut tags = Vec::new();
-    if let Some(start_idx) = content.find("<dc:subject>")
-        && let Some(end_idx) = content[start_idx..].find("</dc:subject>")
-    {
-        let subject_block = &content[start_idx..start_idx + end_idx];
-        let mut current_idx = 0;
-        while let Some(li_start) = subject_block[current_idx..].find("<rdf:li>") {
-            let val_start = current_idx + li_start + 8;
-            if let Some(li_end) = subject_block[val_start..].find("</rdf:li>") {
-                tags.push(subject_block[val_start..val_start + li_end].to_string());
-                current_idx = val_start + li_end + 9;
-            } else {
-                break;
-            }
-        }
-    }
-    tags
+    crate::xmp::metadata(content).tags
 }
 
 pub fn resolve_xmp_path(image_path: &Path) -> Option<PathBuf> {
@@ -5044,7 +5077,7 @@ pub fn sync_metadata_from_xmp(
     let mut changed = false;
 
     if let Some(xmp_file) = actual_xmp
-        && let Ok(content) = fs::read_to_string(&xmp_file)
+        && let Ok(content) = crate::xmp::read(&xmp_file)
     {
         let xmp_rating = extract_xmp_rating(&content);
 
@@ -5101,119 +5134,218 @@ pub fn sync_metadata_from_xmp(
     changed
 }
 
+fn backup_malformed_xmp(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    // Never replace an earlier backup, including one from another process.
+    for index in 0..100 {
+        let mut name = path.as_os_str().to_os_string();
+        name.push(if index == 0 {
+            ".bak".into()
+        } else {
+            format!(".bak.{index}")
+        });
+        let backup = PathBuf::from(name);
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        match options.open(&backup) {
+            Ok(mut file) => {
+                if let Err(error) = file.write_all(bytes).and_then(|()| file.sync_all()) {
+                    let _ = fs::remove_file(&backup);
+                    return Err(error.to_string());
+                }
+                #[cfg(unix)]
+                fs::File::open(
+                    path.parent()
+                        .filter(|p| !p.as_os_str().is_empty())
+                        .unwrap_or(Path::new(".")),
+                )
+                .and_then(|parent| parent.sync_all())
+                .map_err(|e| e.to_string())?;
+                return Ok(());
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.to_string()),
+        }
+    }
+    Err("No free XMP backup name".into())
+}
+
 pub fn sync_metadata_to_xmp(
     source_path: &Path,
     sidecar_path: &Path,
     metadata: &ImageMetadata,
     create_if_missing: bool,
 ) {
-    let is_virtual_copy = is_virtual_copy_sidecar(source_path, sidecar_path);
-    let xmp_path = source_path.with_extension("xmp");
-    let xmp_path_upper = source_path.with_extension("XMP");
-
-    let mut actual_xmp = if xmp_path.exists() {
-        Some(xmp_path.clone())
-    } else if xmp_path_upper.exists() {
-        Some(xmp_path_upper.clone())
+    if ensure_card_writable(source_path).is_err() {
+        return;
+    }
+    let existing = resolve_xmp_path(source_path);
+    if existing.is_none() && !create_if_missing {
+        return;
+    }
+    let path = existing
+        .clone()
+        .unwrap_or_else(|| source_path.with_extension("xmp"));
+    if ensure_card_writable(&path).is_err() {
+        return;
+    }
+    let bytes = if existing.is_some() {
+        match crate::xmp::read_bytes(&path) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                log::error!("XMP write refused: {}", error);
+                return;
+            }
+        }
     } else {
-        None
+        crate::xmp::SKELETON.as_bytes().to_vec()
     };
+    let parsed =
+        std::str::from_utf8(&bytes).map_err(|e| crate::xmp::Error::Malformed(e.to_string()));
+    let validation = parsed.and_then(|content| crate::xmp::validate(content).map(|()| content));
+    let content = match validation {
+        Ok(content) => content,
+        Err(crate::xmp::Error::Unsafe(reason)) => {
+            log::error!("XMP write refused: {}", reason);
+            return;
+        }
+        Err(error) => {
+            if existing.is_some()
+                && let Err(backup_error) = backup_malformed_xmp(&path, &bytes)
+            {
+                log::error!("XMP repair refused: backup failed: {}", backup_error);
+                return;
+            }
+            log::warn!("{}; original backed up before repair", error);
+            crate::xmp::SKELETON
+        }
+    };
+    let rejected = if is_virtual_copy_sidecar(source_path, sidecar_path) {
+        extract_xmp_rating(content) == Some(XMP_REJECTED_RATING)
+    } else {
+        metadata.flag == Some(ImageFlag::Reject)
+    };
+    let rating = if rejected {
+        i16::from(XMP_REJECTED_RATING)
+    } else {
+        i16::from(metadata.rating)
+    };
+    let mut label = None;
+    let mut tags = Vec::new();
+    for tag in metadata.tags.as_deref().unwrap_or_default() {
+        if let Some(color) = tag.strip_prefix(COLOR_TAG_PREFIX) {
+            let mut chars = color.chars();
+            label = Some(chars.next().map_or_else(String::new, |c| {
+                c.to_uppercase().collect::<String>() + chars.as_str()
+            }));
+        } else {
+            tags.push(tag.clone());
+        }
+    }
+    match crate::xmp::update(content, rating, label.as_deref(), &tags) {
+        Ok(updated) => {
+            if updated.as_bytes() != bytes
+                && let Err(error) = write_file_atomically(&path, updated)
+            {
+                log::error!("Failed to write XMP: {}", error);
+            }
+        }
+        Err(error) => log::error!("XMP write refused: {}", error),
+    }
+}
 
-    if actual_xmp.is_none() {
-        if !create_if_missing {
-            return;
-        }
-        let skeleton = r#"<?xml version="1.0" encoding="UTF-8"?>
-<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="RapidRAW">
- <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-  <rdf:Description rdf:about=""
-    xmlns:xmp="http://ns.adobe.com/xap/1.0/"
-    xmlns:dc="http://purl.org/dc/elements/1.1/">
-  </rdf:Description>
- </rdf:RDF>
-</x:xmpmeta>"#;
-        if let Err(e) = write_file_atomically(&xmp_path, skeleton) {
-            log::error!("Failed to create skeleton XMP: {}", e);
-            return;
-        }
-        actual_xmp = Some(xmp_path);
+#[cfg(test)]
+mod xmp_safety_tests {
+    use super::*;
+
+    fn write_metadata(path: &Path) {
+        let metadata = ImageMetadata {
+            rating: 3,
+            tags: Some(vec![
+                "family & <friends>".into(),
+                format!("{COLOR_TAG_PREFIX}red"),
+            ]),
+            ..Default::default()
+        };
+        sync_metadata_to_xmp(path, &path.with_extension("arw.rrdata"), &metadata, true);
     }
 
-    if let Some(xmp_file) = actual_xmp
-        && let Ok(mut content) = fs::read_to_string(&xmp_file)
-    {
-        // A virtual copy leaves the original's reject in the .xmp as it is.
-        let rejected = if is_virtual_copy {
-            extract_xmp_rating(&content) == Some(XMP_REJECTED_RATING)
-        } else {
-            metadata.flag == Some(ImageFlag::Reject)
-        };
-        let rating_str = if rejected {
-            XMP_REJECTED_RATING.to_string()
-        } else {
-            metadata.rating.to_string()
-        };
-        let re_rating_attr = regex!(r#"xmp:Rating\s*=\s*"[^"]*""#);
-        let re_rating_tag = regex!(r#"<xmp:Rating\s*>[^<]*</xmp:Rating>"#);
+    #[test]
+    fn backs_up_malformed_bytes_before_repair_without_replacing_old_backup() {
+        let _card = card_mode_test_support::CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("sample.arw");
+        let xmp = raw.with_extension("xmp");
+        let broken = b"<rdf:Description xmp:Rating='2'><broken>";
+        fs::write(&xmp, broken).unwrap();
+        fs::write(dir.path().join("sample.xmp.bak"), "previous").unwrap();
+        write_metadata(&raw);
+        assert_eq!(
+            fs::read(dir.path().join("sample.xmp.bak.1")).unwrap(),
+            broken
+        );
+        assert_eq!(
+            fs::read_to_string(dir.path().join("sample.xmp.bak")).unwrap(),
+            "previous"
+        );
+        let content = crate::xmp::read(&xmp).unwrap();
+        assert_eq!(extract_xmp_rating(&content), Some(3));
+        assert!(extract_xmp_tags(&content).contains(&"family & <friends>".into()));
+    }
 
-        if re_rating_attr.is_match(&content) {
-            content = re_rating_attr
-                .replace(&content, format!("xmp:Rating=\"{}\"", rating_str))
-                .to_string();
-        } else if re_rating_tag.is_match(&content) {
-            content = re_rating_tag
-                .replace(&content, format!("<xmp:Rating>{}</xmp:Rating>", rating_str))
-                .to_string();
-        } else if let Some(last_index) = content.rfind("</rdf:Description>") {
-            let (start, end) = content.split_at(last_index);
-            content = format!("{} <xmp:Rating>{}</xmp:Rating>\n{}", start, rating_str, end);
+    #[test]
+    fn unsafe_sidecars_are_never_overwritten_or_backed_up() {
+        let _card = card_mode_test_support::CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("sample.arw");
+        let xmp = raw.with_extension("xmp");
+        for unsafe_xmp in [
+            "<!DOCTYPE",
+            "<!DOCTYPE a><a/>",
+            &format!("{}{}", "<a>".repeat(65), "</a>".repeat(65)),
+        ] {
+            fs::write(&xmp, unsafe_xmp).unwrap();
+            write_metadata(&raw);
+            assert_eq!(fs::read_to_string(&xmp).unwrap(), unsafe_xmp);
+            assert!(!dir.path().join("sample.xmp.bak").exists());
         }
+        fs::File::create(&xmp)
+            .unwrap()
+            .set_len(crate::xmp::MAX_BYTES as u64 + 1)
+            .unwrap();
+        write_metadata(&raw);
+        assert_eq!(
+            fs::metadata(&xmp).unwrap().len(),
+            crate::xmp::MAX_BYTES as u64 + 1
+        );
+        assert!(!dir.path().join("sample.xmp.bak").exists());
+    }
 
-        let current_tags = metadata.tags.clone().unwrap_or_default();
-        let label = xmp_label(&current_tags);
-        let normal_tags: Vec<String> = current_tags
-            .into_iter()
-            .filter(|t| !t.starts_with(COLOR_TAG_PREFIX))
-            .collect();
-
-        if let Some(lbl) = label {
-            let re_label_attr = regex!(r#"xmp:Label\s*=\s*"[^"]*""#);
-            let re_label_tag = regex!(r#"<xmp:Label\s*>[^<]*</xmp:Label>"#);
-
-            if re_label_attr.is_match(&content) {
-                content = re_label_attr
-                    .replace(&content, format!("xmp:Label=\"{}\"", lbl))
-                    .to_string();
-            } else if re_label_tag.is_match(&content) {
-                content = re_label_tag
-                    .replace(&content, format!("<xmp:Label>{}</xmp:Label>", lbl))
-                    .to_string();
-            } else if let Some(last_index) = content.rfind("</rdf:Description>") {
-                let (start, end) = content.split_at(last_index);
-                content = format!("{} <xmp:Label>{}</xmp:Label>\n{}", start, lbl, end);
-            }
-        } else {
-            let re_label_attr = regex!(r#"\s*xmp:Label\s*=\s*"[^"]*""#);
-            let re_label_tag = regex!(r#"\s*<xmp:Label\s*>[^<]*</xmp:Label>"#);
-            content = re_label_attr.replace_all(&content, "").to_string();
-            content = re_label_tag.replace_all(&content, "").to_string();
+    #[test]
+    fn failed_backup_keeps_malformed_original() {
+        let _card = card_mode_test_support::CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("sample.arw");
+        let xmp = raw.with_extension("xmp");
+        fs::write(&xmp, "<broken>").unwrap();
+        for index in 0..100 {
+            fs::write(
+                dir.path().join(if index == 0 {
+                    "sample.xmp.bak".into()
+                } else {
+                    format!("sample.xmp.bak.{index}")
+                }),
+                "existing backup",
+            )
+            .unwrap();
         }
-
-        let re_subject = regex!(r#"(?s)<dc:subject>\s*<rdf:Bag>.*?</rdf:Bag>\s*</dc:subject>"#);
-        if normal_tags.is_empty() {
-            content = re_subject.replace_all(&content, "").to_string();
-        } else {
-            let bag = xmp_subject_bag(&normal_tags);
-
-            if re_subject.is_match(&content) {
-                content = re_subject.replace(&content, bag).to_string();
-            } else if let Some(last_index) = content.rfind("</rdf:Description>") {
-                let (start, end) = content.split_at(last_index);
-                content = format!("{} {}\n  {}", start, bag, end);
-            }
-        }
-
-        let _ = write_file_atomically(&xmp_file, content);
+        write_metadata(&raw);
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), "<broken>");
     }
 }
 
@@ -5529,10 +5661,9 @@ mod card_mode_tests {
             &rated(4),
             true,
         );
-        assert!(
-            fs::read_to_string(f.library.join("IMG_0001.xmp"))
-                .unwrap()
-                .contains("<xmp:Rating>4</xmp:Rating>")
+        assert_eq!(
+            extract_xmp_rating(&fs::read_to_string(f.library.join("IMG_0001.xmp")).unwrap()),
+            Some(4)
         );
     }
 
@@ -7002,5 +7133,90 @@ mod rename_cache_tests {
                 assert_eq!(fs::read_to_string(cached).unwrap(), *old_path);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod xmp_preset_browser_tests {
+    use super::*;
+
+    #[test]
+    fn xmp_groups_merge_and_keep_profile_compatibility() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("preset.xmp");
+        fs::write(&path, r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" crs:Exposure2012="1" crs:CameraModelRestriction="Sony" crs:CameraProfile="Adobe Standard"><crs:Group><rdf:Alt><rdf:li>Color &amp; Tone</rdf:li></rdf:Alt></crs:Group><crs:Name><rdf:Alt><rdf:li>Warm</rdf:li></rdf:Alt></crs:Name></rdf:Description></rdf:RDF></x:xmpmeta>"#).unwrap();
+        let (items, _) = parse_preset_file(path.to_str().unwrap()).unwrap();
+        let mut library = Vec::new();
+        let mut names = HashSet::new();
+        merge_imported_items(&mut library, &mut names, items.clone());
+        merge_imported_items(&mut library, &mut names, items);
+        assert_eq!(library.len(), 1);
+        let PresetItem::Folder(group) = &library[0] else {
+            panic!("missing group")
+        };
+        assert_eq!(group.name, "Color & Tone");
+        assert_eq!(group.children.len(), 2);
+        assert_ne!(group.children[0].id, group.children[1].id);
+        assert_eq!(group.children[1].name, "Warm (1)");
+        assert_eq!(
+            group.children[0].camera_model_restriction.as_deref(),
+            Some("Sony")
+        );
+        assert!(
+            group.children[0]
+                .unavailable_reason
+                .as_ref()
+                .unwrap()
+                .contains("Adobe Standard")
+        );
+    }
+
+    #[test]
+    fn own_xmp_export_reimports_exact_sparse_adjustments_and_applicability() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("preset.xmp");
+        let mut preset = preset_converter::convert_xmp_to_preset(
+            r#"<rdf:Description crs:Exposure2012="1.25"/>"#,
+        )
+        .unwrap();
+        preset.adjustments =
+            serde_json::json!({"exposure":1.25,"brightness":8,"hsl":{"reds":{"hue":17}}});
+        preset.camera_model_restriction = Some("Sony & Fujifilm".into());
+        preset.unavailable_reason = Some("Requires camera profile: Adobe Standard".into());
+        let (xml, missing) = crate::preset_xmp::serialize(&preset).unwrap();
+        assert!(missing.contains(&"brightness".to_string()));
+        assert!(xml.contains("crs:CameraModelRestriction=\"Sony &amp; Fujifilm\""));
+        assert!(xml.contains("crs:CameraProfile=\"Adobe Standard\""));
+        fs::write(&path, xml).unwrap();
+        let (items, warnings) = parse_preset_file(path.to_str().unwrap()).unwrap();
+        let PresetItem::Folder(group) = &items[0] else {
+            panic!("missing group")
+        };
+        assert_eq!(group.children[0].adjustments, preset.adjustments);
+        assert_eq!(
+            group.children[0].camera_model_restriction,
+            preset.camera_model_restriction
+        );
+        assert_eq!(
+            group.children[0].unavailable_reason,
+            preset.unavailable_reason
+        );
+        assert!(warnings.is_empty());
+        preset.unavailable_reason = Some("Settings not supported: proprietary look".into());
+        let (xml, missing) = crate::preset_xmp::serialize(&preset).unwrap();
+        assert!(missing.contains(&"unavailableReason".to_string()));
+        fs::write(&path, xml).unwrap();
+        let (items, _) = parse_preset_file(path.to_str().unwrap()).unwrap();
+        let PresetItem::Folder(group) = &items[0] else {
+            panic!("missing group")
+        };
+        assert_eq!(
+            group.children[0].unavailable_reason,
+            preset.unavailable_reason
+        );
+        assert_eq!(
+            group.children[0].camera_model_restriction,
+            preset.camera_model_restriction
+        );
     }
 }

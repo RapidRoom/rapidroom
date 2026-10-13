@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useDevicePixelRatio } from '../../hooks/useDevicePixelRatio';
 import {
   ArrowLeft,
   Cloud,
@@ -24,6 +25,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import clsx from 'clsx';
 import { SignIn, useClerk } from '@clerk/react';
 import { useShallow } from 'zustand/react/shallow';
@@ -616,7 +618,7 @@ export default function SettingsPanel({
   const [logPath, setLogPath] = useState<string | null>(null);
   const [logPathLoading, setLogPathLoading] = useState(true);
   const [logPathError, setLogPathError] = useState(false);
-  const [dpr, setDpr] = useState(() => (typeof window !== 'undefined' ? window.devicePixelRatio : 1));
+  const dpr = useDevicePixelRatio();
 
   const settingCategories = useMemo(
     () => [
@@ -676,22 +678,6 @@ export default function SettingsPanel({
     ],
     [t],
   );
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const updateDpr = () => setDpr(window.devicePixelRatio);
-
-    const mediaQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
-    mediaQuery.addEventListener('change', updateDpr);
-
-    window.addEventListener('resize', updateDpr);
-
-    return () => {
-      mediaQuery.removeEventListener('change', updateDpr);
-      window.removeEventListener('resize', updateDpr);
-    };
-  }, []);
 
   const customAiTags = Array.from(new Set<string>(appSettings?.customAiTags || []));
   const taggingShortcuts = Array.from(new Set<string>(appSettings?.taggingShortcuts || []));
@@ -962,7 +948,7 @@ export default function SettingsPanel({
     });
   };
 
-  const shortcutTagVariants = {
+  const shortcutTagVariants: Variants = {
     visible: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 500, damping: 30 } },
     exit: { opacity: 0, scale: 0.8, transition: { duration: 0.15 } },
   };

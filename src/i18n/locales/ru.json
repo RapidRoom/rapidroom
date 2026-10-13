@@ -929,7 +929,8 @@
         "undo": "Отменить (Ctrl+Z) или история (правый клик)"
       },
       "vc": "ВК"
-    }
+    },
+    "embeddedPreviewWarning": "Обработка RAW не удалась; вместо неё показан встроенный предварительный просмотр."
   },
   "export": {
     "advanced": {
@@ -1059,6 +1060,11 @@
       "scale": "Масштаб",
       "spacing": "Отступы",
       "watermarkImage": "Изображение водяного знака"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

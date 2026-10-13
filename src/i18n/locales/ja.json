@@ -879,7 +879,8 @@
         "undo": "元に戻す (Ctrl+Z) または履歴 (右クリック)"
       },
       "vc": "仮想"
-    }
+    },
+    "embeddedPreviewWarning": "RAW現像に失敗したため、埋め込みプレビューを表示しています。"
   },
   "export": {
     "advanced": {
@@ -1005,6 +1006,11 @@
       "scale": "倍率",
       "spacing": "間隔",
       "watermarkImage": "ウォーターマーク画像"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

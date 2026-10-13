@@ -233,6 +233,7 @@ pub struct McpRuntime {
     pub port: Mutex<u16>,
     pub editor_state: Mutex<Option<McpEditorState>>,
     pub ui_waiters: Mutex<HashMap<String, oneshot::Sender<Result<serde_json::Value, String>>>>,
+    pub(crate) name_echoes: Mutex<crate::assistant_text::NameEchoes>,
 }
 
 #[cfg(feature = "mcp")]
@@ -243,6 +244,7 @@ impl McpRuntime {
             port: Mutex::new(0),
             editor_state: Mutex::new(None),
             ui_waiters: Mutex::new(HashMap::new()),
+            name_echoes: Mutex::new(crate::assistant_text::NameEchoes::default()),
         }
     }
 }

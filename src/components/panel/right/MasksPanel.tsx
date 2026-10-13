@@ -73,6 +73,7 @@ import {
   getMaskTypeName,
   NewMaskDropZone,
 } from './Masks';
+import { getCreatedSubMaskDropOptions, insertSubMask, type CreatedSubMaskDropOptions } from './maskDropUtils';
 import {
   Adjustments,
   INITIAL_MASK_ADJUSTMENTS,
@@ -510,21 +511,14 @@ export default function MasksPanel() {
   const handleAddSubMask = (
     containerId: string,
     type: Mask,
-    mode: SubMaskMode = SubMaskMode.Additive,
-    insertIndex: number = -1,
+    { mode = SubMaskMode.Additive, insertIndex = -1 }: Partial<CreatedSubMaskDropOptions> = {},
   ) => {
     const subMask = createMaskLogic(type, mode);
     setAdjustments((prev: Adjustments) => ({
       ...prev,
       masks: prev.masks?.map((c: MaskContainer) => {
         if (c.id === containerId) {
-          const newSubMasks = [...c.subMasks];
-          if (insertIndex >= 0) {
-            newSubMasks.splice(insertIndex, 0, subMask);
-          } else {
-            newSubMasks.push(subMask);
-          }
-          return { ...c, subMasks: newSubMasks };
+          return { ...c, subMasks: insertSubMask(c.subMasks, subMask, insertIndex) };
         }
         return c;
       }),
@@ -563,7 +557,7 @@ export default function MasksPanel() {
         disabled: maskType.disabled,
         onClick: () => {
           if (targetContainerId) {
-            handleAddSubMask(targetContainerId, maskType.type, mode);
+            handleAddSubMask(targetContainerId, maskType.type, { mode });
           } else {
             handleAddMaskContainer(maskType.type);
           }
@@ -807,11 +801,14 @@ export default function MasksPanel() {
       const creationFn = () => {
         if (overData?.type === 'Container') {
           handleAddSubMask(overData.item!.id, dragData.maskType!);
-        } else if (overData?.type === 'SubMask') {
+        } else if (overData?.type === 'SubMask' && over) {
           const container = adjustments.masks.find((m) => m.id === overData.parentId);
           if (container) {
-            const targetIndex = container.subMasks.findIndex((sm) => sm.id === over.id);
-            handleAddSubMask(overData.parentId!, dragData.maskType!, targetIndex);
+            handleAddSubMask(
+              overData.parentId!,
+              dragData.maskType!,
+              getCreatedSubMaskDropOptions(container.subMasks, over.id),
+            );
           }
         } else {
           handleAddMaskContainer(dragData.maskType!);
