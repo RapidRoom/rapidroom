@@ -136,8 +136,8 @@ def client_command(case, folder, name, exposure, prompt_override=None, tools=Non
     return command, version
 
 
-def run_client_checks(case, smoke, wire_only=False):
-    folder = case / "client-tests"
+def run_client_checks(case, smoke, wire_only=False, *, folder_name="client-tests"):
+    folder = case / folder_name
     folder.mkdir(mode=0o700)
     endpoint = case / "config/io.github.CyberTimon.RapidRAW/mcp-endpoint.json"
     data = json.loads(endpoint.read_text())

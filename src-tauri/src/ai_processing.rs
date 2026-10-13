@@ -1878,7 +1878,13 @@ mod runtime_compatibility_tests {
             let started = std::time::Instant::now();
             let model = session(file, hash);
             let mask = run(&image, &model).unwrap();
-            assert_eq!(mask.dimensions(), image.dimensions());
+            // Depth returns its unpadded inference-size map; the command rescales it.
+            let expected = if name == "depth" {
+                (518, 389)
+            } else {
+                image.dimensions()
+            };
+            assert_eq!(mask.dimensions(), expected);
             mask.save(out.join(format!("{name}.png"))).unwrap();
             rows.push(serde_json::json!({"feature":name,"seconds":started.elapsed().as_secs_f64(),"shape":mask.dimensions()}));
         }
@@ -1937,3 +1943,7 @@ mod runtime_compatibility_tests {
         println!("{report}");
     }
 }
+
+#[cfg(test)]
+#[path = "depth_geometry_tests.rs"]
+mod depth_geometry_tests;
