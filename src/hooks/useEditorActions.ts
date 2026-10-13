@@ -1,5 +1,5 @@
 import { getDpr, transformFromPercent } from '../utils/zoom';
-import { useCallback } from 'react';
+import { useCallback, type SyntheticEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import debounce from 'lodash.debounce';
 import { toast } from 'react-toastify';
@@ -261,7 +261,8 @@ export function useEditorActions() {
     [setEditor],
   );
 
-  const handleCopyAdjustments = useCallback(async (pathOverride?: string) => {
+  const handleCopyAdjustments = useCallback(async (pathOrEvent?: string | SyntheticEvent) => {
+    const pathOverride = typeof pathOrEvent === 'string' ? pathOrEvent : undefined;
     const { selectedImage, adjustments } = useEditorStore.getState();
     const { libraryActivePath, multiSelectedPaths } = useLibraryStore.getState();
     let sourceAdjustments: Adjustments | null = null;
