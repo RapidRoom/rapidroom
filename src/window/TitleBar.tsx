@@ -1,6 +1,9 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import { platform } from '@tauri-apps/plugin-os';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
+import { useSettingsStore } from '../store/useSettingsStore';
+import { visibleControls, WindowControlState } from './windowControls';
 import { Minus, Square, X } from 'lucide-react';
 
 const RestoreDownIcon = ({ size = 14, className = '' }) => (
@@ -22,9 +25,11 @@ const RestoreDownIcon = ({ size = 14, className = '' }) => (
 
 export default function TitleBar() {
   const [osPlatform, setOsPlatform] = useState('');
-  const [isMaximized, setIsMaximized] = useState(false);
-
-  const appWindow = getCurrentWindow();
+  const [controlState, setControlState] = useState<WindowControlState | null>(null);
+  const preference = useSettingsStore((s) => s.appSettings?.windowControls ?? 'auto');
+  const isMaximized = !!(controlState?.maximized || controlState?.fullscreen);
+  const controls = visibleControls(controlState, preference);
+  const appWindow = useMemo(() => getCurrentWindow(), []);
 
   useEffect(() => {
     const getPlatform = async () => {
@@ -40,40 +45,70 @@ export default function TitleBar() {
   }, []);
 
   useEffect(() => {
-    const updateMaximizedState = async () => {
+    let disposed = false;
+    let generation = 0;
+    const unlisteners: (() => void)[] = [];
+    const accept = (state: WindowControlState) => {
+      if (!disposed) setControlState(state);
+    };
+    const refresh = async () => {
+      const run = ++generation;
       try {
-        const max = await appWindow.isMaximized();
-        setIsMaximized(max);
+        const state = await invoke<WindowControlState>('get_window_control_state');
+        if (run === generation) accept(state);
       } catch (error) {
-        console.error('Failed to check maximized state:', error);
+        if (!disposed) console.error('Failed to read window state:', error);
       }
     };
-
-    updateMaximizedState();
-
-    let unlisten: () => void;
-    appWindow
-      .onResized(() => {
-        updateMaximizedState();
-      })
-      .then((u) => (unlisten = u));
-
+    const add = (unlisten: () => void) => {
+      if (disposed) unlisten();
+      else unlisteners.push(unlisten);
+    };
+    const subscribe = async () => {
+      try {
+        add(
+          await appWindow.listen<WindowControlState>('window-control-state', ({ payload }) => {
+            ++generation;
+            accept(payload);
+          }),
+        );
+        if (disposed) return;
+        add(await appWindow.onResized(() => void refresh()));
+        if (!disposed) await refresh();
+      } catch (error) {
+        if (!disposed) console.error('Failed to subscribe to window state:', error);
+      }
+    };
+    void subscribe();
     return () => {
-      if (unlisten) unlisten();
+      disposed = true;
+      ++generation;
+      unlisteners.forEach((u) => u());
     };
   }, [appWindow]);
 
-  const handleMinimize = () => appWindow.minimize();
-  const handleClose = () => appWindow.close();
+  const handleMinimize = async () => {
+    try {
+      await appWindow.minimize();
+    } catch (error) {
+      console.error('Failed to minimize window:', error);
+    }
+  };
+  const handleClose = async () => {
+    try {
+      await appWindow.close();
+    } catch (error) {
+      console.error('Failed to close window:', error);
+    }
+  };
 
   const handleMaximize = useCallback(async () => {
     try {
-      if (osPlatform === 'macos') {
-        const isFullscreen = await appWindow.isFullscreen();
-        appWindow.setFullscreen(!isFullscreen);
-      } else {
-        appWindow.toggleMaximize();
-      }
+      const state = await invoke<WindowControlState>('get_window_control_state');
+      if (osPlatform === 'macos') await appWindow.setFullscreen(!state.fullscreen);
+      else if (state.fullscreen) await appWindow.setFullscreen(false);
+      else if (state.maximized) await appWindow.unmaximize();
+      else await appWindow.maximize();
     } catch (error) {
       console.error('Failed to toggle maximize:', error);
     }
@@ -122,24 +157,28 @@ export default function TitleBar() {
         <div className="flex items-center h-full z-10">
           {isLinux && (
             <div className="flex items-center gap-2 pr-2 h-full">
-              <button
-                aria-label="Minimize window"
-                className="w-7 h-7 rounded-full inline-flex justify-center items-center hover:bg-white/10 transition-colors duration-150"
-                onClick={handleMinimize}
-              >
-                <Minus size={16} className="text-text-secondary" />
-              </button>
-              <button
-                aria-label="Maximize window"
-                className="w-7 h-7 rounded-full inline-flex justify-center items-center hover:bg-white/10 transition-colors duration-150"
-                onClick={handleMaximize}
-              >
-                {isMaximized ? (
-                  <RestoreDownIcon size={13} className="text-text-secondary" />
-                ) : (
-                  <Square size={13} className="text-text-secondary" />
-                )}
-              </button>
+              {controls.minimize && (
+                <button
+                  aria-label="Minimize window"
+                  className="w-7 h-7 rounded-full inline-flex justify-center items-center hover:bg-white/10 transition-colors duration-150"
+                  onClick={handleMinimize}
+                >
+                  <Minus size={16} className="text-text-secondary" />
+                </button>
+              )}
+              {controls.maximize && (
+                <button
+                  aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
+                  className="w-7 h-7 rounded-full inline-flex justify-center items-center hover:bg-white/10 transition-colors duration-150"
+                  onClick={handleMaximize}
+                >
+                  {isMaximized ? (
+                    <RestoreDownIcon size={13} className="text-text-secondary" />
+                  ) : (
+                    <Square size={13} className="text-text-secondary" />
+                  )}
+                </button>
+              )}
               <button
                 aria-label="Close window"
                 className="w-7 h-7 rounded-full inline-flex justify-center items-center hover:bg-red-500 hover:text-white transition-colors duration-150"

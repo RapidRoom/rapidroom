@@ -87,6 +87,7 @@ mod terminal_pty;
 mod test_support;
 mod tree_denoise;
 mod two_phase_rename;
+mod window_controls;
 mod window_customizer;
 mod xmp;
 
@@ -2294,6 +2295,7 @@ pub fn run() {
             }
 
             let window = window_builder.build().expect("Failed to build window");
+            window_controls::install(&window);
 
             #[cfg(target_os = "android")]
             android_integration::initialize_android(&window);
@@ -2602,6 +2604,7 @@ pub fn run() {
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,
             file_management::set_flag_for_paths,
+            window_controls::get_window_control_state,
             file_management::import_files,
             file_management::create_virtual_copy,
             file_management::get_albums,

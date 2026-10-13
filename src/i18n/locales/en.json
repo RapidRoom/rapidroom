@@ -2317,5 +2317,12 @@
     "sliderKeys": "← → Preview · Shift ×10 · Alt Fine · Enter Apply · Esc Cancel",
     "autoAdjustments": "Auto adjustments",
     "resetCurrentPhoto": "Reset current photo"
+  },
+  "windowControls": {
+    "preference": "Window controls",
+    "preferenceDescription": "Auto hides unsupported controls on known compositors. Always show and Hide override the app titlebar controls; Close remains available.",
+    "auto": "Auto",
+    "always": "Always show",
+    "hide": "Hide"
   }
 }

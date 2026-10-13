@@ -499,6 +499,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub font_family: Option<String>,
     pub decorations: Option<bool>,
+    #[serde(default)]
+    pub window_controls: Option<String>,
     #[serde(alias = "comfyuiAddress")]
     pub ai_connector_address: Option<String>,
     pub last_folder_state: Option<LastFolderState>,
@@ -645,6 +647,7 @@ impl Default for AppSettings {
             theme: Some("dark".to_string()),
             font_family: None,
             decorations: Some(false),
+            window_controls: Some("auto".into()),
             ai_connector_address: None,
             last_folder_state: None,
             ui_visibility: None,

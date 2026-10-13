@@ -330,3 +330,14 @@ The central tool result boundary labels both successes and errors as data-only. 
 Assistant inputs project descriptive names/notes before UI storage. Names echoed from the current edit preserve the original stored name by identity, so reading a bounded display cannot silently rename an existing mask. Local numeric mask edits use the same existing numeric registry as global controls; invalid values are refused rather than applied. Terminal launches expose a data-only context and static trust policy without changing the actual working directory/path. The general terminal is not a photo-metadata prompt generator; arbitrary shell output remains data.
 
 Existing tool-result consumers must read the inner envelope. The native client helper `tool_data` supports that envelope and older results, while the hostile fixture asserts the envelope is actually present in the current build. Transport `isError`/protocol fields and image content blocks keep their roles.
+
+### Hyprland window controls (#35)
+
+`window_controls.py --engine /path/to/native-engine/rapidroom --out /path/to/samples/controls --desktop`
+opens one isolated test app on the **current Hyprland desktop**. It uses fresh
+app data/config/cache and a private session bus, checks native Settings
+Auto/Always show/Hide, tests both minimize and maximize requests against actual
+GDK/compositor state, and captures only the owned app rectangle. It closes its
+own app at the end. This deliberately differs from the private Weston smoke,
+which cannot establish Hyprland capability behavior. Screenshots and receipts
+stay local; the native engine must include `native-ui-test`.
