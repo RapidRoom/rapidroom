@@ -1727,4 +1727,54 @@ mod tests {
         );
         assert!(provenance.contains("CC-BY-SA") && provenance.contains("207"));
     }
+
+    #[test]
+    #[ignore = "writes labelled synthetic geometry diagnostics only when explicitly requested"]
+    fn sigma_write_synthetic_geometry_diagnostics() {
+        use image::{DynamicImage, Rgb, Rgb32FImage};
+        let out = std::path::PathBuf::from(
+            std::env::var("RAPIDROOM_SIGMA_SYNTHETIC_OUT").expect("explicit output directory"),
+        );
+        std::fs::create_dir_all(&out).unwrap();
+        let source = DynamicImage::ImageRgb32F(Rgb32FImage::from_fn(1200, 800, |x, y| {
+            let grid = x % 60 < 2 || y % 60 < 2;
+            let v = if grid { 0.20 } else { 0.04 };
+            Rgb([v, v, v])
+        }));
+        source
+            .to_rgb8()
+            .save(out.join("synthetic-ideal-grid-input.png"))
+            .unwrap();
+        let lens = sigma_profile();
+        let mut reports = Vec::new();
+        for (focal, aperture) in [(20.0, 3.5), (50.0, 5.6), (200.0, 6.3)] {
+            let p = lens
+                .get_distortion_params(focal, Some(aperture), Some(10.0), Some(1.0))
+                .unwrap();
+            let off = serde_json::json!({"lensDistortionParams": p, "lensDistortionEnabled": false, "lensVignetteEnabled": false});
+            let unchanged =
+                crate::image_processing::apply_geometry_warp(&source, &off).into_owned();
+            assert_eq!(unchanged.to_rgb32f().as_raw(), source.to_rgb32f().as_raw());
+            for (name, vignette) in [("distortion-only", false), ("distortion-vignetting", true)] {
+                let adjustments = serde_json::json!({"lensDistortionParams": p, "lensDistortionEnabled": true,
+                    "lensVignetteEnabled": vignette, "lensDistortionAmount": 100, "lensVignetteAmount": 100});
+                let image = crate::image_processing::apply_geometry_warp(&source, &adjustments)
+                    .into_owned();
+                let rgb = image.to_rgb32f();
+                assert_eq!(rgb.dimensions(), (1200, 800));
+                assert!(rgb.as_raw().iter().all(|v| v.is_finite() && *v >= 0.0));
+                assert_ne!(rgb.as_raw(), source.to_rgb32f().as_raw());
+                let file = format!("synthetic-{}mm-{}.png", focal as u32, name);
+                image.to_rgb8().save(out.join(&file)).unwrap();
+                reports.push(serde_json::json!({"file":file,"focal":focal,"aperture":aperture,
+                    "synthetic":true,"purpose":"ideal grid acted on by existing geometry renderer; not real-lens correction acceptance",
+                    "adjustments":adjustments,"tca":"unsupported; neutral channel scales"}));
+            }
+        }
+        std::fs::write(
+            out.join("diagnostics.json"),
+            serde_json::to_string_pretty(&reports).unwrap(),
+        )
+        .unwrap();
+    }
 }
