@@ -43,7 +43,7 @@ def run_crs_checks(smoke, wait_for):
     smoke.execute("document.querySelectorAll('.Toastify__close-button').forEach(e=>e.click());return true;")
     sidecar.write_text('<!DOCTYPE root [<!ENTITY x SYSTEM "file:///etc/passwd">]><root>&x;</root>')
     import_sidecar()
-    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('.Toastify__toast')].some(e=>e.textContent.includes('DOCTYPE'))"), 'unsafe CRS import refused')
+    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('[role=alert]')].some(e=>e.textContent.includes('DOCTYPE'))"), 'unsafe CRS import refused')
     assert image_state(url, image, token=token) == imported
     refused = smoke.stable_preview('crs-unsafe-refused')
     assert ImageChops.difference(smoke.crop(changed), smoke.crop(refused)).getbbox() is None
