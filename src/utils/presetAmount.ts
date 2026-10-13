@@ -1,4 +1,4 @@
-import type { Adjustments } from './adjustments';
+import { buildParametricCurvePoints, type Adjustments, type Curves, type ParametricCurve } from './adjustments';
 import schema from '../../rapidroom/adjustment-schema.json';
 
 const parameters: Record<
@@ -58,6 +58,39 @@ export const presetCurveY = (points: Point[], x: number): number => {
   return points[points.length - 1].y;
 };
 
+const DEFAULT_POINT_CURVE: Point[] = [
+  { x: 0, y: 0 },
+  { x: 255, y: 255 },
+];
+
+/** The renderer stores a baked master curve, so keep parametric edits composed
+ * with the saved point curves. Lightroom applies the parametric curve first. */
+export function composeParametricCurves(parametric: ParametricCurve, pointCurves: Curves): Curves {
+  const channels = ['luma', 'red', 'green', 'blue'] as const;
+  return Object.fromEntries(
+    channels.map((channel) => {
+      const settings = parametric[channel];
+      const points = pointCurves[channel] ?? DEFAULT_POINT_CURVE;
+      const isIdentity =
+        settings.shadows === 0 &&
+        settings.darks === 0 &&
+        settings.lights === 0 &&
+        settings.highlights === 0 &&
+        settings.blackLevel === 0 &&
+        settings.whiteLevel === 0;
+      if (isIdentity) return [channel, points];
+
+      const parametricPoints = buildParametricCurvePoints(settings);
+      const combined = Array.from({ length: 16 }, (_, index) => {
+        const x = Math.round((index * 255) / 15);
+        const y = presetCurveY(points, presetCurveY(parametricPoints, x));
+        return { x, y: Math.round(y) };
+      });
+      return [channel, combined];
+    }),
+  ) as Curves;
+}
+
 export function mixAdjustments(
   preset: Partial<Adjustments>,
   amount: number,
@@ -104,5 +137,14 @@ export function mixAdjustments(
     }
     return target;
   };
-  return blend(preset, before, '') as Partial<Adjustments>;
+  const pointSource = before.curveMode === 'parametric' ? (before.pointCurves ?? before.curves) : before.curves;
+  const baseline = { ...before, pointCurves: pointSource };
+  const result = blend(preset, baseline, '') as Partial<Adjustments>;
+  if (preset.curveMode === 'parametric' && preset.parametricCurve && result.parametricCurve) {
+    const pointCurves = preset.pointCurves ? (result.pointCurves ?? pointSource) : pointSource;
+    result.pointCurves = pointCurves;
+    result.curveMode = 'parametric';
+    result.curves = composeParametricCurves(result.parametricCurve, pointCurves as Curves);
+  }
+  return result;
 }

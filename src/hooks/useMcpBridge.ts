@@ -10,7 +10,8 @@ import { listen } from '@tauri-apps/api/event';
 import { useEditorStore } from '../store/useEditorStore';
 import type { HistogramData } from '../components/ui/AppProperties';
 import { debouncedSetHistory } from './useEditorActions';
-import { buildParametricCurves, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
+import { normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
+import { composeParametricCurves } from '../utils/presetAmount';
 
 interface McpCommand {
   requestId: string;
@@ -144,7 +145,11 @@ async function syncState(path: string): Promise<McpStateResponse> {
 function normalizeMcpAdjustments(adjustments: Adjustments): Adjustments {
   const normalized = normalizeLoadedAdjustments(adjustments);
   if (normalized.curveMode === 'parametric' && normalized.parametricCurve) {
-    return { ...normalized, curves: buildParametricCurves(normalized.parametricCurve) };
+    return {
+      ...normalized,
+      pointCurves: normalized.pointCurves || normalized.curves,
+      curves: composeParametricCurves(normalized.parametricCurve, normalized.pointCurves || normalized.curves),
+    };
   }
   if (normalized.curveMode !== 'parametric' && normalized.pointCurves) {
     return { ...normalized, curves: normalized.pointCurves };

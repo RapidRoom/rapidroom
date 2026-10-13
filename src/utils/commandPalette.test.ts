@@ -48,6 +48,26 @@ it('nested changes preserve the original and sibling channels', () => {
   expect(getParameterValue(setParameterValue(edited, entry, 10000), entry.id)).toBe(entry.maximum);
 });
 
+it('parametric command-palette edits stay composed with the saved point curve', () => {
+  const pointCurve = [
+    { x: 0, y: 8 },
+    { x: 128, y: 140 },
+    { x: 255, y: 255 },
+  ];
+  const before = {
+    ...INITIAL_ADJUSTMENTS,
+    curves: { ...INITIAL_ADJUSTMENTS.curves, luma: pointCurve },
+    curveMode: 'point' as const,
+  };
+  const entry = PALETTE_PARAMETERS.find((parameter) => parameter.id === 'parametricCurve.luma.shadows')!;
+  const edited = setParameterValue(before, entry, -50);
+
+  expect(edited.curveMode).toBe('parametric');
+  expect(edited.pointCurves?.luma).toEqual(pointCurve);
+  expect(edited.curves.luma).toHaveLength(16);
+  expect(edited.curves.luma).not.toEqual(pointCurve);
+});
+
 describe('typed values', () => {
   it.each([
     ['exposure 0.7', { name: 'exposure', value: 0.7, relative: false }],

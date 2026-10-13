@@ -1,5 +1,6 @@
 import schemaData from '../../rapidroom/adjustment-schema.json';
-import { buildParametricCurves, type Adjustments } from './adjustments';
+import { type Adjustments } from './adjustments';
+import { composeParametricCurves } from './presetAmount';
 
 interface Range {
   minimum: number | null;
@@ -125,9 +126,10 @@ export function setParameterValue(adjustments: Adjustments, parameter: PalettePa
   }
   target[parts.at(-1)!] = next;
   if (parts[0] === 'parametricCurve' && result.parametricCurve) {
-    result.pointCurves = adjustments.curveMode === 'parametric' ? adjustments.pointCurves : adjustments.curves;
+    result.pointCurves =
+      (adjustments.curveMode === 'parametric' ? adjustments.pointCurves : undefined) ?? adjustments.curves;
     result.curveMode = 'parametric';
-    result.curves = buildParametricCurves(result.parametricCurve);
+    result.curves = composeParametricCurves(result.parametricCurve, result.pointCurves);
   }
   return result;
 }
