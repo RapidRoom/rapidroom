@@ -72,7 +72,7 @@ fn vertical_blur(@builtin(global_invocation_id) id: vec3<u32>) {
         let sample_y = clamp(local_coord.y + offset, 0, max_y);
         let sample_coord = vec2<i32>(local_coord.x, sample_y);
 
-        let sample_color = clamp(textureLoad(input_texture, sample_coord - source_origin, 0).rgb, vec3(0.0), vec3(F16_MAX));
+        let sample_color = clamp(textureLoad(input_texture, vec2<u32>(sample_coord), 0).rgb, vec3(0.0), vec3(F16_MAX));
         let weight = gaussian(f32(offset), sigma);
 
         total_color += sample_color * weight;
