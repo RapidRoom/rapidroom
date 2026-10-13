@@ -6392,8 +6392,10 @@ mod tests {
         let source = dir.path().join("sample.jpg");
         let sidecar = dir.path().join("sample.jpg.rrdata");
         let xmp = dir.path().join("sample.xmp");
-        let mut existing = ImageMetadata::default();
-        existing.adjustments = serde_json::json!({"exposure":2,"aiPatches":[{"id":"keep"}]});
+        let existing = ImageMetadata {
+            adjustments: serde_json::json!({"exposure":2,"aiPatches":[{"id":"keep"}]}),
+            ..ImageMetadata::default()
+        };
         let original = serde_json::to_string(&existing).unwrap();
         fs::write(&sidecar, &original).unwrap();
         fs::write(
@@ -6421,12 +6423,14 @@ mod tests {
         let source = dir.path().join("sample.jpg");
         let sidecar = dir.path().join("sample.jpg.rrdata");
         let xmp = dir.path().join("sample.xmp");
-        let mut metadata = ImageMetadata::default();
-        metadata.exif = Some(HashMap::from([(
-            "SyntheticLongExif".into(),
-            "X".repeat(700),
-        )]));
-        metadata.adjustments = serde_json::json!({"exposure":2});
+        let metadata = ImageMetadata {
+            exif: Some(HashMap::from([(
+                "SyntheticLongExif".into(),
+                "X".repeat(700),
+            )])),
+            adjustments: serde_json::json!({"exposure":2}),
+            ..ImageMetadata::default()
+        };
         let original = serde_json::to_string(&metadata).unwrap();
         fs::write(&sidecar, &original).unwrap();
         fs::write(&xmp, r#"<root crs:SharpenRadius="0"/>"#).unwrap();
