@@ -12,6 +12,29 @@ from mcp_clients import execute_client, image_state, objects, run_client_checks
 from mcp_history import read_tool
 
 
+def contains_patch(value, patch):
+    if isinstance(patch, dict):
+        return isinstance(value, dict) and all(key in value and contains_patch(value[key], expected) for key, expected in patch.items())
+    return value == patch
+
+
+def assert_chosen_variant(calls, final, name="Warm"):
+    variants = [variant for call in calls if call.get("name") == "mcp__rapidroom__render_compare"
+                for variant in call.get("input", {}).get("variants", [])
+                if variant.get("name", "").casefold() == name.casefold()]
+    if len(variants) != 1:
+        raise RuntimeError("Plugin needs one unambiguous named chosen variant")
+    patch = variants[0].get("changes")
+    if not isinstance(patch, dict) or not patch:
+        raise RuntimeError("Chosen variant must contain a nonempty adjustment patch")
+    mutations = [call.get("input", {}) for call in calls if call.get("name") == "mcp__rapidroom__update_adjustments"]
+    if not any(mutation.get("expectedRevision") and contains_patch(mutation.get("changes"), patch) for mutation in mutations):
+        raise RuntimeError("Chosen variant was not applied in a guarded mutation")
+    if not contains_patch(final.get("adjustments"), patch):
+        raise RuntimeError("Final state does not retain the chosen variant")
+    return patch
+
+
 def run_skill_checks(case, smoke):
     smoke.step("authenticated plugin acceptance endpoint", run_client_checks(case, smoke, wire_only=True))
     endpoint = json.loads((case / "config/io.github.CyberTimon.RapidRAW/mcp-endpoint.json").read_text())
@@ -31,7 +54,8 @@ def run_skill_checks(case, smoke):
     prompt = (
         "Use the RapidRoom plugin's skill to edit the open CC0 sample. Destination: a 4:5 feed JPEG, "
         "natural with gentle warmth. I approve this original-pixel crop: x500, y100, width1800, height2250. "
-        "Crop first. Show three named tone/colour looks using temporary comparisons; do not create virtual "
+        "Crop first. Show three named tone/colour looks using temporary comparisons; name the warm variant Warm "
+        "and give it a nonempty tone/colour changes patch. Do not create virtual "
         "copies if those tools are missing. For this acceptance run I choose the warm look, so apply it, "
         "inspect the result and one small native detail region, and export width1080 with GPS stripped "
         "to originalFolder subfolder plugin-acceptance. Explain how exposure is scaled before the shader "
@@ -75,6 +99,7 @@ def run_skill_checks(case, smoke):
     if not exports or any(v.get("input", {}).get("exportSettings", {}).get("stripGps") is not True for v in exports):
         raise RuntimeError("Plugin export did not explicitly strip GPS")
     final = image_state(url, path, token=token)
+    chosen_patch = assert_chosen_variant(calls, final)
     crop = final["adjustments"].get("crop", {})
     if any(crop.get(k) != v for k, v in {"x":500,"y":100,"width":1800,"height":2250}.items()) or final["editRevision"] == initial["editRevision"]:
         raise RuntimeError("Plugin did not apply the approved feed crop/edit")
@@ -89,5 +114,6 @@ def run_skill_checks(case, smoke):
         "client_version": version, "called": sorted(names), "source_commit": head,
         "source_checkout_clean_and_matches_app": True, "plugin_skill_used": skill_used,
         "export_dimensions": dimensions, "export_sha256": hashlib.sha256(files[0].read_bytes()).hexdigest(),
-        "mutations_revision_guarded": True, "virtual_copy_tools_deferred": True,
+        "mutations_revision_guarded": True, "chosen_variant_applied_and_retained": True,
+        "chosen_variant_keys": sorted(chosen_patch), "virtual_copy_tools_deferred": True,
         "source_explanation_read": "src-tauri/src/image_processing.rs", "real_model_requests": True})
