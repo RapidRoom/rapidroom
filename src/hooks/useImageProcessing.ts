@@ -141,7 +141,7 @@ export function useImageProcessing(
         if (!Array.isArray(subMasks)) return;
         subMasks.forEach((sm) => {
           if (sm.id && sm.parameters) {
-            const keys = ['mask_data_base64', 'maskDataBase64'];
+            const keys = ['mask_data_base64', 'maskDataBase64'] as const;
             let foundMaskData = false;
 
             for (const key of keys) {
