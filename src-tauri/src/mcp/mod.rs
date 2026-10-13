@@ -1,5 +1,6 @@
 mod adjustments;
 mod http;
+mod masks;
 mod measure;
 mod preview;
 mod server;

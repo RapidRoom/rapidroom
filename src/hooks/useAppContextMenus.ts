@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -71,6 +71,7 @@ import {
   AlbumItem,
   Album,
   AlbumGroup,
+  FolderTree,
 } from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
 import {
@@ -87,6 +88,14 @@ import { globalImageCache } from '../utils/ImageLRUCache';
 
 interface ImportedXmpMetadata {
   adjustments?: (Partial<Adjustments> & { is_null?: boolean }) | null;
+}
+
+interface LoadedImageMetadata {
+  adjustments: (Adjustments & { is_null?: boolean }) | null;
+}
+
+interface DeleteOptions {
+  includeAssociated: boolean;
 }
 
 type XmpNotTransferredItem =
@@ -127,7 +136,7 @@ export interface UseAppContextMenusProps {
   handleLibraryRefresh: () => Promise<void>;
   refreshAllFolderTrees: () => Promise<void>;
   refreshImageList: () => Promise<void>;
-  executeDelete: (paths: string[], options: any) => Promise<void>;
+  executeDelete: (paths: string[], options: DeleteOptions) => Promise<void>;
   handleDeleteRejected: () => void;
   handleTogglePinFolder: (path: string) => Promise<void>;
 }
@@ -244,7 +253,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               invoke(Invokes.AddToAlbum, { albumId: item.id, paths: pathsToAdd })
                 .then(() => {
                   console.log(`Added image(s) to ${item.name}`);
-                  invoke(Invokes.GetAlbums).then((res: any) =>
+                  invoke<AlbumItem[]>(Invokes.GetAlbums).then((res) =>
                     useLibraryStore.getState().setLibrary({ albumTree: res }),
                   );
                 })
@@ -496,7 +505,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   );
 
   const handleEditorContextMenu = useCallback(
-    (event: any) => {
+    (event: ReactMouseEvent<HTMLElement>) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -608,7 +617,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           submenu: [
             { label: t('contextMenus.editor.noLabel'), onClick: () => handleSetColorLabel(null) },
             ...COLOR_LABELS.map((label: Color) => ({
-              label: t(`contextMenus.colors.${label.name}`),
+              label: t(`contextMenus.colors.${label.name}`, { defaultValue: label.name }),
               color: label.color,
               onClick: () => handleSetColorLabel(label.name),
             })),
@@ -671,7 +680,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   );
 
   const handleThumbnailContextMenu = useCallback(
-    (event: any, path: string, forceSingleSelection: boolean = false) => {
+    (event: ReactMouseEvent<HTMLElement>, path: string, forceSingleSelection: boolean = false) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -800,7 +809,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         invoke(Invokes.ApplyAutoAdjustmentsToPaths, { paths: finalSelection })
           .then(async () => {
             if (selectedImage && finalSelection.includes(selectedImage.path)) {
-              const metadata: any = await invoke(Invokes.LoadMetadata, { path: selectedImage.path });
+              const metadata = await invoke<LoadedImageMetadata>(Invokes.LoadMetadata, { path: selectedImage.path });
               if (metadata.adjustments && !metadata.adjustments.is_null) {
                 const normalized = normalizeLoadedAdjustments(metadata.adjustments);
                 setEditor({ adjustments: normalized });
@@ -808,7 +817,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               }
             }
             if (libraryActivePath && finalSelection.includes(libraryActivePath)) {
-              const metadata: any = await invoke(Invokes.LoadMetadata, { path: libraryActivePath });
+              const metadata = await invoke<LoadedImageMetadata>(Invokes.LoadMetadata, { path: libraryActivePath });
               if (metadata.adjustments && !metadata.adjustments.is_null) {
                 const normalized = normalizeLoadedAdjustments(metadata.adjustments);
                 setLibrary({ libraryActiveAdjustments: normalized });
@@ -851,15 +860,17 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             const sortedTree = await invoke<AlbumItem[]>(Invokes.GetAlbums);
             setLibrary({ albumTree: sortedTree });
 
-            const albumObj = sortedTree.reduce((acc: any, cur: any) => {
-              const find = (n: any): any =>
-                n.id === activeAlbumId
-                  ? n
-                  : n.type === 'group'
-                    ? n.children.reduce((a: any, c: any) => a || find(c), null)
-                    : null;
-              return acc || find(cur);
-            }, null) as Album;
+            const findAlbum = (items: AlbumItem[]): Album | null => {
+              for (const item of items) {
+                if (item.type === 'album' && item.id === activeAlbumId) return item;
+                if (item.type === 'group') {
+                  const nestedAlbum = findAlbum(item.children);
+                  if (nestedAlbum) return nestedAlbum;
+                }
+              }
+              return null;
+            };
+            const albumObj = findAlbum(sortedTree);
 
             if (albumObj) {
               setLibrary({ imageList: imageList.filter((i) => albumObj.images.includes(i.path)) });
@@ -1072,7 +1083,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           submenu: [
             { label: t('contextMenus.editor.noLabel'), onClick: () => handleSetColorLabel(null, finalSelection) },
             ...COLOR_LABELS.map((label: Color) => ({
-              label: t(`contextMenus.colors.${label.name}`),
+              label: t(`contextMenus.colors.${label.name}`, { defaultValue: label.name }),
               color: label.color,
               onClick: () => handleSetColorLabel(label.name, finalSelection),
             })),
@@ -1163,7 +1174,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   );
 
   const handleFolderTreeContextMenu = useCallback(
-    (event: any, path: string | null, isCurrentlyPinned?: boolean) => {
+    (event: ReactMouseEvent<HTMLElement>, path: string | null, isCurrentlyPinned?: boolean) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -1205,14 +1216,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
                 isDestructive: true,
                 onClick: () => {
                   const newRoots = rootPaths.filter((r: string) => r !== targetPath);
-                  const newFolderTrees = folderTrees.filter((t: any) => t.path !== targetPath);
+                  const newFolderTrees = folderTrees.filter((tree: FolderTree) => tree.path !== targetPath);
 
                   const isCurrentInTarget =
                     currentFolderPath === targetPath ||
                     currentFolderPath?.startsWith(targetPath + '/') ||
                     currentFolderPath?.startsWith(targetPath + '\\');
 
-                  const updates: any = {
+                  const updates: Partial<ReturnType<typeof useLibraryStore.getState>> = {
                     rootPaths: newRoots,
                     folderTrees: newFolderTrees,
                   };
@@ -1230,7 +1241,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
 
                   const { appSettings, handleSettingsChange } = useSettingsStore.getState();
                   if (appSettings) {
-                    const newSettings = { ...appSettings, rootFolders: newRoots } as any;
+                    const newSettings = { ...appSettings, rootFolders: newRoots };
                     if (newRoots.length === 0) {
                       newSettings.lastRootPath = null;
                       newSettings.lastFolderState = null;
@@ -1385,7 +1396,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
 
                     const { appSettings, handleSettingsChange } = useSettingsStore.getState();
                     if (appSettings) {
-                      handleSettingsChange({ ...appSettings, lastFolderState: null } as any);
+                      handleSettingsChange({ ...appSettings, lastFolderState: null });
                     }
                   }
 
@@ -1404,7 +1415,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   );
 
   const handleAlbumTreeContextMenu = useCallback(
-    (event: any, item: AlbumItem | null) => {
+    (event: ReactMouseEvent<HTMLElement>, item: AlbumItem | null) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -1483,8 +1494,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         }
 
         invoke(Invokes.SaveAlbums, { tree: newTree })
-          .then(() => invoke(Invokes.GetAlbums))
-          .then((sortedTree: any) => setLibrary({ albumTree: sortedTree }))
+          .then(() => invoke<AlbumItem[]>(Invokes.GetAlbums))
+          .then((sortedTree) => setLibrary({ albumTree: sortedTree }))
           .catch((err) => toast.error(t('contextMenus.toasts.failedMoveError', { err })));
       };
 
@@ -1591,8 +1602,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
 
                     if (updateIcon(newTree)) {
                       invoke(Invokes.SaveAlbums, { tree: newTree })
-                        .then(() => invoke(Invokes.GetAlbums))
-                        .then((sorted: any) => setLibrary({ albumTree: sorted }))
+                        .then(() => invoke<AlbumItem[]>(Invokes.GetAlbums))
+                        .then((sorted) => setLibrary({ albumTree: sorted }))
                         .catch((err) => toast.error(t('contextMenus.toasts.failedChangeIcon', { err })));
                     }
                   },
@@ -1643,8 +1654,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
                       };
                       del(newTree);
                       invoke(Invokes.SaveAlbums, { tree: newTree })
-                        .then(() => invoke(Invokes.GetAlbums))
-                        .then((sorted: any) => setLibrary({ albumTree: sorted }))
+                        .then(() => invoke<AlbumItem[]>(Invokes.GetAlbums))
+                        .then((sorted) => setLibrary({ albumTree: sorted }))
                         .catch((err) => toast.error(t('contextMenus.toasts.failedDelete', { err })));
                     },
                   },
@@ -1660,7 +1671,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   );
 
   const handleMainLibraryContextMenu = useCallback(
-    (event: any) => {
+    (event: ReactMouseEvent<HTMLElement>) => {
       event.preventDefault();
       event.stopPropagation();
 
