@@ -1,6 +1,6 @@
 use ab_glyph::{Font, FontRef};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use image::{DynamicImage, GenericImageView, Rgb, RgbImage, imageops};
+use image::{DynamicImage, Rgb, RgbImage, imageops};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tauri::AppHandle;
