@@ -149,6 +149,8 @@ pub struct ExportSettings {
     pub subfolder: Option<String>,
     #[serde(default)]
     pub output_sharpening: Option<OutputSharpening>,
+    #[serde(default)]
+    pub overwrite_existing: bool,
 }
 
 #[cfg(feature = "mcp")]
@@ -1136,8 +1138,12 @@ fn save_image_with_metadata(
     }
 
     #[cfg(not(target_os = "android"))]
-    fs::write(output_path, image_bytes)
-        .map_err(|e| format!("Failed to write file to '{}': {}", output_path.display(), e))?;
+    write_export_bytes(
+        output_path,
+        &image_bytes,
+        export_settings.overwrite_existing,
+    )
+    .map_err(|e| format!("Failed to write file to '{}': {}", output_path.display(), e))?;
 
     Ok(())
 }
@@ -1510,6 +1516,57 @@ fn ensure_export_destination_writable(
     }
 }
 
+fn write_export_bytes(path: &Path, bytes: &[u8], overwrite: bool) -> std::io::Result<()> {
+    if overwrite {
+        // Replace only after encoding succeeds; atomic replacement also leaves
+        // any other hard links to the old file untouched.
+        crate::file_management::write_file_atomically(path, bytes)
+    } else {
+        fs::write(path, bytes)
+    }
+}
+
+fn export_destination_is_source(output: &Path, sources: &[PathBuf]) -> bool {
+    let Ok(output_path) = output.canonicalize() else {
+        return false;
+    };
+    sources.iter().any(|source| {
+        if source.canonicalize().is_ok_and(|path| path == output_path) {
+            return true;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            if let (Ok(left), Ok(right)) = (output.metadata(), source.metadata()) {
+                return left.dev() == right.dev() && left.ino() == right.ino();
+            }
+        }
+        false
+    })
+}
+
+fn reserve_export_path(
+    mut output: PathBuf,
+    stem: &str,
+    extension: &str,
+    overwrite_existing: bool,
+    sources: &[PathBuf],
+    used: &mut std::collections::HashSet<PathBuf>,
+) -> PathBuf {
+    let parent = output.parent().unwrap_or(Path::new("")).to_path_buf();
+    let mut counter = 1;
+    while used.contains(&output)
+        || (!overwrite_existing && output.exists())
+        || export_destination_is_source(&output, sources)
+        || output.is_dir()
+    {
+        output = parent.join(format!("{stem}_{counter}.{extension}"));
+        counter += 1;
+    }
+    used.insert(output.clone());
+    output
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn export_images_impl(
     paths: Vec<String>,
@@ -1613,6 +1670,12 @@ pub(crate) async fn export_images_impl(
             export_items.push((i, path_str, *count, explicit_vc));
         }
 
+        let source_paths: Arc<Vec<PathBuf>> = Arc::new(
+            export_items
+                .iter()
+                .map(|(_, path, _, _)| parse_virtual_path(path).0)
+                .collect(),
+        );
         let used_paths = Arc::new(Mutex::new(std::collections::HashSet::new()));
         let semaphore = Arc::new(tokio::sync::Semaphore::new(num_threads));
         let mut join_handles = Vec::new();
@@ -1638,6 +1701,7 @@ pub(crate) async fn export_images_impl(
             let cancellation_token_clone = Arc::clone(&cancellation_token);
             let adjustments_mode = adjustments_mode.clone();
             let used_paths_clone = Arc::clone(&used_paths);
+            let source_paths = Arc::clone(&source_paths);
 
             let handle = tokio::task::spawn_blocking(move || {
                 ensure_export_not_cancelled(&cancellation_token_clone)?;
@@ -1762,21 +1826,21 @@ pub(crate) async fn export_images_impl(
 
                 let extension = output_format.to_lowercase();
 
-                if !(is_explicit_file_path && total_paths == 1) {
-                    let mut used = used_paths_clone.lock().unwrap();
-                    let parent_dir = output_path
-                        .parent()
-                        .unwrap_or(std::path::Path::new(""))
-                        .to_path_buf();
-                    let mut counter = 1;
-
-                    while output_path.exists() || used.contains(&output_path) {
-                        let incremented_filename =
-                            format!("{}_{}.{}", new_stem, counter, extension);
-                        output_path = parent_dir.join(&incremented_filename);
-                        counter += 1;
+                if is_explicit_file_path && total_paths == 1 {
+                    if export_destination_is_source(&output_path, &source_paths) {
+                        return Err(
+                            "Export destination is a source photo. Choose another name.".into()
+                        );
                     }
-                    used.insert(output_path.clone());
+                } else {
+                    output_path = reserve_export_path(
+                        output_path,
+                        &new_stem,
+                        &extension,
+                        export_settings.overwrite_existing,
+                        &source_paths,
+                        &mut used_paths_clone.lock().unwrap(),
+                    );
                 }
 
                 let result: Result<(), String> = (|| {
@@ -1803,7 +1867,12 @@ pub(crate) async fn export_images_impl(
                             )?;
                         }
                         #[cfg(not(target_os = "android"))]
-                        fs::write(&output_path, cube_bytes).map_err(|e| e.to_string())?;
+                        write_export_bytes(
+                            &output_path,
+                            &cube_bytes,
+                            export_settings.overwrite_existing,
+                        )
+                        .map_err(|e| e.to_string())?;
                         ensure_export_not_cancelled(&cancellation_token_clone)?;
                         return Ok(());
                     }
@@ -2059,6 +2128,7 @@ fn headless_export_settings(
                 destination_type: None,
                 subfolder: None,
                 output_sharpening: None,
+                overwrite_existing: false,
             },
             None,
         ),
@@ -2564,5 +2634,101 @@ mod card_mode_tests {
         assert!(
             ensure_export_destination_writable(&from_library, "", Some("originalFolder")).is_ok()
         );
+    }
+}
+
+#[cfg(test)]
+mod export_collision_tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn rename_remains_default_and_overwrite_keeps_batch_names_distinct() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("photo.jpeg");
+        fs::write(&output, b"old export").unwrap();
+        assert_eq!(
+            reserve_export_path(
+                output.clone(),
+                "photo",
+                "jpeg",
+                false,
+                &[],
+                &mut HashSet::new()
+            ),
+            dir.path().join("photo_1.jpeg")
+        );
+        let mut used = HashSet::new();
+        assert_eq!(
+            reserve_export_path(output.clone(), "photo", "jpeg", true, &[], &mut used),
+            output
+        );
+        assert_eq!(
+            reserve_export_path(output.clone(), "photo", "jpeg", true, &[], &mut used),
+            dir.path().join("photo_1.jpeg")
+        );
+        assert_eq!(fs::read(output).unwrap(), b"old export");
+    }
+
+    #[test]
+    fn all_batch_sources_are_protected_from_replacement() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.jpeg");
+        fs::write(&source, b"source photo").unwrap();
+        let sources = vec![dir.path().join("other.jpeg"), source.clone()];
+        assert!(export_destination_is_source(&source, &sources));
+        let output = reserve_export_path(
+            source.clone(),
+            "photo",
+            "jpeg",
+            true,
+            &sources,
+            &mut HashSet::new(),
+        );
+        assert_eq!(output, dir.path().join("photo_1.jpeg"));
+        write_export_bytes(&output, b"new export", true).unwrap();
+        assert_eq!(fs::read(source).unwrap(), b"source photo");
+    }
+
+    #[test]
+    fn replacement_preserves_other_hard_links_to_existing_exports() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("export.jpeg");
+        let alias = dir.path().join("original.jpeg");
+        fs::write(&alias, b"source photo").unwrap();
+        fs::hard_link(&alias, &output).unwrap();
+        write_export_bytes(&output, b"new export", true).unwrap();
+        assert_eq!(fs::read(alias).unwrap(), b"source photo");
+        assert_eq!(fs::read(output).unwrap(), b"new export");
+    }
+
+    #[test]
+    fn old_requests_default_to_rename() {
+        let settings: ExportSettings = serde_json::from_value(serde_json::json!({
+            "jpegQuality":90,"resize":null,"keepMetadata":true,"stripGps":true,
+            "filenameTemplate":null,"watermark":null
+        }))
+        .unwrap();
+        assert!(!settings.overwrite_existing);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn source_aliases_are_protected() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source.jpeg");
+        let symlink = dir.path().join("symlink.jpeg");
+        let hardlink = dir.path().join("hardlink.jpeg");
+        fs::write(&source, b"source photo").unwrap();
+        std::os::unix::fs::symlink(&source, &symlink).unwrap();
+        fs::hard_link(&source, &hardlink).unwrap();
+        assert!(export_destination_is_source(
+            &symlink,
+            std::slice::from_ref(&source)
+        ));
+        assert!(export_destination_is_source(
+            &hardlink,
+            std::slice::from_ref(&source)
+        ));
     }
 }
