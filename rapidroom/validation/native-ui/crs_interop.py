@@ -84,6 +84,7 @@ def run_crs_checks(smoke, wait_for):
     assert ImageChops.difference(smoke.crop(baseline), smoke.crop(final)).getbbox() is None
     sidecar.unlink()
     run_client_checks(case, smoke, wire_only=True, folder_name="crs-client-tests")
+    smoke.expected_crs_refusal_error = expected_error
     (case / 'crs-interop-result.json').write_text(json.dumps({
         'real_model_requests': False, 'real_lightroom_tested': False,
         'public_alias_import_and_curve': True, 'foreign_nested_subject_fields_ignored': True,
