@@ -197,14 +197,14 @@ fn classify(field: &str, property: &PhotoProperty, preset: &Preset) -> (Outcome,
         _ => None,
     };
     if field == "WhiteBalance" && scalar.is_some_and(|s| s.eq_ignore_ascii_case("As Shot")) {
-        return (Outcome::Mapped, "asShot");
+        return (Outcome::Ignored, "asShot");
     }
     if matches!(
         field,
         "HasCrop" | "LensProfileEnable" | "AutoLateralCA" | "ConvertToGrayscale"
     ) && scalar.is_some_and(|s| s.eq_ignore_ascii_case("false") || s == "0")
     {
-        return (Outcome::Mapped, "disabled");
+        return (Outcome::Ignored, "disabled");
     }
     let Some(pointer) = target(field) else {
         return (Outcome::Ignored, unsupported_reason(field));
@@ -280,7 +280,41 @@ pub fn settings_report(content: &str, preset: &Preset) -> Report {
         {
             continue;
         }
-        let (outcome, reason) = classify(field, property, preset);
+        let monochrome = properties.get("ConvertToGrayscale").is_some_and(|p| {
+            matches!(p,
+            PhotoProperty::Scalar(value) if value.eq_ignore_ascii_case("true") || value == "1")
+        });
+        let as_shot = properties.get("WhiteBalance").is_some_and(|p| {
+            matches!(p,
+            PhotoProperty::Scalar(value) if value.eq_ignore_ascii_case("As Shot"))
+        });
+        let newer = match field.as_str() {
+            "Exposure" | "Brightness" => Some("Exposure2012"),
+            "Contrast" => Some("Contrast2012"),
+            "HighlightRecovery" => Some("Highlights2012"),
+            "FillLight" => Some("Shadows2012"),
+            "Shadows" => Some("Blacks2012"),
+            "Clarity" => Some("Clarity2012"),
+            _ => None,
+        };
+        let (outcome, reason) = if newer.is_some_and(|key| properties.contains_key(key)) {
+            (Outcome::Ignored, "superseded")
+        } else if (field.starts_with("GrayMixer") && !monochrome)
+            || (monochrome
+                && [
+                    "HueAdjustment",
+                    "SaturationAdjustment",
+                    "LuminanceAdjustment",
+                ]
+                .iter()
+                .any(|prefix| field.starts_with(prefix)))
+        {
+            (Outcome::Ignored, "inactive")
+        } else if as_shot && matches!(field.as_str(), "Temperature" | "Tint") {
+            (Outcome::Ignored, "asShot")
+        } else {
+            classify(field, property, preset)
+        };
         match outcome {
             Outcome::Mapped => report.mapped += 1,
             Outcome::Approximated => report.approximated += 1,
@@ -358,8 +392,10 @@ pub fn reason_text(reason: &str) -> &'static str {
         "nativeResponse" => {
             "Transferred to native controls; Lightroom rendering and units may differ"
         }
-        "asShot" => "The source as-shot white balance is retained",
-        "disabled" => "This feature is explicitly disabled",
+        "asShot" => "The source requests as-shot white balance; no native override is imported",
+        "disabled" => "The source disables this feature; no native adjustment is applied",
+        "superseded" => "The newer process-version setting takes precedence",
+        "inactive" => "This setting is inactive in the source conversion mode",
         "cropGeometry" => "Converted to native crop geometry",
         _ => "No supported mapping for this CRS setting",
     }
@@ -431,7 +467,7 @@ mod tests {
         let r = report(
             r#"crs:Sharpness="0" crs:HueAdjustmentRed="10" crs:WhiteBalance="As Shot" crs:Temperature="5000" crs:Tint="1" crs:HasCrop="False" crs:Exposure2012="nan""#,
         );
-        assert_eq!(r.mapped, 2);
+        assert_eq!(r.mapped, 0);
         assert!(
             r.settings
                 .iter()
@@ -453,6 +489,29 @@ mod tests {
                 .any(|s| s.field == "Exposure2012" && s.reason == "invalidValue")
         );
     }
+    #[test]
+    fn inactive_and_superseded_fields_do_not_claim_another_fields_output() {
+        let r = report(
+            r#"crs:Exposure="2" crs:Exposure2012="0" crs:GrayMixerRed="10" crs:LuminanceAdjustmentRed="0""#,
+        );
+        assert!(r.settings.iter().any(|s| s.field == "Exposure"
+            && s.reason == "superseded"
+            && s.outcome == Outcome::Ignored));
+        assert!(r.settings.iter().any(|s| s.field == "GrayMixerRed"
+            && s.reason == "inactive"
+            && s.outcome == Outcome::Ignored));
+        let bw = report(
+            r#"crs:ConvertToGrayscale="True" crs:GrayMixerRed="0" crs:LuminanceAdjustmentRed="10""#,
+        );
+        assert!(
+            bw.settings
+                .iter()
+                .any(|s| s.field == "LuminanceAdjustmentRed"
+                    && s.reason == "inactive"
+                    && s.outcome == Outcome::Ignored)
+        );
+    }
+
     #[test]
     fn report_is_bounded_stable_and_does_not_mutate_adjustments() {
         let fields: String = (0..300)

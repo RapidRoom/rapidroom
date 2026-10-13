@@ -3108,6 +3108,39 @@ fn find_matching_xmp_sidecars_recursive(
     (matches, skipped, failures)
 }
 
+fn read_sidecar_report_snapshot(path: &Path) -> Result<ImageMetadata, String> {
+    const MAX_REPORT_SIDECAR_BYTES: usize = 16 * 1024 * 1024;
+    let mut options = fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NONBLOCK);
+    }
+    let file = match options.open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(ImageMetadata::default());
+        }
+        Err(_) => return Err("Could not read native edits for the import report".into()),
+    };
+    let metadata = file
+        .metadata()
+        .map_err(|_| "Could not inspect native edits for the import report")?;
+    if !metadata.is_file() || metadata.len() > MAX_REPORT_SIDECAR_BYTES as u64 {
+        return Err("Import reports require a regular native sidecar of at most 16 MiB".into());
+    }
+    let mut bytes = Vec::new();
+    file.take(MAX_REPORT_SIDECAR_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "Could not read native edits for the import report")?;
+    if bytes.len() > MAX_REPORT_SIDECAR_BYTES {
+        return Err("Native sidecar exceeds the import report size limit".into());
+    }
+    serde_json::from_slice(&bytes)
+        .map_err(|_| "Could not parse native edits for the import report".into())
+}
+
 fn merge_imported_adjustments(existing: &mut Value, imported: Value) {
     if let (Some(target), Some(source)) = (existing.as_object_mut(), imported.as_object()) {
         for (key, value) in source {
@@ -3152,8 +3185,8 @@ fn import_xmp_adjustments_to_sidecar(
     }
     let not_transferred =
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
-    let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
     if unchanged {
+        let metadata = read_sidecar_report_snapshot(&sidecar_path)?;
         return Ok(ImportedXmpSidecar {
             source_path,
             sidecar_path,
@@ -3163,6 +3196,7 @@ fn import_xmp_adjustments_to_sidecar(
             unchanged,
         });
     }
+    let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
     // An import replaces only controls it can convert. Unsupported fields must
     // not erase unrelated native edits, such as repair or unsupported geometry.
     merge_imported_adjustments(&mut metadata.adjustments, converted_preset.adjustments);
@@ -3212,7 +3246,11 @@ pub fn import_xmp_adjustments_for_image(
     );
 
     Ok(XmpImageImportResult {
-        metadata: crate::exif_processing::load_sidecar(&sidecar_path),
+        metadata: if unchanged {
+            imported.metadata
+        } else {
+            crate::exif_processing::load_sidecar(&sidecar_path)
+        },
         not_transferred,
         settings_report,
         unchanged,
@@ -6354,8 +6392,10 @@ mod tests {
         let source = dir.path().join("sample.jpg");
         let sidecar = dir.path().join("sample.jpg.rrdata");
         let xmp = dir.path().join("sample.xmp");
-        let original = r#"{"adjustments":{"exposure":2,"aiPatches":[{"id":"keep"}]}}"#;
-        fs::write(&sidecar, original).unwrap();
+        let mut existing = ImageMetadata::default();
+        existing.adjustments = serde_json::json!({"exposure":2,"aiPatches":[{"id":"keep"}]});
+        let original = serde_json::to_string(&existing).unwrap();
+        fs::write(&sidecar, &original).unwrap();
         fs::write(
             &xmp,
             r#"<root crs:SharpenRadius="0" crs:PerspectiveVertical="2"/>"#,
@@ -6373,6 +6413,37 @@ mod tests {
                 .unchanged
         );
         assert!(!sidecar.exists());
+    }
+
+    #[test]
+    fn report_only_import_does_not_heal_large_exif_or_rewrite_sidecar_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("sample.jpg");
+        let sidecar = dir.path().join("sample.jpg.rrdata");
+        let xmp = dir.path().join("sample.xmp");
+        let mut metadata = ImageMetadata::default();
+        metadata.exif = Some(HashMap::from([(
+            "SyntheticLongExif".into(),
+            "X".repeat(700),
+        )]));
+        metadata.adjustments = serde_json::json!({"exposure":2});
+        let original = serde_json::to_string(&metadata).unwrap();
+        fs::write(&sidecar, &original).unwrap();
+        fs::write(&xmp, r#"<root crs:SharpenRadius="0"/>"#).unwrap();
+        let imported =
+            import_xmp_adjustments_to_sidecar(source.to_str().unwrap(), &xmp, None).unwrap();
+        assert!(imported.unchanged);
+        assert_eq!(
+            imported.metadata.exif.as_ref().unwrap()["SyntheticLongExif"].len(),
+            700
+        );
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        let snapshot = read_sidecar_report_snapshot(&sidecar).unwrap();
+        assert_eq!(snapshot.exif.unwrap()["SyntheticLongExif"].len(), 700);
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        fs::write(&sidecar, "invalid JSON").unwrap();
+        assert!(read_sidecar_report_snapshot(&sidecar).is_err());
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), "invalid JSON");
     }
 
     #[test]

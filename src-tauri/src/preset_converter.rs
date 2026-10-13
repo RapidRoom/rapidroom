@@ -1127,8 +1127,15 @@ fn convert_xmp_sidecar_to_preset_with_as_shot_temperature(
 /// Lightroom settings in a sidecar that the import could not carry over, as
 /// stable keys for the import report.
 pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) -> Vec<&'static str> {
-    let Ok(attrs) = parse_xmp_attributes(xmp_content) else {
+    let Ok(properties) = crate::xmp::photo_properties(xmp_content, crate::xmp::CRS) else {
         return Vec::new();
+    };
+    let attrs = scalar_attributes(&properties);
+    let active_property = |key: &str| match properties.get(key) {
+        Some(crate::xmp::PhotoProperty::Scalar(value)) => !value.is_empty(),
+        Some(crate::xmp::PhotoProperty::List(items)) => !items.is_empty(),
+        Some(crate::xmp::PhotoProperty::Structured) => true,
+        None => false,
     };
     let mut items = Vec::new();
 
@@ -1136,7 +1143,7 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
     // balance often can't be turned into RapidRAW's relative controls.
     let custom_white_balance = attrs
         .get("WhiteBalance")
-        .is_some_and(|value| !value.eq_ignore_ascii_case("As Shot"));
+        .is_some_and(|value| !value.is_empty() && !value.eq_ignore_ascii_case("As Shot"));
     if custom_white_balance
         && preset.adjustments.get("temperature").is_none()
         && preset.adjustments.get("tint").is_none()
@@ -1162,7 +1169,14 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
 
     // Only crs:MaskGroupBasedCorrections are imported; the older per-tool
     // lists are reported as they are.
-    let (_, masks) = crate::lightroom_masks::import_lightroom_masks(xmp_content, None, |_| {});
+    let (_, masks) = if active_property("MaskGroupBasedCorrections") {
+        crate::lightroom_masks::import_lightroom_masks(xmp_content, None, |_| {})
+    } else {
+        (
+            Vec::new(),
+            crate::lightroom_masks::MaskImportSummary::default(),
+        )
+    };
     let imported_masks = preset
         .adjustments
         .get("masks")
@@ -1170,10 +1184,18 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
         .map_or(0, Vec::len);
     if masks.skipped_unsupported > 0
         || imported_masks < masks.convertible
-        || regex!(
-            r"(?s)<crs:(?:PaintBasedCorrections|GradientBasedCorrections|CircularGradientBasedCorrections)>\s*<rdf:Seq>\s*<rdf:li"
-        )
-        .is_match(xmp_content)
+        || (active_property("MaskGroupBasedCorrections")
+            && imported_masks == 0
+            && masks.convertible == 0
+            && masks.skipped_ai == 0
+            && masks.skipped_unsupported == 0)
+        || [
+            "PaintBasedCorrections",
+            "GradientBasedCorrections",
+            "CircularGradientBasedCorrections",
+        ]
+        .iter()
+        .any(|key| active_property(key))
     {
         items.push("masks");
     }
@@ -1184,7 +1206,7 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
         items.push("localAdjustments");
     }
 
-    if regex!(r"(?s)<crs:PointColors>\s*<rdf:Seq>\s*<rdf:li").is_match(xmp_content) {
+    if active_property("PointColors") {
         items.push("pointColor");
     }
 
@@ -2937,6 +2959,25 @@ mod tests {
     fn not_transferred(xmp: &str) -> Vec<&'static str> {
         let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
         lightroom_settings_not_transferred(xmp, &preset)
+    }
+
+    #[test]
+    fn broad_import_categories_respect_namespace_subject_and_blank_values() {
+        let xmp = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+            xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:crs="urn:foreign">
+          <r:Description r:about="photo" a:WhiteBalance=" ">
+            <crs:PointColors><r:Seq><r:li>foreign</r:li></r:Seq></crs:PointColors>
+            <a:Look><r:Description><a:PointColors><r:Seq><r:li>nested</r:li></r:Seq></a:PointColors>
+              <a:PaintBasedCorrections><r:Seq><r:li>nested</r:li></r:Seq></a:PaintBasedCorrections></r:Description></a:Look>
+          </r:Description><r:Description r:about="other"><a:PointColors><r:Seq><r:li>other</r:li></r:Seq></a:PointColors></r:Description>
+        </r:RDF>"#;
+        assert!(not_transferred(xmp).is_empty());
+        let aliased = r#"<root xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"
+          xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+          <a:PointColors><r:Seq><r:li>unsupported</r:li></r:Seq></a:PointColors>
+          <a:PaintBasedCorrections><r:Seq><r:li>unsupported</r:li></r:Seq></a:PaintBasedCorrections>
+        </root>"#;
+        assert_eq!(not_transferred(aliased), vec!["masks", "pointColor"]);
     }
 
     #[test]
