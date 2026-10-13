@@ -1067,6 +1067,15 @@ pub fn convert_xmp_sidecar_to_preset_for_image(
     xmp_content: &str,
     image_path: &Path,
 ) -> Result<Preset, String> {
+    convert_xmp_sidecar_for_image_with_mask_report(xmp_content, image_path, image_path)
+        .map(|(preset, _)| preset)
+}
+
+pub(crate) fn convert_xmp_sidecar_for_image_with_mask_report(
+    xmp_content: &str,
+    image_path: &Path,
+    sidecar_path: &Path,
+) -> Result<(Preset, crate::lightroom_masks::MaskImportSummary), String> {
     let extension = image_path
         .extension()
         .and_then(|extension| extension.to_str())
@@ -1092,13 +1101,52 @@ pub fn convert_xmp_sidecar_to_preset_for_image(
     let fallback_image_dimensions = geometry_needs_image_dimensions
         .then(|| probe_xmp_crop_image_dimensions(image_path))
         .flatten();
-    convert_xmp_to_preset_with_crop(
+    let mut preset = convert_xmp_to_preset_with_crop(
         xmp_content,
         true,
         None,
         Some(image_kind),
         fallback_image_dimensions,
-    )
+    )?;
+    let mut summary = crate::lightroom_masks::MaskImportSummary::default();
+    if crate::lightroom_masks::has_mask_group_corrections(xmp_content) {
+        let frame =
+            xmp_image_dimensions(xmp_content, fallback_image_dimensions).map(|(width, height)| {
+                crate::lightroom_masks::ImageFrame {
+                    width,
+                    height,
+                    orientation: xmp_orientation(xmp_content),
+                    rotation: preset
+                        .adjustments
+                        .get("rotation")
+                        .and_then(Value::as_f64)
+                        .unwrap_or(0.0),
+                }
+            });
+        let acr_path = sidecar_path.with_extension("acr");
+        let acr_path = if acr_path.exists() {
+            acr_path
+        } else {
+            sidecar_path.with_extension("ACR")
+        };
+        let mut acr = crate::lightroom_acr::AcrMasks::read(&acr_path);
+        let error = acr.as_ref().err().cloned();
+        let (masks, report) = crate::lightroom_masks::import_lightroom_masks_with_acr(
+            xmp_content,
+            frame.as_ref(),
+            |mask| scale_lightroom_exposure(mask, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS),
+            acr.as_mut().ok(),
+            error.as_deref(),
+        );
+        summary = report;
+        if let Some(adjustments) = preset.adjustments.as_object_mut() {
+            adjustments.remove("masks");
+            if !masks.is_empty() {
+                adjustments.insert("masks".into(), Value::Array(masks));
+            }
+        }
+    }
+    Ok((preset, summary))
 }
 
 #[cfg(test)]

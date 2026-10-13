@@ -101,13 +101,26 @@ interface DeleteOptions {
 type XmpNotTransferredItem =
   'whiteBalance' | 'profileLook' | 'aiDenoise' | 'aiMasks' | 'masks' | 'localAdjustments' | 'pointColor';
 
+interface XmpMaskFailure {
+  correction: string;
+  component: string;
+  maskType: string;
+  reason: string;
+}
+
+function describeMaskFailure(failure: XmpMaskFailure): string {
+  return `${failure.correction} / ${failure.component} (${failure.maskType}): ${failure.reason}`;
+}
+
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
   notTransferred?: XmpNotTransferredItem[];
+  maskFailures?: XmpMaskFailure[];
 }
 
 interface XmpNotTransferred {
   path: string;
   items: XmpNotTransferredItem[];
+  maskFailures?: XmpMaskFailure[];
 }
 
 interface MatchingXmpSidecarImportResult {
@@ -341,6 +354,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         await props.refreshImageList();
         toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
         toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
+        for (const failure of metadata.maskFailures ?? []) {
+          toast.info(describeMaskFailure(failure), { autoClose: false });
+        }
         if (metadata.notTransferred?.length) {
           toast.info(
             t('contextMenus.xmpImportReport.notTransferredForImage', {
@@ -433,9 +449,10 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           reportLines.push(
             '',
             t('contextMenus.xmpImportReport.notTransferred', { total: result.notTransferred.length }),
-            ...result.notTransferred.map(
-              ({ path, items }) => `${relativeToImportedFolder(path)}: ${describeNotTransferred(items)}`,
-            ),
+            ...result.notTransferred.flatMap(({ path, items, maskFailures }) => [
+              `${relativeToImportedFolder(path)}: ${describeNotTransferred(items)}`,
+              ...(maskFailures ?? []).map(describeMaskFailure),
+            ]),
           );
         }
         const reportText = reportLines.join('\n');

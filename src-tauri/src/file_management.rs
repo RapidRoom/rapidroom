@@ -538,6 +538,7 @@ struct ImportedXmpSidecar {
     sidecar_path: PathBuf,
     metadata: ImageMetadata,
     not_transferred: Vec<&'static str>,
+    mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -562,6 +563,7 @@ pub struct XmpSidecarImportResult {
 pub struct XmpNotTransferred {
     pub path: String,
     pub items: Vec<&'static str>,
+    pub mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -570,6 +572,7 @@ pub struct XmpImageImportResult {
     #[serde(flatten)]
     pub metadata: ImageMetadata,
     pub not_transferred: Vec<&'static str>,
+    pub mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 pub fn parse_virtual_path(virtual_path: &str) -> (PathBuf, PathBuf) {
@@ -3116,8 +3119,12 @@ fn import_xmp_adjustments_to_sidecar(
     ensure_card_writable(&source_path)?;
     let xmp_content = crate::xmp::read(xmp_path)
         .map_err(|error| format!("Failed to read XMP file: {}", error))?;
-    let converted_preset =
-        preset_converter::convert_xmp_sidecar_to_preset_for_image(&xmp_content, &source_path)?;
+    let (converted_preset, mask_report) =
+        preset_converter::convert_xmp_sidecar_for_image_with_mask_report(
+            &xmp_content,
+            &source_path,
+            xmp_path,
+        )?;
 
     let has_supported_adjustments = converted_preset
         .adjustments
@@ -3127,11 +3134,29 @@ fn import_xmp_adjustments_to_sidecar(
         || extract_xmp_label(&xmp_content).is_some()
         || !extract_xmp_tags(&xmp_content).is_empty();
     if !has_supported_adjustments && !has_supported_metadata {
-        return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
+        let details = mask_report
+            .failures
+            .iter()
+            .map(|failure| {
+                format!(
+                    "{} / {} ({}): {}",
+                    failure.correction, failure.component, failure.mask_type, failure.reason
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
+        return Err(if details.is_empty() {
+            NO_SUPPORTED_XMP_CONTENT_ERROR.to_string()
+        } else {
+            format!("{NO_SUPPORTED_XMP_CONTENT_ERROR} {details}")
+        });
     }
 
-    let not_transferred =
+    let mut not_transferred =
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
+    if mask_report.skipped_ai == 0 {
+        not_transferred.retain(|item| *item != "aiMasks");
+    }
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
     metadata.adjustments = converted_preset.adjustments;
     resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
@@ -3145,6 +3170,7 @@ fn import_xmp_adjustments_to_sidecar(
         sidecar_path,
         metadata,
         not_transferred,
+        mask_failures: mask_report.failures,
     })
 }
 
@@ -3165,6 +3191,7 @@ pub fn import_xmp_adjustments_for_image(
     let imported_adjustments = imported.metadata.adjustments.clone();
     let sidecar_path = imported.sidecar_path.clone();
     let not_transferred = imported.not_transferred;
+    let mask_failures = imported.mask_failures;
 
     save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
 
@@ -3177,6 +3204,7 @@ pub fn import_xmp_adjustments_for_image(
     Ok(XmpImageImportResult {
         metadata: crate::exif_processing::load_sidecar(&sidecar_path),
         not_transferred,
+        mask_failures,
     })
 }
 
@@ -3248,6 +3276,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
                         result.not_transferred.push(XmpNotTransferred {
                             path: path_string.clone(),
                             items: imported.not_transferred,
+                            mask_failures: imported.mask_failures,
                         });
                     }
                     result.imported_paths.push(path_string);

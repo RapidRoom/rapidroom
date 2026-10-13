@@ -1,7 +1,6 @@
 //! Lightroom local corrections (`crs:MaskGroupBasedCorrections`) as RapidRAW
 //! masks: linear and radial gradients and brush strokes, with their local
-//! adjustments. AI masks (`Mask/Image`) keep their pixels in a separate `.acr`
-//! file, so corrections that use them are skipped and reported instead.
+//! adjustments. AI pixels are read from an optional, read-only ACR sidecar.
 
 use quick_xml::Reader;
 use quick_xml::XmlVersion;
@@ -100,6 +99,15 @@ impl ImageFrame {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MaskFailure {
+    pub correction: String,
+    pub component: String,
+    pub mask_type: String,
+    pub reason: String,
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct MaskImportSummary {
     /// Corrections that could be converted, whether or not an image frame was
@@ -107,6 +115,8 @@ pub struct MaskImportSummary {
     pub convertible: usize,
     /// Corrections skipped because they use AI (`Mask/Image`) components.
     pub skipped_ai: usize,
+    pub imported_ai: usize,
+    pub failures: Vec<MaskFailure>,
     /// Corrections skipped for other reasons (unsupported components, missing
     /// geometry, no components).
     pub skipped_unsupported: usize,
@@ -125,6 +135,16 @@ pub fn import_lightroom_masks(
     frame: Option<&ImageFrame>,
     scale_exposure: impl Fn(&mut Map<String, Value>),
 ) -> (Vec<Value>, MaskImportSummary) {
+    import_lightroom_masks_with_acr(xmp_content, frame, scale_exposure, None, None)
+}
+
+pub(crate) fn import_lightroom_masks_with_acr(
+    xmp_content: &str,
+    frame: Option<&ImageFrame>,
+    scale_exposure: impl Fn(&mut Map<String, Value>),
+    mut acr: Option<&mut crate::lightroom_acr::AcrMasks>,
+    acr_error: Option<&str>,
+) -> (Vec<Value>, MaskImportSummary) {
     let mut summary = MaskImportSummary::default();
     let mut masks = Vec::new();
     if !has_mask_group_corrections(xmp_content) {
@@ -140,7 +160,15 @@ pub fn import_lightroom_masks(
 
     for (index, item) in seq_items(corrections).into_iter().enumerate() {
         let correction = Resource::from_item(item);
-        match convert_correction(&correction, index, frame, &scale_exposure) {
+        match convert_correction(
+            &correction,
+            index,
+            frame,
+            &scale_exposure,
+            acr.as_deref_mut(),
+            acr_error,
+            &mut summary,
+        ) {
             Converted::Mask(mask, unmapped) => {
                 summary.convertible += 1;
                 if unmapped {
@@ -170,6 +198,9 @@ fn convert_correction(
     index: usize,
     frame: Option<&ImageFrame>,
     scale_exposure: &impl Fn(&mut Map<String, Value>),
+    mut acr: Option<&mut crate::lightroom_acr::AcrMasks>,
+    acr_error: Option<&str>,
+    summary: &mut MaskImportSummary,
 ) -> Converted {
     let components: Vec<Resource> = correction
         .structs
@@ -181,10 +212,48 @@ fn convert_correction(
                 .collect()
         })
         .unwrap_or_default();
-    if components
-        .iter()
-        .any(|component| component.what() == Some("Mask/Image"))
-    {
+    let mut image_parameters = HashMap::new();
+    let mut failed_ai = false;
+    for (component_index, component) in components.iter().enumerate() {
+        if component.what() != Some("Mask/Image") {
+            continue;
+        }
+        let result = match (acr.as_deref_mut(), frame) {
+            (Some(acr), Some(frame)) => acr.image_parameters(&component.scalars, frame),
+            (_, None) => Err("Image dimensions are unavailable".into()),
+            _ => Err(acr_error
+                .unwrap_or("ACR sidecar is unavailable")
+                .to_string()),
+        };
+        match result {
+            Ok(parameters) => {
+                image_parameters.insert(component_index, parameters);
+            }
+            Err(reason) => {
+                failed_ai = true;
+                summary.failures.push(MaskFailure {
+                    correction: correction
+                        .scalars
+                        .get("CorrectionName")
+                        .cloned()
+                        .unwrap_or_else(|| format!("Lightroom mask {}", index + 1)),
+                    component: component
+                        .name()
+                        .unwrap_or_else(|| format!("Image component {}", component_index + 1)),
+                    mask_type: format!(
+                        "Mask/Image (subtype {})",
+                        component
+                            .scalars
+                            .get("MaskSubType")
+                            .map(String::as_str)
+                            .unwrap_or("unknown")
+                    ),
+                    reason,
+                });
+            }
+        }
+    }
+    if failed_ai {
         return Converted::SkippedAi;
     }
     if components.is_empty() {
@@ -199,9 +268,21 @@ fn convert_correction(
         orientation: 1,
         rotation: 0.0,
     });
-    let Some(sub_masks) = convert_components(&components, &frame_or_unit) else {
+    let Some(sub_masks) = convert_components(&components, &frame_or_unit, &image_parameters) else {
+        if !image_parameters.is_empty() {
+            summary.failures.push(MaskFailure {
+                correction: correction.scalars.get("CorrectionName").cloned().unwrap_or_else(|| format!("Lightroom mask {}", index+1)),
+                component: "Mixed correction".into(),
+                mask_type: "Mask/Image".into(),
+                reason: "The correction contains unsupported companion components or blend geometry; no part was imported".into(),
+            });
+            return Converted::SkippedAi;
+        }
         return Converted::SkippedUnsupported;
     };
+    if !image_parameters.is_empty() {
+        summary.imported_ai += 1;
+    }
 
     let amount = correction
         .number("CorrectionAmount")
@@ -299,11 +380,15 @@ fn flush_brush(brush: &mut Option<BrushGroup>, sub_masks: &mut Vec<Value>) {
     }
 }
 
-fn convert_components(components: &[Resource], frame: &ImageFrame) -> Option<Vec<Value>> {
+fn convert_components(
+    components: &[Resource],
+    frame: &ImageFrame,
+    image_parameters: &HashMap<usize, Value>,
+) -> Option<Vec<Value>> {
     let mut sub_masks: Vec<Value> = Vec::new();
     let mut brush: Option<BrushGroup> = None;
 
-    for component in components {
+    for (index, component) in components.iter().enumerate() {
         match component.what()? {
             "Mask/Paint" => {
                 let line = brush_line(component, frame)?;
@@ -357,6 +442,21 @@ fn convert_components(components: &[Resource], frame: &ImageFrame) -> Option<Vec
                     mode,
                     invert,
                     radial_parameters(component, frame)?,
+                ));
+            }
+            "Mask/Image" => {
+                flush_brush(&mut brush, &mut sub_masks);
+                let (mode, invert) = sub_mask_mode(component, false)?;
+                // Raster-only masks need no model or gesture regeneration.
+                // All Lightroom subtypes retain their supplied coverage. Using
+                // the bitmap renderer avoids guessing model/people-part semantics.
+                let mask_type = "ai-foreground";
+                sub_masks.push(sub_mask(
+                    component,
+                    mask_type,
+                    mode,
+                    invert,
+                    image_parameters.get(&index)?.clone(),
                 ));
             }
             _ => return None,
