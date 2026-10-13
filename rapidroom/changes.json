@@ -1245,6 +1245,19 @@
       "rendering_change": false,
       "rapidroom_only": true,
       "notes": "Development quality cleanup in src/components/panel/right; no runtime behavior change intended."
+    },
+    {
+      "id": "eslint-editor-panel-cleanup",
+      "title": "Type the editor panel and clear its ESLint errors",
+      "category": "ci",
+      "landed": "2026-10-12",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "rapidroom_only": true,
+      "notes": "Development quality cleanup in src/components/panel/editor; no runtime behavior change intended."
     }
   ]
 }
