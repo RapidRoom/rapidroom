@@ -7,6 +7,10 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.
 - **[RapidRAW-DngLab](https://github.com/CyberTimon/RapidRAW-DngLab)**, CyberTimon's fork of [dnglab/rawler](https://github.com/dnglab/dnglab) by Daniel Vogelbacher and contributors (raw decoding).
 
+## Individual MCP mask editing
+
+The typed mask/crop schemas, single-id edit tools and nested local-default normalization are original work for RapidRoom by yojen7 with Codex. They use RapidRoom’s existing renderer and editor history. No fork implementation or additional AI engine is included.
+
 ## AI raw denoise
 
 The native preprocessing and model contract are adapted from [RawForge](https://github.com/rymuelle/RawForge/commit/79f17700c29765b28a4cf5bd1b6d90bc7e3eb7f2) and RawHandler by rymuelle (MIT), overlap masks from blended-tiling-numpy by ProGamerGov (MIT), and Malvar kernels from colour-demosaicing by Colour Developers (BSD-3-Clause). Adapted for RapidRoom by yojen7 with Codex. [Licence check and retained notices](rapidroom/DENOISE.md). No model weights are bundled.
@@ -180,3 +184,7 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 ### AutoShade assistant text boundaries
 
 The data-only envelope, bounded UTF-8 text, shared free-text budget and assistant-output projection pattern were studied in [AutoShade by skymanbp](https://github.com/skymanbp/autoshade/tree/cbca12b5a903ff8d71faf25a3966ed3712e839ba/src/advisor), under the [MIT licence](rapidroom/LICENSES/autoshade-MIT.txt). RapidRoom’s MCP, terminal context, secret-pattern redaction and edit-name preservation integration are original adaptations. These deterministic boundaries reduce injection exposure; they do not establish immunity of a remote model to hostile instructions.
+
+### CRS interoperability cross-check
+
+The field and RDF representation audit compares [LightCraft by storytold](https://github.com/storytold/lightcraft/tree/265248c86fa3267709aea45633d0d135331e180c) (MIT OR Apache-2.0; [MIT notice](rapidroom/LICENSES/lightcraft-MIT.txt)) and [Redlamp by pdcgomes](https://github.com/pdcgomes/redlamp/tree/a70c86dc01ab8ee5d831642520b76ed529f556c0) (MPL-2.0). Supplementary semantics were checked in MIT AutoShade and RAWmakase; exact versions and limitations are in the [audit](rapidroom/validation/crs-interop-20261012/README.md). The namespace-aware photo/curve/look reader extends RapidRoom's existing bounded XML parser; this is original work, with no copied MPL source, Adobe assets, SDK-derived tables or external presets.

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { save, open, confirm } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { FileInput, CheckCircle, XCircle, Loader, Ban, ChevronDown, ChevronRight, Settings, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import debounce from 'lodash.debounce';
 import Switch from '../../ui/Switch';
 import Button from '../../ui/Button';
@@ -39,7 +41,7 @@ interface ExportPanelProps {
   exportState: ExportState;
   multiSelectedPaths: Array<string>;
   selectedImage: SelectedImage | null;
-  setExportState(state: any): void;
+  setExportState(state: Partial<ExportState> | ((current: ExportState) => Partial<ExportState>)): void;
   appSettings: AppSettings | null;
   onSettingsChange: (settings: AppSettings) => void;
   rootPaths: string[];
@@ -161,7 +163,7 @@ function ColorField({ color, disabled, field, label, onColorChange }: ColorField
 }
 
 interface SectionProps {
-  children: any;
+  children: ReactNode;
   title: string;
 }
 
@@ -276,7 +278,7 @@ function WatermarkPreview({
   );
 }
 
-const formatBytes = (bytes: number, t: any, decimals = 2) => {
+const formatBytes = (bytes: number, t: TFunction, decimals = 2) => {
   if (!+bytes) return `0 ${t('export.bytes.bytes')}`;
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
@@ -518,7 +520,9 @@ export default function ExportPanel({
         return;
       }
       try {
-        const dims: any = await invoke('get_image_dimensions', { path: pathsToExport[0] });
+        const dims: { width: number; height: number } = await invoke('get_image_dimensions', {
+          path: pathsToExport[0],
+        });
         if (dims.width > 0 && dims.height > 0) setImageAspectRatio(dims.width / dims.height);
       } catch {
         setImageAspectRatio(3 / 2);
@@ -538,7 +542,7 @@ export default function ExportPanel({
           path: watermarkPath,
         });
         setWatermarkImageAspectRatio(dimensions.height > 0 ? dimensions.width / dimensions.height : 1);
-      } catch (error) {
+      } catch {
         setWatermarkImageAspectRatio(1);
       }
     };
@@ -577,7 +581,7 @@ export default function ExportPanel({
             currentEditAdjustments: currentAdj || null,
           });
           setEstimatedSize(size);
-        } catch (err) {
+        } catch {
           setEstimatedSize(null);
         } finally {
           setIsEstimating(false);
@@ -723,7 +727,7 @@ export default function ExportPanel({
     const lastExportPath = appSettings?.exportPresets?.find((p) => p.id === '__last_used__')?.lastExportPath;
 
     try {
-      const selectedFormat: any = FILE_FORMATS.find((f) => f.id === fileFormat);
+      const selectedFormat: FileFormat = FILE_FORMATS.find((format) => format.id === fileFormat) ?? FILE_FORMATS[0];
 
       let outputFolderOrFile = '';
       const isOriginalFolder = destinationType === 'originalFolder';

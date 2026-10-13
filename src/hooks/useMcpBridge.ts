@@ -26,6 +26,7 @@ interface McpCommand {
     | 'editor-context';
   path: string;
   adjustments?: Adjustments;
+  baseAdjustments?: Adjustments;
 }
 
 interface McpStateResponse {
@@ -109,9 +110,18 @@ async function waitForAdjustmentRender(
 // Applies an MCP edit as one undoable step, after any pending GUI history push,
 // so an older queued snapshot cannot land on top of it. Returns whether a new
 // preview was rendered for it; ongoing user gestures remain a live-test case.
-async function applyEdit(path: string, nextAdjustments: Adjustments): Promise<boolean> {
+async function applyEdit(path: string, nextAdjustments: Adjustments, baseAdjustments?: Adjustments): Promise<boolean> {
   debouncedSetHistory.flush();
   const editor = useEditorStore.getState();
+  if (
+    baseAdjustments &&
+    (editor.selectedImage?.path !== path ||
+      !editor.selectedImage.isReady ||
+      !sameAdjustmentValue(baseAdjustments, editor.adjustments))
+  )
+    throw new Error(
+      'Active image or edit changed before the single-mask operation; read the current revision and retry',
+    );
   if (sameAdjustmentValue(nextAdjustments, editor.adjustments)) {
     return true;
   }
@@ -299,6 +309,9 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
           });
           return;
         } else {
+          if (command.baseAdjustments && useEditorStore.getState().selectedImage?.path !== command.path) {
+            throw new Error('Active image changed before the single-mask operation');
+          }
           if (useEditorStore.getState().selectedImage?.path !== command.path) {
             await selectImageRef.current(command.path, true);
             await waitForImage(command.path);
@@ -315,7 +328,7 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
           } else {
             throw new Error('MCP adjustment command did not include adjustments');
           }
-          renderPending = !(await applyEdit(command.path, nextAdjustments));
+          renderPending = !(await applyEdit(command.path, nextAdjustments, command.baseAdjustments));
         }
 
         const response = await syncState(command.path);

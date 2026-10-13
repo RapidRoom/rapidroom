@@ -4,11 +4,14 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**89 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
+**91 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
 
 | Change                                                                                                                                                                                                                                                                            | Type        | By                                                                                                                             | Upstream                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Write selected print resolution in JPEG, PNG and TIFF exports                                                                                                                                                                                                                     | feature     | [@lalibertemarc](https://github.com/lalibertemarc), [@yojen7](https://github.com/yojen7)                                       | [RapidRoom/rapidroom#244](https://github.com/RapidRoom/rapidroom/issues/244); [RapidRoom/rapidroom#122](https://github.com/RapidRoom/rapidroom/issues/122); PR [#1910](https://github.com/CyberTimon/RapidRAW/issues/1910)                                                         |
+| Test atomic file writes under failure conditions                                                                                                                                                                                                                                  | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
+| Read CRS import fields by namespace and RDF subject                                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
+| Edit individual masks through MCP with typed crop and component schemas                                                                                                                                                                                                           | feature     | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Allow explicit replacement of earlier batch exports                                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#235](https://github.com/RapidRoom/rapidroom/issues/235); [#1901](https://github.com/CyberTimon/RapidRAW/issues/1901)                                                                                                                                          |
 | Test DA2 Small depth map letterboxing and unpadding                                                                                                                                                                                                                               | ci          | [@Duecki1](https://github.com/Duecki1), [@yojen7](https://github.com/yojen7)                                                   | [RapidRoom/rapidroom#222](https://github.com/RapidRoom/rapidroom/issues/222)                                                                                                                                                                                                       |
 | Insert dropped masks at their target row                                                                                                                                                                                                                                          | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#204](https://github.com/RapidRoom/rapidroom/issues/204)                                                                                                                                                                                                       |
@@ -103,6 +106,10 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Rapid navigation shares one decode slot between editor loads and culling previews; superseded editor loads skip decoding                                                                                                                                                          | performance | [@subbajeu](https://github.com/subbajeu), [@yojen7](https://github.com/yojen7)                                                 | not yet offered                                                                                                                                                                                                                                                                    |
 | Consistent 400% editor zoom and regular wheel/keyboard stops                                                                                                                                                                                                                      | fix         | [@yojen7](https://github.com/yojen7), [@SebastianEggli](https://github.com/SebastianEggli)                                     | [#1638](https://github.com/CyberTimon/RapidRAW/issues/1638); PR [#1869](https://github.com/CyberTimon/RapidRAW/issues/1869)                                                                                                                                                        |
 | Type the frontend hooks and remove explicit any annotations                                                                                                                                                                                                                       | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
+| Type the right panel and clear its ESLint errors                                                                                                                                                                                                                                  | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
+| Type the editor panel and clear its ESLint errors                                                                                                                                                                                                                                 | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
+| Type the adjustment panels and clear their ESLint errors                                                                                                                                                                                                                          | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
+| Type the settings panel and clear its ESLint errors                                                                                                                                                                                                                               | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-10.
 
@@ -116,6 +123,31 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** [RapidRoom/rapidroom#244](https://github.com/RapidRoom/rapidroom/issues/244); [RapidRoom/rapidroom#122](https://github.com/RapidRoom/rapidroom/issues/122); PR [#1910](https://github.com/CyberTimon/RapidRAW/issues/1910)
 - **Commits:** [66bbcb9](https://github.com/CyberTimon/RapidRAW/commit/66bbcb95e3faf25120e03c84aa56a64e766e1cd3)
 - **Notes:** Export offers Resolution (DPI), default 300, stored with presets. Resolution metadata does not resize pixels. JPEG/PNG/TIFF retain the sRGB ICC profile and companion mask alpha PNGs carry the requested resolution; requests without DPI keep existing encoder behavior and JPEG XL metadata stays unchanged.
+
+### Test atomic file writes under failure conditions
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-13
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original failure-injection tests)
+- **Upstream:** not yet offered
+- **Notes:** Injects partial-write disk-full, sync/finalization, and final-name collision failures into atomic sidecar writes. Each test verifies the existing file is preserved and the temporary file is removed. Production file-write behavior is unchanged.
+
+### Read CRS import fields by namespace and RDF subject
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex; LightCraft/Redlamp interoperability cross-check)
+- **Upstream:** not yet offered
+- **Commits:** [265248c](https://github.com/storytold/lightcraft/commit/265248c86fa3267709aea45633d0d135331e180c), [a70c86d](https://github.com/pdcgomes/redlamp/commit/a70c86dc01ab8ee5d831642520b76ed529f556c0)
+- **Notes:** Namespace-aware scalar, qualified, language and curve-list import keeps nested/foreign/other-subject fields out, scopes look curves to their own Parameters resource, preserves first-property precedence and existing canonical legacy fragments, and fixes HighlightRecovery classification. Audit covers 169 global fields plus local masks, formats and XML safety. Larger defaults, parametric, per-setting-report, cube-domain and already-applied policy gaps are tracked separately; no Adobe rendering parity is claimed.
+
+### Edit individual masks through MCP with typed crop and component schemas
+
+- **Type:** feature
+- **Landed in RapidRoom:** 2026-10-10
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
+- **Upstream:** not yet offered
+- **Notes:** Single-id upsert/remove preserves sibling masks and shared editor history. Tool discovery documents original-image coordinate units, all existing renderer component types and local adjustment ranges. Nested HSL/colour-grading defaults fill on create and existing sidecar load. Default renders and render algorithms are unchanged; partial sidecars retain their values while receiving missing neutral defaults. Existing build identity is documented. Advances the mask foundation for #120; AI generation, preview-coordinate conversion, virtual-copy, preset and library tools remain separate follow-up work.
 
 ### Allow explicit replacement of earlier batch exports
 
@@ -899,3 +931,35 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@yojen7](https://github.com/yojen7)
 - **Upstream:** RapidRoom only
 - **Notes:** Development quality cleanup in src/hooks; no runtime behavior change intended.
+
+### Type the right panel and clear its ESLint errors
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** RapidRoom only
+- **Notes:** Development quality cleanup in src/components/panel/right; no runtime behavior change intended.
+
+### Type the editor panel and clear its ESLint errors
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** RapidRoom only
+- **Notes:** Development quality cleanup in src/components/panel/editor; no runtime behavior change intended.
+
+### Type the adjustment panels and clear their ESLint errors
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** RapidRoom only
+- **Notes:** Development quality cleanup in src/components/adjustments; no runtime behavior change intended.
+
+### Type the settings panel and clear its ESLint errors
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** RapidRoom only
+- **Notes:** Development quality cleanup in src/components/panel/SettingsPanel.tsx; no runtime behavior change intended.
