@@ -473,7 +473,10 @@ class Smoke:
             run_packaging_checks(self.case, self)
         elif (self.case / "terminal-test.json").exists():
             self.terminal_flow()
-        if (self.case / "mcp-compact-test.json").exists():
+        if (self.case / "mcp-masks-test.json").exists():
+            from mcp_masks import run_mask_checks
+            run_mask_checks(self.case, self)
+        elif (self.case / "mcp-compact-test.json").exists():
             from mcp_compact import run_compact_checks
             run_compact_checks(self.case, self)
         elif (self.case / "mcp-revisions-test.json").exists():
@@ -595,6 +598,8 @@ def launch(args):
         save(case / "mcp-revisions-test.json", {"issue": 148, "real_model_requests": True})
     if args.mcp_compact or args.mcp_compact_baseline:
         save(case / "mcp-compact-test.json", {"issue": 147, "baseline": args.mcp_compact_baseline, "real_model_requests": not args.mcp_compact_baseline})
+    if args.mcp_masks:
+        save(case / "mcp-masks-test.json", {"issue": 150, "real_model_requests": True})
     if args.mcp_history:
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_packaging:
@@ -707,6 +712,7 @@ def main():
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
     parser.add_argument("--terminal-clients", action="store_true", help="Use real clients from both terminal launch paths (implies --terminal --mcp-clients)")
+    parser.add_argument("--mcp-masks", action="store_true", help="Actual-client single-mask add, sibling preservation, nested defaults, history and sidecars")
     parser.add_argument("--mcp-history", action="store_true", help="Run actual-client labelled history/schema/preview scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-packaging", action="store_true", help="Verify default-off, launch consent, runtime toggle and real registered clients")
     parser.add_argument("--mcp-measure", action="store_true", help="Run read-only measurement/comparison scenario (implies --mcp-clients)")
@@ -731,7 +737,7 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop:
+    if args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop:
         args.mcp_clients = True
     if args.mcp_packaging:
         args.terminal_clients = True

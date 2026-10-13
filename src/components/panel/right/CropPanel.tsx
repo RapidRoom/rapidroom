@@ -36,7 +36,6 @@ import Text from '../../ui/Text';
 import Slider from '../../ui/Slider';
 import Switch from '../../ui/Switch';
 import Dropdown from '../../ui/Dropdown';
-import Button from '../../ui/Button';
 import { TEXT_COLOR_KEYS, TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useEditorActions } from '../../../hooks/useEditorActions';
@@ -66,9 +65,14 @@ interface OverlayOption {
   tooltip: string;
 }
 
-const parseExifNumber = (val: any): number => {
+interface UserLens {
+  maker: string;
+  model: string;
+}
+
+const parseExifNumber = (val: unknown): number => {
   if (val === undefined || val === null) return 0;
-  const parsed = parseFloat(val);
+  const parsed = Number.parseFloat(String(val));
   return isNaN(parsed) ? 0 : parsed;
 };
 
@@ -111,7 +115,7 @@ export default function CropPanel() {
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [makers, setMakers] = useState<string[]>([]);
   const [lenses, setLenses] = useState<string[]>([]);
-  const [myLenses, setMyLenses] = useState<any[]>([]);
+  const [myLenses, setMyLenses] = useState<UserLens[]>([]);
   const [detectionStatus, setDetectionStatus] = useState<'idle' | 'detecting' | 'not_found' | 'success'>('idle');
   const [localRotation, setLocalRotation] = useState<number | null>(null);
   const localRotationRef = useRef<number | null>(null);
@@ -232,19 +236,17 @@ export default function CropPanel() {
   const { aspectRatio, rotation = 0, flipHorizontal = false, flipVertical = false, orientationSteps = 0 } = adjustments;
 
   useEffect(() => {
-    invoke('get_lensfun_makers')
-      .then((m: any) => setMakers(m))
-      .catch(console.error);
+    invoke<string[]>('get_lensfun_makers').then(setMakers).catch(console.error);
 
-    invoke('load_settings').then((settings: any) => {
+    invoke<{ myLenses?: UserLens[] }>('load_settings').then((settings) => {
       if (settings?.myLenses) setMyLenses(settings.myLenses);
     });
   }, []);
 
   useEffect(() => {
     if (adjustments.lensMaker) {
-      invoke('get_lensfun_lenses_for_maker', { maker: adjustments.lensMaker })
-        .then((l: any) => setLenses(l))
+      invoke<string[]>('get_lensfun_lenses_for_maker', { maker: adjustments.lensMaker })
+        .then(setLenses)
         .catch(console.error);
     } else {
       setLenses([]);
@@ -611,15 +613,18 @@ export default function CropPanel() {
   const fetchDistortionParams = useCallback(
     async (maker: string, model: string) => {
       try {
-        const distParams: any = await invoke('get_lens_distortion_params', {
-          maker,
-          model,
-          focalLength: parseExifNumber(selectedImage?.exif?.FocalLength),
-          aperture: parseExifNumber(selectedImage?.exif?.FNumber),
-          distance: parseExifNumber(selectedImage?.exif?.SubjectDistance),
-          cameraMaker: selectedImage?.exif?.Make ?? '',
-          cameraModel: selectedImage?.exif?.Model ?? '',
-        });
+        const distParams: NonNullable<Adjustments['lensDistortionParams']> = await invoke(
+          'get_lens_distortion_params',
+          {
+            maker,
+            model,
+            focalLength: parseExifNumber(selectedImage?.exif?.FocalLength),
+            aperture: parseExifNumber(selectedImage?.exif?.FNumber),
+            distance: parseExifNumber(selectedImage?.exif?.SubjectDistance),
+            cameraMaker: selectedImage?.exif?.Make ?? '',
+            cameraModel: selectedImage?.exif?.Model ?? '',
+          },
+        );
         return distParams;
       } catch (error) {
         console.error('Failed to fetch lens distortion params', error);
@@ -702,9 +707,7 @@ export default function CropPanel() {
       const selected = myLenses[index];
       if (!selected) return;
 
-      invoke('get_lensfun_lenses_for_maker', { maker: selected.maker })
-        .then((l: any) => setLenses(l))
-        .catch(console.error);
+      invoke<string[]>('get_lensfun_lenses_for_maker', { maker: selected.maker }).then(setLenses).catch(console.error);
 
       const distParams = await fetchDistortionParams(selected.maker, selected.model);
 
@@ -1170,7 +1173,7 @@ export default function CropPanel() {
                                   </span>
                                 </div>
                                 <div className="flex flex-col gap-1 mt-1">
-                                  {adjustments.guidedPerspective.lines.map((line: any, idx: number) => (
+                                  {adjustments.guidedPerspective.lines.map((line, idx) => (
                                     <div
                                       key={line.id}
                                       className="flex items-center gap-2 p-2 rounded-md bg-surface transition-colors group"
@@ -1195,7 +1198,7 @@ export default function CropPanel() {
                                         className="p-1 hover:text-red-500 text-text-secondary transition-colors"
                                         onClick={() => {
                                           const newLines = adjustments.guidedPerspective!.lines.filter(
-                                            (l: any) => l.id !== line.id,
+                                            (guide) => guide.id !== line.id,
                                           );
                                           setAdjustments((prev) => ({
                                             ...prev,
