@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useEditorStore } from '../store/useEditorStore';
+import type { HistogramData } from '../components/ui/AppProperties';
 import { debouncedSetHistory } from './useEditorActions';
 import { buildParametricCurves, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
 
@@ -33,13 +34,6 @@ interface McpStateResponse {
   editRevision: string;
   isSelected: boolean;
   validationError: string | null;
-}
-
-interface HistogramData {
-  red: Array<number>;
-  green: Array<number>;
-  blue: Array<number>;
-  luma: Array<number>;
 }
 
 interface McpHistogramResponse {

@@ -9,17 +9,24 @@ import { useEditorStore } from '../store/useEditorStore';
 import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { ImageFlag, Invokes } from '../components/ui/AppProperties';
+import { ImageFlag, Invokes, type ImageFile } from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
 import UndoToast from '../components/ui/UndoToast';
 import { RenameOptions, RenameOutcome, pathMapper } from '../utils/batchRename';
+
+interface ImportSettings {
+  dateFolderFormat: string;
+  deleteAfterImport: boolean;
+  filenameTemplate: string;
+  organizeByDate: boolean;
+}
 
 export function useFileOperations(
   refreshImageList: () => Promise<void>,
   refreshAllFolderTrees: () => Promise<void>,
   handleImageSelect: (path: string) => void,
   handleBackToLibrary: () => void,
-  sortedImageList: any[],
+  sortedImageList: ImageFile[],
 ) {
   const { t } = useTranslation();
 
@@ -125,21 +132,13 @@ export function useFileOperations(
       !pathsToDelete[0].includes('?vc=') &&
       imageList.some((image) => image.path.startsWith(`${pathsToDelete[0]}?vc=`));
 
-    let modalTitle = 'Confirm Delete';
-    let modalMessage = '';
-    let confirmText = 'Delete';
-
-    if (selectionHasVirtualCopies) {
-      modalTitle = 'Delete Image and All Virtual Copies?';
-      modalMessage = `Are you sure you want to permanently delete this image and all of its virtual copies? This action cannot be undone.`;
-      confirmText = 'Delete All';
-    } else if (isSingle) {
-      modalMessage = `Are you sure you want to permanently delete this image? This action cannot be undone. Right-click for more options (e.g., deleting associated files).`;
-      confirmText = 'Delete Selected Only';
-    } else {
-      modalMessage = `Are you sure you want to permanently delete these ${pathsToDelete.length} images? This action cannot be undone. Right-click for more options (e.g., deleting associated files).`;
-      confirmText = 'Delete Selected Only';
-    }
+    const modalTitle = selectionHasVirtualCopies ? 'Delete Image and All Virtual Copies?' : 'Confirm Delete';
+    const modalMessage = selectionHasVirtualCopies
+      ? 'Are you sure you want to permanently delete this image and all of its virtual copies? This action cannot be undone.'
+      : isSingle
+        ? 'Are you sure you want to permanently delete this image? This action cannot be undone. Right-click for more options (e.g., deleting associated files).'
+        : `Are you sure you want to permanently delete these ${pathsToDelete.length} images? This action cannot be undone. Right-click for more options (e.g., deleting associated files).`;
+    const confirmText = selectionHasVirtualCopies ? 'Delete All' : 'Delete Selected Only';
 
     setUI({
       confirmModalState: {
@@ -217,14 +216,16 @@ export function useFileOperations(
           const separator = oldPath.includes('/') ? '/' : '\\';
           const newPath = parentDir ? `${parentDir}${separator}${trimmedNewName}` : trimmedNewName;
 
-          const newAppSettings = { ...appSettings } as any;
+          const newAppSettings = appSettings ? { ...appSettings } : null;
           let settingsChanged = false;
 
           if (rootPaths.includes(oldPath)) {
             const newRoots = rootPaths.map((r) => (r === oldPath ? newPath : r));
             setLibrary({ rootPaths: newRoots });
-            newAppSettings.rootFolders = newRoots;
-            settingsChanged = true;
+            if (newAppSettings) {
+              newAppSettings.rootFolders = newRoots;
+              settingsChanged = true;
+            }
           }
           if (currentFolderPath?.startsWith(oldPath)) {
             const newCurrentPath = currentFolderPath.replace(oldPath, newPath);
@@ -236,12 +237,14 @@ export function useFileOperations(
             const newPins = currentPins
               .map((p: string) => (p === oldPath ? newPath : p))
               .sort((a: string, b: string) => a.localeCompare(b));
-            newAppSettings.pinnedFolders = newPins;
-            settingsChanged = true;
+            if (newAppSettings) {
+              newAppSettings.pinnedFolders = newPins;
+              settingsChanged = true;
+            }
           }
 
           if (settingsChanged) {
-            handleSettingsChange(newAppSettings);
+            if (newAppSettings) handleSettingsChange(newAppSettings);
           }
 
           await refreshAllFolderTrees();
@@ -329,21 +332,24 @@ export function useFileOperations(
     }
   }, []);
 
-  const startImportFiles = useCallback(async (sourcePaths: string[], destinationFolder: string, settings: any) => {
-    if (sourcePaths.length === 0 || !destinationFolder) return;
+  const startImportFiles = useCallback(
+    async (sourcePaths: string[], destinationFolder: string, settings: ImportSettings) => {
+      if (sourcePaths.length === 0 || !destinationFolder) return;
 
-    try {
-      await invoke(Invokes.ImportFiles, { destinationFolder, settings, sourcePaths });
-    } catch (err) {
-      console.error('Failed to start import:', err);
-      useProcessStore
-        .getState()
-        .setImportState({ status: Status.Error, errorMessage: `Failed to start import: ${err}` });
-    }
-  }, []);
+      try {
+        await invoke(Invokes.ImportFiles, { destinationFolder, settings, sourcePaths });
+      } catch (err) {
+        console.error('Failed to start import:', err);
+        useProcessStore
+          .getState()
+          .setImportState({ status: Status.Error, errorMessage: `Failed to start import: ${err}` });
+      }
+    },
+    [],
+  );
 
   const handleStartImport = useCallback(
-    async (settings: any) => {
+    async (settings: ImportSettings) => {
       const { importTargetFolder, importSourcePaths } = useUIStore.getState();
       if (!importTargetFolder) return;
       await startImportFiles(importSourcePaths, importTargetFolder, settings);

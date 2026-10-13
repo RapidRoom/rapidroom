@@ -102,6 +102,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | RapidRoom name, logo, app icon and start-screen photo; the start screen credits RapidRAW as the upstream project                                                                                                                                                                  | platform    | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
 | Rapid navigation shares one decode slot between editor loads and culling previews; superseded editor loads skip decoding                                                                                                                                                          | performance | [@subbajeu](https://github.com/subbajeu), [@yojen7](https://github.com/yojen7)                                                 | not yet offered                                                                                                                                                                                                                                                                    |
 | Consistent 400% editor zoom and regular wheel/keyboard stops                                                                                                                                                                                                                      | fix         | [@yojen7](https://github.com/yojen7), [@SebastianEggli](https://github.com/SebastianEggli)                                     | [#1638](https://github.com/CyberTimon/RapidRAW/issues/1638); PR [#1869](https://github.com/CyberTimon/RapidRAW/issues/1869)                                                                                                                                                        |
+| Type the frontend hooks and remove explicit any annotations                                                                                                                                                                                                                       | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-10.
 
@@ -114,7 +115,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@lalibertemarc](https://github.com/lalibertemarc), [@yojen7](https://github.com/yojen7), from CyberTimon/RapidRAW (Marc Laliberté), adapted for RapidRoom
 - **Upstream:** [RapidRoom/rapidroom#244](https://github.com/RapidRoom/rapidroom/issues/244); [RapidRoom/rapidroom#122](https://github.com/RapidRoom/rapidroom/issues/122); PR [#1910](https://github.com/CyberTimon/RapidRAW/issues/1910)
 - **Commits:** [66bbcb9](https://github.com/CyberTimon/RapidRAW/commit/66bbcb95e3faf25120e03c84aa56a64e766e1cd3)
-- **Notes:** Export offers Resolution (DPI), default 300, stored with presets. Resolution metadata does not resize pixels. JPEG/PNG/TIFF retain the sRGB ICC profile; requests without DPI keep existing encoder behavior and JPEG XL metadata stays unchanged.
+- **Notes:** Export offers Resolution (DPI), default 300, stored with presets. Resolution metadata does not resize pixels. JPEG/PNG/TIFF retain the sRGB ICC profile and companion mask alpha PNGs carry the requested resolution; requests without DPI keep existing encoder behavior and JPEG XL metadata stays unchanged.
 
 ### Allow explicit replacement of earlier batch exports
 
@@ -890,3 +891,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** [#1638](https://github.com/CyberTimon/RapidRAW/issues/1638); PR [#1869](https://github.com/CyberTimon/RapidRAW/issues/1869)
 - **Commits:** [4a14440](https://github.com/CyberTimon/RapidRAW/commit/4a14440611ed6cb7d064efda139b6ca133511023)
 - **Notes:** Shared limits measure cropped/oriented image pixels on each display. Normal photos stop at 400%; tiny images retain at least twice their fitted size on every path. Wheel notches and keyboard steps share ordered percentage stops with fit inserted; pinch and fine scrolling remain continuous. DOM wheel events have no hardware identity: line/page deltas, WebKitGTK native dimension-dependent ticks with matching signed legacy tick counts, and common 100/120-pixel ticks snap, while fine/fractional and diagonal pixel deltas do not. Codex implementation; no new dependency or network connection.
+
+### Type the frontend hooks and remove explicit any annotations
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** RapidRoom only
+- **Notes:** Development quality cleanup in src/hooks; no runtime behavior change intended.
