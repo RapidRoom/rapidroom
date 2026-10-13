@@ -852,7 +852,8 @@
         "undo": "Rückgängig (Strg+Z) oder Verlauf (Rechtsklick)"
       },
       "vc": "VK"
-    }
+    },
+    "embeddedPreviewWarning": "Die RAW-Entwicklung ist fehlgeschlagen. Stattdessen wird die eingebettete Vorschau angezeigt."
   },
   "export": {
     "advanced": {
@@ -978,6 +979,11 @@
       "scale": "Skalierung",
       "spacing": "Abstand",
       "watermarkImage": "Wasserzeichen-Bild"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

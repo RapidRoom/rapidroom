@@ -875,7 +875,8 @@
         "undo": "Deshacer (Ctrl+Z) o Historial (Clic derecho)"
       },
       "vc": "CV"
-    }
+    },
+    "embeddedPreviewWarning": "Falló el revelado RAW; se muestra la vista previa incrustada."
   },
   "export": {
     "advanced": {
@@ -1003,6 +1004,11 @@
       "scale": "Escala",
       "spacing": "Espaciado",
       "watermarkImage": "Imagen de la marca de agua"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

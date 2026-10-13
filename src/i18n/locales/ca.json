@@ -854,7 +854,8 @@
         "undo": "Desfer (Ctrl+Z) o Historial (Clic dret)"
       },
       "vc": "CV"
-    }
+    },
+    "embeddedPreviewWarning": "Ha fallat el revelatge RAW; es mostra la previsualització incrustada."
   },
   "export": {
     "advanced": {
@@ -980,6 +981,11 @@
       "scale": "Escala",
       "spacing": "Espaiat",
       "watermarkImage": "Imatge de la marca d'aigua"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

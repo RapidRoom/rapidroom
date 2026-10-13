@@ -8,7 +8,7 @@ import math
 
 from PIL import Image
 
-from mcp_clients import client_command, execute_client, image_state, objects, rpc, run_client_checks
+from mcp_clients import tool_data, client_command, execute_client, image_state, objects, rpc, run_client_checks
 from mcp_history import read_tool
 
 
@@ -119,7 +119,7 @@ def run_measure_checks(case, smoke):
 
     comparison = {**common,"maxDimension":512,"variants":[{"name":"Current"},{"imagePath":copy}]}
     response, payloads, sheets = images(url, token, "render_compare", comparison)
-    label = response["structuredContent"]["labels"]
+    label = tool_data(response)["labels"]
     if label != ["Current","smoke.ARW (VC)"] or max(sheets[0].size)>512:
         raise RuntimeError("Contact-sheet labels do not match the real virtual copy")
     (case / "captures/mcp-labelled-comparison.png").write_bytes(payloads[0])

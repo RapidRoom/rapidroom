@@ -192,6 +192,17 @@ export interface FolderTreeSort {
   order: SortDirection;
 }
 
+export interface FolderTree {
+  children: FolderTree[];
+  created?: number;
+  hasSubdirs?: boolean;
+  imageCount?: number;
+  isDir: boolean;
+  modified?: number;
+  name: string;
+  path: string;
+}
+
 export enum Theme {
   Arctic = 'arctic',
   Blue = 'blue',
@@ -246,7 +257,7 @@ export interface AppSettings {
   enableAiTagging?: boolean;
   aiTagCount?: number;
   customAiTags?: string[];
-  filterCriteria?: FilterCriteria;
+  filterCriteria?: Partial<FilterCriteria>;
   lastFolderState?: any;
   pinnedFolders?: any;
   lastRootPath: string | null;
@@ -282,7 +293,7 @@ export interface AppSettings {
   tonemapperOverrideEnabled?: boolean;
   defaultRawTonemapper?: string;
   defaultNonRawTonemapper?: string;
-  copyPasteSettings?: CopyPasteSettings;
+  copyPasteSettings?: Partial<CopyPasteSettings>;
   enableFocusMode?: boolean;
   enableToolFocusMode?: boolean;
   autoAdvanceOnRate?: boolean;
@@ -364,7 +375,7 @@ export interface FilterCriteria {
 }
 
 export interface Folder {
-  children: any;
+  children: Preset[];
   id?: string | undefined;
   name?: string | undefined;
   imageCount?: number;
@@ -410,6 +421,8 @@ export interface Preset {
   includeCropTransform?: boolean;
   presetType?: 'tool' | 'style';
   favorite?: boolean;
+  cameraModelRestriction?: string;
+  unavailableReason?: string;
 }
 
 export interface Progress {
@@ -424,6 +437,7 @@ export interface SelectedImage {
   height: number;
   isRaw: boolean;
   isReady: boolean;
+  usedEmbeddedPreview?: boolean;
   metadata?: any;
   original_base64?: string;
   path: string;
@@ -494,6 +508,13 @@ export interface WaveformData {
   parade: string;
   vectorscope: string;
   width: number;
+}
+
+export interface HistogramData {
+  blue: number[];
+  green: number[];
+  luma: number[];
+  red: number[];
 }
 
 export interface CullingSettings {

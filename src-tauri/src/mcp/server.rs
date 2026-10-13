@@ -186,7 +186,7 @@ impl ServerHandler for McpServer {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().enable_resources().build())
             .with_server_info(Implementation::new("RapidRAW", env!("CARGO_PKG_VERSION")))
             .with_instructions(
-                "Use imagePath explicitly on every RapidRAW operation. Mutations return an editRevision; pass it back as expectedRevision to avoid overwriting newer edits.",
+                format!("Use imagePath explicitly on every RapidRAW operation. Mutations return an editRevision; pass it back as expectedRevision to avoid overwriting newer edits. {}", crate::assistant_text::POLICY),
             )
     }
 }

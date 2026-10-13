@@ -1,0 +1,36 @@
+{
+  "sourceCommit": "1d061908d9e3e2ba6e7c956d9f778c67ca9973c2",
+  "appVersion": "2.2.0",
+  "client": {
+    "name": "Claude",
+    "version": "2.1.296 (Claude Code)",
+    "calls": [
+      "get_image_state",
+      "upsert_mask",
+      "get_image_state"
+    ]
+  },
+  "first_mask_unchanged": true,
+  "partial_hsl_defaults_filled": true,
+  "native_preview_changed": true,
+  "gui_undo_restores_exact_preview": true,
+  "shared_redo_exact": true,
+  "nested_patch_preserves_omitted_values": true,
+  "sidecar_reload_exact": true,
+  "remove_preserves_sibling": true,
+  "missing_remove_is_noop": true,
+  "invalid_mutation_refused": true,
+  "top_level_context_name_echo_preserved": true,
+  "assistant_rename_projected_before_storage": true,
+  "opaque_128_byte_id_roundtrips": true,
+  "invalid_opaque_ids_refused": true,
+  "hostile_name_phase_model_requests": false,
+  "compact_reply": {
+    "changedKeys": [
+      "masks"
+    ],
+    "editRevision": "b51d9bfd262142f41f530d84a99410505461d07d8796914745810356cfe5a72b",
+    "renderPending": false,
+    "imagePath": "CC0-fixture.ARW"
+  }
+}

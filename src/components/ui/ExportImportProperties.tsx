@@ -81,6 +81,7 @@ export function sanitizeFilenameTemplate(template: string | null | undefined): s
 }
 
 export interface ExportSettings {
+  overwriteExisting?: boolean;
   filenameTemplate: string | null;
   jpegQuality: number;
   tiffBitDepth: TiffBitDepth;

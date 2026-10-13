@@ -799,7 +799,8 @@
         "undo": "Ongedaan maken (Ctrl+Z) of geschiedenis (rechtermuisknop)"
       },
       "vc": "VK"
-    }
+    },
+    "embeddedPreviewWarning": "RAW-ontwikkeling is mislukt; de ingesloten voorbeeldweergave wordt getoond."
   },
   "export": {
     "advanced": {
@@ -925,6 +926,11 @@
       "scale": "Schaal",
       "spacing": "Tussenruimte",
       "watermarkImage": "Watermarkafbeelding"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

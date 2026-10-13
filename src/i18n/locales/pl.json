@@ -898,7 +898,8 @@
         "undo": "Cofnij (Ctrl+Z) lub Historia (Prawy przycisk)"
       },
       "vc": "VC"
-    }
+    },
+    "embeddedPreviewWarning": "Wywołanie RAW nie powiodło się; wyświetlany jest osadzony podgląd."
   },
   "export": {
     "advanced": {
@@ -1028,6 +1029,11 @@
       "scale": "Skala",
       "spacing": "Odstępy",
       "watermarkImage": "Obraz znaku wodnego"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {
