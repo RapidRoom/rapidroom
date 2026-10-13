@@ -156,7 +156,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
   }, []);
 
   const handleUpdateExif = useCallback(async (paths: Array<string> | undefined, updates: Record<string, string>) => {
-    const { multiSelectedPaths, imageList, setLibrary } = useLibraryStore.getState();
+    const { multiSelectedPaths, setLibrary } = useLibraryStore.getState();
     const { selectedImage, setEditor } = useEditorStore.getState();
 
     const pathsToUpdate =
@@ -239,7 +239,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
   const handleMultiSelectClick = useCallback(
     (
       path: string,
-      event: any,
+      event: Pick<MouseEvent, 'ctrlKey' | 'metaKey' | 'shiftKey'>,
       options: {
         onSimpleClick(p: string, isAlreadySelected: boolean): void;
         updateLibraryActivePath: boolean;
@@ -291,7 +291,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
   );
 
   const handleLibraryImageSingleClick = useCallback(
-    (path: string, event: any) => {
+    (path: string, event: Pick<MouseEvent, 'ctrlKey' | 'metaKey' | 'shiftKey'>) => {
       const { selectionAnchorPath, libraryActivePath, setLibrary } = useLibraryStore.getState();
       handleMultiSelectClick(path, event, {
         shiftAnchor: selectionAnchorPath ?? libraryActivePath,
@@ -312,7 +312,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
   );
 
   const handleImageClick = useCallback(
-    (path: string, event: any) => {
+    (path: string, event: Pick<MouseEvent, 'ctrlKey' | 'metaKey' | 'shiftKey'>) => {
       const { selectionAnchorPath, libraryActivePath, setLibrary } = useLibraryStore.getState();
       const { selectedImage, referenceView, dispatchReferenceView } = useEditorStore.getState();
       const inEditor = !!selectedImage;
@@ -348,10 +348,10 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     const expandedArray = Array.from(expandedFolders);
 
     try {
-      const updates: any = {};
+      const updates: { folderTrees?: FolderTree[]; pinnedFolderTrees?: FolderTree[] } = {};
 
       if (rootPaths && rootPaths.length > 0) {
-        const treesData = await invoke(Invokes.GetPinnedFolderTrees, {
+        const treesData = await invoke<FolderTree[]>(Invokes.GetPinnedFolderTrees, {
           paths: rootPaths,
           expandedFolders: expandedArray,
           showImageCounts,
@@ -362,7 +362,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
       }
 
       if (pinnedFolders && pinnedFolders.length > 0) {
-        const pinnedTreesData = await invoke(Invokes.GetPinnedFolderTrees, {
+        const pinnedTreesData = await invoke<FolderTree[]>(Invokes.GetPinnedFolderTrees, {
           paths: pinnedFolders,
           expandedFolders: expandedArray,
           showImageCounts,

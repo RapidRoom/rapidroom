@@ -1778,3 +1778,7 @@ pub struct AiDepthMaskParameters {
     #[serde(default)]
     pub orientation_steps: Option<u8>,
 }
+
+#[cfg(test)]
+#[path = "depth_geometry_tests.rs"]
+mod depth_geometry_tests;
