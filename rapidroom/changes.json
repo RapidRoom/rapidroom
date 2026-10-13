@@ -2,6 +2,27 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "sigma-20-200-sony-profile",
+      "title": "Add measured Sigma 20\u2013200 mm Sony E distortion and vignetting profile (TCA unsupported)",
+      "category": "feature",
+      "landed": "2026-10-13",
+      "authors": [
+        "mpasson",
+        "yojen7"
+      ],
+      "source": "mpasson/RapidRAW (calibration data CC-BY-SA 3.0); scoped RapidRoom adaptation with Codex",
+      "commits": [
+        "https://github.com/mpasson/RapidRAW/commit/e8811879180122e571ad229a59997aed648dca11"
+      ],
+      "upstream_issues": [
+        "RapidRoom/rapidroom#74",
+        "RapidRoom/rapidroom#267"
+      ],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Retains 51 corrected poly5 distortion anchors and 99 PA-vignetting entries measured from 207 ILCE-7CM2 ARWs. Unsupported polynomial TCA is excluded from the active profile and named in the selector; unchanged licensed donor data is retained for a separate evaluator issue. Existing Lens controls opt into correction; defaults and legacy stored coefficients are unchanged. Synthetic validation only: unvalidated on real lens files in RapidRoom."
+    },
+    {
       "id": "raw-repair-thumbnail-native-scale",
       "title": "Keep RAW repair patches aligned in regenerated thumbnails",
       "category": "fix",
