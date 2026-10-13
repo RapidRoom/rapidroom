@@ -1492,6 +1492,7 @@ fn apply_gps_from_rawler(metadata: &mut Metadata, original_path_str: &str) {
     }
 }
 
+#[cfg(test)]
 pub fn write_image_with_metadata(
     image_bytes: &mut Vec<u8>,
     original_path_str: &str,
