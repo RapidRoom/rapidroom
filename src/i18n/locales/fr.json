@@ -920,8 +920,10 @@
       "selectFolderTitle_other": "Sélectionner le dossier pour exporter {{count}} images"
     },
     "file": {
+      "dpi": "PPP",
       "quality": "Qualité",
       "qualityLossless": "Qualité (Sans perte)",
+      "resolution": "Résolution",
       "tiffBitDepth": "Profondeur de bits TIFF",
       "tiffBitDepth16": "16 bits",
       "tiffBitDepth8": "8 bits"

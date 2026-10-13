@@ -843,8 +843,10 @@
       "selectFolderTitle_other": "Map selecteren om {{count}} afbeeldingen te exporteren"
     },
     "file": {
+      "dpi": "DPI",
       "quality": "Kwaliteit",
       "qualityLossless": "Kwaliteit (verliesvrij)",
+      "resolution": "Resolutie",
       "tiffBitDepth": "TIFF-bitdiepte",
       "tiffBitDepth16": "16-bit",
       "tiffBitDepth8": "8-bit"

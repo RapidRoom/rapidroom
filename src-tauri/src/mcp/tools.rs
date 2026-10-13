@@ -786,6 +786,7 @@ fn parse_export_settings(value: Option<&Value>) -> Result<ExportSettings, String
     };
 
     Ok(ExportSettings {
+        dpi: None,
         output_sharpening: None,
         overwrite_existing: false,
         jpeg_quality,
@@ -809,6 +810,7 @@ fn parse_export_settings(value: Option<&Value>) -> Result<ExportSettings, String
 
 fn default_export_settings() -> ExportSettings {
     ExportSettings {
+        dpi: None,
         output_sharpening: None,
         overwrite_existing: false,
         jpeg_quality: 90,

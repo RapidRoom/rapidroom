@@ -898,8 +898,10 @@
       "selectFolderTitle_other": "Seleccioneu la carpeta per exportar {{count}} imatges"
     },
     "file": {
+      "dpi": "PPP",
       "quality": "Qualitat",
       "qualityLossless": "Qualitat (Sense pèrdua)",
+      "resolution": "Resolució",
       "tiffBitDepth": "Profunditat de bits TIFF",
       "tiffBitDepth16": "16 bits",
       "tiffBitDepth8": "8 bits"

@@ -896,8 +896,10 @@
       "selectFolderTitle_other": "Ordner zum Exportieren von {{count}} Bildern auswählen"
     },
     "file": {
+      "dpi": "DPI",
       "quality": "Qualität",
       "qualityLossless": "Qualität (Verlustfrei)",
+      "resolution": "Auflösung",
       "tiffBitDepth": "TIFF-Bittiefe",
       "tiffBitDepth16": "16 Bit",
       "tiffBitDepth8": "8 Bit"
