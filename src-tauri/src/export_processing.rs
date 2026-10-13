@@ -1328,6 +1328,8 @@ fn export_masks_for_image(
     is_raw: bool,
     app_handle: &tauri::AppHandle,
     cancellation_token: &AtomicBool,
+    source_paths: &[PathBuf],
+    used_paths: &Mutex<std::collections::HashSet<PathBuf>>,
 ) -> Result<(), String> {
     ensure_export_not_cancelled(cancellation_token)?;
     let (transformed_image, unscaled_crop_offset) =
@@ -1410,9 +1412,15 @@ fn export_masks_for_image(
             };
             ensure_export_not_cancelled(cancellation_token)?;
 
-            let mask_image_path =
-                output_dir.join(format!("{}_mask_{}_image.{}", stem, i, extension));
-            let mask_alpha_path = output_dir.join(format!("{}_mask_{}_alpha.png", stem, i));
+            let (mask_image_path, mask_alpha_path) = reserve_mask_export_paths(
+                output_dir,
+                stem,
+                i,
+                extension,
+                export_settings.overwrite_existing,
+                source_paths,
+                &mut used_paths.lock().unwrap(),
+            );
 
             save_image_with_metadata(
                 &with_options,
@@ -1442,7 +1450,12 @@ fn export_masks_for_image(
             }
 
             #[cfg(not(target_os = "android"))]
-            fs::write(&mask_alpha_path, alpha_bytes).map_err(|e| e.to_string())?;
+            write_export_bytes(
+                &mask_alpha_path,
+                &alpha_bytes,
+                export_settings.overwrite_existing,
+            )
+            .map_err(|e| e.to_string())?;
             ensure_export_not_cancelled(cancellation_token)?;
         }
     }
@@ -1514,6 +1527,37 @@ fn ensure_export_destination_writable(
     } else {
         crate::file_management::ensure_card_writable(std::path::Path::new(output_folder_or_file))
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn reserve_mask_export_paths(
+    directory: &Path,
+    stem: &str,
+    index: usize,
+    extension: &str,
+    overwrite: bool,
+    sources: &[PathBuf],
+    used: &mut std::collections::HashSet<PathBuf>,
+) -> (PathBuf, PathBuf) {
+    let image_stem = format!("{stem}_mask_{index}_image");
+    let alpha_stem = format!("{stem}_mask_{index}_alpha");
+    let image = reserve_export_path(
+        directory.join(format!("{image_stem}.{extension}")),
+        &image_stem,
+        extension,
+        overwrite,
+        sources,
+        used,
+    );
+    let alpha = reserve_export_path(
+        directory.join(format!("{alpha_stem}.png")),
+        &alpha_stem,
+        "png",
+        overwrite,
+        sources,
+        used,
+    );
+    (image, alpha)
 }
 
 fn write_export_bytes(path: &Path, bytes: &[u8], overwrite: bool) -> std::io::Result<()> {
@@ -1832,6 +1876,7 @@ pub(crate) async fn export_images_impl(
                             "Export destination is a source photo. Choose another name.".into()
                         );
                     }
+                    used_paths_clone.lock().unwrap().insert(output_path.clone());
                 } else {
                     output_path = reserve_export_path(
                         output_path,
@@ -1971,6 +2016,8 @@ pub(crate) async fn export_images_impl(
                             is_raw,
                             &app_handle_clone,
                             &cancellation_token_clone,
+                            &source_paths,
+                            &used_paths_clone,
                         )?;
                     }
 
@@ -2730,5 +2777,54 @@ mod export_collision_tests {
             &hardlink,
             std::slice::from_ref(&source)
         ));
+    }
+
+    #[test]
+    fn mask_outputs_protect_sources_and_share_reservations_with_main_outputs() {
+        let dir = tempfile::tempdir().unwrap();
+        let main = dir.path().join("photo.jpeg");
+        let source_image = dir.path().join("photo_mask_0_image.jpeg");
+        let source_alpha = dir.path().join("photo_mask_0_alpha.png");
+        fs::write(&main, b"prior export").unwrap();
+        fs::write(&source_image, b"source image").unwrap();
+        fs::write(&source_alpha, b"source alpha").unwrap();
+        let sources = vec![source_image.clone(), source_alpha.clone()];
+        let mut used = HashSet::new();
+        assert_eq!(
+            reserve_export_path(main.clone(), "photo", "jpeg", true, &sources, &mut used),
+            main
+        );
+        let (image, alpha) =
+            reserve_mask_export_paths(dir.path(), "photo", 0, "jpeg", true, &sources, &mut used);
+        assert_eq!(image, dir.path().join("photo_mask_0_image_1.jpeg"));
+        assert_eq!(alpha, dir.path().join("photo_mask_0_alpha_1.png"));
+        write_export_bytes(&image, b"new mask image", true).unwrap();
+        write_export_bytes(&alpha, b"new mask alpha", true).unwrap();
+        assert_eq!(fs::read(source_image).unwrap(), b"source image");
+        assert_eq!(fs::read(source_alpha).unwrap(), b"source alpha");
+        // A later item's main output cannot claim an earlier mask filename.
+        assert_eq!(
+            reserve_export_path(
+                image,
+                "photo_mask_0_image_1",
+                "jpeg",
+                true,
+                &sources,
+                &mut used
+            ),
+            dir.path().join("photo_mask_0_image_1_1.jpeg")
+        );
+    }
+
+    #[test]
+    fn mask_outputs_cannot_claim_another_items_main_output() {
+        let dir = tempfile::tempdir().unwrap();
+        let image = dir.path().join("photo_mask_0_image.jpeg");
+        let alpha = dir.path().join("photo_mask_0_alpha.png");
+        let mut used = HashSet::from([image, alpha]);
+        let (image, alpha) =
+            reserve_mask_export_paths(dir.path(), "photo", 0, "jpeg", true, &[], &mut used);
+        assert_eq!(image, dir.path().join("photo_mask_0_image_1.jpeg"));
+        assert_eq!(alpha, dir.path().join("photo_mask_0_alpha_1.png"));
     }
 }

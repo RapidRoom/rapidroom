@@ -12,7 +12,7 @@
       "upstream_issues": ["RapidRoom/rapidroom#235", "CyberTimon/RapidRAW#1901"],
       "upstream_prs": [],
       "rendering_change": false,
-      "notes": "The export panel offers a session-only replacement choice with confirmation. Automatic renaming stays the default, all batch sources stay protected, and conflicting names within one batch remain distinct. Replacement uses atomic writes after encoding."
+      "notes": "The export panel offers a session-only replacement choice with confirmation. Automatic renaming stays the default, all batch sources stay protected, and conflicting names within one batch remain distinct. Replacement uses atomic writes after encoding. Mask image and alpha exports use the same batch reservations and source guards as main outputs."
     },
     {
       "id": "mask-creation-drop-insertion",

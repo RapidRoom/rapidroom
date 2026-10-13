@@ -111,7 +111,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Landed in RapidRoom:** 2026-10-12
 - **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
 - **Upstream:** [RapidRoom/rapidroom#235](https://github.com/RapidRoom/rapidroom/issues/235); [#1901](https://github.com/CyberTimon/RapidRAW/issues/1901)
-- **Notes:** The export panel offers a session-only replacement choice with confirmation. Automatic renaming stays the default, all batch sources stay protected, and conflicting names within one batch remain distinct. Replacement uses atomic writes after encoding.
+- **Notes:** The export panel offers a session-only replacement choice with confirmation. Automatic renaming stays the default, all batch sources stay protected, and conflicting names within one batch remain distinct. Replacement uses atomic writes after encoding. Mask image and alpha exports use the same batch reservations and source guards as main outputs.
 
 ### Insert dropped masks at their target row
 
