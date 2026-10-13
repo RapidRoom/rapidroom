@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "export-explicit-overwrite",
+      "title": "Allow explicit replacement of earlier batch exports",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": ["RapidRoom/rapidroom#235", "CyberTimon/RapidRAW#1901"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The export panel offers a session-only replacement choice with confirmation. Automatic renaming stays the default, all batch sources stay protected, and conflicting names within one batch remain distinct. Replacement uses atomic writes after encoding. Mask image and alpha exports use the same batch reservations and source guards as main outputs."
+    },
+    {
       "id": "mask-creation-drop-insertion",
       "title": "Insert dropped masks at their target row",
       "category": "fix",
