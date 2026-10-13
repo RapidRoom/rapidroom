@@ -178,3 +178,7 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 ### AutoShade assistant text boundaries
 
 The data-only envelope, bounded UTF-8 text, shared free-text budget and assistant-output projection pattern were studied in [AutoShade by skymanbp](https://github.com/skymanbp/autoshade/tree/cbca12b5a903ff8d71faf25a3966ed3712e839ba/src/advisor), under the [MIT licence](rapidroom/LICENSES/autoshade-MIT.txt). RapidRoom’s MCP, terminal context, secret-pattern redaction and edit-name preservation integration are original adaptations. These deterministic boundaries reduce injection exposure; they do not establish immunity of a remote model to hostile instructions.
+
+### Bounded export coordinate invariants
+
+Halo support and global-coordinate invariants were studied in CalibRaw by Duecki1, [commit 2466ca6662c3fd1e901377c0450b19f5f96d3e85](https://github.com/Duecki1/CalibRaw/commit/2466ca6662c3fd1e901377c0450b19f5f96d3e85), GPL-3.0-or-later. No CalibRaw code, shaders, model or weight was copied. The source/mask-window integration, planner and GPU evidence tests are original RapidRoom work by Yojen with Codex.

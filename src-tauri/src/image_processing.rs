@@ -1645,6 +1645,10 @@ pub struct AllAdjustments {
     pub tile_offset_x: u32,
     pub tile_offset_y: u32,
     pub mask_atlas_cols: u32,
+    pub image_dims: [u32; 2],
+    pub source_origin: [u32; 2],
+    pub source_extent: [u32; 2],
+    pub mask_origin: [u32; 2],
 }
 
 struct AdjustmentScales {
@@ -2570,6 +2574,10 @@ pub fn get_all_adjustments_from_json(
         tile_offset_x: 0,
         tile_offset_y: 0,
         mask_atlas_cols: 1,
+        image_dims: [0; 2],
+        source_origin: [0; 2],
+        source_extent: [0; 2],
+        mask_origin: [0; 2],
     }
 }
 
