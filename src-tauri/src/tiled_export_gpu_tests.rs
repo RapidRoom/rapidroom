@@ -106,7 +106,7 @@ fn tiled_export_full_tiled_region_matrix() {
         ("flare", json!({"flareAmount":70,"exposure":0.8})),
         (
             "lens-rotated-crop",
-            json!({"lensParams":{"k1":0.03,"k2":-0.01},"lensDistortionEnabled":true,"rotation":11,"crop":{"x":73,"y":61,"width":1101,"height":941}}),
+            json!({"lensDistortionParams":{"k1":0.03,"k2":-0.01},"lensDistortionEnabled":true,"rotation":11,"crop":{"x":73,"y":61,"width":1101,"height":941}}),
         ),
         (
             "lens-blur",
@@ -115,19 +115,33 @@ fn tiled_export_full_tiled_region_matrix() {
     ];
     for (name, adjustments) in cases {
         // Production geometry order: warp/lens blur, rotate, crop, then GPU.
+        if name == "lens-rotated-crop" {
+            assert!(!crate::image_processing::is_geometry_identity(
+                &crate::image_processing::get_geometry_params_from_json(&adjustments)
+            ));
+        }
         let (base, _) = crate::apply_all_transformations(&raw, &adjustments);
+        if name == "lens-blur" {
+            assert!(matches!(base, std::borrow::Cow::Owned(_)));
+        }
+
         let (w, h) = base.dimensions();
         let mut a = get_all_adjustments_from_json(&adjustments, false, None);
         let masks = [GrayImage::from_fn(w, h, |x, y| {
             Luma([((x * 17 + y * 11) % 256) as u8])
         })];
-        a.mask_count = 1;
+        a.mask_count = u32::from(name != "identity");
+        let bitmaps = if name == "identity" {
+            &[][..]
+        } else {
+            &masks[..]
+        };
         a.mask_adjustments[0].clarity = 0.55;
         a.mask_adjustments[0].glow_amount = 0.35;
         a.mask_adjustments[0].exposure = 0.4;
         let request = || RenderRequest {
             adjustments: a,
-            mask_bitmaps: &masks,
+            mask_bitmaps: bitmaps,
             lut: None,
             roi: None,
         };
