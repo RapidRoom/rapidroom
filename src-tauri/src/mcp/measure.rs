@@ -216,7 +216,12 @@ fn contact_sheet(
             &font,
             &title,
         );
-        let thumb = image.thumbnail(cell_width, image_height).to_rgb8();
+        let thumb = image
+            .thumbnail(
+                cell_width.min(image.width()),
+                image_height.min(image.height()),
+            )
+            .to_rgb8();
         imageops::overlay(
             &mut sheet,
             &thumb,
@@ -604,6 +609,7 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::GenericImageView;
 
     #[test]
     fn summary_keeps_exact_statistics_and_percentiles_without_histogram_echoes() {
@@ -660,6 +666,21 @@ mod tests {
         for color in [Rgb([255, 0, 0]), Rgb([0, 0, 255]), Rgb([0, 255, 0])] {
             assert!(sheet.pixels().any(|pixel| *pixel == color));
         }
+    }
+
+    #[test]
+    fn contact_sheet_keeps_small_native_tiles_at_one_to_one() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(16, 12, Rgb([90, 30, 40])));
+        let sheet = contact_sheet(&[image.clone(), image], &["A".into(), "B".into()], 512)
+            .unwrap()
+            .to_rgb8();
+        assert_eq!(
+            sheet
+                .pixels()
+                .filter(|pixel| **pixel == Rgb([90, 30, 40]))
+                .count(),
+            2 * 16 * 12
+        );
     }
 
     #[test]
