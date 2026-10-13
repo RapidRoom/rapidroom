@@ -53,6 +53,21 @@ pub struct DisplayTransform {
     pub bg_secondary: [f32; 4],
 }
 
+/// The displayed frame outlives the processor that produced it. CPU readback
+/// may replace that processor without replacing the native display binding.
+#[derive(Clone)]
+pub struct DisplayFrame {
+    texture: wgpu::Texture,
+    width: u32,
+    height: u32,
+}
+
+impl DisplayFrame {
+    fn allocation_bytes(&self) -> u64 {
+        u64::from(self.texture.width()) * u64::from(self.texture.height()) * 4
+    }
+}
+
 pub struct WgpuDisplay {
     pub surface: wgpu::Surface<'static>,
     pub config: wgpu::SurfaceConfiguration,
@@ -458,6 +473,7 @@ pub fn get_or_init_gpu_context(
         limits,
         adapter_info,
         display: Arc::new(std::sync::Mutex::new(display_opt)),
+        sampled_display_frame: Default::default(),
         pending_surface_size: Arc::new(std::sync::Mutex::new(None)),
     };
     *context_lock = Some(new_context.clone());
@@ -1971,32 +1987,42 @@ impl GpuProcessor {
     }
 }
 
+fn publish_display_frame(
+    context: &GpuContext,
+    texture: &wgpu::Texture,
+    width: u32,
+    height: u32,
+) -> Result<(), String> {
+    if width == 0 || height == 0 || width > texture.width() || height > texture.height() {
+        return Err("Display frame dimensions exceed its texture".into());
+    }
+    *context
+        .sampled_display_frame
+        .lock()
+        .map_err(|_| "Display frame lock poisoned")? = Some(DisplayFrame {
+        texture: texture.clone(),
+        width,
+        height,
+    });
+    Ok(())
+}
+
 pub fn read_display_area(
     context: &GpuContext,
-    state: &tauri::State<AppState>,
     center: (f32, f32),
     radius: f32,
 ) -> Result<Vec<u8>, String> {
-    let [width, height] = context
-        .display
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .as_ref()
-        .ok_or("WGPU display is not initialized")?
-        .latest_transform
-        .image_size;
-    if width < 1.0 || height < 1.0 {
-        return Err("No image has been rendered to the display".to_string());
+    if !center.0.is_finite() || !center.1.is_finite() || !radius.is_finite() || radius < 0.0 {
+        return Err("Invalid display sampling coordinates".into());
     }
-    let processor_lock = state
-        .gpu_processor
+    let frame = context
+        .sampled_display_frame
         .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    let processor = &processor_lock
-        .as_ref()
-        .ok_or("GPU processor is not initialized")?
-        .processor;
-
+        .map_err(|_| "Display frame lock poisoned")?
+        .clone()
+        .ok_or("No image has been rendered to the display")?;
+    let width = frame.width as f32;
+    let height = frame.height as f32;
     let half = (radius * width).max(1.0);
     let x0 = (center.0 * width - half).clamp(0.0, width - 1.0) as u32;
     let y0 = (center.1 * height - half).clamp(0.0, height - 1.0) as u32;
@@ -2006,7 +2032,7 @@ pub fn read_display_area(
     read_texture_data_roi(
         &context.device,
         &context.queue,
-        &processor.output_texture,
+        &frame.texture,
         wgpu::Origin3d { x: x0, y: y0, z: 0 },
         wgpu::Extent3d {
             width: x1 - x0,
@@ -2147,26 +2173,23 @@ fn process_and_get_dynamic_image_inner(
     let max_dim = context.limits.max_texture_dimension_2d;
     if !output_to_display {
         let plan = ExportPlan::new(width, height, &request, max_dim)?;
-        let retained_display_bytes = context
-            .display
+        let mut processor_lock = state
+            .gpu_processor
             .lock()
-            .map_err(|_| "GPU display lock poisoned")?
+            .map_err(|_| "GPU processor lock poisoned")?;
+        // Native frame ownership is independent of the processor cache. Charge
+        // its actual backing texture once, including any allocation padding.
+        let retained_display_bytes = context
+            .sampled_display_frame
+            .lock()
+            .map_err(|_| "Display frame lock poisoned")?
             .as_ref()
-            .filter(|d| d.current_bind_group.is_some())
-            .map_or(0, |d| {
-                d.latest_transform.texture_size[0] as u64
-                    * d.latest_transform.texture_size[1] as u64
-                    * 4
-            });
+            .map_or(0, DisplayFrame::allocation_bytes);
         if plan.estimated_bytes.saturating_add(retained_display_bytes) > tiled_export::GPU_BUDGET {
             return Err(
                 "Export GPU budget exceeded while retaining the native preview frame".into(),
             );
         }
-        let mut processor_lock = state
-            .gpu_processor
-            .lock()
-            .map_err(|_| "GPU processor lock poisoned")?;
         let mut cache_lock = state
             .gpu_image_cache
             .lock()
@@ -2493,6 +2516,9 @@ fn process_and_get_dynamic_image_inner(
 
     if submit_final_encoder {
         queue.submit(Some(final_encoder.finish()));
+    }
+    if output_to_display {
+        publish_display_frame(context, &processor.output_texture, width, height)?;
     }
 
     if let Some(analytics) = analytics_config {

@@ -24,6 +24,7 @@ fn context() -> GpuContext {
         limits,
         adapter_info: adapter.get_info(),
         display: Default::default(),
+        sampled_display_frame: Default::default(),
         pending_surface_size: Default::default(),
     }
 }
@@ -344,4 +345,83 @@ fn tiled_export_wide_halo_matches_untiled() {
         &reference,
         &rendered_image(p, ow, oh).unwrap(),
     );
+}
+
+#[test]
+#[ignore = "requires native GPU and shared build lock"]
+fn tiled_export_retained_display_sampling_survives_readback() {
+    let context = context();
+    let base = image(65, 49);
+    let (w, h) = base.dimensions();
+    let adjustments = get_all_adjustments_from_json(&json!({}), false, None);
+    let request = || RenderRequest {
+        adjustments,
+        mask_bitmaps: &[],
+        lut: None,
+        roi: None,
+    };
+    let view = upload(&context, &base);
+    let display_processor = GpuProcessor::new(context.clone(), w, h).unwrap();
+    display_processor
+        .run(
+            &view,
+            None,
+            w,
+            h,
+            request(),
+            true,
+            RenderOutputPrecision::EightBit,
+        )
+        .unwrap();
+    // Complete the same native-output copy, then publish the frame used by both
+    // the native binding and production sample_display_area command.
+    let mut encoder = context.device.create_command_encoder(&Default::default());
+    encoder.copy_texture_to_texture(
+        display_processor.working_texture.as_image_copy(),
+        display_processor.output_texture.as_image_copy(),
+        wgpu::Extent3d {
+            width: w,
+            height: h,
+            depth_or_array_layers: 1,
+        },
+    );
+    context.queue.submit(Some(encoder.finish()));
+    publish_display_frame(&context, &display_processor.output_texture, w, h).unwrap();
+    let before = read_display_area(&context, (0.51, 0.47), 0.08).unwrap();
+    assert!(before.len() > 4);
+    assert!(before.iter().any(|&v| v != 0));
+    drop(display_processor);
+    drop(view);
+    // Different image and processor; CPU export has only a1x1 display texture.
+    let other = image(103, 71);
+    let (ow, oh) = other.dimensions();
+    let plan =
+        ExportPlan::new(ow, oh, &request(), context.limits.max_texture_dimension_2d).unwrap();
+    let cpu_processor = GpuProcessor::new_with_layout(context.clone(), ow, oh, Some(plan)).unwrap();
+    assert_eq!(
+        (
+            cpu_processor.output_texture.width(),
+            cpu_processor.output_texture.height()
+        ),
+        (1, 1)
+    );
+    cpu_processor
+        .run(
+            &cpu_processor.dummy_blur_view,
+            Some(&other),
+            ow,
+            oh,
+            request(),
+            false,
+            RenderOutputPrecision::EightBit,
+        )
+        .unwrap();
+    assert_eq!(
+        read_display_area(&context, (0.51, 0.47), 0.08).unwrap(),
+        before
+    );
+    let guard = context.sampled_display_frame.lock().unwrap();
+    let frame = guard.as_ref().unwrap();
+    assert_eq!(frame.allocation_bytes(), u64::from(w) * u64::from(h) * 4);
+    assert_eq!((frame.width, frame.height), (w, h));
 }

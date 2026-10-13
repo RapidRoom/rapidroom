@@ -454,7 +454,7 @@ async fn sample_display_area(
             .unwrap_or_else(|e| e.into_inner())
             .clone()
             .ok_or("GPU context is not initialized")?;
-        crate::gpu_processing::read_display_area(&context, &state, (x, y), radius)
+        crate::gpu_processing::read_display_area(&context, (x, y), radius)
     })
     .await
     .map_err(|e| format!("Task panicked: {}", e))?
