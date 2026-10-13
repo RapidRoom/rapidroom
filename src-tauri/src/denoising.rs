@@ -640,12 +640,22 @@ fn bm3d_denoise(
 
 // Legacy RGB NIND is trained on encoded RGB files, not sensor-linear RGB.
 // Standard image files are already encoded by the base-image loader.
-fn nind_model_input(image: DynamicImage, is_raw: bool) -> Rgb32FImage {
-    if is_raw {
-        crate::image_processing::apply_linear_to_srgb(image).to_rgb32f()
-    } else {
-        image.to_rgb32f()
+fn nind_model_input(image: DynamicImage, is_raw: bool) -> Result<Rgb32FImage, String> {
+    let mut model_view = image.into_rgb32f();
+    if model_view.as_raw().iter().any(|sample| !sample.is_finite()) {
+        return Err("Legacy NIND requires finite RGB input samples".into());
     }
+    if is_raw {
+        model_view =
+            crate::image_processing::apply_linear_to_srgb(DynamicImage::ImageRgb32F(model_view))
+                .into_rgb32f();
+    }
+    // The original RGB loader normalizes uint8/uint16 files to [0, 1]. This
+    // bounded model view does not change the physical source or other methods.
+    for sample in model_view.as_mut() {
+        *sample = sample.clamp(0.0, 1.0);
+    }
+    Ok(model_view)
 }
 
 fn uses_default_raw_tone(is_raw: bool, method: &str) -> bool {
@@ -690,7 +700,7 @@ fn denoise_image(
     job.check()?;
 
     let rgb_img_for_denoiser = if method == "ai" {
-        nind_model_input(dynamic_img, is_raw)
+        nind_model_input(dynamic_img, is_raw)?
     } else {
         dynamic_img.to_rgb32f()
     };
@@ -1460,19 +1470,36 @@ mod tests {
     #[test]
     fn nind_encodes_raw_once_and_preserves_already_encoded_rgb() {
         let linear = Rgb32FImage::from_pixel(2, 2, Rgb([0.0, 0.001, 0.18]));
-        let encoded = nind_model_input(DynamicImage::ImageRgb32F(linear), true);
+        let encoded = nind_model_input(DynamicImage::ImageRgb32F(linear), true).unwrap();
         let pixel = encoded.get_pixel(0, 0);
         assert_eq!(pixel[0], 0.0);
         assert!((pixel[1] - 0.01292).abs() < 1e-7);
         assert!((pixel[2] - 0.4613561).abs() < 1e-6);
-        let unchanged = nind_model_input(DynamicImage::ImageRgb32F(encoded.clone()), false);
+        let unchanged =
+            nind_model_input(DynamicImage::ImageRgb32F(encoded.clone()), false).unwrap();
         assert_eq!(unchanged, encoded);
+    }
+
+    #[test]
+    fn nind_model_view_bounds_hdr_without_mutating_the_source_and_rejects_nonfinite() {
+        let source = Rgb32FImage::from_pixel(2, 2, Rgb([-0.1, 1.0, 4.0]));
+        for is_raw in [true, false] {
+            let view = nind_model_input(DynamicImage::ImageRgb32F(source.clone()), is_raw).unwrap();
+            assert_eq!(view.get_pixel(0, 0)[0], 0.0);
+            assert!((view.get_pixel(0, 0)[1] - 1.0).abs() < 1e-6);
+            assert_eq!(view.get_pixel(0, 0)[2], 1.0);
+            assert_eq!(source.get_pixel(0, 0).0, [-0.1, 1.0, 4.0]);
+            for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+                let image = Rgb32FImage::from_pixel(1, 1, Rgb([invalid, 0.18, 0.2]));
+                assert!(nind_model_input(DynamicImage::ImageRgb32F(image), is_raw).is_err());
+            }
+        }
     }
 
     #[test]
     fn nind_sensor_shadow_save_is_encoded_without_a_baked_tone_curve() {
         let raw = Rgb32FImage::from_pixel(2, 2, Rgb([0.0, 0.0001, 0.18]));
-        let encoded = nind_model_input(DynamicImage::ImageRgb32F(raw), true);
+        let encoded = nind_model_input(DynamicImage::ImageRgb32F(raw), true).unwrap();
         assert!(!uses_default_raw_tone(true, "ai"));
         assert!(!uses_default_raw_tone(false, "ai"));
         assert!(uses_default_raw_tone(true, "bm3d"));
@@ -1513,7 +1540,7 @@ mod tests {
                 0.003,
             ])
         });
-        let encoded = nind_model_input(DynamicImage::ImageRgb32F(input), true);
+        let encoded = nind_model_input(DynamicImage::ImageRgb32F(input), true).unwrap();
         let root = std::path::PathBuf::from(std::env::var("RAPIDROOM_NIND_OUTPUT").unwrap());
         let original = DenoisedOutput::Image(DynamicImage::ImageRgb32F(encoded.clone()));
         write_denoised_output(
