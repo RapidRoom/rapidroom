@@ -83,7 +83,7 @@ def run_ai_mask_checks(smoke, wait_for):
     dismiss()
     result_file={'imported':result,'refused':refused,'sourceAcrUnchanged':True,'refusalPreservesSidecar':True,'previewChanged':True}
     (case / 'lightroom-ai-mask-evidence.json').write_text(json.dumps(result_file,indent=2)+'\n')
-    rpc(url,'tools/call',{'name':'set_adjustments','arguments':{'path':image,'changes':initial['adjustments']}},token)
+    rpc(url,'tools/call',{'name':'set_adjustments','arguments':{'path':image,'changes':initial['adjustments']}},token=token)
     wait_for(lambda: image_state(url,image,token=token)['adjustments'] == initial['adjustments'], 'original draft restored after AI import test')
     xmp.unlink()
     smoke.step('native ACR AI mask import persists mixed coverage and reports missing components by name',result_file)

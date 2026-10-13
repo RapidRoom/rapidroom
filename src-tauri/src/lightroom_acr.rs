@@ -712,6 +712,46 @@ mod tests {
         );
     }
     #[test]
+    #[ignore = "read-only local XMP/ACR coverage inventory, reduced diagnostic frame"]
+    fn local_lightroom_ai_mask_decode_inventory() {
+        let directory = std::path::PathBuf::from(std::env::var("RAPIDROOM_LRAI_XMP_DIR").unwrap());
+        let mut records = Vec::new();
+        let frame = ImageFrame {
+            width: 600.0,
+            height: 400.0,
+            orientation: 1,
+            rotation: 0.0,
+        };
+        for entry in std::fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().and_then(|s| s.to_str()) != Some("xmp") {
+                continue;
+            }
+            let xmp = crate::xmp::read(&path).unwrap();
+            if !xmp.contains("Mask/Image") {
+                continue;
+            }
+            let (masks, report) = crate::lightroom_masks::import_lightroom_masks_for_image(
+                &xmp,
+                Some(&frame),
+                Some(&path),
+                |_| {},
+            );
+            let rasters = masks
+                .iter()
+                .flat_map(|mask| mask["subMasks"].as_array().unwrap())
+                .filter(|sub| sub["type"] == "ai-foreground")
+                .count();
+            records.push(serde_json::json!({"source":path.file_name().unwrap().to_string_lossy(),"importedAiCorrections":report.imported_ai,"rasters":rasters,"failures":report.failures,"brushTableRefusals":report.brush_table_refusals}));
+        }
+        std::fs::write(
+            std::env::var("RAPIDROOM_LRAI_OUTPUT").unwrap(),
+            serde_json::to_vec_pretty(&records).unwrap(),
+        )
+        .unwrap();
+        assert!(!records.is_empty());
+    }
+    #[test]
     #[ignore = "writes an authored synthetic fixture for the optional native smoke"]
     fn write_native_synthetic_acr_fixture() {
         std::fs::write(
