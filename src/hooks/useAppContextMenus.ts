@@ -279,17 +279,12 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   );
 
   const applyImportedXmpMetadata = useCallback(
-    (targetPath: string, metadata: ImportedXmpMetadata, expectedDraft?: XmpEditorDraft) => {
+    (targetPath: string, metadata: ImportedXmpMetadata, pause?: XmpImportSavePause) => {
       if (!metadata.adjustments || metadata.adjustments.is_null) return;
 
       const normalized = normalizeLoadedAdjustments(metadata.adjustments as Adjustments);
       const editorState = useEditorStore.getState();
-      if (
-        expectedDraft?.path === targetPath &&
-        editorState.selectedImage?.path === targetPath &&
-        editorState.adjustments !== expectedDraft.adjustments
-      )
-        return;
+      if (pause?.hasNewerDraft(targetPath)) return;
       if (editorState.selectedImage?.path === targetPath) {
         markEditorDraftPersisted(targetPath, normalized);
         editorState.setEditor({ adjustments: normalized });
@@ -305,7 +300,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   );
 
   const refreshImportedXmpPaths = useCallback(
-    async (importedPaths: string[], expectedDraft?: XmpEditorDraft) => {
+    async (importedPaths: string[], pause?: XmpImportSavePause) => {
       importedPaths.forEach((path) => globalImageCache.delete(path));
 
       const editorState = useEditorStore.getState();
@@ -321,7 +316,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       await Promise.all(
         [...pathsToRefresh].map(async (path) => {
           const metadata = await invoke<ImportedXmpMetadata>(Invokes.LoadMetadata, { path });
-          applyImportedXmpMetadata(path, metadata, expectedDraft);
+          applyImportedXmpMetadata(path, metadata, pause);
         }),
       );
     },
@@ -334,8 +329,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       let draft: XmpEditorDraft | undefined;
       let consumedPaths: string[] = [];
       try {
-        pause = await prepareEditorDraftForXmpImport(targetPath);
-        draft = pause.draft;
+        const prepared = await prepareEditorDraftForXmpImport(targetPath);
+        pause = prepared;
+        draft = prepared.draft;
         globalImageCache.delete(targetPath);
 
         let metadata: ImportedXmpAdjustments;
@@ -363,13 +359,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           });
         }
 
-        const active = useEditorStore.getState();
-        const newerDraft =
-          draft?.path === targetPath &&
-          active.selectedImage?.path === targetPath &&
-          active.adjustments !== draft.adjustments;
+        const newerDraft = pause.hasNewerDraft(targetPath);
         if (!newerDraft && (metadata.adjustmentsApplied || metadata.draftPreserved)) consumedPaths = [targetPath];
-        if (metadata.adjustmentsApplied) applyImportedXmpMetadata(targetPath, metadata, draft);
+        if (metadata.draftPreserved && draft?.path === targetPath && !newerDraft)
+          markEditorDraftPersisted(targetPath, draft.adjustments);
+        if (metadata.adjustmentsApplied) applyImportedXmpMetadata(targetPath, metadata, pause);
         await props.refreshImageList();
         toast.success(
           t(
@@ -417,8 +411,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       let consumedPaths: string[] = [];
 
       try {
-        pause = await prepareEditorDraftForXmpImport();
-        draft = pause.draft;
+        const prepared = await prepareEditorDraftForXmpImport();
+        pause = prepared;
+        draft = prepared.draft;
         stopListening = await listen<MatchingXmpSidecarImportProgress>('xmp-sidecar-import-progress', ({ payload }) => {
           if (payload.folderPath !== targetPath) return;
           useProcessStore.getState().setImportState({
@@ -431,12 +426,13 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           folderPath: targetPath,
           pendingDraft: draft,
         });
-        consumedPaths = [...result.adjustmentsImportedPaths, ...result.preservedDraftPaths];
-        const active = useEditorStore.getState();
-        if (draft && active.selectedImage?.path === draft.path && active.adjustments !== draft.adjustments)
-          consumedPaths = consumedPaths.filter((path) => path !== draft.path);
+        consumedPaths = [...result.adjustmentsImportedPaths, ...result.preservedDraftPaths].filter(
+          (path) => !prepared.hasNewerDraft(path),
+        );
+        if (draft && result.preservedDraftPaths.includes(draft.path) && consumedPaths.includes(draft.path))
+          markEditorDraftPersisted(draft.path, draft.adjustments);
         result.importedPaths.forEach((path) => globalImageCache.delete(path));
-        await refreshImportedXmpPaths(result.adjustmentsImportedPaths, draft);
+        await refreshImportedXmpPaths(result.adjustmentsImportedPaths, pause);
 
         const { currentFolderPath, imageList } = useLibraryStore.getState();
         const importedVisibleImage = imageList.some((image) => result.importedPaths.includes(image.path));

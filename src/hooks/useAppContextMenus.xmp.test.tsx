@@ -81,8 +81,13 @@ describe('public XMP import state and history', () => {
     await clickImport();
     expect(useEditorStore.getState().adjustments).toBe(draft);
     expect(useEditorStore.getState().history).toEqual([INITIAL_ADJUSTMENTS, draft]);
+    debouncedSave(path, useEditorStore.getState().adjustments);
     vi.advanceTimersByTime(600);
     expect(invoke).toHaveBeenCalledTimes(1);
+    const changed = { ...draft, exposure: 1.5 };
+    debouncedSave(path, changed);
+    vi.advanceTimersByTime(300);
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: changed });
   });
 
   it('waits for a previously started editor write before importing', async () => {
@@ -245,6 +250,48 @@ describe('public XMP import state and history', () => {
     });
   });
 
+  it('folder import keeps newer edits to a photo selected while the import was pending', async () => {
+    let complete!: (value: unknown) => void;
+    mockCommand(
+      Invokes.ImportMatchingXmpSidecarsInFolder,
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const operation = clickImport(true);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    const otherPath = '/photos/b.NEF';
+    const other = { ...draft, exposure: 2 };
+    useEditorStore.setState({
+      selectedImage: { ...useEditorStore.getState().selectedImage!, path: otherPath },
+      adjustments: other,
+    });
+    debouncedSave(otherPath, other);
+    mockCommand(Invokes.LoadMetadata, () => ({ adjustments: { exposure: 4 } }));
+    complete({
+      matched: 1,
+      imported: 1,
+      unchanged: 0,
+      skipped: 0,
+      failed: 0,
+      failures: [],
+      importedPaths: [otherPath],
+      adjustmentsImportedPaths: [otherPath],
+      alreadyAppliedPaths: [],
+      preservedDraftPaths: [],
+      unchangedPaths: [],
+      notTransferred: [],
+    });
+    await operation;
+    expect(useEditorStore.getState().adjustments).toBe(other);
+    vi.advanceTimersByTime(300);
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, {
+      path: otherPath,
+      adjustments: other,
+    });
+  });
+
   it('folder metadata-only imports preserve the active history and send its pending draft', async () => {
     mockCommand(Invokes.ImportMatchingXmpSidecarsInFolder, (args) => {
       expect(args?.pendingDraft).toEqual({ path, adjustments: draft });
@@ -266,6 +313,7 @@ describe('public XMP import state and history', () => {
     await clickImport(true);
     expect(useEditorStore.getState().adjustments).toBe(draft);
     expect(useEditorStore.getState().history).toEqual([INITIAL_ADJUSTMENTS, draft]);
+    debouncedSave(path, useEditorStore.getState().adjustments);
     vi.advanceTimersByTime(600);
     expect(invoke.mock.calls.map(([name]) => name)).toEqual([Invokes.ImportMatchingXmpSidecarsInFolder]);
   });

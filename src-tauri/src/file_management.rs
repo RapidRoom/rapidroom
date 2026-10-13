@@ -3149,6 +3149,26 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
     })
 }
 
+fn hydrate_imported_xmp_exif(
+    path: &str,
+    imported: &mut ImportedXmpSidecar,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) -> Result<(), String> {
+    if !imported.adjustments_applied {
+        return Ok(());
+    }
+    // Keep the single-photo import's existing EXIF/lens resolution without
+    // invoking ordinary autosave, which would sync into the incoming XMP.
+    let (source_path, _) = parse_virtual_path(path);
+    let mut metadata =
+        crate::exif_processing::load_sidecar_with_exif(&imported.sidecar_path, &source_path);
+    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    let json = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
+    write_file_atomically(&imported.sidecar_path, json).map_err(|error| error.to_string())?;
+    imported.metadata = metadata;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn import_xmp_adjustments_for_image(
     path: String,
@@ -3163,12 +3183,13 @@ pub fn import_xmp_adjustments_for_image(
         .or_else(|| find_matching_xmp_sidecar(&path))
         .ok_or_else(|| "No matching XMP sidecar was found next to this image.".to_string())?;
     let lens_db = state.lens_db.lock().unwrap().clone();
-    let imported = import_xmp_adjustments_to_sidecar_with_draft(
+    let mut imported = import_xmp_adjustments_to_sidecar_with_draft(
         &path,
         &xmp_path,
         lens_db.as_deref(),
         pending_adjustments.as_ref(),
     )?;
+    hydrate_imported_xmp_exif(&path, &mut imported, lens_db.as_deref())?;
     let sidecar_path = imported.sidecar_path.clone();
     let not_transferred = imported.not_transferred;
     let adjustments_applied = imported.adjustments_applied;
@@ -6320,6 +6341,41 @@ mod lightroom_xmp_import_tests {
                     .is_some_and(|name| name.to_string_lossy().starts_with(".rapidraw-"))
             })
             .collect()
+    }
+
+    #[test]
+    fn single_photo_import_retains_source_exif_without_syncing_input() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.NEF");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        fs::write(
+            crate::exif_processing::get_rrexif_path(&raw),
+            r#"{"Make":"Nikon","Model":"Synthetic cached camera"}"#,
+        )
+        .unwrap();
+        let xml = lightroom_xmp(r#"crs:Exposure2012="1.25""#);
+        fs::write(&xmp, &xml).unwrap();
+        let mut imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+        hydrate_imported_xmp_exif(&path_str(&raw), &mut imported, None).unwrap();
+        assert_eq!(
+            imported
+                .metadata
+                .exif
+                .as_ref()
+                .unwrap()
+                .get("Model")
+                .unwrap(),
+            "Synthetic cached camera"
+        );
+        assert_eq!(imported.metadata.adjustments["exposure"], 1.25);
+        assert_eq!(
+            crate::exif_processing::load_sidecar(&imported.sidecar_path).exif,
+            imported.metadata.exif
+        );
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), xml);
+        assert_eq!(fs::read(&raw).unwrap(), b"raw bytes");
     }
 
     #[test]

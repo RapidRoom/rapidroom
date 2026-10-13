@@ -107,6 +107,7 @@ function captureEditorDraft(): XmpEditorDraft | undefined {
 
 export interface XmpImportSavePause {
   draft?: XmpEditorDraft;
+  hasNewerDraft(path: string): boolean;
   finish(consumedPaths: string[]): void;
 }
 
@@ -149,7 +150,13 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
     const active = captureEditorDraft();
     if (active) captured.set(active.path, active);
     const draft = targetPath ? captured.get(targetPath) : active;
-    return { draft, finish };
+    const hasNewerDraft = (path: string) => {
+      const active = captureEditorDraft();
+      const snapshot = captured.get(path);
+      if (active?.path === path && snapshot && active.adjustments !== snapshot.adjustments) return true;
+      return buffered.has(path) && buffered.get(path)?.adjustments !== snapshot?.adjustments;
+    };
+    return { draft, hasNewerDraft, finish };
   } catch (error) {
     finish([]);
     throw error;
@@ -165,6 +172,12 @@ export function useEditorActions() {
         const prev = state.adjustments;
         const newAdjustments = typeof value === 'function' ? value(prev) : { ...prev, ...value };
         if (newAdjustments === prev) return state;
+        if (importSavePause && state.selectedImage) {
+          importSavePause.set(state.selectedImage.path, {
+            path: state.selectedImage.path,
+            adjustments: newAdjustments,
+          });
+        }
         debouncedSetHistory(newAdjustments);
         return {
           adjustments: newAdjustments,
