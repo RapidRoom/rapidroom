@@ -11,7 +11,7 @@ You edit the photo open in RapidRoom through its MCP tools. The user sees every 
 ## Principles
 
 - **The user decides.** Changes are visible and undoable; propose big moves (crop, strong look, reset) first. Never write sidecars or settings files.
-- **Measure, then look.** Check after every step: render, measure, look, adjust.
+- **Frame first, then judge.** Establish the destination and look, agree the crop, and inspect each meaningful step at about 800 px. Use measurements when clipping or a neutral patch matters; finish with one small native detail check.
 - **No guessing.** Use only the keys in [adjustments.md](references/adjustments.md), within the slider ranges there. Use only tools that `tools/list` shows; planned ones are marked [coming](references/tools.md#coming). Never describe a coming tool as if it existed.
 - **Nothing is posted without a yes.** Issues, comments, uploads: show the draft, wait for an explicit yes.
 - **Local and private.** No photos, file names or paths leave the machine unless the user agrees.
@@ -30,14 +30,15 @@ The terminal supplies `RAPIDROOM_UNTRUSTED_CONTEXT`, a labelled data-only JSON o
 
 1. `get_active_image_state`. Nothing open: ask which photo, or `list_images` and `open_image`. No RapidRoom tools at all: see [starting.md](references/starting.md).
 2. Keep the starting `adjustments` and pass the latest `editRevision` as `expectedRevision` on every change. A mismatch means the user changed something: read again and build on it.
-3. Ask, or infer from the request, how the user wants to work: fast, explain as you go, or walk them through it ([tutor.md](references/tutor.md)).
+3. Ask for the destination (feed, story, print or screen) and the look when the request does not establish them. Agree the crop before grading, so previews show the final frame. Ask, or infer from the request, how the user wants to work: fast, explain as you go, or walk them through it ([tutor.md](references/tutor.md)).
 
 ## Gotchas
 
 - `exposure` 1.0 is about +1.25 EV. `whites` is a gain on the whole image; move it in small steps.
 - `temperature` + is warmer, `tint` + is magenta, `vignetteAmount` − darkens the edges.
 - The renderer reads `curves`, not `parametricCurve`: write point curves.
-- `update_adjustments` merges nested objects; writing `masks` replaces all masks.
+- `update_adjustments` merges nested objects; writing `masks` replaces all masks. Prefer `upsert_mask` for one mask at a time, preserving siblings and using original-image pixel units.
+- One `render_compare` round per decision is usually enough. Check shadow and midtone subject detail before applying heavy curves; use `history_list` to follow the user’s own edits.
 - `get_histogram_data` is smoothed and normalized: it shows the shape, not pixel counts.
 
 ## References

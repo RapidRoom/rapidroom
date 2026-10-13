@@ -2,6 +2,23 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "assistant-editing-session-lessons",
+      "title": "Teach assistants to frame first and compare efficiently",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original skill update with Codex)",
+      "commits": [],
+      "upstream_issues": [
+        "RapidRoom/rapidroom#152"
+      ],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The editing skill establishes destination/look and crop first, uses compact named comparisons, protects shadow/midtone detail, follows concurrent GUI history and edits masks individually. Export recipes use supported context, original-folder subfolders and explicit width targets."
+    },
+    {
       "id": "raw-repair-thumbnail-native-scale",
       "title": "Keep RAW repair patches aligned in regenerated thumbnails",
       "category": "fix",
