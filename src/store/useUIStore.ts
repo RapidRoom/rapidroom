@@ -642,7 +642,25 @@ export const useUIStore = create<UIState>((set, get) => ({
     }),
 }));
 
-export function isActiveDenoiseEvent(payload: unknown) {
+export interface DenoiseCompleteEvent {
+  denoised: string;
+  jobId: number;
+  original?: string | null;
+}
+
+export interface DenoiseErrorEvent {
+  jobId: number;
+  message: string;
+}
+
+export interface DenoiseProgressEvent {
+  jobId: number;
+  message: string;
+}
+
+export type ActiveDenoiseEvent = DenoiseCompleteEvent | DenoiseErrorEvent | DenoiseProgressEvent;
+
+export function isActiveDenoiseEvent(payload: unknown): payload is ActiveDenoiseEvent {
   const { isOpen, isProcessing, jobId } = useUIStore.getState().denoiseModalState;
   return (
     isOpen &&

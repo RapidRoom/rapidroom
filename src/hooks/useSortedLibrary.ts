@@ -48,7 +48,26 @@ export interface GroupedLibrary {
   badges: Map<GroupId, GroupBadgeInfo> | null;
 }
 
-function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLibrary {
+type ParsedTag =
+  | { type: 'normal'; value: string; raw: string }
+  | { type: 'query'; field: string; operator: string; value: string; raw: string };
+
+interface SearchCriteria {
+  tags: string[];
+  text: string;
+  mode: 'AND' | 'OR';
+}
+
+type LibrarySortState = Pick<
+  ReturnType<typeof useLibraryStore.getState>,
+  'imageList' | 'imageRatings' | 'filterCriteria' | 'sortCriteria'
+> & { searchCriteria: SearchCriteria };
+
+type SettingsSortState = {
+  appSettings: { grouping?: GroupingMode; groupEditedFiles?: boolean } | null;
+};
+
+function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: SettingsSortState): GroupedLibrary {
   const { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria } = libraryState;
   const { appSettings } = settingsState;
 
@@ -92,7 +111,7 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
   const { tags: searchTags, text: searchText, mode: searchMode } = searchCriteria;
   const lowerCaseSearchText = searchText.trim().toLowerCase();
 
-  const parsedTags = searchTags.map((tag: string) => {
+  const parsedTags: ParsedTag[] = searchTags.map((tag: string) => {
     const match = tag.match(ADVANCED_QUERY_REGEX);
     if (match) {
       const operator = match[2] || '=';
@@ -101,7 +120,7 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
     return { type: 'normal', value: tag.toLowerCase(), raw: tag };
   });
 
-  const evaluateQuery = (q: any, image: ImageFile) => {
+  const evaluateQuery = (q: Extract<ParsedTag, { type: 'query' }>, image: ImageFile) => {
     const { field, operator, value } = q;
 
     if (['iso', 'aperture', 'f', 'shutter', 's', 'focal', 'mm', 'rating'].includes(field)) {
@@ -159,7 +178,7 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
 
     let tagsMatch = true;
     if (parsedTags.length > 0) {
-      const evaluateTag = (parsedTag: any) => {
+      const evaluateTag = (parsedTag: ParsedTag) => {
         if (parsedTag.type === 'normal') {
           return lowerCaseImageTags.some((imgTag) => imgTag.includes(parsedTag.value));
         }
@@ -167,9 +186,9 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
       };
 
       if (searchMode === 'OR') {
-        tagsMatch = parsedTags.some((pt: any) => evaluateTag(pt));
+        tagsMatch = parsedTags.some((pt) => evaluateTag(pt));
       } else {
-        tagsMatch = parsedTags.every((pt: any) => evaluateTag(pt));
+        tagsMatch = parsedTags.every((pt) => evaluateTag(pt));
       }
     }
 
@@ -215,7 +234,7 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
 
   list.sort((a, b) => {
     const { key, order } = sortCriteria;
-    let comparison = 0;
+    let comparison: number;
 
     switch (key) {
       case 'date_taken': {
@@ -276,7 +295,7 @@ function computeGroupedLibrary(libraryState: any, settingsState: any): GroupedLi
   return { displayList: list, badges };
 }
 
-export function computeSortedLibrary(libraryState: any, settingsState: any): ImageFile[] {
+export function computeSortedLibrary(libraryState: LibrarySortState, settingsState: SettingsSortState): ImageFile[] {
   return computeGroupedLibrary(libraryState, settingsState).displayList;
 }
 
