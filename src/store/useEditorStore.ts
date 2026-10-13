@@ -1,8 +1,7 @@
 import type { HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import { Adjustments, INITIAL_ADJUSTMENTS, MaskContainer, AiPatch } from '../utils/adjustments';
-import { SelectedImage, WaveformData, BrushSettings } from '../components/ui/AppProperties';
-import { ChannelConfig } from '../components/adjustments/Curves';
+import { SelectedImage, WaveformData, BrushSettings, HistogramData } from '../components/ui/AppProperties';
 import { ImageDimensions } from '../hooks/useImageRenderSize';
 import { ToolType } from '../components/panel/right/Masks';
 import { OverlayMode } from '../components/panel/right/CropPanel';
@@ -52,7 +51,7 @@ interface EditorState {
   referenceView: ReferenceViewState;
 
   // Analytics
-  histogram: ChannelConfig | null;
+  histogram: HistogramData | null;
   waveform: WaveformData | null;
   isWaveformVisible: boolean;
   activeWaveformChannel: string;
@@ -92,7 +91,7 @@ interface EditorState {
   // Clipboard
   copiedSectionAdjustments: any | null;
   copiedMask: MaskContainer | null;
-  copiedAdjustments: Adjustments | null;
+  copiedAdjustments: Partial<Adjustments> | null;
 
   // Actions
   setEditor: (updater: Partial<EditorState> | ((state: EditorState) => Partial<EditorState>)) => void;

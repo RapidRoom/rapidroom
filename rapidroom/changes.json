@@ -1245,6 +1245,19 @@
       "upstream_prs": ["CyberTimon/RapidRAW#1869"],
       "rendering_change": false,
       "notes": "Shared limits measure cropped/oriented image pixels on each display. Normal photos stop at 400%; tiny images retain at least twice their fitted size on every path. Wheel notches and keyboard steps share ordered percentage stops with fit inserted; pinch and fine scrolling remain continuous. DOM wheel events have no hardware identity: line/page deltas, WebKitGTK native dimension-dependent ticks with matching signed legacy tick counts, and common 100/120-pixel ticks snap, while fine/fractional and diagonal pixel deltas do not. Codex implementation; no new dependency or network connection."
+    },
+    {
+      "id": "eslint-hooks-cleanup",
+      "title": "Type the frontend hooks and remove explicit any annotations",
+      "category": "ci",
+      "landed": "2026-10-12",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "rapidroom_only": true,
+      "notes": "Development quality cleanup in src/hooks; no runtime behavior change intended."
     }
   ]
 }
