@@ -1372,7 +1372,15 @@ impl GpuProcessor {
         mask_lut_span.gpu_sync(device);
         drop(mask_lut_span);
 
-        let adjustments = request.adjustments;
+        let mut adjustments = request.adjustments;
+        // The parsed LUT is the source of its domain. Preview, scene/display
+        // LUTs and 8/16-bit CPU readbacks share the same shader normalization.
+        if let Some(lut) = &request.lut {
+            adjustments.global.lut_domain_min =
+                [lut.domain_min[0], lut.domain_min[1], lut.domain_min[2], 0.0];
+            adjustments.global.lut_domain_max =
+                [lut.domain_max[0], lut.domain_max[1], lut.domain_max[2], 0.0];
+        }
 
         // Skip blur passes that nothing consumes: when a flag is false, run_blur is
         // skipped and the dummy view is bound below, which the shader's per-effect

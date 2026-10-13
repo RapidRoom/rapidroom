@@ -2,6 +2,21 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "cube-lut-input-domain",
+      "title": "Honor .cube LUT input domain bounds",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Validate DOMAIN_MIN/MAX headers and normalize input coordinates once at tetrahedral sampling for scene/display LUTs, previews and 8/16-bit export readback. Unit domains keep the existing lookup and intensity behavior; non-unit LUTs now use their authored input ranges."
+    },
+    {
       "id": "raw-repair-thumbnail-native-scale",
       "title": "Keep RAW repair patches aligned in regenerated thumbnails",
       "category": "fix",

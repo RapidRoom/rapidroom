@@ -26,6 +26,8 @@ use crate::image_processing::{
 pub struct Lut {
     pub size: u32,
     pub data: Vec<f32>,
+    pub domain_min: [f32; 3],
+    pub domain_max: [f32; 3],
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -185,11 +187,13 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
     let mut size: Option<u32> = None;
     let mut data: Vec<f32> = Vec::new();
     let mut line_num = 0;
+    let mut domain_min = None;
+    let mut domain_max = None;
 
     for line in reader.lines() {
         line_num += 1;
         let line = line?;
-        let trimmed = line.trim();
+        let trimmed = line.split('#').next().unwrap_or_default().trim();
 
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
@@ -201,7 +205,37 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
         }
 
         match parts[0].to_uppercase().as_str() {
-            "TITLE" | "DOMAIN_MIN" | "DOMAIN_MAX" => continue,
+            "TITLE" => continue,
+            "DOMAIN_MIN" | "DOMAIN_MAX" => {
+                if parts.len() != 4 {
+                    return Err(anyhow!(
+                        "{} requires exactly three components on line {}",
+                        parts[0],
+                        line_num
+                    ));
+                }
+                let mut values = [0.0; 3];
+                for (value, part) in values.iter_mut().zip(&parts[1..]) {
+                    *value = part
+                        .parse::<f32>()
+                        .map_err(|_| anyhow!("Invalid domain component on line {}", line_num))?;
+                    if !value.is_finite() {
+                        return Err(anyhow!("Non-finite domain component on line {}", line_num));
+                    }
+                }
+                let target = if parts[0].eq_ignore_ascii_case("DOMAIN_MIN") {
+                    &mut domain_min
+                } else {
+                    &mut domain_max
+                };
+                if target.replace(values).is_some() {
+                    return Err(anyhow!(
+                        "Duplicate {} header on line {}",
+                        parts[0],
+                        line_num
+                    ));
+                }
+            }
 
             "LUT_3D_SIZE" => {
                 if parts.len() < 2 {
@@ -263,7 +297,27 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
     }
 
     let lut_size = size.ok_or(anyhow!("LUT_3D_SIZE not found in .cube file"))?;
-    let expected_len = (lut_size * lut_size * lut_size * 3) as usize;
+    if lut_size < 2 {
+        return Err(anyhow!("3D LUT size must be at least 2"));
+    }
+    let domain_min = domain_min.unwrap_or([0.0; 3]);
+    let domain_max = domain_max.unwrap_or([1.0; 3]);
+    for channel in 0..3 {
+        let span = domain_max[channel] - domain_min[channel];
+        if domain_min[channel] >= domain_max[channel]
+            || !span.is_finite()
+            || !(1.0 / span).is_finite()
+        {
+            return Err(anyhow!(
+                "LUT domain bounds must be finite, strictly ordered and have a representable span (component {})",
+                channel
+            ));
+        }
+    }
+    let expected_len = (lut_size as usize)
+        .checked_pow(3)
+        .and_then(|n| n.checked_mul(3))
+        .ok_or_else(|| anyhow!("LUT size exceeds supported bounds"))?;
     if data.len() != expected_len {
         return Err(anyhow!(
             "LUT data size mismatch. Expected {} float values (for size {}), but found {}. The file may be corrupt or incomplete.",
@@ -276,6 +330,8 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
     Ok(Lut {
         size: lut_size,
         data,
+        domain_min,
+        domain_max,
     })
 }
 
@@ -313,7 +369,12 @@ fn parse_3dl(reader: impl BufRead) -> anyhow::Result<Lut> {
         ));
     }
 
-    Ok(Lut { size, data })
+    Ok(Lut {
+        size,
+        data,
+        domain_min: [0.0; 3],
+        domain_max: [1.0; 3],
+    })
 }
 
 fn parse_hald(image: DynamicImage) -> anyhow::Result<Lut> {
@@ -345,7 +406,12 @@ fn parse_hald(image: DynamicImage) -> anyhow::Result<Lut> {
         data.push(pixel[2] as f32 / 255.0);
     }
 
-    Ok(Lut { size, data })
+    Ok(Lut {
+        size,
+        data,
+        domain_min: [0.0; 3],
+        domain_max: [1.0; 3],
+    })
 }
 
 pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
@@ -721,3 +787,68 @@ pub fn load_and_parse_lut(path: String, state: State<AppState>) -> Result<LutPar
 
     Ok(LutParseResult { size: lut_size })
 }
+
+#[cfg(test)]
+mod domain_tests {
+    use super::*;
+    fn cube(headers: &str) -> String {
+        format!(
+            "{headers}\nLUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n"
+        )
+    }
+    #[test]
+    fn cube_domains_default_and_parse_asymmetric_bounds() {
+        let unit = parse_cube(Cursor::new(cube(""))).unwrap();
+        assert_eq!(unit.domain_min, [0.0; 3]);
+        assert_eq!(unit.domain_max, [1.0; 3]);
+        let lut = parse_cube(Cursor::new(cube(
+            "DOMAIN_MIN -1 0 2\nDOMAIN_MAX 1 4 6 # domain comment",
+        )))
+        .unwrap();
+        assert_eq!(lut.domain_min, [-1.0, 0.0, 2.0]);
+        assert_eq!(lut.domain_max, [1.0, 4.0, 6.0]);
+        assert_eq!(unit.data, lut.data, "Do not normalize LUT output samples");
+        let max_only = parse_cube(Cursor::new(cube("DOMAIN_MAX 2 3 4"))).unwrap();
+        assert_eq!(max_only.domain_min, [0.0; 3]);
+        assert_eq!(max_only.domain_max, [2.0, 3.0, 4.0]);
+        let min_only = parse_cube(Cursor::new(cube("DOMAIN_MIN -1 -2 -3"))).unwrap();
+        assert_eq!(min_only.domain_max, [1.0; 3]);
+    }
+    #[test]
+    fn rejects_invalid_or_ambiguous_domain_headers() {
+        for headers in [
+            "DOMAIN_MIN 0 0",
+            "DOMAIN_MAX 1 1 1 2",
+            "DOMAIN_MIN nan 0 0",
+            "DOMAIN_MAX inf 1 1",
+            "DOMAIN_MIN 1 0 0",
+            "DOMAIN_MIN 2 0 0",
+            "DOMAIN_MAX 0 1 1",
+            "DOMAIN_MAX -1 1 1",
+            "DOMAIN_MIN 0 0 0\nDOMAIN_MIN 0 0 0",
+            "DOMAIN_MAX 1 1 1\nDOMAIN_MAX 2 2 2",
+            "DOMAIN_MIN -3.4e38 0 0\nDOMAIN_MAX 3.4e38 1 1",
+            "DOMAIN_MAX 1e-40 1 1",
+        ] {
+            assert!(parse_cube(Cursor::new(cube(headers))).is_err(), "{headers}");
+        }
+        assert!(parse_cube(Cursor::new("LUT_3D_SIZE 0")).is_err());
+        assert!(parse_cube(Cursor::new("LUT_3D_SIZE 4294967295")).is_err());
+    }
+    #[test]
+    fn hald_and_3dl_keep_unit_domains() {
+        let hald = parse_hald(DynamicImage::new_rgb8(8, 8)).unwrap();
+        assert_eq!(hald.domain_min, [0.0; 3]);
+        assert_eq!(hald.domain_max, [1.0; 3]);
+        let lut = parse_3dl(Cursor::new(
+            "0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1",
+        ))
+        .unwrap();
+        assert_eq!(lut.domain_min, [0.0; 3]);
+        assert_eq!(lut.domain_max, [1.0; 3]);
+    }
+}
+
+#[cfg(test)]
+#[path = "lut_shader_tests.rs"]
+mod lut_shader_tests;
