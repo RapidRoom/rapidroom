@@ -10,6 +10,11 @@ import { SubMask } from '../components/panel/right/Masks';
 import { Invokes } from '../components/ui/AppProperties';
 import { useCloudAuth } from '../context/CloudAuthContext';
 
+const getRejectionMessage = (error: unknown): string => {
+  const message = typeof error === 'object' && error !== null && 'message' in error ? error.message : undefined;
+  return message ? String(message) : String(error);
+};
+
 const getTransformAdjustments = (adj: Adjustments) => ({
   transformDistortion: adj.transformDistortion,
   transformVertical: adj.transformVertical,
@@ -118,7 +123,7 @@ export function useAiMasking() {
         patchesSentToBackend.delete(patchId);
 
         if (!String(err).includes('cancelled')) {
-          toast.error(`Patch Generation Failed: ${err instanceof Error ? err.message : String(err)}`);
+          toast.error(`Patch Generation Failed: ${getRejectionMessage(err)}`);
         }
         setAdjustments((prev: Partial<Adjustments>) => ({
           ...prev,
@@ -271,7 +276,7 @@ export function useAiMasking() {
         setEditor({ activeAiPatchContainerId: null, activeAiSubMaskId: null });
       } catch (err: unknown) {
         if (!String(err).includes('cancelled')) {
-          toast.error(`Quick Erase Failed: ${err instanceof Error ? err.message : String(err)}`);
+          toast.error(`Quick Erase Failed: ${getRejectionMessage(err)}`);
         }
         setAdjustments((prev: Partial<Adjustments>) => ({
           ...prev,
