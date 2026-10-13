@@ -678,7 +678,8 @@ export default function ExportPanel({
 
     const exportSettings: ExportSettings = {
       filenameTemplate,
-      overwriteExisting,
+      overwriteExisting:
+        overwriteExisting && (numImages > 1 || preserveFolders || destinationType === 'originalFolder'),
       jpegQuality,
       tiffBitDepth,
       keepMetadata,
@@ -757,7 +758,7 @@ export default function ExportPanel({
 
       if (isAndroid || outputFolderOrFile) {
         if (
-          overwriteExisting &&
+          exportSettings.overwriteExisting &&
           !(await confirm(t('export.overwrite.confirm'), {
             title: t('export.overwrite.title'),
             kind: 'warning',
@@ -916,7 +917,7 @@ export default function ExportPanel({
             </Section>
 
             <Section title={t('export.sections.fileNaming')}>
-              {!isAndroid && (
+              {!isAndroid && (numImages > 1 || preserveFolders || destinationType === 'originalFolder') && (
                 <Switch
                   label={t('export.overwrite.label')}
                   checked={overwriteExisting}
