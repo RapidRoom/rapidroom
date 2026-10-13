@@ -452,9 +452,10 @@ class Smoke:
           .find(e=>e.innerText.trim()==='Original image folder');
           if(!e)throw Error('Original folder choice missing');e.click();return true;""")
         self.capture("export-ready")
+        existing_jpegs = set((self.case / "input").rglob("*.jpg"))
         self.execute("""const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Export Image');
           if(!e||e.disabled)throw Error('Export Image unavailable');e.click();return true;""")
-        files = wait_for(lambda: list((self.case / "input").rglob("*.jpg")), "JPEG export", 90)
+        files = wait_for(lambda: sorted(set((self.case / "input").rglob("*.jpg")) - existing_jpegs), "new JPEG export", 90)
         wait_for(lambda: self.execute("return document.body.innerText.includes('Export successful!');"),
                  "native export completion")
         if len(files) != 1:
