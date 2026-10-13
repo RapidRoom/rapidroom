@@ -22,6 +22,7 @@ macro_rules! cli_eprintln {
     }};
 }
 
+mod acr;
 mod adjustment_utils;
 mod ai_commands;
 mod ai_connector;
@@ -59,6 +60,7 @@ mod lens_blur;
 mod lens_correction;
 mod lightroom;
 mod lightroom_acr;
+mod lightroom_brush_table;
 mod lightroom_masks;
 mod lrtemplate;
 mod lut_processing;

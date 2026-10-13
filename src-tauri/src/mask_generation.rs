@@ -230,6 +230,9 @@ fn default_line_flow() -> f32 {
 struct FlowMaskParameters {
     #[serde(default)]
     lines: Vec<FlowLine>,
+    /// Imported Lightroom dabs may deposit less than one 8-bit alpha step.
+    #[serde(default)]
+    high_precision_accumulation: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -756,6 +759,9 @@ fn generate_flow_bitmap(
     let params: FlowMaskParameters =
         serde_json::from_value(params_value.clone()).unwrap_or_default();
     let mut final_mask = GrayImage::new(width, height);
+    let mut precise = params
+        .high_precision_accumulation
+        .then(|| vec![0.0f32; width as usize * height as usize]);
 
     for line in &params.lines {
         if line.points.is_empty() {
@@ -799,8 +805,16 @@ fn generate_flow_bitmap(
                 let abs_y = min_y + y;
                 let pixel = final_mask.get_pixel_mut(abs_x, abs_y);
 
-                let c_norm = pixel[0] as f32 / 255.0;
-                let delta = ((stroke_pixel / 255.0) * flow_per_stroke).round();
+                let index = abs_y as usize * width as usize + abs_x as usize;
+                let c_norm = precise
+                    .as_ref()
+                    .map_or(pixel[0] as f32 / 255.0, |p| p[index]);
+                let deposit = (stroke_pixel / 255.0) * flow_per_stroke;
+                let delta = if precise.is_some() {
+                    deposit
+                } else {
+                    deposit.round()
+                };
                 let d_norm = (delta / 255.0).clamp(0.0, 1.0);
 
                 let next = if is_eraser {
@@ -809,11 +823,20 @@ fn generate_flow_bitmap(
                     c_norm + d_norm - c_norm * d_norm
                 };
 
-                pixel[0] = (next.clamp(0.0, 1.0) * 255.0).round() as u8;
+                if let Some(p) = precise.as_mut() {
+                    p[index] = next.clamp(0.0, 1.0);
+                } else {
+                    pixel[0] = (next.clamp(0.0, 1.0) * 255.0).round() as u8;
+                }
             }
         }
     }
 
+    if let Some(precise) = precise {
+        for (pixel, weight) in final_mask.pixels_mut().zip(precise) {
+            pixel[0] = (weight * 255.0).round() as u8;
+        }
+    }
     final_mask
 }
 
@@ -1666,5 +1689,41 @@ mod tests {
     fn unreadable_masks_leave_the_render_without_them() {
         assert!(parse_mask_definitions(&json!({ "masks": "not a list" })).is_empty());
         assert!(parse_mask_definitions(&json!({ "masks": [{ "id": "a" }] })).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod imported_flow_precision_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn tiny_imported_dabs_accumulate_and_erase_before_final_quantization() {
+        let line = json!({"tool":"brush","brushSize":8,"feather":0,"flow":0.01,"points":[{"x":10,"y":10}]});
+        let mut params = json!({"lines":vec![line;100]});
+        let legacy = generate_flow_bitmap(&params, 20, 20, 1.0, (0.0, 0.0));
+        assert_eq!(legacy.get_pixel(10, 10)[0], 0);
+        params["highPrecisionAccumulation"] = json!(true);
+        let precise = generate_flow_bitmap(&params, 20, 20, 1.0, (0.0, 0.0));
+        assert_eq!(precise.get_pixel(10, 10)[0], 3);
+        assert_eq!(precise.get_pixel(0, 0)[0], 0);
+        params["lines"].as_array_mut().unwrap().push(json!({"tool":"eraser","brushSize":8,"feather":0,"flow":100,"points":[{"x":10,"y":10}]}));
+        let erased = generate_flow_bitmap(&params, 20, 20, 1.0, (0.0, 0.0));
+        assert_eq!(erased.get_pixel(10, 10)[0], 0);
+    }
+
+    #[test]
+    fn existing_flow_parameters_keep_their_previous_rounding() {
+        let line = json!({"tool":"brush","brushSize":8,"feather":0,"flow":5.69,"points":[{"x":10,"y":10}]});
+        let mut params = json!({"lines":[line.clone(),line]});
+        assert_eq!(
+            generate_flow_bitmap(&params, 20, 20, 1.0, (0.0, 0.0)).get_pixel(10, 10)[0],
+            29
+        );
+        params["highPrecisionAccumulation"] = json!(true);
+        assert_eq!(
+            generate_flow_bitmap(&params, 20, 20, 1.0, (0.0, 0.0)).get_pixel(10, 10)[0],
+            28
+        );
     }
 }

@@ -1,13 +1,18 @@
 //! Lightroom local corrections (`crs:MaskGroupBasedCorrections`) as RapidRAW
 //! masks: linear and radial gradients and brush strokes, with their local
-//! adjustments. AI pixels are read from an optional, read-only ACR sidecar.
+//! adjustments. AI masks (`Mask/Image`) keep their pixels in a separate `.acr`
+//! file, so corrections that use them are skipped and reported instead.
+//! Aggregate composition and signed radial decoding adapt measured rules from
+//! skymanbp/autoshade@cbca12b5 (MIT; full notice in resources/licenses/).
 
+use crate::lightroom_brush_table::{BrushStroke, BrushTableReader};
 use quick_xml::Reader;
 use quick_xml::XmlVersion;
 use quick_xml::events::{BytesStart, Event};
 use regex::regex;
 use serde_json::{Map, Value, json};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::path::Path;
 use uuid::Uuid;
 
 /// Lightroom stores local slider values normalised to -1..1. Exposure spans
@@ -16,11 +21,9 @@ use uuid::Uuid;
 /// the Lightroom calibration set should tune this factor.
 pub const LIGHTROOM_LOCAL_EXPOSURE_EV_PER_UNIT: f64 = 4.0;
 
-/// Lightroom brush `Radius` is normalised to the image. Which side it is
-/// relative to is unverified; the long side is assumed until the calibration
-/// set confirms it.
-fn lightroom_brush_radius_reference(width: f64, height: f64) -> f64 {
-    width.max(height)
+/// Lightroom brush Radius is in units of the unoriented image width.
+fn lightroom_brush_radius_reference(width: f64, _height: f64) -> f64 {
+    width
 }
 
 /// Lightroom local slider values (-1..1) and the RapidRAW mask adjustment
@@ -99,15 +102,6 @@ impl ImageFrame {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MaskFailure {
-    pub correction: String,
-    pub component: String,
-    pub mask_type: String,
-    pub reason: String,
-}
-
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct MaskImportSummary {
     /// Corrections that could be converted, whether or not an image frame was
@@ -120,8 +114,29 @@ pub struct MaskImportSummary {
     /// Corrections skipped for other reasons (unsupported components, missing
     /// geometry, no components).
     pub skipped_unsupported: usize,
+    /// Corrections with brush tables that were not transferred.
+    pub with_brush_tables: usize,
+    pub brush_tables_seen: usize,
+    pub brush_tables_decoded: usize,
+    pub brush_tables_imported: usize,
+    pub brush_table_refusals: Vec<BrushTableRefusal>,
     /// Converted corrections that also set local adjustments RapidRAW lacks.
     pub with_unmapped_adjustments: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MaskFailure {
+    pub correction: String,
+    pub component: String,
+    pub mask_type: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct BrushTableRefusal {
+    pub name: String,
+    pub reason: String,
 }
 
 pub fn has_mask_group_corrections(xmp_content: &str) -> bool {
@@ -135,16 +150,65 @@ pub fn import_lightroom_masks(
     frame: Option<&ImageFrame>,
     scale_exposure: impl Fn(&mut Map<String, Value>),
 ) -> (Vec<Value>, MaskImportSummary) {
-    import_lightroom_masks_with_acr(xmp_content, frame, scale_exposure, None, None)
+    import_lightroom_masks_for_image(xmp_content, frame, None, scale_exposure)
 }
 
+pub fn import_lightroom_masks_for_image(
+    xmp_content: &str,
+    frame: Option<&ImageFrame>,
+    image_path: Option<&Path>,
+    scale_exposure: impl Fn(&mut Map<String, Value>),
+) -> (Vec<Value>, MaskImportSummary) {
+    let mut acr = image_path.map(|path| {
+        let lower = path.with_extension("acr");
+        crate::lightroom_acr::AcrMasks::read(&if lower.exists() {
+            lower
+        } else {
+            path.with_extension("ACR")
+        })
+    });
+    let error = acr
+        .as_ref()
+        .and_then(|result| result.as_ref().err())
+        .cloned();
+    import_lightroom_masks_with_acr_and_path(
+        xmp_content,
+        frame,
+        scale_exposure,
+        acr.as_mut().and_then(|result| result.as_mut().ok()),
+        error.as_deref(),
+        image_path,
+    )
+}
+
+#[cfg(test)]
 pub(crate) fn import_lightroom_masks_with_acr(
+    xmp_content: &str,
+    frame: Option<&ImageFrame>,
+    scale_exposure: impl Fn(&mut Map<String, Value>),
+    acr: Option<&mut crate::lightroom_acr::AcrMasks>,
+    acr_error: Option<&str>,
+) -> (Vec<Value>, MaskImportSummary) {
+    import_lightroom_masks_with_acr_and_path(
+        xmp_content,
+        frame,
+        scale_exposure,
+        acr,
+        acr_error,
+        None,
+    )
+}
+
+fn import_lightroom_masks_with_acr_and_path(
     xmp_content: &str,
     frame: Option<&ImageFrame>,
     scale_exposure: impl Fn(&mut Map<String, Value>),
     mut acr: Option<&mut crate::lightroom_acr::AcrMasks>,
     acr_error: Option<&str>,
+    image_path: Option<&Path>,
 ) -> (Vec<Value>, MaskImportSummary) {
+    let mut reader = BrushTableReader::new(image_path);
+    let mut dab_budget = 65_536usize;
     let mut summary = MaskImportSummary::default();
     let mut masks = Vec::new();
     if !has_mask_group_corrections(xmp_content) {
@@ -165,9 +229,11 @@ pub(crate) fn import_lightroom_masks_with_acr(
             index,
             frame,
             &scale_exposure,
+            &mut reader,
+            &mut dab_budget,
+            &mut summary,
             acr.as_deref_mut(),
             acr_error,
-            &mut summary,
         ) {
             Converted::Mask(mask, unmapped) => {
                 summary.convertible += 1;
@@ -193,14 +259,17 @@ enum Converted {
     SkippedUnsupported,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn convert_correction(
     correction: &Resource,
     index: usize,
     frame: Option<&ImageFrame>,
     scale_exposure: &impl Fn(&mut Map<String, Value>),
+    reader: &mut BrushTableReader,
+    dab_budget: &mut usize,
+    summary: &mut MaskImportSummary,
     mut acr: Option<&mut crate::lightroom_acr::AcrMasks>,
     acr_error: Option<&str>,
-    summary: &mut MaskImportSummary,
 ) -> Converted {
     let components: Vec<Resource> = correction
         .structs
@@ -253,9 +322,6 @@ fn convert_correction(
             }
         }
     }
-    if failed_ai {
-        return Converted::SkippedAi;
-    }
     if components.is_empty() {
         return Converted::SkippedUnsupported;
     }
@@ -268,13 +334,76 @@ fn convert_correction(
         orientation: 1,
         rotation: 0.0,
     });
-    let Some(sub_masks) = convert_components(&components, &frame_or_unit, &image_parameters) else {
+    let mut tables = BTreeMap::new();
+    let refusals_before = summary.brush_table_refusals.len();
+    for (component_index, component) in components.iter().enumerate() {
+        if !component.has_brush_table() {
+            continue;
+        }
+        summary.brush_tables_seen += 1;
+        let result = if failed_ai {
+            Err("this correction includes an unavailable AI mask".to_string())
+        } else if component.what() != Some("Mask/Aggregate") {
+            Err("brush table is attached to an unsupported component".to_string())
+        } else {
+            decoded_brush_lines(component, &frame_or_unit, reader, dab_budget).inspect(|_| {
+                summary.brush_tables_decoded += 1;
+            })
+        };
+        match result {
+            Ok(lines) => {
+                tables.insert(component_index, lines);
+            }
+            Err(reason) => summary.brush_table_refusals.push(brush_table_refusal(
+                component,
+                index,
+                component_index,
+                reason,
+            )),
+        }
+    }
+    if summary.brush_table_refusals.len() > refusals_before {
+        summary.with_brush_tables += 1;
+        for component_index in tables.keys() {
+            summary.brush_table_refusals.push(brush_table_refusal(
+                &components[*component_index],
+                index,
+                *component_index,
+                "another brush group in this correction could not be imported".to_string(),
+            ));
+        }
+        return if !image_parameters.is_empty() || failed_ai {
+            Converted::SkippedAi
+        } else {
+            Converted::SkippedUnsupported
+        };
+    }
+    if failed_ai {
+        return Converted::SkippedAi;
+    }
+    let Some(sub_masks) = convert_components(
+        &components,
+        &frame_or_unit,
+        &tables,
+        dab_budget,
+        &image_parameters,
+    ) else {
+        if !tables.is_empty() {
+            summary.with_brush_tables += 1;
+            for component_index in tables.keys() {
+                summary.brush_table_refusals.push(brush_table_refusal(
+                    &components[*component_index],
+                    index,
+                    *component_index,
+                    "this correction includes unsupported mask components".to_string(),
+                ));
+            }
+        }
         if !image_parameters.is_empty() {
             summary.failures.push(MaskFailure {
-                correction: correction.scalars.get("CorrectionName").cloned().unwrap_or_else(|| format!("Lightroom mask {}", index+1)),
-                component: "Mixed correction".into(),
-                mask_type: "Mask/Image".into(),
-                reason: "The correction contains unsupported companion components or blend geometry; no part was imported".into(),
+                correction: correction.scalars.get("CorrectionName").cloned().unwrap_or_else(|| format!("Lightroom mask {}",index+1)),
+                component: "Mixed correction".into(), mask_type: "Mask/Image".into(),
+                reason: "A companion component or its blend/geometry is unsupported; no part of the correction was imported".into(),
             });
             return Converted::SkippedAi;
         }
@@ -282,6 +411,19 @@ fn convert_correction(
     };
     if !image_parameters.is_empty() {
         summary.imported_ai += 1;
+    }
+    if frame.is_some() {
+        summary.brush_tables_imported += tables.len();
+    } else if !tables.is_empty() {
+        summary.with_brush_tables += 1;
+        for component_index in tables.keys() {
+            summary.brush_table_refusals.push(brush_table_refusal(
+                &components[*component_index],
+                index,
+                *component_index,
+                "image dimensions are unavailable".to_string(),
+            ));
+        }
     }
 
     let amount = correction
@@ -345,8 +487,8 @@ fn convert_correction(
 
 /// RapidRAW sub-mask mode and invert flag for a Lightroom component.
 /// Lightroom stores Subtract as Intersect (`MaskBlendMode="1"`) with the
-/// component inverted. `shape_inverted` is the component's own inversion,
-/// such as a radial gradient that applies outside its ellipse.
+/// component inverted, or the Aggregate subtract pair BlendMode=1/Value=0.
+/// Radial Flipped repeats the complement of MaskInverted; never XOR both.
 fn sub_mask_mode(component: &Resource, shape_inverted: bool) -> Option<(&'static str, bool)> {
     let inverted = component
         .scalars
@@ -359,7 +501,9 @@ fn sub_mask_mode(component: &Resource, shape_inverted: bool) -> Option<(&'static
         .unwrap_or("0")
     {
         "0" => Some(("additive", shape_inverted ^ inverted)),
-        "1" if inverted => Some(("subtractive", shape_inverted)),
+        "1" if inverted || component.number("MaskValue") == Some(0.0) => {
+            Some(("subtractive", shape_inverted))
+        }
         "1" => Some(("intersect", shape_inverted)),
         _ => None,
     }
@@ -371,6 +515,8 @@ struct BrushGroup {
     mode: &'static str,
     invert: bool,
     name: Option<String>,
+    visible: bool,
+    high_precision: bool,
     lines: Vec<Value>,
 }
 
@@ -383,12 +529,14 @@ fn flush_brush(brush: &mut Option<BrushGroup>, sub_masks: &mut Vec<Value>) {
 fn convert_components(
     components: &[Resource],
     frame: &ImageFrame,
+    tables: &BTreeMap<usize, Vec<Value>>,
+    dab_budget: &mut usize,
     image_parameters: &HashMap<usize, Value>,
 ) -> Option<Vec<Value>> {
     let mut sub_masks: Vec<Value> = Vec::new();
     let mut brush: Option<BrushGroup> = None;
 
-    for (index, component) in components.iter().enumerate() {
+    for (component_index, component) in components.iter().enumerate() {
         match component.what()? {
             "Mask/Paint" => {
                 let line = brush_line(component, frame)?;
@@ -409,12 +557,60 @@ fn convert_components(
                         mode,
                         invert,
                         name: component.name(),
+                        visible: true,
+                        high_precision: false,
                         lines: Vec::new(),
                     });
                 }
                 if let Some(group) = brush.as_mut() {
                     group.lines.push(line);
                 }
+            }
+            "Mask/Aggregate" => {
+                flush_brush(&mut brush, &mut sub_masks);
+                let mut lines = if component.has_brush_table() {
+                    tables.get(&component_index)?.clone()
+                } else {
+                    Vec::new()
+                };
+                let paints = component
+                    .structs
+                    .get("Masks")
+                    .map(|masks| seq_items(masks))
+                    .unwrap_or_default();
+                for item in paints {
+                    let paint = Resource::from_item(item);
+                    if paint.what() != Some("Mask/Paint")
+                        || paint.scalars.get("MaskBlendMode").is_some_and(|v| v != "0")
+                        || paint
+                            .scalars
+                            .get("MaskInverted")
+                            .is_some_and(|v| is_true(v))
+                    {
+                        return None;
+                    }
+                    if paint.scalars.get("MaskActive").is_some_and(|v| is_false(v)) {
+                        continue;
+                    }
+                    lines.extend(inline_brush_lines(&paint, frame, dab_budget)?);
+                }
+                if lines.is_empty() && !component.has_brush_table() {
+                    return None;
+                }
+                // Composition belongs to the container. Its Value=0 is a
+                // subtract marker, not an erase stroke or zero opacity.
+                let (mode, invert) = sub_mask_mode(component, false)?;
+                sub_masks.push(brush_sub_mask(BrushGroup {
+                    mode,
+                    invert,
+                    name: component.name(),
+                    visible: component
+                        .scalars
+                        .get("MaskActive")
+                        .is_none_or(|v| !is_false(v)),
+                    high_precision: true,
+                    lines,
+                }));
             }
             "Mask/Gradient" => {
                 flush_brush(&mut brush, &mut sub_masks);
@@ -429,13 +625,9 @@ fn convert_components(
             }
             "Mask/CircularGradient" => {
                 flush_brush(&mut brush, &mut sub_masks);
-                // Flipped="true" applies the effect inside the ellipse, which
-                // is RapidRAW's radial mask. The schema default is outside.
-                let outside = !component
-                    .scalars
-                    .get("Flipped")
-                    .is_some_and(|value| is_true(value));
-                let (mode, invert) = sub_mask_mode(component, outside)?;
+                // Lightroom repeats one polarity bit: Flipped is the
+                // complement of MaskInverted, not a second inversion.
+                let (mode, invert) = sub_mask_mode(component, false)?;
                 sub_masks.push(sub_mask(
                     component,
                     "radial",
@@ -447,16 +639,14 @@ fn convert_components(
             "Mask/Image" => {
                 flush_brush(&mut brush, &mut sub_masks);
                 let (mode, invert) = sub_mask_mode(component, false)?;
-                // Raster-only masks need no model or gesture regeneration.
-                // All Lightroom subtypes retain their supplied coverage. Using
-                // the bitmap renderer avoids guessing model/people-part semantics.
-                let mask_type = "ai-foreground";
+                // Preserve the supplied coverage for every Lightroom subtype.
+                // The bitmap renderer needs no model/people-part interpretation.
                 sub_masks.push(sub_mask(
                     component,
-                    mask_type,
+                    "ai-foreground",
                     mode,
                     invert,
-                    image_parameters.get(&index)?.clone(),
+                    image_parameters.get(&component_index)?.clone(),
                 ));
             }
             _ => return None,
@@ -482,7 +672,11 @@ fn sub_mask(
             .get("MaskActive")
             .is_none_or(|active| !is_false(active)),
         "invert": invert,
-        "opacity": round(component.number("MaskValue").unwrap_or(1.0).clamp(0.0, 1.0) * 100.0),
+        "opacity": if mode == "subtractive" && component.number("MaskValue") == Some(0.0) {
+            100.0
+        } else {
+            round(component.number("MaskValue").unwrap_or(1.0).clamp(0.0, 1.0) * 100.0)
+        },
         "mode": mode,
         "parameters": parameters,
     });
@@ -497,6 +691,8 @@ fn brush_sub_mask(group: BrushGroup) -> Value {
         mode,
         invert,
         name,
+        visible,
+        high_precision,
         lines,
     } = group;
     // RapidRAW's brush paints at full strength. Strokes with less flow or
@@ -521,12 +717,15 @@ fn brush_sub_mask(group: BrushGroup) -> Value {
     let mut sub_mask = json!({
         "id": Uuid::new_v4().to_string(),
         "type": mask_type,
-        "visible": true,
+        "visible": visible,
         "invert": invert,
         "opacity": 100.0,
         "mode": mode,
         "parameters": { "lines": lines },
     });
+    if high_precision && mask_type == "flow" {
+        sub_mask["parameters"]["highPrecisionAccumulation"] = json!(true);
+    }
     if let Some(name) = name {
         sub_mask["name"] = json!(name);
     }
@@ -558,27 +757,33 @@ fn linear_parameters(component: &Resource, frame: &ImageFrame) -> Option<Value> 
     }))
 }
 
-/// Top/Left/Bottom/Right bound the ellipse before its `Angle` is applied.
-/// The angle is taken as counter-clockwise, like CropAngle; unverified.
+/// Lightroom stores opposite corners of the rotated ellipse in pixel space.
+/// Undo its clockwise angle to recover signed semi-axes before orientation.
 /// Midpoint and Roundness have no RapidRAW counterpart and are ignored.
 fn radial_parameters(component: &Resource, frame: &ImageFrame) -> Option<Value> {
     let top = component.number("Top")?;
     let left = component.number("Left")?;
     let bottom = component.number("Bottom")?;
     let right = component.number("Right")?;
-    if right <= left || bottom <= top {
-        return None;
-    }
     let angle = component.number("Angle").unwrap_or(0.0).to_radians();
     let center = (
         (left + right) / 2.0 * frame.width,
         (top + bottom) / 2.0 * frame.height,
     );
-    let radius_x = (right - left) / 2.0 * frame.width;
-    let radius_y = (bottom - top) / 2.0 * frame.height;
+    let x = (right - left) / 2.0 * frame.width;
+    let y = (bottom - top) / 2.0 * frame.height;
     let (sin, cos) = angle.sin_cos();
-    let axis_x_end = (center.0 + cos * radius_x, center.1 - sin * radius_x);
-    let axis_y_end = (center.0 + sin * radius_y, center.1 + cos * radius_y);
+    let radius_x = x * cos + y * sin;
+    let radius_y = -x * sin + y * cos;
+    if !radius_x.is_finite()
+        || !radius_y.is_finite()
+        || radius_x.abs() < 1e-9
+        || radius_y.abs() < 1e-9
+    {
+        return None;
+    }
+    let axis_x_end = (center.0 + cos * radius_x, center.1 + sin * radius_x);
+    let axis_y_end = (center.0 - sin * radius_y, center.1 + cos * radius_y);
 
     let mapped_center = frame.map_pixel(center.0, center.1);
     let mapped_x = frame.map_pixel(axis_x_end.0, axis_x_end.1);
@@ -641,6 +846,168 @@ fn brush_line(component: &Resource, frame: &ImageFrame) -> Option<Value> {
     }))
 }
 
+fn brush_table_refusal(
+    component: &Resource,
+    correction: usize,
+    group: usize,
+    reason: String,
+) -> BrushTableRefusal {
+    let name = component
+        .name()
+        .unwrap_or_else(|| format!("Lightroom brush group {}.{}", correction + 1, group + 1));
+    BrushTableRefusal {
+        name: name.chars().filter(|c| !c.is_control()).take(128).collect(),
+        reason,
+    }
+}
+
+fn decoded_brush_lines(
+    component: &Resource,
+    frame: &ImageFrame,
+    reader: &mut BrushTableReader,
+    budget: &mut usize,
+) -> Result<Vec<Value>, String> {
+    let token = component
+        .scalars
+        .get("MaskBrushTable")
+        .ok_or("brush table reference is missing")?;
+    let expected = component
+        .scalars
+        .get("MaskBrushUncompressedBytes")
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .ok_or("brush table size is missing or invalid")?;
+    let strokes = reader.read_table(token.trim(), expected).map_err(|e| {
+        log::warn!("Lightroom brush table import refused: {:?}", e.class);
+        e.to_string()
+    })?;
+    stroke_brush_lines(strokes, frame, budget)
+}
+
+fn stroke_brush_lines(
+    strokes: Vec<BrushStroke>,
+    frame: &ImageFrame,
+    budget: &mut usize,
+) -> Result<Vec<Value>, String> {
+    let mut lines = Vec::new();
+    for stroke in strokes {
+        if !stroke.active {
+            *budget = budget
+                .checked_sub(stroke.dabs.lines().count())
+                .ok_or("brush dab tokens exceed the per-import safety limit")?;
+            continue;
+        }
+        lines.extend(
+            brush_dab_lines(
+                stroke.value,
+                stroke.radius,
+                stroke.flow,
+                stroke.center_weight,
+                stroke.dabs.lines(),
+                frame,
+                budget,
+            )
+            .ok_or("brush stroke geometry or tokens are unsupported")?,
+        );
+    }
+    Ok(lines)
+}
+
+fn inline_brush_lines(
+    component: &Resource,
+    frame: &ImageFrame,
+    budget: &mut usize,
+) -> Option<Vec<Value>> {
+    let dabs = component.structs.get("Dabs")?;
+    brush_dab_lines(
+        component.number("MaskValue").unwrap_or(1.0),
+        component.number("Radius")?,
+        component.number("Flow").unwrap_or(1.0),
+        component.number("CenterWeight").unwrap_or(0.5),
+        seq_items(dabs).into_iter().map(|e| e.text.as_str()),
+        frame,
+        budget,
+    )
+}
+
+/// Resolve state before each dab, preserving order. One native line per dab
+/// lets the existing flow brush screen-accumulate density-scaled deposits;
+/// native falloff/8-bit quantization are still an approximation to Lightroom.
+fn brush_dab_lines<'a>(
+    value: f64,
+    mut radius: f64,
+    mut flow: f64,
+    mut hardness: f64,
+    tokens: impl IntoIterator<Item = &'a str>,
+    frame: &ImageFrame,
+    budget: &mut usize,
+) -> Option<Vec<Value>> {
+    if ![value, radius, flow, hardness]
+        .into_iter()
+        .all(f64::is_finite)
+        || radius < 0.0
+    {
+        return None;
+    }
+    let erases = value == 0.0;
+    let density = if erases { 1.0 } else { value.clamp(0.0, 1.0) };
+    let mut lines = Vec::new();
+    let mut seen_dab = false;
+    for token in tokens {
+        if token.len() > 256 || *budget == 0 {
+            return None;
+        }
+        *budget -= 1;
+        let mut parts = token.split_whitespace();
+        let kind = parts.next()?;
+        let a = parts
+            .next()?
+            .parse::<f64>()
+            .ok()
+            .filter(|v| v.is_finite())?;
+        match kind {
+            "r" if a >= 0.0 => radius = a,
+            "f" => flow = a,
+            "h" => hardness = a,
+            "d" => {
+                let b = parts
+                    .next()?
+                    .parse::<f64>()
+                    .ok()
+                    .filter(|v| v.is_finite())?;
+                seen_dab = true;
+                let (x, y) = frame.map_normalized(a, b);
+                let size =
+                    radius * 2.0 * lightroom_brush_radius_reference(frame.width, frame.height);
+                if ![x, y, size]
+                    .into_iter()
+                    .all(|v| v.is_finite() && v.abs() <= f32::MAX as f64)
+                {
+                    return None;
+                }
+                let deposit = density * lightroom_flow_deposit(flow);
+                if size > 0.0 && deposit > 0.0 {
+                    lines.push(json!({
+                        "tool":if erases {"eraser"} else {"brush"},
+                        "brushSize":round(size),"feather":round((1.0-hardness).clamp(0.0,1.0)),
+                        "flow":deposit*100.0,"points":[{"x":round(x),"y":round(y)}],
+                    }));
+                }
+            }
+            _ => return None,
+        }
+        if parts.next().is_some() {
+            return None;
+        }
+    }
+    seen_dab.then_some(lines)
+}
+
+fn lightroom_flow_deposit(flow: f64) -> f64 {
+    let f = flow.clamp(0.0, 1.0);
+    let kf = 0.1284 * f;
+    kf / (1.0 - f + kf)
+}
+
 fn normalize_degrees(degrees: f64) -> f64 {
     let degrees = degrees.rem_euclid(360.0);
     if degrees > 180.0 {
@@ -697,8 +1064,8 @@ fn element_from_start(start: &BytesStart) -> Element {
 /// A minimal element tree; the regex-based attribute parsing elsewhere can't
 /// tell nested mask components apart.
 fn parse_xml_tree(content: &str) -> Option<Element> {
-    crate::xmp::validate(content).ok()?;
     let mut reader = Reader::from_str(content);
+    reader.config_mut().trim_text(true);
     let mut stack = vec![Element::default()];
     loop {
         match reader.read_event().ok()? {
@@ -719,15 +1086,6 @@ fn parse_xml_tree(content: &str) -> Option<Element> {
                     stack.last_mut()?.text.push_str(&text);
                 }
             }
-            Event::GeneralRef(reference) => {
-                let raw = reference.decode().ok()?;
-                stack
-                    .last_mut()?
-                    .text
-                    .push_str(&quick_xml::escape::unescape(&format!("&{raw};")).ok()?);
-            }
-            Event::CData(text) => stack.last_mut()?.text.push_str(&text.decode().ok()?),
-            Event::DocType(_) => return None,
             Event::Eof => break,
             _ => {}
         }
@@ -801,6 +1159,11 @@ impl<'a> Resource<'a> {
         }
     }
 
+    fn has_brush_table(&self) -> bool {
+        self.scalars.contains_key("MaskBrushTable")
+            || self.scalars.contains_key("MaskBrushUncompressedBytes")
+    }
+
     fn what(&self) -> Option<&str> {
         self.scalars.get("What").map(|value| value.trim())
     }
@@ -859,17 +1222,12 @@ pub(crate) mod tests {
     }
 
     fn correction(attributes: &str, components: &str) -> String {
-        let active = if attributes.contains("crs:CorrectionActive=") {
-            ""
-        } else {
-            r#"crs:CorrectionActive="true""#
-        };
         format!(
             r#"<rdf:li>
       <rdf:Description
        crs:What="Correction"
        crs:CorrectionAmount="1"
-       {active}
+       crs:CorrectionActive="true"
        {attributes}>
       <crs:CorrectionMasks>
        <rdf:Seq>
@@ -1015,6 +1373,7 @@ pub(crate) mod tests {
                 r#"crs:CorrectionName="Vignette" crs:LocalExposure2012="-0.25""#,
                 &RADIAL_GRADIENT
                     .replace(r#"crs:MaskInverted="false""#, r#"crs:MaskInverted="true""#)
+                    .replace(r#"crs:Flipped="true""#, r#"crs:Flipped="false""#)
                     .replace(r#"crs:MaskValue="1""#, r#"crs:MaskValue="0.8""#)
                     .replace(r#"crs:Feather="50""#, r#"crs:Feather="40""#),
             ),
@@ -1049,17 +1408,24 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn a_radial_gradient_without_flipped_applies_outside_the_ellipse() {
+    fn radial_polarity_comes_only_from_mask_inverted() {
         let xmp = sidecar_with_corrections(
             "",
             &correction(
                 r#"crs:LocalExposure2012="0.1""#,
-                &RADIAL_GRADIENT.replace(r#"crs:Flipped="true""#, r#"crs:Flipped="false""#),
+                &RADIAL_GRADIENT.replace(r#"crs:Flipped="true""#, ""),
             ),
         );
         let masks = imported_masks(&xmp);
         assert_eq!(masks[0]["name"], json!("Lightroom mask 1"));
-        assert_eq!(masks[0]["subMasks"][0]["invert"], json!(true));
+        assert_eq!(masks[0]["subMasks"][0]["invert"], json!(false));
+        let contradictory = xmp
+            .replace(r#"crs:MaskInverted="false""#, r#"crs:MaskInverted="true""#)
+            .replace(r#"crs:Angle="0""#, r#"crs:Angle="0" crs:Flipped="true""#);
+        assert_eq!(
+            imported_masks(&contradictory)[0]["subMasks"][0]["invert"],
+            json!(true)
+        );
     }
 
     #[test]
@@ -1324,5 +1690,481 @@ pub(crate) mod tests {
         );
         let preset = crate::preset_converter::convert_xmp_to_preset(&xmp).unwrap();
         assert!(preset.adjustments.get("masks").is_none());
+    }
+
+    fn paint(value: &str, x: f64) -> String {
+        format!(
+            r#"<rdf:li><rdf:Description crs:What="Mask/Paint"
+            crs:MaskBlendMode="0" crs:MaskInverted="false" crs:MaskValue="{value}"
+            crs:Radius="0.01" crs:Flow="1" crs:CenterWeight="0.25">
+            <crs:Dabs><rdf:Seq><rdf:li>d {x} 0.5</rdf:li></rdf:Seq></crs:Dabs>
+            </rdf:Description></rdf:li>"#
+        )
+    }
+
+    fn aggregate(attributes: &str, paints: &str) -> String {
+        format!(
+            r#"<rdf:li><rdf:Description crs:What="Mask/Aggregate" {attributes}>
+            <crs:Masks><rdf:Seq>{paints}</rdf:Seq></crs:Masks>
+            </rdf:Description></rdf:li>"#
+        )
+    }
+
+    #[test]
+    fn aggregate_keeps_stroke_order_and_container_subtraction() {
+        let components = format!(
+            "{}{}{}",
+            LINEAR_GRADIENT,
+            aggregate(
+                r#"crs:MaskName="Paint" crs:MaskBlendMode="0" crs:MaskValue="1""#,
+                &format!("{}{}{}", paint("1", 0.2), paint("0", 0.3), paint("1", 0.4))
+            ),
+            aggregate(
+                r#"crs:MaskName="Subtract" crs:MaskBlendMode="1" crs:MaskValue="0" crs:MaskInverted="false""#,
+                &paint("1", 0.5)
+            )
+        );
+        let xmp = sidecar_with_corrections(
+            "",
+            &correction(r#"crs:LocalExposure2012="0.1""#, &components),
+        );
+        let masks = imported_masks(&xmp);
+        let subs = &masks[0]["subMasks"];
+        assert_eq!(subs.as_array().unwrap().len(), 3);
+        let brush = &subs[1];
+        assert_eq!(brush["type"], "brush");
+        assert_eq!(brush["mode"], "additive");
+        assert_eq!(brush["parameters"]["lines"][0]["tool"], "brush");
+        assert_eq!(brush["parameters"]["lines"][1]["tool"], "eraser");
+        assert_eq!(brush["parameters"]["lines"][2]["points"][0]["x"], 2400.0);
+        assert_eq!(subs[2]["mode"], "subtractive");
+        assert_eq!(subs[2]["invert"], false);
+        assert_eq!(subs[2]["opacity"], 100.0);
+        assert_eq!(subs[2]["parameters"]["lines"][0]["tool"], "brush");
+        assert!(not_transferred(&xmp).is_empty());
+    }
+
+    #[test]
+    fn aggregate_keeps_visibility_and_inversion_and_width_based_brush_size() {
+        let component = aggregate(
+            r#"crs:MaskActive="false" crs:MaskInverted="true""#,
+            &paint("1", 0.5),
+        );
+        let xmp = sidecar_with_corrections("", &correction("", &component))
+            .replace(r#"tiff:ImageWidth="6000""#, r#"tiff:ImageWidth="4000""#)
+            .replace(r#"tiff:ImageLength="4000""#, r#"tiff:ImageLength="6000""#);
+        let subs = imported_masks(&xmp)[0]["subMasks"].clone();
+        assert_eq!(subs[0]["visible"], false);
+        assert_eq!(subs[0]["invert"], true);
+        assert_eq!(subs[0]["parameters"]["lines"][0]["brushSize"], 80.0);
+    }
+
+    #[test]
+    fn aggregate_unknown_or_missing_children_skip_the_whole_correction() {
+        for children in ["", r#"<rdf:li crs:What="Mask/RangeMask"/>"#] {
+            let xmp = sidecar_with_corrections(
+                "",
+                &correction(
+                    "",
+                    &format!("{}{}", LINEAR_GRADIENT, aggregate("", children)),
+                ),
+            );
+            assert_eq!(imported_masks(&xmp), Value::Null);
+            assert_eq!(not_transferred(&xmp), vec!["masks"]);
+        }
+    }
+
+    #[test]
+    fn opaque_brush_tables_are_explicitly_reported_without_partial_import() {
+        for marker in [
+            r#"crs:MaskBrushTable="0123456789abcdef0123456789abcdef""#,
+            r#"crs:MaskBrushUncompressedBytes="70""#,
+        ] {
+            for children in ["".to_string(), paint("1", 0.5)] {
+                let component = aggregate(marker, &children);
+                let xmp = sidecar_with_corrections(
+                    "",
+                    &correction("", &format!("{LINEAR_GRADIENT}{component}")),
+                );
+                assert_eq!(imported_masks(&xmp), Value::Null);
+                assert_eq!(not_transferred(&xmp), vec!["masks", "maskBrushTable"]);
+                let ai = sidecar_with_corrections(
+                    "",
+                    &correction(
+                        "",
+                        &format!(r#"{component}<rdf:li crs:What="Mask/Image"/>"#),
+                    ),
+                );
+                assert_eq!(imported_masks(&ai), Value::Null);
+                assert_eq!(not_transferred(&ai), vec!["aiMasks", "maskBrushTable"]);
+            }
+        }
+    }
+
+    #[test]
+    fn radial_subtraction_value_is_composition_not_zero_opacity() {
+        let radial = RADIAL_GRADIENT
+            .replace(r#"crs:MaskBlendMode="0""#, r#"crs:MaskBlendMode="1""#)
+            .replace(r#"crs:MaskValue="1""#, r#"crs:MaskValue="0""#)
+            .replace(r#"crs:MaskInverted="false""#, r#"crs:MaskInverted="true""#)
+            .replace(r#"crs:Flipped="true""#, r#"crs:Flipped="false""#);
+        let xmp =
+            sidecar_with_corrections("", &correction("", &format!("{RADIAL_GRADIENT}{radial}")));
+        let sub = imported_masks(&xmp)[0]["subMasks"][1].clone();
+        assert_eq!(sub["mode"], "subtractive");
+        assert_eq!(sub["invert"], false);
+        assert_eq!(sub["opacity"], 100.0);
+    }
+
+    #[test]
+    fn radial_signed_rotated_corners_recover_pixel_axes_and_orientation() {
+        // Opposite corners of a 2000x500-semi-axis ellipse, clockwise30deg.
+        let radial = r#"<rdf:li crs:What="Mask/CircularGradient"
+            crs:Top="0.141746824527" crs:Bottom="0.858253175473"
+            crs:Left="0.252991532071" crs:Right="0.747008467929" crs:Angle="30"/>"#;
+        for (orientation, angle) in [
+            (1, 30.0),
+            (2, 150.0),
+            (3, -150.0),
+            (4, -30.0),
+            (5, 60.0),
+            (6, 120.0),
+            (7, -120.0),
+            (8, -60.0),
+        ] {
+            let xmp = sidecar_with_corrections(
+                &format!(r#"tiff:Orientation="{orientation}""#),
+                &correction("", radial),
+            );
+            let params = imported_masks(&xmp)[0]["subMasks"][0]["parameters"].clone();
+            assert_eq!(params["radiusX"], 2000.0);
+            assert_eq!(params["radiusY"], 500.0);
+            assert_eq!(params["rotation"], angle);
+        }
+        let inverted_corners = radial
+            .replace("0.252991532071", "0.6")
+            .replace("0.747008467929", "0.4");
+        let xmp = sidecar_with_corrections("", &correction("", &inverted_corners));
+        let params = imported_masks(&xmp)[0]["subMasks"][0]["parameters"].clone();
+        assert!(params["radiusX"].as_f64().unwrap() > 0.0);
+        assert!(params["radiusY"].as_f64().unwrap() > 0.0);
+        let degenerate = RADIAL_GRADIENT.replace(r#"crs:Right="0.75""#, r#"crs:Right="0.25""#);
+        assert_eq!(
+            imported_masks(&sidecar_with_corrections("", &correction("", &degenerate))),
+            Value::Null
+        );
+    }
+
+    #[test]
+    fn aggregate_state_tokens_are_applied_before_each_discrete_dab() {
+        let component=aggregate(
+            "",
+            &paint("0.5",0.5).replace("d 0.5 0.5",
+                "r 0.2</rdf:li><rdf:li>f 0.5</rdf:li><rdf:li>h 1</rdf:li><rdf:li>d 0.5 0.5</rdf:li><rdf:li>d 0.5 0.5"),
+        );
+        let xmp = sidecar_with_corrections("", &correction("", &component))
+            .replace(r#"tiff:ImageWidth="6000""#, r#"tiff:ImageWidth="20""#)
+            .replace(r#"tiff:ImageLength="4000""#, r#"tiff:ImageLength="20""#);
+        let preset = convert_xmp_sidecar_to_preset(&xmp).unwrap();
+        let sub = &preset.adjustments["masks"][0]["subMasks"][0];
+        assert_eq!(sub["type"], "flow");
+        let lines = sub["parameters"]["lines"].as_array().unwrap();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0]["brushSize"], 8.0);
+        assert_eq!(lines[0]["feather"], 0.0);
+        assert!((lines[0]["flow"].as_f64().unwrap() - 5.6894718).abs() < 1e-5);
+        let masks = crate::mask_generation::parse_mask_definitions(&preset.adjustments);
+        let bitmap =
+            crate::mask_generation::generate_mask_bitmap(&masks[0], 20, 20, 1.0, (0.0, 0.0), None)
+                .unwrap();
+        assert_eq!(bitmap.get_pixel(10, 10)[0], 28);
+        assert_eq!(bitmap.get_pixel(0, 0)[0], 0);
+        assert!((lightroom_flow_deposit(0.5) - 0.113789436).abs() < 1e-6);
+        assert_eq!(lightroom_flow_deposit(0.0), 0.0);
+        assert_eq!(lightroom_flow_deposit(1.0), 1.0);
+    }
+
+    #[test]
+    fn brush_token_grammar_is_all_or_nothing_and_bounded() {
+        let frame = ImageFrame {
+            width: 4000.0,
+            height: 6000.0,
+            orientation: 1,
+            rotation: 0.0,
+        };
+        let mut budget = 20;
+        let lines = brush_dab_lines(
+            1.0,
+            0.01,
+            1.0,
+            0.0,
+            ["d 0.1 0.1", "r 0.02", "f 0.5", "h 1", "d 0.8 0.9"],
+            &frame,
+            &mut budget,
+        )
+        .unwrap();
+        assert_eq!(lines[0]["brushSize"], 80.0);
+        assert_eq!(lines[1]["brushSize"], 160.0);
+        assert!((lines[1]["flow"].as_f64().unwrap() - 11.3789436).abs() < 1e-5);
+        assert_eq!(lines[1]["feather"], 0.0);
+        assert_eq!(lines[1]["points"][0]["x"], 3200.0);
+        assert_eq!(lines[1]["points"][0]["y"], 5400.0);
+        for token in [
+            "unknown 1",
+            "d NaN 0.5",
+            "d 0.5 Infinity",
+            "d 0.5 0.5 extra",
+            "r -1",
+            "f NaN",
+            "h 0.5 extra",
+        ] {
+            let mut budget = 10;
+            assert!(
+                brush_dab_lines(1.0, 0.01, 1.0, 0.0, [token], &frame, &mut budget).is_none(),
+                "{token}"
+            );
+        }
+        let mut budget = 1;
+        assert!(
+            brush_dab_lines(
+                1.0,
+                0.01,
+                1.0,
+                0.0,
+                ["r 0.2", "d 0.5 0.5"],
+                &frame,
+                &mut budget
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn inactive_table_strokes_do_not_erase_earlier_paint() {
+        let frame = ImageFrame {
+            width: 20.0,
+            height: 20.0,
+            orientation: 1,
+            rotation: 0.0,
+        };
+        let stroke = |active, value, flow| BrushStroke {
+            active,
+            value,
+            radius: 0.2,
+            flow,
+            center_weight: 1.0,
+            dabs: "d 0.5 0.5".to_string(),
+        };
+        let mut budget = 20;
+        let lines = stroke_brush_lines(
+            vec![stroke(true, 1.0, 0.5), stroke(false, 0.0, 1.0)],
+            &frame,
+            &mut budget,
+        )
+        .unwrap();
+        assert_eq!(lines.len(), 1);
+        assert_eq!(budget, 18);
+        let mut exhausted = 0;
+        assert!(stroke_brush_lines(vec![stroke(false, 0.0, 1.0)], &frame, &mut exhausted).is_err());
+        let sub = brush_sub_mask(BrushGroup {
+            mode: "additive",
+            invert: false,
+            name: None,
+            visible: true,
+            high_precision: true,
+            lines,
+        });
+        let adjustments = Map::from_iter([(
+            "masks".to_string(),
+            json!([{
+                    "id":"test","name":"Test","visible":true,"invert":false,
+                    "opacity":100.0,"adjustments":{},"subMasks":[sub]
+            }]),
+        )]);
+        let masks = crate::mask_generation::parse_mask_definitions(&Value::Object(adjustments));
+        let bitmap =
+            crate::mask_generation::generate_mask_bitmap(&masks[0], 20, 20, 1.0, (0.0, 0.0), None)
+                .unwrap();
+        assert_eq!(bitmap.get_pixel(10, 10)[0], 29);
+    }
+
+    #[test]
+    fn uuid_tables_apply_hardness_updates_and_skip_inactive_erasers_in_the_renderer() {
+        use crate::lightroom_brush_table::tests::{MB_UUID_HARDNESS, MB_UUID_HARDNESS_LEN, object};
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        let (bytes, refs) = crate::acr::tests::container(&[object(MB_UUID_HARDNESS)]);
+        std::fs::write(raw.with_extension("acr"), &bytes).unwrap();
+        let attrs = format!(
+            r#"crs:MaskBrushTable="{}" crs:MaskBrushUncompressedBytes="{}""#,
+            refs[0], MB_UUID_HARDNESS_LEN
+        );
+        let xmp = sidecar_with_corrections("", &correction("", &aggregate(&attrs, "")))
+            .replace(r#"tiff:ImageWidth="6000""#, r#"tiff:ImageWidth="20""#)
+            .replace(r#"tiff:ImageLength="4000""#, r#"tiff:ImageLength="20""#);
+        let (preset, summary) =
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &xmp, &raw,
+            )
+            .unwrap();
+        assert_eq!(summary.brush_tables_imported, 1);
+        assert!(summary.brush_table_refusals.is_empty());
+        let parameters = &preset.adjustments["masks"][0]["subMasks"][0]["parameters"];
+        assert_eq!(parameters["lines"].as_array().unwrap().len(), 2);
+        assert_eq!(parameters["lines"][0]["brushSize"], 8.0);
+        assert_eq!(parameters["lines"][0]["feather"], 0.0);
+        assert_eq!(parameters["highPrecisionAccumulation"], true);
+        let masks = crate::mask_generation::parse_mask_definitions(&preset.adjustments);
+        let bitmap =
+            crate::mask_generation::generate_mask_bitmap(&masks[0], 20, 20, 1.0, (0.0, 0.0), None)
+                .unwrap();
+        assert_eq!(bitmap.get_pixel(10, 10)[0], 28);
+        assert_eq!(bitmap.get_pixel(13, 10)[0], 28);
+        assert_eq!(bitmap.get_pixel(0, 0)[0], 0);
+        assert_eq!(std::fs::read(raw.with_extension("acr")).unwrap(), bytes);
+    }
+
+    #[test]
+    fn compressed_tables_stay_with_their_group_and_missing_companions_are_reported() {
+        use crate::lightroom_brush_table::tests::{MB_GOOD_A, MB_GOOD_A_LEN, object};
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        let (bytes, refs) = crate::acr::tests::container(&[object(MB_GOOD_A)]);
+        std::fs::write(raw.with_extension("acr"), &bytes).unwrap();
+        let attrs = format!(
+            r#"crs:MaskName="Table" crs:MaskBrushTable="{}" crs:MaskBrushUncompressedBytes="{}""#,
+            refs[0], MB_GOOD_A_LEN
+        );
+        let component = aggregate(&attrs, &paint("1", 0.9));
+        let xmp = sidecar_with_corrections("", &correction("", &component));
+        let (preset, summary) =
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &xmp, &raw,
+            )
+            .unwrap();
+        assert_eq!(summary.brush_tables_seen, 1);
+        assert_eq!(summary.brush_tables_decoded, 1);
+        assert_eq!(summary.brush_tables_imported, 1);
+        assert!(summary.brush_table_refusals.is_empty());
+        let subs = &preset.adjustments["masks"][0]["subMasks"];
+        assert_eq!(subs.as_array().unwrap().len(), 1);
+        let lines = subs[0]["parameters"]["lines"].as_array().unwrap();
+        assert_eq!(lines[0]["brushSize"], 1481.47);
+        assert_eq!(lines.last().unwrap()["points"][0]["x"], 5400.0);
+        assert!(
+            crate::preset_converter::lightroom_settings_not_transferred_with_mask_summary(
+                &xmp, &preset, &summary
+            )
+            .is_empty()
+        );
+        let renderer = crate::mask_generation::parse_mask_definitions(&preset.adjustments);
+        assert_eq!(renderer.len(), 1);
+        assert_eq!(std::fs::read(raw.with_extension("acr")).unwrap(), bytes);
+
+        let misplaced = component.replace("Mask/Aggregate", "Mask/Gradient");
+        let misplaced = sidecar_with_corrections("", &correction("", &misplaced));
+        let (preset, summary) =
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &misplaced, &raw,
+            )
+            .unwrap();
+        assert!(preset.adjustments.get("masks").is_none());
+        assert_eq!(summary.brush_tables_decoded, 0);
+        assert_eq!(summary.brush_table_refusals.len(), 1);
+
+        let missing = aggregate(
+            &format!(
+                r#"crs:MaskName="Missing" crs:MaskBrushTable="{}" crs:MaskBrushUncompressedBytes="{}""#,
+                "0".repeat(32),
+                MB_GOOD_A_LEN
+            ),
+            "",
+        );
+        let mixed = sidecar_with_corrections("", &correction("", &format!("{component}{missing}")));
+        let (preset, summary) =
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &mixed, &raw,
+            )
+            .unwrap();
+        assert!(preset.adjustments.get("masks").is_none());
+        assert_eq!(summary.brush_tables_decoded, 1);
+        assert_eq!(summary.brush_tables_imported, 0);
+        assert_eq!(
+            summary
+                .brush_table_refusals
+                .iter()
+                .map(|r| r.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Missing", "Table"]
+        );
+
+        std::fs::remove_file(raw.with_extension("acr")).unwrap();
+        let (preset, summary) =
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &xmp, &raw,
+            )
+            .unwrap();
+        assert!(preset.adjustments.get("masks").is_none());
+        assert_eq!(summary.brush_table_refusals.len(), 1);
+        assert_eq!(summary.brush_table_refusals[0].name, "Table");
+        assert_eq!(
+            crate::preset_converter::lightroom_settings_not_transferred_with_mask_summary(
+                &xmp, &preset, &summary
+            ),
+            vec!["masks", "maskBrushTable"]
+        );
+    }
+
+    #[test]
+    #[ignore = "Private read-only sidecar audit; requires explicit input/output environment paths"]
+    fn audit_private_sidecar_mask_counts() {
+        use std::{env, fs, path::Path};
+        let folder = env::var("RAPIDROOM_MASK_AUDIT_INPUT").unwrap();
+        let output = env::var("RAPIDROOM_MASK_AUDIT_OUTPUT").unwrap();
+        assert!(
+            Path::new(&output)
+                .components()
+                .any(|c| c.as_os_str() == "samples")
+        );
+        let mut files = fs::read_dir(&folder)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| {
+                p.extension().is_some_and(|e| e == "xmp") && p.with_extension("ARW").exists()
+            })
+            .collect::<Vec<_>>();
+        files.sort();
+        let mut rows = Vec::new();
+        for path in files {
+            let before = fs::read(&path).unwrap();
+            let xmp = std::str::from_utf8(&before).unwrap();
+            let (preset, summary) =
+                crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                    xmp,
+                    &path.with_extension("ARW"),
+                )
+                .unwrap();
+            let masks = preset
+                .adjustments
+                .get("masks")
+                .cloned()
+                .unwrap_or(json!([]));
+            let parsed = crate::mask_generation::parse_mask_definitions(&preset.adjustments);
+            assert_eq!(masks.as_array().unwrap().len(), parsed.len());
+            let mut types = HashMap::<String, usize>::new();
+            for mask in masks.as_array().unwrap() {
+                for sub in mask["subMasks"].as_array().unwrap() {
+                    *types
+                        .entry(sub["type"].as_str().unwrap().to_string())
+                        .or_default() += 1;
+                }
+            }
+            rows.push(json!({"stem":path.file_stem().unwrap().to_str().unwrap(),"masks":parsed.len(),
+                "sub_mask_types":types,"convertible":summary.convertible,"skipped_ai":summary.skipped_ai,
+                "skipped_unsupported":summary.skipped_unsupported,"not_transferred":crate::preset_converter::lightroom_settings_not_transferred_with_mask_summary(xmp,&preset,&summary),"brush_tables_seen":summary.brush_tables_seen,"brush_tables_decoded":summary.brush_tables_decoded,"brush_tables_imported":summary.brush_tables_imported,"brush_table_refusals":summary.brush_table_refusals,"adjustments":preset.adjustments}));
+            assert_eq!(fs::read(&path).unwrap(), before);
+        }
+        assert_eq!(rows.len(), 36);
+        fs::write(output, serde_json::to_string_pretty(&rows).unwrap()).unwrap();
     }
 }

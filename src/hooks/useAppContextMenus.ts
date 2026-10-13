@@ -99,7 +99,19 @@ interface DeleteOptions {
 }
 
 type XmpNotTransferredItem =
-  'whiteBalance' | 'profileLook' | 'aiDenoise' | 'aiMasks' | 'masks' | 'localAdjustments' | 'pointColor';
+  | 'whiteBalance'
+  | 'profileLook'
+  | 'aiDenoise'
+  | 'aiMasks'
+  | 'maskBrushTable'
+  | 'masks'
+  | 'localAdjustments'
+  | 'pointColor';
+
+interface BrushTableRefusal {
+  name: string;
+  reason: string;
+}
 
 interface XmpMaskFailure {
   correction: string;
@@ -113,13 +125,16 @@ function describeMaskFailure(failure: XmpMaskFailure): string {
 }
 
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
+  unchanged?: boolean;
   notTransferred?: XmpNotTransferredItem[];
+  brushTableRefusals?: BrushTableRefusal[];
   maskFailures?: XmpMaskFailure[];
 }
 
 interface XmpNotTransferred {
   path: string;
   items: XmpNotTransferredItem[];
+  brushTableRefusals?: BrushTableRefusal[];
   maskFailures?: XmpMaskFailure[];
 }
 
@@ -159,17 +174,23 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   const { showContextMenu } = useContextMenu();
 
   const describeNotTransferred = useCallback(
-    (items: XmpNotTransferredItem[]) => {
+    (items: XmpNotTransferredItem[], brushTableRefusals: BrushTableRefusal[] = []) => {
       const labels: Record<XmpNotTransferredItem, string> = {
         aiDenoise: t('contextMenus.xmpImportReport.notTransferredItems.aiDenoise'),
         aiMasks: t('contextMenus.xmpImportReport.notTransferredItems.aiMasks'),
         localAdjustments: t('contextMenus.xmpImportReport.notTransferredItems.localAdjustments'),
+        maskBrushTable: t('contextMenus.xmpImportReport.notTransferredItems.maskBrushTable'),
         masks: t('contextMenus.xmpImportReport.notTransferredItems.masks'),
         pointColor: t('contextMenus.xmpImportReport.notTransferredItems.pointColor'),
         profileLook: t('contextMenus.xmpImportReport.notTransferredItems.profileLook'),
         whiteBalance: t('contextMenus.xmpImportReport.notTransferredItems.whiteBalance'),
       };
-      return items.map((item) => labels[item] ?? item).join(', ');
+      return [
+        items.map((item) => labels[item] ?? item).join(', '),
+        ...brushTableRefusals.map(({ name, reason }) =>
+          t('contextMenus.xmpImportReport.brushTableGroup', { name, reason }),
+        ),
+      ].join('\n');
     },
     [t],
   );
@@ -350,17 +371,21 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           });
         }
 
-        applyImportedXmpMetadata(targetPath, metadata);
-        await props.refreshImageList();
-        toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
-        toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
+        if (metadata.unchanged) {
+          toast.info(t('contextMenus.xmpImportReport.unchangedForImage'));
+        } else {
+          applyImportedXmpMetadata(targetPath, metadata);
+          await props.refreshImageList();
+          toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
+          toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
+        }
         for (const failure of metadata.maskFailures ?? []) {
           toast.info(describeMaskFailure(failure), { autoClose: false });
         }
         if (metadata.notTransferred?.length) {
           toast.info(
             t('contextMenus.xmpImportReport.notTransferredForImage', {
-              items: describeNotTransferred(metadata.notTransferred),
+              items: describeNotTransferred(metadata.notTransferred, metadata.brushTableRefusals),
             }),
             { autoClose: false },
           );
@@ -449,8 +474,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           reportLines.push(
             '',
             t('contextMenus.xmpImportReport.notTransferred', { total: result.notTransferred.length }),
-            ...result.notTransferred.flatMap(({ path, items, maskFailures }) => [
-              `${relativeToImportedFolder(path)}: ${describeNotTransferred(items)}`,
+            ...result.notTransferred.flatMap(({ path, items, brushTableRefusals, maskFailures }) => [
+              `${relativeToImportedFolder(path)}: ${describeNotTransferred(items, brushTableRefusals)}`,
               ...(maskFailures ?? []).map(describeMaskFailure),
             ]),
           );

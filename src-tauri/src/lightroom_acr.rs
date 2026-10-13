@@ -2,9 +2,8 @@
 //! Other payloads (including enhanced image data) are never interpreted as masks.
 use base64::{Engine, engine::general_purpose::STANDARD};
 use image::{GrayImage, ImageEncoder, Luma, imageops};
-use std::{collections::HashMap, fs::OpenOptions, io::Read, ops::Range, path::Path};
+use std::{collections::HashMap, path::Path};
 
-const MAX_FILE: usize = 64 * 1024 * 1024;
 const MAX_RASTER_PIXELS: u64 = 16_000_000;
 const MAX_IMAGE_PIXELS: u64 = 100_000_000;
 const MAX_OUTPUT_PIXELS: u64 = 1_000_000_000;
@@ -27,96 +26,33 @@ fn u32_at(bytes: &[u8], offset: usize) -> Result<u32> {
         slice(bytes, offset, 4)?.try_into().unwrap(),
     ))
 }
-fn digest_key(text: &str) -> Result<[u8; 16]> {
-    if text.len() != 32 || !text.is_ascii() {
-        return Err("Invalid mask digest".into());
-    }
-    let mut digest = [0; 16];
-    for (i, byte) in digest.iter_mut().enumerate() {
-        *byte =
-            u8::from_str_radix(&text[i * 2..i * 2 + 2], 16).map_err(|_| "Invalid mask digest")?;
-    }
-    Ok(digest)
-}
-
 pub(crate) struct AcrMasks {
-    bytes: Vec<u8>,
-    entries: HashMap<[u8; 16], Range<usize>>,
+    file: crate::acr::AcrFile,
+    #[cfg(test)]
+    fixture: Option<tempfile::NamedTempFile>,
     cache: HashMap<String, String>,
     output_pixels: u64,
     encoded_bytes: usize,
 }
 impl AcrMasks {
     pub(crate) fn read(path: &Path) -> Result<Self> {
-        let mut options = OpenOptions::new();
-        options.read(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.custom_flags(libc::O_NONBLOCK);
-        }
-        let file = options
-            .open(path)
-            .map_err(|_| "Missing or unreadable ACR sidecar")?;
-        let metadata = file.metadata().map_err(|_| "Cannot inspect ACR sidecar")?;
-        if !metadata.is_file() || metadata.len() > MAX_FILE as u64 {
-            return Err("ACR requires a regular file of at most 64 MiB".into());
-        }
-        let mut bytes = Vec::new();
-        file.take(MAX_FILE as u64 + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|_| "Cannot read ACR sidecar")?;
-        Self::parse(bytes)
-    }
-    pub(crate) fn parse(bytes: Vec<u8>) -> Result<Self> {
-        if bytes.len() > MAX_FILE {
-            return Err("ACR exceeds 64 MiB".into());
-        }
-        if slice(&bytes, 0, 4)? != b"ACR\0" || u32_at(&bytes, 4)? != 1 || u32_at(&bytes, 16)? != 0 {
-            return Err("Unsupported ACR header/version".into());
-        }
-        let format = slice(&bytes, 8, 4)?;
-        if !format[..3].iter().all(u8::is_ascii_alphanumeric) || format[3] != 0 {
-            return Err("Unsupported ACR raw format header".into());
-        }
-        let count = u32_at(&bytes, 12)? as usize;
-        if count > 4096 {
-            return Err("Too many ACR entries".into());
-        }
-        let directory_end = 20 + count * 32;
-        slice(&bytes, 20, count * 32)?;
-        let mut entries = HashMap::new();
-        let mut ranges = Vec::new();
-        for i in 0..count {
-            let row = 20 + i * 32;
-            let digest: [u8; 16] = slice(&bytes, row, 16)?.try_into().unwrap();
-            let size = u32_at(&bytes, row + 16)? as usize;
-            let offset = u32_at(&bytes, row + 24)? as usize;
-            if size == 0
-                || offset < directory_end
-                || u32_at(&bytes, row + 20)? != 0
-                || u32_at(&bytes, row + 28)? != 0
-            {
-                return Err("Invalid ACR directory entry".into());
-            }
-            slice(&bytes, offset, size)?;
-            let range = offset..offset + size;
-            if entries.insert(digest, range.clone()).is_some() {
-                return Err("Duplicate ACR digest".into());
-            }
-            ranges.push(range);
-        }
-        ranges.sort_by_key(|r| r.start);
-        if ranges.windows(2).any(|pair| pair[0].end > pair[1].start) {
-            return Err("Overlapping ACR payloads".into());
-        }
         Ok(Self {
-            bytes,
-            entries,
+            file: crate::acr::AcrFile::open(path).map_err(|e| e.to_string())?,
+            #[cfg(test)]
+            fixture: None,
             cache: HashMap::new(),
             output_pixels: 0,
             encoded_bytes: 0,
         })
+    }
+    #[cfg(test)]
+    fn parse(bytes: Vec<u8>) -> Result<Self> {
+        use std::io::Write;
+        let mut fixture = tempfile::NamedTempFile::new().map_err(|e| e.to_string())?;
+        fixture.write_all(&bytes).map_err(|e| e.to_string())?;
+        let mut reader = Self::read(fixture.path())?;
+        reader.fixture = Some(fixture);
+        Ok(reader)
     }
     pub(crate) fn image_parameters(
         &mut self,
@@ -139,12 +75,8 @@ impl AcrMasks {
         let png = if let Some(png) = self.cache.get(&key) {
             png.clone()
         } else {
-            let range = self
-                .entries
-                .get(&digest_key(digest)?)
-                .ok_or("Mask digest not found in ACR sidecar")?
-                .clone();
-            let raster = decode_mask(&self.bytes[range])?;
+            let blob = self.file.read_object(digest).map_err(|e| e.to_string())?;
+            let raster = decode_mask(&blob)?;
             let pixels = image_pixels(frame.width, frame.height)?;
             self.output_pixels = self
                 .output_pixels
@@ -408,7 +340,11 @@ impl Placement {
 mod tests {
     use super::*;
     use crate::lightroom_masks::{ImageFrame, import_lightroom_masks_with_acr};
-    const DIGEST: &str = "00112233445566778899AABBCCDDEEFF";
+    fn fixture_digest() -> String {
+        let bytes = fixture();
+        let size = u32_at(&bytes, 36).unwrap() as usize;
+        format!("{:X}", md5::compute(&bytes[52..52 + size]))
+    }
     fn fixture() -> Vec<u8> {
         let pixels = [0, 64, 128, 192, 255, 32];
         let jxl = jxl_encoder::LosslessConfig::default()
@@ -442,19 +378,25 @@ mod tests {
         blob[16 + 10 + 9 * 12 + 8..16 + 10 + 9 * 12 + 12].copy_from_slice(&offset.to_le_bytes());
         blob.extend_from_slice(&jxl);
         let mut acr = b"ACR\0\x01\0\0\0ARW\0\x01\0\0\0\0\0\0\0".to_vec();
-        acr.extend_from_slice(&digest_key(DIGEST).unwrap());
+        acr.extend_from_slice(&md5::compute(&blob).0);
         acr.extend_from_slice(&(blob.len() as u32).to_le_bytes());
         acr.extend_from_slice(&0u32.to_le_bytes());
         acr.extend_from_slice(&52u32.to_le_bytes());
         acr.extend_from_slice(&0u32.to_le_bytes());
         acr.extend_from_slice(&blob);
+        while acr.len() % 4 != 0 {
+            acr.push(0);
+        }
         acr
     }
     #[test]
     fn synthetic_acr_decodes_exact_coverage_without_colour_remapping() {
-        let acr = AcrMasks::parse(fixture()).unwrap();
-        let image =
-            decode_mask(&acr.bytes[acr.entries[&digest_key(DIGEST).unwrap()].clone()]).unwrap();
+        let bytes = fixture();
+        let blob_len = u32_at(&bytes, 36).unwrap() as usize;
+        let mut acr = AcrMasks::parse(bytes).unwrap();
+        let blob = acr.file.read_object(&fixture_digest()).unwrap();
+        assert_eq!(blob.len(), blob_len);
+        let image = decode_mask(&blob).unwrap();
         assert_eq!(image.as_raw(), &[0, 64, 128, 192, 255, 32]);
     }
     #[test]
@@ -478,7 +420,7 @@ mod tests {
             bad[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
             assert!(AcrMasks::parse(bad).is_err(), "offset {offset}");
         }
-        assert!(digest_key("../malicious/path").is_err());
+        assert!(crate::acr::parse_key("../malicious/path").is_err());
     }
     #[test]
     fn tiff_layout_and_jxl_metadata_must_agree() {
@@ -496,8 +438,11 @@ mod tests {
             let mut bad = data.clone();
             let offset = 52 + 16 + 10 + tag_index * 12 + 8;
             bad[offset..offset + 4].copy_from_slice(&(value as u32).to_le_bytes());
-            let acr = AcrMasks::parse(bad).unwrap();
-            assert!(decode_mask(&acr.bytes[52..]).is_err(), "tag {tag_index}");
+            let blob_len = u32_at(&bad, 36).unwrap() as usize;
+            assert!(
+                decode_mask(&bad[52..52 + blob_len]).is_err(),
+                "tag {tag_index}"
+            );
         }
     }
     #[test]
@@ -546,8 +491,8 @@ mod tests {
         let mut acr = AcrMasks::parse(fixture()).unwrap();
         let images = format!(
             "{}{}",
-            image_component("Subject", DIGEST, 0, false),
-            image_component("Subtract", DIGEST, 1, true)
+            image_component("Subject", &fixture_digest(), 0, false),
+            image_component("Subtract", &fixture_digest(), 1, true)
         );
         let gradient = r#"<rdf:li crs:What="Mask/Gradient" crs:ZeroX="0" crs:ZeroY="0" crs:FullX="1" crs:FullY="1" crs:MaskBlendMode="1"/>"#;
         let xmp = crate::lightroom_masks::tests::sidecar_with_corrections(
@@ -583,7 +528,7 @@ mod tests {
             "",
             &correction(&format!(
                 "{}{}",
-                image_component("Subject", DIGEST, 0, false),
+                image_component("Subject", &fixture_digest(), 0, false),
                 image_component("Person", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0, false)
             )),
         );
@@ -611,7 +556,7 @@ mod tests {
         assert_eq!(report.failures.len(), 1);
         assert_eq!(
             report.failures[0].reason,
-            "Mask digest not found in ACR sidecar"
+            "the brush reference is missing or ambiguous"
         );
     }
     #[test]
@@ -620,10 +565,8 @@ mod tests {
         let input = std::path::PathBuf::from(std::env::var("RAPIDROOM_LRAI_INPUT").unwrap());
         let xmp = crate::xmp::read(&input.with_extension("xmp")).unwrap();
         let (preset, report) =
-            crate::preset_converter::convert_xmp_sidecar_for_image_with_mask_report(
-                &xmp,
-                &input,
-                &input.with_extension("xmp"),
+            crate::preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+                &xmp, &input,
             )
             .unwrap();
         std::fs::write(std::env::var("RAPIDROOM_LRAI_OUTPUT").unwrap(),serde_json::to_vec_pretty(&serde_json::json!({"adjustments":preset.adjustments,"importedAi":report.imported_ai,"failures":report.failures})).unwrap()).unwrap();

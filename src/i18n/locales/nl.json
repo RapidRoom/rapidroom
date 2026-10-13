@@ -292,6 +292,13 @@
       "failedMoveError": "Verplaatsen mislukt: {{err}}",
       "failedMoveInvalid": "Verplaatsen mislukt: doelgroep niet gevonden of ongeldig.",
       "failedRemoveImages": "Afbeeldingen verwijderen mislukt: {{err}}"
+    },
+    "xmpImportReport": {
+      "unchangedForImage": "Bestaande bewerkingen behouden; er zijn geen ondersteunde aanpassingen geïmporteerd.",
+      "brushTableGroup": "Penseelgroep ‘{{name}}’: {{reason}}",
+      "notTransferredItems": {
+        "maskBrushTable": "Penseeltabellen niet geïmporteerd"
+      }
     }
   },
   "editor": {

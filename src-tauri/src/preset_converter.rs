@@ -1055,7 +1055,7 @@ fn compose_luma_curve_with_looks(
 }
 
 pub fn convert_xmp_to_preset(xmp_content: &str) -> Result<Preset, String> {
-    convert_xmp_to_preset_with_crop(xmp_content, false, Some(5500.0), None, None)
+    convert_xmp_to_preset_with_crop(xmp_content, false, Some(5500.0), None, None, None, None)
 }
 
 #[cfg(test)]
@@ -1067,14 +1067,13 @@ pub fn convert_xmp_sidecar_to_preset_for_image(
     xmp_content: &str,
     image_path: &Path,
 ) -> Result<Preset, String> {
-    convert_xmp_sidecar_for_image_with_mask_report(xmp_content, image_path, image_path)
+    convert_xmp_sidecar_to_preset_for_image_with_mask_report(xmp_content, image_path)
         .map(|(preset, _)| preset)
 }
 
-pub(crate) fn convert_xmp_sidecar_for_image_with_mask_report(
+pub fn convert_xmp_sidecar_to_preset_for_image_with_mask_report(
     xmp_content: &str,
     image_path: &Path,
-    sidecar_path: &Path,
 ) -> Result<(Preset, crate::lightroom_masks::MaskImportSummary), String> {
     let extension = image_path
         .extension()
@@ -1101,51 +1100,16 @@ pub(crate) fn convert_xmp_sidecar_for_image_with_mask_report(
     let fallback_image_dimensions = geometry_needs_image_dimensions
         .then(|| probe_xmp_crop_image_dimensions(image_path))
         .flatten();
-    let mut preset = convert_xmp_to_preset_with_crop(
+    let mut summary = crate::lightroom_masks::MaskImportSummary::default();
+    let preset = convert_xmp_to_preset_with_crop(
         xmp_content,
         true,
         None,
         Some(image_kind),
         fallback_image_dimensions,
+        Some(image_path),
+        Some(&mut summary),
     )?;
-    let mut summary = crate::lightroom_masks::MaskImportSummary::default();
-    if crate::lightroom_masks::has_mask_group_corrections(xmp_content) {
-        let frame =
-            xmp_image_dimensions(xmp_content, fallback_image_dimensions).map(|(width, height)| {
-                crate::lightroom_masks::ImageFrame {
-                    width,
-                    height,
-                    orientation: xmp_orientation(xmp_content),
-                    rotation: preset
-                        .adjustments
-                        .get("rotation")
-                        .and_then(Value::as_f64)
-                        .unwrap_or(0.0),
-                }
-            });
-        let acr_path = sidecar_path.with_extension("acr");
-        let acr_path = if acr_path.exists() {
-            acr_path
-        } else {
-            sidecar_path.with_extension("ACR")
-        };
-        let mut acr = crate::lightroom_acr::AcrMasks::read(&acr_path);
-        let error = acr.as_ref().err().cloned();
-        let (masks, report) = crate::lightroom_masks::import_lightroom_masks_with_acr(
-            xmp_content,
-            frame.as_ref(),
-            |mask| scale_lightroom_exposure(mask, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS),
-            acr.as_mut().ok(),
-            error.as_deref(),
-        );
-        summary = report;
-        if let Some(adjustments) = preset.adjustments.as_object_mut() {
-            adjustments.remove("masks");
-            if !masks.is_empty() {
-                adjustments.insert("masks".into(), Value::Array(masks));
-            }
-        }
-    }
     Ok((preset, summary))
 }
 
@@ -1154,7 +1118,7 @@ fn convert_adobe_camera_raw_xmp_to_preset(
     xmp_content: &str,
     image_kind: XmpImageKind,
 ) -> Result<Preset, String> {
-    convert_xmp_to_preset_with_crop(xmp_content, true, None, Some(image_kind), None)
+    convert_xmp_to_preset_with_crop(xmp_content, true, None, Some(image_kind), None, None, None)
 }
 
 #[cfg(test)]
@@ -1169,12 +1133,29 @@ fn convert_xmp_sidecar_to_preset_with_as_shot_temperature(
     xmp_content: &str,
     as_shot_temperature: Option<f64>,
 ) -> Result<Preset, String> {
-    convert_xmp_to_preset_with_crop(xmp_content, true, as_shot_temperature, None, None)
+    convert_xmp_to_preset_with_crop(
+        xmp_content,
+        true,
+        as_shot_temperature,
+        None,
+        None,
+        None,
+        None,
+    )
 }
 
 /// Lightroom settings in a sidecar that the import could not carry over, as
 /// stable keys for the import report.
 pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) -> Vec<&'static str> {
+    let (_, summary) = crate::lightroom_masks::import_lightroom_masks(xmp_content, None, |_| {});
+    lightroom_settings_not_transferred_with_mask_summary(xmp_content, preset, &summary)
+}
+
+pub fn lightroom_settings_not_transferred_with_mask_summary(
+    xmp_content: &str,
+    preset: &Preset,
+    masks: &crate::lightroom_masks::MaskImportSummary,
+) -> Vec<&'static str> {
     let Ok(attrs) = parse_xmp_attributes(xmp_content) else {
         return Vec::new();
     };
@@ -1210,7 +1191,6 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
 
     // Only crs:MaskGroupBasedCorrections are imported; the older per-tool
     // lists are reported as they are.
-    let (_, masks) = crate::lightroom_masks::import_lightroom_masks(xmp_content, None, |_| {});
     let imported_masks = preset
         .adjustments
         .get("masks")
@@ -1227,6 +1207,9 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
     }
     if masks.skipped_ai > 0 {
         items.push("aiMasks");
+    }
+    if masks.with_brush_tables > 0 {
+        items.push("maskBrushTable");
     }
     if masks.with_unmapped_adjustments > 0 && imported_masks > 0 {
         items.push("localAdjustments");
@@ -1364,6 +1347,8 @@ fn convert_xmp_to_preset_with_crop(
     as_shot_temperature: Option<f64>,
     image_kind: Option<XmpImageKind>,
     fallback_image_dimensions: Option<(f64, f64)>,
+    image_path: Option<&Path>,
+    mask_report: Option<&mut crate::lightroom_masks::MaskImportSummary>,
 ) -> Result<Preset, String> {
     let properties =
         crate::xmp::photo_properties(xmp_content, crate::xmp::CRS).map_err(|e| e.to_string())?;
@@ -1668,10 +1653,15 @@ fn convert_xmp_to_preset_with_crop(
                         .unwrap_or(0.0),
                 }
             });
-        let (masks, _) =
-            crate::lightroom_masks::import_lightroom_masks(xmp_content, frame.as_ref(), |mask| {
-                scale_lightroom_exposure(mask, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS)
-            });
+        let (masks, summary) = crate::lightroom_masks::import_lightroom_masks_for_image(
+            xmp_content,
+            frame.as_ref(),
+            image_path,
+            |mask| scale_lightroom_exposure(mask, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS),
+        );
+        if let Some(report) = mask_report {
+            *report = summary;
+        }
         if !masks.is_empty() {
             adjustments.insert("masks".to_string(), Value::Array(masks));
         }
@@ -2580,6 +2570,8 @@ mod tests {
             None,
             Some(XmpImageKind::Raw),
             Some((6000.0, 4000.0)),
+            None,
+            None,
         )
         .unwrap();
 
