@@ -712,6 +712,15 @@ mod tests {
         );
     }
     #[test]
+    #[ignore = "writes an authored synthetic fixture for the optional native smoke"]
+    fn write_native_synthetic_acr_fixture() {
+        std::fs::write(
+            std::env::var("RAPIDROOM_LRAI_FIXTURE_OUTPUT").unwrap(),
+            fixture(),
+        )
+        .unwrap();
+    }
+    #[test]
     #[ignore = "requires disposable local Lightroom RAW/XMP/ACR fixture and output path"]
     fn local_lightroom_ai_mask_import_probe() {
         let input = std::path::PathBuf::from(std::env::var("RAPIDROOM_LRAI_INPUT").unwrap());
