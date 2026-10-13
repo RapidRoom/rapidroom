@@ -4,10 +4,12 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 <sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**87 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
+**88 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
 
 | Change                                                                                                                                                                                                                                                                            | Type        | By                                                                                                                             | Upstream                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Allow explicit replacement of earlier batch exports                                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#235](https://github.com/RapidRoom/rapidroom/issues/235); [#1901](https://github.com/CyberTimon/RapidRAW/issues/1901)                                                                                                                                          |
+| Test DA2 Small depth map letterboxing and unpadding                                                                                                                                                                                                                               | ci          | [@Duecki1](https://github.com/Duecki1), [@yojen7](https://github.com/yojen7)                                                   | [RapidRoom/rapidroom#222](https://github.com/RapidRoom/rapidroom/issues/222)                                                                                                                                                                                                       |
 | Insert dropped masks at their target row                                                                                                                                                                                                                                          | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#204](https://github.com/RapidRoom/rapidroom/issues/204)                                                                                                                                                                                                       |
 | Fence and bound untrusted photo text at assistant boundaries                                                                                                                                                                                                                      | privacy     | [@yojen7](https://github.com/yojen7), [@skymanbp](https://github.com/skymanbp)                                                 | not yet offered                                                                                                                                                                                                                                                                    |
 | Preserve source EXIF metadata in JPEG XL exports                                                                                                                                                                                                                                  | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
@@ -105,6 +107,23 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-10.
 
 ## Details
+
+### Allow explicit replacement of earlier batch exports
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
+- **Upstream:** [RapidRoom/rapidroom#235](https://github.com/RapidRoom/rapidroom/issues/235); [#1901](https://github.com/CyberTimon/RapidRAW/issues/1901)
+- **Notes:** The export panel offers a session-only replacement choice with confirmation. Automatic renaming stays the default, all batch sources stay protected, and conflicting names within one batch remain distinct. Replacement uses atomic writes after encoding. Mask image and alpha exports use the same batch reservations and source guards as main outputs.
+
+### Test DA2 Small depth map letterboxing and unpadding
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@Duecki1](https://github.com/Duecki1), [@yojen7](https://github.com/yojen7), from Duecki1/CalibRaw (geometry test scenarios adapted to the existing DA2 Small path)
+- **Upstream:** [RapidRoom/rapidroom#222](https://github.com/RapidRoom/rapidroom/issues/222)
+- **Commits:** [2466ca6](https://github.com/Duecki1/CalibRaw/commit/2466ca6662c3fd1e901377c0450b19f5f96d3e85)
+- **Notes:** Test-only deterministic ONNX fixture verifies the unchanged tensor preprocessing and unpadding for landscape, portrait, square, thin and odd-sized images. No new model weights, downloads, normalization changes or persisted mask changes.
 
 ### Insert dropped masks at their target row
 

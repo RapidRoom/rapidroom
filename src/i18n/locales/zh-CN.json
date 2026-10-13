@@ -975,6 +975,11 @@
       "scale": "缩放",
       "spacing": "间距",
       "watermarkImage": "水印图像"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

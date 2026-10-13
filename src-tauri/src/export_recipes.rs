@@ -224,6 +224,7 @@ pub fn preset_to_export_settings(preset: &ExportPreset) -> Result<ExportSettings
         destination_type: preset.destination_type.clone(),
         subfolder: preset.subfolder.clone(),
         output_sharpening: preset.output_sharpening,
+        overwrite_existing: false,
     })
 }
 
