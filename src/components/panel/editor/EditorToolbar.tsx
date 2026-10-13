@@ -11,6 +11,7 @@ import { useEditorStore } from '../../../store/useEditorStore';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { findGroupVariants, getVariantLabel } from '../../../utils/imageGrouping';
+import type { Adjustments, AiPatch, MaskContainer } from '../../../utils/adjustments';
 
 interface EditorToolbarProps {
   canRedo: boolean;
@@ -18,7 +19,7 @@ interface EditorToolbarProps {
   isAndroid: boolean;
   isLoading: boolean;
   onBackToLibrary(): void;
-  onImageSelect?(path: string, event?: any): void;
+  onImageSelect?(path: string, event?: React.MouseEvent<HTMLButtonElement>): void;
   onRedo(): void;
   onToggleFullScreen(): void;
   onToggleShowOriginal(): void;
@@ -29,7 +30,7 @@ interface EditorToolbarProps {
   showOriginal: boolean;
   showDateView: boolean;
   onToggleDateView(): void;
-  adjustmentsHistory: any[];
+  adjustmentsHistory: Adjustments[];
   adjustmentsHistoryIndex: number;
   goToAdjustmentsHistoryIndex(index: number): void;
 }
@@ -294,8 +295,8 @@ const EditorToolbar = memo(
             if (currMasks.length > prevMasks.length) changed.push('Added Mask');
             else if (currMasks.length < prevMasks.length) changed.push('Deleted Mask');
             else {
-              currMasks.forEach((cMask: any) => {
-                const pMask = prevMasks.find((m: any) => m.id === cMask.id);
+              currMasks.forEach((cMask: MaskContainer) => {
+                const pMask = prevMasks.find((m) => m.id === cMask.id);
                 if (pMask) {
                   if (pMask.opacity !== cMask.opacity) changed.push('Mask Opacity');
                   if (pMask.invert !== cMask.invert) changed.push('Mask Invert');
@@ -319,8 +320,8 @@ const EditorToolbar = memo(
             if (currPatches.length > prevPatches.length) changed.push('Added AI Patch');
             else if (currPatches.length < prevPatches.length) changed.push('Deleted AI Patch');
             else {
-              currPatches.forEach((cPatch: any) => {
-                const pPatch = prevPatches.find((p: any) => p.id === cPatch.id);
+              currPatches.forEach((cPatch: AiPatch) => {
+                const pPatch = prevPatches.find((p) => p.id === cPatch.id);
                 if (pPatch) {
                   if (pPatch.visible !== cPatch.visible) changed.push('AI Patch Visibility');
                   if (pPatch.subMasks !== cPatch.subMasks) changed.push('AI Patch Area');
