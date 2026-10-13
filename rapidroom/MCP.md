@@ -85,6 +85,47 @@ The MCP resource `rapidroom://schema/adjustments` is generated from `INITIAL_ADJ
 
 `get_preview` supports `original`, `side_by_side` and a fractional `region` rectangle. Original means the neutral defaults rendered through the existing tone-mapper path, not the camera JPEG. Comparison places original left/edited right with letterboxing, and bounds the whole image's long edge. Regions crop the rendered preview; `render_region` provides native-resolution detail crops. These reads preserve the current edit, revision and history. See [plugin tool reference](plugin/skills/rapidroom/references/tools.md) for limits and combinations.
 
+## Masks and crops
+
+`upsert_mask` creates or deep-updates one container by its `id`; `remove_mask` removes only that id. Both preserve sibling containers and use the editor's normal Undo, previews and autosave. Pass the current `expectedRevision`. A queued mask write also refuses a photo switch or intervening edit before it reaches the GUI. A missing removal is a no-op. Responses are compact; request `verbose: true` for the full recipe.
+
+`set_adjustments` and `update_adjustments` replace an entire supplied `masks` array. Within `upsert_mask`, omitted fields retain their previous values; `subMasks` replaces only that container's component array. A new container requires `id` and `subMasks`. Sparse local adjustments receive normal defaults, including each HSL channel and colour-grading wheel. Existing sidecars receive the same nested fill when loaded; supplied values remain intact.
+
+Discovery includes typed local adjustments and every renderer component: `all`, `radial`, `linear`, `color`, `luminance`, `brush`, `flow`, stored `ai-subject`/`ai-foreground`/`ai-sky`/`ai-depth`, `quick-eraser`, and the renderer's brush-compatible `clone`/`heal`/`liquify`/`retouch` types. Editing a stored AI bitmap does not generate one or run a model; these tools do not add cloud operations. Components combine in array order using `additive`, `subtractive` or `intersect`. Container/component opacity is 0–100.
+
+Coordinates, radii, linear transition `range` and brush diameter are **original-image pixels before crop**, including points outside the image. They are independent of the last preview's display size. Rotation is degrees. Radial and brush feather are **0–1**; colour/luminance/AI panel feather is **0–100**. `crop` is `{x,y,width,height,unit:"px"}` (positive width/height), or `null` to clear it. Set `aspectRatio` separately to width ÷ height, for example `0.75` for 3:4. The tool schemas contain all field ranges and nullable stored-AI capture transforms.
+
+```json
+{
+  "imagePath": "/your/photo.raw",
+  "mask": {
+    "id": "light1",
+    "name": "Key light",
+    "adjustments": { "exposure": 0.5 },
+    "subMasks": [
+      {
+        "id": "light1-r",
+        "type": "radial",
+        "parameters": {
+          "centerX": 3250,
+          "centerY": 1550,
+          "radiusX": 1200,
+          "radiusY": 1500,
+          "rotation": -20,
+          "feather": 0.8
+        }
+      }
+    ]
+  }
+}
+```
+
+Mask/component IDs contain 1–128 ASCII letters, digits, underscore, colon, dot or hyphen, matching the untrusted-output opaque-ID policy. Names use the existing bounded text policy: echoed current display names retain the stored native name by ID and revision; an intentional rename is projected before storage. The full mask array supports at most 256 containers.
+
+Call `upsert_mask` with that recipe, then read the returned revision before further edits. For a nested update send only `mask: {id:"light1",adjustments:{hsl:{yellows:{hue:25,saturation:-20}}}}`. `get_editor_context` already identifies the running build with `appVersion`, `sourceCommit` and `sourceDirty`; no checkout search is needed.
+
+The native `--mcp-masks` scenario records an installed Claude client adding a second mask, checks sibling preservation and filled local defaults, and verifies GUI Undo, shared Redo, sidecar reload and invalid-write refusal on an isolated CC0 photo.
+
 ## Read-only measurements and comparisons
 
 `render_compare` renders 2–6 temporary patches or existing virtual copies of the active photo at identical geometry and dimensions. It returns a bounded, labelled PNG contact sheet, or separate PNGs with exact text labels. Copies use the current GUI label, including its `(VC)` suffix; named copies are separate future work. It reads an existing sidecar snapshot without repairing or writing metadata.

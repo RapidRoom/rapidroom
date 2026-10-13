@@ -1,0 +1,91 @@
+{
+  "source_commit": "1d061908d9e3e2ba6e7c956d9f778c67ca9973c2",
+  "harness_commit": "d5f8a08346958d2a2b193fa5a50d1befbd345f62",
+  "base_main": "f7805a7e",
+  "complete": true,
+  "original_corpus_reference_guards_unchanged": true,
+  "stages": {
+    "schema": {
+      "exit": 0,
+      "finished": "2026-10-11T05:57:26.919470+00:00"
+    },
+    "status": {
+      "exit": 0,
+      "finished": "2026-10-11T05:57:27.353360+00:00"
+    },
+    "fmt": {
+      "exit": 0,
+      "finished": "2026-10-11T06:04:44.556272+00:00"
+    },
+    "format-changed": {
+      "exit": 0,
+      "finished": "2026-10-11T06:04:45.647974+00:00"
+    },
+    "lint-tests": {
+      "exit": 0,
+      "finished": "2026-10-11T06:04:46.530399+00:00"
+    },
+    "clippy": {
+      "exit": 0,
+      "finished": "2026-10-11T06:13:57.709291+00:00"
+    },
+    "tests-default": {
+      "exit": 0,
+      "finished": "2026-10-11T06:15:19.561390+00:00"
+    },
+    "tests-combined": {
+      "exit": 0,
+      "finished": "2026-10-11T06:18:15.651428+00:00"
+    },
+    "vitest": {
+      "exit": 0,
+      "finished": "2026-10-11T06:19:44.725502+00:00"
+    },
+    "release-default": {
+      "exit": 0,
+      "finished": "2026-10-11T06:33:15.620667+00:00"
+    },
+    "render-full60": {
+      "exit": 0,
+      "finished": "2026-10-11T06:37:13.357294+00:00"
+    },
+    "compare-full60": {
+      "exit": 0,
+      "finished": "2026-10-11T06:37:22.078816+00:00"
+    },
+    "native-build": {
+      "exit": 0,
+      "finished": "2026-10-11T06:47:52.242002+00:00"
+    },
+    "native-masks": {
+      "exit": 0,
+      "finished": "2026-10-12T23:16:34.203815+00:00"
+    }
+  },
+  "default_engine_sha256": "ab53812c8a341bbee319b7250813636a27f440f19db5f2c37f087cd70151756f",
+  "native_engine_sha256": "ceacf6aa03ee0fd514adb8a1591d60c601f45907bb6b7296da88e4c620cc871e",
+  "stdio_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
+  "native_features": [
+    "native-ui-test",
+    "terminal",
+    "mcp"
+  ],
+  "preview_roi": [
+    350,
+    120,
+    1330,
+    774
+  ],
+  "native_capture_count": 19,
+  "preview_first_vs_undo_pixel_exact": true,
+  "preview_second_mask_changes_pixels": true,
+  "native_environment": {
+    "compositor": "Weston headless GL",
+    "weston_version": "weston 15.0.1",
+    "driver": "tauri-plugin-wdio-webdriver 1.4.0",
+    "viewport": [
+      1680,
+      1050
+    ]
+  }
+}
