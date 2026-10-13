@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use crate::file_management;
 use crate::formats::is_raw_file;
-use crate::image_processing::{ImageFlag, ImageMetadata};
+use crate::image_processing::ImageMetadata;
 use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use exif::{Exif, In, Value};
@@ -18,9 +18,7 @@ use little_exif::filetype::FileExtension;
 use little_exif::ifd::ExifTagGroup;
 use little_exif::metadata::Metadata;
 use little_exif::rational::{iR64, uR64};
-use quick_xml::escape::{escape, unescape};
-use quick_xml::events::{BytesStart, BytesText, Event};
-use quick_xml::{Reader, Writer};
+use quick_xml::escape::escape;
 use rawler::decoders::RawMetadata;
 use rawler::exif::ExifGPS;
 use rawler::lens::LensDescription;
@@ -1881,7 +1879,10 @@ impl ExportXmp {
         }
         Self {
             keywords,
-            rating: (metadata.rating > 0 || metadata.flag == Some(ImageFlag::Reject))
+            rating: (metadata.rating > 0
+                || metadata.rating_is_explicit
+                || metadata.flag.is_some()
+                || metadata.flag_is_explicit)
                 .then(|| file_management::xmp_rating(metadata)),
             label: file_management::xmp_label(tags),
         }
@@ -1935,15 +1936,11 @@ fn build_export_xmp(xmp: &ExportXmp, source_xmp: Option<&str>) -> Option<String>
         .map(file_management::extract_xmp_tags)
         .unwrap_or_default()
     {
-        push_keyword(
-            &mut keywords,
-            &unescape(&tag).unwrap_or(Cow::Borrowed(&tag)),
-        );
+        push_keyword(&mut keywords, &tag);
     }
 
     let description = export_xmp_description(xmp, &keywords);
-    if let Some(merged) = source_xmp.and_then(|source| merge_source_xmp(source, &description, xmp))
-    {
+    if let Some(merged) = source_xmp.and_then(|source| merge_source_xmp(source, &keywords, xmp)) {
         return Some(merged);
     }
     if description.is_empty() {
@@ -1989,65 +1986,111 @@ fn export_xmp_description(xmp: &ExportXmp, keywords: &[String]) -> String {
     )
 }
 
-fn is_replaced_xmp_property(name: &[u8], xmp: &ExportXmp) -> bool {
-    name.starts_with(b"crs:")
-        || matches!(
-            name,
-            b"dc:subject"
-                | b"tiff:Orientation"
-                | b"tiff:ImageWidth"
-                | b"tiff:ImageLength"
-                | b"exif:PixelXDimension"
-                | b"exif:PixelYDimension"
-                | b"xmpNote:HasExtendedXMP"
+fn merge_source_xmp(source: &str, keywords: &[String], xmp: &ExportXmp) -> Option<String> {
+    crate::xmp::update_export(
+        source,
+        xmp.rating.as_deref().and_then(|rating| rating.parse().ok()),
+        xmp.label.as_deref(),
+        keywords,
+    )
+    .ok()
+}
+
+#[cfg(test)]
+mod export_xmp_merge_tests {
+    use super::*;
+
+    fn source(body: &str) -> String {
+        format!(
+            r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><r:Description r:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:develop="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:orient="http://ns.adobe.com/tiff/1.0/" xmlns:e="http://ns.adobe.com/exif/1.0/">{body}</r:Description></r:RDF></x:xmpmeta>"#
         )
-        || (xmp.rating.is_some() && name == b"xmp:Rating")
-        || (xmp.label.is_some() && name == b"xmp:Label")
-}
+    }
 
-fn without_replaced_attributes(element: &BytesStart, xmp: &ExportXmp) -> BytesStart<'static> {
-    let mut kept = BytesStart::new(String::from_utf8_lossy(element.name().as_ref()).into_owned());
-    for attribute in element.attributes().with_checks(false).flatten() {
-        if !is_replaced_xmp_property(attribute.key.as_ref(), xmp) {
-            kept.push_attribute(attribute);
+    #[test]
+    fn decoded_source_keywords_round_trip_once() {
+        let input = source(
+            "<dc:subject><r:Bag><r:li>Literal &amp;amp; token</r:li><r:li>R&amp;D &lt;東京&gt;</r:li></r:Bag></dc:subject>",
+        );
+        let expected = file_management::extract_xmp_tags(&input);
+        assert_eq!(expected, vec!["Literal &amp; token", "R&D <東京>"]);
+        let output = build_export_xmp(
+            &ExportXmp::from_metadata(&ImageMetadata::default()),
+            Some(&input),
+        )
+        .unwrap();
+        assert_eq!(file_management::extract_xmp_tags(&output), expected);
+    }
+
+    #[test]
+    fn explicit_rating_and_flag_clears_replace_embedded_values() {
+        for (body, metadata) in [
+            (
+                "<xmp:Rating>5</xmp:Rating>",
+                ImageMetadata {
+                    rating_is_explicit: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "<xmp:Rating>-1</xmp:Rating>",
+                ImageMetadata {
+                    flag_is_explicit: true,
+                    ..Default::default()
+                },
+            ),
+        ] {
+            let output =
+                build_export_xmp(&ExportXmp::from_metadata(&metadata), Some(&source(body)))
+                    .unwrap();
+            assert_eq!(crate::xmp::metadata(&output).rating, Some(0));
         }
+        let output = build_export_xmp(
+            &ExportXmp::from_metadata(&ImageMetadata::default()),
+            Some(&source("<xmp:Rating>5</xmp:Rating>")),
+        )
+        .unwrap();
+        assert_eq!(crate::xmp::metadata(&output).rating, Some(5));
     }
-    kept
-}
 
-fn merge_source_xmp(source: &str, description: &str, xmp: &ExportXmp) -> Option<String> {
-    let mut reader = Reader::from_str(source);
-    let mut writer = Writer::new(Vec::new());
-    let mut inserted = false;
-
-    loop {
-        match reader.read_event().ok()? {
-            Event::Eof => break,
-            Event::Start(e) if is_replaced_xmp_property(e.name().as_ref(), xmp) => {
-                reader.read_to_end(e.name()).ok()?;
-            }
-            Event::Empty(e) if is_replaced_xmp_property(e.name().as_ref(), xmp) => {}
-            Event::Start(e) => writer
-                .write_event(Event::Start(without_replaced_attributes(&e, xmp)))
-                .ok()?,
-            Event::Empty(e) => writer
-                .write_event(Event::Empty(without_replaced_attributes(&e, xmp)))
-                .ok()?,
-            Event::End(e) if e.name().as_ref() == b"rdf:RDF" => {
-                writer
-                    .write_event(Event::Text(BytesText::from_escaped(description)))
-                    .ok()?;
-                writer.write_event(Event::End(e)).ok()?;
-                inserted = true;
-            }
-            event => writer.write_event(event).ok()?,
+    #[test]
+    fn rendered_export_removes_aliased_source_edits_and_dimensions() {
+        let input = source(r#"<develop:Exposure2012>2</develop:Exposure2012><develop:Mask><r:Description develop:Exposure2012="3"/></develop:Mask><orient:Orientation>6</orient:Orientation><orient:ImageWidth>999</orient:ImageWidth><e:PixelYDimension>888</e:PixelYDimension><r:Description r:about="nested" orient:Orientation="8"/>"#).replace("r:about=\"\"", "r:about=\"\" develop:Contrast2012=\"42\" orient:ImageLength=\"777\"");
+        let output = build_export_xmp(
+            &ExportXmp::from_metadata(&ImageMetadata::default()),
+            Some(&input),
+        )
+        .unwrap();
+        for stale in [
+            "Exposure2012",
+            "Contrast2012",
+            "<orient:Orientation>",
+            "ImageWidth",
+            "ImageLength",
+            "PixelYDimension",
+        ] {
+            assert!(
+                !output.contains(stale),
+                "stale rendered-image property {stale}"
+            );
         }
+        assert!(output.contains("r:about=\"nested\" orient:Orientation=\"8\""));
+        crate::xmp::validate(&output).unwrap();
     }
 
-    if !inserted {
-        return None;
+    #[test]
+    fn export_merge_preserves_unrelated_subjects_and_rebound_prefixes() {
+        let foreign = r#"<r:Description r:about="other" xmlns:orient="http://ns.adobe.com/tiff/1.0/" orient:Orientation="8"><orient:ImageWidth>42</orient:ImageWidth></r:Description>"#;
+        let input = source(r#"<crs:Exposure2012 xmlns:crs="urn:foreign">keep</crs:Exposure2012><tiff:Orientation xmlns:tiff="urn:foreign">keep too</tiff:Orientation>"#).replace("</r:RDF>", &format!("{foreign}</r:RDF>"));
+        let output = build_export_xmp(
+            &ExportXmp::from_metadata(&ImageMetadata::default()),
+            Some(&input),
+        )
+        .unwrap();
+        assert!(output.contains(foreign));
+        assert!(output.contains("urn:foreign\">keep"));
+        assert!(output.contains("urn:foreign\">keep too"));
+        crate::xmp::validate(&output).unwrap();
     }
-    String::from_utf8(writer.into_inner()).ok()
 }
 
 fn embed_jpeg_xmp(image_bytes: &mut Vec<u8>, packet: &str) {
