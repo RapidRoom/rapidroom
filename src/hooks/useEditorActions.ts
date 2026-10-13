@@ -21,6 +21,10 @@ import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
 import i18n from 'i18next';
 
+interface LoadedMetadata {
+  adjustments: (Adjustments & { is_null?: boolean }) | null;
+}
+
 export const debouncedSetHistory = debounce((newAdj: Adjustments) => {
   useEditorStore.getState().pushHistory(newAdj);
 }, 500);
@@ -105,7 +109,7 @@ export function useEditorActions() {
       const isShowing = !state.showOriginal;
 
       if (isShowing) {
-        const override = { ...INITIAL_ADJUSTMENTS };
+        const override: Adjustments = { ...INITIAL_ADJUSTMENTS };
         const geometryKeys: Array<keyof Adjustments> = [
           'crop',
           'rotation',
@@ -133,7 +137,7 @@ export function useEditorActions() {
         ];
 
         geometryKeys.forEach((key) => {
-          (override as any)[key] = state.adjustments[key];
+          override[key] = state.adjustments[key];
         });
 
         return { showOriginal: true, previewOverride: override };
@@ -238,7 +242,7 @@ export function useEditorActions() {
       invoke('apply_auto_lens_correction_to_paths', { paths: pathsToUpdate })
         .then(async () => {
           if (selectedImage && pathsToUpdate.includes(selectedImage.path)) {
-            const meta: any = await invoke(Invokes.LoadMetadata, { path: selectedImage.path });
+            const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: selectedImage.path });
             if (meta.adjustments && !meta.adjustments.is_null) {
               const normalized = normalizeLoadedAdjustments(meta.adjustments);
               setEditor({ adjustments: normalized });
@@ -246,7 +250,7 @@ export function useEditorActions() {
             }
           }
           if (libraryActivePath && pathsToUpdate.includes(libraryActivePath)) {
-            const meta: any = await invoke(Invokes.LoadMetadata, { path: libraryActivePath });
+            const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: libraryActivePath });
             if (meta.adjustments && !meta.adjustments.is_null) {
               setLibrary({ libraryActiveAdjustments: normalizeLoadedAdjustments(meta.adjustments) });
             }
@@ -257,11 +261,10 @@ export function useEditorActions() {
     [setEditor],
   );
 
-  const handleCopyAdjustments = useCallback(async (pathOrEvent?: string | any) => {
-    const pathOverride = typeof pathOrEvent === 'string' ? pathOrEvent : undefined;
+  const handleCopyAdjustments = useCallback(async (pathOverride?: string) => {
     const { selectedImage, adjustments } = useEditorStore.getState();
     const { libraryActivePath, multiSelectedPaths } = useLibraryStore.getState();
-    let sourceAdjustments: any = null;
+    let sourceAdjustments: Adjustments | null = null;
 
     const pathToCopyFrom =
       pathOverride || (selectedImage ? selectedImage.path : libraryActivePath || multiSelectedPaths[0]);
@@ -270,7 +273,7 @@ export function useEditorActions() {
       sourceAdjustments = adjustments;
     } else if (pathToCopyFrom) {
       try {
-        const meta: any = await invoke(Invokes.LoadMetadata, { path: pathToCopyFrom });
+        const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: pathToCopyFrom });
         if (meta?.adjustments && !meta.adjustments.is_null) {
           sourceAdjustments = normalizeLoadedAdjustments(meta.adjustments);
         } else {
@@ -284,7 +287,7 @@ export function useEditorActions() {
 
     if (!sourceAdjustments) return;
 
-    const adjustmentsToCopy: any = {};
+    const adjustmentsToCopy: Partial<Adjustments> = {};
 
     for (const key of COPYABLE_ADJUSTMENT_KEYS) {
       if (Object.prototype.hasOwnProperty.call(sourceAdjustments, key)) {
@@ -304,10 +307,8 @@ export function useEditorActions() {
 
       if (!copiedAdjustments || !appSettings) return;
 
-      const { mode, includedAdjustments } = appSettings.copyPasteSettings ?? {
-        mode: PasteMode.Merge,
-        includedAdjustments: COPYABLE_ADJUSTMENT_KEYS,
-      };
+      const mode = appSettings.copyPasteSettings?.mode ?? PasteMode.Merge;
+      const includedAdjustments = appSettings.copyPasteSettings?.includedAdjustments ?? COPYABLE_ADJUSTMENT_KEYS;
       const adjustmentsToApply: Partial<Adjustments> = {};
 
       for (const key of includedAdjustments) {
@@ -347,13 +348,14 @@ export function useEditorActions() {
       invoke(Invokes.ApplyAdjustmentsToPaths, { paths: pathsToUpdate, adjustments: adjustmentsToApply })
         .then(() => {
           if (selectedImage && pathsToUpdate.includes(selectedImage.path)) {
-            invoke('load_metadata', { path: selectedImage.path }).then((meta: any) => {
-              if (meta.adjustments) {
-                setAdjustments((prev: any) => ({
+            invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: selectedImage.path }).then((meta) => {
+              const loadedAdjustments = meta.adjustments;
+              if (loadedAdjustments && !loadedAdjustments.is_null) {
+                setAdjustments((prev) => ({
                   ...prev,
-                  lensMaker: meta.adjustments.lensMaker,
-                  lensModel: meta.adjustments.lensModel,
-                  lensDistortionParams: meta.adjustments.lensDistortionParams,
+                  lensMaker: loadedAdjustments.lensMaker,
+                  lensModel: loadedAdjustments.lensModel,
+                  lensDistortionParams: loadedAdjustments.lensDistortionParams,
                 }));
               }
             });
