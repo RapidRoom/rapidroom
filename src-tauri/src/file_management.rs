@@ -3605,68 +3605,72 @@ pub async fn apply_auto_adjustments_to_paths(
         let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
 
         paths.par_iter().for_each(|path| {
-            let loaded_image: Option<DynamicImage> = (|| -> Result<DynamicImage, String> {
-                let (source_path, sidecar_path) = parse_virtual_path(path);
-                let source_path_str = source_path.to_string_lossy().to_string();
+            let loaded_image: Option<DynamicImage> =
+                (|| -> Result<Option<DynamicImage>, String> {
+                    let (source_path, sidecar_path) = parse_virtual_path(path);
+                    let source_path_str = source_path.to_string_lossy().to_string();
 
-                let file_bytes = fs::read(&source_path).map_err(|e| e.to_string())?;
-                let image = image_loader::load_base_image_from_bytes(
-                    &file_bytes,
-                    &source_path_str,
-                    true,
-                    &settings,
-                    None,
-                )
-                .map_err(|e| e.to_string())?;
+                    let file_bytes = fs::read(&source_path).map_err(|e| e.to_string())?;
+                    let image = image_loader::load_base_image_from_bytes(
+                        &file_bytes,
+                        &source_path_str,
+                        true,
+                        &settings,
+                        None,
+                    )
+                    .map_err(|e| e.to_string())?;
 
-                let auto_results = perform_auto_analysis(&image);
-                let auto_adjustments_json = auto_results_to_json(&auto_results);
+                    let auto_results = perform_auto_analysis(&image);
+                    let auto_adjustments_json = auto_results_to_json(&auto_results);
 
-                let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
+                    let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
-                if existing_metadata.adjustments.is_null() {
-                    existing_metadata.adjustments = serde_json::json!({});
-                }
+                    if existing_metadata.adjustments.is_null() {
+                        existing_metadata.adjustments = serde_json::json!({});
+                    }
 
-                if let (Some(existing_map), Some(auto_map)) = (
-                    existing_metadata.adjustments.as_object_mut(),
-                    auto_adjustments_json.as_object(),
-                ) {
-                    for (k, v) in auto_map {
-                        if k == "sectionVisibility" {
-                            if let Some(existing_vis_val) = existing_map.get_mut(k) {
-                                if let (Some(existing_vis), Some(auto_vis)) =
-                                    (existing_vis_val.as_object_mut(), v.as_object())
-                                {
-                                    for (vis_k, vis_v) in auto_vis {
-                                        existing_vis.insert(vis_k.clone(), vis_v.clone());
+                    if let (Some(existing_map), Some(auto_map)) = (
+                        existing_metadata.adjustments.as_object_mut(),
+                        auto_adjustments_json.as_object(),
+                    ) {
+                        for (k, v) in auto_map {
+                            if k == "sectionVisibility" {
+                                if let Some(existing_vis_val) = existing_map.get_mut(k) {
+                                    if let (Some(existing_vis), Some(auto_vis)) =
+                                        (existing_vis_val.as_object_mut(), v.as_object())
+                                    {
+                                        for (vis_k, vis_v) in auto_vis {
+                                            existing_vis.insert(vis_k.clone(), vis_v.clone());
+                                        }
                                     }
+                                } else {
+                                    existing_map.insert(k.clone(), v.clone());
                                 }
                             } else {
                                 existing_map.insert(k.clone(), v.clone());
                             }
-                        } else {
-                            existing_map.insert(k.clone(), v.clone());
                         }
                     }
-                }
 
-                if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
-                    let _ = write_file_atomically(&sidecar_path, json_string);
-                }
+                    if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
+                        let _ = write_file_atomically(&sidecar_path, json_string);
+                    }
 
-                if enable_xmp_sync {
-                    sync_metadata_to_xmp(
-                        &source_path,
-                        &sidecar_path,
-                        &existing_metadata,
-                        create_xmp_if_missing,
-                    );
-                }
-                Ok(image)
-            })()
-            .map_err(|e| eprintln!("Failed to apply auto adjustments to {}: {}", path, e))
-            .ok();
+                    if enable_xmp_sync {
+                        sync_metadata_to_xmp(
+                            &source_path,
+                            &sidecar_path,
+                            &existing_metadata,
+                            create_xmp_if_missing,
+                        );
+                    }
+                    // Auto analysis keeps the fast base, but native repair coordinates
+                    // require a fresh full-resolution base for the thumbnail.
+                    Ok((!has_ai_patches(&existing_metadata.adjustments)).then_some(image))
+                })()
+                .map_err(|e| eprintln!("Failed to apply auto adjustments to {}: {}", path, e))
+                .ok()
+                .flatten();
 
             let result = generate_single_thumbnail_and_cache(
                 path,
