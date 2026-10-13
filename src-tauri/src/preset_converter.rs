@@ -1198,7 +1198,7 @@ fn scalar_attributes(
         .iter()
         .filter_map(|(key, value)| match value {
             crate::xmp::PhotoProperty::Scalar(value) => Some((key.clone(), value.clone())),
-            crate::xmp::PhotoProperty::List(_) => None,
+            crate::xmp::PhotoProperty::List(_) | crate::xmp::PhotoProperty::Structured => None,
         })
         .collect()
 }

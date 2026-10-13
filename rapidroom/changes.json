@@ -2,6 +2,21 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lightroom-per-setting-import-report",
+      "title": "Explain each unsupported or approximated Lightroom import setting",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Sidecar and preset imports report bounded, scoped CRS field outcomes with concrete reasons. Sharpening, hue and engine response approximations are explicit; unsupported-only sidecars remain untouched, and partial imports retain unrelated native edits."
+    },
+    {
       "id": "raw-repair-thumbnail-native-scale",
       "title": "Keep RAW repair patches aligned in regenerated thumbnails",
       "category": "fix",

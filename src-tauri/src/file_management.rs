@@ -538,6 +538,8 @@ struct ImportedXmpSidecar {
     sidecar_path: PathBuf,
     metadata: ImageMetadata,
     not_transferred: Vec<&'static str>,
+    settings_report: crate::lightroom_report::Report,
+    unchanged: bool,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -562,6 +564,7 @@ pub struct XmpSidecarImportResult {
 pub struct XmpNotTransferred {
     pub path: String,
     pub items: Vec<&'static str>,
+    pub settings_report: crate::lightroom_report::Report,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -570,6 +573,8 @@ pub struct XmpImageImportResult {
     #[serde(flatten)]
     pub metadata: ImageMetadata,
     pub not_transferred: Vec<&'static str>,
+    pub settings_report: crate::lightroom_report::Report,
+    pub unchanged: bool,
 }
 
 pub fn parse_virtual_path(virtual_path: &str) -> (PathBuf, PathBuf) {
@@ -3103,6 +3108,20 @@ fn find_matching_xmp_sidecars_recursive(
     (matches, skipped, failures)
 }
 
+fn merge_imported_adjustments(existing: &mut Value, imported: Value) {
+    if let (Some(target), Some(source)) = (existing.as_object_mut(), imported.as_object()) {
+        for (key, value) in source {
+            if let Some(current) = target.get_mut(key) {
+                merge_imported_adjustments(current, value.clone());
+            } else {
+                target.insert(key.clone(), value.clone());
+            }
+        }
+    } else {
+        *existing = imported;
+    }
+}
+
 fn import_xmp_adjustments_to_sidecar(
     path: &str,
     xmp_path: &Path,
@@ -3126,14 +3145,27 @@ fn import_xmp_adjustments_to_sidecar(
     let has_supported_metadata = extract_xmp_rating(&xmp_content).is_some()
         || extract_xmp_label(&xmp_content).is_some()
         || !extract_xmp_tags(&xmp_content).is_empty();
-    if !has_supported_adjustments && !has_supported_metadata {
+    let settings_report = crate::lightroom_report::settings_report(&xmp_content, &converted_preset);
+    let unchanged = !has_supported_adjustments && !has_supported_metadata;
+    if unchanged && settings_report.settings.is_empty() {
         return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
     }
-
     let not_transferred =
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-    metadata.adjustments = converted_preset.adjustments;
+    if unchanged {
+        return Ok(ImportedXmpSidecar {
+            source_path,
+            sidecar_path,
+            metadata,
+            not_transferred,
+            settings_report,
+            unchanged,
+        });
+    }
+    // An import replaces only controls it can convert. Unsupported fields must
+    // not erase unrelated native edits, such as repair or unsupported geometry.
+    merge_imported_adjustments(&mut metadata.adjustments, converted_preset.adjustments);
     resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
     merge_xmp_metadata_fields(&xmp_content, &mut metadata);
 
@@ -3145,6 +3177,8 @@ fn import_xmp_adjustments_to_sidecar(
         sidecar_path,
         metadata,
         not_transferred,
+        settings_report,
+        unchanged,
     })
 }
 
@@ -3165,8 +3199,11 @@ pub fn import_xmp_adjustments_for_image(
     let imported_adjustments = imported.metadata.adjustments.clone();
     let sidecar_path = imported.sidecar_path.clone();
     let not_transferred = imported.not_transferred;
-
-    save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
+    let settings_report = imported.settings_report;
+    let unchanged = imported.unchanged;
+    if !unchanged {
+        save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
+    }
 
     log::info!(
         "Imported XMP adjustments from {} to {}",
@@ -3177,6 +3214,8 @@ pub fn import_xmp_adjustments_for_image(
     Ok(XmpImageImportResult {
         metadata: crate::exif_processing::load_sidecar(&sidecar_path),
         not_transferred,
+        settings_report,
+        unchanged,
     })
 }
 
@@ -3235,7 +3274,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
             let path_string = path.to_string_lossy().to_string();
             match import_xmp_adjustments_to_sidecar(&path_string, &xmp_path, lens_db.as_deref()) {
                 Ok(imported) => {
-                    if enable_xmp_sync {
+                    if enable_xmp_sync && !imported.unchanged {
                         sync_metadata_to_xmp(
                             &imported.source_path,
                             &imported.sidecar_path,
@@ -3243,14 +3282,22 @@ pub async fn import_matching_xmp_sidecars_in_folder(
                             create_xmp_if_missing,
                         );
                     }
-                    result.imported += 1;
-                    if !imported.not_transferred.is_empty() {
+                    if imported.unchanged {
+                        result.unchanged += 1;
+                        result.unchanged_paths.push(path_string.clone());
+                    } else {
+                        result.imported += 1;
+                        result.imported_paths.push(path_string.clone());
+                    }
+                    if !imported.not_transferred.is_empty()
+                        || !imported.settings_report.settings.is_empty()
+                    {
                         result.not_transferred.push(XmpNotTransferred {
                             path: path_string.clone(),
                             items: imported.not_transferred,
+                            settings_report: imported.settings_report,
                         });
                     }
-                    result.imported_paths.push(path_string);
                 }
                 Err(error) if error == NO_SUPPORTED_XMP_CONTENT_ERROR => {
                     result.unchanged += 1;
@@ -4024,7 +4071,7 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
             not_imported.join(", ")
         ));
     }
-    let warnings = if not_imported.is_empty() {
+    let mut warnings = if not_imported.is_empty() {
         Vec::new()
     } else {
         vec![format!(
@@ -4032,6 +4079,11 @@ fn parse_preset_file(file_path: &str) -> Result<(Vec<PresetItem>, Vec<String>), 
             not_imported.join(", ")
         )]
     };
+    if !is_exact {
+        warnings.extend(crate::lightroom_report::warning_lines(
+            &crate::lightroom_report::settings_report(&xmp_content, &converted_preset),
+        ));
+    }
     let item = if let Some(name) = crate::preset_xmp::group_name(&xmp_content) {
         PresetItem::Folder(PresetFolder {
             id: format!("xmp-group:{name}"),
@@ -6297,6 +6349,47 @@ mod tests {
     }
 
     #[test]
+    fn unsupported_only_import_reports_settings_without_writing_or_erasing_edits() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("sample.jpg");
+        let sidecar = dir.path().join("sample.jpg.rrdata");
+        let xmp = dir.path().join("sample.xmp");
+        let original = r#"{"adjustments":{"exposure":2,"aiPatches":[{"id":"keep"}]}}"#;
+        fs::write(&sidecar, original).unwrap();
+        fs::write(
+            &xmp,
+            r#"<root crs:SharpenRadius="0" crs:PerspectiveVertical="2"/>"#,
+        )
+        .unwrap();
+        let imported =
+            import_xmp_adjustments_to_sidecar(source.to_str().unwrap(), &xmp, None).unwrap();
+        assert!(imported.unchanged);
+        assert_eq!(imported.settings_report.ignored, 2);
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        fs::remove_file(&sidecar).unwrap();
+        assert!(
+            import_xmp_adjustments_to_sidecar(source.to_str().unwrap(), &xmp, None)
+                .unwrap()
+                .unchanged
+        );
+        assert!(!sidecar.exists());
+    }
+
+    #[test]
+    fn partial_import_preserves_unrelated_native_and_nested_controls() {
+        let mut existing = serde_json::json!({"exposure":2,"aiPatches":[{"id":"keep"}],"hsl":{"reds":{"hue":4,"saturation":8},"blues":{"hue":2}}});
+        merge_imported_adjustments(
+            &mut existing,
+            serde_json::json!({"exposure":0,"hsl":{"reds":{"hue":10}}}),
+        );
+        assert_eq!(existing["exposure"], 0);
+        assert_eq!(existing["hsl"]["reds"]["hue"], 10);
+        assert_eq!(existing["hsl"]["reds"]["saturation"], 8);
+        assert_eq!(existing["hsl"]["blues"]["hue"], 2);
+        assert_eq!(existing["aiPatches"][0]["id"], "keep");
+    }
+
+    #[test]
     fn treats_default_only_lightroom_xmp_as_unchanged() {
         let test_directory =
             std::env::temp_dir().join(format!("rapidraw-xmp-unchanged-{}", Uuid::new_v4()));
@@ -7304,6 +7397,24 @@ mod xmp_preset_browser_tests {
                 .as_ref()
                 .unwrap()
                 .contains("Adobe Standard")
+        );
+    }
+
+    #[test]
+    fn presets_show_individual_ignored_fields_and_approximations() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("preset.xmp");
+        fs::write(&path, r#"<root crs:Sharpness="0" crs:SharpenRadius="1"/>"#).unwrap();
+        let (_, warnings) = parse_preset_file(path.to_str().unwrap()).unwrap();
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("SharpenRadius: ignored") && w.contains("radius/detail"))
+        );
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("Sharpness: approximated") && w.contains("0-150"))
         );
     }
 

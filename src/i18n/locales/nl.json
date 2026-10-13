@@ -292,6 +292,48 @@
       "failedMoveError": "Verplaatsen mislukt: {{err}}",
       "failedMoveInvalid": "Verplaatsen mislukt: doelgroep niet gevonden of ongeldig.",
       "failedRemoveImages": "Afbeeldingen verwijderen mislukt: {{err}}"
+    },
+    "xmpImportReport": {
+      "settings": {
+        "summary": "Lightroom settings: {{mapped}} mapped, {{approximated}} approximated, {{ignored}} ignored.",
+        "detail": "{{field}} — {{outcome}}: {{reason}}",
+        "omitted": "{{count}} additional settings omitted.",
+        "outcomes": {
+          "mapped": "mapped",
+          "approximated": "approximated",
+          "ignored": "ignored"
+        },
+        "reasons": {
+          "sharpenCompanion": "Lightroom sharpening radius/detail has no matching operator",
+          "noiseCompanion": "Lightroom noise detail/contrast/smoothness has no matching operator",
+          "calibration": "Camera calibration primaries and shadow tint are not supported",
+          "perspective": "Lightroom perspective/Upright transforms are not imported",
+          "defringe": "Lightroom defringe controls are not supported",
+          "manualLens": "Manual Adobe lens corrections are not imported",
+          "vignetteCompanion": "Lightroom vignette style/highlights has no matching operator",
+          "retouch": "Lightroom retouch/spot removal is not imported",
+          "parametricCurve": "Lightroom parametric curves are not imported",
+          "cameraProfile": "Adobe camera profiles are not available in the engine",
+          "aiEnhancement": "AI enhancement is not recreated; enhanced pixels may already contain it",
+          "pointColor": "Lightroom Point Color is not imported",
+          "invalidValue": "Invalid or non-finite setting value",
+          "whiteBalanceBaseline": "White balance was not converted; source baseline or supported mapping is missing",
+          "cropUnavailable": "Crop was not imported; geometry is unavailable or not included in presets",
+          "lensUnavailable": "Lens correction was not enabled or is not included in presets",
+          "notConverted": "No corresponding adjustment was produced by the converter",
+          "sharpnessScale": "Amount is scaled from 0-150 to 0-100; the sharpening operator differs",
+          "sharpenMasking": "Masking is approximated by the native sharpening threshold",
+          "hueScale": "Hue is scaled by 0.75; engine colour response differs",
+          "monochrome": "Monochrome is approximated with desaturation and HSL luminance",
+          "curveInterpolation": "Curve points are transferred; engine interpolation differs",
+          "lensfun": "Lensfun substitutes for the Adobe lens profile when a matching lens is available",
+          "nativeResponse": "Transferred to native controls; Lightroom rendering and units may differ",
+          "asShot": "The source as-shot white balance is retained",
+          "disabled": "This feature is explicitly disabled",
+          "cropGeometry": "Converted to native crop geometry",
+          "unsupported": "No supported mapping for this CRS setting"
+        }
+      }
     }
   },
   "editor": {

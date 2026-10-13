@@ -56,6 +56,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
+import { describeLightroomSettings, type LightroomSettingReport } from '../utils/lightroomImportReport';
 import { useContextMenu } from '../context/ContextMenuContext';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
@@ -103,11 +104,14 @@ type XmpNotTransferredItem =
 
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
   notTransferred?: XmpNotTransferredItem[];
+  settingsReport?: LightroomSettingReport;
+  unchanged?: boolean;
 }
 
 interface XmpNotTransferred {
   path: string;
   items: XmpNotTransferredItem[];
+  settingsReport?: LightroomSettingReport;
 }
 
 interface MatchingXmpSidecarImportResult {
@@ -337,16 +341,52 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           });
         }
 
-        applyImportedXmpMetadata(targetPath, metadata);
-        await props.refreshImageList();
-        toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
+        if (!metadata.unchanged) {
+          applyImportedXmpMetadata(targetPath, metadata);
+          await props.refreshImageList();
+        }
+        if (metadata.unchanged) {
+          toast.info(t('contextMenus.xmpImportReport.unchanged', { total: 1 }));
+        } else {
+          toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
+        }
         toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
+        const reportParts: string[] = [];
+        if (metadata.settingsReport?.settings.length) {
+          reportParts.push(describeLightroomSettings(metadata.settingsReport, t));
+        }
         if (metadata.notTransferred?.length) {
-          toast.info(
+          reportParts.push(
             t('contextMenus.xmpImportReport.notTransferredForImage', {
               items: describeNotTransferred(metadata.notTransferred),
             }),
-            { autoClose: false },
+          );
+        }
+        if (reportParts.length) {
+          const reportText = reportParts.join('\n\n');
+          toast.info(
+            metadata.settingsReport
+              ? t('contextMenus.xmpImportReport.settings.summary', { ...metadata.settingsReport })
+              : reportParts[0],
+            {
+              autoClose: false,
+              onClick: () =>
+                useUIStore.getState().setUI({
+                  confirmModalState: {
+                    isOpen: true,
+                    title: t('contextMenus.xmpImportReport.title'),
+                    message: reportText,
+                    messageClassName: 'text-xs max-h-[60vh] overflow-y-auto whitespace-pre-wrap break-words pr-2',
+                    confirmText: t('contextMenus.xmpImportReport.copy'),
+                    onConfirm: () => {
+                      navigator.clipboard
+                        .writeText(reportText)
+                        .then(() => toast.success(t('contextMenus.xmpImportReport.copied')))
+                        .catch((err) => toast.error(t('contextMenus.toasts.failedCopy', { err })));
+                    },
+                  },
+                }),
+            },
           );
         }
       } catch (err) {
@@ -433,8 +473,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           reportLines.push(
             '',
             t('contextMenus.xmpImportReport.notTransferred', { total: result.notTransferred.length }),
-            ...result.notTransferred.map(
-              ({ path, items }) => `${relativeToImportedFolder(path)}: ${describeNotTransferred(items)}`,
+            ...result.notTransferred.map(({ path, items, settingsReport }) =>
+              [
+                path.replace(/\\/g, '/').split('/').pop(),
+                items.length ? describeNotTransferred(items) : '',
+                settingsReport ? describeLightroomSettings(settingsReport, t) : '',
+              ]
+                .filter(Boolean)
+                .join('\n'),
             ),
           );
         }
@@ -445,7 +491,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               confirmText: t('contextMenus.xmpImportReport.copy'),
               isOpen: true,
               message: reportText,
-              messageClassName: 'font-mono text-xs max-h-[60vh] overflow-y-auto break-all pr-2',
+              messageClassName: 'text-xs max-h-[60vh] overflow-y-auto whitespace-pre-wrap break-words pr-2',
               onConfirm: () => {
                 navigator.clipboard
                   .writeText(reportText)

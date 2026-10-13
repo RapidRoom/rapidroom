@@ -56,6 +56,23 @@ def run_crs_checks(smoke, wait_for):
         assert imported['adjustments'][key] == initial['adjustments'][key]
     smoke.step('public CRS import resolves namespace aliases and curves without foreign/nested/other-subject values')
 
+    dismiss_alerts()
+    sidecar.write_text('<root crs:SharpenRadius="0" crs:PerspectiveVertical="3"/>')
+    import_sidecar()
+    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('[role=alert]')].some(e=>e.textContent.includes('0 mapped, 0 approximated, 2 ignored'))"), 'bounded per-setting import summary')
+    smoke.execute("[...document.querySelectorAll('[role=alert]')].find(e=>e.textContent.includes('0 mapped, 0 approximated, 2 ignored')).click();return true;")
+    wait_for(lambda: smoke.execute("return document.body.textContent.includes('SharpenRadius — ignored: Lightroom sharpening radius/detail')"), 'individual ignored setting with reason in import dialog')
+    report_text = smoke.execute("return document.body.innerText;")
+    assert 'PerspectiveVertical — ignored: Lightroom perspective/Upright' in report_text
+    assert image not in report_text and str(case) not in report_text
+    smoke.capture('crs-per-setting-report')
+    assert image_state(url, image, token=token) == imported, 'Unsupported-only import changed native draft'
+    smoke.execute("[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Cancel').click();return true;")
+    dismiss_alerts()
+    unchanged = smoke.stable_preview('crs-unsupported-unchanged')
+    assert ImageChops.difference(smoke.crop(changed), smoke.crop(unchanged)).getbbox() is None
+    smoke.step('unsupported-only import shows individual reasons without private paths or changes to native edits/pixels')
+
     sidecar.write_text('<!DOCTYPE root [<!ENTITY x SYSTEM "file:///etc/passwd">]><root>&x;</root>')
     import_sidecar()
     wait_for(lambda: smoke.execute("return [...document.querySelectorAll('[role=alert]')].some(e=>e.textContent.includes('DOCTYPE'))"), 'unsafe CRS import refused')
