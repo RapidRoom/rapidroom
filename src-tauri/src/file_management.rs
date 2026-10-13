@@ -1825,10 +1825,12 @@ pub fn generate_thumbnail_data(
                 } else {
                     None
                 };
+                // Saved repair offsets and bitmaps are in native pixels.
+                // Composite before the thumbnail resize, without fast RAW shrinking.
                 let base = image_loader::load_base_image_with_proxy(
                     file_slice,
                     &source_path_str,
-                    true,
+                    !has_ai_patches(&adjustments),
                     &settings,
                     None,
                     proxy_min_dim,
@@ -2007,7 +2009,7 @@ pub fn generate_thumbnail_data(
                 &mmap,
                 &source_path_str,
                 &adjustments,
-                true,
+                !has_ai_patches(&adjustments),
                 &settings,
                 None,
             )?,
@@ -2018,7 +2020,7 @@ pub fn generate_thumbnail_data(
                     &bytes,
                     &source_path_str,
                     &adjustments,
-                    true,
+                    !has_ai_patches(&adjustments),
                     &settings,
                     None,
                 )?
