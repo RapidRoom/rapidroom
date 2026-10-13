@@ -67,6 +67,18 @@ def run_stack_checks(smoke, wait_for):
     smoke.step('expanded grid and cover selection', {'capture': capture('stacks-new-cover')})
     click(paths[1], double=True)
     wait_for(lambda: smoke.execute("return document.body.innerText.includes('960 × 640') && document.body.innerText.includes('Exposure');"), 'stack cover opens editor')
+    # Dimensions and sliders appear while the first GPU pipeline is still
+    # compiling. Keep this editor open until its actual processed preview is
+    # displayed; a thumbnail is insufficient evidence for filmstrip review.
+    wait_for(lambda: '[process_preview_job] full 960x640' in (case / 'app.log').read_text(),
+             'stack cover GPU preview completed', 60)
+    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('svg image')].some(e=>e.getAttribute('href')?.startsWith('blob:'));"),
+             'stack cover processed preview displayed')
+    smoke.roi = tuple(round(v) for v in smoke.execute("""const e=[...document.querySelectorAll('svg')]
+      .find(e=>e.getBoundingClientRect().width>500 && e.getBoundingClientRect().height>300);
+      if(!e)throw Error('Stack preview bounds missing');const r=e.getBoundingClientRect();
+      return [r.left,r.top,r.right,r.bottom];"""))
+    smoke.stable_preview('stack-cover-ready')
     wait_for(lambda: smoke.execute("return !!document.querySelector('button[aria-label=\"Expand or collapse stack (2 photos)\"]');"), 'filmstrip has stack badge')
     smoke.execute("document.querySelector('button[aria-label=\"Expand or collapse stack (2 photos)\"]').click();return true;")
     wait_for(lambda: paths[0] in visible() and paths[1] in visible(), 'filmstrip expands shared stack')
