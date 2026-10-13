@@ -7,6 +7,10 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.
 - **[RapidRAW-DngLab](https://github.com/CyberTimon/RapidRAW-DngLab)**, CyberTimon's fork of [dnglab/rawler](https://github.com/dnglab/dnglab) by Daniel Vogelbacher and contributors (raw decoding).
 
+## Individual MCP mask editing
+
+The typed mask/crop schemas, single-id edit tools and nested local-default normalization are original work for RapidRoom by yojen7 with Codex. They use RapidRoom’s existing renderer and editor history. No fork implementation or additional AI engine is included.
+
 ## AI raw denoise
 
 The native preprocessing and model contract are adapted from [RawForge](https://github.com/rymuelle/RawForge/commit/79f17700c29765b28a4cf5bd1b6d90bc7e3eb7f2) and RawHandler by rymuelle (MIT), overlap masks from blended-tiling-numpy by ProGamerGov (MIT), and Malvar kernels from colour-demosaicing by Colour Developers (BSD-3-Clause). Adapted for RapidRoom by yojen7 with Codex. [Licence check and retained notices](rapidroom/DENOISE.md). No model weights are bundled.
@@ -106,6 +110,7 @@ The native preprocessing and model contract are adapted from [RawForge](https://
 | Compact one-row adjustment sliders | [@pluja](https://github.com/pluja), narrow-panel sizing after [@Bennyyy27](https://github.com/Bennyyy27), adapted with Claude Code | [pluja/RapidRAW-Fork@198d23c](https://github.com/pluja/RapidRAW-Fork/commit/198d23c0b89e073c88a621d43090488c2a8baf9e), [Bennyyy27/RapidRAW@69445ee](https://github.com/Bennyyy27/RapidRAW/commit/69445eefb3598f3461eb3ed28fb82913b2e04d0f) |
 | Optional MCP server (`mcp` cargo feature) | [@cgasgarth](https://github.com/cgasgarth) (Connor Gasgarth), feature-gated in RapidRoom with Claude Code; off-by-default `mcp` feature as in [@sheldonxxxx](https://github.com/sheldonxxxx)'s MCP bridge | [4a5c14e](https://github.com/cgasgarth/RapidRaw/commit/4a5c14eae0715db4d9ae79d4126a1495a0493ff0) and follow-ups up to [a5a01cc](https://github.com/cgasgarth/RapidRaw/commit/a5a01ccfe370a5dfe1042e8ca0e2537780d18409) in cgasgarth/RapidRaw; comparison with sheldonxxxx/RapidRAW in [rapidroom/MCP.md](rapidroom/MCP.md) |
 | Lensfun profiles evaluated the way Lensfun does | [@beneedict](https://github.com/beneedict) (Benedikt Nimmervoll), adapted by @yojen7 with Claude Code | [beneedict/RapidRAW@99a142e](https://github.com/beneedict/RapidRAW/commit/99a142e6e7be658c721f5700811199429efb22ee) (branch `lensfun-evaluation`, upstream PR `CyberTimon/RapidRAW#1705`), ported without the embedded RAW profiles it builds on |
+| DA2 Small depth geometry test scenarios | Duecki (CalibRaw), adapted by Yojen with Codex | [CalibRaw@2466ca66](https://github.com/Duecki1/CalibRaw/commit/2466ca6662c3fd1e901377c0450b19f5f96d3e85), GPL-3.0-or-later; licence retained in `src-tauri/tests/fixtures/depth/` |
 
 ## RapidRoom changes
 
@@ -182,3 +187,7 @@ The data-only envelope, bounded UTF-8 text, shared free-text budget and assistan
 ### AI denoise tiling and colour restoration
 
 Tile placement, raised-cosine overlap and whole-image five-level B3-spline colour restoration adapt [open-photo-ai by Vinicius Egidio](https://github.com/vegidio/open-photo-ai/tree/67f1dd10d17efcb191ce1bb099642e32b2918861), AGPL-3.0. Periodic reflect padding adapts [CalibRaw by Duecki](https://github.com/Duecki1/CalibRaw/blob/2466ca6662c3fd1e901377c0450b19f5f96d3e85/crates/calibraw-ai/src/ai_denoise/tiling.rs), GPL-3.0-or-later. Source notices are bundled in `src-tauri/resources/raw-denoise-licenses/`. Model weights, telemetry and scalar per-tile gain matching were not imported.
+
+### CRS interoperability cross-check
+
+The field and RDF representation audit compares [LightCraft by storytold](https://github.com/storytold/lightcraft/tree/265248c86fa3267709aea45633d0d135331e180c) (MIT OR Apache-2.0; [MIT notice](rapidroom/LICENSES/lightcraft-MIT.txt)) and [Redlamp by pdcgomes](https://github.com/pdcgomes/redlamp/tree/a70c86dc01ab8ee5d831642520b76ed529f556c0) (MPL-2.0). Supplementary semantics were checked in MIT AutoShade and RAWmakase; exact versions and limitations are in the [audit](rapidroom/validation/crs-interop-20261012/README.md). The namespace-aware photo/curve/look reader extends RapidRoom's existing bounded XML parser; this is original work, with no copied MPL source, Adobe assets, SDK-derived tables or external presets.

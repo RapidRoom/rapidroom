@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { AlertOctagon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { WaveformData } from '../../ui/AppProperties';
+import { WaveformData, type HistogramData } from '../../ui/AppProperties';
 import { DisplayMode } from '../../../utils/adjustments';
 
 interface WaveformProps {
   waveformData: WaveformData | null;
-  histogram?: any;
+  histogram?: HistogramData | null;
   displayMode: string;
   setDisplayMode: (mode: string) => void;
   showClipping?: boolean;
@@ -51,9 +51,9 @@ const modeButtons = [
     bgClass: 'bg-accent',
     textActiveClass: 'text-button-text',
   },
-];
+] as const;
 
-const HistogramView = ({ histogram }: { histogram: any }) => {
+const HistogramView = ({ histogram }: { histogram: HistogramData | null | undefined }) => {
   if (!histogram || !histogram.red || !histogram.green || !histogram.blue) return null;
 
   const redMax = Math.max(...(histogram.red || [0]));

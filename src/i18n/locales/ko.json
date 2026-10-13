@@ -975,6 +975,11 @@
       "scale": "크기",
       "spacing": "간격",
       "watermarkImage": "워터마크 이미지"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {

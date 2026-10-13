@@ -40,7 +40,13 @@ interface GPSData {
 
 interface MetaDataItemProps {
   label: string;
-  value: any;
+  value: unknown;
+}
+
+interface CameraGridSetting {
+  key: string;
+  label: string;
+  value: string | number;
 }
 
 const USER_TAG_PREFIX = 'user:';
@@ -205,7 +211,7 @@ const EDITABLE_FIELDS = [
   { key: 'Artist', label: 'author' },
   { key: 'Copyright', label: 'copyright' },
   { key: 'UserComment', label: 'comments' },
-];
+] as const;
 
 const KEY_CAMERA_SETTINGS_MAP: CameraSettings = {
   FNumber: {
@@ -267,7 +273,7 @@ export default function MetadataPanel() {
     const exif = selectedImage?.exif || {};
 
     const cameraGridKeys = ['ExposureTime', 'FNumber', 'PhotographicSensitivity', 'FocalLengthIn35mmFilm'];
-    const cameraGridSettings = cameraGridKeys.map((key) => {
+    const cameraGridSettings: CameraGridSetting[] = cameraGridKeys.map((key) => {
       const value = exif[key];
       const hasValue = value !== undefined && value !== null && value !== '';
 
@@ -464,7 +470,7 @@ export default function MetadataPanel() {
               </Text>
               <div className="flex flex-col gap-2">
                 <div className="grid grid-cols-2 gap-2">
-                  {cameraGridSettings.map((item: any) => {
+                  {cameraGridSettings.map((item) => {
                     const Icon = CAMERA_ICONS[item.key];
                     return (
                       <div

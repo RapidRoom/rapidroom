@@ -17,10 +17,10 @@ import {
   BatteryWarning,
   Focus,
   Gauge,
-  Sliders,
   Folder as FolderIcon,
   X,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -35,7 +35,7 @@ import { TextVariants, TextColors, TextWeights } from '../../../types/typography
 import { Invokes, Preset } from '../../ui/AppProperties';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import { useEditorStore } from '../../../store/useEditorStore';
-import { usePresets } from '../../../hooks/usePresets';
+import { usePresets, type UserPreset } from '../../../hooks/usePresets';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 
 import CompositionOverlays from '../editor/overlays/CompositionOverlays';
@@ -53,6 +53,14 @@ const iconProps = {
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
 };
+
+interface PresetMenuItem {
+  label?: string;
+  icon?: LucideIcon;
+  submenu?: PresetMenuItem[];
+  onClick?: () => void;
+  disabled?: boolean;
+}
 
 const IconColorTemp = (props: React.SVGProps<SVGSVGElement>) => (
   <svg {...iconProps} {...props}>
@@ -350,9 +358,9 @@ export default function TetheringPanel({ onLibraryRefresh, onImageSelect }: Teth
 
   const fetchSettings = useCallback(async () => {
     try {
-      const config = await invoke<Record<string, any>>(Invokes.TetherGetSettings);
+      const config = await invoke<Record<string, CameraSetting>>(Invokes.TetherGetSettings);
       setTethering({ settings: config });
-    } catch (e) {
+    } catch {
       handleDisconnect(t('tethering.toasts.communicationFailed'));
     }
   }, [setTethering, handleDisconnect, t]);
@@ -384,7 +392,7 @@ export default function TetheringPanel({ onLibraryRefresh, onImageSelect }: Teth
     setIsFocusing(true);
     try {
       await invoke('tether_autofocus');
-    } catch (e) {
+    } catch {
       toast.error(t('tethering.toasts.afFailed'));
     } finally {
       setIsFocusing(false);
@@ -409,7 +417,7 @@ export default function TetheringPanel({ onLibraryRefresh, onImageSelect }: Teth
             paths: [filePath],
             adjustments: autoApplyPreset.adjustments,
           });
-        } catch (presetErr) {
+        } catch {
           toast.error(t('tethering.toasts.presetApplyFailed'));
         }
       }
@@ -523,26 +531,28 @@ export default function TetheringPanel({ onLibraryRefresh, onImageSelect }: Teth
     };
   }, [liveViewEnabled, isConnected, handleDisconnect, t]);
 
-  const generatePresetSubmenu = (presetList: any[]): any[] => {
-    return presetList
-      .map((item: any) => {
-        if (item.folder) {
-          return {
+  const generatePresetSubmenu = (presetList: Array<UserPreset | Preset>): PresetMenuItem[] => {
+    return presetList.flatMap((item): PresetMenuItem[] => {
+      if ('folder' in item && item.folder) {
+        return [
+          {
             label: item.folder.name,
             icon: FolderIcon,
             submenu: generatePresetSubmenu(item.folder.children),
-          };
-        }
-        if (item.preset || item.adjustments) {
-          const presetObj = item.preset || item;
-          return {
+          },
+        ];
+      }
+      const presetObj = 'preset' in item ? item.preset : 'adjustments' in item ? item : undefined;
+      if (presetObj) {
+        return [
+          {
             label: presetObj.name,
             onClick: () => setAutoApplyPreset(presetObj),
-          };
-        }
-        return null;
-      })
-      .filter(Boolean);
+          },
+        ];
+      }
+      return [];
+    });
   };
 
   const handleOpenPresetMenu = () => {
@@ -557,7 +567,12 @@ export default function TetheringPanel({ onLibraryRefresh, onImageSelect }: Teth
     }
   };
 
-  const renderInputSetting = (key: string, label: string, IconComponent: React.FC<any>, placeholder: string) => {
+  const renderInputSetting = (
+    key: string,
+    label: string,
+    IconComponent: React.ComponentType<React.SVGProps<SVGSVGElement>>,
+    placeholder: string,
+  ) => {
     const setting = settings[key];
     if (!setting) return null;
 
