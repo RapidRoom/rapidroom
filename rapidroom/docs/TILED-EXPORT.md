@@ -36,7 +36,8 @@ GPU resources, including five f16 work textures, u8 and optional f16 output,
 tile readback, up to 32 mask layers, source windows, LUTs and flare resources.
 Working/output display textures are one-pixel placeholders for this path.
 Cached full-frame inputs and processors are released before export allocation.
-Driver heaps, staging uploads and retained native-display bindings require
+A retained native-display frame is charged against this budget too.
+Driver heaps and staging uploads require
 measured peak-memory evidence in addition to this conservative texture ledger.
 
 Flare preserves its existing hardware-linear global 512-pixel guide pass. Its

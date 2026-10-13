@@ -2147,6 +2147,22 @@ fn process_and_get_dynamic_image_inner(
     let max_dim = context.limits.max_texture_dimension_2d;
     if !output_to_display {
         let plan = ExportPlan::new(width, height, &request, max_dim)?;
+        let retained_display_bytes = context
+            .display
+            .lock()
+            .map_err(|_| "GPU display lock poisoned")?
+            .as_ref()
+            .filter(|d| d.current_bind_group.is_some())
+            .map_or(0, |d| {
+                d.latest_transform.texture_size[0] as u64
+                    * d.latest_transform.texture_size[1] as u64
+                    * 4
+            });
+        if plan.estimated_bytes.saturating_add(retained_display_bytes) > tiled_export::GPU_BUDGET {
+            return Err(
+                "Export GPU budget exceeded while retaining the native preview frame".into(),
+            );
+        }
         let mut processor_lock = state
             .gpu_processor
             .lock()
@@ -2230,6 +2246,23 @@ fn process_and_get_dynamic_image_inner(
             false,
             output_precision,
         )?;
+        if let Some(analytics) = analytics_config {
+            if let RenderedPixels::U8(data) = &pixels {
+                let data = data.clone();
+                std::thread::spawn(move || {
+                    if let Some(img) = ImageBuffer::<Rgba<u8>, _>::from_raw(out_w, out_h, data) {
+                        let _ = analytics.sender.send(crate::AnalyticsJob {
+                            path: analytics.path,
+                            image: Arc::new(DynamicImage::ImageRgba8(img)),
+                            compute_waveform: analytics.compute_waveform,
+                            active_waveform_channel: analytics.active_waveform_channel,
+                        });
+                    }
+                });
+            } else {
+                log::warn!("Skipping analytics for a high-precision CPU readback");
+            }
+        }
         return rendered_image(pixels, out_w, out_h);
     }
     if width > max_dim || height > max_dim {
