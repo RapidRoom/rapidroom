@@ -1,7 +1,7 @@
 //! Lightroom local corrections (`crs:MaskGroupBasedCorrections`) as RapidRAW
 //! masks: linear and radial gradients and brush strokes, with their local
-//! adjustments. AI masks (`Mask/Image`) keep their pixels in a separate `.acr`
-//! file, so corrections that use them are skipped and reported instead.
+//! adjustments. AI masks (`Mask/Image`) load supplied coverage from a read-only
+//! companion ACR file; incomplete corrections are skipped and reported.
 //! Aggregate composition and signed radial decoding adapt measured rules from
 //! skymanbp/autoshade@cbca12b5 (MIT; full notice in resources/licenses/).
 
