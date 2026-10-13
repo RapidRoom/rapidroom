@@ -67,6 +67,13 @@ def run_crs_checks(smoke, wait_for):
     dismiss_alerts()
     refused = smoke.stable_preview('crs-unsafe-refused')
     assert ImageChops.difference(smoke.crop(changed), smoke.crop(refused)).getbbox() is None
+    expected_error = 'Failed to import XMP adjustments: Failed to read XMP file: XMP refused: DOCTYPE is unsupported'
+    consumed = smoke.execute("""const errors=window.__RAPIDROOM_SMOKE_ERRORS__;
+      const matches=errors.filter(e=>e===arguments[0]).length;
+      if(matches===1) errors.splice(errors.indexOf(arguments[0]),1);
+      return matches;""", [expected_error])
+    assert consumed == 1, 'Expected exactly one console error for the verified DOCTYPE refusal'
+    (case / 'crs-expected-error.json').write_text(json.dumps({'error': expected_error, 'occurrences': consumed}, indent=2) + '\n')
     smoke.step('public import refuses DOCTYPE without changing the active draft or pixels')
 
     result = rpc(url, 'tools/call', {'name': 'set_adjustments', 'arguments': {
