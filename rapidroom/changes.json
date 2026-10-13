@@ -2,11 +2,28 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "atomic-write-failure-injection",
+      "title": "Test atomic file writes under failure conditions",
+      "category": "ci",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original failure-injection tests)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Injects partial-write disk-full, sync/finalization, and final-name collision failures into atomic sidecar writes. Each test verifies the existing file is preserved and the temporary file is removed. Production file-write behavior is unchanged."
+    },
+    {
       "id": "recursive-view-folder-navigation",
       "title": "Keep arrow-key navigation within folders in Recursive view",
       "category": "fix",
       "landed": "2026-10-13",
-      "authors": ["yojen7"],
+      "authors": [
+        "yojen7"
+      ],
       "source": "rapidroom (original implementation with Codex)",
       "commits": [],
       "upstream_issues": [],
