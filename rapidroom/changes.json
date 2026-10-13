@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "recursive-view-folder-navigation",
+      "title": "Keep arrow-key navigation within folders in Recursive view",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Arrow-key navigation in Recursive library view stays within the selected image's parent folder and preserves that folder's sort order. Other view modes retain their existing global navigation order."
+    },
+    {
       "id": "crs-interoperability-scoped-reader",
       "title": "Read CRS import fields by namespace and RDF subject",
       "category": "fix",
