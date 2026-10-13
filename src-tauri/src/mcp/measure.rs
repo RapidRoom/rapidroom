@@ -169,16 +169,21 @@ fn contact_sheet(
     labels: &[String],
     bound: u32,
 ) -> Result<DynamicImage, String> {
-    let first = images.first().ok_or("Contact sheet needs images")?;
+    if images.is_empty() {
+        return Err("Contact sheet needs images".into());
+    }
     let font = FontRef::try_from_slice(FONT).map_err(|e| e.to_string())?;
     let columns = if matches!(images.len(), 2 | 4) { 2 } else { 3 };
     let rows = (images.len() as u32).div_ceil(columns);
     let max_width = bound / columns;
     let max_height = bound / rows;
     let label_height = (max_width / 5).clamp(16, 24).min(max_height / 2);
-    let thumbnail = first.thumbnail(max_width, max_height - label_height);
-    let cell_width = thumbnail.width();
-    let image_height = thumbnail.height();
+    let thumbnails = images
+        .iter()
+        .map(|image| image.thumbnail(max_width, max_height - label_height))
+        .collect::<Vec<_>>();
+    let cell_width = thumbnails.iter().map(DynamicImage::width).max().unwrap();
+    let image_height = thumbnails.iter().map(DynamicImage::height).max().unwrap();
     let cell_height = image_height + label_height;
     let mut sheet =
         RgbImage::from_pixel(columns * cell_width, rows * cell_height, Rgb([24, 24, 24]));
@@ -252,20 +257,43 @@ fn geometry(value: &Value) -> Value {
     )
 }
 
-fn same_geometry_value(left: &Value, right: &Value) -> bool {
-    match (left, right) {
-        (Value::Number(a), Value::Number(b)) => a.as_f64() == b.as_f64(),
-        (Value::Array(a), Value::Array(b)) => {
-            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| same_geometry_value(a, b))
+fn native_region(
+    arguments: &Value,
+) -> Result<(Option<PixelRegion>, Option<preview::Region>), String> {
+    let value = arguments.get("region").ok_or("region is required")?;
+    let units = match arguments.get("regionUnits") {
+        None => {
+            if ["x", "y", "width", "height"].iter().any(|key| {
+                value[key]
+                    .as_f64()
+                    .is_some_and(|number| number.fract() != 0.0)
+            }) {
+                "fraction"
+            } else {
+                "pixels"
+            }
         }
-        (Value::Object(a), Value::Object(b)) => {
-            a.len() == b.len()
-                && a.iter().all(|(key, value)| {
-                    b.get(key)
-                        .is_some_and(|other| same_geometry_value(value, other))
-                })
-        }
-        _ => left == right,
+        Some(value) => value
+            .as_str()
+            .ok_or("regionUnits must be pixels or fraction")?,
+    };
+    match units {
+        "pixels" => Ok((Some(pixel_region(value)?), None)),
+        "fraction" => Ok((None, preview::region(arguments)?)),
+        _ => Err("regionUnits must be pixels or fraction".into()),
+    }
+}
+
+fn bounded_region(
+    image: DynamicImage,
+    fraction: Option<preview::Region>,
+    bound: u32,
+) -> DynamicImage {
+    let image = preview::crop(image, fraction);
+    if image.width() > bound || image.height() > bound {
+        image.resize(bound, bound, imageops::FilterType::Lanczos3)
+    } else {
+        image
     }
 }
 
@@ -286,11 +314,11 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         ),
         (
             "render_region",
-            "Return a native 1:1 rendered pixel crop after edit geometry, at most 2048 pixels per edge, without upsampling or changing edits/history/revision.",
+            "Return a native 1:1 crop after edit geometry. region accepts pixels or fractions; regionUnits disambiguates integer fractions (default: pixels for all-integer rectangles), at most 2048 pixels per edge, without upsampling or changing edits/history/revision.",
         ),
         (
             "render_compare",
-            "Render 2–6 temporary patches or existing virtual copies of the active photo at the same geometry and size. Return a labelled contact sheet or separate images. Never applies edits.",
+            "Render 2–6 temporary patches or existing virtual copies of the active photo, each with its own crop/orientation/lens geometry and aspect ratio. Fractional regions are cropped at native resolution before sizing to maxDimension (never upsampled). Return a labelled contact sheet or separate images. Never applies edits.",
         ),
     ] {
         let mut properties = json!({"imagePath":{"type":"string"},"expectedRevision":{"type":"string","description":"Advisory; renders the latest edit and returns its editRevision even when this revision is stale."},
@@ -310,6 +338,9 @@ pub(super) fn tool_definitions() -> Vec<Value> {
                 "x":{"type":"integer","minimum":0},"y":{"type":"integer","minimum":0},
                 "width":{"type":"integer","minimum":1,"maximum":2048},"height":{"type":"integer","minimum":1,"maximum":2048}},
                 "required":["x","y","width","height"]});
+            let pixels = properties["region"].clone();
+            properties["region"] = json!({"anyOf":[pixels, fractions]});
+            properties["regionUnits"] = json!({"type":"string","enum":["pixels","fraction"],"description":"If omitted, rectangles containing non-integer values use fractions; all-integer rectangles use pixels. Fractions map floor(start) and ceil(end) in the native rendered image; resolved edges must be at most 2048 pixels."});
             required.push("region");
         }
         if name == "render_compare" {
@@ -360,16 +391,20 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
     let suggest = name == "sample_region" && preview::option(arguments, "suggestWhiteBalance")?;
     let histogram =
         matches!(name, "analyze" | "sample_region") && preview::option(arguments, "histogram")?;
-    let (target, native) = if name == "render_region" {
-        let region = pixel_region(arguments.get("region").ok_or("region is required")?)?;
-        (0, Some((region.x, region.y, region.width, region.height)))
+    let (native, native_fraction) = if name == "render_region" {
+        native_region(arguments)?
     } else {
-        (dimension(arguments)?, None)
+        (None, None)
     };
-    let fraction = if native.is_none() {
-        preview::region(arguments)?
+    let target = if name == "render_region" {
+        0
     } else {
-        None
+        dimension(arguments)?
+    };
+    let fraction = if name == "render_region" {
+        native_fraction
+    } else {
+        preview::region(arguments)?
     };
     if name == "sample_region" && fraction.is_none() {
         return Err("region is required".into());
@@ -378,11 +413,16 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
         path.clone(),
         parameters,
         target,
-        native,
+        native.map(|r| (r.x, r.y, r.width, r.height)),
         app.clone(),
     )
     .await?;
     let image = preview::crop(image, fraction);
+    if name == "render_region" && (image.width() > 2048 || image.height() > 2048) {
+        return Err(
+            "Native region is limited to 2048 pixels per edge; request a smaller fraction".into(),
+        );
+    }
     let mut value = if name == "render_region" {
         json!({"width":image.width(),"height":image.height(),"nativePixels":true,
             "coordinates":"pixels of the full rendered image after edit geometry/crop","content":content(&[image])?})
@@ -511,29 +551,22 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
             parameters = adjustments::merge_adjustments(parameters, changes)?;
         }
         adjustments::validate_adjustments(&parameters)?;
-        if !same_geometry_value(&geometry(&parameters), &geometry(&state["adjustments"])) {
-            return Err("Variants must keep the active crop/orientation/lens geometry; color and tone patches are allowed".into());
-        }
         prepared.push((parameters, label));
     }
     let mut images = Vec::new();
     let mut labels = Vec::new();
+    let mut geometries = Vec::new();
     for (parameters, label) in prepared {
+        geometries.push(geometry(&parameters));
         let image = crate::generate_measurement_pixels_for_path(
             path.clone(),
             parameters,
-            bound,
+            if fraction.is_some() { 0 } else { bound },
             None,
             app.clone(),
         )
         .await?;
-        let image = preview::crop(image, fraction);
-        if images
-            .first()
-            .is_some_and(|first: &DynamicImage| first.dimensions() != image.dimensions())
-        {
-            return Err("Comparison render dimensions differ".into());
-        }
+        let image = bounded_region(image, fraction, bound);
         images.push(image);
         labels.push(label);
     }
@@ -564,7 +597,7 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
         json!({"imagePath":path,"editRevision":state["editRevision"],"labels":labels,"variantDimensions":dimensions,
         "identifiers":(0..labels.len()).map(|i|((b'A'+i as u8) as char).to_string()).collect::<Vec<_>>(),
         "separateImages":separate,"width":output[0].width(),"height":output[0].height(),"content":encoded,
-        "readOnly":true,"geometry":"active rendered crop/orientation/lens geometry","mimeType":"image/png"}),
+        "readOnly":true,"geometry":"each variant rendered with its own crop/orientation/lens geometry","variantGeometry":geometries,"mimeType":"image/png"}),
     )
 }
 
@@ -610,6 +643,70 @@ mod tests {
     }
 
     #[test]
+    fn mixed_crop_aspects_are_letterboxed_without_losing_any_image() {
+        let images = vec![
+            DynamicImage::ImageRgb8(RgbImage::from_pixel(300, 400, Rgb([255, 0, 0]))),
+            DynamicImage::ImageRgb8(RgbImage::from_pixel(225, 400, Rgb([0, 0, 255]))),
+            DynamicImage::ImageRgb8(RgbImage::from_pixel(400, 225, Rgb([0, 255, 0]))),
+        ];
+        let sheet = contact_sheet(
+            &images,
+            &["Feed".into(), "Story".into(), "Wide".into()],
+            900,
+        )
+        .unwrap()
+        .to_rgb8();
+        assert!(sheet.width() <= 900 && sheet.height() <= 900);
+        for color in [Rgb([255, 0, 0]), Rgb([0, 0, 255]), Rgb([0, 255, 0])] {
+            assert!(sheet.pixels().any(|pixel| *pixel == color));
+        }
+    }
+
+    #[test]
+    fn region_comparison_sizes_the_native_crop_and_never_upsamples() {
+        let fraction =
+            preview::region(&json!({"region":{"x":0.55,"y":0.5,"width":0.45,"height":0.5}}))
+                .unwrap();
+        let image = DynamicImage::ImageRgb8(RgbImage::new(4000, 3000));
+        let region = bounded_region(image, fraction, 900);
+        assert_eq!(region.dimensions(), (900, 750));
+        let tiny = DynamicImage::ImageRgb8(RgbImage::from_pixel(20, 10, Rgb([128, 0, 0])));
+        assert_eq!(bounded_region(tiny, None, 900).dimensions(), (20, 10));
+    }
+
+    #[test]
+    fn fractional_native_region_round_trips_to_the_same_integer_pixels() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_fn(100, 80, |x, y| {
+            Rgb([x as u8, y as u8, 0])
+        }));
+        let (_, fraction) =
+            native_region(&json!({"region":{"x":0.25,"y":0.25,"width":0.5,"height":0.5}})).unwrap();
+        let selected = preview::crop(image.clone(), fraction);
+        assert_eq!(selected.dimensions(), (50, 40));
+        assert_eq!(selected.to_rgb8(), image.crop_imm(25, 20, 50, 40).to_rgb8());
+        let (pixels, fraction) =
+            native_region(&json!({"region":{"x":0,"y":0,"width":1,"height":1}})).unwrap();
+        assert_eq!(pixels.unwrap().width, 1);
+        assert!(fraction.is_none());
+        let (_, fraction) = native_region(
+            &json!({"regionUnits":"fraction","region":{"x":0,"y":0,"width":1,"height":1}}),
+        )
+        .unwrap();
+        assert_eq!(
+            preview::crop(image.clone(), fraction).to_rgb8(),
+            image.to_rgb8()
+        );
+        for invalid in [
+            json!({"regionUnits":"fraction","region":{"x":0.9,"y":0,"width":0.2,"height":0.5}}),
+            json!({"regionUnits":"pixels","region":{"x":0.5,"y":0,"width":1,"height":1}}),
+            json!({"regionUnits":"unknown","region":{"x":0,"y":0,"width":1,"height":1}}),
+            json!({"region":{"x":0,"y":0,"width":0,"height":0.5}}),
+        ] {
+            assert!(native_region(&invalid).is_err());
+        }
+    }
+
+    #[test]
     fn red_pixels_keep_channel_identity_and_rec709_luminance() {
         let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(1, 1, Rgb([255, 0, 0])));
         let value = statistics(&image, true).unwrap();
@@ -630,10 +727,10 @@ mod tests {
         alternative["rotation"] = json!(90);
         assert_ne!(geometry(&current), geometry(&alternative));
         alternative["rotation"] = json!(0.0);
-        assert!(same_geometry_value(
-            &geometry(&current),
-            &geometry(&alternative)
-        ));
+        assert_eq!(
+            geometry(&current)["rotation"].as_f64(),
+            geometry(&alternative)["rotation"].as_f64()
+        );
         for path in [
             "/not-a-photo?vc=../../secret",
             "/not-a-photo?vc=",

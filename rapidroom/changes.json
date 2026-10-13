@@ -2,6 +2,23 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "mcp-independent-crops-native-regions",
+      "title": "Compare independent crops and inspect native detail through MCP",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [
+        "RapidRoom/rapidroom#151"
+      ],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Read-only comparisons accept different crop and transform variants, letterbox mixed aspects, and size a selected native region to the requested bound without upsampling. Native region renders accept fractional coordinates while retaining existing integer pixel requests and all revision/history/sidecar guards."
+    },
+    {
       "id": "raw-repair-thumbnail-native-scale",
       "title": "Keep RAW repair patches aligned in regenerated thumbnails",
       "category": "fix",
