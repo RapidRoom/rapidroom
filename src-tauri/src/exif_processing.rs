@@ -1837,7 +1837,7 @@ fn write_exif_metadata(
         metadata.set_tag(ExifTag::ComponentsConfiguration(vec![1, 2, 3, 0]));
     }
 
-    let output_dimensions = if output_format.eq_ignore_ascii_case("jxl") {
+    let output_dimensions = if matches!(file_type, FileExtension::JXL) {
         jxl_oxide::JxlImage::builder()
             .read(Cursor::new(image_bytes.as_slice()))
             .ok()
@@ -2513,13 +2513,14 @@ mod xmp_keyword_tests {
             .encode(&[200, 80, 40], 1, 1, jxl_encoder::PixelLayout::Rgb8)
             .unwrap();
         let mut without_metadata = jxl_bytes.clone();
+        let xmp = ExportXmp::from_metadata(&ImageMetadata::default());
         write_image_with_metadata(
             &mut without_metadata,
             source.to_str().unwrap(),
             "jxl",
             false,
             false,
-            None,
+            &xmp,
         )
         .unwrap();
         assert_eq!(without_metadata, jxl_bytes);
@@ -2531,7 +2532,7 @@ mod xmp_keyword_tests {
             "jxl",
             true,
             false,
-            None,
+            &xmp,
         )
         .unwrap();
 
@@ -2576,7 +2577,7 @@ mod xmp_keyword_tests {
             "jxl",
             true,
             true,
-            None,
+            &xmp,
         )
         .unwrap();
         let stripped_metadata = Metadata::new_from_vec(&without_gps, FileExtension::JXL).unwrap();

@@ -529,10 +529,12 @@ async fn apply_auto_adjustments(
     check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
     ui::require_active_session(app_handle, Some(&path))?;
     let state = app_handle.state::<AppState>();
-    let (image, _) = crate::get_original_image(&state)?;
-    let auto = crate::image_processing::perform_auto_analysis(&image);
-    let auto_json = crate::image_processing::auto_results_to_json(&auto);
     let current = get_image_state(app_handle, arguments)?;
+    let auto_json = crate::image_processing::calculate_auto_adjustments(
+        current["adjustments"].clone(),
+        state,
+        app_handle.clone(),
+    )?;
     let merged = adjustments::merge_adjustments(
         current
             .get("adjustments")
