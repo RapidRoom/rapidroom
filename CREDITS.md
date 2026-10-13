@@ -107,6 +107,8 @@ The native preprocessing and model contract are adapted from [RawForge](https://
 | Optional MCP server (`mcp` cargo feature) | [@cgasgarth](https://github.com/cgasgarth) (Connor Gasgarth), feature-gated in RapidRoom with Claude Code; off-by-default `mcp` feature as in [@sheldonxxxx](https://github.com/sheldonxxxx)'s MCP bridge | [4a5c14e](https://github.com/cgasgarth/RapidRaw/commit/4a5c14eae0715db4d9ae79d4126a1495a0493ff0) and follow-ups up to [a5a01cc](https://github.com/cgasgarth/RapidRaw/commit/a5a01ccfe370a5dfe1042e8ca0e2537780d18409) in cgasgarth/RapidRaw; comparison with sheldonxxxx/RapidRAW in [rapidroom/MCP.md](rapidroom/MCP.md) |
 | Lensfun profiles evaluated the way Lensfun does | [@beneedict](https://github.com/beneedict) (Benedikt Nimmervoll), adapted by @yojen7 with Claude Code | [beneedict/RapidRAW@99a142e](https://github.com/beneedict/RapidRAW/commit/99a142e6e7be658c721f5700811199429efb22ee) (branch `lensfun-evaluation`, upstream PR `CyberTimon/RapidRAW#1705`), ported without the embedded RAW profiles it builds on |
 
+| DA2 Small depth geometry test scenarios | Duecki (CalibRaw), adapted by Yojen with Codex | [CalibRaw@2466ca66](https://github.com/Duecki1/CalibRaw/commit/2466ca6662c3fd1e901377c0450b19f5f96d3e85), GPL-3.0-or-later; licence retained in `src-tauri/tests/fixtures/depth/` |
+
 ## RapidRoom changes
 
 | Change                               | Author                                             | Upstream PR                                                                                                                                                                                    |

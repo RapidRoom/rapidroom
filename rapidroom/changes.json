@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "da2-depth-geometry-tests",
+      "title": "Test DA2 Small depth map letterboxing and unpadding",
+      "category": "ci",
+      "landed": "2026-10-12",
+      "authors": ["Duecki1", "yojen7"],
+      "source": "Duecki1/CalibRaw (geometry test scenarios adapted to the existing DA2 Small path)",
+      "commits": ["https://github.com/Duecki1/CalibRaw/commit/2466ca6662c3fd1e901377c0450b19f5f96d3e85"],
+      "upstream_issues": ["RapidRoom/rapidroom#222"],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Test-only deterministic ONNX fixture verifies the unchanged tensor preprocessing and unpadding for landscape, portrait, square, thin and odd-sized images. No new model weights, downloads, normalization changes or persisted mask changes."
+    },
+    {
       "id": "mask-creation-drop-insertion",
       "title": "Insert dropped masks at their target row",
       "category": "fix",
