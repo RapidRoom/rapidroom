@@ -9,6 +9,8 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 
 The v1.6.5 sync retains contributions by Timon Käch, marclaliberte, Ramon Speets, MartinBspheroid, Reda Jamil and Yojen in normal merge history. Rendering, library, translations and curve changes are credited in the upstream commits; the RapidRoom integration was reconciled by Yojen with Codex.
 
+The 2026-10-12 refresh retains baseline exposure and export metadata work by marclaliberte, Italian translations by f-loren and filename-number tokens by apweisskopf in their original upstream commits. RapidRoom conflict reconciliation and regression checks are by Yojen with Codex.
+
 ## AI raw denoise
 
 The native preprocessing and model contract are adapted from [RawForge](https://github.com/rymuelle/RawForge/commit/79f17700c29765b28a4cf5bd1b6d90bc7e3eb7f2) and RawHandler by rymuelle (MIT), overlap masks from blended-tiling-numpy by ProGamerGov (MIT), and Malvar kernels from colour-demosaicing by Colour Developers (BSD-3-Clause). Adapted for RapidRoom by yojen7 with Codex. [Licence check and retained notices](rapidroom/DENOISE.md). No model weights are bundled.

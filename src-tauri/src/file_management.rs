@@ -30,6 +30,8 @@ use crate::PendingMetadata;
 #[cfg(target_os = "android")]
 use crate::android_integration::*;
 use crate::app_settings::*;
+use crate::as_shot::as_shot;
+use crate::baseline_exposure::BaselineOptions;
 use crate::batch_rename::{RenameOptions, RenameOutcome, RenamePreview, UndoInfo, plan_rename};
 use crate::exif_processing;
 use crate::formats::{is_raw_file, is_supported_image_file};
@@ -38,8 +40,9 @@ use crate::image_loader;
 use crate::image_processing::GpuContext;
 use crate::image_processing::{
     Crop, ImageFlag, ImageMetadata, apply_coarse_rotation, apply_cpu_default_raw_processing,
-    apply_crop, apply_flip, apply_geometry_warp, apply_rotation, auto_results_to_json,
-    get_all_adjustments_from_json, perform_auto_analysis,
+    apply_crop, apply_exposure, apply_flip, apply_geometry_warp, apply_rotation,
+    auto_results_to_json, default_adjustments, effective_baseline_exposure,
+    get_all_adjustments_from_json, perform_auto_analysis, resolve_render_options,
 };
 
 use crate::lrtemplate;
@@ -1946,12 +1949,11 @@ pub fn generate_thumbnail_data(
             })
             .collect();
 
-        let tm_override = crate::image_processing::resolve_tonemapper_override(&settings, is_raw);
         let gpu_adjustments = get_all_adjustments_from_json(
             &meta.adjustments,
             is_raw,
-            crate::white_balance::as_shot_white_balance(&source_path_str),
-            tm_override,
+            as_shot(&source_path_str),
+            resolve_render_options(&settings, is_raw),
         );
         let lut_path = meta.adjustments["lutPath"].as_str();
         let lut = lut_path.and_then(|p| {
@@ -2019,8 +2021,12 @@ pub fn generate_thumbnail_data(
     };
 
     if adjustments.is_null() {
-        let tm_override = crate::image_processing::resolve_tonemapper_override(&settings, is_raw);
-        let use_agx = tm_override == Some(1);
+        let render = resolve_render_options(&settings, is_raw);
+        final_image = apply_exposure(
+            final_image,
+            effective_baseline_exposure(&adjustments, as_shot(&source_path_str), render.baseline),
+        );
+        let use_agx = render.tonemapper_override == Some(1);
 
         if use_agx {
             if !is_raw {
@@ -3301,7 +3307,7 @@ pub async fn apply_adjustments_to_paths(
 
             let mut new_adjustments = existing_metadata.adjustments;
             if new_adjustments.is_null() {
-                new_adjustments = serde_json::json!({});
+                new_adjustments = default_adjustments();
             }
 
             if let (Some(new_map), Some(pasted_map)) =
@@ -3407,7 +3413,7 @@ pub async fn reset_adjustments_for_paths(
 
             let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
-            existing_metadata.adjustments = serde_json::json!({});
+            existing_metadata.adjustments = default_adjustments();
 
             if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
                 let _ = write_file_atomically(&sidecar_path, json_string);
@@ -3505,7 +3511,7 @@ pub async fn apply_auto_lens_correction_to_paths(
                 crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
 
             if existing_metadata.adjustments.is_null() {
-                existing_metadata.adjustments = serde_json::json!({});
+                existing_metadata.adjustments = default_adjustments();
             }
 
             if let Some(obj) = existing_metadata.adjustments.as_object_mut() {
@@ -3609,14 +3615,21 @@ pub async fn apply_auto_adjustments_to_paths(
                 )
                 .map_err(|e| e.to_string())?;
 
-                let auto_results = perform_auto_analysis(&image);
-                let auto_adjustments_json = auto_results_to_json(&auto_results);
-
                 let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
                 if existing_metadata.adjustments.is_null() {
-                    existing_metadata.adjustments = serde_json::json!({});
+                    existing_metadata.adjustments = default_adjustments();
                 }
+
+                let auto_results = perform_auto_analysis(
+                    &image,
+                    effective_baseline_exposure(
+                        &existing_metadata.adjustments,
+                        as_shot(&source_path_str),
+                        BaselineOptions::from_settings(&settings),
+                    ),
+                );
+                let auto_adjustments_json = auto_results_to_json(&auto_results);
 
                 if let (Some(existing_map), Some(auto_map)) = (
                     existing_metadata.adjustments.as_object_mut(),
@@ -4892,6 +4905,36 @@ pub fn extract_xmp_rating(content: &str) -> Option<i8> {
 
 const XMP_REJECTED_RATING: i8 = -1;
 
+pub fn xmp_rating(metadata: &ImageMetadata) -> String {
+    if metadata.flag == Some(ImageFlag::Reject) {
+        XMP_REJECTED_RATING.to_string()
+    } else {
+        metadata.rating.to_string()
+    }
+}
+
+pub fn xmp_label(tags: &[String]) -> Option<String> {
+    tags.iter()
+        .rev()
+        .find_map(|t| t.strip_prefix(COLOR_TAG_PREFIX))
+        .map(|color| {
+            let mut c = color.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        })
+}
+
+pub fn xmp_subject_bag<S: AsRef<str>>(items: &[S]) -> String {
+    let mut bag = String::from("<dc:subject>\n    <rdf:Bag>\n");
+    for item in items {
+        bag.push_str(&format!("     <rdf:li>{}</rdf:li>\n", item.as_ref()));
+    }
+    bag.push_str("    </rdf:Bag>\n   </dc:subject>");
+    bag
+}
+
 pub fn extract_xmp_label(content: &str) -> Option<String> {
     if let Some(idx) = content.find("xmp:Label=\"") {
         let start = idx + 11;
@@ -5020,10 +5063,11 @@ pub fn sync_metadata_from_xmp(
             && rating != 0
         {
             metadata.rating = rating;
+            if !metadata.adjustments.is_object() {
+                metadata.adjustments = default_adjustments();
+            }
             if let Some(obj) = metadata.adjustments.as_object_mut() {
                 obj.insert("rating".to_string(), serde_json::json!(rating));
-            } else {
-                metadata.adjustments = serde_json::json!({"rating": rating});
             }
             changed = true;
         }
@@ -5126,21 +5170,11 @@ pub fn sync_metadata_to_xmp(
         }
 
         let current_tags = metadata.tags.clone().unwrap_or_default();
-        let mut label = None;
-        let mut normal_tags = Vec::new();
-
-        for t in current_tags {
-            if let Some(color) = t.strip_prefix(COLOR_TAG_PREFIX) {
-                let mut c = color.chars();
-                let cap_color = match c.next() {
-                    None => String::new(),
-                    Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-                };
-                label = Some(cap_color);
-            } else {
-                normal_tags.push(t);
-            }
-        }
+        let label = xmp_label(&current_tags);
+        let normal_tags: Vec<String> = current_tags
+            .into_iter()
+            .filter(|t| !t.starts_with(COLOR_TAG_PREFIX))
+            .collect();
 
         if let Some(lbl) = label {
             let re_label_attr = regex!(r#"xmp:Label\s*=\s*"[^"]*""#);
@@ -5169,11 +5203,7 @@ pub fn sync_metadata_to_xmp(
         if normal_tags.is_empty() {
             content = re_subject.replace_all(&content, "").to_string();
         } else {
-            let mut bag = String::from("<dc:subject>\n    <rdf:Bag>\n");
-            for t in normal_tags {
-                bag.push_str(&format!("     <rdf:li>{}</rdf:li>\n", t));
-            }
-            bag.push_str("    </rdf:Bag>\n   </dc:subject>");
+            let bag = xmp_subject_bag(&normal_tags);
 
             if re_subject.is_match(&content) {
                 content = re_subject.replace(&content, bag).to_string();

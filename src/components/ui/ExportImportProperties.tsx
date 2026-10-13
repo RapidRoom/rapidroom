@@ -22,6 +22,7 @@ export const FILE_FORMATS: Array<FileFormat> = [
 
 export const FILENAME_VARIABLES: Array<string> = [
   '{original_filename}',
+  '{original_filename_number}',
   '{sequence}',
   '{title}',
   '{author}',
@@ -44,6 +45,10 @@ export const FILENAME_VARIABLES: Array<string> = [
 
 // Rename numbers bursts and brackets as groups; export and import have no groups.
 export const RENAME_VARIABLES: Array<string> = [...FILENAME_VARIABLES, '{group}', '{member}'];
+const UNIQUE_FILENAME_VARIABLES: Array<string> = ['{original_filename}', '{original_filename_number}', '{sequence}'];
+
+export const isUniqueFilenameTemplate = (template: string): boolean =>
+  UNIQUE_FILENAME_VARIABLES.some((variable) => template.includes(variable));
 
 export type TiffBitDepth = 8 | 16;
 

@@ -316,6 +316,7 @@ pub(super) fn adjustments_schema() -> Value {
         json!({ "type": ["object", "null"] }),
     );
     for key in [
+        "baselineExposure",
         "lensBlurEnabled",
         "lensDistortionEnabled",
         "lensTcaEnabled",
@@ -583,6 +584,7 @@ fn adjustment_keys() -> Vec<String> {
         .into_iter()
         .chain(
             [
+                "baselineExposure",
                 "aiPatches",
                 "sectionVisibility",
                 "showClipping",
@@ -646,7 +648,7 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "guidedPerspective" => validate_guided_perspective(value)?,
                 "whiteBalance" => validate_white_balance(value)?,
                 "relightLights" => validate_relight_lights(value)?,
-                "fogEnabled" | "relightEnabled" | "relightShadows" => {
+                "baselineExposure" | "fogEnabled" | "relightEnabled" | "relightShadows" => {
                     if !value.is_boolean() {
                         return Err(format!("adjustment {key} must be a boolean"));
                     }
@@ -1257,6 +1259,18 @@ mod tests {
         assert!(validate_adjustments(&json!({"relightLights":[light.clone(),light]})).is_err());
         assert!(validate_adjustments(&json!({"relightLights":{}})).is_err());
         assert!(validate_adjustments(&json!({"relightLights":[null]})).is_err());
+    }
+
+    #[test]
+    fn baseline_exposure_marker_has_typed_global_discovery_and_validation() {
+        let schema = adjustments_schema();
+        assert_eq!(schema["properties"]["baselineExposure"]["type"], "boolean");
+        for value in [json!(true), json!(false)] {
+            validate_adjustments(&json!({"baselineExposure":value})).unwrap();
+        }
+        for value in [json!(1), json!("true"), Value::Null] {
+            assert!(validate_adjustments(&json!({"baselineExposure":value})).is_err());
+        }
     }
 
     #[test]

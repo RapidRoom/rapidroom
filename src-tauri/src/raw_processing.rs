@@ -1,3 +1,4 @@
+use crate::as_shot::AsShot;
 use crate::image_processing::{Crop, apply_orientation};
 use crate::white_balance::WhiteBalance;
 use anyhow::{Result, anyhow};
@@ -376,13 +377,22 @@ fn mono_pixels_to_rgba(
         .ok_or_else(|| anyhow!("Developed image size does not match its dimensions"))
 }
 
-pub fn read_as_shot_white_balance(file_bytes: &[u8]) -> Option<WhiteBalance> {
+pub fn read_as_shot(file_bytes: &[u8]) -> Option<AsShot> {
     let source = borrowed_raw_source(file_bytes);
     let decoder = rawler::get_decoder(&source).ok()?;
     let raw_image = decoder
         .raw_image(&source, &RawDecodeParams::default(), true)
         .ok()?;
-    as_shot_white_balance_from_raw(&raw_image, file_bytes)
+    let is_monochrome = raw_image.cpp == 1
+        && !matches!(raw_image.photometric, RawPhotometricInterpretation::Cfa(_));
+
+    Some(AsShot {
+        white_balance: (!is_monochrome)
+            .then(|| as_shot_white_balance_from_raw(&raw_image, file_bytes))
+            .flatten()
+            .unwrap_or_else(WhiteBalance::reference),
+        exposure: crate::baseline_exposure::read(decoder.as_ref(), file_bytes, is_monochrome),
+    })
 }
 
 fn as_shot_white_balance_from_raw(raw_image: &RawImage, file_bytes: &[u8]) -> Option<WhiteBalance> {

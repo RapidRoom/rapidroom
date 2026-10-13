@@ -281,6 +281,9 @@ export interface AppSettings {
   zoomSpeedMultiplier?: number;
   zoomPhotoToPixelClick?: boolean;
   keybinds?: { [action: string]: string[] };
+  enableBaselineExposure?: boolean;
+  baselineExposure?: number;
+  compensateHighlightPreservation?: boolean;
   tonemapperOverrideEnabled?: boolean;
   defaultRawTonemapper?: string;
   defaultNonRawTonemapper?: string;

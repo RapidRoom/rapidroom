@@ -21,6 +21,7 @@
   "parameters": {
     "aiPatches": { "defaultType": "array", "default": [] },
     "aspectRatio": { "defaultType": "null", "default": null },
+    "baselineExposure": { "defaultType": "boolean", "default": true },
     "blacks": {
       "defaultType": "number",
       "default": 0,

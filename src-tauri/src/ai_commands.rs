@@ -644,10 +644,7 @@ mod effect_map_source_tests {
                 image::Rgb(color),
             ))),
             is_raw: false,
-            as_shot_white_balance: crate::white_balance::WhiteBalance {
-                temperature: 6504.0,
-                tint: 0.0,
-            },
+            as_shot: crate::as_shot::AsShot::reference(),
         }
     }
 

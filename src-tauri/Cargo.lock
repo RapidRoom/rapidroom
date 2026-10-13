@@ -13,6 +13,7 @@ dependencies = [
  "bytemuck",
  "bytes",
  "chrono",
+ "crc32fast",
  "fern",
  "filetime",
  "flate2",

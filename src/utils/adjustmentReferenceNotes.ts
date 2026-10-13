@@ -3,6 +3,8 @@
 // image_processing.rs; keep them short, they end up in table cells. The test fails if a key has
 // no note or a note's key no longer exists.
 export const ADJUSTMENT_NOTES: Record<string, string> = {
+  baselineExposure:
+    'Eligibility marker for Settings baseline/highlight-preservation compensation: new/reset images use true; legacy sidecars without the marker use false. Does not change the Exposure slider or enable the Settings option.',
   exposure:
     '+ brightens linear light before tone mapping: ×2^(value/0.8), so 1.0 is about +1.25 EV. The first slider for overall brightness.',
   toneMapper:

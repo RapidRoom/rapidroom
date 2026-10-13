@@ -479,6 +479,14 @@ pub fn default_linear_raw_mode() -> String {
     "auto".to_string()
 }
 
+pub fn default_baseline_exposure() -> f32 {
+    0.7
+}
+
+pub fn default_compensate_highlight_preservation() -> bool {
+    true
+}
+
 pub fn default_tagging_shortcuts_option() -> Option<Vec<String>> {
     Some(vec![
         "portrait".to_string(),
@@ -593,6 +601,12 @@ pub struct AppSettings {
     pub thumbnail_worker_threads: Option<u32>,
     #[serde(default)]
     pub image_cache_size: Option<u32>,
+    #[serde(default)]
+    pub enable_baseline_exposure: bool,
+    #[serde(default = "default_baseline_exposure")]
+    pub baseline_exposure: f32,
+    #[serde(default = "default_compensate_highlight_preservation")]
+    pub compensate_highlight_preservation: bool,
     #[serde(default)]
     pub tonemapper_override_enabled: Option<bool>,
     #[serde(default)]
@@ -727,6 +741,9 @@ impl Default for AppSettings {
             image_cache_size: Some(2),
             #[cfg(not(target_os = "android"))]
             image_cache_size: Some(5),
+            enable_baseline_exposure: false,
+            baseline_exposure: default_baseline_exposure(),
+            compensate_highlight_preservation: default_compensate_highlight_preservation(),
             tonemapper_override_enabled: Some(false),
             default_raw_tonemapper: Some("agx".to_string()),
             default_non_raw_tonemapper: Some("basic".to_string()),

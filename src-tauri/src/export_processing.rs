@@ -23,6 +23,7 @@ use tauri::Emitter;
 use tauri::Manager;
 
 use crate::AppState;
+use crate::baseline_exposure::BaselineOptions;
 use crate::exif_processing;
 use crate::file_management::{
     generate_filename_from_template, parse_virtual_path, read_file_mapped,
@@ -32,9 +33,10 @@ use crate::image_loader::{
     composite_patches_on_image, load_and_composite, load_base_image_from_bytes,
 };
 use crate::image_processing::{
-    AllAdjustments, Crop, GpuContext, RenderOutputPrecision, RenderRequest, downscale_f32_image,
-    get_all_adjustments_from_json, get_or_init_gpu_context, process_and_get_dynamic_image,
-    process_and_get_dynamic_image_with_precision, resolve_tonemapper_override_from_handle,
+    AllAdjustments, Crop, GpuContext, RenderOptions, RenderOutputPrecision, RenderRequest,
+    downscale_f32_image, get_all_adjustments_from_json, get_or_init_gpu_context,
+    process_and_get_dynamic_image, process_and_get_dynamic_image_with_precision,
+    resolve_render_options_from_handle,
 };
 use crate::lut_processing::{
     convert_image_to_cube_lut, generate_identity_lut_image, get_or_load_lut,
@@ -42,8 +44,8 @@ use crate::lut_processing::{
 use crate::mask_generation::{MaskDefinition, build_warped_image_for_masks, generate_mask_bitmap};
 use crate::output_sharpening::{OutputSharpening, apply_output_sharpening};
 
+use crate::as_shot::as_shot;
 use crate::cache_utils::{calculate_full_job_hash, calculate_transform_hash};
-use crate::white_balance::as_shot_white_balance;
 use crate::{
     apply_all_transformations, generate_transformed_preview, get_cached_or_generate_mask,
     hydrate_adjustments, load_settings,
@@ -1031,13 +1033,9 @@ fn process_image_for_export_pipeline(
         })
         .collect();
 
-    let tm_override = resolve_tonemapper_override_from_handle(app_handle, is_raw);
-    let mut all_adjustments = get_all_adjustments_from_json(
-        js_adjustments,
-        is_raw,
-        as_shot_white_balance(path),
-        tm_override,
-    );
+    let render = resolve_render_options_from_handle(app_handle, is_raw);
+    let mut all_adjustments =
+        get_all_adjustments_from_json(js_adjustments, is_raw, as_shot(path), render);
     all_adjustments.global.show_clipping = 0;
 
     let lut_path = js_adjustments["lutPath"].as_str();
@@ -1098,6 +1096,7 @@ fn save_image_with_metadata(
     image: &DynamicImage,
     output_path: &std::path::Path,
     source_path_str: &str,
+    export_xmp: &exif_processing::ExportXmp,
     export_settings: &ExportSettings,
 ) -> Result<(), String> {
     let extension = output_path
@@ -1113,19 +1112,13 @@ fn save_image_with_metadata(
         export_settings.tiff_bit_depth,
     )?;
 
-    let tags = if export_settings.keep_metadata {
-        exif_processing::load_tags_from_sidecar(Path::new(source_path_str))
-    } else {
-        None
-    };
-
     exif_processing::write_image_with_metadata(
         &mut image_bytes,
         source_path_str,
         &extension,
         export_settings.keep_metadata,
         export_settings.strip_gps,
-        tags.as_deref(),
+        export_xmp,
     )?;
 
     #[cfg(target_os = "android")]
@@ -1323,6 +1316,7 @@ fn export_masks_for_image(
     export_settings: &ExportSettings,
     output_path_obj: &std::path::Path,
     source_path_str: &str,
+    export_xmp: &exif_processing::ExportXmp,
     context: &Arc<GpuContext>,
     state: &tauri::State<AppState>,
     is_raw: bool,
@@ -1356,13 +1350,9 @@ fn export_masks_for_image(
     }
 
     if !mask_bitmaps.is_empty() {
-        let tm_override = resolve_tonemapper_override_from_handle(app_handle, is_raw);
-        let all_adjustments = get_all_adjustments_from_json(
-            js_adjustments,
-            is_raw,
-            as_shot_white_balance(source_path_str),
-            tm_override,
-        );
+        let render = resolve_render_options_from_handle(app_handle, is_raw);
+        let all_adjustments =
+            get_all_adjustments_from_json(js_adjustments, is_raw, as_shot(source_path_str), render);
         let lut_path = js_adjustments["lutPath"].as_str();
         let lut = lut_path.and_then(|p| get_or_load_lut(state, p).ok());
         let unique_hash = calculate_full_job_hash(source_path_str, js_adjustments);
@@ -1423,6 +1413,7 @@ fn export_masks_for_image(
                 &with_options,
                 &mask_image_path,
                 source_path_str,
+                export_xmp,
                 export_settings,
             )?;
             ensure_export_not_cancelled(cancellation_token)?;
@@ -1466,13 +1457,12 @@ fn export_adjustments_as_lut(
     let lut_size = 33;
     let identity_image = generate_identity_lut_image(lut_size);
 
-    let tm_override = resolve_tonemapper_override_from_handle(app_handle, false);
-    let mut all_adjustments = get_all_adjustments_from_json(
-        js_adjustments,
-        false,
-        as_shot_white_balance(source_path_str),
-        tm_override,
-    );
+    let render = RenderOptions {
+        baseline: BaselineOptions::default(),
+        ..resolve_render_options_from_handle(app_handle, false)
+    };
+    let mut all_adjustments =
+        get_all_adjustments_from_json(js_adjustments, false, as_shot(source_path_str), render);
 
     all_adjustments.global.show_clipping = 0;
     all_adjustments.global.vignette_amount = 0.0;
@@ -1669,6 +1659,12 @@ pub(crate) async fn export_images_impl(
                     ExportAdjustmentsMode::GlobalOverride(_) => false,
                 };
 
+                let sidecar = crate::exif_processing::load_sidecar_with_camera_crop(
+                    &sidecar_path,
+                    &source_path,
+                );
+                let export_xmp = crate::exif_processing::ExportXmp::from_metadata(&sidecar);
+
                 let mut js_adjustments = match &adjustments_mode {
                     ExportAdjustmentsMode::UseSidecars {
                         active_adjustments, ..
@@ -1677,18 +1673,10 @@ pub(crate) async fn export_images_impl(
                             if let Some(adj) = active_adjustments {
                                 adj.clone()
                             } else {
-                                crate::exif_processing::load_sidecar_with_camera_crop(
-                                    &sidecar_path,
-                                    &source_path,
-                                )
-                                .adjustments
+                                sidecar.adjustments
                             }
                         } else {
-                            crate::exif_processing::load_sidecar_with_camera_crop(
-                                &sidecar_path,
-                                &source_path,
-                            )
-                            .adjustments
+                            sidecar.adjustments
                         }
                     }
                     ExportAdjustmentsMode::GlobalOverride(adj) => adj.clone(),
@@ -1897,6 +1885,7 @@ pub(crate) async fn export_images_impl(
                         &final_image,
                         &output_path,
                         &source_path_str,
+                        &export_xmp,
                         &export_settings,
                     )?;
                     ensure_export_not_cancelled(&cancellation_token_clone)?;
@@ -1913,6 +1902,7 @@ pub(crate) async fn export_images_impl(
                             &export_settings,
                             &output_path,
                             &source_path_str,
+                            &export_xmp,
                             &context_clone,
                             &state,
                             is_raw,
@@ -2352,13 +2342,9 @@ pub async fn estimate_export_sizes(
             })
             .collect();
 
-        let tm_override = resolve_tonemapper_override_from_handle(&app_handle, is_raw);
-        let mut all_adjustments = get_all_adjustments_from_json(
-            &adjustments_clone,
-            is_raw,
-            loaded_image.as_shot_white_balance,
-            tm_override,
-        );
+        let render = resolve_render_options_from_handle(&app_handle, is_raw);
+        let mut all_adjustments =
+            get_all_adjustments_from_json(&adjustments_clone, is_raw, loaded_image.as_shot, render);
         all_adjustments.global.show_clipping = 0;
 
         let lut = adjustments_clone["lutPath"]
@@ -2493,12 +2479,12 @@ pub async fn estimate_export_sizes(
             })
             .collect();
 
-        let tm_override = resolve_tonemapper_override_from_handle(&app_handle, is_raw);
+        let render = resolve_render_options_from_handle(&app_handle, is_raw);
         let mut all_adjustments = get_all_adjustments_from_json(
             &js_adjustments,
             is_raw,
-            as_shot_white_balance(&source_path_str),
-            tm_override,
+            as_shot(&source_path_str),
+            render,
         );
         all_adjustments.global.show_clipping = 0;
 
