@@ -1388,6 +1388,17 @@ where
     image.write_data(data).map_err(|e| e.to_string())
 }
 
+fn encode_mask_alpha_to_png(image: &GrayImage, dpi: Option<u16>) -> Result<Vec<u8>, String> {
+    if dpi == Some(0) {
+        return Err("DPI must be between 1 and 65535".to_string());
+    }
+    let mut bytes = encode_grayscale_to_png(image)?;
+    if let Some(dpi) = dpi {
+        insert_png_phys_chunk(&mut bytes, dpi);
+    }
+    Ok(bytes)
+}
+
 fn insert_png_phys_chunk(image_bytes: &mut Vec<u8>, dpi: u16) {
     const IHDR_END: usize = 33;
     if image_bytes.len() < IHDR_END
@@ -1528,7 +1539,7 @@ fn export_masks_for_image(
                 set_timestamps_from_exif(Path::new(source_path_str), &mask_image_path);
             }
 
-            let alpha_bytes = encode_grayscale_to_png(&alpha_resized)?;
+            let alpha_bytes = encode_mask_alpha_to_png(&alpha_resized, export_settings.dpi)?;
             ensure_export_not_cancelled(cancellation_token)?;
             #[cfg(target_os = "android")]
             {
@@ -3078,6 +3089,22 @@ mod dpi_tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn companion_mask_alpha_density_preserves_grayscale_pixels_and_omitted_bytes() {
+        let image = GrayImage::from_raw(3, 2, vec![0, 17, 255, 63, 129, 200]).unwrap();
+        let plain = encode_grayscale_to_png(&image).unwrap();
+        assert_eq!(encode_mask_alpha_to_png(&image, None).unwrap(), plain);
+        assert!(png_density(&plain).is_none());
+        let bytes = encode_mask_alpha_to_png(&image, Some(600)).unwrap();
+        assert_eq!(image::load_from_memory(&bytes).unwrap().to_luma8(), image);
+        let density = png_density(&bytes).unwrap();
+        assert_eq!(density.len(), 9);
+        assert_eq!(u32::from_be_bytes(density[..4].try_into().unwrap()), 23622);
+        assert_eq!(u32::from_be_bytes(density[4..8].try_into().unwrap()), 23622);
+        assert_eq!(density[8], 1);
+        assert!(encode_mask_alpha_to_png(&image, Some(0)).is_err());
     }
 
     #[test]
