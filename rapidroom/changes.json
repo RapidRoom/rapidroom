@@ -1258,6 +1258,19 @@
       "rendering_change": false,
       "rapidroom_only": true,
       "notes": "Development quality cleanup in src/components/panel/editor; no runtime behavior change intended."
+    },
+    {
+      "id": "eslint-adjustments-cleanup",
+      "title": "Type the adjustment panels and clear their ESLint errors",
+      "category": "ci",
+      "landed": "2026-10-12",
+      "authors": ["yojen7"],
+      "source": "rapidroom",
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "rapidroom_only": true,
+      "notes": "Development quality cleanup in src/components/adjustments; no runtime behavior change intended."
     }
   ]
 }

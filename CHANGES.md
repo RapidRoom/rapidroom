@@ -102,6 +102,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Type the frontend hooks and remove explicit any annotations                                                                                                                                                                                                                       | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
 | Type the right panel and clear its ESLint errors                                                                                                                                                                                                                                  | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
 | Type the editor panel and clear its ESLint errors                                                                                                                                                                                                                                 | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
+| Type the adjustment panels and clear their ESLint errors                                                                                                                                                                                                                          | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-10.
 
@@ -888,3 +889,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@yojen7](https://github.com/yojen7)
 - **Upstream:** RapidRoom only
 - **Notes:** Development quality cleanup in src/components/panel/editor; no runtime behavior change intended.
+
+### Type the adjustment panels and clear their ESLint errors
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** RapidRoom only
+- **Notes:** Development quality cleanup in src/components/adjustments; no runtime behavior change intended.
