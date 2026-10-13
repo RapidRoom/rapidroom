@@ -2,6 +2,23 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "layout-aware-punctuation-shortcuts",
+      "title": "Respect keyboard layout punctuation in shortcuts",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [
+        "CyberTimon/RapidRAW#1142"
+      ],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Shortcut recording and execution use the typed punctuation symbol instead of its physical QWERTY position. AZERTY Ctrl+- now zooms out. Modifiers, number-row ratings, numpad and macOS Delete retain their existing behavior; dead/composition events do not fire shortcuts."
+    },
+    {
       "id": "raw-repair-thumbnail-native-scale",
       "title": "Keep RAW repair patches aligned in regenerated thumbnails",
       "category": "fix",
