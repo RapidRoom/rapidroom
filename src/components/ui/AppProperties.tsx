@@ -235,6 +235,7 @@ export interface AppSettings {
   aiConnectorAddress?: string;
   aiProvider?: string;
   decorations?: any;
+  windowControls?: 'auto' | 'always' | 'hide';
   editorPreviewResolution?: number;
   smallThumbnailResolution?: number;
   mediumThumbnailResolution?: number;

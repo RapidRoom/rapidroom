@@ -1182,6 +1182,29 @@ export default function SettingsPanel({
 
                       {osPlatform === 'linux' && (
                         <SettingItem
+                          label={t('windowControls.preference')}
+                          description={t('windowControls.preferenceDescription')}
+                        >
+                          <div data-window-controls-setting>
+                            <Dropdown
+                              value={appSettings?.windowControls ?? 'auto'}
+                              triggerClassName="bg-bg-primary"
+                              options={[
+                                { value: 'auto', label: t('windowControls.auto') },
+                                { value: 'always', label: t('windowControls.always') },
+                                { value: 'hide', label: t('windowControls.hide') },
+                              ]}
+                              onChange={(value: unknown) => {
+                                if (value === 'auto' || value === 'always' || value === 'hide') {
+                                  onSettingsChange({ ...appSettings, windowControls: value });
+                                }
+                              }}
+                            />
+                          </div>
+                        </SettingItem>
+                      )}
+                      {osPlatform === 'linux' && (
+                        <SettingItem
                           label={t('settings.general.nativeTitlebar')}
                           description={t('settings.general.nativeTitlebarDesc')}
                         >
