@@ -287,7 +287,7 @@ pub async fn preview_photo_stacks(
         let mut seen = HashSet::new();
         for path in paths {
             let path = source(&path)?;
-            if !seen.insert(std::fs::canonicalize(path).map_err(|e| e.to_string())?) {
+            if !seen.insert(std::fs::canonicalize(&path).map_err(|e| e.to_string())?) {
                 continue;
             }
             let (_, sidecar) = parse_virtual_path(&path.to_string_lossy());
