@@ -6,7 +6,9 @@
       "title": "Gate daily upstream sync on exact checks and unchanged renders",
       "category": "ci",
       "landed": "2026-10-13",
-      "authors": ["yojen7"],
+      "authors": [
+        "yojen7"
+      ],
       "source": "rapidroom (original workflow and merge-gate tests)",
       "commits": [],
       "upstream_issues": [],
@@ -15,17 +17,47 @@
       "notes": "The daily sync fails closed on missing checks, verifies the complete required hosted set on the exact head/base, and refreshes checks when main advances. Changed renders never trigger reference recording or merge: the PR remains open for human review, with an assigned issue and before/after artifact panels. Initial sync waits for PR #179."
     },
     {
+      "id": "recursive-shift-range-selection",
+      "title": "Keep Shift-click selection within visible folders in Recursive view",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Recursive-view Shift-click selection follows the visible folder-grouped order and skips collapsed folders. Flat view retains its existing global sort order."
+    },
+    {
       "id": "atomic-write-failure-injection",
       "title": "Test atomic file writes under failure conditions",
       "category": "ci",
       "landed": "2026-10-13",
-      "authors": ["yojen7"],
+      "authors": [
+        "yojen7"
+      ],
       "source": "rapidroom (original failure-injection tests)",
       "commits": [],
       "upstream_issues": [],
       "upstream_prs": [],
       "rendering_change": false,
       "notes": "Injects partial-write disk-full, sync/finalization, and final-name collision failures into atomic sidecar writes. Each test verifies the existing file is preserved and the temporary file is removed. Production file-write behavior is unchanged."
+    },
+    {
+      "id": "recursive-view-folder-navigation",
+      "title": "Keep arrow-key navigation within folders in Recursive view",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Arrow-key navigation in Recursive library view stays within the selected image's parent folder and preserves that folder's sort order. Other view modes retain their existing global navigation order."
     },
     {
       "id": "crs-interoperability-scoped-reader",
