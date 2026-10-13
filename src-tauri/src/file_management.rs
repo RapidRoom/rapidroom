@@ -3125,7 +3125,12 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         }
         metadata.adjustments = pending.clone();
     }
+    let preserved_adjustments =
+        (!has_supported_adjustments).then(|| std::mem::take(&mut metadata.adjustments));
     merge_xmp_metadata_fields(&xmp_content, &mut metadata);
+    if let Some(preserved) = preserved_adjustments {
+        metadata.adjustments = preserved;
+    }
 
     if has_supported_adjustments || has_supported_metadata || draft_preserved {
         let json_string =
@@ -6190,10 +6195,7 @@ mod tests {
             imported.metadata.tags,
             Some(vec!["portfolio".to_string(), "color:red".to_string()])
         );
-        assert_eq!(
-            imported.metadata.adjustments["rating"],
-            serde_json::json!(3)
-        );
+        assert_eq!(imported.metadata.adjustments, Value::Null);
 
         fs::remove_dir_all(test_directory).unwrap();
     }

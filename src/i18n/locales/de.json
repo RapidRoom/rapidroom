@@ -317,7 +317,8 @@
       "title": "XMP Import Report",
       "unchanged": "Not imported — no supported changes ({{total}})",
       "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
-      "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved."
+      "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved."
     },
     "toasts": {
       "albumFilesUnreachable": "Keine Dateien dieses Albums sind erreichbar. Bitte den Datenträger verbinden oder die Ordner neu zuordnen, falls sie verschoben wurden.",

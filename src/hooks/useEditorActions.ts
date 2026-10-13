@@ -31,8 +31,15 @@ export const debouncedSetHistory = debounce((newAdj: Adjustments) => {
 
 let cardEditNoticeShownFor: string | null = null;
 const pendingEditorSaves = new Set<Promise<unknown>>();
+export interface XmpEditorDraft {
+  path: string;
+  adjustments: Adjustments;
+}
+let queuedEditorDraft: XmpEditorDraft | undefined;
+let importSavePause: Map<string, XmpEditorDraft> | undefined;
 
-export const debouncedSave = debounce((path: string, adjustmentsToSave: Adjustments) => {
+const saveDebounce = debounce((path: string, adjustmentsToSave: Adjustments) => {
+  queuedEditorDraft = undefined;
   const cardRoot = useLibraryStore.getState().cardBrowseRoot;
   if (isPathInCardRoot(path, cardRoot)) {
     if (cardEditNoticeShownFor !== cardRoot) {
@@ -41,7 +48,6 @@ export const debouncedSave = debounce((path: string, adjustmentsToSave: Adjustme
     }
     return;
   }
-
   const save = invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave });
   pendingEditorSaves.add(save);
   void save.then(
@@ -55,36 +61,83 @@ export const debouncedSave = debounce((path: string, adjustmentsToSave: Adjustme
   return save;
 }, 300);
 
+export const debouncedSave = Object.assign(
+  (path: string, adjustments: Adjustments) => {
+    const draft = { path, adjustments };
+    if (importSavePause) {
+      importSavePause.set(path, draft);
+      return;
+    }
+    queuedEditorDraft = draft;
+    return saveDebounce(path, adjustments);
+  },
+  {
+    cancel: () => {
+      queuedEditorDraft = undefined;
+      saveDebounce.cancel();
+    },
+    flush: () => saveDebounce.flush(),
+  },
+);
+
 export async function waitForPendingEditorSaves(): Promise<void> {
-  await Promise.all([...pendingEditorSaves]);
+  while (pendingEditorSaves.size) await Promise.all([...pendingEditorSaves]);
 }
 
-export interface XmpEditorDraft {
-  path: string;
-  adjustments: Adjustments;
+function captureEditorDraft(): XmpEditorDraft | undefined {
+  const state = useEditorStore.getState();
+  return state.selectedImage ? { path: state.selectedImage.path, adjustments: state.adjustments } : undefined;
 }
 
-export async function prepareEditorDraftForXmpImport(): Promise<XmpEditorDraft | undefined> {
-  const capture = () => {
-    const state = useEditorStore.getState();
-    return state.selectedImage ? { path: state.selectedImage.path, adjustments: state.adjustments } : undefined;
-  };
-  const before = capture();
-  // Do not flush a queued autosave: metadata sync could rewrite the incoming XMP.
+export interface XmpImportSavePause {
+  draft?: XmpEditorDraft;
+  finish(consumedPaths: string[]): void;
+}
+
+export async function prepareEditorDraftForXmpImport(targetPath?: string): Promise<XmpImportSavePause> {
+  if (importSavePause) throw new Error('An XMP import is already in progress');
+  const buffered = new Map<string, XmpEditorDraft>();
+  const captured = new Map<string, XmpEditorDraft>();
+  if (queuedEditorDraft) captured.set(queuedEditorDraft.path, queuedEditorDraft);
+  const before = captureEditorDraft();
+  if (before) captured.set(before.path, before);
+  // Pause new requests synchronously, before waiting for existing writes. Never
+  // flush a queued autosave into the incoming XMP packet.
+  importSavePause = buffered;
   debouncedSave.cancel();
+  let finished = false;
+  const finish = (consumedPaths: string[]) => {
+    if (finished) return;
+    finished = true;
+    const current = captureEditorDraft();
+    const writes = new Map<string, XmpEditorDraft>();
+    for (const [path, draft] of captured) {
+      if (!consumedPaths.includes(path)) writes.set(path, current?.path === path ? current : draft);
+    }
+    for (const [path, draft] of buffered) {
+      if (consumedPaths.includes(path) && draft.adjustments === captured.get(path)?.adjustments) continue;
+      writes.set(path, current?.path === path ? current : draft);
+    }
+    importSavePause = undefined;
+    const entries = [...writes.values()];
+    entries.forEach((draft, index) => {
+      debouncedSave(draft.path, draft.adjustments);
+      // The ordinary debounce has one slot; retain buffered writes to other photos.
+      if (index < entries.length - 1) debouncedSave.flush();
+    });
+  };
   try {
     await waitForPendingEditorSaves();
-    debouncedSave.cancel();
     debouncedSetHistory.flush();
-    return capture();
+    for (const [path, bufferedDraft] of buffered) captured.set(path, bufferedDraft);
+    const active = captureEditorDraft();
+    if (active) captured.set(active.path, active);
+    const draft = targetPath ? captured.get(targetPath) : active;
+    return { draft, finish };
   } catch (error) {
-    if (before) debouncedSave(before.path, before.adjustments);
+    finish([]);
     throw error;
   }
-}
-
-export function resumeEditorDraftAfterXmpImport(draft: XmpEditorDraft | undefined, consumed: boolean): void {
-  if (draft && !consumed) debouncedSave(draft.path, draft.adjustments);
 }
 
 export function useEditorActions() {

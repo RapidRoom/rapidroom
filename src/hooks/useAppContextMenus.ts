@@ -84,7 +84,7 @@ import {
 import TaggingSubMenu from '../context/TaggingSubMenu';
 import {
   prepareEditorDraftForXmpImport,
-  resumeEditorDraftAfterXmpImport,
+  type XmpImportSavePause,
   type XmpEditorDraft,
   useEditorActions,
 } from './useEditorActions';
@@ -277,24 +277,33 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
     [albumIcons, t],
   );
 
-  const applyImportedXmpMetadata = useCallback((targetPath: string, metadata: ImportedXmpMetadata) => {
-    if (!metadata.adjustments || metadata.adjustments.is_null) return;
+  const applyImportedXmpMetadata = useCallback(
+    (targetPath: string, metadata: ImportedXmpMetadata, expectedDraft?: XmpEditorDraft) => {
+      if (!metadata.adjustments || metadata.adjustments.is_null) return;
 
-    const normalized = normalizeLoadedAdjustments(metadata.adjustments as Adjustments);
-    const editorState = useEditorStore.getState();
-    if (editorState.selectedImage?.path === targetPath) {
-      editorState.setEditor({ adjustments: normalized });
-      editorState.resetHistory(normalized);
-    }
+      const normalized = normalizeLoadedAdjustments(metadata.adjustments as Adjustments);
+      const editorState = useEditorStore.getState();
+      if (
+        expectedDraft?.path === targetPath &&
+        editorState.selectedImage?.path === targetPath &&
+        editorState.adjustments !== expectedDraft.adjustments
+      )
+        return;
+      if (editorState.selectedImage?.path === targetPath) {
+        editorState.setEditor({ adjustments: normalized });
+        editorState.resetHistory(normalized);
+      }
 
-    const libraryState = useLibraryStore.getState();
-    if (libraryState.libraryActivePath === targetPath) {
-      libraryState.setLibrary({ libraryActiveAdjustments: normalized });
-    }
-  }, []);
+      const libraryState = useLibraryStore.getState();
+      if (libraryState.libraryActivePath === targetPath) {
+        libraryState.setLibrary({ libraryActiveAdjustments: normalized });
+      }
+    },
+    [],
+  );
 
   const refreshImportedXmpPaths = useCallback(
-    async (importedPaths: string[]) => {
+    async (importedPaths: string[], expectedDraft?: XmpEditorDraft) => {
       importedPaths.forEach((path) => globalImageCache.delete(path));
 
       const editorState = useEditorStore.getState();
@@ -310,7 +319,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       await Promise.all(
         [...pathsToRefresh].map(async (path) => {
           const metadata = await invoke<ImportedXmpMetadata>(Invokes.LoadMetadata, { path });
-          applyImportedXmpMetadata(path, metadata);
+          applyImportedXmpMetadata(path, metadata, expectedDraft);
         }),
       );
     },
@@ -319,10 +328,12 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
 
   const importXmpAdjustmentsForImage = useCallback(
     async (targetPath: string) => {
+      let pause: XmpImportSavePause | undefined;
       let draft: XmpEditorDraft | undefined;
-      let draftConsumed = false;
+      let consumedPaths: string[] = [];
       try {
-        draft = await prepareEditorDraftForXmpImport();
+        pause = await prepareEditorDraftForXmpImport(targetPath);
+        draft = pause.draft;
         globalImageCache.delete(targetPath);
 
         let metadata: ImportedXmpAdjustments;
@@ -350,8 +361,13 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           });
         }
 
-        draftConsumed = draft?.path === targetPath && (metadata.adjustmentsApplied || metadata.draftPreserved);
-        if (metadata.adjustmentsApplied) applyImportedXmpMetadata(targetPath, metadata);
+        const active = useEditorStore.getState();
+        const newerDraft =
+          draft?.path === targetPath &&
+          active.selectedImage?.path === targetPath &&
+          active.adjustments !== draft.adjustments;
+        if (!newerDraft && (metadata.adjustmentsApplied || metadata.draftPreserved)) consumedPaths = [targetPath];
+        if (metadata.adjustmentsApplied) applyImportedXmpMetadata(targetPath, metadata, draft);
         await props.refreshImageList();
         toast.success(
           t(
@@ -360,6 +376,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               : 'contextMenus.xmpImportReport.metadataOnly',
           ),
         );
+        if (newerDraft) toast.info(t('contextMenus.xmpImportReport.concurrentEditsPreserved'));
         if (metadata.alreadyApplied)
           toast.info(t('contextMenus.xmpImportReport.alreadyAppliedPhoto'), { autoClose: false });
         if (metadata.adjustmentsApplied)
@@ -376,7 +393,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         console.error('Failed to import XMP adjustments:', err);
         toast.error(t('contextMenus.toasts.failedImportXmpAdjustments', { err }));
       } finally {
-        resumeEditorDraftAfterXmpImport(draft, draftConsumed);
+        pause?.finish(consumedPaths);
       }
     },
     [applyImportedXmpMetadata, describeNotTransferred, props, t],
@@ -393,11 +410,13 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       });
       const progressToastId = toast.loading(t('contextMenus.toasts.importingMatchingXmpSidecars'));
       let stopListening: (() => void) | undefined;
+      let pause: XmpImportSavePause | undefined;
       let draft: XmpEditorDraft | undefined;
-      let draftConsumed = false;
+      let consumedPaths: string[] = [];
 
       try {
-        draft = await prepareEditorDraftForXmpImport();
+        pause = await prepareEditorDraftForXmpImport();
+        draft = pause.draft;
         stopListening = await listen<MatchingXmpSidecarImportProgress>('xmp-sidecar-import-progress', ({ payload }) => {
           if (payload.folderPath !== targetPath) return;
           useProcessStore.getState().setImportState({
@@ -410,11 +429,12 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           folderPath: targetPath,
           pendingDraft: draft,
         });
-        draftConsumed =
-          !!draft &&
-          (result.adjustmentsImportedPaths.includes(draft.path) || result.preservedDraftPaths.includes(draft.path));
+        consumedPaths = [...result.adjustmentsImportedPaths, ...result.preservedDraftPaths];
+        const active = useEditorStore.getState();
+        if (draft && active.selectedImage?.path === draft.path && active.adjustments !== draft.adjustments)
+          consumedPaths = consumedPaths.filter((path) => path !== draft.path);
         result.importedPaths.forEach((path) => globalImageCache.delete(path));
-        await refreshImportedXmpPaths(result.adjustmentsImportedPaths);
+        await refreshImportedXmpPaths(result.adjustmentsImportedPaths, draft);
 
         const { currentFolderPath, imageList } = useLibraryStore.getState();
         const importedVisibleImage = imageList.some((image) => result.importedPaths.includes(image.path));
@@ -536,7 +556,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           type: 'error',
         });
       } finally {
-        resumeEditorDraftAfterXmpImport(draft, draftConsumed);
+        pause?.finish(consumedPaths);
         stopListening?.();
       }
     },

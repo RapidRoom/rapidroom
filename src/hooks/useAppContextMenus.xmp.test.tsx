@@ -138,6 +138,107 @@ describe('public XMP import state and history', () => {
     expect(invoke).toHaveBeenCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: draft });
   });
 
+  it('a failed folder import resumes the newest draft queued while import awaited', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    let fail!: (error: Error) => void;
+    mockCommand(
+      Invokes.ImportMatchingXmpSidecarsInFolder,
+      () =>
+        new Promise((_resolve, reject) => {
+          fail = reject;
+        }),
+    );
+    const operation = clickImport(true);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    const latest = { ...draft, exposure: 1.5 };
+    useEditorStore.setState({ adjustments: latest });
+    debouncedSave(path, latest);
+    debouncedSave.flush();
+    vi.advanceTimersByTime(600);
+    expect(invoke.mock.calls.map(([name]) => name)).toEqual([Invokes.ImportMatchingXmpSidecarsInFolder]);
+    fail(new Error('read failed'));
+    await operation;
+    vi.advanceTimersByTime(300);
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: latest });
+  });
+
+  it('cancelled file selection resumes the newer live draft instead of its earlier snapshot', async () => {
+    mockCommand(Invokes.ImportXmpAdjustmentsForImage, () => {
+      throw new Error('No matching XMP sidecar');
+    });
+    let cancel!: (value: null) => void;
+    mocks.open.mockImplementation(
+      () =>
+        new Promise<null>((resolve) => {
+          cancel = resolve;
+        }),
+    );
+    const operation = clickImport();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    const latest = { ...draft, exposure: 1.5 };
+    useEditorStore.setState({ adjustments: latest });
+    debouncedSave(path, latest);
+    cancel(null);
+    await operation;
+    vi.advanceTimersByTime(300);
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: latest });
+  });
+
+  it('edits made during a successful development import remain the latest active draft', async () => {
+    let complete!: (value: unknown) => void;
+    mockCommand(
+      Invokes.ImportXmpAdjustmentsForImage,
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const operation = clickImport();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    const latest = { ...draft, exposure: 1.5 };
+    useEditorStore.setState({ adjustments: latest });
+    debouncedSave(path, latest);
+    complete({ adjustments: { exposure: 4 }, adjustmentsApplied: true, alreadyApplied: false, draftPreserved: false });
+    await operation;
+    expect(useEditorStore.getState().adjustments).toBe(latest);
+    vi.advanceTimersByTime(300);
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: latest });
+  });
+
+  it('preserves the target photo draft if selection changes while an existing write drains', async () => {
+    let finish!: () => void;
+    mockCommand(
+      Invokes.SaveMetadataAndUpdateThumbnail,
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    vi.advanceTimersByTime(300);
+    mockCommand(Invokes.ImportXmpAdjustmentsForImage, (args) => {
+      expect(args?.pendingAdjustments).toBe(draft);
+      return { adjustments: {}, adjustmentsApplied: false, alreadyApplied: true, draftPreserved: true };
+    });
+    const operation = clickImport();
+    const other = { ...draft, exposure: 2 };
+    const selected = useEditorStore.getState().selectedImage!;
+    useEditorStore.setState({ selectedImage: { ...selected, path: '/photos/b.NEF' }, adjustments: other });
+    finish();
+    await operation;
+    expect(useEditorStore.getState().adjustments).toBe(other);
+    mockCommand(Invokes.SaveMetadataAndUpdateThumbnail, () => undefined);
+    vi.advanceTimersByTime(300);
+    expect(
+      invoke.mock.calls.filter(
+        ([name, args]) => name === Invokes.SaveMetadataAndUpdateThumbnail && args?.path === path,
+      ),
+    ).toHaveLength(1);
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, {
+      path: '/photos/b.NEF',
+      adjustments: other,
+    });
+  });
+
   it('folder metadata-only imports preserve the active history and send its pending draft', async () => {
     mockCommand(Invokes.ImportMatchingXmpSidecarsInFolder, (args) => {
       expect(args?.pendingDraft).toEqual({ path, adjustments: draft });
