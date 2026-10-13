@@ -20,6 +20,21 @@
       "notes": "RAW thumbnails with saved repair patches composite on a native-resolution base before resizing, preventing shifted, enlarged or missing repairs after copying settings. Photos without repair patches retain their fast decode path. Main-image processing and exports are unchanged."
     },
     {
+      "id": "recursive-shift-range-selection",
+      "title": "Keep Shift-click selection within visible folders in Recursive view",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Recursive-view Shift-click selection follows the visible folder-grouped order and skips collapsed folders. Flat view retains its existing global sort order."
+    },
+    {
       "id": "atomic-write-failure-injection",
       "title": "Test atomic file writes under failure conditions",
       "category": "ci",
