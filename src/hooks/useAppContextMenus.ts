@@ -84,6 +84,7 @@ import {
 import TaggingSubMenu from '../context/TaggingSubMenu';
 import {
   prepareEditorDraftForXmpImport,
+  markEditorDraftPersisted,
   type XmpImportSavePause,
   type XmpEditorDraft,
   useEditorActions,
@@ -290,6 +291,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       )
         return;
       if (editorState.selectedImage?.path === targetPath) {
+        markEditorDraftPersisted(targetPath, normalized);
         editorState.setEditor({ adjustments: normalized });
         editorState.resetHistory(normalized);
       }

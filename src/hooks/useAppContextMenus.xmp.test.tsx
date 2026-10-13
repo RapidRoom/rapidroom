@@ -123,8 +123,14 @@ describe('public XMP import state and history', () => {
     await clickImport();
     expect(useEditorStore.getState().adjustments.exposure).toBe(1.25);
     expect(useEditorStore.getState().history).toHaveLength(1);
+    // useImageProcessing echoes newly applied adjustments into autosave.
+    debouncedSave(path, useEditorStore.getState().adjustments);
     vi.advanceTimersByTime(600);
     expect(invoke).toHaveBeenCalledTimes(1);
+    const newer = { ...useEditorStore.getState().adjustments, exposure: 2 };
+    debouncedSave(path, newer);
+    vi.advanceTimersByTime(300);
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: newer });
   });
 
   it('resumes the draft autosave if choosing a sidecar is cancelled', async () => {

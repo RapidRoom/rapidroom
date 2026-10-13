@@ -3186,7 +3186,7 @@ pub fn import_xmp_adjustments_for_image(
     );
 
     Ok(XmpImageImportResult {
-        metadata: crate::exif_processing::load_sidecar(&sidecar_path),
+        metadata: imported.metadata,
         not_transferred,
         adjustments_applied,
         already_applied,
@@ -6363,14 +6363,16 @@ mod lightroom_xmp_import_tests {
         let raw = dir.path().join("photo.NEF");
         let sidecar = dir.path().join("photo.NEF.rrdata");
         let xmp = dir.path().join("photo.xmp");
-        let mut metadata = ImageMetadata::default();
-        metadata.adjustments = serde_json::json!({
-            "exposure": 0.75,
-            "curves": {"luma": [{"x": 0, "y": 0}, {"x": 255, "y": 220}]},
-            "masks": [{"id": "kept-mask", "subMasks": []}],
-            "lensCorrectionMode": "manual",
-            "lensDistortion": 12
-        });
+        let metadata = ImageMetadata {
+            adjustments: serde_json::json!({
+                "exposure": 0.75,
+                "curves": {"luma": [{"x": 0, "y": 0}, {"x": 255, "y": 220}]},
+                "masks": [{"id": "kept-mask", "subMasks": []}],
+                "lensCorrectionMode": "manual",
+                "lensDistortion": 12
+            }),
+            ..Default::default()
+        };
         fs::write(&sidecar, serde_json::to_string(&metadata).unwrap()).unwrap();
         fs::write(&raw, b"untouched raw bytes").unwrap();
         let xml = lightroom_xmp(r#"xmp:Rating="5""#);
@@ -6395,8 +6397,10 @@ mod lightroom_xmp_import_tests {
         let raw = dir.path().join("photo.NEF");
         let sidecar = dir.path().join("photo.NEF.rrdata");
         let xmp = dir.path().join("photo.xmp");
-        let mut metadata = ImageMetadata::default();
-        metadata.adjustments = serde_json::json!({"exposure": 0.75, "contrast": 12});
+        let metadata = ImageMetadata {
+            adjustments: serde_json::json!({"exposure": 0.75, "contrast": 12}),
+            ..Default::default()
+        };
         let original = serde_json::to_string(&metadata).unwrap();
         fs::write(&sidecar, &original).unwrap();
         fs::write(&raw, b"untouched raw bytes").unwrap();

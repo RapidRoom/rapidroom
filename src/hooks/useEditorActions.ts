@@ -36,6 +36,11 @@ export interface XmpEditorDraft {
   adjustments: Adjustments;
 }
 let queuedEditorDraft: XmpEditorDraft | undefined;
+let persistedEditorDraft: XmpEditorDraft | undefined;
+
+export function markEditorDraftPersisted(path: string, adjustments: Adjustments): void {
+  persistedEditorDraft = { path, adjustments };
+}
 let importSavePause: Map<string, XmpEditorDraft> | undefined;
 
 const saveDebounce = debounce((path: string, adjustmentsToSave: Adjustments) => {
@@ -64,6 +69,10 @@ const saveDebounce = debounce((path: string, adjustmentsToSave: Adjustments) => 
 export const debouncedSave = Object.assign(
   (path: string, adjustments: Adjustments) => {
     const draft = { path, adjustments };
+    if (persistedEditorDraft?.path === path) {
+      if (persistedEditorDraft.adjustments === adjustments) return;
+      persistedEditorDraft = undefined;
+    }
     if (importSavePause) {
       importSavePause.set(path, draft);
       return;
