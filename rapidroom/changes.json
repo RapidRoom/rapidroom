@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "upstream-sync-guarded-merges",
+      "title": "Gate daily upstream sync on exact checks and unchanged renders",
+      "category": "ci",
+      "landed": "2026-10-13",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original workflow and merge-gate tests)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "The daily sync fails closed on missing checks, verifies the complete required hosted set on the exact head/base, and refreshes checks when main advances. Changed renders never trigger reference recording or merge: the PR remains open for human review, with an assigned issue and before/after artifact panels. Initial sync waits for PR #179."
+    },
+    {
       "id": "atomic-write-failure-injection",
       "title": "Test atomic file writes under failure conditions",
       "category": "ci",
