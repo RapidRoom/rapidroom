@@ -7,12 +7,14 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { expandGroupedPaths } from './imageGrouping';
 
 const folder = (path: string) => path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')));
+export const isStackedPhoto = (image: ImageFile) =>
+  !!image.stack && !image.is_virtual_copy && !image.path.includes('?vc=');
 export const stackKey = (image: ImageFile) => `${folder(image.path)}\0${image.stack?.id}`;
 
 export function collapseStacks(images: ImageFile[], expanded: Set<string>): ImageFile[] {
   const buckets = new Map<string, ImageFile[]>();
   for (const image of images) {
-    if (!image.stack) continue;
+    if (!isStackedPhoto(image)) continue;
     const key = stackKey(image);
     const members = buckets.get(key) ?? [];
     members.push(image);
@@ -20,7 +22,7 @@ export function collapseStacks(images: ImageFile[], expanded: Set<string>): Imag
   }
   const emitted = new Set<string>();
   return images.flatMap((image) => {
-    if (!image.stack) return [image];
+    if (!isStackedPhoto(image)) return [image];
     const key = stackKey(image);
     if (emitted.has(key)) return [];
     emitted.add(key);
@@ -32,8 +34,10 @@ export function collapseStacks(images: ImageFile[], expanded: Set<string>): Imag
 }
 
 export function expandStackPaths(images: ImageFile[], paths: string[]): string[] {
-  const keys = new Set(images.filter((i) => paths.includes(i.path) && i.stack).map(stackKey));
-  return [...new Set([...paths, ...images.filter((i) => i.stack && keys.has(stackKey(i))).map((i) => i.path)])];
+  const keys = new Set(images.filter((i) => paths.includes(i.path) && isStackedPhoto(i)).map(stackKey));
+  return [
+    ...new Set([...paths, ...images.filter((i) => isStackedPhoto(i) && keys.has(stackKey(i))).map((i) => i.path)]),
+  ];
 }
 
 export function toggleStack(key: string) {

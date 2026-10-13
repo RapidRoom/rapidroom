@@ -44,3 +44,11 @@ describe('photo stacks shared by grid and filmstrip', () => {
     expect(collapseStacks(groups.displayList, new Set([stackKey(jpeg)]))).toEqual([jpeg, raw]);
   });
 });
+
+it('does not hide or expand legacy virtual copies carrying a physical stack ID', () => {
+  const physical = image('/photos/cover.raw', 0);
+  const copy = { ...image('/photos/cover.raw?vc=copy', 0), is_virtual_copy: true };
+  expect(collapseStacks([physical, copy], new Set())).toEqual([physical, copy]);
+  expect(expandStackPaths([physical, copy], [copy.path])).toEqual([copy.path]);
+  expect(expandStackPaths([physical, copy], [physical.path])).toEqual([physical.path]);
+});

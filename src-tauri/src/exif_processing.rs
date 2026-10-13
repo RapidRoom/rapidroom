@@ -246,6 +246,13 @@ pub fn truncate_large_exif(value: &str) -> String {
 }
 
 pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
+    let _lock = crate::file_management::SIDECAR_METADATA_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    load_sidecar_unlocked(sidecar_path)
+}
+
+pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
     if !sidecar_path.exists() {
         return ImageMetadata::default();
     }

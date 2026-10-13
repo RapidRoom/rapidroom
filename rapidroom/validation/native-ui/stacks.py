@@ -93,4 +93,4 @@ def run_stack_checks(smoke, wait_for):
     wait_for(lambda: not any(saved()), 'native test cleanup unstacks fixtures')
     # Leave the existing full smoke scenario focused on the real CC0 RAW.
     click(str(case / 'input/smoke.ARW'))
-    smoke.step('stack sidecar restart contract', {'positions_written_and_reloaded_from_disk': True, 'full_app_restart': False})
+    smoke.step('stack sidecar disk persistence contract', {'positions_written_and_reloaded_from_disk': True, 'full_app_restart': False})

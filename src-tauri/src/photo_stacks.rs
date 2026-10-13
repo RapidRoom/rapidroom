@@ -45,11 +45,12 @@ fn source(path: &str) -> Result<PathBuf, String> {
     if path.contains('?') {
         return Err("Virtual copies cannot be stacked".into());
     }
-    let path = std::fs::canonicalize(path).map_err(|e| e.to_string())?;
-    if !path.is_file() || !crate::formats::is_supported_image_file(&path) {
+    let logical = PathBuf::from(path);
+    let physical = std::fs::canonicalize(&logical).map_err(|e| e.to_string())?;
+    if !physical.is_file() || !crate::formats::is_supported_image_file(&logical) {
         return Err("Stacks require local image files".into());
     }
-    Ok(path)
+    Ok(logical)
 }
 
 // Preflight every sidecar, then replace each atomically. Restore exact bytes on
@@ -143,16 +144,29 @@ pub(crate) fn expanded(paths: &[String]) -> Result<Vec<PathBuf>, String> {
         all.extend(members.into_iter().map(|(_, p)| p));
     }
     let mut seen = HashSet::new();
-    all.retain(|p| seen.insert(p.clone()));
+    all.retain(|p| seen.insert(std::fs::canonicalize(p).unwrap_or_else(|_| p.clone())));
     Ok(all)
+}
+
+pub(crate) fn metadata_paths(paths: &[String]) -> Result<Vec<String>, String> {
+    let (virtual_paths, physical): (Vec<_>, Vec<_>) =
+        paths.iter().cloned().partition(|p| p.contains("?vc="));
+    let mut targets: Vec<String> = expanded(&physical)?
+        .iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect();
+    targets.extend(virtual_paths);
+    let mut seen = HashSet::new();
+    targets.retain(|p| seen.insert(p.clone()));
+    Ok(targets)
 }
 
 fn group_updates(paths: &[PathBuf]) -> Result<Vec<(PathBuf, Option<StackMember>)>, String> {
     if paths.len() < 2 {
         return Err("Select at least two images to stack".into());
     }
-    let folder = paths[0].parent();
-    if paths.iter().any(|p| p.parent() != folder) {
+    let folder = parent_identity(&paths[0]);
+    if paths.iter().any(|p| parent_identity(p) != folder) {
         return Err("A stack must be in one folder".into());
     }
     let id = uuid::Uuid::new_v4().to_string();
@@ -225,6 +239,11 @@ fn capture_time(exif: &HashMap<String, String>) -> Option<NaiveDateTime> {
     base.checked_add_signed(chrono::Duration::nanoseconds(nanos))
 }
 
+fn parent_identity(path: &Path) -> PathBuf {
+    let parent = path.parent().unwrap_or_else(|| Path::new(""));
+    std::fs::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf())
+}
+
 fn time_groups(
     mut photos: Vec<(PathBuf, NaiveDateTime)>,
     seconds: f64,
@@ -233,8 +252,8 @@ fn time_groups(
         return Err("Use a capture-time gap from 0 to 3600 seconds".into());
     }
     photos.sort_by(|a, b| {
-        a.0.parent()
-            .cmp(&b.0.parent())
+        parent_identity(&a.0)
+            .cmp(&parent_identity(&b.0))
             .then(a.1.cmp(&b.1))
             .then(a.0.cmp(&b.0))
     });
@@ -242,9 +261,9 @@ fn time_groups(
     let mut groups: Vec<Vec<String>> = Vec::new();
     let mut previous: Option<(PathBuf, NaiveDateTime)> = None;
     for (path, time) in photos {
-        let same = previous
-            .as_ref()
-            .is_some_and(|(prev, t)| prev.parent() == path.parent() && time - *t <= gap);
+        let same = previous.as_ref().is_some_and(|(prev, t)| {
+            parent_identity(prev) == parent_identity(&path) && time - *t <= gap
+        });
         if !same {
             groups.push(Vec::new());
         }
@@ -268,7 +287,7 @@ pub async fn preview_photo_stacks(
         let mut seen = HashSet::new();
         for path in paths {
             let path = source(&path)?;
-            if !seen.insert(path.clone()) {
+            if !seen.insert(std::fs::canonicalize(&path).map_err(|e| e.to_string())?) {
                 continue;
             }
             let (_, sidecar) = parse_virtual_path(&path.to_string_lossy());
@@ -307,7 +326,7 @@ pub fn apply_photo_stacks(groups: Vec<Vec<String>>) -> Result<Vec<StackUpdate>, 
             .map(|p| source(p))
             .collect::<Result<Vec<_>, _>>()?;
         for path in &paths {
-            if !seen.insert(path.clone()) {
+            if !seen.insert(std::fs::canonicalize(&path).map_err(|e| e.to_string())?) {
                 return Err("An image belongs to multiple preview groups".into());
             }
             let (_, sidecar) = parse_virtual_path(&path.to_string_lossy());
@@ -459,5 +478,116 @@ mod failure_tests {
         assert_eq!(std::fs::read(first).unwrap(), original);
         let (_, second) = parse_virtual_path(&paths[1].to_string_lossy());
         assert!(!second.exists());
+    }
+}
+
+#[cfg(all(test, unix))]
+mod alias_tests {
+    use super::*;
+    use crate::file_management::card_mode_test_support::{CardMode, folders};
+    #[test]
+    fn symlinked_library_updates_preserve_ui_paths_across_stack_actions() {
+        let _mode = CardMode::off();
+        let f = folders();
+        for name in ["one.jpg", "two.jpg"] {
+            std::fs::write(f.library.join(name), b"fixture").unwrap();
+        }
+        let alias = f.card.parent().unwrap().join("alias-library");
+        std::os::unix::fs::symlink(&f.library, &alias).unwrap();
+        let paths: Vec<String> = ["one.jpg", "two.jpg"]
+            .map(|n| alias.join(n).to_string_lossy().into_owned())
+            .into();
+        let updates = edit_photo_stack(paths.clone(), StackAction::Stack).unwrap();
+        assert_eq!(
+            updates.iter().map(|u| u.path.clone()).collect::<Vec<_>>(),
+            paths
+        );
+        let updates = edit_photo_stack(vec![paths[1].clone()], StackAction::Cover).unwrap();
+        assert!(updates.iter().all(|u| paths.contains(&u.path)));
+        assert_eq!(updates[0].path, paths[1]);
+        let targets = metadata_paths(&[paths[0].clone()]).unwrap();
+        assert!(targets.iter().all(|p| paths.contains(p)));
+        assert_eq!(targets.len(), 2);
+        let updates = edit_photo_stack(vec![paths[0].clone()], StackAction::Unstack).unwrap();
+        assert!(
+            updates
+                .iter()
+                .all(|u| paths.contains(&u.path) && u.stack.is_none())
+        );
+        let updates = apply_photo_stacks(vec![paths.clone()]).unwrap();
+        assert_eq!(
+            updates.iter().map(|u| u.path.clone()).collect::<Vec<_>>(),
+            paths
+        );
+        let real = f.library.join("one.jpg").to_string_lossy().into_owned();
+        assert_eq!(expanded(&[paths[0].clone(), real]).unwrap().len(), 2);
+    }
+}
+
+#[cfg(test)]
+mod concurrency_tests {
+    use super::*;
+    use crate::file_management::{
+        card_mode_test_support::{CardMode, folders},
+        update_sidecar,
+    };
+    #[test]
+    fn stack_batch_and_adjustment_write_are_serialized_without_losing_either_change() {
+        let _mode = CardMode::off();
+        let f = folders();
+        let a = f.library.join("one.jpg");
+        let b = f.library.join("two.jpg");
+        std::fs::write(&a, b"fixture").unwrap();
+        std::fs::write(&b, b"fixture").unwrap();
+        let (_, sidecar) = parse_virtual_path(&a.to_string_lossy());
+        update_sidecar(&sidecar, |m| {
+            m.adjustments = serde_json::json!({"exposure":1.2})
+        })
+        .unwrap();
+        let updates = group_updates(&[a.clone(), b]).unwrap();
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (allow_tx, allow_rx) = std::sync::mpsc::channel();
+        let allow_rx = Mutex::new(allow_rx);
+        let batch = std::thread::spawn(move || {
+            let first = std::sync::atomic::AtomicBool::new(true);
+            persist_with(&updates, |path, bytes| {
+                if first.swap(false, std::sync::atomic::Ordering::SeqCst) {
+                    entered_tx.send(()).unwrap();
+                    allow_rx.lock().unwrap().recv().unwrap();
+                }
+                write_file_atomically(path, bytes)
+            })
+            .unwrap()
+        });
+        entered_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        let reset_path = sidecar.clone();
+        let (reset_started_tx, reset_started_rx) = std::sync::mpsc::channel();
+        let reset = std::thread::spawn(move || {
+            reset_started_tx.send(()).unwrap();
+            update_sidecar(&reset_path, |m| m.adjustments = serde_json::json!({})).unwrap()
+        });
+        reset_started_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        allow_tx.send(()).unwrap();
+        batch.join().unwrap();
+        reset.join().unwrap();
+        let saved = metadata(&sidecar).unwrap();
+        assert!(saved.stack.is_some());
+        assert_eq!(saved.adjustments, serde_json::json!({}));
+        // Reverse order: a reset already committed before a new stack mutation
+        // must never be replaced by a previously loaded adjustment snapshot.
+        let _snapshot = saved.clone();
+        update_sidecar(&sidecar, |m| {
+            m.adjustments = serde_json::json!({"exposure":0.3})
+        })
+        .unwrap();
+        edit_photo_stack(vec![a.to_string_lossy().into_owned()], StackAction::Cover).unwrap();
+        assert_eq!(
+            metadata(&sidecar).unwrap().adjustments,
+            serde_json::json!({"exposure":0.3})
+        );
     }
 }

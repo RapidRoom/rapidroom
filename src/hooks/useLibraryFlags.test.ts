@@ -206,3 +206,32 @@ it('rates only the stack cover by default and opts into all persisted members', 
   expect(saved[1]).toEqual({ paths: ['/photos/cover.raw', '/photos/member.raw'], rating: 4, applyToStack: true });
   expect(useLibraryStore.getState().imageRatings['/photos/member.raw']).toBe(4);
 });
+
+it('keeps virtual copies as independent targets with whole-stack stars and flags enabled', async () => {
+  const ratings: unknown[] = [];
+  const flags: unknown[] = [];
+  mockCommand(Invokes.SetRatingForPaths, (args) => ratings.push(args));
+  mockCommand(Invokes.SetFlagForPaths, (args) => flags.push(args));
+  library({ '/photos/cover.raw': null, '/photos/member.raw': null, '/photos/cover.raw?vc=copy': null });
+  useLibraryStore.setState((s) => ({
+    applyMetadataToStack: true,
+    imageList: s.imageList.map((i, position) => ({
+      ...i,
+      is_virtual_copy: i.path.includes('?vc='),
+      stack: { id: 'burst', position: position === 2 ? 0 : position },
+    })),
+  }));
+  const actions = await mountLibraryActions();
+  actions.handleRate(3, ['/photos/cover.raw?vc=copy']);
+  actions.handleSetFlag(ImageFlag.Pick, ['/photos/cover.raw?vc=copy']);
+  await settle();
+  expect(ratings[0]).toEqual({ paths: ['/photos/cover.raw?vc=copy'], rating: 3, applyToStack: true });
+  expect(flags[0]).toEqual({ paths: ['/photos/cover.raw?vc=copy'], flag: ImageFlag.Pick, applyToStack: true });
+  actions.handleSetFlag(ImageFlag.Reject, ['/photos/cover.raw', '/photos/cover.raw?vc=copy']);
+  await settle();
+  expect(flags[1]).toEqual({
+    paths: ['/photos/cover.raw', '/photos/cover.raw?vc=copy', '/photos/member.raw'],
+    flag: ImageFlag.Reject,
+    applyToStack: true,
+  });
+});

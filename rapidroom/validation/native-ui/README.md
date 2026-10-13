@@ -339,6 +339,6 @@ the CC0 RAW. Native Ctrl+G, badges and context menus create a manual stack,
 choose a cover, expand grid and filmstrip, unstack, preview a 0.15-second auto
 stack without writing, apply it, and persist whole-stack stars. Captures and
 sidecar assertions are followed by the normal real-RAW edit/export smoke.
-Full application restart is covered by Rust disk persistence tests rather than
-claimed by this native scenario. Physical keyboard/mouse and other platforms
+Rust tests reopen saved sidecars to check disk persistence. This scenario
+does not test a full application restart. Physical keyboard/mouse and other platforms
 remain human checks.

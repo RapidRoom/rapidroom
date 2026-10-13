@@ -1,4 +1,4 @@
-import { editStack, stackKey, toggleStack } from '../utils/photoStacks';
+import { editStack, isStackedPhoto, stackKey, toggleStack } from '../utils/photoStacks';
 import { useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -871,7 +871,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         }
       };
 
-      const targetStack = imageList.find((i) => i.path === path)?.stack;
+      const targetImage = imageList.find((i) => i.path === path);
+      const targetStack = targetImage && isStackedPhoto(targetImage) ? targetImage.stack : null;
       const options = [
         {
           label: t('stacks.menu'),
