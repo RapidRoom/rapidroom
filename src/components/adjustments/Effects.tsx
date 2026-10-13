@@ -165,7 +165,7 @@ export default function EffectsPanel({
         lensBlurDepthMap: b64,
       }));
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error && error.message ? error.message : String(error);
       toast.error(`Failed to generate depth map: ${message}`);
       setAdjustments((prev: Adjustments) => ({ ...prev, lensBlurEnabled: false }));
     } finally {
