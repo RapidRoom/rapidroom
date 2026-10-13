@@ -164,4 +164,73 @@ describe('useLibraryActions.handleLibraryImageSingleClick recursive range select
     expect(useLibraryStore.getState().multiSelectedPaths).toContain('/photos/child/IMG_5000.jpg');
     await unmount();
   });
+
+  it('selects the clicked visible photo and resets a collapsed-folder anchor', async () => {
+    const hiddenAnchor = '/photos/closed/b.jpg';
+    const clickedPath = '/photos/current/a.jpg';
+    useLibraryStore.setState({
+      ...initialLibraryState,
+      currentFolderPath: '/photos/current',
+      imageList: [clickedPath, hiddenAnchor, '/photos/open/c.jpg'].map((path) => ({ path }) as ImageFile),
+      multiSelectedPaths: [hiddenAnchor],
+      libraryActivePath: hiddenAnchor,
+      selectionAnchorPath: hiddenAnchor,
+      sortCriteria: { key: 'name', order: 'asc' },
+      filterCriteria: { colors: [], rating: 0, rawStatus: RawStatus.All },
+      searchCriteria: { tags: [], text: '', mode: 'OR' },
+    });
+    useSettingsStore.setState({
+      ...initialSettingsState,
+      appSettings: {
+        ...(initialSettingsState.appSettings ?? { lastRootPath: null, theme: Theme.Dark }),
+        libraryViewMode: LibraryViewMode.Recursive,
+      },
+    });
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+
+    actions.handleLibraryImageSingleClick(clickedPath, { ...click, shiftKey: true }, [
+      clickedPath,
+      '/photos/open/c.jpg',
+    ]);
+
+    expect(useLibraryStore.getState().multiSelectedPaths).toEqual([clickedPath]);
+    expect(useLibraryStore.getState().libraryActivePath).toBe(clickedPath);
+    expect(useLibraryStore.getState().selectionAnchorPath).toBe(clickedPath);
+    await unmount();
+  });
+
+  it('keeps existing selections when Ctrl+Shift falls back from a collapsed-folder anchor', async () => {
+    const hiddenAnchor = '/photos/closed/b.jpg';
+    const alreadySelected = '/photos/open/c.jpg';
+    const clickedPath = '/photos/current/a.jpg';
+    useLibraryStore.setState({
+      ...initialLibraryState,
+      currentFolderPath: '/photos/current',
+      imageList: [clickedPath, hiddenAnchor, alreadySelected].map((path) => ({ path }) as ImageFile),
+      multiSelectedPaths: [hiddenAnchor, alreadySelected],
+      libraryActivePath: hiddenAnchor,
+      selectionAnchorPath: hiddenAnchor,
+      sortCriteria: { key: 'name', order: 'asc' },
+      filterCriteria: { colors: [], rating: 0, rawStatus: RawStatus.All },
+      searchCriteria: { tags: [], text: '', mode: 'OR' },
+    });
+    useSettingsStore.setState({
+      ...initialSettingsState,
+      appSettings: {
+        ...(initialSettingsState.appSettings ?? { lastRootPath: null, theme: Theme.Dark }),
+        libraryViewMode: LibraryViewMode.Recursive,
+      },
+    });
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+
+    actions.handleLibraryImageSingleClick(clickedPath, { ctrlKey: true, metaKey: false, shiftKey: true }, [
+      clickedPath,
+      alreadySelected,
+    ]);
+
+    expect(useLibraryStore.getState().multiSelectedPaths).toEqual([hiddenAnchor, alreadySelected, clickedPath]);
+    expect(useLibraryStore.getState().libraryActivePath).toBe(clickedPath);
+    expect(useLibraryStore.getState().selectionAnchorPath).toBe(clickedPath);
+    await unmount();
+  });
 });

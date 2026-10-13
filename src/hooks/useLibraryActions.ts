@@ -273,9 +273,11 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
         const anchorIndex = rangePaths.indexOf(shiftAnchor);
         const currentIndex = rangePaths.indexOf(path);
 
-        if (anchorIndex !== -1 && currentIndex !== -1) {
-          const start = Math.min(anchorIndex, currentIndex);
-          const end = Math.max(anchorIndex, currentIndex);
+        if (currentIndex !== -1) {
+          // If the old anchor is no longer visible (for example, its folder was
+          // collapsed), treat this click as a one-item range and reset the anchor.
+          const start = anchorIndex === -1 ? currentIndex : Math.min(anchorIndex, currentIndex);
+          const end = anchorIndex === -1 ? currentIndex : Math.max(anchorIndex, currentIndex);
           const range = rangePaths.slice(start, end + 1);
           const baseSelection = isCtrlPressed ? multiSelectedPaths : [];
           const newSelection = Array.from(new Set([...baseSelection, ...range]));
