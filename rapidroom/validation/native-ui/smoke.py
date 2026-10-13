@@ -485,6 +485,9 @@ class Smoke:
         elif (self.case / "mcp-clients-test.json").exists() and not (self.case / "terminal-test.json").exists():
             from mcp_clients import run_client_checks
             self.step("real Claude Code and Codex edit the open photo", run_client_checks(self.case, self))
+        if (self.case / "mask-drop-test.json").exists():
+            from mask_drop import run_mask_drop_checks
+            run_mask_drop_checks(self, wait_for)
         final = self.snapshot("final")
         if final["errors"]:
             raise RuntimeError("Frontend errors: " + str(final["errors"]))
@@ -570,6 +573,8 @@ def launch(args):
              "library_sha256": sha(case / "native-wheel.so"), "method": "GTK GDK_SCROLL_UP/DOWN through gtk_widget_event(WebView)"})
     if args.palette:
         save(case / "palette-test.json", {"issue": 162, "real_model_requests": False})
+    if args.mask_drop:
+        save(case / "mask-drop-test.json", {"issue": 204, "event": "synthetic DndContext onDragEnd"})
     if args.dock_layout:
         save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
         for index in range(1, 24):
@@ -703,6 +708,7 @@ def main():
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
     parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
+    parser.add_argument("--mask-drop", action="store_true", help="Check mask creation drop insertion on a sub-mask row")
     parser.add_argument("--untrusted-text", action="store_true", help="Check hostile descriptive text against real authenticated MCP without model requests")
     parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)

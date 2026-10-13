@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { save, open } from '@tauri-apps/plugin-dialog';
+import { save, open, confirm } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { FileInput, CheckCircle, XCircle, Loader, Ban, ChevronDown, ChevronRight, Settings, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -411,6 +411,7 @@ export default function ExportPanel({
 
   const adjustmentsRef = useRef(useEditorStore.getState().adjustments);
 
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
   const initDone = useRef(false);
 
@@ -677,6 +678,8 @@ export default function ExportPanel({
 
     const exportSettings: ExportSettings = {
       filenameTemplate,
+      overwriteExisting:
+        overwriteExisting && (numImages > 1 || preserveFolders || destinationType === 'originalFolder'),
       jpegQuality,
       tiffBitDepth,
       keepMetadata,
@@ -754,6 +757,14 @@ export default function ExportPanel({
       }
 
       if (isAndroid || outputFolderOrFile) {
+        if (
+          exportSettings.overwriteExisting &&
+          !(await confirm(t('export.overwrite.confirm'), {
+            title: t('export.overwrite.title'),
+            kind: 'warning',
+          }))
+        )
+          return;
         if (!isAndroid) {
           if (isOriginalFolder) {
             saveLastUsedPreset(lastExportPath || '');
@@ -906,6 +917,14 @@ export default function ExportPanel({
             </Section>
 
             <Section title={t('export.sections.fileNaming')}>
+              {!isAndroid && (numImages > 1 || preserveFolders || destinationType === 'originalFolder') && (
+                <Switch
+                  label={t('export.overwrite.label')}
+                  checked={overwriteExisting}
+                  onChange={setOverwriteExisting}
+                  disabled={isExporting}
+                />
+              )}
               <input
                 className="w-full bg-surface border border-surface rounded-md p-2 text-sm text-text-primary focus:ring-accent focus:border-accent"
                 disabled={isExporting}
