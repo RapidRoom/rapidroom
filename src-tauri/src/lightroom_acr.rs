@@ -96,13 +96,16 @@ impl AcrMasks {
                 )
                 .map_err(|_| "Cannot encode mask PNG")?;
             let png = format!("data:image/png;base64,{}", STANDARD.encode(png));
-            self.encoded_bytes += png.len();
-            if self.encoded_bytes > MAX_ENCODED {
-                return Err("Mask import PNG budget exceeded".into());
-            }
             self.cache.insert(key, png.clone());
             png
         };
+        self.encoded_bytes = self
+            .encoded_bytes
+            .checked_add(png.len())
+            .ok_or("Mask import PNG budget exceeded")?;
+        if self.encoded_bytes > MAX_ENCODED {
+            return Err("Mask import PNG budget exceeded".into());
+        }
         Ok(
             serde_json::json!({ "maskDataBase64": png, "rotation": frame.rotation, "grow": 0, "feather": 0 }),
         )
@@ -556,7 +559,7 @@ mod tests {
         assert_eq!(report.failures.len(), 1);
         assert_eq!(
             report.failures[0].reason,
-            "the brush reference is missing or ambiguous"
+            "the companion reference is missing or ambiguous"
         );
     }
     #[test]

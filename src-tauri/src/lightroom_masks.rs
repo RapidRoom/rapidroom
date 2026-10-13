@@ -224,6 +224,17 @@ fn import_lightroom_masks_with_acr_and_path(
 
     for (index, item) in seq_items(corrections).into_iter().enumerate() {
         let correction = Resource::from_item(item);
+        if masks.len() >= crate::image_processing::MAX_MASKS {
+            let name = correction
+                .scalars
+                .get("CorrectionName")
+                .cloned()
+                .unwrap_or_else(|| format!("Lightroom mask {}", index + 1));
+            summary.skipped_unsupported += 1;
+            summary.failures.push(MaskFailure { correction:name,component:"Entire correction".into(),mask_type:"Correction".into(),reason:"RapidRoom supports at most 32 mask corrections; this correction was not imported".into() });
+            continue;
+        }
+
         match convert_correction(
             &correction,
             index,

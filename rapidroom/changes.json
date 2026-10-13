@@ -2,6 +2,21 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lightroom-acr-ai-masks",
+      "title": "Import Lightroom AI masks from ACR sidecars",
+      "category": "feature",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex; shared ACR reader credited separately)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Read-only, bounded import of 8-bit grayscale TIFF/JPEG XL mask rasters with checked content references, sensor/default-crop placement, EXIF orientation and fine rotation. Supplied subject, sky, object and people coverage becomes persisted bitmap masks, including mixed gradient/brush corrections. Unsupported payloads or incomplete corrections are reported by name; ordinary renders are unchanged. Lightroom slider calibration remains unverified."
+    },
+    {
       "id": "lightroom-acr-brush-tables",
       "title": "Import Lightroom brush tables from bounded ACR companions",
       "category": "fix",
