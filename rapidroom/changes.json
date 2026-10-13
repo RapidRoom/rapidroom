@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "lightroom-photo-raw-defaults",
+      "title": "Apply Lightroom defaults to photo XMP imports",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Fills absent native Lightroom defaults for photo XMP imports on recognized process versions, with RAW and rendered-source defaults kept distinct. Preset imports remain sparse; metadata-only records, explicit zeroes and unknown process versions do not acquire inferred values. Unsupported non-default controls are reported. Default non-imported renders remain unchanged; Lightroom appearance parity is not claimed."
+    },
+    {
       "id": "atomic-write-failure-injection",
       "title": "Test atomic file writes under failure conditions",
       "category": "ci",

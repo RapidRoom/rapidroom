@@ -312,6 +312,8 @@
         "masks": "masks of a kind RapidRAW can't import",
         "pointColor": "Point Color",
         "profileLook": "profile look (colour table)",
+        "unsupportedDevelopSettings": "Ajustos de revelatge de Lightroom sense control a RapidRoom",
+        "unsupportedProcessVersion": "Versió de procés de Lightroom no reconeguda (no se n’infereixen els valors predeterminats)",
         "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
       },
       "title": "Informe d'importació XMP",

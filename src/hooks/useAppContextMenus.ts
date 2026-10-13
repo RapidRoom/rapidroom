@@ -105,7 +105,15 @@ interface DeleteOptions {
 }
 
 type XmpNotTransferredItem =
-  'whiteBalance' | 'profileLook' | 'aiDenoise' | 'aiMasks' | 'masks' | 'localAdjustments' | 'pointColor';
+  | 'whiteBalance'
+  | 'profileLook'
+  | 'aiDenoise'
+  | 'aiMasks'
+  | 'masks'
+  | 'localAdjustments'
+  | 'pointColor'
+  | 'unsupportedDevelopSettings'
+  | 'unsupportedProcessVersion';
 
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
   notTransferred?: XmpNotTransferredItem[];
@@ -166,6 +174,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         masks: t('contextMenus.xmpImportReport.notTransferredItems.masks'),
         pointColor: t('contextMenus.xmpImportReport.notTransferredItems.pointColor'),
         profileLook: t('contextMenus.xmpImportReport.notTransferredItems.profileLook'),
+        unsupportedDevelopSettings: t('contextMenus.xmpImportReport.notTransferredItems.unsupportedDevelopSettings'),
+        unsupportedProcessVersion: t('contextMenus.xmpImportReport.notTransferredItems.unsupportedProcessVersion'),
         whiteBalance: t('contextMenus.xmpImportReport.notTransferredItems.whiteBalance'),
       };
       return items.map((item) => labels[item] ?? item).join(', ');
