@@ -1589,6 +1589,17 @@ fn export_destination_is_source(output: &Path, sources: &[PathBuf]) -> bool {
     })
 }
 
+fn export_destination_identity(path: &Path) -> PathBuf {
+    if let Ok(resolved) = path.canonicalize() {
+        return resolved;
+    }
+    let parent = path.parent().unwrap_or(Path::new("."));
+    let resolved_parent = parent
+        .canonicalize()
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default().join(parent));
+    resolved_parent.join(path.file_name().unwrap_or_default())
+}
+
 fn reserve_export_path(
     mut output: PathBuf,
     stem: &str,
@@ -1599,7 +1610,7 @@ fn reserve_export_path(
 ) -> PathBuf {
     let parent = output.parent().unwrap_or(Path::new("")).to_path_buf();
     let mut counter = 1;
-    while used.contains(&output)
+    while used.contains(&export_destination_identity(&output))
         || (!overwrite_existing && output.exists())
         || export_destination_is_source(&output, sources)
         || output.is_dir()
@@ -1607,7 +1618,7 @@ fn reserve_export_path(
         output = parent.join(format!("{stem}_{counter}.{extension}"));
         counter += 1;
     }
-    used.insert(output.clone());
+    used.insert(export_destination_identity(&output));
     output
 }
 
@@ -1876,7 +1887,10 @@ pub(crate) async fn export_images_impl(
                             "Export destination is a source photo. Choose another name.".into()
                         );
                     }
-                    used_paths_clone.lock().unwrap().insert(output_path.clone());
+                    used_paths_clone
+                        .lock()
+                        .unwrap()
+                        .insert(export_destination_identity(&output_path));
                 } else {
                     output_path = reserve_export_path(
                         output_path,
@@ -2826,5 +2840,67 @@ mod export_collision_tests {
             reserve_mask_export_paths(dir.path(), "photo", 0, "jpeg", true, &[], &mut used);
         assert_eq!(image, dir.path().join("photo_mask_0_image_1.jpeg"));
         assert_eq!(alpha, dir.path().join("photo_mask_0_alpha_1.png"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn directory_aliases_share_reservations_for_existing_and_missing_outputs() {
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("real");
+        let alias = dir.path().join("alias");
+        fs::create_dir(&real).unwrap();
+        std::os::unix::fs::symlink(&real, &alias).unwrap();
+        for existing in [false, true] {
+            let first = real.join("triage.jpeg");
+            if existing {
+                fs::write(&first, b"old export").unwrap();
+            }
+            let mut used = HashSet::new();
+            assert_eq!(
+                reserve_export_path(first.clone(), "triage", "jpeg", true, &[], &mut used),
+                first
+            );
+            assert_eq!(
+                reserve_export_path(
+                    alias.join("triage.jpeg"),
+                    "triage",
+                    "jpeg",
+                    true,
+                    &[],
+                    &mut used
+                ),
+                alias.join("triage_1.jpeg")
+            );
+            let (image, _) =
+                reserve_mask_export_paths(&real, "triage", 0, "jpeg", true, &[], &mut used);
+            assert_eq!(
+                reserve_export_path(
+                    alias.join("triage_mask_0_image.jpeg"),
+                    "triage_mask_0_image",
+                    "jpeg",
+                    true,
+                    &[],
+                    &mut used
+                ),
+                alias.join("triage_mask_0_image_1.jpeg")
+            );
+            assert!(used.contains(&export_destination_identity(&image)));
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn output_file_symlinks_share_the_atomic_writers_target_identity() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("photo.jpeg");
+        let alias = dir.path().join("alias.jpeg");
+        fs::write(&output, b"old export").unwrap();
+        std::os::unix::fs::symlink(&output, &alias).unwrap();
+        let mut used = HashSet::new();
+        reserve_export_path(alias, "alias", "jpeg", true, &[], &mut used);
+        assert_eq!(
+            reserve_export_path(output, "photo", "jpeg", true, &[], &mut used),
+            dir.path().join("photo_1.jpeg")
+        );
     }
 }
