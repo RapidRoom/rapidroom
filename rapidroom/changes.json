@@ -2,6 +2,19 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "ai-mask-transform-antialias",
+      "title": "Filter AI mask edges in reduced and rotated previews",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": ["RapidRoom/rapidroom#241", "CyberTimon/RapidRAW#1902"],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "AI mask bitmaps are filtered before minification and sampled bilinearly at transformed pixel centers. Rotation, flip, crop and coarse orientation retain correct pixel alignment; subjects reaching frame edges do not gain an extra fade. Stored bitmap data and model selection are unchanged."
+    },
+    {
       "id": "mask-creation-drop-insertion",
       "title": "Insert dropped masks at their target row",
       "category": "fix",
