@@ -103,6 +103,7 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 | Rapid navigation shares one decode slot between editor loads and culling previews; superseded editor loads skip decoding                                                                                                                                                          | performance | [@subbajeu](https://github.com/subbajeu), [@yojen7](https://github.com/yojen7)                                                 | not yet offered                                                                                                                                                                                                                                                                    |
 | Consistent 400% editor zoom and regular wheel/keyboard stops                                                                                                                                                                                                                      | fix         | [@yojen7](https://github.com/yojen7), [@SebastianEggli](https://github.com/SebastianEggli)                                     | [#1638](https://github.com/CyberTimon/RapidRAW/issues/1638); PR [#1869](https://github.com/CyberTimon/RapidRAW/issues/1869)                                                                                                                                                        |
 | Type the frontend hooks and remove explicit any annotations                                                                                                                                                                                                                       | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
+| Type the right panel and clear its ESLint errors                                                                                                                                                                                                                                  | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | RapidRoom only                                                                                                                                                                                                                                                                     |
 
 ⚑ changes rendered output on purpose. Upstream status as of 2026-10-10.
 
@@ -898,3 +899,11 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@yojen7](https://github.com/yojen7)
 - **Upstream:** RapidRoom only
 - **Notes:** Development quality cleanup in src/hooks; no runtime behavior change intended.
+
+### Type the right panel and clear its ESLint errors
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7)
+- **Upstream:** RapidRoom only
+- **Notes:** Development quality cleanup in src/components/panel/right; no runtime behavior change intended.

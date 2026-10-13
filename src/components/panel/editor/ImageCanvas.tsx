@@ -6,7 +6,7 @@ import { PercentCrop, Crop } from 'react-image-crop';
 import { Stamp, Bandage, Spline, BrushCleaning } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { Adjustments, AiPatch, Coord, MaskContainer, GuideLine, GuideOrientation } from '../../../utils/adjustments';
-import { Mask, SubMask, SubMaskMode, ToolType } from '../right/Masks';
+import { Mask, SubMask, SubMaskMode, ToolType, type MaskParameters } from '../right/Masks';
 import { AppSettings, BrushSettings, Invokes, SelectedImage } from '../../ui/AppProperties';
 import { RenderSize } from '../../../hooks/useImageRenderSize';
 import { useOsPlatform } from '../../../hooks/useOsPlatform';
@@ -30,6 +30,11 @@ interface DrawnLine {
   flow?: number;
   points: Array<Coord>;
   tool: ToolType;
+}
+
+function getMaskNumber(parameters: MaskParameters | undefined, key: keyof MaskParameters): number {
+  const value = parameters?.[key];
+  return typeof value === 'number' ? value : 0;
 }
 
 interface ImageCanvasProps {
@@ -452,8 +457,8 @@ const MaskOverlay = memo(
     const cropW = crop ? (isPercent ? (crop.width / 100) * imageWidth : crop.width) : imageWidth;
     const cropH = crop ? (isPercent ? (crop.height / 100) * imageHeight : crop.height) : imageHeight;
 
-    const [p, setP] = useState(subMask.parameters);
-    const pRef = useRef(p);
+    const [p, setP] = useState<MaskParameters>(subMask.parameters ?? {});
+    const pRef = useRef<MaskParameters>(p);
     const isDragging = useRef(false);
 
     const dragStartPointer = useRef<Coord | null>(null);
@@ -470,8 +475,9 @@ const MaskOverlay = memo(
 
     useEffect(() => {
       if (!isDragging.current) {
-        setP(subMask.parameters);
-        pRef.current = subMask.parameters;
+        const parameters = subMask.parameters ?? {};
+        setP(parameters);
+        pRef.current = parameters;
       }
     }, [subMask.parameters]);
 
@@ -562,7 +568,7 @@ const MaskOverlay = memo(
       const scaleX = Math.abs(node.scaleX());
       const scaleY = Math.abs(node.scaleY());
 
-      if (pRef.current.radiusX * scaleX < 5 || pRef.current.radiusY * scaleY < 5) {
+      if (getMaskNumber(pRef.current, 'radiusX') * scaleX < 5 || getMaskNumber(pRef.current, 'radiusY') * scaleY < 5) {
         node.scaleX(node.lastValidScaleX || 1);
         node.scaleY(node.lastValidScaleY || 1);
       } else {
@@ -570,8 +576,8 @@ const MaskOverlay = memo(
         node.lastValidScaleY = scaleY;
       }
 
-      const newRadiusX = pRef.current.radiusX * node.scaleX();
-      const newRadiusY = pRef.current.radiusY * node.scaleY();
+      const newRadiusX = getMaskNumber(pRef.current, 'radiusX') * node.scaleX();
+      const newRadiusY = getMaskNumber(pRef.current, 'radiusY') * node.scaleY();
 
       const newP = {
         ...pRef.current,
@@ -596,8 +602,8 @@ const MaskOverlay = memo(
       const scaleX = node.scaleX();
       const scaleY = node.scaleY();
 
-      const newRadiusX = pRef.current.radiusX * scaleX;
-      const newRadiusY = pRef.current.radiusY * scaleY;
+      const newRadiusX = getMaskNumber(pRef.current, 'radiusX') * scaleX;
+      const newRadiusY = getMaskNumber(pRef.current, 'radiusY') * scaleY;
 
       node.scaleX(1);
       node.scaleY(1);
@@ -619,8 +625,8 @@ const MaskOverlay = memo(
 
     const setRotateCursor = useCallback(
       (stage: any, pointerPos: any) => {
-        const cx = (pRef.current.centerX - cropX) * scale;
-        const cy = (pRef.current.centerY - cropY) * scale;
+        const cx = (getMaskNumber(pRef.current, 'centerX') - cropX) * scale;
+        const cy = (getMaskNumber(pRef.current, 'centerY') - cropY) * scale;
         const angle = Math.atan2(pointerPos.y - cy, pointerPos.x - cx) * (180 / Math.PI);
 
         const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.8));">
@@ -649,13 +655,13 @@ const MaskOverlay = memo(
         const pointer = getPointer(stage);
         if (!pointer) return;
 
-        const cx = (pRef.current.centerX - cropX) * scale;
-        const cy = (pRef.current.centerY - cropY) * scale;
+        const cx = (getMaskNumber(pRef.current, 'centerX') - cropX) * scale;
+        const cy = (getMaskNumber(pRef.current, 'centerY') - cropY) * scale;
 
         const startAngle = Math.atan2(pointer.y - cy, pointer.x - cx);
         rotateStartRef.current = {
           angle: startAngle,
-          rotation: pRef.current.rotation || 0,
+          rotation: getMaskNumber(pRef.current, 'rotation') || 0,
         };
       },
       [onMaskInteractionStart, cropX, cropY, scale, getPointer],
@@ -670,8 +676,8 @@ const MaskOverlay = memo(
 
         setRotateCursor(stage, pointer);
 
-        const cx = (pRef.current.centerX - cropX) * scale;
-        const cy = (pRef.current.centerY - cropY) * scale;
+        const cx = (getMaskNumber(pRef.current, 'centerX') - cropX) * scale;
+        const cy = (getMaskNumber(pRef.current, 'centerY') - cropY) * scale;
 
         const currentAngle = Math.atan2(pointer.y - cy, pointer.x - cx);
         const angleDiff = currentAngle - rotateStartRef.current.angle;
@@ -823,7 +829,10 @@ const MaskOverlay = memo(
         const pointerPos = getPointer(stage);
         if (!pointerPos) return;
 
-        const { startX, startY, endX, endY } = pRef.current;
+        const startX = getMaskNumber(pRef.current, 'startX');
+        const startY = getMaskNumber(pRef.current, 'startY');
+        const endX = getMaskNumber(pRef.current, 'endX');
+        const endY = getMaskNumber(pRef.current, 'endY');
         const sX = (startX - cropX) * scale;
         const sY = (startY - cropY) * scale;
         const eX = (endX - cropX) * scale;
@@ -833,7 +842,7 @@ const MaskOverlay = memo(
         const dy = eY - sY;
         const len = Math.sqrt(dx * dx + dy * dy);
 
-        let newRange = pRef.current.range;
+        let newRange = getMaskNumber(pRef.current, 'range');
         if (len > 0) {
           const dist = Math.abs(dx * (sY - pointerPos.y) - (sX - pointerPos.x) * dy) / len;
           newRange = Math.max(0.1, dist / scale);
@@ -1033,7 +1042,11 @@ const MaskOverlay = memo(
     }
 
     if (subMask.type === Mask.Radial) {
-      const { centerX, centerY, radiusX, radiusY, rotation } = p;
+      const centerX = getMaskNumber(p, 'centerX');
+      const centerY = getMaskNumber(p, 'centerY');
+      const radiusX = getMaskNumber(p, 'radiusX');
+      const radiusY = getMaskNumber(p, 'radiusY');
+      const rotation = getMaskNumber(p, 'rotation');
       if (p.isInitialDraw && (radiusX < 1 || radiusY < 2)) return null;
 
       return (
@@ -1134,7 +1147,11 @@ const MaskOverlay = memo(
 
     if (subMask.type === Mask.Linear) {
       const defaultRange = Math.min(cropW, cropH) * 0.1;
-      const { startX, startY, endX, endY, range = defaultRange } = p;
+      const startX = getMaskNumber(p, 'startX');
+      const startY = getMaskNumber(p, 'startY');
+      const endX = getMaskNumber(p, 'endX');
+      const endY = getMaskNumber(p, 'endY');
+      const range = p.range ?? defaultRange;
 
       const flickDistX = startX - endX;
       const flickDistY = startY - endY;
@@ -2324,7 +2341,7 @@ const ImageCanvas = memo(
                 parameters: { ...activeSubMask.parameters, sourceX: x, sourceY: y },
               });
 
-              if (onDirectPatch && activeSubMask.parameters?.lines?.length > 0) {
+              if (onDirectPatch && (activeSubMask.parameters?.lines?.length ?? 0) > 0) {
                 onDirectPatch(activeId, x, y);
               }
             }
@@ -2668,8 +2685,8 @@ const ImageCanvas = memo(
               },
             });
 
-            const sourceX = activeSubMask?.parameters.sourceX;
-            const sourceY = activeSubMask?.parameters.sourceY;
+            const sourceX = activeSubMask?.parameters?.sourceX;
+            const sourceY = activeSubMask?.parameters?.sourceY;
             if (
               activeSubMask?.type === Mask.Liquify ||
               activeSubMask?.type === Mask.Retouch ||
@@ -2952,8 +2969,8 @@ const ImageCanvas = memo(
         }
 
         if (isDirectPatchActive && activeId) {
-          const sourceX = activeSubMask?.parameters.sourceX;
-          const sourceY = activeSubMask?.parameters.sourceY;
+          const sourceX = activeSubMask?.parameters?.sourceX;
+          const sourceY = activeSubMask?.parameters?.sourceY;
 
           const requiresSource = activeSubMask?.type === Mask.Clone || activeSubMask?.type === Mask.Heal;
 
