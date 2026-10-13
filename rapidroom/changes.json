@@ -22,6 +22,26 @@
       "notes": "Legacy RGB NIND receives encoded RGB consistently for RAW and ordinary image inputs. Saved RAW-derived NIND TIFFs use the model output without the former gamma 2.38/contrast 1.28 curve, keeping shadow detail and avoiding that baked display look. Every quality setting retains a halo and overlap; higher quality uses a larger discarded border. Other denoise methods are unchanged. Seam geometry and whole-image colour restoration are tracked separately under issue 172."
     },
     {
+      "id": "ai-denoise-seamless-colour",
+      "title": "Blend AI denoise tiles in float32 and restore whole-image colour",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": [
+        "yojen7",
+        "vegidio",
+        "Duecki1"
+      ],
+      "source": "rapidroom (adapted AGPL open-photo-ai tiling/wavelet and GPL-3.0-or-later CalibRaw reflection)",
+      "commits": [
+        "https://github.com/vegidio/open-photo-ai/commit/67f1dd10d17efcb191ce1bb099642e32b2918861",
+        "https://github.com/Duecki1/CalibRaw/commit/2466ca6662c3fd1e901377c0450b19f5f96d3e85"
+      ],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Best/Fast and legacy NIND use normalized raised-cosine overlaps, float32 accumulation and whole-image five-level B3-spline colour restoration. Legacy NIND uses periodic mirror padding, rejects invalid model outputs, and clips only at image encoding. Best/Fast caches use a new pipeline identity. Changes affect explicitly denoised images; default renders bypass this path. Model-specific noise estimation and post-demosaic grain return remain deferred under issue 172."
+    },
+    {
       "id": "crs-interoperability-scoped-reader",
       "title": "Read CRS import fields by namespace and RDF subject",
       "category": "fix",
