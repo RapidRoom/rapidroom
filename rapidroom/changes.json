@@ -6,9 +6,7 @@
       "title": "Test atomic file writes under failure conditions",
       "category": "ci",
       "landed": "2026-10-13",
-      "authors": [
-        "yojen7"
-      ],
+      "authors": ["yojen7"],
       "source": "rapidroom (original failure-injection tests)",
       "commits": [],
       "upstream_issues": [],
