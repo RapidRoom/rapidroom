@@ -90,7 +90,14 @@ export const debouncedSave = Object.assign(
 );
 
 export async function waitForPendingEditorSaves(): Promise<void> {
-  while (pendingEditorSaves.size) await Promise.all([...pendingEditorSaves]);
+  let failure: PromiseRejectedResult | undefined;
+  while (pendingEditorSaves.size) {
+    const results = await Promise.allSettled([...pendingEditorSaves]);
+    for (const result of results) {
+      if (result.status === 'rejected') failure ??= result;
+    }
+  }
+  if (failure) throw failure.reason;
 }
 
 function captureEditorDraft(): XmpEditorDraft | undefined {

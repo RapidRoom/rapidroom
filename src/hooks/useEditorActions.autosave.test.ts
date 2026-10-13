@@ -103,6 +103,39 @@ describe('waiting for editor writes before XMP import', () => {
     });
   });
 
+  it('keeps the pause until every started write settles even when one fails', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const first = pendingWrite();
+    const second = pendingWrite();
+    let started = 0;
+    mockCommand(Invokes.SaveMetadataAndUpdateThumbnail, () => (++started === 1 ? first.promise : second.promise));
+    useEditorStore.setState({ selectedImage: null });
+    debouncedSave('/photos/a.NEF', INITIAL_ADJUSTMENTS);
+    debouncedSave.flush();
+    debouncedSave('/photos/b.NEF', INITIAL_ADJUSTMENTS);
+    debouncedSave.flush();
+    let settled = false;
+    const operation = prepareEditorDraftForXmpImport().finally(() => {
+      settled = true;
+    });
+    const refusal = expect(operation).rejects.toThrow('disk full');
+    const latest = { ...INITIAL_ADJUSTMENTS, exposure: 1.5 };
+    debouncedSave('/photos/c.NEF', latest);
+    first.reject(new Error('disk full'));
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    vi.advanceTimersByTime(600);
+    expect(settled).toBe(false);
+    expect(started).toBe(2);
+    second.resolve();
+    await refusal;
+    vi.advanceTimersByTime(300);
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, {
+      path: '/photos/c.NEF',
+      adjustments: latest,
+    });
+  });
+
   it('refuses to continue after a pending write fails', async () => {
     vi.useFakeTimers();
     vi.spyOn(console, 'error').mockImplementation(() => {});
