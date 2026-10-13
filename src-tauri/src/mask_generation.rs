@@ -937,16 +937,18 @@ fn sample_ai_mask_bilinear(mask: &GrayImage, x: f32, y: f32) -> u8 {
 }
 
 pub fn generate_ai_bitmap_from_base64(data_url: &str, tf: &TransformParams) -> Option<GrayImage> {
+    let full_mask_image = decode_ai_bitmap(data_url)?;
+    Some(generate_ai_bitmap_from_full_mask(&full_mask_image, tf))
+}
+
+fn decode_ai_bitmap(data_url: &str) -> Option<GrayImage> {
     let b64_data = if let Some(idx) = data_url.find(',') {
         &data_url[idx + 1..]
     } else {
         data_url
     };
-
     let decoded_bytes = general_purpose::STANDARD.decode(b64_data).ok()?;
-    let full_mask_image = image::load_from_memory(&decoded_bytes).ok()?.to_luma8();
-
-    Some(generate_ai_bitmap_from_full_mask(&full_mask_image, tf))
+    Some(image::load_from_memory(&decoded_bytes).ok()?.to_luma8())
 }
 
 fn generate_ai_sky_bitmap(
@@ -1007,7 +1009,9 @@ fn generate_ai_depth_bitmap(
         crop_offset,
     };
 
-    let depth_map = generate_ai_bitmap_from_base64(&data_url, &tf)?;
+    // The range is nonlinear: filtering depth first could invent selected
+    // mid-range values between two excluded depths. Transform coverage instead.
+    let depth_map = decode_ai_bitmap(&data_url)?;
 
     let (w, h) = depth_map.dimensions();
     let mut mask = GrayImage::new(w, h);
@@ -1032,6 +1036,8 @@ fn generate_ai_depth_bitmap(
 
         mask.put_pixel(x, y, Luma([(final_intensity * 255.0) as u8]));
     }
+
+    let mut mask = generate_ai_bitmap_from_full_mask(&mask, &tf);
 
     if params.feather > 0.0 {
         mask = image::imageops::blur(&mask, params.feather * 0.1);
@@ -1803,5 +1809,46 @@ mod ai_transform_sampling_tests {
             let output = generate_ai_bitmap_from_full_mask(&source, &transform(size, size, scale));
             assert!(output.as_raw().iter().all(|value| *value == 255));
         }
+    }
+
+    fn depth_parameters(min: f32, max: f32) -> Value {
+        let source =
+            GrayImage::from_fn(8, 8, |x, y| Luma([if (x + y) % 2 == 0 { 0 } else { 255 }]));
+        let mut png = Cursor::new(Vec::new());
+        DynamicImage::ImageLuma8(source)
+            .write_to(&mut png, ImageFormat::Png)
+            .unwrap();
+        serde_json::json!({"maskDataBase64":base64::Engine::encode(&general_purpose::STANDARD,png.into_inner()),
+            "minDepth":min,"maxDepth":max,"minFade":0.0,"maxFade":0.0,"feather":0.0,"grow":0.0})
+    }
+
+    #[test]
+    fn excluded_depths_do_not_create_selected_midrange_coverage_on_reduction() {
+        let params = depth_parameters(40.0, 60.0);
+        for (size, scale) in [(8, 1.0), (4, 0.5)] {
+            let mask = generate_ai_depth_bitmap(&params, size, size, scale, (0.0, 0.0)).unwrap();
+            assert!(mask.as_raw().iter().all(|value| *value == 0));
+        }
+    }
+
+    #[test]
+    fn selected_depths_retain_partial_coverage_on_reduction() {
+        let params = depth_parameters(80.0, 100.0);
+        let native = generate_ai_depth_bitmap(&params, 8, 8, 1.0, (0.0, 0.0)).unwrap();
+        assert_eq!(
+            native
+                .as_raw()
+                .iter()
+                .filter(|value| **value == 255)
+                .count(),
+            32
+        );
+        let reduced = generate_ai_depth_bitmap(&params, 4, 4, 0.5, (0.0, 0.0)).unwrap();
+        assert!(
+            reduced
+                .as_raw()
+                .iter()
+                .all(|value| (110..=145).contains(value))
+        );
     }
 }
