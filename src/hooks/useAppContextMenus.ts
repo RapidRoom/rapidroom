@@ -82,7 +82,12 @@ import {
   type Adjustments,
 } from '../utils/adjustments';
 import TaggingSubMenu from '../context/TaggingSubMenu';
-import { debouncedSave, debouncedSetHistory, useEditorActions } from './useEditorActions';
+import {
+  prepareEditorDraftForXmpImport,
+  resumeEditorDraftAfterXmpImport,
+  type XmpEditorDraft,
+  useEditorActions,
+} from './useEditorActions';
 import { useLibraryActions } from './useLibraryActions';
 import { globalImageCache } from '../utils/ImageLRUCache';
 
@@ -103,6 +108,9 @@ type XmpNotTransferredItem =
 
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
   notTransferred?: XmpNotTransferredItem[];
+  adjustmentsApplied: boolean;
+  alreadyApplied: boolean;
+  draftPreserved: boolean;
 }
 
 interface XmpNotTransferred {
@@ -118,6 +126,9 @@ interface MatchingXmpSidecarImportResult {
   failed: number;
   failures: string[];
   importedPaths: string[];
+  adjustmentsImportedPaths: string[];
+  alreadyAppliedPaths: string[];
+  preservedDraftPaths: string[];
   unchangedPaths: string[];
   notTransferred: XmpNotTransferred[];
 }
@@ -308,16 +319,17 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
 
   const importXmpAdjustmentsForImage = useCallback(
     async (targetPath: string) => {
+      let draft: XmpEditorDraft | undefined;
+      let draftConsumed = false;
       try {
-        // A pending editor save would otherwise overwrite the newly imported sidecar.
-        debouncedSave.cancel();
-        debouncedSetHistory.cancel();
+        draft = await prepareEditorDraftForXmpImport();
         globalImageCache.delete(targetPath);
 
         let metadata: ImportedXmpAdjustments;
         try {
           metadata = await invoke<ImportedXmpAdjustments>(Invokes.ImportXmpAdjustmentsForImage, {
             path: targetPath,
+            pendingAdjustments: draft?.path === targetPath ? draft.adjustments : undefined,
           });
         } catch (automaticImportError) {
           if (!String(automaticImportError).includes('No matching XMP sidecar')) {
@@ -334,13 +346,24 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           metadata = await invoke<ImportedXmpAdjustments>(Invokes.ImportXmpAdjustmentsForImage, {
             path: targetPath,
             xmpPath: selectedPath,
+            pendingAdjustments: draft?.path === targetPath ? draft.adjustments : undefined,
           });
         }
 
-        applyImportedXmpMetadata(targetPath, metadata);
+        draftConsumed = draft?.path === targetPath && (metadata.adjustmentsApplied || metadata.draftPreserved);
+        if (metadata.adjustmentsApplied) applyImportedXmpMetadata(targetPath, metadata);
         await props.refreshImageList();
-        toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
-        toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
+        toast.success(
+          t(
+            metadata.adjustmentsApplied
+              ? 'contextMenus.toasts.importedXmpAdjustments'
+              : 'contextMenus.xmpImportReport.metadataOnly',
+          ),
+        );
+        if (metadata.alreadyApplied)
+          toast.info(t('contextMenus.xmpImportReport.alreadyAppliedPhoto'), { autoClose: false });
+        if (metadata.adjustmentsApplied)
+          toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
         if (metadata.notTransferred?.length) {
           toast.info(
             t('contextMenus.xmpImportReport.notTransferredForImage', {
@@ -352,6 +375,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       } catch (err) {
         console.error('Failed to import XMP adjustments:', err);
         toast.error(t('contextMenus.toasts.failedImportXmpAdjustments', { err }));
+      } finally {
+        resumeEditorDraftAfterXmpImport(draft, draftConsumed);
       }
     },
     [applyImportedXmpMetadata, describeNotTransferred, props, t],
@@ -368,10 +393,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       });
       const progressToastId = toast.loading(t('contextMenus.toasts.importingMatchingXmpSidecars'));
       let stopListening: (() => void) | undefined;
+      let draft: XmpEditorDraft | undefined;
+      let draftConsumed = false;
 
       try {
-        debouncedSave.cancel();
-        debouncedSetHistory.cancel();
+        draft = await prepareEditorDraftForXmpImport();
         stopListening = await listen<MatchingXmpSidecarImportProgress>('xmp-sidecar-import-progress', ({ payload }) => {
           if (payload.folderPath !== targetPath) return;
           useProcessStore.getState().setImportState({
@@ -382,9 +408,13 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
 
         const result = await invoke<MatchingXmpSidecarImportResult>(Invokes.ImportMatchingXmpSidecarsInFolder, {
           folderPath: targetPath,
+          pendingDraft: draft,
         });
-
-        await refreshImportedXmpPaths(result.importedPaths);
+        draftConsumed =
+          !!draft &&
+          (result.adjustmentsImportedPaths.includes(draft.path) || result.preservedDraftPaths.includes(draft.path));
+        result.importedPaths.forEach((path) => globalImageCache.delete(path));
+        await refreshImportedXmpPaths(result.adjustmentsImportedPaths);
 
         const { currentFolderPath, imageList } = useLibraryStore.getState();
         const importedVisibleImage = imageList.some((image) => result.importedPaths.includes(image.path));
@@ -411,10 +441,18 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         const relativeToImportedFolder = (path: string) =>
           path.startsWith(`${targetPath}/`) ? path.slice(targetPath.length + 1) : path;
         const reportLines = [
-          t('contextMenus.xmpImportReport.calibrationWarning'),
-          '',
+          ...(result.adjustmentsImportedPaths.length > 0
+            ? [t('contextMenus.xmpImportReport.calibrationWarning'), '']
+            : []),
           t('contextMenus.xmpImportReport.folder', { folder: targetPath }),
         ];
+        if (result.alreadyAppliedPaths.length > 0) {
+          reportLines.push(
+            '',
+            t('contextMenus.xmpImportReport.alreadyAppliedPhoto'),
+            ...result.alreadyAppliedPaths.map(relativeToImportedFolder),
+          );
+        }
         if (result.unchangedPaths.length > 0) {
           reportLines.push(
             '',
@@ -457,14 +495,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           });
         };
 
-        if (result.imported > 0) {
+        if (result.adjustmentsImportedPaths.length > 0) {
           toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), {
             autoClose: false,
             onClick: showImportReport,
           });
         }
 
-        if (result.unchanged > 0 || result.failed > 0) {
+        if (result.unchanged > 0 || result.failed > 0 || result.alreadyAppliedPaths.length > 0) {
           const notify = result.failed > 0 ? toast.error : toast.info;
           notify(
             t('contextMenus.xmpImportReport.available', {
@@ -498,6 +536,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           type: 'error',
         });
       } finally {
+        resumeEditorDraftAfterXmpImport(draft, draftConsumed);
         stopListening?.();
       }
     },

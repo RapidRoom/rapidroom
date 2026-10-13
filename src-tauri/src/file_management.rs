@@ -534,10 +534,13 @@ pub struct ImportSettings {
 
 #[derive(Debug)]
 struct ImportedXmpSidecar {
-    source_path: PathBuf,
     sidecar_path: PathBuf,
     metadata: ImageMetadata,
     not_transferred: Vec<&'static str>,
+    adjustments_applied: bool,
+    metadata_applied: bool,
+    already_applied: bool,
+    draft_preserved: bool,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -553,6 +556,9 @@ pub struct XmpSidecarImportResult {
     pub failed: usize,
     pub failures: Vec<String>,
     pub imported_paths: Vec<String>,
+    pub adjustments_imported_paths: Vec<String>,
+    pub already_applied_paths: Vec<String>,
+    pub preserved_draft_paths: Vec<String>,
     pub unchanged_paths: Vec<String>,
     pub not_transferred: Vec<XmpNotTransferred>,
 }
@@ -570,6 +576,16 @@ pub struct XmpImageImportResult {
     #[serde(flatten)]
     pub metadata: ImageMetadata,
     pub not_transferred: Vec<&'static str>,
+    pub adjustments_applied: bool,
+    pub already_applied: bool,
+    pub draft_preserved: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct XmpEditorDraft {
+    path: String,
+    adjustments: Value,
 }
 
 pub fn parse_virtual_path(virtual_path: &str) -> (PathBuf, PathBuf) {
@@ -2944,6 +2960,15 @@ pub fn save_metadata_and_update_thumbnail(
         sync_metadata_to_xmp(&source_path, &sidecar_path, &metadata, create_if_missing);
     }
 
+    queue_import_thumbnail_refresh(path, app_handle, &state);
+    Ok(())
+}
+
+fn queue_import_thumbnail_refresh(
+    path: String,
+    app_handle: AppHandle,
+    state: &tauri::State<'_, AppState>,
+) {
     let loaded_image_lock = state.original_image.lock().unwrap();
     let preloaded_image_option = if let Some(loaded_image) = loaded_image_lock.as_ref() {
         if loaded_image.path == path {
@@ -2956,11 +2981,11 @@ pub fn save_metadata_and_update_thumbnail(
     };
     drop(loaded_image_lock);
 
-    let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
+    let gpu_context = gpu_processing::get_or_init_gpu_context(state, &app_handle).ok();
     let app_handle_clone = app_handle.clone();
     let path_clone = path.clone();
 
-    add_to_thumbnail_queue(&state, 1, &app_handle);
+    add_to_thumbnail_queue(state, 1, &app_handle);
 
     thread::spawn(move || {
         let state = app_handle_clone.state::<AppState>();
@@ -3003,8 +3028,6 @@ pub fn save_metadata_and_update_thumbnail(
 
         increment_thumbnail_progress(&state, &app_handle_clone);
     });
-
-    Ok(())
 }
 
 fn is_xmp_sidecar_path(path: &Path) -> bool {
@@ -3050,10 +3073,20 @@ fn find_matching_xmp_sidecars_recursive(
     (matches, skipped, failures)
 }
 
+#[cfg(test)]
 fn import_xmp_adjustments_to_sidecar(
     path: &str,
     xmp_path: &Path,
     lens_db: Option<&crate::lens_correction::LensDatabase>,
+) -> Result<ImportedXmpSidecar, String> {
+    import_xmp_adjustments_to_sidecar_with_draft(path, xmp_path, lens_db, None)
+}
+
+fn import_xmp_adjustments_to_sidecar_with_draft(
+    path: &str,
+    xmp_path: &Path,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+    pending_adjustments: Option<&Value>,
 ) -> Result<ImportedXmpSidecar, String> {
     if !is_xmp_sidecar_path(xmp_path) {
         return Err("Selected file is not an XMP sidecar.".to_string());
@@ -3065,6 +3098,7 @@ fn import_xmp_adjustments_to_sidecar(
         .map_err(|error| format!("Failed to read XMP file: {}", error))?;
     let converted_preset =
         preset_converter::convert_xmp_sidecar_to_preset_for_image(&xmp_content, &source_path)?;
+    let already_applied = preset_converter::adobe_camera_raw_already_applied(&xmp_content)?;
 
     let has_supported_adjustments = converted_preset
         .adjustments
@@ -3073,25 +3107,40 @@ fn import_xmp_adjustments_to_sidecar(
     let has_supported_metadata = extract_xmp_rating(&xmp_content).is_some()
         || extract_xmp_label(&xmp_content).is_some()
         || !extract_xmp_tags(&xmp_content).is_empty();
-    if !has_supported_adjustments && !has_supported_metadata {
+    if !has_supported_adjustments && !has_supported_metadata && !already_applied {
         return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
     }
 
     let not_transferred =
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-    metadata.adjustments = converted_preset.adjustments;
-    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    if has_supported_adjustments {
+        metadata.adjustments = converted_preset.adjustments;
+        resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    }
+    let draft_preserved = !has_supported_adjustments && pending_adjustments.is_some();
+    if let Some(pending) = pending_adjustments.filter(|_| !has_supported_adjustments) {
+        if !pending.is_object() {
+            return Err("Pending editor adjustments must be an object".to_string());
+        }
+        metadata.adjustments = pending.clone();
+    }
     merge_xmp_metadata_fields(&xmp_content, &mut metadata);
 
-    let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
-    write_file_atomically(&sidecar_path, json_string).map_err(|error| error.to_string())?;
+    if has_supported_adjustments || has_supported_metadata || draft_preserved {
+        let json_string =
+            serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
+        write_file_atomically(&sidecar_path, json_string).map_err(|error| error.to_string())?;
+    }
 
     Ok(ImportedXmpSidecar {
-        source_path,
         sidecar_path,
         metadata,
         not_transferred,
+        adjustments_applied: has_supported_adjustments,
+        metadata_applied: has_supported_metadata,
+        already_applied,
+        draft_preserved,
     })
 }
 
@@ -3099,6 +3148,7 @@ fn import_xmp_adjustments_to_sidecar(
 pub fn import_xmp_adjustments_for_image(
     path: String,
     xmp_path: Option<String>,
+    pending_adjustments: Option<Value>,
     app_handle: AppHandle,
     state: tauri::State<AppState>,
 ) -> Result<XmpImageImportResult, String> {
@@ -3108,12 +3158,21 @@ pub fn import_xmp_adjustments_for_image(
         .or_else(|| find_matching_xmp_sidecar(&path))
         .ok_or_else(|| "No matching XMP sidecar was found next to this image.".to_string())?;
     let lens_db = state.lens_db.lock().unwrap().clone();
-    let imported = import_xmp_adjustments_to_sidecar(&path, &xmp_path, lens_db.as_deref())?;
-    let imported_adjustments = imported.metadata.adjustments.clone();
+    let imported = import_xmp_adjustments_to_sidecar_with_draft(
+        &path,
+        &xmp_path,
+        lens_db.as_deref(),
+        pending_adjustments.as_ref(),
+    )?;
     let sidecar_path = imported.sidecar_path.clone();
     let not_transferred = imported.not_transferred;
+    let adjustments_applied = imported.adjustments_applied;
+    let already_applied = imported.already_applied;
 
-    save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
+    let draft_preserved = imported.draft_preserved;
+    if adjustments_applied || imported.metadata_applied || draft_preserved {
+        queue_import_thumbnail_refresh(path, app_handle, &state);
+    }
 
     log::info!(
         "Imported XMP adjustments from {} to {}",
@@ -3124,12 +3183,16 @@ pub fn import_xmp_adjustments_for_image(
     Ok(XmpImageImportResult {
         metadata: crate::exif_processing::load_sidecar(&sidecar_path),
         not_transferred,
+        adjustments_applied,
+        already_applied,
+        draft_preserved,
     })
 }
 
 #[tauri::command]
 pub async fn import_matching_xmp_sidecars_in_folder(
     folder_path: String,
+    pending_draft: Option<XmpEditorDraft>,
     app_handle: AppHandle,
 ) -> Result<XmpSidecarImportResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -3141,9 +3204,6 @@ pub async fn import_matching_xmp_sidecars_in_folder(
 
         let (matches, skipped, traversal_failures) = find_matching_xmp_sidecars_recursive(&folder);
         let total = matches.len();
-        let settings = load_settings(app_handle.clone()).unwrap_or_default();
-        let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-        let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
         let lens_db = app_handle
             .state::<AppState>()
             .lens_db
@@ -3159,6 +3219,9 @@ pub async fn import_matching_xmp_sidecars_in_folder(
             failed: traversal_failures.len(),
             failures: traversal_failures,
             imported_paths: Vec::new(),
+            adjustments_imported_paths: Vec::new(),
+            already_applied_paths: Vec::new(),
+            preserved_draft_paths: Vec::new(),
             unchanged_paths: Vec::new(),
             not_transferred: Vec::new(),
         };
@@ -3180,24 +3243,47 @@ pub async fn import_matching_xmp_sidecars_in_folder(
 
         for (index, (path, xmp_path)) in matches.into_iter().enumerate() {
             let path_string = path.to_string_lossy().to_string();
-            match import_xmp_adjustments_to_sidecar(&path_string, &xmp_path, lens_db.as_deref()) {
+            let pending = pending_draft
+                .as_ref()
+                .filter(|draft| draft.path == path_string)
+                .map(|draft| &draft.adjustments);
+            match import_xmp_adjustments_to_sidecar_with_draft(
+                &path_string,
+                &xmp_path,
+                lens_db.as_deref(),
+                pending,
+            ) {
                 Ok(imported) => {
-                    if enable_xmp_sync {
-                        sync_metadata_to_xmp(
-                            &imported.source_path,
-                            &imported.sidecar_path,
-                            &imported.metadata,
-                            create_xmp_if_missing,
+                    if imported.already_applied {
+                        result.already_applied_paths.push(path_string.clone());
+                    }
+                    if imported.draft_preserved {
+                        result.preserved_draft_paths.push(path_string.clone());
+                        let state = app_handle.state::<AppState>();
+                        queue_import_thumbnail_refresh(
+                            path_string.clone(),
+                            app_handle.clone(),
+                            &state,
                         );
                     }
-                    result.imported += 1;
-                    if !imported.not_transferred.is_empty() {
-                        result.not_transferred.push(XmpNotTransferred {
-                            path: path_string.clone(),
-                            items: imported.not_transferred,
-                        });
+                    if !imported.adjustments_applied && !imported.metadata_applied {
+                        result.unchanged += 1;
+                        result.unchanged_paths.push(path_string);
+                    } else {
+                        result.imported += 1;
+                        if !imported.not_transferred.is_empty() {
+                            result.not_transferred.push(XmpNotTransferred {
+                                path: path_string.clone(),
+                                items: imported.not_transferred,
+                            });
+                        }
+                        result.imported_paths.push(path_string);
+                        if imported.adjustments_applied {
+                            result
+                                .adjustments_imported_paths
+                                .push(path.to_string_lossy().to_string());
+                        }
                     }
-                    result.imported_paths.push(path_string);
                 }
                 Err(error) if error == NO_SUPPORTED_XMP_CONTENT_ERROR => {
                     result.unchanged += 1;
@@ -6232,6 +6318,98 @@ mod lightroom_xmp_import_tests {
                     .is_some_and(|name| name.to_string_lossy().starts_with(".rapidraw-"))
             })
             .collect()
+    }
+
+    #[test]
+    fn metadata_only_import_persists_the_live_draft_without_rewriting_input() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.NEF");
+        let sidecar = dir.path().join("photo.NEF.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        let pending = serde_json::json!({"exposure": 0.75, "lensDistortion": 12,
+            "curves": {"luma": [{"x":0,"y":0},{"x":255,"y":220}]},
+            "masks": [{"id":"pending-mask","subMasks":[]}]});
+        for flag in ["", "crs:AlreadyApplied=\"True\" crs:Exposure2012=\"4\""] {
+            let xml = lightroom_xmp(&format!("xmp:Rating=\"5\" {flag}"));
+            fs::write(&xmp, &xml).unwrap();
+            let imported = import_xmp_adjustments_to_sidecar_with_draft(
+                &path_str(&raw),
+                &xmp,
+                None,
+                Some(&pending),
+            )
+            .unwrap();
+            assert!(imported.draft_preserved);
+            assert!(!imported.adjustments_applied);
+            assert_eq!(imported.metadata.adjustments, pending);
+            assert_eq!(imported.metadata.rating, 5);
+            assert_eq!(
+                crate::exif_processing::load_sidecar(&sidecar).adjustments,
+                pending
+            );
+            assert_eq!(fs::read_to_string(&xmp).unwrap(), xml);
+            assert_eq!(fs::read(&raw).unwrap(), b"raw bytes");
+        }
+    }
+
+    #[test]
+    fn metadata_only_xmp_import_preserves_saved_adjustments() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.NEF");
+        let sidecar = dir.path().join("photo.NEF.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        let mut metadata = ImageMetadata::default();
+        metadata.adjustments = serde_json::json!({
+            "exposure": 0.75,
+            "curves": {"luma": [{"x": 0, "y": 0}, {"x": 255, "y": 220}]},
+            "masks": [{"id": "kept-mask", "subMasks": []}],
+            "lensCorrectionMode": "manual",
+            "lensDistortion": 12
+        });
+        fs::write(&sidecar, serde_json::to_string(&metadata).unwrap()).unwrap();
+        fs::write(&raw, b"untouched raw bytes").unwrap();
+        let xml = lightroom_xmp(r#"xmp:Rating="5""#);
+        fs::write(&xmp, &xml).unwrap();
+
+        let imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+        assert_eq!(imported.metadata.adjustments, metadata.adjustments);
+        assert_eq!(imported.metadata.rating, 5);
+        assert_eq!(
+            crate::exif_processing::load_sidecar(&sidecar).adjustments,
+            metadata.adjustments
+        );
+        assert_eq!(fs::read(&raw).unwrap(), b"untouched raw bytes");
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), xml);
+        assert!(leftover_temp_files(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn already_applied_photo_without_metadata_keeps_sidecar_bytes() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.NEF");
+        let sidecar = dir.path().join("photo.NEF.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        let mut metadata = ImageMetadata::default();
+        metadata.adjustments = serde_json::json!({"exposure": 0.75, "contrast": 12});
+        let original = serde_json::to_string(&metadata).unwrap();
+        fs::write(&sidecar, &original).unwrap();
+        fs::write(&raw, b"untouched raw bytes").unwrap();
+        let xml = lightroom_xmp(r#"crs:AlreadyApplied="True" crs:Exposure2012="4""#);
+        fs::write(&xmp, &xml).unwrap();
+
+        let imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+        assert!(imported.already_applied);
+        assert!(!imported.adjustments_applied);
+        assert!(!imported.metadata_applied);
+        assert!(imported.not_transferred.is_empty());
+        assert_eq!(imported.metadata.adjustments, metadata.adjustments);
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        assert_eq!(fs::read(&raw).unwrap(), b"untouched raw bytes");
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), xml);
     }
 
     #[test]

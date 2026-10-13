@@ -345,3 +345,5 @@ preserves the raw stored name, new names are projected before storage, 128-byte
 opaque IDs round-trip, and invalid IDs are refused. That hostile-text phase makes
 no model requests. The first fixture phase uses the client's existing login and
 makes a real model request; no user library or global client config is changed.
+
+`--xmp-photo-policy` checks synthetic AlreadyApplied photo suppression versus reusable presets, metadata-only single/folder imports with a pending live edit and preserved Undo, ordinary False/absent packets, and input byte preservation with ordinary XMP sync enabled. It uses an isolated CC0 photo and authenticated MCP observations/restoration, with no models or Adobe application. See the [policy](../xmp-photo-policy-218/README.md).

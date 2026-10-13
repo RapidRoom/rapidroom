@@ -30,6 +30,7 @@ export const debouncedSetHistory = debounce((newAdj: Adjustments) => {
 }, 500);
 
 let cardEditNoticeShownFor: string | null = null;
+const pendingEditorSaves = new Set<Promise<unknown>>();
 
 export const debouncedSave = debounce((path: string, adjustmentsToSave: Adjustments) => {
   const cardRoot = useLibraryStore.getState().cardBrowseRoot;
@@ -41,11 +42,50 @@ export const debouncedSave = debounce((path: string, adjustmentsToSave: Adjustme
     return;
   }
 
-  invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave }).catch((err) => {
-    console.error('Auto-save failed:', err);
-    toast.error(`Failed to save changes: ${err}`);
-  });
+  const save = invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave });
+  pendingEditorSaves.add(save);
+  void save.then(
+    () => pendingEditorSaves.delete(save),
+    (err) => {
+      pendingEditorSaves.delete(save);
+      console.error('Auto-save failed:', err);
+      toast.error(`Failed to save changes: ${err}`);
+    },
+  );
+  return save;
 }, 300);
+
+export async function waitForPendingEditorSaves(): Promise<void> {
+  await Promise.all([...pendingEditorSaves]);
+}
+
+export interface XmpEditorDraft {
+  path: string;
+  adjustments: Adjustments;
+}
+
+export async function prepareEditorDraftForXmpImport(): Promise<XmpEditorDraft | undefined> {
+  const capture = () => {
+    const state = useEditorStore.getState();
+    return state.selectedImage ? { path: state.selectedImage.path, adjustments: state.adjustments } : undefined;
+  };
+  const before = capture();
+  // Do not flush a queued autosave: metadata sync could rewrite the incoming XMP.
+  debouncedSave.cancel();
+  try {
+    await waitForPendingEditorSaves();
+    debouncedSave.cancel();
+    debouncedSetHistory.flush();
+    return capture();
+  } catch (error) {
+    if (before) debouncedSave(before.path, before.adjustments);
+    throw error;
+  }
+}
+
+export function resumeEditorDraftAfterXmpImport(draft: XmpEditorDraft | undefined, consumed: boolean): void {
+  if (draft && !consumed) debouncedSave(draft.path, draft.adjustments);
+}
 
 export function useEditorActions() {
   const setEditor = useEditorStore((s) => s.setEditor);

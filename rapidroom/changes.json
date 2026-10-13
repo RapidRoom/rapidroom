@@ -2,6 +2,23 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "xmp-photo-already-applied-policy",
+      "title": "Preserve photo drafts when XMP development settings are already applied",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex; follow-up to the licence-first CRS audit)",
+      "commits": [],
+      "upstream_issues": [
+        "RapidRoom/rapidroom#218"
+      ],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Photo AlreadyApplied=True skips baked development while reusable presets retain editing values. Metadata-only single/folder imports preserve saved and pending adjustments plus editor history; imports read input XMP without writing back. False/absent photo flags retain ordinary import. No inferred enhanced-DNG exceptions or Adobe appearance parity."
+    },
+    {
       "id": "crs-interoperability-scoped-reader",
       "title": "Read CRS import fields by namespace and RDF subject",
       "category": "fix",
