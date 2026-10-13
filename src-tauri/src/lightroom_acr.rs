@@ -152,26 +152,56 @@ fn decode_mask(blob: &[u8]) -> Result<GrayImage> {
         return Err("Multiple mask TIFF images are unsupported".into());
     }
     let mut tags = HashMap::new();
+    let mut metadata_ranges = vec![0..ifd + 2 + count * 12 + 4];
     for i in 0..count {
         let entry = ifd + 2 + i * 12;
         let tag = u16_at(tiff, entry)?;
         let kind = u16_at(tiff, entry + 2)?;
-        if u32_at(tiff, entry + 4)? != 1 || !matches!(kind, 3 | 4) {
+        let values_count = u32_at(tiff, entry + 4)? as usize;
+        if !matches!(kind, 3 | 4)
+            || values_count == 0
+            || values_count > 256
+            || (values_count != 1 && !matches!(tag, 273 | 279 | 324 | 325))
+        {
             return Err("Unsupported mask TIFF tag type/count".into());
         }
-        let value = if kind == 3 {
-            u16_at(tiff, entry + 8)? as u32
+        let item_size = if kind == 3 { 2 } else { 4 };
+        let len = values_count * item_size;
+        let offset = if len <= 4 {
+            entry + 8
         } else {
-            u32_at(tiff, entry + 8)?
+            u32_at(tiff, entry + 8)? as usize
         };
-        if tags.insert(tag, value).is_some() {
+        slice(tiff, offset, len)?;
+        if len > 4 {
+            if metadata_ranges
+                .iter()
+                .any(|r| offset < r.end && offset + len > r.start)
+            {
+                return Err("Overlapping mask TIFF metadata".into());
+            }
+            metadata_ranges.push(offset..offset + len);
+        }
+        let mut values = Vec::with_capacity(values_count);
+        for index in 0..values_count {
+            values.push(if kind == 3 {
+                u16_at(tiff, offset + index * 2)? as u32
+            } else {
+                u32_at(tiff, offset + index * 4)?
+            });
+        }
+        if tags.insert(tag, values).is_some() {
             return Err("Duplicate mask TIFF tag".into());
         }
     }
-    let required = |tag| {
-        tags.get(&tag)
-            .copied()
-            .ok_or_else(|| format!("Missing mask TIFF tag {tag}"))
+    let required = |tag| -> Result<u32> {
+        let values = tags
+            .get(&tag)
+            .ok_or_else(|| format!("Missing mask TIFF tag {tag}"))?;
+        if values.len() != 1 {
+            return Err("Invalid scalar mask TIFF tag".into());
+        }
+        Ok(values[0])
     };
     let width = required(256)?;
     let height = required(257)?;
@@ -187,34 +217,89 @@ fn decode_mask(blob: &[u8]) -> Result<GrayImage> {
         || required(259)? != 52546
         || required(262)? != 1
         || required(277)? != 1
-        || tags.get(&284).is_some_and(|v| *v != 1)
-        || tags.get(&274).is_some_and(|v| *v != 1)
-        || tags.get(&339).is_some_and(|v| *v != 1)
+        || tags.get(&284).is_some_and(|v| v != &[1])
+        || tags.get(&274).is_some_and(|v| v != &[1])
+        || tags.get(&339).is_some_and(|v| v != &[1])
         || tags.contains_key(&338)
     {
         return Err("Only 8-bit grayscale JPEG XL masks are supported".into());
     }
-    let (offset, size) = if tags.contains_key(&324) {
-        if tags.contains_key(&273) || required(322)? != width || required(323)? != height {
-            return Err("Only a single full-image mask tile is supported".into());
+    let (tile_width, tile_height, offset_tag, size_tag) = if tags.contains_key(&324) {
+        if tags.contains_key(&273) || tags.contains_key(&279) {
+            return Err("Mixed mask TIFF tile/strip layout".into());
         }
-        (required(324)?, required(325)?)
+        (required(322)?, required(323)?, 324, 325)
     } else {
-        if required(278)? < height {
-            return Err("Only a single full-image mask strip is supported".into());
+        if tags.contains_key(&325) {
+            return Err("Mixed mask TIFF tile/strip layout".into());
         }
-        (required(273)?, required(279)?)
+        (width, required(278)?.min(height), 273, 279)
     };
-    if size == 0 || size > 16 * 1024 * 1024 || (offset as usize) < ifd + 2 + count * 12 + 4 {
-        return Err("Invalid mask codestream range".into());
+    if tile_width == 0 || tile_height == 0 || tile_width > width || tile_height > height {
+        return Err("Invalid mask TIFF tile/strip dimensions".into());
     }
-    let codestream = slice(tiff, offset as usize, size as usize)?;
+    let columns = width.div_ceil(tile_width);
+    let rows = height.div_ceil(tile_height);
+    let tile_count = columns as usize * rows as usize;
+    let offsets = tags.get(&offset_tag).ok_or("Missing mask TIFF offsets")?;
+    let sizes = tags.get(&size_tag).ok_or("Missing mask TIFF byte counts")?;
+    if tile_count > 256 || offsets.len() != tile_count || sizes.len() != tile_count {
+        return Err("Mask TIFF tile/strip count mismatch".into());
+    }
+    let mut ranges = metadata_ranges;
+    for (&offset, &size) in offsets.iter().zip(sizes) {
+        let (offset, size) = (offset as usize, size as usize);
+        if size == 0 || size > 16 * 1024 * 1024 {
+            return Err("Invalid mask codestream range".into());
+        }
+        slice(tiff, offset, size)?;
+        if ranges
+            .iter()
+            .any(|r| offset < r.end && offset + size > r.start)
+        {
+            return Err("Overlapping mask TIFF codestreams/metadata".into());
+        }
+        ranges.push(offset..offset + size);
+    }
+    let mut image = GrayImage::new(width, height);
+    for (index, (&offset, &size)) in offsets.iter().zip(sizes).enumerate() {
+        let x = (index as u32 % columns) * tile_width;
+        let y = (index as u32 / columns) * tile_height;
+        let visible_width = tile_width.min(width - x);
+        let visible_height = tile_height.min(height - y);
+        let codestream = slice(tiff, offset as usize, size as usize)?;
+        let tile = decode_jxl(
+            codestream,
+            tile_width,
+            tile_height,
+            visible_width,
+            visible_height,
+        )?;
+        for ty in 0..visible_height {
+            let src = ty as usize * tile.width() as usize;
+            let dst = (y + ty) as usize * width as usize + x as usize;
+            image.as_mut()[dst..dst + visible_width as usize]
+                .copy_from_slice(&tile.as_raw()[src..src + visible_width as usize]);
+        }
+    }
+    Ok(image)
+}
+
+fn decode_jxl(
+    codestream: &[u8],
+    padded_width: u32,
+    padded_height: u32,
+    visible_width: u32,
+    visible_height: u32,
+) -> Result<GrayImage> {
     let decoder = jxl_oxide::JxlImage::builder()
         .alloc_tracker(jxl_oxide::AllocTracker::with_limit(128 * 1024 * 1024))
         .read(codestream)
         .map_err(|_| "Cannot decode mask JPEG XL")?;
-    if decoder.width() != width
-        || decoder.height() != height
+    let width = decoder.width();
+    let height = decoder.height();
+    if (width != padded_width && width != visible_width)
+        || (height != padded_height && height != visible_height)
         || decoder.pixel_format() != jxl_oxide::PixelFormat::Gray
         || decoder.num_loaded_frames() != 1
         || decoder.num_loaded_keyframes() != 1
@@ -446,6 +531,70 @@ mod tests {
                 decode_mask(&bad[52..52 + blob_len]).is_err(),
                 "tag {tag_index}"
             );
+        }
+    }
+    fn tiled_blob() -> Vec<u8> {
+        let tiles = [[0, 64], [128, 0], [192, 255], [32, 0]].map(|pixels| {
+            jxl_encoder::LosslessConfig::default()
+                .encode(&pixels, 2, 1, jxl_encoder::PixelLayout::Gray8)
+                .unwrap()
+        });
+        let offsets: Vec<u32> = tiles
+            .iter()
+            .scan(178u32, |offset, tile| {
+                let current = *offset;
+                *offset += tile.len() as u32;
+                Some(current)
+            })
+            .collect();
+        let tags = [
+            (256, 1, 3),
+            (257, 1, 2),
+            (258, 1, 8),
+            (259, 1, 52546),
+            (262, 1, 1),
+            (277, 1, 1),
+            (284, 1, 1),
+            (322, 1, 2),
+            (323, 1, 1),
+            (324, 4, 146),
+            (325, 4, 162),
+        ];
+        let mut blob = vec![2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        blob.extend_from_slice(b"II*\0\x08\0\0\0");
+        blob.extend_from_slice(&11u16.to_le_bytes());
+        for (tag, count, value) in tags {
+            blob.extend_from_slice(&(tag as u16).to_le_bytes());
+            blob.extend_from_slice(&4u16.to_le_bytes());
+            blob.extend_from_slice(&(count as u32).to_le_bytes());
+            blob.extend_from_slice(&(value as u32).to_le_bytes());
+        }
+        blob.extend_from_slice(&0u32.to_le_bytes());
+        for offset in offsets {
+            blob.extend_from_slice(&offset.to_le_bytes());
+        }
+        for tile in &tiles {
+            blob.extend_from_slice(&(tile.len() as u32).to_le_bytes());
+        }
+        for tile in tiles {
+            blob.extend_from_slice(&tile);
+        }
+        blob
+    }
+    #[test]
+    fn multiple_tiles_preserve_coverage_and_clip_only_padded_edge_pixels() {
+        let blob = tiled_blob();
+        assert_eq!(
+            decode_mask(&blob).unwrap().as_raw(),
+            &[0, 64, 128, 192, 255, 32]
+        );
+        for offset in [16 + 146, 16 + 146 + 4, 16 + 162] {
+            let mut bad = blob.clone();
+            bad[offset..offset + 4].copy_from_slice(&0u32.to_le_bytes());
+            assert!(decode_mask(&bad).is_err());
+        }
+        for len in 0..blob.len() {
+            assert!(decode_mask(&blob[..len]).is_err());
         }
     }
     #[test]
