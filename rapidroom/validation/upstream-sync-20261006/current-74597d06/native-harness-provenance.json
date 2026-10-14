@@ -1,0 +1,19 @@
+{
+  "base_application_harness_source": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+  "base_smoke_sha256": "62834bf0fa05fbe2584647aa08741003bb5b08ce1134cc7f29e6bdebc2e053e9",
+  "adaptations": [
+    "Own private copy: select corpus fixture and known full-resolution dimensions; preserve original extension",
+    "Explicit ordinary histogram preferences in isolated app settings",
+    "Four normal Exposure edits with full-preview and histogram change plus exact reset",
+    "Capture real decoded SVG surface dimensions and pixels at typed 100 percent; existing native wheel/zoom/export checks retained",
+    "Scope preview SVG lookup to actual editor viewport with200px minimum so portrait435px-wide XH2 passes;500px generic SVG threshold caused prior harness failure.",
+    "Histogram probe uses actual SVG viewBox dimensions and3channel stroke paths, excluding curve-graph fills; records DOM diagnostics before read-only wait.",
+    "Normalize neutral fit view via ordinary Exposure0.2/reset before exact reset/Undo pixel comparisons: actual logs show initial853x1280 vs subsequent683x1024 for portrait. Bothcandidate/main use same gesture."
+  ],
+  "files": {
+    "preview-smoke.py": "13722d0f2307e53eb72f21acbea75031262cc8e020d4c58dd8549b9fbd673a4e",
+    "preview_checks.py": "d1b071f7e17aa20117f401e04742f3942684933c9752f8b81bf19483651994cc",
+    "zoom.py": "617e3cb36b2c40ecdbc13bdd108cbc39093dbff3caf1daf8a9c5e6197aecf543"
+  },
+  "model_requests": false
+}
