@@ -1,0 +1,11 @@
+{
+  "category": "fix",
+  "landed": "2026-10-02",
+  "source": "rapidroom",
+  "upstream_issues": ["CyberTimon/RapidRAW#1161"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "id": "user-comment-charset",
+  "title": "EXIF UserComment is written with its character-code header, so other apps read the whole comment",
+  "authors": ["yojen7"]
+}

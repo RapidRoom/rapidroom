@@ -1,0 +1,13 @@
+{
+  "id": "mcp-single-mask-tools",
+  "title": "Edit individual masks through MCP with typed crop and component schemas",
+  "category": "feature",
+  "landed": "2026-10-10",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Single-id upsert/remove preserves sibling masks and shared editor history. Tool discovery documents original-image coordinate units, all existing renderer component types and local adjustment ranges. Nested HSL/colour-grading defaults fill on create and existing sidecar load. Default renders and render algorithms are unchanged; partial sidecars retain their values while receiving missing neutral defaults. Existing build identity is documented. Advances the mask foundation for #120; AI generation, preview-coordinate conversion, virtual-copy, preset and library tools remain separate follow-up work."
+}
