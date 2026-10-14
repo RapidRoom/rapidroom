@@ -1,0 +1,13 @@
+{
+  "id": "mcp-compact-replies",
+  "title": "Smaller MCP edit replies, exact histogram summaries and tight labelled comparisons",
+  "category": "performance",
+  "landed": "2026-10-05",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex; existing MCP authorship retained)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Set/update/reset replies default to editRevision and actual changedKeys, with verbose:true retaining the full adjustment state. Analyze/sample summaries retain exact clipping, means, medians and linearly interpolated luminance percentiles; histogram:true returns the existing four exact 256-bin histograms. Repeated curve, HSL and grading schemas use self-contained local definitions without changing validation. Compare sheets use image-aspect cells and retain exact labels; photo-rendering algorithms and separate variant pixels are unchanged. A 12-step native Linux pass with real Claude/Codex preserves three masks and one shared assistant history row while applying nested HSL/grading/parametric edits. Three-mask set/update results shrink from 37572 to 610 UTF-8 JSON bytes; discovery from 82710 to 57200; the actual four-landscape sheet from 1000\u00d71000 to 1000\u00d7716. Opt-in histograms/percentiles match independently decoded pixels, and read-only state/history/sidecar guards hold. 163 frontend tests and 317 default/353 combined Rust tests pass."
+}

@@ -1,0 +1,13 @@
+{
+  "id": "built-in-terminal-panel",
+  "title": "Movable terminal panel with persistent tabs, bounded PTY output, shell/font preferences and built-in/external assistant launch controls",
+  "category": "feature",
+  "landed": "2026-10-05",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original work with Codex; optional portable-pty and xterm dependencies credited separately)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Requires cargo feature terminal; official Linux release configuration enables it. Uses existing left/right panel docking plus a resizable full-width bottom region. Saved tabs reopen fresh shells without persisted transcripts or automatic commands. Output is bounded with acknowledgement backpressure, OSC 52 clipboard commands are blocked, and owned PTY sessions are closed on tab/app exit. Claude/Codex start buttons type fixed shell commands or use the existing external terminal infrastructure. The 15-step Linux native scenario verifies real Claude Code and Codex from both launch paths over authenticated stdio, with the same folder and standard configuration, automatic endpoint discovery, changed photo revision/slider/preview, external mode keeping the panel closed, and PTY cleanup on quit. Default dependency graph is unchanged. Native macOS/Windows and physical terminal focus are untested."
+}

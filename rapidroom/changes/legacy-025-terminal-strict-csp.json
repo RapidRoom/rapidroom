@@ -1,0 +1,13 @@
+{
+  "id": "terminal-strict-csp",
+  "title": "Keep webview scripts local and disable Cloud sign-in before adding the terminal panel",
+  "category": "privacy",
+  "landed": "2026-10-05",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original policy integration, AI-assisted; measured design from #125)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Implements Josh\u2019s #119 choice: strict script CSP with Clerk off. Existing CPU and AI Connector choices remain available. Production and development directives retain required asset, IPC, style, map and update origins; only styles bypass automatic Tauri CSP modification. CI checks the configured policy, saved Cloud settings, and blocked nonlocal script execution. The native panel scenario enforces the response-header policy and blocks a nonlocal script control while PTY and authenticated MCP editing work."
+}
