@@ -23,6 +23,24 @@
       "notes": "Retains 51 corrected poly5 distortion anchors and 99 PA-vignetting entries measured from 207 ILCE-7CM2 ARWs. Unsupported polynomial TCA is excluded from the active profile and named in the selector; unchanged licensed donor data is retained for a separate evaluator issue. Existing Lens controls opt into correction; defaults and legacy stored coefficients are unchanged. Synthetic validation only: unvalidated on real lens files in RapidRoom."
     },
     {
+      "id": "ai-mask-transform-antialias",
+      "title": "Filter AI mask edges in reduced and rotated previews",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [
+        "RapidRoom/rapidroom#241",
+        "CyberTimon/RapidRAW#1902"
+      ],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "AI mask bitmaps are filtered before minification and sampled bilinearly at transformed pixel centers. Rotation, flip, crop and coarse orientation retain correct pixel alignment; subjects reaching frame edges do not gain an extra fade. Stored bitmap data and model selection are unchanged."
+    },
+    {
       "id": "raw-repair-thumbnail-native-scale",
       "title": "Keep RAW repair patches aligned in regenerated thumbnails",
       "category": "fix",
