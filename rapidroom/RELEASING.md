@@ -95,7 +95,7 @@ With stock RapidRAW installed:
 - [ ] AI masks work (ONNX Runtime loads from `/usr/lib/RapidRoom/resources`), film LUTs list, and lens correction finds lenses.
 - [ ] Both packages contain an executable stdio adapter; AI control initially has no endpoint/listener, and enable/cancel/disable work. Start Claude/Codex uses the installed adapter and a real client edit reaches the slider and preview.
 - [ ] The AppImage runs on its own (`chmod +x`, run it) with the same checks.
-- [ ] The start screen shows `RapidRoom 2.2.0` and `RapidRAW 1.6.4`.
+- [ ] The start screen shows `RapidRoom 2.2.0` and `community build of RapidRAW by Timon Käch`, without an upstream version number.
 - [ ] Upgrading from the previous RapidRoom `.deb` replaces it in place.
 
 ## Changelog snapshots
