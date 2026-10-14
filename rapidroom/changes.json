@@ -20,6 +20,24 @@
       "notes": "GUI image launches resolve relative paths using the caller working directory, including when an existing instance receives a second launch. External-editor source and output paths use the same caller directory. Absolute paths and headless export/benchmark requests retain their meaning."
     },
     {
+      "id": "ai-mask-transform-antialias",
+      "title": "Filter AI mask edges in reduced and rotated previews",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [
+        "RapidRoom/rapidroom#241",
+        "CyberTimon/RapidRAW#1902"
+      ],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "AI mask bitmaps are filtered before minification and sampled bilinearly at transformed pixel centers. Rotation, flip, crop and coarse orientation retain correct pixel alignment; subjects reaching frame edges do not gain an extra fade. Stored bitmap data and model selection are unchanged."
+    },
+    {
       "id": "raw-repair-thumbnail-native-scale",
       "title": "Keep RAW repair patches aligned in regenerated thumbnails",
       "category": "fix",
