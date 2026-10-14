@@ -2,18 +2,18 @@
 
 Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/CyberTimon/RapidRAW), with who made it and where it stands upstream.
 
-<sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
+<sub>Generated from [rapidroom/changes/](rapidroom/changes/) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**95 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
+**94 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
 
 | Change                                                                                                                                                                                                                                                                            | Type        | By                                                                                                                             | Upstream                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Keep changelog records independent between PRs                                                                                                                                                                                                                                    | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Filter AI mask edges in reduced and rotated previews ⚑                                                                                                                                                                                                                            | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#241](https://github.com/RapidRoom/rapidroom/issues/241); [#1902](https://github.com/CyberTimon/RapidRAW/issues/1902)                                                                                                                                          |
 | Keep RAW repair patches aligned in regenerated thumbnails ⚑                                                                                                                                                                                                                       | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#240](https://github.com/RapidRoom/rapidroom/issues/240); [#1903](https://github.com/CyberTimon/RapidRAW/issues/1903)                                                                                                                                          |
 | Keep Shift-click selection within visible folders in Recursive view                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
-| Keep arrow-key navigation within folders in Recursive view                                                                                                                                                                                                                        | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Test atomic file writes under failure conditions                                                                                                                                                                                                                                  | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
-| Preserve photo drafts when XMP development settings are already applied                                                                                                                                                                                                           | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#218](https://github.com/RapidRoom/rapidroom/issues/218)                                                                                                                                                                                                       |
+| Keep arrow-key navigation within folders in Recursive view                                                                                                                                                                                                                        | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Read CRS import fields by namespace and RDF subject                                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Edit individual masks through MCP with typed crop and component schemas                                                                                                                                                                                                           | feature     | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Allow explicit replacement of earlier batch exports                                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#235](https://github.com/RapidRoom/rapidroom/issues/235); [#1901](https://github.com/CyberTimon/RapidRAW/issues/1901)                                                                                                                                          |
@@ -119,6 +119,14 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 ## Details
 
+### Keep changelog records independent between PRs
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-13
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original documentation and validation tooling)
+- **Upstream:** not yet offered
+- **Notes:** Each PR adds its own validated change record. Published changelog and status snapshots are generated at release time, avoiding shared-file conflicts and bot commits on main.
+
 ### Filter AI mask edges in reduced and rotated previews
 
 - **Type:** fix (changes rendered output)
@@ -143,14 +151,6 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** not yet offered
 - **Notes:** Recursive-view Shift-click selection follows the visible folder-grouped order and skips collapsed folders. Flat view retains its existing global sort order.
 
-### Keep arrow-key navigation within folders in Recursive view
-
-- **Type:** fix
-- **Landed in RapidRoom:** 2026-10-13
-- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
-- **Upstream:** not yet offered
-- **Notes:** Arrow-key navigation in Recursive library view stays within the selected image's parent folder and preserves that folder's sort order. Other view modes retain their existing global navigation order.
-
 ### Test atomic file writes under failure conditions
 
 - **Type:** ci
@@ -159,13 +159,13 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **Upstream:** not yet offered
 - **Notes:** Injects partial-write disk-full, sync/finalization, and final-name collision failures into atomic sidecar writes. Each test verifies the existing file is preserved and the temporary file is removed. Production file-write behavior is unchanged.
 
-### Preserve photo drafts when XMP development settings are already applied
+### Keep arrow-key navigation within folders in Recursive view
 
 - **Type:** fix
 - **Landed in RapidRoom:** 2026-10-13
-- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex; follow-up to the licence-first CRS audit)
-- **Upstream:** [RapidRoom/rapidroom#218](https://github.com/RapidRoom/rapidroom/issues/218)
-- **Notes:** Photo AlreadyApplied=True skips baked development while reusable presets retain editing values. Metadata-only single/folder imports preserve saved and pending adjustments plus editor history; imports read input XMP without writing back. False/absent photo flags retain ordinary import. No inferred enhanced-DNG exceptions or Adobe appearance parity.
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
+- **Upstream:** not yet offered
+- **Notes:** Arrow-key navigation in Recursive library view stays within the selected image's parent folder and preserves that folder's sort order. Other view modes retain their existing global navigation order.
 
 ### Read CRS import fields by namespace and RDF subject
 

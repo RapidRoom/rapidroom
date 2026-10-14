@@ -1,0 +1,11 @@
+{
+  "id": "clerk-opt-in",
+  "title": "The Clerk sign-in SDK loads only when cloud features are turned on, with telemetry off",
+  "category": "privacy",
+  "landed": "2026-10-02",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false
+}

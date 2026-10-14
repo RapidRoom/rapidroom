@@ -1,0 +1,12 @@
+{
+  "category": "fix",
+  "landed": "2026-10-02",
+  "source": "pluja/RapidRAW-Fork",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "id": "mask-recovery",
+  "title": "One unreadable field in a saved mask no longer removes every mask on the image",
+  "authors": ["pluja"],
+  "commits": ["https://github.com/pluja/RapidRAW-Fork/commit/d4017d349e6c18eb7ffae73206d7ed4baed895a9"]
+}
