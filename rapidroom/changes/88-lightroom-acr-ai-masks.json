@@ -1,0 +1,15 @@
+{
+  "id": "lightroom-acr-ai-masks",
+  "title": "Import Lightroom AI masks from ACR sidecars",
+  "category": "feature",
+  "landed": "2026-10-13",
+  "authors": [
+    "yojen7"
+  ],
+  "source": "rapidroom (original implementation with Codex; shared ACR reader credited separately)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Read-only, bounded import of 8-bit grayscale TIFF/JPEG XL mask rasters with checked content references, sensor/default-crop placement, EXIF orientation and fine rotation. Supplied subject, sky, object and people coverage becomes persisted bitmap masks, including mixed gradient/brush corrections. Unsupported payloads or incomplete corrections are reported by name; ordinary renders are unchanged. Lightroom slider calibration remains unverified."
+}

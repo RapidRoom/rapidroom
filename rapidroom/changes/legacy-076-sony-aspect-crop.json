@@ -1,0 +1,14 @@
+{
+  "id": "sony-aspect-crop",
+  "title": "Sony 4:3, 1:1 and 16:9 camera framing opens as an editable crop",
+  "category": "fix",
+  "landed": "2026-10-03",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "commits": ["https://github.com/yojen7/RapidRAW-DngLab/commit/b84ca29b143c62f920361081b058c77e4d73faa5"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Reads SonyCropTopLeft/SonyCropSize in the rawler fork, retains the full DefaultCrop image for crop expansion/reset, and preserves existing sidecar framing. The M/S crop and saturating highlight dither fixes remain. AI-assisted with Codex; maintainer visual review required.",
+  "highlight": "**Sony camera aspect ratios are respected.** 4:3, square and 16:9 shots start with the camera framing, and you can expand the crop back to the full image."
+}
