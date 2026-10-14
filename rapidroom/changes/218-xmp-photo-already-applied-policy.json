@@ -3,14 +3,10 @@
   "title": "Preserve photo drafts when XMP development settings are already applied",
   "category": "fix",
   "landed": "2026-10-13",
-  "authors": [
-    "yojen7"
-  ],
+  "authors": ["yojen7"],
   "source": "rapidroom (original implementation with Codex; follow-up to the licence-first CRS audit)",
   "commits": [],
-  "upstream_issues": [
-    "RapidRoom/rapidroom#218"
-  ],
+  "upstream_issues": ["RapidRoom/rapidroom#218"],
   "upstream_prs": [],
   "rendering_change": false,
   "notes": "Photo AlreadyApplied=True skips baked development while reusable presets retain editing values. Metadata-only single/folder imports preserve saved and pending adjustments plus editor history; imports read input XMP without writing back. False/absent photo flags retain ordinary import. No inferred enhanced-DNG exceptions or Adobe appearance parity."
