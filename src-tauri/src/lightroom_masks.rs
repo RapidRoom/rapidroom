@@ -1449,13 +1449,12 @@ pub(crate) mod tests {
             .replace(r#"crs:MaskBlendMode="0""#, r#"crs:MaskBlendMode="1""#)
             .replace(r#"crs:MaskActive="true""#, r#"crs:MaskActive="false""#)
             .replace("Radial Gradient 1", "Radial Gradient 2");
-        let xmp = sidecar_with_corrections(
-            "",
-            &correction(
-                r#"crs:CorrectionName="Subject" crs:CorrectionActive="false" crs:LocalShadows2012="0.3""#,
-                &format!("{RADIAL_GRADIENT}\n{subtract_linear}\n{intersect_radial}"),
-            ),
-        );
+        let inactive_correction = correction(
+            r#"crs:CorrectionName="Subject" crs:LocalShadows2012="0.3""#,
+            &format!("{RADIAL_GRADIENT}\n{subtract_linear}\n{intersect_radial}"),
+        )
+        .replace(r#"crs:CorrectionActive="true""#, r#"crs:CorrectionActive="false""#);
+        let xmp = sidecar_with_corrections("", &inactive_correction);
 
         let masks = imported_masks(&xmp);
         assert_eq!(masks[0]["visible"], json!(false));
