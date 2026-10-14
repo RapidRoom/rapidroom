@@ -53,6 +53,24 @@
       "notes": "Aggregate Paint children retain stroke order, container visibility/inversion and subtract composition. Radial polarity uses MaskInverted alone; signed rotated pixel-space corners recover clockwise ellipse axes through orientation/crop rotation. Brush radius is in unoriented width units. Only imported mask geometry changes; non-imported edits and rendering algorithms remain unchanged. Brush flow/density and variable dab parameters, Lightroom falloff laws and local-strength calibration remain separate parity work. Opaque MaskBrushTable groups are skipped whole and explicitly reported; their bounded .acr decoder is follow-up #177. AI components remain unsupported and reported. Human visual acceptance of imported brush/radial coverage is required."
     },
     {
+      "id": "ai-mask-transform-antialias",
+      "title": "Filter AI mask edges in reduced and rotated previews",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": [
+        "yojen7"
+      ],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [
+        "RapidRoom/rapidroom#241",
+        "CyberTimon/RapidRAW#1902"
+      ],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "AI mask bitmaps are filtered before minification and sampled bilinearly at transformed pixel centers. Rotation, flip, crop and coarse orientation retain correct pixel alignment; subjects reaching frame edges do not gain an extra fade. Stored bitmap data and model selection are unchanged."
+    },
+    {
       "id": "raw-repair-thumbnail-native-scale",
       "title": "Keep RAW repair patches aligned in regenerated thumbnails",
       "category": "fix",
