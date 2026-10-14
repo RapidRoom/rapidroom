@@ -1,0 +1,18 @@
+{
+  "id": "raw-thumb-previews",
+  "title": "Faster RAW library thumbnails: unedited raws use the smallest sufficient embedded preview, edited linear DNGs render from their embedded proxy",
+  "category": "performance",
+  "landed": "2026-10-04",
+  "authors": ["SebastianEggli"],
+  "source": "SebastianEggli/MyRR",
+  "commits": [
+    "https://github.com/SebastianEggli/MyRR/commit/4a646075d557f6faa5310377f26ae66120af1aa4",
+    "https://github.com/SebastianEggli/MyRR/commit/f0a5c66ccad1e1a82b880dc8e469c6fb21144d66",
+    "https://github.com/SebastianEggli/MyRR/commit/e93c7110b218727ce4fb49c3019415ad0f7e188e",
+    "https://github.com/SebastianEggli/RapidRAW-DngLab/commit/094189d738f30ec8e973b998fc59a84d00d94d8c"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#1809", "CyberTimon/RapidRAW-DngLab#10"],
+  "rendering_change": false,
+  "notes": "Exports preserve the preceding full-image decode; library thumbnails may differ because they use smaller embedded JPEGs or correctly normalized DNG proxies. The rawler dependency f13d56ec retains RapidRoom crop, dither and full-image Adobe polynomial fixes alongside Sebastian Eggli's preview paths. Adaptations preserve metadata orientation and parallel conversions, reject real or malformed crops from the unedited-preview gate, and retry the full image if a proxy fails. Native real-file and cold/warm sample-probe results are recorded on the PR."
+}

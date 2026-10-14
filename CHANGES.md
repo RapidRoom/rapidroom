@@ -2,13 +2,18 @@
 
 Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/CyberTimon/RapidRAW), with who made it and where it stands upstream.
 
-<sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
+<sub>Generated from [rapidroom/changes/](rapidroom/changes/) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**91 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
+**94 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
 
 | Change                                                                                                                                                                                                                                                                            | Type        | By                                                                                                                             | Upstream                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stage a verified optional native OpenVINO CPU runtime for RAW denoise ⚑                                                                                                                                                                                                           | performance | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
+| Keep changelog records independent between PRs                                                                                                                                                                                                                                    | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
+| Filter AI mask edges in reduced and rotated previews ⚑                                                                                                                                                                                                                            | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#241](https://github.com/RapidRoom/rapidroom/issues/241); [#1902](https://github.com/CyberTimon/RapidRAW/issues/1902)                                                                                                                                          |
+| Keep RAW repair patches aligned in regenerated thumbnails ⚑                                                                                                                                                                                                                       | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#240](https://github.com/RapidRoom/rapidroom/issues/240); [#1903](https://github.com/CyberTimon/RapidRAW/issues/1903)                                                                                                                                          |
+| Keep Shift-click selection within visible folders in Recursive view                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
+| Test atomic file writes under failure conditions                                                                                                                                                                                                                                  | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
+| Keep arrow-key navigation within folders in Recursive view                                                                                                                                                                                                                        | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Read CRS import fields by namespace and RDF subject                                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Edit individual masks through MCP with typed crop and component schemas                                                                                                                                                                                                           | feature     | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Allow explicit replacement of earlier batch exports                                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#235](https://github.com/RapidRoom/rapidroom/issues/235); [#1901](https://github.com/CyberTimon/RapidRAW/issues/1901)                                                                                                                                          |
@@ -114,14 +119,53 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 ## Details
 
-### Stage a verified optional native OpenVINO CPU runtime for RAW denoise
+### Keep changelog records independent between PRs
 
-- **Type:** performance (changes rendered output)
-- **Landed in RapidRoom:** 2026-10-12
-- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original runtime validation/session integration; pinned Microsoft/Intel runtime binaries supplied locally)
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-13
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original documentation and validation tooling)
 - **Upstream:** not yet offered
-- **Commits:** [82bbf02](https://github.com/openvinotoolkit/openvino/commit/82bbf0292c5bd490bc25a383e63d6461d3ee05c5)
-- **Notes:** An optional Linux x86_64 build feature accepts a pre-staged, checksum-pinned CPU-only ORT 1.24.1/OpenVINO 2025.4.1 bundle with full notices and relative aliases (126.935 MiB native payload). Core/API validation precedes irreversible ORT selection. Best/Fast/DeepSharpen explicitly register OpenVINO CPU with per-session ORT CPU fallback; actual provider, binary-bundle fingerprint and core build information enter cache identities. Original float16 weights/inputs and Sharpen remain unchanged. Stock/unsupported builds keep the existing runtime; no provider/model downloads, telemetry, official release or daily-app change is enabled automatically.
+- **Notes:** Each PR adds its own validated change record. Published changelog and status snapshots are generated at release time, avoiding shared-file conflicts and bot commits on main.
+
+### Filter AI mask edges in reduced and rotated previews
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
+- **Upstream:** [RapidRoom/rapidroom#241](https://github.com/RapidRoom/rapidroom/issues/241); [#1902](https://github.com/CyberTimon/RapidRAW/issues/1902)
+- **Notes:** AI mask bitmaps are filtered before minification and sampled bilinearly at transformed pixel centers. Rotation, flip, crop and coarse orientation retain correct pixel alignment; subjects reaching frame edges do not gain an extra fade. Stored bitmap data and model selection are unchanged.
+
+### Keep RAW repair patches aligned in regenerated thumbnails
+
+- **Type:** fix (changes rendered output)
+- **Landed in RapidRoom:** 2026-10-12
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
+- **Upstream:** [RapidRoom/rapidroom#240](https://github.com/RapidRoom/rapidroom/issues/240); [#1903](https://github.com/CyberTimon/RapidRAW/issues/1903)
+- **Notes:** RAW thumbnails with saved repair patches composite on a native-resolution base before resizing, preventing shifted, enlarged or missing repairs after copying settings. Photos without repair patches retain their fast decode path. Main-image processing and exports are unchanged.
+
+### Keep Shift-click selection within visible folders in Recursive view
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-13
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
+- **Upstream:** not yet offered
+- **Notes:** Recursive-view Shift-click selection follows the visible folder-grouped order and skips collapsed folders. Flat view retains its existing global sort order.
+
+### Test atomic file writes under failure conditions
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-13
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original failure-injection tests)
+- **Upstream:** not yet offered
+- **Notes:** Injects partial-write disk-full, sync/finalization, and final-name collision failures into atomic sidecar writes. Each test verifies the existing file is preserved and the temporary file is removed. Production file-write behavior is unchanged.
+
+### Keep arrow-key navigation within folders in Recursive view
+
+- **Type:** fix
+- **Landed in RapidRoom:** 2026-10-13
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
+- **Upstream:** not yet offered
+- **Notes:** Arrow-key navigation in Recursive library view stays within the selected image's parent folder and preserves that folder's sort order. Other view modes retain their existing global navigation order.
 
 ### Read CRS import fields by namespace and RDF subject
 

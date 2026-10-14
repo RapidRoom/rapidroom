@@ -1,0 +1,13 @@
+{
+  "id": "continuous-magenta-highlight-correction",
+  "title": "Saturated red highlights use a continuous magenta correction instead of abrupt green lifts",
+  "category": "fix",
+  "landed": "2026-10-03",
+  "authors": ["3048mm"],
+  "source": "CyberTimon/RapidRAW",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/e99082ad1d3cfea3db1f3e6611340f024f664258"],
+  "upstream_issues": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#1824"],
+  "rendering_change": true,
+  "notes": "Arrives through the normal upstream-main merge, with original author and Claude co-author retained. Weight the existing correction by relative magenta excess; the empirical full-weight threshold is 0.25. Human visual/reference approval is required."
+}
