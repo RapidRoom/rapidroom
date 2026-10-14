@@ -155,7 +155,8 @@ fn decode_mask(blob: &[u8]) -> Result<GrayImage> {
         return Err("Multiple mask TIFF images are unsupported".into());
     }
     let mut tags = HashMap::new();
-    let mut metadata_ranges = vec![0..ifd + 2 + count * 12 + 4];
+    let mut metadata_ranges = Vec::with_capacity(count + 1);
+    metadata_ranges.push(0..ifd + 2 + count * 12 + 4);
     for i in 0..count {
         let entry = ifd + 2 + i * 12;
         let tag = u16_at(tiff, entry)?;
@@ -478,7 +479,7 @@ mod tests {
         acr.extend_from_slice(&52u32.to_le_bytes());
         acr.extend_from_slice(&0u32.to_le_bytes());
         acr.extend_from_slice(&blob);
-        while acr.len() % 4 != 0 {
+        while !acr.len().is_multiple_of(4) {
             acr.push(0);
         }
         acr
@@ -531,7 +532,7 @@ mod tests {
         ] {
             let mut bad = data.clone();
             let offset = 52 + 16 + 10 + tag_index * 12 + 8;
-            bad[offset..offset + 4].copy_from_slice(&(value as u32).to_le_bytes());
+            bad[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
             let blob_len = u32_at(&bad, 36).unwrap() as usize;
             assert!(
                 decode_mask(&bad[52..52 + blob_len]).is_err(),
@@ -573,7 +574,7 @@ mod tests {
             blob.extend_from_slice(&(tag as u16).to_le_bytes());
             blob.extend_from_slice(&4u16.to_le_bytes());
             blob.extend_from_slice(&(count as u32).to_le_bytes());
-            blob.extend_from_slice(&(value as u32).to_le_bytes());
+            blob.extend_from_slice(&value.to_le_bytes());
         }
         blob.extend_from_slice(&0u32.to_le_bytes());
         for offset in offsets {
