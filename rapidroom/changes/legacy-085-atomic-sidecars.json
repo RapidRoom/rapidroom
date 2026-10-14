@@ -1,0 +1,13 @@
+{
+  "category": "fix",
+  "landed": "2026-10-02",
+  "source": "sheldonxxxx/RapidRAW (extended by yojen7 to newer upstream save paths)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "id": "atomic-sidecars",
+  "title": "Edit and metadata sidecars (.rrdata, .rrexif, XMP) are saved atomically, so a crash, power loss or full disk can't leave a half-written edit",
+  "authors": ["sheldonxxxx", "yojen7"],
+  "commits": ["https://github.com/sheldonxxxx/RapidRAW/commit/b54be6fef1e2533ecaf258143ad61fed6330244c"],
+  "highlight": "**Your edits are safer.** Edits are saved crash-safe, a damaged mask no longer wipes out the others, and a corrupt panel layout no longer resets your settings."
+}

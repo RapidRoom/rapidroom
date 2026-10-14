@@ -1,0 +1,14 @@
+{
+  "id": "lensfun-evaluation",
+  "title": "Lens correction evaluates Lensfun profiles the way Lensfun does: right radius per model, rescaled terms instead of \u00d72.5, calibration that fits the sensor",
+  "category": "fix",
+  "landed": "2026-10-04",
+  "authors": ["beneedict", "yojen7"],
+  "source": "beneedict/RapidRAW (adapted by yojen7 with Claude Code: old edits kept, Lensfun's choice of calibration, vignetting across sensor sizes, Lensfun oracle tests)",
+  "commits": ["https://github.com/beneedict/RapidRAW/commit/99a142e6e7be658c721f5700811199429efb22ee"],
+  "upstream_issues": ["CyberTimon/RapidRAW#1688", "CyberTimon/RapidRAW#1689"],
+  "upstream_prs": ["CyberTimon/RapidRAW#1705"],
+  "rendering_change": true,
+  "notes": "Only images with a Lensfun lens profile change, and only when the lens is chosen or detected again: edits saved by an older version keep their previous lens values and render bit for bit as before. Checked against the Lensfun C++ library on 13 cases (ptlens, poly3, poly5; full frame, APS-C, Micro Four Thirds, compact; 3:2, 4:3, 16:9, portrait). The embedded RAW lens profiles of the source branch (CyberTimon/RapidRAW#1687) are not included.",
+  "highlight": "**Lens profiles that actually fit.** Distortion and vignetting from the Lensfun database are applied the way Lensfun defines them, including full frame lenses on APS-C bodies."
+}

@@ -1,0 +1,13 @@
+{
+  "id": "atomic-write-failure-injection",
+  "title": "Test atomic file writes under failure conditions",
+  "category": "ci",
+  "landed": "2026-10-13",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original failure-injection tests)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Injects partial-write disk-full, sync/finalization, and final-name collision failures into atomic sidecar writes. Each test verifies the existing file is preserved and the temporary file is removed. Production file-write behavior is unchanged."
+}
