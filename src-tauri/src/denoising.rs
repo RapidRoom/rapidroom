@@ -11,13 +11,14 @@ use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::path::Path;
 use std::sync::atomic::{
     AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering as AtomicOrdering,
 };
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 pub const DENOISE_CANCELLED: &str = "Denoise cancelled";
 
@@ -638,17 +639,11 @@ fn bm3d_denoise(
     Ok(merge_channels(&[r, g, b], width, height))
 }
 
-// Legacy RGB NIND is trained on encoded RGB files, not sensor-linear RGB.
-// Standard image files are already encoded by the base-image loader.
-fn nind_model_input(image: DynamicImage, is_raw: bool) -> Result<Rgb32FImage, String> {
+// Both the default-developed RAW view and normal RGB files are encoded.
+fn nind_model_input(image: DynamicImage) -> Result<Rgb32FImage, String> {
     let mut model_view = image.into_rgb32f();
     if model_view.as_raw().iter().any(|sample| !sample.is_finite()) {
         return Err("Legacy NIND requires finite RGB input samples".into());
-    }
-    if is_raw {
-        model_view =
-            crate::image_processing::apply_linear_to_srgb(DynamicImage::ImageRgb32F(model_view))
-                .into_rgb32f();
     }
     // The original RGB loader normalizes uint8/uint16 files to [0, 1]. This
     // bounded model view does not change the physical source or other methods.
@@ -660,6 +655,63 @@ fn nind_model_input(image: DynamicImage, is_raw: bool) -> Result<Rgb32FImage, St
 
 fn uses_default_raw_tone(is_raw: bool, method: &str) -> bool {
     is_raw && method != "ai"
+}
+
+fn nind_raw_view(
+    image: &DynamicImage,
+    settings: &crate::app_settings::AppSettings,
+    app_handle: &AppHandle,
+    job: &DenoiseJob,
+) -> Result<DynamicImage, String> {
+    use crate::gpu_processing::{RenderOutputPrecision, RenderRequest};
+
+    job.check()?;
+    job.progress("Developing legacy NIND RGB view...");
+    let invalid = match image {
+        DynamicImage::ImageRgb32F(rgb) => rgb.as_raw().iter().any(|v| !v.is_finite()),
+        DynamicImage::ImageRgba32F(rgba) => rgba.as_raw().iter().any(|v| !v.is_finite()),
+        _ => false,
+    };
+    if invalid {
+        return Err("Legacy NIND requires finite RGB input samples".into());
+    }
+    let state = app_handle.state::<AppState>();
+    let context = crate::gpu_processing::get_or_init_gpu_context(&state, app_handle)?;
+    let (width, height) = image.dimensions();
+    if width > context.limits.max_texture_dimension_2d
+        || height > context.limits.max_texture_dimension_2d
+    {
+        return Err("Legacy NIND RAW development exceeds the GPU image limit".into());
+    }
+    // Reuse the RAW renderer rather than approximating its display curve in
+    // the save path. NIND receives the same encoded, default-developed look
+    // that the original photo displays; its TIFF needs no second tone curve.
+    let mut adjustments = crate::image_processing::get_all_adjustments_from_json(
+        &serde_json::json!({}),
+        true,
+        crate::image_processing::resolve_tonemapper_override(settings, true),
+    );
+    adjustments.global.show_clipping = 0;
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    "nind-default-raw-view".hash(&mut hash);
+    job.id.hash(&mut hash);
+    image.as_bytes().hash(&mut hash);
+    let developed = crate::gpu_processing::process_and_get_dynamic_image_with_precision(
+        &context,
+        &state,
+        image,
+        hash.finish(),
+        RenderRequest {
+            adjustments,
+            mask_bitmaps: &[],
+            lut: None,
+            roi: None,
+        },
+        "nind_default_raw_view",
+        RenderOutputPrecision::SixteenBit,
+    )?;
+    job.check()?;
+    Ok(developed)
 }
 
 fn denoise_image(
@@ -700,7 +752,12 @@ fn denoise_image(
     job.check()?;
 
     let rgb_img_for_denoiser = if method == "ai" {
-        nind_model_input(dynamic_img, is_raw)?
+        let encoded = if is_raw {
+            nind_raw_view(&dynamic_img, &original_settings, app_handle, job)?
+        } else {
+            dynamic_img
+        };
+        nind_model_input(encoded)?
     } else {
         dynamic_img.to_rgb32f()
     };
@@ -1468,38 +1525,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn nind_encodes_raw_once_and_preserves_already_encoded_rgb() {
-        let linear = Rgb32FImage::from_pixel(2, 2, Rgb([0.0, 0.001, 0.18]));
-        let encoded = nind_model_input(DynamicImage::ImageRgb32F(linear), true).unwrap();
-        let pixel = encoded.get_pixel(0, 0);
-        assert_eq!(pixel[0], 0.0);
-        assert!((pixel[1] - 0.01292).abs() < 1e-7);
-        assert!((pixel[2] - 0.4613561).abs() < 1e-6);
-        let unchanged =
-            nind_model_input(DynamicImage::ImageRgb32F(encoded.clone()), false).unwrap();
+    fn nind_preserves_prepared_encoded_rgb() {
+        let encoded = Rgb32FImage::from_pixel(2, 2, Rgb([0.0, 0.01292, 0.4613561]));
+        let unchanged = nind_model_input(DynamicImage::ImageRgb32F(encoded.clone())).unwrap();
         assert_eq!(unchanged, encoded);
     }
 
     #[test]
     fn nind_model_view_bounds_hdr_without_mutating_the_source_and_rejects_nonfinite() {
         let source = Rgb32FImage::from_pixel(2, 2, Rgb([-0.1, 1.0, 4.0]));
-        for is_raw in [true, false] {
-            let view = nind_model_input(DynamicImage::ImageRgb32F(source.clone()), is_raw).unwrap();
-            assert_eq!(view.get_pixel(0, 0)[0], 0.0);
-            assert!((view.get_pixel(0, 0)[1] - 1.0).abs() < 1e-6);
-            assert_eq!(view.get_pixel(0, 0)[2], 1.0);
-            assert_eq!(source.get_pixel(0, 0).0, [-0.1, 1.0, 4.0]);
-            for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-                let image = Rgb32FImage::from_pixel(1, 1, Rgb([invalid, 0.18, 0.2]));
-                assert!(nind_model_input(DynamicImage::ImageRgb32F(image), is_raw).is_err());
-            }
+        let view = nind_model_input(DynamicImage::ImageRgb32F(source.clone())).unwrap();
+        assert_eq!(view.get_pixel(0, 0)[0], 0.0);
+        assert!((view.get_pixel(0, 0)[1] - 1.0).abs() < 1e-6);
+        assert_eq!(view.get_pixel(0, 0)[2], 1.0);
+        assert_eq!(source.get_pixel(0, 0).0, [-0.1, 1.0, 4.0]);
+        for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let image = Rgb32FImage::from_pixel(1, 1, Rgb([invalid, 0.18, 0.2]));
+            assert!(nind_model_input(DynamicImage::ImageRgb32F(image)).is_err());
         }
     }
 
     #[test]
-    fn nind_sensor_shadow_save_is_encoded_without_a_baked_tone_curve() {
-        let raw = Rgb32FImage::from_pixel(2, 2, Rgb([0.0, 0.0001, 0.18]));
-        let encoded = nind_model_input(DynamicImage::ImageRgb32F(raw), true).unwrap();
+    fn nind_prepared_shadow_save_does_not_apply_another_tone_curve() {
+        let prepared = Rgb32FImage::from_pixel(2, 2, Rgb([0.0, 0.001292, 0.4613561]));
+        let encoded = nind_model_input(DynamicImage::ImageRgb32F(prepared)).unwrap();
         assert!(!uses_default_raw_tone(true, "ai"));
         assert!(!uses_default_raw_tone(false, "ai"));
         assert!(uses_default_raw_tone(true, "bm3d"));
@@ -1523,7 +1572,7 @@ mod tests {
 
     #[test]
     #[ignore = "Local NIND encoding integration; set RAPIDROOM_NIND_MODEL and RAPIDROOM_NIND_OUTPUT, under flock"]
-    fn real_nind_encoded_raw_smoke() {
+    fn real_nind_encoded_rgb_smoke() {
         let model = std::env::var("RAPIDROOM_NIND_MODEL").unwrap();
         let session = Mutex::new(
             Session::builder()
@@ -1540,7 +1589,7 @@ mod tests {
                 0.003,
             ])
         });
-        let encoded = nind_model_input(DynamicImage::ImageRgb32F(input), true).unwrap();
+        let encoded = nind_model_input(DynamicImage::ImageRgb32F(input)).unwrap();
         let root = std::path::PathBuf::from(std::env::var("RAPIDROOM_NIND_OUTPUT").unwrap());
         let original = DenoisedOutput::Image(DynamicImage::ImageRgb32F(encoded.clone()));
         write_denoised_output(

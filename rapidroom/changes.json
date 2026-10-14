@@ -3,13 +3,13 @@
   "changes": [
     {
       "id": "nind-encoding-neutral-save",
-      "title": "Use encoded NIND inputs and save neutral denoised TIFFs without a baked curve",
+      "title": "Preserve the default RAW look in NIND and save denoised TIFFs without a second curve",
       "category": "fix",
       "landed": "2026-10-12",
       "authors": [
         "yojen7"
       ],
-      "source": "rapidroom (original implementation with Codex; existing sRGB transfer helpers)",
+      "source": "rapidroom (original implementation with Codex; shared RAW GPU renderer)",
       "commits": [],
       "upstream_issues": [
         "CyberTimon/RapidRAW#1513",
@@ -19,7 +19,7 @@
       ],
       "upstream_prs": [],
       "rendering_change": true,
-      "notes": "Legacy RGB NIND receives encoded RGB consistently for RAW and ordinary image inputs. Saved RAW-derived NIND TIFFs use the model output without the former gamma 2.38/contrast 1.28 curve, keeping shadow detail and avoiding that baked display look. Every quality setting retains a halo and overlap; higher quality uses a larger discarded border. Other denoise methods are unchanged. Seam geometry and whole-image colour restoration are tracked separately under issue 172."
+      "notes": "Legacy RGB NIND receives encoded RGB consistently: RAWs first use the actual default RAW GPU view, including its display tone mapping, and normal RGB files pass through once. Saved RAW-derived TIFFs preserve that default look without the former gamma 2.38/contrast 1.28 approximation or a second curve. Every quality setting retains a halo and overlap; higher quality uses a larger discarded border. Other denoise methods are unchanged. Seam geometry and whole-image colour restoration are tracked separately under issue 172."
     },
     {
       "id": "ai-denoise-seamless-colour",
