@@ -84,6 +84,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Generate release changelog and status snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node rapidroom/status.mjs --check
+          node rapidroom/status.mjs --refresh
+          node rapidroom/status.mjs --check-generated
+
       - name: Build .deb and AppImage
         env:
           NO_STRIP: 'true'
@@ -97,6 +105,8 @@ jobs:
           set -euo pipefail
           bundle=src-tauri/target/release/bundle
           mkdir -p release-assets
+          cp CHANGES.md release-assets/CHANGES.md
+          cp .github/README.md release-assets/RAPIDROOM-STATUS.md
           debs=("$bundle"/deb/*.deb)
           appimages=("$bundle"/appimage/*.AppImage)
           if [[ ${#debs[@]} -ne 1 || ${#appimages[@]} -ne 1 || ! -f "${debs[0]}" || ! -f "${appimages[0]}" ]]; then

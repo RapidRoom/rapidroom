@@ -1,0 +1,13 @@
+{
+  "id": "ai-raw-denoise",
+  "title": "AI raw denoise: Best and Fast presets with optional sharpening, cached sensor output, and basic sliders under Quick noise reduction",
+  "category": "feature",
+  "landed": "2026-10-04",
+  "authors": ["yojen7", "rymuelle", "ProGamerGov"],
+  "source": "rapidroom; RawForge and RawHandler (MIT), blended-tiling-numpy (MIT), colour-demosaicing (BSD-3-Clause)",
+  "commits": ["https://github.com/rymuelle/RawForge/commit/79f17700c29765b28a4cf5bd1b6d90bc7e3eb7f2"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Opt-in Bayer RAW denoise uses the existing ONNX Runtime on CPU. Best uses TreeNet; Fast uses SuperLight; Sharpen defaults on and adds DeepSharpen. Models download from the author on first use and are SHA-256 verified; weights are not bundled. Sensor results are cached independently of editor adjustments. NIND, BM3D and Apple RAW 9 remain in More methods; existing basic-slider values are preserved. Job IDs and cancellation remain in use. Licence details and human dialog checks: rapidroom/DENOISE.md. Written with Codex."
+}
