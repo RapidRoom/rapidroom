@@ -162,6 +162,11 @@ const groupImagesByFolder = (images: any[], baseFolderPath: string | null) => {
   }));
 };
 
+type VisibleGridRow = { type: string; images?: Pick<ImageFile, 'path'>[] };
+
+export const getVisibleImagePaths = (rows: VisibleGridRow[]) =>
+  rows.flatMap((row) => (row.type === 'images' ? (row.images ?? []).map((image) => image.path) : []));
+
 export function buildJustifiedRows(
   images: any[],
   ratioMap: Record<string, number>,
@@ -260,18 +265,6 @@ export default function LibraryGrid(props: any) {
 
   const isClickSelectionRef = useRef(false);
   const clickTimerRef = useRef<any>(null);
-
-  const handleImageClick = useCallback(
-    (path: string, e: any) => {
-      isClickSelectionRef.current = true;
-      if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = setTimeout(() => {
-        isClickSelectionRef.current = false;
-      }, 300);
-      onImageClick?.(path, e);
-    },
-    [onImageClick],
-  );
 
   const handleImageDoubleClick = useCallback(
     (path: string) => {
@@ -508,6 +501,20 @@ export default function LibraryGrid(props: any) {
     thumbnailAspectRatio,
     ratioMapVersion,
   ]);
+
+  const visibleImagePaths = useMemo(() => (gridData ? getVisibleImagePaths(gridData.rows) : []), [gridData]);
+
+  const handleImageClick = useCallback(
+    (path: string, e: any) => {
+      isClickSelectionRef.current = true;
+      if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = setTimeout(() => {
+        isClickSelectionRef.current = false;
+      }, 300);
+      onImageClick?.(path, e, visibleImagePaths);
+    },
+    [onImageClick, visibleImagePaths],
+  );
 
   useEffect(() => {
     if (!listHandle?.element || !gridData) return;

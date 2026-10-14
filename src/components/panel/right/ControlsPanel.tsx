@@ -22,6 +22,8 @@ import {
 } from '../../../utils/adjustments';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import { OPTION_SEPARATOR, Orientation } from '../../ui/AppProperties';
+import type { Option } from '../../ui/AppProperties';
+import type { CollapsibleSectionsState } from '../../ui/AppProperties';
 import Text from '../../ui/Text';
 import { SliderDensityScope, getAdjustmentDensity } from '../../ui/Slider';
 import { TextVariants, TextColors, TextWeights } from '../../../types/typography';
@@ -31,6 +33,8 @@ import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useUIStore } from '../../../store/useUIStore';
 import { useEditorActions } from '../../../hooks/useEditorActions';
 import { useWaveformControls } from '../../../hooks/useWaveformControls';
+
+type AdjustmentSectionName = 'basic' | 'curves' | 'color' | 'details' | 'effects';
 
 export default function Controls() {
   const { t } = useTranslation();
@@ -46,7 +50,7 @@ export default function Controls() {
     })),
   );
 
-  const visibleSections = getVisibleAdjustmentSections(appSettings?.adjustmentLayout);
+  const visibleSections = getVisibleAdjustmentSections(appSettings?.adjustmentLayout) as AdjustmentSectionName[];
 
   const { collapsibleSectionsState, setUI } = useUIStore(
     useShallow((state) => ({
@@ -80,9 +84,11 @@ export default function Controls() {
       setEditor: state.setEditor,
     })),
   );
+  type CollapsibleSections = CollapsibleSectionsState;
+  type CopiedSectionAdjustments = { section: string; values: Partial<Adjustments> };
 
   const setCopiedSectionAdjustments = useCallback(
-    (val: any) => setEditor({ copiedSectionAdjustments: val }),
+    (val: CopiedSectionAdjustments) => setEditor({ copiedSectionAdjustments: val }),
     [setEditor],
   );
 
@@ -102,7 +108,7 @@ export default function Controls() {
   );
 
   const setCollapsibleState = useCallback(
-    (updater: any) =>
+    (updater: React.SetStateAction<CollapsibleSections>) =>
       setUI((state) => ({
         collapsibleSectionsState: typeof updater === 'function' ? updater(state.collapsibleSectionsState) : updater,
       })),
@@ -127,7 +133,7 @@ export default function Controls() {
       ...prev,
       ...Object.keys(ADJUSTMENT_SECTIONS)
         .flatMap((s) => ADJUSTMENT_SECTIONS[s])
-        .reduce((acc: any, key: string) => {
+        .reduce((acc: Partial<Adjustments>, key: string) => {
           acc[key] = INITIAL_ADJUSTMENTS[key as keyof Adjustments];
           return acc;
         }, {}),
@@ -135,12 +141,12 @@ export default function Controls() {
     }));
   };
 
-  const handleToggleSection = (section: string) => {
-    setCollapsibleState((prev: any) => {
+  const handleToggleSection = (section: keyof CollapsibleSections) => {
+    setCollapsibleState((prev) => {
       const isOpening = !prev[section];
       if (appSettings?.enableFocusMode && isOpening) {
         const newState = { ...prev };
-        Object.keys(newState).forEach((key) => {
+        (Object.keys(newState) as Array<keyof CollapsibleSections>).forEach((key) => {
           newState[key] = false;
         });
         newState[section] = true;
@@ -150,7 +156,7 @@ export default function Controls() {
     });
   };
 
-  const handleSectionContextMenu = (event: any, sectionName: string) => {
+  const handleSectionContextMenu = (event: React.MouseEvent, sectionName: string) => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -160,7 +166,7 @@ export default function Controls() {
     }
 
     const handleCopy = () => {
-      const adjustmentsToCopy: any = {};
+      const adjustmentsToCopy: Partial<Adjustments> = {};
       for (const key of sectionKeys) {
         if (Object.prototype.hasOwnProperty.call(adjustments, key)) {
           adjustmentsToCopy[key] = JSON.parse(JSON.stringify(adjustments[key as keyof Adjustments]));
@@ -184,7 +190,7 @@ export default function Controls() {
     };
 
     const handleReset = () => {
-      const resetValues: any = {};
+      const resetValues: Partial<Adjustments> = {};
       for (const key of sectionKeys) {
         resetValues[key] = JSON.parse(JSON.stringify(INITIAL_ADJUSTMENTS[key as keyof Adjustments]));
       }
@@ -199,13 +205,13 @@ export default function Controls() {
     };
 
     const isPasteAllowed = copiedSectionAdjustments && copiedSectionAdjustments.section === sectionName;
-    const translatedSection = t(`editor.adjustments.sections.${sectionName}`);
+    const translatedSection = t(`editor.adjustments.sections.${sectionName}`, { defaultValue: sectionName });
 
     const pasteLabel = copiedSectionAdjustments
       ? t('editor.adjustments.actions.pasteLabel', { section: translatedSection })
       : t('editor.adjustments.actions.pasteSettings');
 
-    const options: any = [
+    const options: Option[] = [
       {
         label: t('editor.adjustments.actions.copySectionSettings', { section: translatedSection }),
         icon: Copy,
@@ -298,16 +304,16 @@ export default function Controls() {
         density={getAdjustmentDensity(appSettings?.adjustmentDensity)}
       >
         {selectedImage ? (
-          visibleSections.map((sectionName: string) => {
-            const SectionComponent: any = {
+          visibleSections.map((sectionName) => {
+            const SectionComponent = {
               basic: BasicAdjustments,
               curves: CurveGraph,
               color: ColorPanel,
               details: DetailsPanel,
               effects: EffectsPanel,
-            }[sectionName];
+            }[sectionName] as React.ElementType;
 
-            const title = t(`editor.adjustments.sections.${sectionName}`);
+            const title = t(`editor.adjustments.sections.${sectionName}`, { defaultValue: sectionName });
             const sectionVisibility = adjustments.sectionVisibility || INITIAL_ADJUSTMENTS.sectionVisibility;
 
             return (
@@ -315,7 +321,7 @@ export default function Controls() {
                 <CollapsibleSection
                   isContentVisible={sectionVisibility[sectionName as keyof SectionVisibility]}
                   isOpen={collapsibleSectionsState[sectionName as keyof typeof collapsibleSectionsState]}
-                  onContextMenu={(e: any) => handleSectionContextMenu(e, sectionName)}
+                  onContextMenu={(e: React.MouseEvent) => handleSectionContextMenu(e, sectionName)}
                   onToggle={() => handleToggleSection(sectionName)}
                   onToggleVisibility={() => handleToggleVisibility(sectionName)}
                   title={title}
