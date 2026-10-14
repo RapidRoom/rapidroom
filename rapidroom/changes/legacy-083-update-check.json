@@ -1,0 +1,12 @@
+{
+  "id": "update-check",
+  "title": "The update check looks at RapidRoom releases",
+  "category": "platform",
+  "landed": "2026-10-02",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true
+}

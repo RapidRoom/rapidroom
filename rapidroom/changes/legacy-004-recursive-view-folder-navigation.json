@@ -1,0 +1,13 @@
+{
+  "id": "recursive-view-folder-navigation",
+  "title": "Keep arrow-key navigation within folders in Recursive view",
+  "category": "fix",
+  "landed": "2026-10-13",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Arrow-key navigation in Recursive library view stays within the selected image's parent folder and preserves that folder's sort order. Other view modes retain their existing global navigation order."
+}

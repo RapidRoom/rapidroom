@@ -36,7 +36,7 @@ cache="${XDG_CACHE_HOME:-$HOME/.cache}/rapidroom-source/v2.2.0"
 | LUTs and film looks                            | `src-tauri/src/lut_processing.rs`, `src-tauri/resources/film_luts/`                                                                                                                                     |
 | Export                                         | `src-tauri/src/export_processing.rs`                                                                                                                                                                    |
 | The MCP tools themselves                       | `src-tauri/src/mcp/` (`tools.rs` for the tool list) and `src/hooks/useMcpBridge.ts`                                                                                                                     |
-| What RapidRoom changed compared with RapidRAW  | `CHANGES.md` and `rapidroom/changes.json`                                                                                                                                                               |
+| What RapidRoom changed compared with RapidRAW  | `rapidroom/changes/*.json` and the release `CHANGES.md` snapshot                                                                                                                                        |
 
 Search by the adjustment key (`grep -rn "dehaze" src-tauri/src`), then follow it from the JSON into the shader.
 
