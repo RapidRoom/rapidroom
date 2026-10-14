@@ -2,13 +2,13 @@
 
 Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/CyberTimon/RapidRAW), with who made it and where it stands upstream.
 
-<sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
+<sub>Generated from [rapidroom/changes/](rapidroom/changes/) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**95 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
+**94 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
 
 | Change                                                                                                                                                                                                                                                                            | Type        | By                                                                                                                             | Upstream                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Teach assistants to frame first and compare efficiently                                                                                                                                                                                                                           | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#152](https://github.com/RapidRoom/rapidroom/issues/152)                                                                                                                                                                                                       |
+| Keep changelog records independent between PRs                                                                                                                                                                                                                                    | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Filter AI mask edges in reduced and rotated previews ⚑                                                                                                                                                                                                                            | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#241](https://github.com/RapidRoom/rapidroom/issues/241); [#1902](https://github.com/CyberTimon/RapidRAW/issues/1902)                                                                                                                                          |
 | Keep RAW repair patches aligned in regenerated thumbnails ⚑                                                                                                                                                                                                                       | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#240](https://github.com/RapidRoom/rapidroom/issues/240); [#1903](https://github.com/CyberTimon/RapidRAW/issues/1903)                                                                                                                                          |
 | Keep Shift-click selection within visible folders in Recursive view                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
@@ -119,13 +119,13 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 ## Details
 
-### Teach assistants to frame first and compare efficiently
+### Keep changelog records independent between PRs
 
-- **Type:** fix
+- **Type:** ci
 - **Landed in RapidRoom:** 2026-10-13
-- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original skill update with Codex)
-- **Upstream:** [RapidRoom/rapidroom#152](https://github.com/RapidRoom/rapidroom/issues/152)
-- **Notes:** The editing skill establishes destination/look and crop first, uses compact named comparisons, protects shadow/midtone detail, follows concurrent GUI history and edits masks individually. Export recipes use supported context, original-folder subfolders and explicit width targets.
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original documentation and validation tooling)
+- **Upstream:** not yet offered
+- **Notes:** Each PR adds its own validated change record. Published changelog and status snapshots are generated at release time, avoiding shared-file conflicts and bot commits on main.
 
 ### Filter AI mask edges in reduced and rotated previews
 
