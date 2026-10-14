@@ -3180,11 +3180,11 @@ fn import_xmp_adjustments_to_sidecar(
         || !extract_xmp_tags(&xmp_content).is_empty();
     let settings_report = crate::lightroom_report::settings_report(&xmp_content, &converted_preset);
     let unchanged = !has_supported_adjustments && !has_supported_metadata;
-    if unchanged && settings_report.settings.is_empty() {
-        return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
-    }
     let not_transferred =
         preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
+    if unchanged && settings_report.settings.is_empty() && not_transferred.is_empty() {
+        return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
+    }
     if unchanged {
         let metadata = read_sidecar_report_snapshot(&sidecar_path)?;
         return Ok(ImportedXmpSidecar {
@@ -6414,6 +6414,21 @@ mod tests {
                 .unwrap()
                 .unchanged
         );
+        assert!(!sidecar.exists());
+    }
+
+    #[test]
+    fn unsupported_only_mask_import_reuses_existing_report_without_writing() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("sample.jpg");
+        let sidecar = dir.path().join("sample.jpg.rrdata");
+        let xmp = dir.path().join("sample.xmp");
+        fs::write(&xmp, r#"<root><crs:PaintBasedCorrections><rdf:Seq><rdf:li>unsupported</rdf:li></rdf:Seq></crs:PaintBasedCorrections></root>"#).unwrap();
+        let imported =
+            import_xmp_adjustments_to_sidecar(source.to_str().unwrap(), &xmp, None).unwrap();
+        assert!(imported.unchanged);
+        assert_eq!(imported.not_transferred, vec!["masks"]);
+        assert!(imported.settings_report.settings.is_empty());
         assert!(!sidecar.exists());
     }
 

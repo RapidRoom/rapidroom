@@ -349,8 +349,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           toast.info(t('contextMenus.xmpImportReport.unchanged', { total: 1 }));
         } else {
           toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
+          toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
         }
-        toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
         const reportParts: string[] = [];
         if (metadata.settingsReport?.settings.length) {
           reportParts.push(describeLightroomSettings(metadata.settingsReport, t));
@@ -365,7 +365,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         if (reportParts.length) {
           const reportText = reportParts.join('\n\n');
           toast.info(
-            metadata.settingsReport
+            metadata.settingsReport?.settings.length
               ? t('contextMenus.xmpImportReport.settings.summary', { ...metadata.settingsReport })
               : reportParts[0],
             {
@@ -477,7 +477,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               [
                 path.replace(/\\/g, '/').split('/').pop(),
                 items.length ? describeNotTransferred(items) : '',
-                settingsReport ? describeLightroomSettings(settingsReport, t) : '',
+                settingsReport?.settings.length ? describeLightroomSettings(settingsReport, t) : '',
               ]
                 .filter(Boolean)
                 .join('\n'),
