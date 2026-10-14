@@ -1,6 +1,7 @@
 """Synthetic photo-versus-preset policy on disposable CC0 input; no Adobe app."""
 import hashlib
 import json
+import re
 from PIL import ImageChops
 from mcp_clients import image_state, rpc
 
@@ -125,7 +126,27 @@ def run_photo_policy_checks(smoke, wait_for):
     imported = smoke.execute('return window.__photoPolicyPreset;')
     assert not imported.get('error'), imported
     smoke.execute('setTimeout(()=>location.reload(),0);return true;')
-    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Continue Session'&&!e.disabled);"), 'policy preset frontend reload')
+    reload_probe = {'phase': 'read-only preset reload readiness', 'script_timeouts_retried': 0}
+    probe_path = case / 'photo-policy-reload-probe.json'
+    probe_path.write_text(json.dumps(reload_probe, indent=2)+'\n')
+
+    def reload_ready():
+        try:
+            return smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Continue Session'&&!e.disabled);")
+        except RuntimeError as error:
+            # A reload can replace the driver's script callback before the
+            # frontend is attached. Never retry clicks or other mutations.
+            if reload_probe['script_timeouts_retried'] or not re.search(
+                r"['\"]error['\"]\s*:\s*['\"]script timeout['\"]", str(error)
+            ):
+                raise
+            reload_probe.update(script_timeouts_retried=1, first_probe_error=str(error))
+            probe_path.write_text(json.dumps(reload_probe, indent=2)+'\n')
+            return False
+
+    wait_for(reload_ready, 'policy preset frontend reload', 90)
+    reload_probe['ready'] = True
+    probe_path.write_text(json.dumps(reload_probe, indent=2)+'\n')
     smoke.execute("[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Continue Session').click();return true;")
     result = rpc(url,'tools/call',{'name':'select_image','arguments':{'imagePath':image}},token=token)
     assert not result.get('isError'), result
