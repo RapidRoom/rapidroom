@@ -475,7 +475,6 @@ export default function CurveGraph({
 
   const handleContainerStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (isParametricMode || ('button' in e && e.button !== 0) || e.target instanceof SVGCircleElement) return;
-    onDragStateChange?.(true);
 
     const svg = svgRef.current;
     if (!svg) return;
