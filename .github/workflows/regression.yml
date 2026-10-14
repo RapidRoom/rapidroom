@@ -36,7 +36,7 @@ env:
 jobs:
   regression:
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -46,7 +46,7 @@ jobs:
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev build-essential curl file libssl-dev \
             libayatana-appindicator3-dev librsvg2-dev patchelf pkg-config \
-            mesa-vulkan-drivers vulkan-tools xvfb python3-numpy
+            mesa-vulkan-drivers vulkan-tools xvfb python3-numpy python3-pil
 
       - name: Vulkan device
         run: |
@@ -54,6 +54,10 @@ jobs:
           vulkaninfo --summary | grep -q 'driverName *= *llvmpipe' || { echo "::error::lavapipe (llvmpipe) is not the Vulkan device"; exit 1; }
           dpkg-query -W mesa-vulkan-drivers libvulkan1
           nproc; free -g; df -h / /mnt
+
+      - name: Test before/after panel provenance
+        working-directory: rapidroom/regression
+        run: python3 -m unittest -v test_panels.py
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -144,10 +148,46 @@ jobs:
           path: ${{ env.WORK }}/ci-reference.json
 
       - name: Compare with ci-reference.json
+        id: compare
         if: ${{ !inputs.record && hashFiles('rapidroom/regression/ci-reference.json') != '' }}
         run: |
           python3 rapidroom/regression/baseline.py check "$REFERENCE" "$WORK/run1" \
             --json "$WORK/report/diff-summary.json" --copy-differing "$WORK/report/differing"
+
+      - name: Before/after panels from the checked base
+        if: failure() && github.event_name == 'pull_request' && (steps.compare.outcome == 'failure' || steps.determinism.outcome == 'failure')
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/regression-base"
+          git fetch --no-tags origin "$BASE_SHA"
+          git worktree add --detach "$base" "$BASE_SHA"
+          (
+            cd "$base"
+            npm ci
+            CARGO_TARGET_DIR="$GITHUB_WORKSPACE/src-tauri/target" npm run tauri build -- --no-bundle
+          )
+          xvfb-run -a python3 "$base/rapidroom/regression/baseline.py" render \
+            --engine "$GITHUB_WORKSPACE/$ENGINE" --out "$WORK/base" --only "$CI_SUBSET" --no-warmup
+          python3 rapidroom/regression/baseline.py check "$base/$REFERENCE" "$WORK/base" \
+            --json "$WORK/report/base-reference-check.json" || true
+          python3 rapidroom/regression/baseline.py check "$WORK/base" "$WORK/run1" \
+            --json "$WORK/report/before-after.json" || true
+          python3 rapidroom/regression/panels.py "$WORK/report/before-after.json" "$WORK/report/panels"
+          reference_pass=$(jq -r .pass "$WORK/report/base-reference-check.json")
+          printf '{"head":"%s","base":"%s","base_matches_reference":%s}\n' "$HEAD_SHA" "$BASE_SHA" "$reference_pass" > "$WORK/report/panels/source.json"
+
+      - name: Remove render outputs after comparisons
+        if: always()
+        run: |
+          mkdir -p "$WORK/report/logs"
+          if [ -f "$WORK/run1/manifest.json" ]; then
+            cp "$WORK/run1/manifest.json" "$WORK/report/run1-manifest.json"
+          fi
+          find "$WORK/run1" -name '*.log' -exec cp --parents '{}' "$WORK/report/logs" \; 2>/dev/null || true
+          rm -rf "$WORK/run1" "$WORK/run2" "$WORK/base" "$WORK/report/differing" "$WORK/report/nondeterministic"
 
       - name: Upload the differing renders and diff summary
         if: failure()
@@ -156,7 +196,5 @@ jobs:
           name: regression-diff
           path: |
             ${{ env.WORK }}/report
-            ${{ env.WORK }}/run1/manifest.json
-            ${{ env.WORK }}/run1/*/*.log
           retention-days: 14
           if-no-files-found: ignore
