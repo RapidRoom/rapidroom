@@ -1,0 +1,12 @@
+{
+  "category": "fix",
+  "landed": "2026-10-02",
+  "source": "pluja/RapidRAW-Fork",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "id": "corrupt-panel-layout",
+  "title": "A corrupt saved panel layout no longer erases all settings at startup",
+  "authors": ["pluja"],
+  "commits": ["https://github.com/pluja/RapidRAW-Fork/commit/3f9fc5e2e02488a68c2dcbc69967c8593bdc4fb2"]
+}
