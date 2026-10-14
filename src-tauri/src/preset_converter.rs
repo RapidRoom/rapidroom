@@ -1,6 +1,5 @@
 use rawler::{decoders::RawDecodeParams, rawsource::RawSource};
 use regex::Regex;
-use regex::regex;
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 use std::fs;
@@ -2967,7 +2966,7 @@ mod tests {
             xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:crs="urn:foreign">
           <r:Description r:about="photo" a:WhiteBalance=" ">
             <crs:PointColors><r:Seq><r:li>foreign</r:li></r:Seq></crs:PointColors>
-            <a:Look><r:Description><a:PointColors><r:Seq><r:li>nested</r:li></r:Seq></a:PointColors>
+            <a:Look><r:Description a:Amount="0"><a:PointColors><r:Seq><r:li>nested</r:li></r:Seq></a:PointColors>
               <a:PaintBasedCorrections><r:Seq><r:li>nested</r:li></r:Seq></a:PaintBasedCorrections></r:Description></a:Look>
           </r:Description><r:Description r:about="other"><a:PointColors><r:Seq><r:li>other</r:li></r:Seq></a:PointColors></r:Description>
         </r:RDF>"#;
