@@ -554,7 +554,7 @@ mod tests {
                 Some(current)
             })
             .collect();
-        let tags = [
+        let tags: [(u16, u32, u32); 11] = [
             (256, 1, 3),
             (257, 1, 2),
             (258, 1, 8),
@@ -571,9 +571,9 @@ mod tests {
         blob.extend_from_slice(b"II*\0\x08\0\0\0");
         blob.extend_from_slice(&11u16.to_le_bytes());
         for (tag, count, value) in tags {
-            blob.extend_from_slice(&(tag as u16).to_le_bytes());
+            blob.extend_from_slice(&tag.to_le_bytes());
             blob.extend_from_slice(&4u16.to_le_bytes());
-            blob.extend_from_slice(&(count as u32).to_le_bytes());
+            blob.extend_from_slice(&count.to_le_bytes());
             blob.extend_from_slice(&value.to_le_bytes());
         }
         blob.extend_from_slice(&0u32.to_le_bytes());
