@@ -65,6 +65,10 @@ def run_crs_checks(smoke, wait_for):
     report_text = smoke.execute("return document.body.innerText;")
     assert 'PerspectiveVertical — ignored: Lightroom perspective/Upright' in report_text
     assert image not in report_text and str(case) not in report_text
+    wait_for(lambda: smoke.execute("""const dialog = document.querySelector('[role=dialog]');
+        return !!dialog && Number(getComputedStyle(dialog).opacity) >= 0.99
+          && Number(getComputedStyle(dialog.firstElementChild).opacity) >= 0.99;"""),
+             'import dialog CSS transition settled')
     smoke.capture('crs-per-setting-report')
     assert image_state(url, image, token=token) == imported, 'Unsupported-only import changed native draft'
     smoke.execute("[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Cancel').click();return true;")
