@@ -1,0 +1,13 @@
+{
+  "id": "independent-changelog-records",
+  "title": "Keep changelog records independent between PRs",
+  "category": "ci",
+  "landed": "2026-10-13",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original documentation and validation tooling)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Each PR adds its own validated change record. Published changelog and status snapshots are generated at release time, avoiding shared-file conflicts and bot commits on main."
+}

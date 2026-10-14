@@ -1,0 +1,13 @@
+{
+  "id": "decode-standard-images-with-raw-extension",
+  "title": "Open JPEG and PNG images saved with RAW extensions",
+  "category": "fix",
+  "landed": "2026-10-09",
+  "authors": ["baseq"],
+  "source": "CyberTimon/RapidRAW (harvested commit; original author and co-author trailer retained)",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/0ac65d57e8e2cdbf46d148f697d37fcce9a4ac70"],
+  "upstream_issues": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#1851"],
+  "rendering_change": false,
+  "notes": "At the byte-decoding boundary, recognize JPEG/PNG signatures even when a file has a RAW suffix, and use the standard image decoder instead of the RAW pipeline. Path-only RAW extension checks remain unchanged."
+}

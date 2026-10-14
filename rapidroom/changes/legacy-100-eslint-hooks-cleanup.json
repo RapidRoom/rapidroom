@@ -1,0 +1,13 @@
+{
+  "id": "eslint-hooks-cleanup",
+  "title": "Type the frontend hooks and remove explicit any annotations",
+  "category": "ci",
+  "landed": "2026-10-12",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Development quality cleanup in src/hooks; no runtime behavior change intended."
+}
