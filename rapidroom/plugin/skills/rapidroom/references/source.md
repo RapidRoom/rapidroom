@@ -47,7 +47,7 @@ fi
 | LUTs and film looks                            | `src-tauri/src/lut_processing.rs`, `src-tauri/resources/film_luts/`                                                                                                                                     |
 | Export                                         | `src-tauri/src/export_processing.rs`                                                                                                                                                                    |
 | The MCP tools themselves                       | `src-tauri/src/mcp/` (`tools.rs` for the tool list) and `src/hooks/useMcpBridge.ts`                                                                                                                     |
-| What RapidRoom changed compared with RapidRAW  | `CHANGES.md` and `rapidroom/changes.json`                                                                                                                                                               |
+| What RapidRoom changed compared with RapidRAW  | `rapidroom/changes/*.json` and the release `CHANGES.md` snapshot                                                                                                                                        |
 
 Search by the adjustment key (`rg -n "dehaze" src-tauri/src`), then follow it from the JSON into the shader.
 

@@ -71,7 +71,7 @@ def run_skill_checks(case, smoke):
                "--allowedTools", "Read,Skill,mcp__rapidroom__*", "--setting-sources", "",
                "--settings", '{"disableAllHooks":true}', "--no-session-persistence",
                "--max-turns", "40", "--output-format", "stream-json", "--verbose",
-               "--add-dir", str(plugin), "--add-dir", str(source), prompt]
+               "--add-dir", str(plugin), "--add-dir", str(source), "--", prompt]
     version = subprocess.check_output([binary, "--version"], text=True).strip()
     events = execute_client(command, folder, "claude-skill", case / "config", cwd=folder,
                             env_overrides={"PATH": str(case / "engine") + os.pathsep + os.environ["PATH"]})

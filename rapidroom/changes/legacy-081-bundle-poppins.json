@@ -1,0 +1,12 @@
+{
+  "id": "bundle-poppins",
+  "title": "The Poppins UI font is bundled: no Google Fonts request at startup, and the UI works offline",
+  "category": "privacy",
+  "landed": "2026-10-02",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "highlight": "**Private and offline by default.** Nothing is contacted at startup except the update check: no Google Fonts, and the cloud sign-in service loads only if you use cloud features."
+}

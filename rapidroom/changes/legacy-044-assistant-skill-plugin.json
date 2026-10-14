@@ -1,0 +1,13 @@
+{
+  "id": "assistant-skill-plugin",
+  "title": "RapidRoom skill and Claude Code plugin: editing workflow, adjustment reference generated from the code, tutor mode, source lookup and assistant-drafted issues",
+  "category": "feature",
+  "landed": "2026-10-04",
+  "authors": ["yojen7", "sheldonxxxx"],
+  "source": "rapidroom",
+  "commits": ["https://github.com/sheldonxxxx/Lightweft/tree/d332fbd629faf7e47144ba173d7f2032be62199d"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "rapidroom/plugin: a Claude Code plugin (skill, six slash commands, MCP connection) and a Codex copy, for the in-app MCP server (RapidRoom #5). The adjustment and mask reference is generated from INITIAL_ADJUSTMENTS, the editor sliders and createSubMask, and a Vitest test fails when it drifts. Artistic direction, taste learning and film-look guidance are adapted from sheldonxxxx's Lightweft skills (MIT). Planned MCP tools are listed as coming. Issue drafts are shown to the user and posted only after an explicit yes. Docs only: the app and its rendering are unchanged. Written with Claude Code."
+}
