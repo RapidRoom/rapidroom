@@ -107,6 +107,7 @@ interface SettingsPanelAppSettings extends AppSettings {
 }
 
 type ProcessingSettingKey =
+  | 'baselineExposure'
   | 'editorPreviewResolution'
   | 'highResZoomMultiplier'
   | 'useFullDpiRendering'

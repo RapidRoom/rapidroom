@@ -440,10 +440,7 @@ export default function CurveGraph({
 
   const { color, data: histogramData } = channelConfig[activeChannel];
 
-  const handlePointStart = (
-    e: React.MouseEvent<SVGCircleElement> | React.TouchEvent<SVGCircleElement>,
-    index: number,
-  ) => {
+  const handlePointStart = (e: React.MouseEvent<Element> | React.TouchEvent<Element>, index: number) => {
     if (isParametricMode || ('button' in e && e.button === 2)) return;
     if (!('touches' in e)) e.preventDefault();
     e.stopPropagation();
