@@ -318,18 +318,23 @@ fn decode_jxl(
         .map_err(|_| "Cannot render mask JPEG XL")?;
     let mut stream = render.stream();
     let mut floats = vec![0.0; width as usize * height as usize];
-    if stream.write_to_buffer(&mut floats) != floats.len()
-        || floats
-            .iter()
-            .any(|v| !v.is_finite() || *v < 0.0 || *v > 1.0)
-    {
+    if stream.write_to_buffer(&mut floats) != floats.len() {
         return Err("Invalid mask coverage samples".into());
     }
-    let pixels = floats
+    GrayImage::from_raw(width, height, coverage_pixels(floats)?)
+        .ok_or_else(|| "Invalid mask raster".into())
+}
+
+fn coverage_pixels(samples: Vec<f32>) -> Result<Vec<u8>> {
+    if samples.iter().any(|v| !v.is_finite()) {
+        return Err("Invalid mask coverage samples".into());
+    }
+    // JPEG XL reconstruction may overshoot its nominal range, just as its
+    // integer output conversion clamps finite samples before quantization.
+    Ok(samples
         .into_iter()
-        .map(|v| (v * 255.0).round() as u8)
-        .collect();
-    GrayImage::from_raw(width, height, pixels).ok_or_else(|| "Invalid mask raster".into())
+        .map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8)
+        .collect())
 }
 
 #[derive(Debug)]
@@ -494,6 +499,34 @@ mod tests {
         let image = decode_mask(&blob).unwrap();
         assert_eq!(image.as_raw(), &[0, 64, 128, 192, 255, 32]);
     }
+    #[test]
+    fn lossy_grayscale_edges_allow_finite_reconstruction_overshoot() {
+        let codestream = include_bytes!("../tests/fixtures/lightroom-ai/lossy-edges.jxl");
+        let decoder = jxl_oxide::JxlImage::builder()
+            .read(&codestream[..])
+            .unwrap();
+        let render = decoder.render_frame(0).unwrap();
+        let mut samples = vec![0.0f32; 64 * 64];
+        assert_eq!(render.stream().write_to_buffer(&mut samples), samples.len());
+        assert!(samples.iter().all(|v| v.is_finite()));
+        assert!(samples.iter().any(|v| *v < 0.0 || *v > 1.0));
+        let mask = decode_jxl(codestream, 64, 64, 64, 64).unwrap();
+        assert_eq!(mask.dimensions(), (64, 64));
+        assert!(mask.get_pixel(0, 0)[0] <= 2);
+        assert!(mask.get_pixel(63, 0)[0] >= 253);
+    }
+
+    #[test]
+    fn coverage_quantization_clamps_finite_values_and_rejects_nonfinite_samples() {
+        assert_eq!(
+            coverage_pixels(vec![-0.02, 0.0, 128.0 / 255.0, 1.0, 1.02]).unwrap(),
+            vec![0, 0, 128, 255, 255]
+        );
+        for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            assert!(coverage_pixels(vec![0.0, invalid]).is_err());
+        }
+    }
+
     #[test]
     fn every_truncated_container_is_refused_without_panicking() {
         let data = fixture();
