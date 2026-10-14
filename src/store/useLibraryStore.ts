@@ -6,6 +6,7 @@ import {
   SortCriteria,
   SortDirection,
   AlbumItem,
+  FolderTree,
 } from '../components/ui/AppProperties';
 import { Adjustments, INITIAL_ADJUSTMENTS } from '../utils/adjustments';
 import { ColumnWidths } from '../components/panel/MainLibrary';
@@ -33,8 +34,8 @@ interface LibraryState {
   cardBrowseRoot: string | null;
   currentFolderPath: string | null;
   expandedFolders: Set<string>;
-  folderTrees: any[];
-  pinnedFolderTrees: any[];
+  folderTrees: FolderTree[];
+  pinnedFolderTrees: FolderTree[];
 
   // Albums
   albumTree: AlbumItem[];

@@ -1,9 +1,14 @@
-import { createElement } from 'react';
+import { createElement, type SyntheticEvent } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { invoke } from '@tauri-apps/api/core';
 import { useEditorStore } from '../store/useEditorStore';
+import { useProcessStore } from '../store/useProcessStore';
+import { useLibraryStore } from '../store/useLibraryStore';
 import { INITIAL_ADJUSTMENTS } from '../utils/adjustments';
 import { debouncedSetHistory, useEditorActions } from './useEditorActions';
+
+vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 
 afterEach(() => {
   debouncedSetHistory.cancel();
@@ -42,5 +47,39 @@ describe('unchanged editor actions', () => {
     } finally {
       unsubscribe();
     }
+  });
+});
+
+describe('copy adjustments', () => {
+  it('copies the selected photo when invoked by the ordinary Copy button click', async () => {
+    const adjustments = { ...INITIAL_ADJUSTMENTS, exposure: 0.75 };
+    useEditorStore.getState().setEditor({
+      selectedImage: {
+        exif: {},
+        height: 100,
+        isRaw: true,
+        isReady: true,
+        path: '/photos/selected.raw',
+        thumbnailUrl: '',
+        width: 100,
+      },
+      adjustments,
+      copiedAdjustments: null,
+    });
+    useLibraryStore.getState().setLibrary({ libraryActivePath: null, multiSelectedPaths: [] });
+    useProcessStore.getState().setProcess({ isCopied: false });
+
+    let actions: ReturnType<typeof useEditorActions> | undefined;
+    function Probe() {
+      actions = useEditorActions();
+      return null;
+    }
+    renderToStaticMarkup(createElement(Probe));
+
+    await actions!.handleCopyAdjustments({} as SyntheticEvent);
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(useEditorStore.getState().copiedAdjustments?.exposure).toBe(0.75);
+    expect(useProcessStore.getState().isCopied).toBe(true);
   });
 });

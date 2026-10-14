@@ -1607,9 +1607,63 @@ pub fn write_file_atomically(
     path: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
 ) -> std::io::Result<()> {
+    write_file_atomically_with_backend(
+        path.as_ref(),
+        contents.as_ref(),
+        &mut TempfileAtomicWriteBackend,
+    )
+}
+
+trait AtomicWriteTemp: std::io::Write {
+    fn path(&self) -> &Path;
+    fn sync_all(&mut self) -> std::io::Result<()>;
+    fn persist(self, target: &Path) -> std::io::Result<()>
+    where
+        Self: Sized;
+}
+
+trait AtomicWriteBackend {
+    type Temp: AtomicWriteTemp;
+
+    fn create_temp(&mut self, parent: &Path) -> std::io::Result<Self::Temp>;
+}
+
+struct TempfileAtomicWriteBackend;
+
+impl AtomicWriteBackend for TempfileAtomicWriteBackend {
+    type Temp = tempfile::NamedTempFile;
+
+    fn create_temp(&mut self, parent: &Path) -> std::io::Result<Self::Temp> {
+        tempfile::Builder::new()
+            .prefix(".rapidraw-")
+            .suffix(".tmp")
+            .tempfile_in(parent)
+    }
+}
+
+impl AtomicWriteTemp for tempfile::NamedTempFile {
+    fn path(&self) -> &Path {
+        tempfile::NamedTempFile::path(self)
+    }
+
+    fn sync_all(&mut self) -> std::io::Result<()> {
+        self.as_file_mut().sync_all()
+    }
+
+    fn persist(self, target: &Path) -> std::io::Result<()> {
+        tempfile::NamedTempFile::persist(self, target)
+            .map(|_| ())
+            .map_err(|error| error.error)
+    }
+}
+
+fn write_file_atomically_with_backend<B: AtomicWriteBackend>(
+    path: &Path,
+    contents: &[u8],
+    backend: &mut B,
+) -> std::io::Result<()> {
     use std::io::Write;
 
-    let path = path.as_ref();
     if is_card_read_only_path(path) {
         return Err(card_read_only_io_error());
     }
@@ -1624,10 +1678,7 @@ pub fn write_file_atomically(
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    let mut temp = tempfile::Builder::new()
-        .prefix(".rapidraw-")
-        .suffix(".tmp")
-        .tempfile_in(parent)?;
+    let mut temp = backend.create_temp(parent)?;
     temp.write_all(contents.as_ref())?;
     match fs::metadata(&target) {
         Ok(existing) => fs::set_permissions(temp.path(), existing.permissions())?,
@@ -1639,8 +1690,8 @@ pub fn write_file_atomically(
         #[cfg(not(unix))]
         Err(_) => {}
     }
-    temp.as_file().sync_all()?;
-    temp.persist(&target).map_err(|error| error.error)?;
+    temp.sync_all()?;
+    temp.persist(&target)?;
     Ok(())
 }
 
@@ -1853,10 +1904,12 @@ pub fn generate_thumbnail_data(
                 } else {
                     None
                 };
+                // Saved repair offsets and bitmaps are in native pixels.
+                // Composite before the thumbnail resize, without fast RAW shrinking.
                 let base = image_loader::load_base_image_with_proxy(
                     file_slice,
                     &source_path_str,
-                    true,
+                    !has_ai_patches(&adjustments),
                     &settings,
                     None,
                     proxy_min_dim,
@@ -2035,7 +2088,7 @@ pub fn generate_thumbnail_data(
                 &mmap,
                 &source_path_str,
                 &adjustments,
-                true,
+                !has_ai_patches(&adjustments),
                 &settings,
                 None,
             )?,
@@ -2046,7 +2099,7 @@ pub fn generate_thumbnail_data(
                     &bytes,
                     &source_path_str,
                     &adjustments,
-                    true,
+                    !has_ai_patches(&adjustments),
                     &settings,
                     None,
                 )?
@@ -3646,64 +3699,68 @@ pub async fn apply_auto_adjustments_to_paths(
         let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
 
         paths.par_iter().for_each(|path| {
-            let loaded_image: Option<DynamicImage> = (|| -> Result<DynamicImage, String> {
-                let (source_path, sidecar_path) = parse_virtual_path(path);
-                let source_path_str = source_path.to_string_lossy().to_string();
+            let loaded_image: Option<DynamicImage> =
+                (|| -> Result<Option<DynamicImage>, String> {
+                    let (source_path, sidecar_path) = parse_virtual_path(path);
+                    let source_path_str = source_path.to_string_lossy().to_string();
 
-                let file_bytes = fs::read(&source_path).map_err(|e| e.to_string())?;
-                let image = image_loader::load_base_image_from_bytes(
-                    &file_bytes,
-                    &source_path_str,
-                    true,
-                    &settings,
-                    None,
-                )
-                .map_err(|e| e.to_string())?;
+                    let file_bytes = fs::read(&source_path).map_err(|e| e.to_string())?;
+                    let image = image_loader::load_base_image_from_bytes(
+                        &file_bytes,
+                        &source_path_str,
+                        true,
+                        &settings,
+                        None,
+                    )
+                    .map_err(|e| e.to_string())?;
 
-                let auto_results = perform_auto_analysis(&image);
-                let auto_adjustments_json = auto_results_to_json(&auto_results);
+                    let auto_results = perform_auto_analysis(&image);
+                    let auto_adjustments_json = auto_results_to_json(&auto_results);
 
-                let existing_metadata = update_sidecar(&sidecar_path, |current| {
-                    if current.adjustments.is_null() {
-                        current.adjustments = serde_json::json!({});
-                    }
+                    let existing_metadata = update_sidecar(&sidecar_path, |current| {
+                        if current.adjustments.is_null() {
+                            current.adjustments = serde_json::json!({});
+                        }
 
-                    if let (Some(existing_map), Some(auto_map)) = (
-                        current.adjustments.as_object_mut(),
-                        auto_adjustments_json.as_object(),
-                    ) {
-                        for (k, v) in auto_map {
-                            if k == "sectionVisibility" {
-                                if let Some(existing_vis_val) = existing_map.get_mut(k) {
-                                    if let (Some(existing_vis), Some(auto_vis)) =
-                                        (existing_vis_val.as_object_mut(), v.as_object())
-                                    {
-                                        for (vis_k, vis_v) in auto_vis {
-                                            existing_vis.insert(vis_k.clone(), vis_v.clone());
+                        if let (Some(existing_map), Some(auto_map)) = (
+                            current.adjustments.as_object_mut(),
+                            auto_adjustments_json.as_object(),
+                        ) {
+                            for (k, v) in auto_map {
+                                if k == "sectionVisibility" {
+                                    if let Some(existing_vis_val) = existing_map.get_mut(k) {
+                                        if let (Some(existing_vis), Some(auto_vis)) =
+                                            (existing_vis_val.as_object_mut(), v.as_object())
+                                        {
+                                            for (vis_k, vis_v) in auto_vis {
+                                                existing_vis.insert(vis_k.clone(), vis_v.clone());
+                                            }
                                         }
+                                    } else {
+                                        existing_map.insert(k.clone(), v.clone());
                                     }
                                 } else {
                                     existing_map.insert(k.clone(), v.clone());
                                 }
-                            } else {
-                                existing_map.insert(k.clone(), v.clone());
                             }
                         }
-                    }
-                })?;
+                    })?;
 
-                if enable_xmp_sync {
-                    sync_metadata_to_xmp(
-                        &source_path,
-                        &sidecar_path,
-                        &existing_metadata,
-                        create_xmp_if_missing,
-                    );
-                }
-                Ok(image)
-            })()
-            .map_err(|e| eprintln!("Failed to apply auto adjustments to {}: {}", path, e))
-            .ok();
+                    if enable_xmp_sync {
+                        sync_metadata_to_xmp(
+                            &source_path,
+                            &sidecar_path,
+                            &existing_metadata,
+                            create_xmp_if_missing,
+                        );
+                    }
+                    // Auto analysis keeps the fast base, but native repair coordinates
+                    // require a fresh full-resolution base for the thumbnail.
+                    Ok((!has_ai_patches(&existing_metadata.adjustments)).then_some(image))
+                })()
+                .map_err(|e| eprintln!("Failed to apply auto adjustments to {}: {}", path, e))
+                .ok()
+                .flatten();
 
             let result = generate_single_thumbnail_and_cache(
                 path,
@@ -5361,8 +5418,100 @@ mod xmp_safety_tests {
 
 #[cfg(test)]
 mod atomic_write_tests {
-    use super::write_file_atomically;
-    use std::fs;
+    use super::{
+        AtomicWriteBackend, AtomicWriteTemp, write_file_atomically,
+        write_file_atomically_with_backend,
+    };
+    use std::fs::{self, File, OpenOptions};
+    use std::io::{self, Write};
+    use std::path::{Path, PathBuf};
+
+    #[derive(Clone, Copy)]
+    enum InjectedFailure {
+        DiskFullAfter(usize),
+        Sync,
+        Persist,
+    }
+
+    struct InjectedBackend {
+        failure: InjectedFailure,
+    }
+
+    struct InjectedTemp {
+        path: PathBuf,
+        file: File,
+        failure: InjectedFailure,
+        written: usize,
+    }
+
+    impl Write for InjectedTemp {
+        fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+            if let InjectedFailure::DiskFullAfter(limit) = self.failure {
+                if self.written >= limit {
+                    return Err(io::Error::new(
+                        io::ErrorKind::StorageFull,
+                        "injected disk full",
+                    ));
+                }
+                let count = buffer.len().min(limit - self.written);
+                let written = self.file.write(&buffer[..count])?;
+                self.written += written;
+                return Ok(written);
+            }
+            self.file.write(buffer)
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            self.file.flush()
+        }
+    }
+
+    impl AtomicWriteTemp for InjectedTemp {
+        fn path(&self) -> &Path {
+            &self.path
+        }
+
+        fn sync_all(&mut self) -> io::Result<()> {
+            if matches!(self.failure, InjectedFailure::Sync) {
+                return Err(io::Error::other("injected interrupted finalization"));
+            }
+            self.file.sync_all()
+        }
+
+        fn persist(self, target: &Path) -> io::Result<()> {
+            if matches!(self.failure, InjectedFailure::Persist) {
+                return Err(io::Error::new(
+                    io::ErrorKind::AlreadyExists,
+                    "injected final-name collision",
+                ));
+            }
+            fs::rename(&self.path, target)
+        }
+    }
+
+    impl Drop for InjectedTemp {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.path);
+        }
+    }
+
+    impl AtomicWriteBackend for InjectedBackend {
+        type Temp = InjectedTemp;
+
+        fn create_temp(&mut self, parent: &Path) -> io::Result<Self::Temp> {
+            let path = parent.join(".rapidraw-injected.tmp");
+            let file = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)?;
+            Ok(InjectedTemp {
+                path,
+                file,
+                failure: self.failure,
+                written: 0,
+            })
+        }
+    }
 
     fn leftover_temp_files(dir: &std::path::Path) -> usize {
         fs::read_dir(dir)
@@ -5376,6 +5525,22 @@ mod atomic_write_tests {
                     .starts_with(".rapidraw-")
             })
             .count()
+    }
+
+    fn assert_injected_failure_preserves_existing_file(failure: InjectedFailure) -> io::Error {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("photo.cr3.rrdata");
+        fs::write(&target, "original").unwrap();
+        let error = write_file_atomically_with_backend(
+            &target,
+            b"replacement contents",
+            &mut InjectedBackend { failure },
+        )
+        .unwrap_err();
+
+        assert_eq!(fs::read(&target).unwrap(), b"original");
+        assert_eq!(leftover_temp_files(dir.path()), 0);
+        error
     }
 
     #[test]
@@ -5437,6 +5602,25 @@ mod atomic_write_tests {
         assert!(write_file_atomically(&occupied, "new").is_err());
         assert_eq!(fs::read_to_string(occupied.join("keep")).unwrap(), "kept");
         assert_eq!(leftover_temp_files(dir.path()), 0);
+    }
+
+    #[test]
+    fn disk_full_during_a_partial_write_keeps_old_contents_and_cleans_temp() {
+        let error =
+            assert_injected_failure_preserves_existing_file(InjectedFailure::DiskFullAfter(4));
+        assert_eq!(error.kind(), io::ErrorKind::StorageFull);
+    }
+
+    #[test]
+    fn interrupted_sync_keeps_old_contents_and_cleans_temp() {
+        let error = assert_injected_failure_preserves_existing_file(InjectedFailure::Sync);
+        assert!(error.to_string().contains("interrupted finalization"));
+    }
+
+    #[test]
+    fn final_name_collision_keeps_old_contents_and_cleans_temp() {
+        let error = assert_injected_failure_preserves_existing_file(InjectedFailure::Persist);
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
     }
 }
 
