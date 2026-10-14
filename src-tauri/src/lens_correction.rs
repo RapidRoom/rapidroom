@@ -1736,18 +1736,33 @@ mod tests {
             std::env::var("RAPIDROOM_SIGMA_SYNTHETIC_OUT").expect("explicit output directory"),
         );
         std::fs::create_dir_all(&out).unwrap();
-        let source = DynamicImage::ImageRgb32F(Rgb32FImage::from_fn(1200, 800, |x, y| {
+        let ideal_source = DynamicImage::ImageRgb32F(Rgb32FImage::from_fn(1200, 800, |x, y| {
             let grid = x % 60 < 2 || y % 60 < 2;
             let v = if grid { 0.20 } else { 0.04 };
             Rgb([v, v, v])
         }));
-        source
+        ideal_source
             .to_rgb8()
             .save(out.join("synthetic-ideal-grid-input.png"))
             .unwrap();
         let lens = sigma_profile();
         let mut reports = Vec::new();
-        for (focal, aperture) in [(20.0, 3.5), (50.0, 5.6), (200.0, 6.3)] {
+        for (focal, aperture) in [(20.0, 3.5), (50.0, 5.0), (200.0, 6.3)] {
+            let source = if let Ok(folder) = std::env::var("RAPIDROOM_SIGMA_SIMULATION_DIR") {
+                let path = std::path::Path::new(&folder)
+                    .join(format!("{}mm-linear-simulation.png", focal as u32));
+                DynamicImage::ImageRgb32F(
+                    image::open(path)
+                        .expect("independent linear Lensfun simulation")
+                        .to_rgb32f(),
+                )
+            } else {
+                ideal_source.clone()
+            };
+            source
+                .to_rgb8()
+                .save(out.join(format!("synthetic-{}mm-before.png", focal as u32)))
+                .unwrap();
             let p = lens
                 .get_distortion_params(focal, Some(aperture), Some(10.0), Some(1.0))
                 .unwrap();
@@ -1767,7 +1782,7 @@ mod tests {
                 let file = format!("synthetic-{}mm-{}.png", focal as u32, name);
                 image.to_rgb8().save(out.join(&file)).unwrap();
                 reports.push(serde_json::json!({"file":file,"focal":focal,"aperture":aperture,
-                    "synthetic":true,"purpose":"ideal grid acted on by existing geometry renderer; not real-lens correction acceptance",
+                    "synthetic":true,"purpose":"existing geometry renderer on explicit synthetic input; not real-lens correction acceptance",
                     "adjustments":adjustments,"tca":"unsupported; neutral channel scales"}));
             }
         }
