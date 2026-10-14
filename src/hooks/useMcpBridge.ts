@@ -10,7 +10,8 @@ import { listen } from '@tauri-apps/api/event';
 import { useEditorStore } from '../store/useEditorStore';
 import type { HistogramData } from '../components/ui/AppProperties';
 import { debouncedSetHistory } from './useEditorActions';
-import { buildParametricCurves, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
+import { DEFAULT_PARAMETRIC_CURVE, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
+import { composeParametricCurves } from '../utils/presetAmount';
 
 interface McpCommand {
   requestId: string;
@@ -141,13 +142,51 @@ async function syncState(path: string): Promise<McpStateResponse> {
   return invoke<McpStateResponse>('sync_editor_state', { path, adjustments: editor.adjustments });
 }
 
-function normalizeMcpAdjustments(adjustments: Adjustments): Adjustments {
-  const normalized = normalizeLoadedAdjustments(adjustments);
+function normalizeMcpAdjustments(adjustments: Adjustments, current: Adjustments): Adjustments {
+  const normalized = normalizeLoadedAdjustments({
+    ...adjustments,
+    nestedLookCurves: adjustments.nestedLookCurves ?? current.nestedLookCurves,
+  });
   if (normalized.curveMode === 'parametric' && normalized.parametricCurve) {
-    return { ...normalized, curves: buildParametricCurves(normalized.parametricCurve) };
+    // Lightroom import can bake a nested profile-look curve into `curves`
+    // while keeping the editable outer curve in `pointCurves`. Recompose when
+    // an editable input or an explicit MCP `curves` value changed; unrelated
+    // MCP edits must retain that imported baked result.
+    const editableInputsUnchanged =
+      current.curveMode === normalized.curveMode &&
+      JSON.stringify(current.parametricCurve) === JSON.stringify(normalized.parametricCurve) &&
+      JSON.stringify(current.nestedLookCurves ?? []) === JSON.stringify(normalized.nestedLookCurves ?? []) &&
+      JSON.stringify(current.pointCurves ?? current.curves) ===
+        JSON.stringify(normalized.pointCurves ?? normalized.curves);
+    const explicitCurvesEdit =
+      adjustments.curves !== undefined && JSON.stringify(adjustments.curves) !== JSON.stringify(current.curves);
+    const pointCurves =
+      explicitCurvesEdit && editableInputsUnchanged ? normalized.curves : normalized.pointCurves || normalized.curves;
+    return {
+      ...normalized,
+      pointCurves,
+      curves:
+        editableInputsUnchanged && !explicitCurvesEdit
+          ? current.curves
+          : composeParametricCurves(normalized.parametricCurve, pointCurves, normalized.nestedLookCurves),
+    };
   }
   if (normalized.curveMode !== 'parametric' && normalized.pointCurves) {
-    return { ...normalized, curves: normalized.pointCurves };
+    const pointInputsUnchanged =
+      current.curveMode === normalized.curveMode &&
+      JSON.stringify(current.nestedLookCurves ?? []) === JSON.stringify(normalized.nestedLookCurves ?? []) &&
+      JSON.stringify(current.pointCurves ?? current.curves) === JSON.stringify(normalized.pointCurves);
+    const explicitCurvesEdit =
+      adjustments.curves !== undefined && JSON.stringify(adjustments.curves) !== JSON.stringify(current.curves);
+    const pointCurves = explicitCurvesEdit && pointInputsUnchanged ? normalized.curves : normalized.pointCurves;
+    return {
+      ...normalized,
+      pointCurves,
+      curves:
+        pointInputsUnchanged && !explicitCurvesEdit
+          ? current.curves
+          : composeParametricCurves(DEFAULT_PARAMETRIC_CURVE, pointCurves, normalized.nestedLookCurves),
+    };
   }
   return normalized;
 }
@@ -324,7 +363,7 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
             const image = useEditorStore.getState().selectedImage;
             nextAdjustments = createResetAdjustmentsForImage(image);
           } else if (command.adjustments) {
-            nextAdjustments = normalizeMcpAdjustments(command.adjustments);
+            nextAdjustments = normalizeMcpAdjustments(command.adjustments, useEditorStore.getState().adjustments);
           } else {
             throw new Error('MCP adjustment command did not include adjustments');
           }

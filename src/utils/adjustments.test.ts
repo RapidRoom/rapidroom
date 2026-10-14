@@ -74,4 +74,56 @@ describe('stored partial adjustment defaults', () => {
     expect(result.masks[0].subMasks).toHaveLength(1);
     expect(result.masks[0].subMasks[0]).toMatchObject({ id: 'r', mode: 'intersect', parameters: { centerX: 20 } });
   });
+
+  it('uses curves as canonical for legacy point mode with a stale default pointCurves field', () => {
+    const edited = [
+      { x: 0, y: 8 },
+      { x: 128, y: 140 },
+      { x: 255, y: 255 },
+    ];
+    const result = normalize({
+      curveMode: 'point',
+      curves: { ...INITIAL_ADJUSTMENTS.curves, luma: edited },
+      pointCurves: INITIAL_ADJUSTMENTS.pointCurves,
+    });
+    expect(result.pointCurves.luma).toEqual(edited);
+  });
+
+  it('preserves raw pointCurves when a point-mode Look is retained', () => {
+    const look = [
+      { x: 0, y: 12 },
+      { x: 128, y: 165 },
+      { x: 255, y: 255 },
+    ];
+    const raw = INITIAL_ADJUSTMENTS.pointCurves;
+    const result = normalize({
+      curveMode: 'point',
+      curves: { ...raw, luma: look },
+      pointCurves: raw,
+      nestedLookCurves: [{ amount: 1, points: look }],
+    });
+    expect(result.pointCurves).toEqual(raw);
+    expect(result.curves.luma).toEqual(look);
+  });
+
+  it('uses mask curves as canonical for legacy point mode', () => {
+    const edited = [
+      { x: 0, y: 8 },
+      { x: 128, y: 140 },
+      { x: 255, y: 255 },
+    ];
+    const result = normalize({
+      masks: [
+        {
+          id: 'legacy',
+          adjustments: {
+            curveMode: 'point',
+            curves: { ...INITIAL_ADJUSTMENTS.curves, luma: edited },
+            pointCurves: INITIAL_ADJUSTMENTS.pointCurves,
+          },
+        },
+      ],
+    });
+    expect(result.masks[0].adjustments.pointCurves.luma).toEqual(edited);
+  });
 });

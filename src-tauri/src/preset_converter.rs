@@ -1040,6 +1040,7 @@ fn extract_nested_look_luma_curves(xmp_content: &str) -> Vec<(f64, Vec<(f64, f64
 /// has one luma curve, so sample the composition at evenly spaced inputs.
 fn compose_luma_curve_with_looks(
     looks: &[(f64, Vec<(f64, f64)>)],
+    parametric: Option<&[(f64, f64)]>,
     outer: Option<&[(f64, f64)]>,
 ) -> Vec<Value> {
     let step = 255.0 / (MAX_RAPIDRAW_CURVE_POINTS - 1) as f64;
@@ -1050,12 +1051,142 @@ fn compose_luma_curve_with_looks(
             for (amount, points) in looks {
                 y += amount * (evaluate_rapidraw_curve(points, y) - y);
             }
+            if let Some(parametric) = parametric {
+                y = evaluate_rapidraw_curve(parametric, y);
+            }
             if let Some(outer) = outer {
                 y = evaluate_rapidraw_curve(outer, y);
             }
             json!({ "x": x as u32, "y": y.round().clamp(0.0, 255.0) as u32 })
         })
         .collect()
+}
+
+#[derive(Clone, Copy)]
+struct LightroomParametricCurve {
+    shadows: f64,
+    darks: f64,
+    lights: f64,
+    highlights: f64,
+    split1: f64,
+    split2: f64,
+    split3: f64,
+}
+
+impl LightroomParametricCurve {
+    fn from_attrs(attrs: &HashMap<String, String>) -> Option<Self> {
+        const PARAMETRIC_KEYS: [&str; 7] = [
+            "ParametricShadows",
+            "ParametricDarks",
+            "ParametricLights",
+            "ParametricHighlights",
+            "ParametricShadowSplit",
+            "ParametricMidtoneSplit",
+            "ParametricHighlightSplit",
+        ];
+        if !PARAMETRIC_KEYS.iter().any(|key| attrs.contains_key(*key)) {
+            return None;
+        }
+
+        let number = |key, default| {
+            get_attr_as_f64(attrs, key)
+                .filter(|value| value.is_finite())
+                .unwrap_or(default)
+        };
+        let slider = |key| number(key, 0.0).clamp(-100.0, 100.0);
+        let split = |key, default| number(key, default).clamp(0.0, 100.0);
+        Some(Self {
+            shadows: slider("ParametricShadows"),
+            darks: slider("ParametricDarks"),
+            lights: slider("ParametricLights"),
+            highlights: slider("ParametricHighlights"),
+            split1: split("ParametricShadowSplit", 25.0),
+            split2: split("ParametricMidtoneSplit", 50.0),
+            split3: split("ParametricHighlightSplit", 75.0),
+        })
+    }
+
+    fn points(self) -> Vec<(f64, f64)> {
+        let v_h = self.highlights / 100.0;
+        let v_l = self.lights / 100.0;
+        let v_d = self.darks / 100.0;
+        let v_s = self.shadows / 100.0;
+        let s1 = self.split1 / 100.0;
+        let s2 = self.split2 / 100.0;
+        let s3 = self.split3 / 100.0;
+        let x_h = (s3 + 1.0) / 2.0;
+        let x_s = s1 / 2.0;
+        let response = |v: f64, x: f64| {
+            let headroom = if v >= 0.0 { 1.0 - x } else { x };
+            (v * 1.2).tanh() * 0.35 * headroom.sqrt()
+        };
+        let xs = [0.0, x_s, s1, s2, s3, x_h, 1.0];
+        let ys = [
+            0.0,
+            x_s + response(v_s, x_s),
+            s1 + (response(v_s, s1) + response(v_d, s1)) / 2.0,
+            s2 + (response(v_d, s2) + response(v_l, s2)) / 2.0,
+            s3 + (response(v_l, s3) + response(v_h, s3)) / 2.0,
+            x_h + response(v_h, x_h),
+            1.0,
+        ];
+        xs.into_iter()
+            .zip(ys)
+            .map(|(x, y)| (x * 255.0, y.clamp(0.0, 1.0) * 255.0))
+            .collect()
+    }
+
+    fn is_identity(self) -> bool {
+        self.shadows == 0.0 && self.darks == 0.0 && self.lights == 0.0 && self.highlights == 0.0
+    }
+
+    fn ui_state(self, attrs: &HashMap<String, String>, photo_sidecar: bool) -> Value {
+        let mut luma = Map::new();
+        for (xmp_key, key, value) in [
+            ("ParametricShadows", "shadows", self.shadows),
+            ("ParametricDarks", "darks", self.darks),
+            ("ParametricLights", "lights", self.lights),
+            ("ParametricHighlights", "highlights", self.highlights),
+            ("ParametricShadowSplit", "split1", self.split1),
+            ("ParametricMidtoneSplit", "split2", self.split2),
+            ("ParametricHighlightSplit", "split3", self.split3),
+        ] {
+            if photo_sidecar || attrs.contains_key(xmp_key) {
+                luma.insert(key.to_string(), json!(value));
+            }
+        }
+        if photo_sidecar {
+            let channel = json!({
+                "shadows": 0,
+                "darks": 0,
+                "lights": 0,
+                "highlights": 0,
+                "blackLevel": 0,
+                "whiteLevel": 0,
+                "split1": self.split1,
+                "split2": self.split2,
+                "split3": self.split3,
+            });
+            json!({
+                "luma": {
+                    "shadows": self.shadows,
+                    "darks": self.darks,
+                    "lights": self.lights,
+                    "highlights": self.highlights,
+                    "blackLevel": 0,
+                    "whiteLevel": 0,
+                    "split1": self.split1,
+                    "split2": self.split2,
+                    "split3": self.split3,
+                },
+                "red": channel,
+                "green": channel,
+                "blue": channel,
+            })
+        } else {
+            json!({ "luma": Value::Object(luma) })
+        }
+    }
 }
 
 pub fn convert_xmp_to_preset(xmp_content: &str) -> Result<Preset, String> {
@@ -1632,8 +1763,30 @@ fn convert_xmp_to_preset_with_crop(
             }
         }
     }
+    let point_curves = (!curves_map.is_empty()).then(|| Value::Object(curves_map.clone()));
+    let parametric_curve = LightroomParametricCurve::from_attrs(&attrs);
+    let has_parametric_curve = parametric_curve.is_some();
+    let parametric_points = parametric_curve
+        .filter(|curve| !curve.is_identity())
+        .map(LightroomParametricCurve::points);
     let look_curves = extract_nested_look_luma_curves(xmp_content);
     if !look_curves.is_empty() {
+        adjustments.insert(
+            "nestedLookCurves".to_string(),
+            Value::Array(
+                look_curves
+                    .iter()
+                    .map(|(amount, points)| {
+                        json!({
+                            "amount": amount,
+                            "points": points.iter().map(|(x, y)| json!({"x": x, "y": y})).collect::<Vec<_>>(),
+                        })
+                    })
+                    .collect(),
+            ),
+        );
+    }
+    if !look_curves.is_empty() || parametric_points.is_some() {
         let outer_luma = curves_map
             .get("luma")
             .and_then(Value::as_array)
@@ -1642,8 +1795,22 @@ fn convert_xmp_to_preset_with_crop(
             "luma".to_string(),
             Value::Array(compose_luma_curve_with_looks(
                 &look_curves,
+                parametric_points.as_deref(),
                 outer_luma.as_deref(),
             )),
+        );
+    }
+    if let Some(parametric_curve) = parametric_curve {
+        adjustments.insert(
+            "parametricCurve".to_string(),
+            parametric_curve.ui_state(&attrs, include_crop_transform),
+        );
+        adjustments.insert("curveMode".to_string(), json!("parametric"));
+    }
+    if has_parametric_curve || !look_curves.is_empty() {
+        adjustments.insert(
+            "pointCurves".to_string(),
+            point_curves.unwrap_or_else(|| Value::Object(Map::new())),
         );
     }
     if !curves_map.is_empty() {
@@ -3186,11 +3353,50 @@ mod tests {
         ))
         .unwrap();
         let luma = look_only.adjustments["curves"]["luma"].as_array().unwrap();
+        assert_eq!(
+            look_only.adjustments["nestedLookCurves"][0]["amount"],
+            json!(1.0)
+        );
+        assert_eq!(
+            look_only.adjustments["nestedLookCurves"][0]["points"],
+            json!([
+                { "x": 0.0, "y": 0.0 },
+                { "x": 64.0, "y": 48.0 },
+                { "x": 192.0, "y": 208.0 },
+                { "x": 255.0, "y": 255.0 }
+            ])
+        );
         assert_eq!(luma.len(), MAX_RAPIDRAW_CURVE_POINTS);
         assert_eq!(luma_at(&look_only, 0), 0);
         assert_eq!(luma_at(&look_only, 255), 255);
         assert!(luma_at(&look_only, 51) < 51);
         assert!(luma_at(&look_only, 204) > 204);
+
+        let look_with_explicit_zero = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:HasSettings="True" crs:ParametricShadows="0">
+              <crs:ToneCurvePV2012><rdf:Seq>
+                <rdf:li>0, 0</rdf:li><rdf:li>255, 255</rdf:li>
+              </rdf:Seq></crs:ToneCurvePV2012>
+              {ADOBE_COLOR_LOOK}
+            </rdf:Description>"#
+        ))
+        .unwrap();
+        assert_eq!(
+            look_with_explicit_zero.adjustments["curveMode"],
+            json!("parametric")
+        );
+        assert_eq!(
+            look_with_explicit_zero.adjustments["nestedLookCurves"],
+            look_only.adjustments["nestedLookCurves"]
+        );
+        assert_eq!(
+            look_with_explicit_zero.adjustments["pointCurves"],
+            json!({ "luma": [{ "x": 0, "y": 0 }, { "x": 255, "y": 255 }] })
+        );
+        assert_eq!(
+            look_with_explicit_zero.adjustments["curves"]["luma"],
+            look_only.adjustments["curves"]["luma"]
+        );
 
         // The user's curve applies on top of the look: here it inverts it.
         let with_user_curve = convert_xmp_sidecar_to_preset(&format!(
@@ -3212,6 +3418,105 @@ mod tests {
                 "{x}"
             );
         }
+    }
+
+    #[test]
+    fn bakes_parametric_curve_before_point_curve_and_preserves_edit_state() {
+        let xmp = r#"<rdf:Description
+                crs:ProcessVersion="15.4"
+                crs:HasSettings="True"
+                crs:ParametricShadows="-50"
+                crs:ParametricHighlights="0"
+                crs:ParametricShadowSplit="20"
+                crs:CurveRefineSaturation="50">
+              <crs:ToneCurvePV2012>
+                <rdf:Seq>
+                  <rdf:li>0, 8</rdf:li>
+                  <rdf:li>128, 140</rdf:li>
+                  <rdf:li>255, 255</rdf:li>
+                </rdf:Seq>
+              </crs:ToneCurvePV2012>
+              <crs:ToneCurvePV2012Red>
+                <rdf:Seq>
+                  <rdf:li>0, 0</rdf:li>
+                  <rdf:li>128, 132</rdf:li>
+                  <rdf:li>255, 255</rdf:li>
+                </rdf:Seq>
+              </crs:ToneCurvePV2012Red>
+            </rdf:Description>"#;
+        let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
+
+        let parametric = &preset.adjustments["parametricCurve"];
+        assert_eq!(preset.adjustments["curveMode"], json!("parametric"));
+        assert_eq!(parametric["luma"]["shadows"], json!(-50.0));
+        assert_eq!(parametric["luma"]["highlights"], json!(0.0));
+        assert_eq!(parametric["luma"]["split1"], json!(20.0));
+        assert_eq!(parametric["luma"]["split2"], json!(50.0));
+        assert_eq!(parametric["luma"]["split3"], json!(75.0));
+
+        let point_luma = &preset.adjustments["pointCurves"]["luma"];
+        assert_eq!(
+            point_luma,
+            &json!([
+                { "x": 0, "y": 8 },
+                { "x": 128, "y": 140 },
+                { "x": 255, "y": 255 }
+            ])
+        );
+        assert_eq!(
+            preset.adjustments["curves"]["red"],
+            preset.adjustments["pointCurves"]["red"]
+        );
+
+        let combined_luma = preset.adjustments["curves"]["luma"].as_array().unwrap();
+        assert_eq!(combined_luma.len(), MAX_RAPIDRAW_CURVE_POINTS);
+        let parametric_points = LightroomParametricCurve::from_attrs(
+            &parse_xmp_attributes(
+                r#"<rdf:Description crs:ParametricShadows="-50" crs:ParametricShadowSplit="20" />"#,
+            )
+            .unwrap(),
+        )
+        .unwrap()
+        .points();
+        let original_luma = curve_points_as_f64(point_luma.as_array().unwrap());
+        let middle = combined_luma
+            .iter()
+            .find(|point| point["x"] == json!(136))
+            .unwrap();
+        let expected = evaluate_rapidraw_curve(
+            &original_luma,
+            evaluate_rapidraw_curve(&parametric_points, 136.0),
+        )
+        .round() as u64;
+        assert_eq!(middle["y"], json!(expected));
+        assert_ne!(preset.adjustments["curves"]["luma"], *point_luma);
+        assert!(
+            lightroom_settings_not_transferred(xmp, &preset)
+                .contains(&"unsupportedDevelopSettings")
+        );
+    }
+
+    #[test]
+    fn keeps_parametric_fields_sparse_when_importing_a_preset() {
+        let preset =
+            convert_xmp_to_preset(r#"<rdf:Description crs:ParametricShadows="-20" />"#).unwrap();
+
+        assert_eq!(
+            preset.adjustments["parametricCurve"]["luma"]["shadows"],
+            json!(-20.0)
+        );
+        assert!(
+            preset.adjustments["parametricCurve"]["luma"]
+                .get("darks")
+                .is_none()
+        );
+        assert!(
+            preset.adjustments["parametricCurve"]["luma"]
+                .get("split1")
+                .is_none()
+        );
+        assert!(preset.adjustments["parametricCurve"].get("red").is_none());
+        assert_eq!(preset.adjustments["curveMode"], json!("parametric"));
     }
 
     #[test]

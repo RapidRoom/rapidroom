@@ -117,6 +117,76 @@ def run_photo_policy_checks(smoke, wait_for):
         restore()
     smoke.step('False and absent photo flags retain ordinary exposure and curve import')
 
+    xml = packet('a:HasSettings="True" a:ProcessVersion="15.4" a:Exposure2012="0"')
+    sidecar.write_text(xml)
+    import_menu()
+    click_import()
+    wait_for(
+        lambda: image_state(url, image, token=token)['adjustments'].get('colorNoiseReduction') == 25,
+        'photo RAW defaults apply',
+    )
+    state = image_state(url, image, token=token)['adjustments']
+    assert state['exposure'] == 0, state
+    assert abs(state['sharpness'] - (40 / 150 * 100)) < 1e-6, state
+    assert state['colorNoiseReduction'] == 25, state
+    dismiss()
+    smoke.stable_preview('photo-policy-raw-defaults')
+    sidecar.unlink()
+    smoke.execute("document.querySelector('button[data-tooltip^=\"Undo (\"]').click();return true;")
+    wait_for(
+        lambda: image_state(url, image, token=token)['adjustments'] == initial['adjustments'],
+        'photo default import Undo restores initial adjustments',
+    )
+    raw_defaults_undone = smoke.stable_preview('photo-policy-raw-defaults-undo')
+    assert ImageChops.difference(smoke.crop(baseline), smoke.crop(raw_defaults_undone)).getbbox() is None
+    smoke.step(
+        'HasSettings photo import applies omitted RAW defaults, keeps explicit zero, and Undo restores preview'
+    )
+
+    xml = packet(
+        'a:HasSettings="True" a:ProcessVersion="15.4" a:ParametricShadows="-50" '
+        'a:ParametricHighlights="20" a:ParametricShadowSplit="20" a:CurveRefineSaturation="50"',
+        curve=True,
+    )
+    sidecar.write_text(xml)
+    import_menu()
+    click_import()
+    wait_for(
+        lambda: image_state(url, image, token=token)['adjustments'].get('parametricCurve') is not None,
+        'photo parametric XMP settings apply',
+    )
+    state = image_state(url, image, token=token)['adjustments']
+    assert state['curveMode'] == 'parametric', state
+    assert state['parametricCurve']['luma']['shadows'] == -50, state
+    assert state['parametricCurve']['luma']['highlights'] == 20, state
+    assert state['parametricCurve']['luma']['split1'] == 20, state
+    assert state['parametricCurve']['luma']['split2'] == 50, state
+    assert state['parametricCurve']['luma']['split3'] == 75, state
+    assert state['pointCurves']['luma'] == [
+        {'x': 0, 'y': 0},
+        {'x': 128, 'y': 144},
+        {'x': 255, 'y': 255},
+    ], state
+    assert state['curves']['luma'] != state['pointCurves']['luma'], state
+    assert state['curves']['red'] == state['pointCurves']['red'], state
+    assert smoke.execute(
+        "return [...document.querySelectorAll('[role=alert]')].some(e=>e.innerText.includes('Lightroom develop settings with no RapidRoom control'));"
+    )
+    assert sidecar.read_text() == xml, 'Parametric import rewrote its incoming packet'
+    dismiss()
+    smoke.stable_preview('photo-policy-parametric-import')
+    sidecar.unlink()
+    smoke.execute("document.querySelector('button[data-tooltip^=\"Undo (\"]').click();return true;")
+    wait_for(
+        lambda: image_state(url, image, token=token)['adjustments'] == initial['adjustments'],
+        'parametric photo import Undo restores initial adjustments',
+    )
+    parametric_undone = smoke.stable_preview('photo-policy-parametric-undo')
+    assert ImageChops.difference(smoke.crop(baseline), smoke.crop(parametric_undone)).getbbox() is None
+    smoke.step(
+        'photo parametric XMP composes before the saved point curve, keeps channel curves, and Undo restores preview'
+    )
+
     # Exercise the real preset importer, then reload the public browser to apply it.
     preset_file = case / 'AlreadyApplied-reusable.xmp'
     preset_file.write_text(packet('a:AlreadyApplied="True" a:Name="AlreadyApplied reusable" a:Exposure2012="1.25"'))

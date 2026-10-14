@@ -18,6 +18,8 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   'curves.<channel>':
     'Points `{x, y}` from 0 to 255, sorted by x, at most 16, after tone mapping. `luma` is applied to R, G and B alike. The renderer reads only `curves`.',
   'pointCurves.<channel>': 'Saved copy of the point curves for point mode. Write the same points as `curves`.',
+  nestedLookCurves:
+    'Imported Lightroom profile-look tone curves. Keep unchanged; RapidRoom uses this saved chain when recomposing the curve after edits.',
   'parametricCurve.<channel>.darks':
     'Zone between split1 and split2. The renderer ignores `parametricCurve`: the GUI turns it into `curves`. Over MCP, write `curves` instead.',
   'parametricCurve.<channel>.shadows': 'Zone from black to split1. GUI only, see darks.',

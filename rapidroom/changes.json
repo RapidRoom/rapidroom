@@ -15,6 +15,19 @@
       "notes": "Fills absent native Lightroom defaults for photo XMP imports on recognized process versions, with RAW and rendered-source defaults kept distinct. Preset imports remain sparse; metadata-only records, explicit zeroes and unknown process versions do not acquire inferred values. Unsupported non-default controls are reported. Default non-imported renders remain unchanged; Lightroom appearance parity is not claimed."
     },
     {
+      "id": "lightroom-parametric-tone-curves",
+      "title": "Apply Lightroom parametric tone curves",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "Imports Lightroom CRS parametric regions and splits, bakes them before the master point curve, preserves RGB channel curves and editable curve state, and keeps sparse preset fields sparse. Non-default CurveRefineSaturation is reported as unsupported. This mapping is an approximation; Adobe response parity is not claimed. Default non-imported renders remain unchanged."
+    },
+    {
       "id": "atomic-write-failure-injection",
       "title": "Test atomic file writes under failure conditions",
       "category": "ci",

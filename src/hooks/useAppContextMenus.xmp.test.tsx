@@ -118,7 +118,7 @@ describe('public XMP import state and history', () => {
     expect(useEditorStore.getState().adjustments).toBe(draft);
   });
 
-  it('applies ordinary development import and resets history to its new state', async () => {
+  it('applies ordinary development import as one undoable history step', async () => {
     mockCommand(Invokes.ImportXmpAdjustmentsForImage, () => ({
       adjustments: { exposure: 1.25 },
       adjustmentsApplied: true,
@@ -127,11 +127,20 @@ describe('public XMP import state and history', () => {
     }));
     await clickImport();
     expect(useEditorStore.getState().adjustments.exposure).toBe(1.25);
-    expect(useEditorStore.getState().history).toHaveLength(1);
-    // useImageProcessing echoes newly applied adjustments into autosave.
+    expect(useEditorStore.getState().history).toEqual([
+      INITIAL_ADJUSTMENTS,
+      draft,
+      expect.objectContaining({ exposure: 1.25 }),
+    ]);
+    expect(useEditorStore.getState().historyIndex).toBe(2);
     debouncedSave(path, useEditorStore.getState().adjustments);
     vi.advanceTimersByTime(600);
     expect(invoke).toHaveBeenCalledTimes(1);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().adjustments).toBe(draft);
+    debouncedSave(path, useEditorStore.getState().adjustments);
+    vi.advanceTimersByTime(300);
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: draft });
     const newer = { ...useEditorStore.getState().adjustments, exposure: 2 };
     debouncedSave(path, newer);
     vi.advanceTimersByTime(300);
@@ -290,6 +299,35 @@ describe('public XMP import state and history', () => {
       path: otherPath,
       adjustments: other,
     });
+  });
+
+  it('applies a folder import to the active photo as one undoable history step', async () => {
+    mockCommand(Invokes.ImportMatchingXmpSidecarsInFolder, () => ({
+      matched: 1,
+      imported: 1,
+      unchanged: 0,
+      skipped: 0,
+      failed: 0,
+      failures: [],
+      importedPaths: [path],
+      adjustmentsImportedPaths: [path],
+      alreadyAppliedPaths: [],
+      preservedDraftPaths: [],
+      unchangedPaths: [],
+      notTransferred: [],
+    }));
+    mockCommand(Invokes.LoadMetadata, () => ({ adjustments: { exposure: 1.5 } }));
+
+    await clickImport(true);
+
+    expect(useEditorStore.getState().adjustments.exposure).toBe(1.5);
+    expect(useEditorStore.getState().history).toEqual([
+      INITIAL_ADJUSTMENTS,
+      draft,
+      expect.objectContaining({ exposure: 1.5 }),
+    ]);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().adjustments).toBe(draft);
   });
 
   it('folder metadata-only imports preserve the active history and send its pending draft', async () => {

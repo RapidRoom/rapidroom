@@ -10,9 +10,9 @@ import {
   DEFAULT_PARAMETRIC_CURVE_SETTINGS,
   ParametricCurveSettings,
   buildParametricCurvePoints,
-  buildParametricCurves,
   getDefaultCurves,
 } from '../../utils/adjustments';
+import { composeParametricCurves } from '../../utils/presetAmount';
 import { Theme, OPTION_SEPARATOR, type HistogramData } from '../ui/AppProperties';
 import { useContextMenu } from '../../context/ContextMenuContext';
 import Text from '../ui/Text';
@@ -230,18 +230,19 @@ export default function CurveGraph({
     setAdjustments((prev: Adjustments) => {
       if (newMode === 'parametric') {
         const pC = prev.parametricCurve || DEFAULT_PARAMETRIC_CURVE;
+        const pointCurves = prev.pointCurves ?? prev.curves;
         return {
           ...prev,
           curveMode: 'parametric',
-          pointCurves: prev.curves,
-          curves: buildParametricCurves(pC),
+          pointCurves,
+          curves: composeParametricCurves(pC, pointCurves, prev.nestedLookCurves),
         };
       } else {
         const restoredPointCurves = prev.pointCurves || DEFAULT_POINT_CURVES;
         return {
           ...prev,
           curveMode: 'point',
-          curves: restoredPointCurves,
+          curves: composeParametricCurves(DEFAULT_PARAMETRIC_CURVE, restoredPointCurves, prev.nestedLookCurves),
         };
       }
     });
@@ -251,18 +252,14 @@ export default function CurveGraph({
     setAdjustments((prev: Adjustments) => {
       const pC = prev.parametricCurve || DEFAULT_PARAMETRIC_CURVE;
       const updatedSettings = { ...pC[activeChannel], [key]: value };
-      const newPoints = buildParametricPoints(updatedSettings);
+      const parametricCurve = { ...pC, [activeChannel]: updatedSettings };
+      const pointCurves = prev.pointCurves || prev.curves;
 
       return {
         ...prev,
-        parametricCurve: {
-          ...pC,
-          [activeChannel]: updatedSettings,
-        },
-        curves: {
-          ...prev.curves,
-          [activeChannel]: newPoints,
-        },
+        parametricCurve,
+        pointCurves,
+        curves: composeParametricCurves(parametricCurve, pointCurves, prev.nestedLookCurves),
       };
     });
   };
@@ -353,10 +350,7 @@ export default function CurveGraph({
         localPointsRef.current = newPoints;
         setLocalPoints(newPoints);
 
-        setAdjustments((prev: Adjustments) => ({
-          ...prev,
-          curves: { ...prev.curves, [activeChannelRef.current]: newPoints },
-        }));
+        setAdjustments((prev: Adjustments) => updatePointCurve(prev, activeChannelRef.current, newPoints));
 
         if (e.cancelable) e.preventDefault();
       }
@@ -403,10 +397,20 @@ export default function CurveGraph({
   );
 
   const inactiveChannels = Object.keys(channelConfig).filter((channel) => channel !== activeChannel);
+  const pointCurveSource = adjustments?.pointCurves ?? adjustments?.curves;
+
+  const updatePointCurve = (prev: Adjustments, channel: string, points: Coord[]): Adjustments => {
+    const pointCurves = { ...(prev.pointCurves ?? prev.curves), [channel]: points };
+    return {
+      ...prev,
+      pointCurves,
+      curves: composeParametricCurves(DEFAULT_PARAMETRIC_CURVE, pointCurves, prev.nestedLookCurves),
+    };
+  };
 
   const activePoints: Array<Coord> = isParametricMode
     ? buildParametricPoints(activeParametricSettings)
-    : (localPoints ?? adjustments?.curves?.[activeChannel]);
+    : (localPoints ?? pointCurveSource?.[activeChannel]);
 
   const { color, data: histogramData } = channelConfig[activeChannel];
 
@@ -433,10 +437,7 @@ export default function CurveGraph({
       const newPoints = activePoints.filter((_, i) => i !== index);
       setLocalPoints(newPoints);
       localPointsRef.current = newPoints;
-      setAdjustments((prev: Adjustments) => ({
-        ...prev,
-        curves: { ...prev.curves, [activeChannel]: newPoints },
-      }));
+      setAdjustments((prev: Adjustments) => updatePointCurve(prev, activeChannel, newPoints));
     }
   };
 
@@ -457,10 +458,7 @@ export default function CurveGraph({
 
     setLocalPoints(newPoints);
     localPointsRef.current = newPoints;
-    setAdjustments((prev: Adjustments) => ({
-      ...prev,
-      curves: { ...prev.curves, [activeChannel]: newPoints },
-    }));
+    setAdjustments((prev: Adjustments) => updatePointCurve(prev, activeChannel, newPoints));
     setDraggingPointIndex(newPointIndex);
     draggingIndexRef.current = newPointIndex;
   };
@@ -470,10 +468,13 @@ export default function CurveGraph({
       const defaultSettings = { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS };
       setAdjustments((prev: Adjustments) => {
         const pC = prev.parametricCurve || DEFAULT_PARAMETRIC_CURVE;
+        const parametricCurve = { ...pC, [activeChannel]: defaultSettings };
+        const pointCurves = prev.pointCurves || prev.curves;
         return {
           ...prev,
-          parametricCurve: { ...pC, [activeChannel]: defaultSettings },
-          curves: { ...prev.curves, [activeChannel]: buildParametricPoints(defaultSettings) },
+          parametricCurve,
+          pointCurves,
+          curves: composeParametricCurves(parametricCurve, pointCurves, prev.nestedLookCurves),
         };
       });
     } else {
@@ -482,10 +483,7 @@ export default function CurveGraph({
         { x: 255, y: 255 },
       ];
       setLocalPoints(defaultPoints);
-      setAdjustments((prev: Adjustments) => ({
-        ...prev,
-        curves: { ...prev.curves, [activeChannel]: defaultPoints },
-      }));
+      setAdjustments((prev: Adjustments) => updatePointCurve(prev, activeChannel, defaultPoints));
     }
   };
 
@@ -505,10 +503,13 @@ export default function CurveGraph({
         if (!clipboard) return;
         setAdjustments((prev: Adjustments) => {
           const pC = prev.parametricCurve || DEFAULT_PARAMETRIC_CURVE;
+          const parametricCurve = { ...pC, [activeChannel]: { ...clipboard } };
+          const pointCurves = prev.pointCurves || prev.curves;
           return {
             ...prev,
-            parametricCurve: { ...pC, [activeChannel]: { ...clipboard } },
-            curves: { ...prev.curves, [activeChannel]: buildParametricPoints(clipboard) },
+            parametricCurve,
+            pointCurves,
+            curves: composeParametricCurves(parametricCurve, pointCurves, prev.nestedLookCurves),
           };
         });
       };
@@ -516,13 +517,16 @@ export default function CurveGraph({
       const handleResetParametric = () => {
         setAdjustments((prev: Adjustments) => {
           const pC = prev.parametricCurve || DEFAULT_PARAMETRIC_CURVE;
+          const parametricCurve = {
+            ...pC,
+            [activeChannel]: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
+          };
+          const pointCurves = prev.pointCurves || prev.curves;
           return {
             ...prev,
-            parametricCurve: { ...pC, [activeChannel]: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS } },
-            curves: {
-              ...prev.curves,
-              [activeChannel]: buildParametricPoints(DEFAULT_PARAMETRIC_CURVE_SETTINGS),
-            },
+            parametricCurve,
+            pointCurves,
+            curves: composeParametricCurves(parametricCurve, pointCurves, prev.nestedLookCurves),
           };
         });
       };
@@ -531,20 +535,18 @@ export default function CurveGraph({
         setLocalParametricSettings(null);
         localParametricSettingsRef.current = null;
         setAdjustments((prev: Adjustments) => {
+          const parametricCurve = {
+            luma: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
+            red: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
+            green: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
+            blue: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
+          };
+          const pointCurves = prev.pointCurves || prev.curves;
           return {
             ...prev,
-            parametricCurve: {
-              luma: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
-              red: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
-              green: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
-              blue: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
-            },
-            curves: {
-              luma: buildParametricPoints(DEFAULT_PARAMETRIC_CURVE_SETTINGS),
-              red: buildParametricPoints(DEFAULT_PARAMETRIC_CURVE_SETTINGS),
-              green: buildParametricPoints(DEFAULT_PARAMETRIC_CURVE_SETTINGS),
-              blue: buildParametricPoints(DEFAULT_PARAMETRIC_CURVE_SETTINGS),
-            },
+            parametricCurve,
+            pointCurves,
+            curves: composeParametricCurves(parametricCurve, pointCurves, prev.nestedLookCurves),
           };
         });
       };
@@ -594,7 +596,7 @@ export default function CurveGraph({
       const newPoints = curveClipboard.map((p) => ({ ...p }));
       setLocalPoints(newPoints);
       localPointsRef.current = newPoints;
-      setAdjustments((prev: Adjustments) => ({ ...prev, curves: { ...prev.curves, [activeChannel]: newPoints } }));
+      setAdjustments((prev: Adjustments) => updatePointCurve(prev, activeChannel, newPoints));
     };
 
     const handlePasteFromParametric = () => {
@@ -602,7 +604,7 @@ export default function CurveGraph({
       const newPoints = convertParametricToPoints(parametricClipboard);
       setLocalPoints(newPoints);
       localPointsRef.current = newPoints;
-      setAdjustments((prev: Adjustments) => ({ ...prev, curves: { ...prev.curves, [activeChannel]: newPoints } }));
+      setAdjustments((prev: Adjustments) => updatePointCurve(prev, activeChannel, newPoints));
     };
 
     const handleReset = () => {
@@ -612,7 +614,7 @@ export default function CurveGraph({
       ];
       setLocalPoints(defaultPoints);
       localPointsRef.current = defaultPoints;
-      setAdjustments((prev: Adjustments) => ({ ...prev, curves: { ...prev.curves, [activeChannel]: defaultPoints } }));
+      setAdjustments((prev: Adjustments) => updatePointCurve(prev, activeChannel, defaultPoints));
     };
 
     const handleResetAllPoint = () => {
@@ -622,18 +624,22 @@ export default function CurveGraph({
       ];
       setLocalPoints(defaultPoints);
       localPointsRef.current = defaultPoints;
-      setAdjustments((prev: Adjustments) => ({
-        ...prev,
-        curves: {
+      setAdjustments((prev: Adjustments) => {
+        const pointCurves = {
           [ActiveChannel.Luma]: [...defaultPoints],
           [ActiveChannel.Red]: [...defaultPoints],
           [ActiveChannel.Green]: [...defaultPoints],
           [ActiveChannel.Blue]: [...defaultPoints],
-        },
-      }));
+        };
+        return {
+          ...prev,
+          pointCurves,
+          curves: composeParametricCurves(DEFAULT_PARAMETRIC_CURVE, pointCurves, prev.nestedLookCurves),
+        };
+      });
     };
 
-    const areOtherPointCurvesDirty = inactiveChannels.some((channel) => !isDefaultCurve(adjustments.curves?.[channel]));
+    const areOtherPointCurvesDirty = inactiveChannels.some((channel) => !isDefaultCurve(pointCurveSource?.[channel]));
 
     const options = [
       {

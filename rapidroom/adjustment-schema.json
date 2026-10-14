@@ -552,6 +552,7 @@
         { "x": 255, "y": 255 }
       ]
     },
+    "nestedLookCurves": { "defaultType": "array", "default": [] },
     "parametricCurve": {
       "defaultType": "object",
       "default": {
@@ -2213,7 +2214,7 @@
     },
     {
       "source": "src/components/adjustments/Curves.tsx",
-      "line": 929,
+      "line": 935,
       "valueExpression": "activeParametricSettings.whiteLevel",
       "changeExpression": "(e) => updateParametricValue('whiteLevel', parseFloat(String(e.target.value)))",
       "labelExpression": "t('adjustments.curves.params.whiteLevel')",
@@ -2229,7 +2230,7 @@
     },
     {
       "source": "src/components/adjustments/Curves.tsx",
-      "line": 941,
+      "line": 947,
       "valueExpression": "activeParametricSettings.highlights",
       "changeExpression": "(e) => updateParametricValue('highlights', parseFloat(String(e.target.value)))",
       "labelExpression": "t('adjustments.curves.params.highlights')",
@@ -2245,7 +2246,7 @@
     },
     {
       "source": "src/components/adjustments/Curves.tsx",
-      "line": 953,
+      "line": 959,
       "valueExpression": "activeParametricSettings.lights",
       "changeExpression": "(e) => updateParametricValue('lights', parseFloat(String(e.target.value)))",
       "labelExpression": "t('adjustments.curves.params.lights')",
@@ -2261,7 +2262,7 @@
     },
     {
       "source": "src/components/adjustments/Curves.tsx",
-      "line": 965,
+      "line": 971,
       "valueExpression": "activeParametricSettings.darks",
       "changeExpression": "(e) => updateParametricValue('darks', parseFloat(String(e.target.value)))",
       "labelExpression": "t('adjustments.curves.params.darks')",
@@ -2277,7 +2278,7 @@
     },
     {
       "source": "src/components/adjustments/Curves.tsx",
-      "line": 977,
+      "line": 983,
       "valueExpression": "activeParametricSettings.shadows",
       "changeExpression": "(e) => updateParametricValue('shadows', parseFloat(String(e.target.value)))",
       "labelExpression": "t('adjustments.curves.params.shadows')",
@@ -2293,7 +2294,7 @@
     },
     {
       "source": "src/components/adjustments/Curves.tsx",
-      "line": 989,
+      "line": 995,
       "valueExpression": "activeParametricSettings.blackLevel",
       "changeExpression": "(e) => updateParametricValue('blackLevel', parseFloat(String(e.target.value)))",
       "labelExpression": "t('adjustments.curves.params.blackLevel')",

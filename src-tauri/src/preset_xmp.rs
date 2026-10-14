@@ -107,6 +107,12 @@ pub fn serialize(preset: &Preset) -> Result<(String, Vec<String>), String> {
         }
         mapped.insert("curves");
     }
+    // Kept in RapidRoom's exact settings payload so later curve edits can
+    // recompose the imported Lightroom look chain. The exported CRS curve is
+    // already baked and remains visually equivalent in other editors.
+    if obj.contains_key("nestedLookCurves") {
+        mapped.insert("nestedLookCurves");
+    }
     unsupported.extend(obj.keys().filter(|k| !mapped.contains(k.as_str())).cloned());
     if let Some(camera) = &preset.camera_model_restriction {
         body.push_str(&format!(
@@ -181,8 +187,12 @@ mod tests {
         )
         .unwrap();
         preset.name = "A & <B> \"quoted\"".into();
-        preset.adjustments =
-            serde_json::json!({"exposure":1.25,"hsl":{"reds":{"hue":20}},"masks":[{"name":"A&B"}]});
+        preset.adjustments = serde_json::json!({
+            "exposure":1.25,
+            "hsl":{"reds":{"hue":20}},
+            "nestedLookCurves":[{"amount":1.0,"points":[{"x":0,"y":12},{"x":255,"y":255}]}],
+            "masks":[{"name":"A&B"}]
+        });
         let (xml, missing) = serialize(&preset).unwrap();
         assert_eq!(
             exact_adjustments(&xml).unwrap().unwrap(),
