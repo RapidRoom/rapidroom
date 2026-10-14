@@ -2,6 +2,58 @@
   "$comment": "Everything RapidRoom adds on top of upstream RapidRAW. Edit this file in the same PR as the change; `node rapidroom/status.mjs` renders the README table and CHANGES.md. Fields: id, title, category (fix | feature | performance | privacy | platform | ci), landed (YYYY-MM-DD, date it reached RapidRoom main), authors (GitHub logins), source (rapidroom, or the fork it was harvested from), commits (URLs), upstream_issues and upstream_prs ('owner/repo#n'), rendering_change, notes, highlight (optional: a short, user-facing Markdown line; entries with one are listed under Highlights in the README, everything is in CHANGES.md).",
   "changes": [
     {
+      "id": "ai-mask-transform-antialias",
+      "title": "Filter AI mask edges in reduced and rotated previews",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": ["RapidRoom/rapidroom#241", "CyberTimon/RapidRAW#1902"],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "AI mask bitmaps are filtered before minification and sampled bilinearly at transformed pixel centers. Rotation, flip, crop and coarse orientation retain correct pixel alignment; subjects reaching frame edges do not gain an extra fade. Stored bitmap data and model selection are unchanged."
+    },
+    {
+      "id": "raw-repair-thumbnail-native-scale",
+      "title": "Keep RAW repair patches aligned in regenerated thumbnails",
+      "category": "fix",
+      "landed": "2026-10-12",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": ["RapidRoom/rapidroom#240", "CyberTimon/RapidRAW#1903"],
+      "upstream_prs": [],
+      "rendering_change": true,
+      "notes": "RAW thumbnails with saved repair patches composite on a native-resolution base before resizing, preventing shifted, enlarged or missing repairs after copying settings. Photos without repair patches retain their fast decode path. Main-image processing and exports are unchanged."
+    },
+    {
+      "id": "recursive-shift-range-selection",
+      "title": "Keep Shift-click selection within visible folders in Recursive view",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Recursive-view Shift-click selection follows the visible folder-grouped order and skips collapsed folders. Flat view retains its existing global sort order."
+    },
+    {
+      "id": "recursive-view-folder-navigation",
+      "title": "Keep arrow-key navigation within folders in Recursive view",
+      "category": "fix",
+      "landed": "2026-10-13",
+      "authors": ["yojen7"],
+      "source": "rapidroom (original implementation with Codex)",
+      "commits": [],
+      "upstream_issues": [],
+      "upstream_prs": [],
+      "rendering_change": false,
+      "notes": "Arrow-key navigation in Recursive library view stays within the selected image's parent folder and preserves that folder's sort order. Other view modes retain their existing global navigation order."
+    },
+    {
       "id": "atomic-write-failure-injection",
       "title": "Test atomic file writes under failure conditions",
       "category": "ci",
