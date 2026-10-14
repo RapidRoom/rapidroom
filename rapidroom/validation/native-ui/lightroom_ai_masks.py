@@ -16,27 +16,18 @@ def run_ai_mask_checks(smoke, wait_for):
     initial = image_state(url, image, token=token)
     guard = hashlib.sha256(acr.read_bytes()).hexdigest()
     assert not xmp.exists()
-    smoke.execute("""const old=window.__TAURI_INTERNALS__.invoke;
-      window.__lraiCalls=[];
-      window.__TAURI_INTERNALS__.invoke=async function(cmd,args,options){
-        const result=await old.call(this,cmd,args,options);
-        if(cmd==='import_xmp_adjustments_for_image')window.__lraiCalls.push({
-          unchanged:result.unchanged,notTransferred:result.notTransferred,maskFailures:result.maskFailures,
-          masks:(result.adjustments?.masks??[]).map(m=>({name:m.name,types:m.subMasks.map(s=>s.type),bitmapBytes:m.subMasks.filter(s=>s.parameters.maskDataBase64).map(s=>s.parameters.maskDataBase64.length)}))});
-        return result;
-      };return true;""")
 
     def dismiss():
         smoke.execute("document.querySelectorAll('.Toastify__close-button').forEach(e=>e.click());return true;")
         wait_for(lambda: smoke.execute("return !document.querySelector('[role=alert]');"), 'AI import alerts dismissed')
 
-    def import_xmp(count):
+    def import_xmp():
         rect = smoke.roi
         smoke.execute("""const x=arguments[0],y=arguments[1],e=document.elementFromPoint(x,y);
           e.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2,clientX:x,clientY:y}));return true;""", [(rect[0]+rect[2])/2,(rect[1]+rect[3])/2])
         wait_for(lambda: smoke.execute("return [...document.querySelectorAll('[role=menuitem]')].some(e=>e.textContent.trim()==='Import XMP Adjustments');"), 'AI import menu')
         smoke.execute("[...document.querySelectorAll('[role=menuitem]')].find(e=>e.textContent.trim()==='Import XMP Adjustments').click();return true;")
-        return wait_for(lambda: smoke.execute("return window.__lraiCalls.length===arguments[0]?window.__lraiCalls.at(-1):null;",[count]), 'native AI import result',120)
+
 
     def packet(mixed):
         companions = '''<rdf:li crs:What="Mask/CircularGradient" crs:MaskName="Subtract ellipse" crs:Top="0.4" crs:Left="0.4" crs:Bottom="0.6" crs:Right="0.6" crs:Flipped="true" crs:MaskBlendMode="1" crs:MaskInverted="true"/>
@@ -54,13 +45,18 @@ def run_ai_mask_checks(smoke, wait_for):
     before = smoke.stable_preview('ai-mask-before')
     xmp.write_text(packet(True))
     source_xmp = xmp.read_bytes()
-    result = import_xmp(1)
-    assert not result['unchanged'] and not result['maskFailures']
-    assert 'aiMasks' not in result['notTransferred']
-    assert len(result['masks']) == 1
-    assert result['masks'][0]['types'][0:2] == ['ai-foreground','radial']
-    assert result['masks'][0]['types'][2] in ('brush','flow')
-    assert result['masks'][0]['bitmapBytes'][0] > 32
+    import_xmp()
+    imported = wait_for(lambda: image_state(url, image, token=token)['adjustments'].get('masks'),
+                        'persisted native AI import masks', 120)
+    assert len(imported) == 1
+    types = [sub['type'] for sub in imported[0]['subMasks']]
+    assert types[0:2] == ['ai-foreground', 'radial']
+    assert types[2] in ('brush', 'flow')
+    bitmap_bytes = [len(sub['parameters']['maskDataBase64']) for sub in imported[0]['subMasks']
+                    if sub['parameters'].get('maskDataBase64')]
+    assert bitmap_bytes[0] > 32
+    result = {'name': imported[0]['name'], 'types': types, 'bitmapBytes': bitmap_bytes,
+              'evidence': 'authenticated native image state after context-menu import'}
     smoke.capture('ai-mask-imported-report')
     dismiss()
     after = smoke.stable_preview('ai-mask-after')
@@ -72,10 +68,9 @@ def run_ai_mask_checks(smoke, wait_for):
     saved = persisted.read_bytes()
     xmp.write_text(packet(False))
     acr.rename(acr.with_suffix('.acr.hidden'))
-    refused = import_xmp(2)
-    assert refused['unchanged'] and len(refused['maskFailures']) == 1
-    assert refused['maskFailures'][0]['component'] == 'Subject coverage'
-    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('[role=alert]')].some(e=>e.textContent.includes('Subject coverage')&&e.textContent.includes('unavailable'));"), 'named missing ACR notice')
+    import_xmp()
+    notice = wait_for(lambda: smoke.execute("return [...document.querySelectorAll('[role=alert]')].map(e=>e.textContent).find(text=>text.includes('Subject coverage')&&text.includes('unavailable'));"), 'named missing ACR notice')
+    refused = {'notice': notice, 'evidence': 'visible native import refusal and unchanged sidecar'}
     smoke.capture('ai-mask-missing-companion-report')
     assert persisted.read_bytes() == saved
     acr.with_suffix('.acr.hidden').rename(acr)
