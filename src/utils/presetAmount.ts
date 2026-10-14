@@ -154,7 +154,9 @@ export function mixAdjustments(
     }
     return target;
   };
-  const pointSource = before.curveMode === 'parametric' ? (before.pointCurves ?? before.curves) : before.curves;
+  const hasRetainedLook = (before.nestedLookCurves?.length ?? 0) > 0;
+  const pointSource =
+    before.curveMode === 'parametric' || hasRetainedLook ? (before.pointCurves ?? before.curves) : before.curves;
   const baseline = { ...before, pointCurves: pointSource };
   const result = blend(preset, baseline, '') as Partial<Adjustments>;
   if (preset.curveMode === 'parametric' && preset.parametricCurve && result.parametricCurve) {

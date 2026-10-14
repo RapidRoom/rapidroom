@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { INITIAL_ADJUSTMENTS, createResetAdjustmentsForImage } from './adjustments';
+import { composeParametricCurves } from './presetAmount';
 import {
   PALETTE_PARAMETERS,
   getParameterValue,
@@ -66,6 +67,28 @@ it('parametric command-palette edits stay composed with the saved point curve', 
   expect(edited.pointCurves?.luma).toEqual(pointCurve);
   expect(edited.curves.luma).toHaveLength(16);
   expect(edited.curves.luma).not.toEqual(pointCurve);
+});
+
+it('parametric command-palette edits compose a retained Look once in point mode', () => {
+  const lookPoints = [
+    { x: 0, y: 12 },
+    { x: 128, y: 165 },
+    { x: 255, y: 255 },
+  ];
+  const before = {
+    ...INITIAL_ADJUSTMENTS,
+    curveMode: 'point' as const,
+    curves: { ...INITIAL_ADJUSTMENTS.curves, luma: lookPoints },
+    pointCurves: INITIAL_ADJUSTMENTS.curves,
+    nestedLookCurves: [{ amount: 1, points: lookPoints }],
+  };
+  const entry = PALETTE_PARAMETERS.find((parameter) => parameter.id === 'parametricCurve.luma.highlights')!;
+  const edited = setParameterValue(before, entry, 20);
+
+  expect(edited.curves).toEqual(
+    composeParametricCurves(edited.parametricCurve!, before.pointCurves!, before.nestedLookCurves),
+  );
+  expect(edited.curves.luma.find((point) => point.x === 136)?.y).toBe(176);
 });
 
 describe('typed values', () => {

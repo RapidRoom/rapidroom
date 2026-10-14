@@ -776,9 +776,14 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
         colorGrading: normalizeColorGrading(containerAdjustments.colorGrading),
         hsl: normalizeHsl(containerAdjustments.hsl, INITIAL_MASK_ADJUSTMENTS.hsl),
         curves: containerAdjustments.curves ? deepCloneCurves(containerAdjustments.curves) : getDefaultCurves(),
-        pointCurves: containerAdjustments.pointCurves
-          ? deepCloneCurves(containerAdjustments.pointCurves)
-          : getDefaultCurves(),
+        pointCurves:
+          containerAdjustments.curveMode === 'parametric'
+            ? containerAdjustments.pointCurves
+              ? deepCloneCurves(containerAdjustments.pointCurves)
+              : getDefaultCurves()
+            : containerAdjustments.curves
+              ? deepCloneCurves(containerAdjustments.curves)
+              : getDefaultCurves(),
         parametricCurve: containerAdjustments.parametricCurve
           ? deepCloneParametric(containerAdjustments.parametricCurve)
           : getDefaultParametricCurve(),
@@ -853,12 +858,13 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
     colorGrading: normalizeColorGrading(loadedAdjustments.colorGrading),
     hsl: normalizeHsl(loadedAdjustments.hsl, INITIAL_ADJUSTMENTS.hsl),
     curves: loadedAdjustments.curves ? deepCloneCurves(loadedAdjustments.curves) : getDefaultCurves(),
-    pointCurves: loadedAdjustments.pointCurves
-      ? deepCloneCurves(loadedAdjustments.pointCurves)
-      : loadedAdjustments.curveMode === 'parametric' || loadedAdjustments.nestedLookCurves?.length
-        ? getDefaultCurves()
-        : loadedAdjustments.curves
+    pointCurves:
+      loadedAdjustments.curveMode !== 'parametric' && !loadedAdjustments.nestedLookCurves?.length
+        ? loadedAdjustments.curves
           ? deepCloneCurves(loadedAdjustments.curves)
+          : getDefaultCurves()
+        : loadedAdjustments.pointCurves
+          ? deepCloneCurves(loadedAdjustments.pointCurves)
           : getDefaultCurves(),
     nestedLookCurves: Array.isArray(loadedAdjustments.nestedLookCurves)
       ? loadedAdjustments.nestedLookCurves.map((look) => ({

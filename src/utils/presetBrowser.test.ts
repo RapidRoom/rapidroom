@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { filterPresetLibrary, presetUnavailableReason } from './presetBrowser';
-import { mixAdjustments, presetCurveY } from './presetAmount';
+import { composeParametricCurves, mixAdjustments, presetCurveY } from './presetAmount';
 import {
   DEFAULT_PARAMETRIC_CURVE_SETTINGS,
   INITIAL_ADJUSTMENTS,
@@ -74,6 +74,33 @@ describe('preset Amount', () => {
     });
     expect(sample?.y).toBe(Math.round(presetCurveY(pointCurves.luma, presetCurveY(parametric, 136))));
     expect(result.curves?.red).toEqual(before.curves.red);
+  });
+
+  it('composes a preset over raw point curves when point mode retains a nested look', () => {
+    const lookPoints = [
+      { x: 0, y: 12 },
+      { x: 128, y: 165 },
+      { x: 255, y: 255 },
+    ];
+    const rawPointCurves = INITIAL_ADJUSTMENTS.curves;
+    const before: Adjustments = {
+      ...INITIAL_ADJUSTMENTS,
+      curveMode: 'point',
+      curves: { ...rawPointCurves, luma: lookPoints },
+      pointCurves: rawPointCurves,
+      nestedLookCurves: [{ amount: 1, points: lookPoints }],
+    };
+    const patch: Partial<Adjustments> = {
+      curveMode: 'parametric',
+      parametricCurve: { luma: { highlights: 20 } } as unknown as Adjustments['parametricCurve'],
+    };
+
+    const result = mixAdjustments(patch, 100, before);
+    expect(result.pointCurves).toEqual(rawPointCurves);
+    expect(result.curves).toEqual(
+      composeParametricCurves(result.parametricCurve!, rawPointCurves, before.nestedLookCurves),
+    );
+    expect(result.curves?.luma.find((point) => point.x === 136)?.y).toBe(176);
   });
 
   it('keeps an explicit zero parametric curve exactly equal to its point curve', () => {

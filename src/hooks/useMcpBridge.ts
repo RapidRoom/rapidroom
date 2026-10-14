@@ -149,25 +149,26 @@ function normalizeMcpAdjustments(adjustments: Adjustments, current: Adjustments)
   });
   if (normalized.curveMode === 'parametric' && normalized.parametricCurve) {
     // Lightroom import can bake a nested profile-look curve into `curves`
-    // while keeping the editable outer curve in `pointCurves`. Recompose only
-    // when one of the editable curve inputs changed; unrelated MCP edits must
-    // retain that imported baked result.
-    const curveInputsUnchanged =
+    // while keeping the editable outer curve in `pointCurves`. Recompose when
+    // an editable input or an explicit MCP `curves` value changed; unrelated
+    // MCP edits must retain that imported baked result.
+    const editableInputsUnchanged =
       current.curveMode === normalized.curveMode &&
       JSON.stringify(current.parametricCurve) === JSON.stringify(normalized.parametricCurve) &&
       JSON.stringify(current.nestedLookCurves ?? []) === JSON.stringify(normalized.nestedLookCurves ?? []) &&
       JSON.stringify(current.pointCurves ?? current.curves) ===
         JSON.stringify(normalized.pointCurves ?? normalized.curves);
+    const explicitCurvesEdit =
+      adjustments.curves !== undefined && JSON.stringify(adjustments.curves) !== JSON.stringify(current.curves);
+    const pointCurves =
+      explicitCurvesEdit && editableInputsUnchanged ? normalized.curves : normalized.pointCurves || normalized.curves;
     return {
       ...normalized,
-      pointCurves: normalized.pointCurves || normalized.curves,
-      curves: curveInputsUnchanged
-        ? current.curves
-        : composeParametricCurves(
-            normalized.parametricCurve,
-            normalized.pointCurves || normalized.curves,
-            normalized.nestedLookCurves,
-          ),
+      pointCurves,
+      curves:
+        editableInputsUnchanged && !explicitCurvesEdit
+          ? current.curves
+          : composeParametricCurves(normalized.parametricCurve, pointCurves, normalized.nestedLookCurves),
     };
   }
   if (normalized.curveMode !== 'parametric' && normalized.pointCurves) {
@@ -175,11 +176,16 @@ function normalizeMcpAdjustments(adjustments: Adjustments, current: Adjustments)
       current.curveMode === normalized.curveMode &&
       JSON.stringify(current.nestedLookCurves ?? []) === JSON.stringify(normalized.nestedLookCurves ?? []) &&
       JSON.stringify(current.pointCurves ?? current.curves) === JSON.stringify(normalized.pointCurves);
+    const explicitCurvesEdit =
+      adjustments.curves !== undefined && JSON.stringify(adjustments.curves) !== JSON.stringify(current.curves);
+    const pointCurves = explicitCurvesEdit && pointInputsUnchanged ? normalized.curves : normalized.pointCurves;
     return {
       ...normalized,
-      curves: pointInputsUnchanged
-        ? current.curves
-        : composeParametricCurves(DEFAULT_PARAMETRIC_CURVE, normalized.pointCurves, normalized.nestedLookCurves),
+      pointCurves,
+      curves:
+        pointInputsUnchanged && !explicitCurvesEdit
+          ? current.curves
+          : composeParametricCurves(DEFAULT_PARAMETRIC_CURVE, pointCurves, normalized.nestedLookCurves),
     };
   }
   return normalized;
