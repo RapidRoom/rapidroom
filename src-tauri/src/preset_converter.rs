@@ -1765,10 +1765,27 @@ fn convert_xmp_to_preset_with_crop(
     }
     let point_curves = (!curves_map.is_empty()).then(|| Value::Object(curves_map.clone()));
     let parametric_curve = LightroomParametricCurve::from_attrs(&attrs);
+    let has_parametric_curve = parametric_curve.is_some();
     let parametric_points = parametric_curve
         .filter(|curve| !curve.is_identity())
         .map(LightroomParametricCurve::points);
     let look_curves = extract_nested_look_luma_curves(xmp_content);
+    if !look_curves.is_empty() {
+        adjustments.insert(
+            "nestedLookCurves".to_string(),
+            Value::Array(
+                look_curves
+                    .iter()
+                    .map(|(amount, points)| {
+                        json!({
+                            "amount": amount,
+                            "points": points.iter().map(|(x, y)| json!({"x": x, "y": y})).collect::<Vec<_>>(),
+                        })
+                    })
+                    .collect(),
+            ),
+        );
+    }
     if !look_curves.is_empty() || parametric_points.is_some() {
         let outer_luma = curves_map
             .get("luma")
@@ -1789,9 +1806,12 @@ fn convert_xmp_to_preset_with_crop(
             parametric_curve.ui_state(&attrs, include_crop_transform),
         );
         adjustments.insert("curveMode".to_string(), json!("parametric"));
-        if let Some(point_curves) = point_curves {
-            adjustments.insert("pointCurves".to_string(), point_curves);
-        }
+    }
+    if has_parametric_curve || !look_curves.is_empty() {
+        adjustments.insert(
+            "pointCurves".to_string(),
+            point_curves.unwrap_or_else(|| Value::Object(Map::new())),
+        );
     }
     if !curves_map.is_empty() {
         adjustments.insert("curves".to_string(), Value::Object(curves_map));
@@ -3333,11 +3353,50 @@ mod tests {
         ))
         .unwrap();
         let luma = look_only.adjustments["curves"]["luma"].as_array().unwrap();
+        assert_eq!(
+            look_only.adjustments["nestedLookCurves"][0]["amount"],
+            json!(1.0)
+        );
+        assert_eq!(
+            look_only.adjustments["nestedLookCurves"][0]["points"],
+            json!([
+                { "x": 0.0, "y": 0.0 },
+                { "x": 64.0, "y": 48.0 },
+                { "x": 192.0, "y": 208.0 },
+                { "x": 255.0, "y": 255.0 }
+            ])
+        );
         assert_eq!(luma.len(), MAX_RAPIDRAW_CURVE_POINTS);
         assert_eq!(luma_at(&look_only, 0), 0);
         assert_eq!(luma_at(&look_only, 255), 255);
         assert!(luma_at(&look_only, 51) < 51);
         assert!(luma_at(&look_only, 204) > 204);
+
+        let look_with_explicit_zero = convert_xmp_sidecar_to_preset(&format!(
+            r#"<rdf:Description crs:HasSettings="True" crs:ParametricShadows="0">
+              <crs:ToneCurvePV2012><rdf:Seq>
+                <rdf:li>0, 0</rdf:li><rdf:li>255, 255</rdf:li>
+              </rdf:Seq></crs:ToneCurvePV2012>
+              {ADOBE_COLOR_LOOK}
+            </rdf:Description>"#
+        ))
+        .unwrap();
+        assert_eq!(
+            look_with_explicit_zero.adjustments["curveMode"],
+            json!("parametric")
+        );
+        assert_eq!(
+            look_with_explicit_zero.adjustments["nestedLookCurves"],
+            look_only.adjustments["nestedLookCurves"]
+        );
+        assert_eq!(
+            look_with_explicit_zero.adjustments["pointCurves"],
+            json!({ "luma": [{ "x": 0, "y": 0 }, { "x": 255, "y": 255 }] })
+        );
+        assert_eq!(
+            look_with_explicit_zero.adjustments["curves"]["luma"],
+            look_only.adjustments["curves"]["luma"]
+        );
 
         // The user's curve applies on top of the look: here it inverts it.
         let with_user_curve = convert_xmp_sidecar_to_preset(&format!(

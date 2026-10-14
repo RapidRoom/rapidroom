@@ -1,4 +1,10 @@
-import { buildParametricCurvePoints, type Adjustments, type Curves, type ParametricCurve } from './adjustments';
+import {
+  buildParametricCurvePoints,
+  type Adjustments,
+  type Curves,
+  type NestedLookCurve,
+  type ParametricCurve,
+} from './adjustments';
 import schema from '../../rapidroom/adjustment-schema.json';
 
 const parameters: Record<
@@ -63,9 +69,13 @@ const DEFAULT_POINT_CURVE: Point[] = [
   { x: 255, y: 255 },
 ];
 
-/** The renderer stores a baked master curve, so keep parametric edits composed
- * with the saved point curves. Lightroom applies the parametric curve first. */
-export function composeParametricCurves(parametric: ParametricCurve, pointCurves: Curves): Curves {
+/** The renderer stores a baked master curve, so preserve Lightroom's look,
+ * parametric, then point-curve order when editable inputs change. */
+export function composeParametricCurves(
+  parametric: ParametricCurve,
+  pointCurves: Curves,
+  nestedLookCurves: NestedLookCurve[] = [],
+): Curves {
   const channels = ['luma', 'red', 'green', 'blue'] as const;
   return Object.fromEntries(
     channels.map((channel) => {
@@ -78,12 +88,19 @@ export function composeParametricCurves(parametric: ParametricCurve, pointCurves
         settings.highlights === 0 &&
         settings.blackLevel === 0 &&
         settings.whiteLevel === 0;
-      if (isIdentity) return [channel, points];
+      if (isIdentity && (channel !== 'luma' || nestedLookCurves.length === 0)) return [channel, points];
 
       const parametricPoints = buildParametricCurvePoints(settings);
       const combined = Array.from({ length: 16 }, (_, index) => {
         const x = Math.round((index * 255) / 15);
-        const y = presetCurveY(points, presetCurveY(parametricPoints, x));
+        let input = x;
+        if (channel === 'luma') {
+          for (const look of nestedLookCurves) {
+            const amount = Math.max(0, look.amount);
+            input += amount * (presetCurveY(look.points, input) - input);
+          }
+        }
+        const y = presetCurveY(points, presetCurveY(parametricPoints, input));
         return { x, y: Math.round(y) };
       });
       return [channel, combined];
@@ -144,7 +161,11 @@ export function mixAdjustments(
     const pointCurves = preset.pointCurves ? (result.pointCurves ?? pointSource) : pointSource;
     result.pointCurves = pointCurves;
     result.curveMode = 'parametric';
-    result.curves = composeParametricCurves(result.parametricCurve, pointCurves as Curves);
+    result.curves = composeParametricCurves(
+      result.parametricCurve,
+      pointCurves as Curves,
+      result.nestedLookCurves ?? before.nestedLookCurves,
+    );
   }
   return result;
 }

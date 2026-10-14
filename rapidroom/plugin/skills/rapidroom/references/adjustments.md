@@ -45,6 +45,7 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 | `parametricCurve.<channel>.split2`     | number | `50`                                |              |      | yes   | Zone boundary in % of the input. GUI only, see darks.                                                                                                |
 | `parametricCurve.<channel>.split3`     | number | `75`                                |              |      | yes   | Zone boundary in % of the input; at most 90. GUI only, see darks.                                                                                    |
 | `curveMode`                            | string | `"point"`                           |              |      | yes   | `point` or `parametric`: which curve editor the GUI shows. Leave at `point` and write `curves`.                                                      |
+| `nestedLookCurves`                     | array  | `[]`                                |              |      |       | Imported Lightroom profile-look tone curves. Keep unchanged; RapidRoom uses this saved chain when recomposing the curve after edits.                 |
 
 ## Color
 

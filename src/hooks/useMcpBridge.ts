@@ -10,7 +10,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useEditorStore } from '../store/useEditorStore';
 import type { HistogramData } from '../components/ui/AppProperties';
 import { debouncedSetHistory } from './useEditorActions';
-import { normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
+import { DEFAULT_PARAMETRIC_CURVE, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
 import { composeParametricCurves } from '../utils/presetAmount';
 
 interface McpCommand {
@@ -142,17 +142,45 @@ async function syncState(path: string): Promise<McpStateResponse> {
   return invoke<McpStateResponse>('sync_editor_state', { path, adjustments: editor.adjustments });
 }
 
-function normalizeMcpAdjustments(adjustments: Adjustments): Adjustments {
-  const normalized = normalizeLoadedAdjustments(adjustments);
+function normalizeMcpAdjustments(adjustments: Adjustments, current: Adjustments): Adjustments {
+  const normalized = normalizeLoadedAdjustments({
+    ...adjustments,
+    nestedLookCurves: adjustments.nestedLookCurves ?? current.nestedLookCurves,
+  });
   if (normalized.curveMode === 'parametric' && normalized.parametricCurve) {
+    // Lightroom import can bake a nested profile-look curve into `curves`
+    // while keeping the editable outer curve in `pointCurves`. Recompose only
+    // when one of the editable curve inputs changed; unrelated MCP edits must
+    // retain that imported baked result.
+    const curveInputsUnchanged =
+      current.curveMode === normalized.curveMode &&
+      JSON.stringify(current.parametricCurve) === JSON.stringify(normalized.parametricCurve) &&
+      JSON.stringify(current.nestedLookCurves ?? []) === JSON.stringify(normalized.nestedLookCurves ?? []) &&
+      JSON.stringify(current.pointCurves ?? current.curves) ===
+        JSON.stringify(normalized.pointCurves ?? normalized.curves);
     return {
       ...normalized,
       pointCurves: normalized.pointCurves || normalized.curves,
-      curves: composeParametricCurves(normalized.parametricCurve, normalized.pointCurves || normalized.curves),
+      curves: curveInputsUnchanged
+        ? current.curves
+        : composeParametricCurves(
+            normalized.parametricCurve,
+            normalized.pointCurves || normalized.curves,
+            normalized.nestedLookCurves,
+          ),
     };
   }
   if (normalized.curveMode !== 'parametric' && normalized.pointCurves) {
-    return { ...normalized, curves: normalized.pointCurves };
+    const pointInputsUnchanged =
+      current.curveMode === normalized.curveMode &&
+      JSON.stringify(current.nestedLookCurves ?? []) === JSON.stringify(normalized.nestedLookCurves ?? []) &&
+      JSON.stringify(current.pointCurves ?? current.curves) === JSON.stringify(normalized.pointCurves);
+    return {
+      ...normalized,
+      curves: pointInputsUnchanged
+        ? current.curves
+        : composeParametricCurves(DEFAULT_PARAMETRIC_CURVE, normalized.pointCurves, normalized.nestedLookCurves),
+    };
   }
   return normalized;
 }
@@ -329,7 +357,7 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
             const image = useEditorStore.getState().selectedImage;
             nextAdjustments = createResetAdjustmentsForImage(image);
           } else if (command.adjustments) {
-            nextAdjustments = normalizeMcpAdjustments(command.adjustments);
+            nextAdjustments = normalizeMcpAdjustments(command.adjustments, useEditorStore.getState().adjustments);
           } else {
             throw new Error('MCP adjustment command did not include adjustments');
           }

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emit, invoke, listen, listenerCount, mockCommand } from '../test/tauriMock';
 import { useEditorStore } from '../store/useEditorStore';
 import { INITIAL_ADJUSTMENTS, type Adjustments } from '../utils/adjustments';
+import { composeParametricCurves } from '../utils/presetAmount';
 import { debouncedSetHistory } from './useEditorActions';
 import { useMcpBridge } from './useMcpBridge';
 
@@ -69,6 +70,72 @@ function renderChanges() {
 }
 
 describe('MCP editor bridge review', () => {
+  it('preserves an imported nested-look curve during an unrelated MCP edit', async () => {
+    const lookCurve = [
+      { x: 0, y: 12 },
+      { x: 128, y: 165 },
+      { x: 255, y: 255 },
+    ];
+    const nestedLookCurves = [{ amount: 1, points: lookCurve }];
+    const imported: Adjustments = {
+      ...INITIAL_ADJUSTMENTS,
+      curveMode: 'parametric',
+      curves: { ...INITIAL_ADJUSTMENTS.curves, luma: lookCurve },
+      pointCurves: INITIAL_ADJUSTMENTS.curves,
+      nestedLookCurves,
+    };
+    useEditorStore.setState({ selectedImage: image, adjustments: imported });
+    useEditorStore.getState().resetHistory(imported);
+    await mount();
+    renderChanges();
+
+    const incoming: Adjustments = { ...imported, exposure: 0.5 };
+    delete incoming.nestedLookCurves;
+    await command('apply-adjustments', incoming);
+
+    expect(responses.at(-1)?.error).toBeNull();
+    expect(useEditorStore.getState().adjustments.curves.luma).toEqual(lookCurve);
+    expect(useEditorStore.getState().adjustments.exposure).toBe(0.5);
+  });
+
+  it('keeps the imported nested-look contribution when a parametric curve changes', async () => {
+    const lookCurve = [
+      { x: 0, y: 12 },
+      { x: 128, y: 165 },
+      { x: 255, y: 255 },
+    ];
+    const nestedLookCurves = [{ amount: 1, points: lookCurve }];
+    const imported: Adjustments = {
+      ...INITIAL_ADJUSTMENTS,
+      curveMode: 'parametric',
+      curves: { ...INITIAL_ADJUSTMENTS.curves, luma: lookCurve },
+      pointCurves: INITIAL_ADJUSTMENTS.curves,
+      nestedLookCurves,
+    };
+    useEditorStore.setState({ selectedImage: image, adjustments: imported });
+    useEditorStore.getState().resetHistory(imported);
+    await mount();
+    renderChanges();
+
+    const incoming: Adjustments = {
+      ...imported,
+      parametricCurve: {
+        ...imported.parametricCurve!,
+        luma: { ...imported.parametricCurve!.luma, shadows: 20 },
+      },
+    };
+    delete incoming.nestedLookCurves;
+    await command('apply-adjustments', incoming);
+
+    expect(responses.at(-1)?.error).toBeNull();
+    const result = useEditorStore.getState().adjustments;
+    expect(result.curves).toEqual(
+      composeParametricCurves(result.parametricCurve!, result.pointCurves!, nestedLookCurves),
+    );
+    expect(result.curves).not.toEqual(composeParametricCurves(result.parametricCurve!, result.pointCurves!));
+    expect(useEditorStore.getState().adjustments.nestedLookCurves).toEqual(nestedLookCurves);
+  });
+
   it('delivers commands during navigation callback changes and uses the latest selector', async () => {
     useEditorStore.setState({ selectedImage: image });
     const first = vi.fn(async () => undefined);

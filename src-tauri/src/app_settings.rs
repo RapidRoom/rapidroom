@@ -99,6 +99,7 @@ pub fn all_available_adjustments() -> HashSet<String> {
         "contrast",
         "curves",
         "pointCurves",
+        "nestedLookCurves",
         "parametricCurve",
         "curveMode",
         "highlights",

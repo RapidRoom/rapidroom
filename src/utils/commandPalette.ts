@@ -129,7 +129,7 @@ export function setParameterValue(adjustments: Adjustments, parameter: PalettePa
     result.pointCurves =
       (adjustments.curveMode === 'parametric' ? adjustments.pointCurves : undefined) ?? adjustments.curves;
     result.curveMode = 'parametric';
-    result.curves = composeParametricCurves(result.parametricCurve, result.pointCurves);
+    result.curves = composeParametricCurves(result.parametricCurve, result.pointCurves, result.nestedLookCurves);
   }
   return result;
 }

@@ -407,6 +407,18 @@ class Smoke:
         if (self.case / "lightroom-import-test.json").exists():
             from lightroom_import import run_lightroom_import_checks
             run_lightroom_import_checks(self, wait_for, baseline)
+            final = self.snapshot("final")
+            if final["errors"]:
+                raise RuntimeError("Frontend errors: " + str(final["errors"]))
+            request(self.url + "/window", method="DELETE")
+            app.wait(timeout=10)
+            if app.returncode != 0:
+                raise RuntimeError("App did not quit cleanly")
+            native_errors = [line for line in (self.case / "app.log").read_text().splitlines()
+                             if re.search(r"\[ERROR\]|CRITICAL|panicked at|Segmentation fault", line)]
+            if native_errors:
+                raise RuntimeError("Native errors: " + str(native_errors))
+            self.step("clean exit and no frontend/native errors", {"exit_code": app.returncode})
             self.result["passed"] = True
             return
         if (self.case / "untrusted-text-test.json").exists():
