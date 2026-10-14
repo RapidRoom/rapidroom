@@ -20,7 +20,7 @@ RapidRoom has its own version, `MAJOR.MINOR.PATCH`, independent of upstream. It 
 
 ### Which number to bump
 
-Look at the entries in `rapidroom/changes.json` (and merged PRs) since the last tag:
+Look at the records in `rapidroom/changes/` (and merged PRs) since the last tag:
 
 | Bump                      | When                                                                                                                                                                                                                             | Example                                                  |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
@@ -55,7 +55,7 @@ When in doubt between two, take the bigger one. Release notes list rendering cha
    It never publishes. If the draft already exists, it replaces the assets; if the release is already published, it fails and leaves it alone.
 
 4. Download both packages and test them on a machine that also has stock RapidRAW installed (see the checklist below).
-5. Edit the draft's notes (the new entries in `CHANGES.md` since the last release), then publish it. From then on the update check offers it.
+5. Edit the draft's notes using its generated `CHANGES.md` attachment (the new entries since the last release), then publish it. From then on the update check offers it.
 
 If the build fails, fix it on `main`, then move the tag (`git tag -f -a v2.2.0 …` and `git push -f origin v2.2.0`) or bump to the next version. Delete a broken draft by hand.
 
@@ -98,3 +98,9 @@ With stock RapidRAW installed:
 - [ ] The AppImage runs on its own (`chmod +x`, run it) with the same checks.
 - [ ] The start screen shows `RapidRoom 2.2.0` and `RapidRAW 1.6.4`.
 - [ ] Upgrading from the previous RapidRoom `.deb` replaces it in place.
+
+## Changelog snapshots
+
+Feature PRs add independent JSON records and never regenerate the shared changelog or README status block. The Linux release workflow validates the records, refreshes upstream status, and attaches `CHANGES.md` and `RAPIDROOM-STATUS.md` to the draft release alongside the packages. It does not push generated files to main. Main pushes and the weekly status workflow also publish a 30-day preview artifact. The committed documents are a historical snapshot; records and generated artifacts contain newer changes.
+
+Release generation is simpler than post-merge bot commits: it needs no bypass token, causes no additional main commits, and keeps the snapshot tied to the tagged code. For a local preview, run `node rapidroom/status.mjs` and `node rapidroom/status.mjs --check-generated`; discard those generated-file edits before submitting a feature PR.

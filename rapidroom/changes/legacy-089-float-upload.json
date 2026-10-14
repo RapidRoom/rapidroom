@@ -1,0 +1,12 @@
+{
+  "category": "performance",
+  "landed": "2026-10-02",
+  "source": "VailElla/RapidRAW",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "id": "float-upload",
+  "title": "Float images go to the GPU without a full temporary copy (less memory per edit)",
+  "authors": ["VailElla"],
+  "commits": ["https://github.com/VailElla/RapidRAW/commit/d6cda855a5e250480b281cc681ab2f3cb04f478c"]
+}

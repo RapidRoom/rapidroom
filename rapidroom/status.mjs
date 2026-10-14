@@ -1,16 +1,19 @@
 #!/usr/bin/env node
-// Renders what RapidRoom adds on top of upstream RapidRAW, from rapidroom/changes.json:
+// Generates release snapshots from independent rapidroom/changes/*.json records:
 // a summary table in .github/README.md (between the rapidroom-changes markers) and the full CHANGES.md.
-//   node rapidroom/status.mjs            render from the cached upstream status
+//   node rapidroom/status.mjs            generate a local preview (do not commit in PRs)
 //   node rapidroom/status.mjs --refresh  fetch issue/PR states from GitHub first (uses GITHUB_TOKEN/GH_TOKEN if set)
-//   node rapidroom/status.mjs --check    exit 1 if the rendered files are out of date
+//   node rapidroom/status.mjs --check    validate every record without editing snapshots
+//   node rapidroom/status.mjs --check --base <sha>  also enforce PR snapshot policy
+//   node rapidroom/status.mjs --check-generated   check a generated release snapshot
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadChanges, checkPullRequest, checkLegacyFile } from './status-records.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
-const CHANGES = join(here, 'changes.json');
+const CHANGES = join(here, 'changes');
 const CACHE = join(here, 'upstream-status.json');
 const README = join(root, '.github', 'README.md');
 const CHANGES_MD = join(root, 'CHANGES.md');
@@ -18,7 +21,14 @@ const START = '<!-- rapidroom-changes:start -->';
 const END = '<!-- rapidroom-changes:end -->';
 
 const args = new Set(process.argv.slice(2));
-const { changes } = JSON.parse(readFileSync(CHANGES, 'utf8'));
+checkLegacyFile(root);
+const changes = loadChanges(CHANGES);
+if (args.has('--check')) {
+  const baseIndex = process.argv.indexOf('--base');
+  if (baseIndex !== -1) checkPullRequest(root, process.argv[baseIndex + 1] || '', changes);
+  console.log(`Validated ${changes.length} changelog records.`);
+  process.exit(0);
+}
 let cache = existsSync(CACHE) ? JSON.parse(readFileSync(CACHE, 'utf8')) : { as_of: null, refs: {} };
 
 const refsOf = (c) => [...(c.upstream_issues || []), ...(c.upstream_prs || [])];
@@ -137,7 +147,7 @@ const changesMd = `# RapidRoom changelog
 
 Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/CyberTimon/RapidRAW), with who made it and where it stands upstream.
 
-<sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by \`node rapidroom/status.mjs\`; don't edit by hand.</sub>
+<sub>Generated from [rapidroom/changes/](rapidroom/changes/) by \`node rapidroom/status.mjs\`; don't edit by hand.</sub>
 
 ${summary}
 
@@ -159,7 +169,7 @@ if (!readme.includes(START) || !readme.includes(END)) throw new Error(`${README}
 const newReadme = await fmt(readme.replace(new RegExp(`${START}[\\s\\S]*?${END}`), readmeBlock), README);
 const changesOut = await fmt(changesMd, CHANGES_MD);
 
-if (args.has('--check')) {
+if (args.has('--check-generated')) {
   const stale = [
     [README, newReadme],
     [CHANGES_MD, changesOut],

@@ -1,0 +1,13 @@
+{
+  "id": "export-explicit-overwrite",
+  "title": "Allow explicit replacement of earlier batch exports",
+  "category": "fix",
+  "landed": "2026-10-12",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#235", "CyberTimon/RapidRAW#1901"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "The export panel offers a session-only replacement choice with confirmation. Automatic renaming stays the default, all batch sources stay protected, and conflicting names within one batch remain distinct. Replacement uses atomic writes after encoding. Mask image and alpha exports use the same batch reservations and source guards as main outputs."
+}
