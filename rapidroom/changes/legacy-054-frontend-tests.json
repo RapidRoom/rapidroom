@@ -1,0 +1,12 @@
+{
+  "id": "frontend-tests",
+  "title": "Frontend test foundation: Vitest with a mocked Tauri API, run on every pull request",
+  "category": "ci",
+  "landed": "2026-10-03",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Covers settings saving (success and backend failure) and Tauri event listener cleanup. Written with Claude Code."
+}

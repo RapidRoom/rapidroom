@@ -10,6 +10,8 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 
 ## Highlights
 
+The summary below is a historical snapshot. Current change records are in [rapidroom/changes/](../rapidroom/changes/README.md); releases include a generated changelog, and the **RapidRoom change list** workflow publishes previews.
+
 <!-- rapidroom-changes:start -->
 
 - **Bring your Lightroom collections along:** import collection sets and collections from a catalog
