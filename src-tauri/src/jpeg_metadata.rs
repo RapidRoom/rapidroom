@@ -476,7 +476,7 @@ fn copy_attributes(source: &File, target: &File) -> Result<()> {
                 0,
             )
         };
-        if size < 0 || size > 1024 * 1024 {
+        if !(0..=1024 * 1024).contains(&size) {
             return Err("Cannot read bounded JPEG filesystem attribute".into());
         }
         total += size as usize;
