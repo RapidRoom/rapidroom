@@ -187,3 +187,7 @@ The data-only envelope, bounded UTF-8 text, shared free-text budget and assistan
 ### CRS interoperability cross-check
 
 The field and RDF representation audit compares [LightCraft by storytold](https://github.com/storytold/lightcraft/tree/265248c86fa3267709aea45633d0d135331e180c) (MIT OR Apache-2.0; [MIT notice](rapidroom/LICENSES/lightcraft-MIT.txt)) and [Redlamp by pdcgomes](https://github.com/pdcgomes/redlamp/tree/a70c86dc01ab8ee5d831642520b76ed529f556c0) (MPL-2.0). Supplementary semantics were checked in MIT AutoShade and RAWmakase; exact versions and limitations are in the [audit](rapidroom/validation/crs-interop-20261012/README.md). The namespace-aware photo/curve/look reader extends RapidRoom's existing bounded XML parser; this is original work, with no copied MPL source, Adobe assets, SDK-derived tables or external presets.
+
+### Bounded export coordinate invariants
+
+Halo support and global-coordinate invariants were studied in CalibRaw by Duecki1, [commit 2466ca6662c3fd1e901377c0450b19f5f96d3e85](https://github.com/Duecki1/CalibRaw/commit/2466ca6662c3fd1e901377c0450b19f5f96d3e85), GPL-3.0-or-later. No CalibRaw code, shaders, model or weight was copied. The source/mask-window integration, planner and GPU evidence tests are original RapidRoom work by Yojen with Codex.

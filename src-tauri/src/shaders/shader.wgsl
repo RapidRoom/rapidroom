@@ -176,6 +176,19 @@ struct AllAdjustments {
     tile_offset_x: u32,
     tile_offset_y: u32,
     mask_atlas_cols: u32,
+    image_dims: vec2<u32>,
+    source_origin: vec2<u32>,
+    source_extent: vec2<u32>,
+    mask_origin: vec2<u32>,
+}
+
+fn load_source(global_coord: vec2<i32>) -> vec4<f32> {
+    let coord = global_coord - vec2<i32>(adjustments.source_origin);
+    if (any(global_coord < vec2<i32>(0)) || any(global_coord >= vec2<i32>(adjustments.image_dims)) ||
+        any(coord < vec2<i32>(0)) || any(coord >= vec2<i32>(adjustments.source_extent))) {
+        return vec4<f32>(0.0);
+    }
+    return textureLoad(input_texture, coord, 0);
 }
 
 struct HslRange {
@@ -498,10 +511,10 @@ fn apply_highlights_adjustment(
         return color_in;
     }
 
-    let dims = vec2<i32>(textureDimensions(input_texture));
+    let dims = vec2<i32>(adjustments.image_dims);
     let max_idx = dims - vec2<i32>(1);
 
-    var center_tex = textureLoad(input_texture, clamp(coords_i, vec2<i32>(0), max_idx), 0).rgb;
+    var center_tex = load_source(vec2<i32>(clamp(coords_i, vec2<i32>(0), max_idx))).rgb;
     if (is_raw == 0u) {
         center_tex = srgb_to_linear(center_tex);
     }
@@ -534,7 +547,7 @@ fn apply_highlights_adjustment(
 
     for (var i = 0u; i < 12u; i = i + 1u) {
         let coord = clamp(coords_i + offsets[i], vec2<i32>(0), max_idx);
-        var s_rgb = textureLoad(input_texture, coord, 0).rgb;
+        var s_rgb = load_source(vec2<i32>(coord)).rgb;
         if (is_raw == 0u) {
             s_rgb = srgb_to_linear(s_rgb);
         }
@@ -908,7 +921,7 @@ fn sharpen_perc(c: vec3<f32>, is_raw: u32) -> f32 {
 
 fn sharpen_tap(coords: vec2<i32>, max_idx: vec2<i32>, is_raw: u32) -> f32 {
     let c = clamp(coords, vec2<i32>(0), max_idx);
-    return sharpen_perc(textureLoad(input_texture, vec2<u32>(c), 0).rgb, is_raw);
+    return sharpen_perc(load_source(vec2<i32>(vec2<u32>(c))).rgb, is_raw);
 }
 
 fn sharpen_tap_bilinear(p: vec2<f32>, max_idx: vec2<i32>, is_raw: u32) -> f32 {
@@ -971,7 +984,7 @@ fn apply_sharpen(
 
     let boost = (d0 * 1.25 * g0 + d1 * 0.25 * g1) * amount;
 
-    let dims = vec2<i32>(textureDimensions(input_texture));
+    let dims = vec2<i32>(adjustments.image_dims);
     let max_idx = dims - vec2<i32>(1);
     let kw = array<f32, 5>(0.01853, -0.21023, 1.38348, -0.21023, 0.01853);
 
@@ -989,7 +1002,7 @@ fn apply_sharpen(
         for (var ix = 0; ix < 5; ix = ix + 1) {
             let ox = ix - 2;
             let cx = clamp(coords_i.x + ox, 0, max_idx.x);
-            let sl = sharpen_perc(textureLoad(input_texture, vec2<u32>(vec2<i32>(cx, cy)), 0).rgb, is_raw);
+            let sl = sharpen_perc(load_source(vec2<i32>(vec2<u32>(vec2<i32>(cx, cy)))).rgb, is_raw);
 
             acc += sl * kw[ix] * ky;
             lo = min(lo, sl);
@@ -1064,7 +1077,7 @@ fn apply_centre_local_contrast(
     if (centre_amount == 0.0) {
         return color_in;
     }
-    let full_dims_f = vec2<f32>(textureDimensions(input_texture));
+    let full_dims_f = vec2<f32>(adjustments.image_dims);
     let coord_f = vec2<f32>(coords_i);
     let midpoint = 0.4;
     let feather = 0.375;
@@ -1093,7 +1106,7 @@ fn apply_centre_tonal_and_color(
     if (centre_amount == 0.0) {
         return color_in;
     }
-    let full_dims_f = vec2<f32>(textureDimensions(input_texture));
+    let full_dims_f = vec2<f32>(adjustments.image_dims);
     let coord_f = vec2<f32>(coords_i);
     let midpoint = 0.4;
     let feather = 0.375;
@@ -1177,7 +1190,7 @@ fn apply_noise_reduction(
         return center_linear;
     }
 
-    let dims = vec2<i32>(textureDimensions(input_texture));
+    let dims = vec2<i32>(adjustments.image_dims);
     let max_idx = dims - vec2<i32>(1);
     let center_safe   = max(center_linear, vec3<f32>(0.0));
     let center_luma   = get_luma(center_safe);
@@ -1225,7 +1238,7 @@ fn apply_noise_reduction(
                 let off   = vec2<i32>(i32(round(off_f.x)), i32(round(off_f.y)));
                 let coord = clamp(coords_i + off, vec2<i32>(0), max_idx);
 
-                var s = textureLoad(input_texture, vec2<u32>(coord), 0).rgb;
+                var s = load_source(vec2<i32>(vec2<u32>(coord))).rgb;
                 if (is_raw == 0u) { s = srgb_to_linear(s); }
                 let s_luma = get_luma(max(s, vec3<f32>(0.0)));
                 samp_luma[idx] = s_luma;
@@ -1314,7 +1327,7 @@ fn apply_noise_reduction(
                 let off_f = vec2<f32>(f32(dx) * stride_f + jx, f32(dy) * stride_f + jy);
                 let off   = vec2<i32>(i32(round(off_f.x)), i32(round(off_f.y)));
                 let coord = clamp(coords_i + off, vec2<i32>(0), max_idx);
-                var s = textureLoad(input_texture, vec2<u32>(coord), 0).rgb;
+                var s = load_source(vec2<i32>(vec2<u32>(coord))).rgb;
 
                 if (is_raw == 0u) { s = srgb_to_linear(s); }
 
@@ -1352,7 +1365,7 @@ fn apply_noise_reduction(
 }
 
 fn apply_ca_correction(coords: vec2<u32>, ca_rc: f32, ca_by: f32) -> vec3<f32> {
-    let dims = vec2<f32>(textureDimensions(input_texture));
+    let dims = vec2<f32>(adjustments.image_dims);
     let center = dims / 2.0;
     let current_pos = vec2<f32>(coords);
 
@@ -1360,7 +1373,7 @@ fn apply_ca_correction(coords: vec2<u32>, ca_rc: f32, ca_by: f32) -> vec3<f32> {
     let dist = length(to_center);
 
     if (dist == 0.0) {
-        return textureLoad(input_texture, coords, 0).rgb;
+        return load_source(vec2<i32>(coords)).rgb;
     }
 
     let dir = to_center / dist;
@@ -1374,9 +1387,9 @@ fn apply_ca_correction(coords: vec2<u32>, ca_rc: f32, ca_by: f32) -> vec3<f32> {
 
     let max_coords = vec2<i32>(dims - 1.0);
 
-    let r = textureLoad(input_texture, vec2<u32>(clamp(red_coords, vec2<i32>(0), max_coords)), 0).r;
-    let g = textureLoad(input_texture, vec2<u32>(clamp(green_coords, vec2<i32>(0), max_coords)), 0).g;
-    let b = textureLoad(input_texture, vec2<u32>(clamp(blue_coords, vec2<i32>(0), max_coords)), 0).b;
+    let r = load_source(vec2<i32>(vec2<u32>(clamp(red_coords, vec2<i32>(0), max_coords)))).r;
+    let g = load_source(vec2<i32>(vec2<u32>(clamp(green_coords, vec2<i32>(0), max_coords)))).g;
+    let b = load_source(vec2<i32>(vec2<u32>(clamp(blue_coords, vec2<i32>(0), max_coords)))).b;
 
     return vec3<f32>(r, g, b);
 }
@@ -1517,7 +1530,7 @@ fn apply_all_curves(
 }
 
 fn get_mask_influence(mask_index: u32, coords: vec2<u32>) -> f32 {
-    return textureLoad(mask_textures, vec2<i32>(coords), i32(mask_index), 0).r;
+    return textureLoad(mask_textures, vec2<i32>(coords) - vec2<i32>(adjustments.mask_origin), i32(mask_index), 0).r;
 }
 
 fn sample_lut_tetrahedral(uv: vec3<f32>) -> vec3<f32> {
@@ -1721,7 +1734,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     if (id.x >= out_dims.x || id.y >= out_dims.y) { return; }
 
     const REFERENCE_DIMENSION: f32 = 1080.0;
-    let full_dims = vec2<f32>(textureDimensions(input_texture));
+    let full_dims = vec2<f32>(adjustments.image_dims);
     let current_ref_dim = min(full_dims.x, full_dims.y);
     let scale = max(0.1, current_ref_dim / REFERENCE_DIMENSION);
 
@@ -1730,11 +1743,11 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
     let ca_rc = adjustments.global.chromatic_aberration_red_cyan;
     let ca_by = adjustments.global.chromatic_aberration_blue_yellow;
-    var color_from_texture = textureLoad(input_texture, absolute_coord, 0).rgb;
+    var color_from_texture = load_source(vec2<i32>(absolute_coord)).rgb;
     if (abs(ca_rc) > 0.000001 || abs(ca_by) > 0.000001) {
         color_from_texture = apply_ca_correction(absolute_coord, ca_rc, ca_by);
     }
-    let original_alpha = textureLoad(input_texture, absolute_coord, 0).a;
+    let original_alpha = load_source(vec2<i32>(absolute_coord)).a;
 
     var initial_linear_rgb: vec3<f32>;
     let is_raw = adjustments.global.is_raw_image;
@@ -1909,7 +1922,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     }
 
     if (adjustments.global.vignette_amount != 0.0) {
-        let full_dims_f = vec2<f32>(textureDimensions(input_texture));
+        let full_dims_f = vec2<f32>(adjustments.image_dims);
         let coord_f = vec2<f32>(absolute_coord);
         let v_amount = adjustments.global.vignette_amount;
         let v_mid = adjustments.global.vignette_midpoint;

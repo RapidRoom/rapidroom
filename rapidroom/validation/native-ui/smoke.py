@@ -665,6 +665,9 @@ def launch(args):
         with args.lock.open("a") as lock:
             print("Waiting for native UI lock", flush=True)
             fcntl.flock(lock, fcntl.LOCK_EX)
+            subprocess.run(["df", "-h", "/home"], check=True)
+            if shutil.disk_usage(case).free < 25 * 1024**3:
+                raise RuntimeError("Native sample stopped: less than 25 GiB free")
             (case / "engine").mkdir()
             engine = args.engine.resolve()
             source_hash = sha(engine)
@@ -712,7 +715,7 @@ def main():
     parser.add_argument("--engine", type=Path)
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
-    parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-gpu.lock"))
     parser.add_argument("--dock-layout", action="store_true", help="Check stepped dock resize overlap and compact terminal controls (implies --terminal)")
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")

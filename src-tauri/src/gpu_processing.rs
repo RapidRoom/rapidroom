@@ -13,6 +13,10 @@ use crate::image_processing::{AllAdjustments, GpuContext, MAX_MASKS};
 use crate::lut_processing::Lut;
 use crate::{AppState, GpuImageCache};
 
+#[path = "tiled_export.rs"]
+mod tiled_export;
+use tiled_export::{ExportPlan, TILE_SIZE};
+
 #[derive(Clone, Copy, Debug)]
 pub struct Roi {
     pub x: u32,
@@ -47,6 +51,21 @@ pub struct DisplayTransform {
     pub _pad: f32,
     pub bg_primary: [f32; 4],
     pub bg_secondary: [f32; 4],
+}
+
+/// The displayed frame outlives the processor that produced it. CPU readback
+/// may replace that processor without replacing the native display binding.
+#[derive(Clone)]
+pub struct DisplayFrame {
+    texture: wgpu::Texture,
+    width: u32,
+    height: u32,
+}
+
+impl DisplayFrame {
+    fn allocation_bytes(&self) -> u64 {
+        u64::from(self.texture.width()) * u64::from(self.texture.height()) * 4
+    }
 }
 
 pub struct WgpuDisplay {
@@ -454,6 +473,7 @@ pub fn get_or_init_gpu_context(
         limits,
         adapter_info,
         display: Arc::new(std::sync::Mutex::new(display_opt)),
+        sampled_display_frame: Default::default(),
         pending_surface_size: Arc::new(std::sync::Mutex::new(None)),
     };
     *context_lock = Some(new_context.clone());
@@ -569,9 +589,9 @@ struct BlurParams {
     tile_offset_y: u32,
     input_width: u32,
     input_height: u32,
-    _pad1: u32,
-    _pad2: u32,
-    _pad3: u32,
+    source_origin_x: u32,
+    source_origin_y: u32,
+    full_width: u32,
 }
 
 #[repr(C)]
@@ -589,6 +609,8 @@ struct FlareParams {
 
 pub struct GpuProcessor {
     context: GpuContext,
+    cpu_readback_only: bool,
+    tile_edge: u32,
     blur_bgl: wgpu::BindGroupLayout,
     h_blur_pipeline: wgpu::ComputePipeline,
     v_blur_pipeline: wgpu::ComputePipeline,
@@ -646,6 +668,15 @@ const FLARE_MAP_SIZE: u32 = 512;
 
 impl GpuProcessor {
     pub fn new(context: GpuContext, max_width: u32, max_height: u32) -> Result<Self, String> {
+        Self::new_with_layout(context, max_width, max_height, None)
+    }
+
+    fn new_with_layout(
+        context: GpuContext,
+        max_width: u32,
+        max_height: u32,
+        plan: Option<ExportPlan>,
+    ) -> Result<Self, String> {
         let device = &context.device;
         const MAX_MASK_BINDINGS: u32 = 1;
 
@@ -1073,11 +1104,14 @@ impl GpuProcessor {
         let dummy_lut_view = dummy_lut_texture.create_view(&Default::default());
         let dummy_lut_sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
 
-        const TILE_SIZE: u32 = 2048;
         const TILE_OVERLAP: u32 = 128;
 
-        let clamped_tile_width = max_width.min(TILE_SIZE + TILE_OVERLAP * 2);
-        let clamped_tile_height = max_height.min(TILE_SIZE + TILE_OVERLAP * 2);
+        let clamped_tile_width = plan.map_or(max_width.min(TILE_SIZE + TILE_OVERLAP * 2), |p| {
+            p.work_width
+        });
+        let clamped_tile_height = plan.map_or(max_height.min(TILE_SIZE + TILE_OVERLAP * 2), |p| {
+            p.work_height
+        });
 
         let clamped_tile_size = wgpu::Extent3d {
             width: clamped_tile_width,
@@ -1086,8 +1120,8 @@ impl GpuProcessor {
         };
 
         let full_image_size = wgpu::Extent3d {
-            width: max_width,
-            height: max_height,
+            width: if plan.is_some() { 1 } else { max_width },
+            height: if plan.is_some() { 1 } else { max_height },
             depth_or_array_layers: 1,
         };
 
@@ -1176,6 +1210,8 @@ impl GpuProcessor {
 
         Ok(Self {
             context,
+            cpu_readback_only: plan.is_some(),
+            tile_edge: plan.map_or(TILE_SIZE, |p| p.tile_size),
             blur_bgl,
             h_blur_pipeline,
             v_blur_pipeline,
@@ -1235,9 +1271,11 @@ impl GpuProcessor {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn run(
         &self,
         input_texture_view: &wgpu::TextureView,
+        streamed_image: Option<&DynamicImage>,
         width: u32,
         height: u32,
         request: RenderRequest,
@@ -1246,6 +1284,37 @@ impl GpuProcessor {
     ) -> Result<(RenderedPixels, u32, u32, u32, u32), String> {
         let device = &self.context.device;
         let queue = &self.context.queue;
+        let plan = if self.cpu_readback_only || streamed_image.is_some() {
+            Some(ExportPlan::with_tile_size(
+                width,
+                height,
+                &request,
+                self.context.limits.max_texture_dimension_2d,
+                self.tile_edge,
+            )?)
+        } else {
+            None
+        };
+        tiled_export::validate_roi(width, height, request.roi)?;
+        let streamed_source = plan.filter(|_| streamed_image.is_some()).map(|p| {
+            device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("Bounded Export Source"),
+                size: wgpu::Extent3d {
+                    width: p.source_width,
+                    height: p.source_height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba16Float,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            })
+        });
+        let streamed_source_view = streamed_source
+            .as_ref()
+            .map(|t| t.create_view(&Default::default()));
         let scale = (width.min(height) as f32) / 1080.0;
         const MAX_MASK_BINDINGS: u32 = 1;
 
@@ -1290,13 +1359,16 @@ impl GpuProcessor {
         let mask_lut_span = crate::perf_trace::span("gpu.mask_lut_upload");
         let mask_layer_count = request.mask_bitmaps.len().clamp(2, MAX_MASKS) as u32;
         let full_texture_size = wgpu::Extent3d {
-            width,
-            height,
+            width: plan.map_or(width, |p| p.work_width),
+            height: plan.map_or(height, |p| p.work_height),
             depth_or_array_layers: mask_layer_count,
         };
         let buffer_size = (width as usize) * (height as usize) * (mask_layer_count as usize);
-        let mut mask_texture_data = Vec::with_capacity(buffer_size);
-        if request.mask_bitmaps.is_empty() {
+        let mut mask_texture_data =
+            Vec::with_capacity(if plan.is_some() { 0 } else { buffer_size });
+        if plan.is_some() {
+            // Tiles upload only their mask window below.
+        } else if request.mask_bitmaps.is_empty() {
             mask_texture_data.resize(buffer_size, 0);
         } else {
             for mask_bitmap in request.mask_bitmaps.iter().take(MAX_MASKS) {
@@ -1306,21 +1378,26 @@ impl GpuProcessor {
                 mask_texture_data.resize(buffer_size, 0);
             }
         }
-        let mask_texture = device.create_texture_with_data(
-            queue,
-            &wgpu::TextureDescriptor {
-                label: Some("Full Mask Texture Array"),
-                size: full_texture_size,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::R8Unorm,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[],
-            },
-            TextureDataOrder::MipMajor,
-            &mask_texture_data,
-        );
+        let mask_descriptor = wgpu::TextureDescriptor {
+            label: Some("Mask Texture Array"),
+            size: full_texture_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::R8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        };
+        let mask_texture = if plan.is_some() {
+            device.create_texture(&mask_descriptor)
+        } else {
+            device.create_texture_with_data(
+                queue,
+                &mask_descriptor,
+                TextureDataOrder::MipMajor,
+                &mask_texture_data,
+            )
+        };
         let mask_texture_view = mask_texture.create_view(&wgpu::TextureViewDescriptor {
             dimension: Some(wgpu::TextureViewDimension::D2Array),
             ..Default::default()
@@ -1479,47 +1556,131 @@ impl GpuProcessor {
             queue.submit(Some(encoder.finish()));
         }
 
-        const TILE_SIZE: u32 = 2048;
+        let tile_size = self.tile_edge;
         const TILE_OVERLAP: u32 = 128;
 
         let output_len = if output_to_display {
             0
         } else {
-            (out_width * out_height * 4) as usize
+            (out_width as usize)
+                .checked_mul(out_height as usize)
+                .and_then(|n| n.checked_mul(4))
+                .ok_or("Export output buffer size overflow")?
         };
         let mut final_pixels = match output_precision {
             RenderOutputPrecision::EightBit => RenderedPixels::U8(vec![0u8; output_len]),
             RenderOutputPrecision::SixteenBit => RenderedPixels::U16(vec![0u16; output_len]),
         };
 
-        let start_tile_x = bounds.x / TILE_SIZE;
-        let start_tile_y = bounds.y / TILE_SIZE;
-        let end_tile_x = (bounds.x + bounds.width).div_ceil(TILE_SIZE);
-        let end_tile_y = (bounds.y + bounds.height).div_ceil(TILE_SIZE);
+        let start_tile_x = bounds.x / tile_size;
+        let start_tile_y = bounds.y / tile_size;
+        let end_tile_x = (bounds.x + bounds.width).div_ceil(tile_size);
+        let end_tile_y = (bounds.y + bounds.height).div_ceil(tile_size);
 
         for tile_y in start_tile_y..end_tile_y {
             for tile_x in start_tile_x..end_tile_x {
-                let x_start_unclamped = tile_x * TILE_SIZE;
-                let y_start_unclamped = tile_y * TILE_SIZE;
+                let x_start_unclamped = tile_x * tile_size;
+                let y_start_unclamped = tile_y * tile_size;
 
                 let x_start = x_start_unclamped.max(bounds.x);
                 let y_start = y_start_unclamped.max(bounds.y);
-                let x_end = (x_start_unclamped + TILE_SIZE)
+                let x_end = (x_start_unclamped + tile_size)
                     .min(bounds.x + bounds.width)
                     .min(width);
-                let y_end = (y_start_unclamped + TILE_SIZE)
+                let y_end = (y_start_unclamped + tile_size)
                     .min(bounds.y + bounds.height)
                     .min(height);
 
                 let tile_width = x_end - x_start;
                 let tile_height = y_end - y_start;
 
-                let input_x_start = (x_start as i32 - TILE_OVERLAP as i32).max(0) as u32;
-                let input_y_start = (y_start as i32 - TILE_OVERLAP as i32).max(0) as u32;
-                let input_x_end = (x_end + TILE_OVERLAP).min(width);
-                let input_y_end = (y_end + TILE_OVERLAP).min(height);
-                let input_width = input_x_end - input_x_start;
-                let input_height = input_y_end - input_y_start;
+                let work = if let Some(plan) = plan {
+                    plan.work_rect(width, height, tile_x, tile_y)
+                } else {
+                    tiled_export::expanded(
+                        width,
+                        height,
+                        Roi {
+                            x: x_start,
+                            y: y_start,
+                            width: tile_width,
+                            height: tile_height,
+                        },
+                        TILE_OVERLAP,
+                    )
+                };
+                let input_x_start = work.x;
+                let input_y_start = work.y;
+                let input_width = work.width;
+                let input_height = work.height;
+                let source = plan.filter(|_| streamed_image.is_some()).map_or(
+                    Roi {
+                        x: 0,
+                        y: 0,
+                        width,
+                        height,
+                    },
+                    |p| p.source_rect(width, height, work),
+                );
+                if let (Some(image), Some(texture)) = (streamed_image, &streamed_source) {
+                    let cropped = image.crop_imm(source.x, source.y, source.width, source.height);
+                    let pixels = to_rgba_f16(&cropped);
+                    queue.write_texture(
+                        texture.as_image_copy(),
+                        bytemuck::cast_slice(&pixels),
+                        wgpu::TexelCopyBufferLayout {
+                            offset: 0,
+                            bytes_per_row: Some(source.width * 8),
+                            rows_per_image: Some(source.height),
+                        },
+                        wgpu::Extent3d {
+                            width: source.width,
+                            height: source.height,
+                            depth_or_array_layers: 1,
+                        },
+                    );
+                }
+                if plan.is_some() {
+                    for layer in 0..mask_layer_count {
+                        let bitmap = request.mask_bitmaps.get(layer as usize);
+                        let mut pixels = vec![0_u8; (work.width as usize) * (work.height as usize)];
+                        if let Some(bitmap) = bitmap {
+                            for row in 0..work.height {
+                                let start =
+                                    (work.y + row) as usize * width as usize + work.x as usize;
+                                pixels[row as usize * work.width as usize
+                                    ..(row as usize + 1) * work.width as usize]
+                                    .copy_from_slice(
+                                        &bitmap.as_raw()[start..start + work.width as usize],
+                                    );
+                            }
+                        }
+                        queue.write_texture(
+                            wgpu::TexelCopyTextureInfo {
+                                texture: &mask_texture,
+                                mip_level: 0,
+                                origin: wgpu::Origin3d {
+                                    x: 0,
+                                    y: 0,
+                                    z: layer,
+                                },
+                                aspect: wgpu::TextureAspect::All,
+                            },
+                            &pixels,
+                            wgpu::TexelCopyBufferLayout {
+                                offset: 0,
+                                bytes_per_row: Some(work.width),
+                                rows_per_image: Some(work.height),
+                            },
+                            wgpu::Extent3d {
+                                width: work.width,
+                                height: work.height,
+                                depth_or_array_layers: 1,
+                            },
+                        );
+                    }
+                }
+                let tile_input_view = streamed_source_view.as_ref().unwrap_or(input_texture_view);
 
                 let input_texture_size = wgpu::Extent3d {
                     width: input_width,
@@ -1540,9 +1701,9 @@ impl GpuProcessor {
                         tile_offset_y: input_y_start,
                         input_width,
                         input_height,
-                        _pad1: 0,
-                        _pad2: 0,
-                        _pad3: 0,
+                        source_origin_x: source.x,
+                        source_origin_y: source.y,
+                        full_width: width,
                     };
                     queue.write_buffer(&self.blur_params_buffer, 0, bytemuck::bytes_of(&params));
 
@@ -1554,7 +1715,7 @@ impl GpuProcessor {
                         entries: &[
                             wgpu::BindGroupEntry {
                                 binding: 0,
-                                resource: wgpu::BindingResource::TextureView(input_texture_view),
+                                resource: wgpu::BindingResource::TextureView(tile_input_view),
                             },
                             wgpu::BindGroupEntry {
                                 binding: 1,
@@ -1620,6 +1781,14 @@ impl GpuProcessor {
                 let mut tile_adjustments = adjustments;
                 tile_adjustments.tile_offset_x = input_x_start;
                 tile_adjustments.tile_offset_y = input_y_start;
+                tile_adjustments.image_dims = [width, height];
+                tile_adjustments.source_origin = [source.x, source.y];
+                tile_adjustments.source_extent = [source.width, source.height];
+                tile_adjustments.mask_origin = if plan.is_some() {
+                    [work.x, work.y]
+                } else {
+                    [0, 0]
+                };
                 queue.write_buffer(
                     &self.adjustments_buffer,
                     0,
@@ -1629,7 +1798,7 @@ impl GpuProcessor {
                 let mut bind_group_entries = vec![
                     wgpu::BindGroupEntry {
                         binding: 0,
-                        resource: wgpu::BindingResource::TextureView(input_texture_view),
+                        resource: wgpu::BindingResource::TextureView(tile_input_view),
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
@@ -1818,32 +1987,42 @@ impl GpuProcessor {
     }
 }
 
+fn publish_display_frame(
+    context: &GpuContext,
+    texture: &wgpu::Texture,
+    width: u32,
+    height: u32,
+) -> Result<(), String> {
+    if width == 0 || height == 0 || width > texture.width() || height > texture.height() {
+        return Err("Display frame dimensions exceed its texture".into());
+    }
+    *context
+        .sampled_display_frame
+        .lock()
+        .map_err(|_| "Display frame lock poisoned")? = Some(DisplayFrame {
+        texture: texture.clone(),
+        width,
+        height,
+    });
+    Ok(())
+}
+
 pub fn read_display_area(
     context: &GpuContext,
-    state: &tauri::State<AppState>,
     center: (f32, f32),
     radius: f32,
 ) -> Result<Vec<u8>, String> {
-    let [width, height] = context
-        .display
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .as_ref()
-        .ok_or("WGPU display is not initialized")?
-        .latest_transform
-        .image_size;
-    if width < 1.0 || height < 1.0 {
-        return Err("No image has been rendered to the display".to_string());
+    if !center.0.is_finite() || !center.1.is_finite() || !radius.is_finite() || radius < 0.0 {
+        return Err("Invalid display sampling coordinates".into());
     }
-    let processor_lock = state
-        .gpu_processor
+    let frame = context
+        .sampled_display_frame
         .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    let processor = &processor_lock
-        .as_ref()
-        .ok_or("GPU processor is not initialized")?
-        .processor;
-
+        .map_err(|_| "Display frame lock poisoned")?
+        .clone()
+        .ok_or("No image has been rendered to the display")?;
+    let width = frame.width as f32;
+    let height = frame.height as f32;
     let half = (radius * width).max(1.0);
     let x0 = (center.0 * width - half).clamp(0.0, width - 1.0) as u32;
     let y0 = (center.1 * height - half).clamp(0.0, height - 1.0) as u32;
@@ -1853,7 +2032,7 @@ pub fn read_display_area(
     read_texture_data_roi(
         &context.device,
         &context.queue,
-        &processor.output_texture,
+        &frame.texture,
         wgpu::Origin3d { x: x0, y: y0, z: 0 },
         wgpu::Extent3d {
             width: x1 - x0,
@@ -1992,6 +2171,123 @@ fn process_and_get_dynamic_image_inner(
     let queue = &context.queue;
 
     let max_dim = context.limits.max_texture_dimension_2d;
+    if !output_to_display {
+        let plan = ExportPlan::new(width, height, &request, max_dim)?;
+        let mut processor_lock = state
+            .gpu_processor
+            .lock()
+            .map_err(|_| "GPU processor lock poisoned")?;
+        // Native frame ownership is independent of the processor cache. Charge
+        // its actual backing texture once, including any allocation padding.
+        let retained_display_bytes = context
+            .sampled_display_frame
+            .lock()
+            .map_err(|_| "Display frame lock poisoned")?
+            .as_ref()
+            .map_or(0, DisplayFrame::allocation_bytes);
+        if plan.estimated_bytes.saturating_add(retained_display_bytes) > tiled_export::GPU_BUDGET {
+            return Err(
+                "Export GPU budget exceeded while retaining the native preview frame".into(),
+            );
+        }
+        let mut cache_lock = state
+            .gpu_image_cache
+            .lock()
+            .map_err(|_| "GPU image cache lock poisoned")?;
+        // Release cached preview/full-frame allocations before export resources.
+        drop(cache_lock.take());
+        let reuse = processor_lock.as_ref().is_some_and(|p| {
+            p.processor.cpu_readback_only
+                && p.processor.tile_output_size.width == plan.work_width
+                && p.processor.tile_output_size.height == plan.work_height
+        });
+        if !reuse {
+            drop(processor_lock.take());
+            context
+                .device
+                .poll(wgpu::PollType::Wait {
+                    submission_index: None,
+                    timeout: None,
+                })
+                .map_err(|e| format!("GPU export cleanup failed: {e}"))?;
+            *processor_lock = Some(crate::GpuProcessorState {
+                processor: GpuProcessor::new_with_layout(
+                    context.clone(),
+                    width,
+                    height,
+                    Some(plan),
+                )?,
+                width,
+                height,
+            });
+        }
+        let processor = &processor_lock.as_ref().unwrap().processor;
+        // Flare uses a global hardware-linear 512px guide. Keep its existing
+        // sampling arithmetic, account for its input in the hard budget, and
+        // refuse unsupported sizes rather than publishing an unprocessed image.
+        let flare_texture = if request.adjustments.global.flare_amount > 0.0 {
+            let pixels = to_rgba_f16(base_image);
+            Some(device.create_texture_with_data(
+                queue,
+                &wgpu::TextureDescriptor {
+                    label: Some("Global Flare Source"),
+                    size: wgpu::Extent3d {
+                        width,
+                        height,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba16Float,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[],
+                },
+                TextureDataOrder::MipMajor,
+                bytemuck::cast_slice(&pixels),
+            ))
+        } else {
+            None
+        };
+        let flare_view = flare_texture
+            .as_ref()
+            .map(|t| t.create_view(&Default::default()));
+        log::info!(
+            "[{}] bounded GPU export {}x{}: allocation estimate {} bytes (budget {})",
+            caller_id,
+            width,
+            height,
+            plan.estimated_bytes,
+            tiled_export::GPU_BUDGET
+        );
+        let (pixels, out_w, out_h, _, _) = processor.run(
+            flare_view.as_ref().unwrap_or(&processor.dummy_blur_view),
+            Some(base_image),
+            width,
+            height,
+            request,
+            false,
+            output_precision,
+        )?;
+        if let Some(analytics) = analytics_config {
+            if let RenderedPixels::U8(data) = &pixels {
+                let data = data.clone();
+                std::thread::spawn(move || {
+                    if let Some(img) = ImageBuffer::<Rgba<u8>, _>::from_raw(out_w, out_h, data) {
+                        let _ = analytics.sender.send(crate::AnalyticsJob {
+                            path: analytics.path,
+                            image: Arc::new(DynamicImage::ImageRgba8(img)),
+                            compute_waveform: analytics.compute_waveform,
+                            active_waveform_channel: analytics.active_waveform_channel,
+                        });
+                    }
+                });
+            } else {
+                log::warn!("Skipping analytics for a high-precision CPU readback");
+            }
+        }
+        return rendered_image(pixels, out_w, out_h);
+    }
     if width > max_dim || height > max_dim {
         log::warn!(
             "Image dimensions ({}x{}) exceed GPU limits ({}). Bypassing GPU processing and returning unprocessed image to prevent a crash. Try upgrading your GPU :)",
@@ -2018,7 +2314,7 @@ fn process_and_get_dynamic_image_inner(
     let new_height = (height + 255) & !255;
 
     if let Some(p) = processor_lock.as_ref() {
-        if p.width < width || p.height < height {
+        if p.processor.cpu_readback_only || p.width < width || p.height < height {
             needs_new_processor = true;
         }
     } else {
@@ -2125,6 +2421,7 @@ fn process_and_get_dynamic_image_inner(
 
     let (processed_pixels, out_w, out_h, out_x, out_y) = processor.run(
         &cache.texture_view,
+        None,
         cache.width,
         cache.height,
         request,
@@ -2219,6 +2516,9 @@ fn process_and_get_dynamic_image_inner(
 
     if submit_final_encoder {
         queue.submit(Some(final_encoder.finish()));
+    }
+    if output_to_display {
+        publish_display_frame(context, &processor.output_texture, width, height)?;
     }
 
     if let Some(analytics) = analytics_config {
@@ -2361,19 +2661,25 @@ fn process_and_get_dynamic_image_inner(
         fps
     );
 
-    match processed_pixels {
-        RenderedPixels::U8(pixels) => {
-            let img_buf = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(out_w, out_h, pixels)
-                .ok_or("Failed to create 8-bit image buffer from GPU data")?;
-            Ok(DynamicImage::ImageRgba8(img_buf))
-        }
-        RenderedPixels::U16(pixels) => {
-            let img_buf = ImageBuffer::<Rgba<u16>, Vec<u16>>::from_raw(out_w, out_h, pixels)
-                .ok_or("Failed to create 16-bit image buffer from GPU data")?;
-            Ok(DynamicImage::ImageRgba16(img_buf))
-        }
+    rendered_image(processed_pixels, out_w, out_h)
+}
+
+fn rendered_image(pixels: RenderedPixels, width: u32, height: u32) -> Result<DynamicImage, String> {
+    match pixels {
+        RenderedPixels::U8(pixels) => Ok(DynamicImage::ImageRgba8(
+            ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width, height, pixels)
+                .ok_or("Failed to create 8-bit image buffer from GPU data")?,
+        )),
+        RenderedPixels::U16(pixels) => Ok(DynamicImage::ImageRgba16(
+            ImageBuffer::<Rgba<u16>, Vec<u16>>::from_raw(width, height, pixels)
+                .ok_or("Failed to create 16-bit image buffer from GPU data")?,
+        )),
     }
 }
+
+#[cfg(test)]
+#[path = "tiled_export_gpu_tests.rs"]
+mod tiled_export_gpu_tests;
 
 #[cfg(test)]
 #[path = "hsl_shader_tests.rs"]

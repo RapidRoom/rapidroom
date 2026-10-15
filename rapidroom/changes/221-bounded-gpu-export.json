@@ -1,0 +1,15 @@
+{
+  "id": "bounded-gpu-export",
+  "title": "Bound GPU export textures and preserve global tile coordinates",
+  "category": "performance",
+  "landed": "2026-10-12",
+  "authors": [
+    "yojen7"
+  ],
+  "source": "rapidroom (original implementation with Codex; CalibRaw halo/global-coordinate invariants studied)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "CPU-readback renders upload reusable source/mask windows under a 1.5 GiB GPU allocation budget. Region output uses globally aligned work tiles. Effect-dependent halos correct wide blur seams; flare keeps its existing global guide and counts its source against the budget. CPU geometry/encoding remain full-frame."
+}
