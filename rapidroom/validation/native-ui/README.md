@@ -330,3 +330,24 @@ The central tool result boundary labels both successes and errors as data-only. 
 Assistant inputs project descriptive names/notes before UI storage. Names echoed from the current edit preserve the original stored name by identity, so reading a bounded display cannot silently rename an existing mask. Local numeric mask edits use the same existing numeric registry as global controls; invalid values are refused rather than applied. Terminal launches expose a data-only context and static trust policy without changing the actual working directory/path. The general terminal is not a photo-metadata prompt generator; arbitrary shell output remains data.
 
 Existing tool-result consumers must read the inner envelope. The native client helper `tool_data` supports that envelope and older results, while the hostile fixture asserts the envelope is actually present in the current build. Transport `isError`/protocol fields and image content blocks keep their roles.
+
+`--crs-interop` checks the public XMP import action with a synthetic packet: renamed namespaces and curve lists import, foreign/nested/other-subject settings do not; DOCTYPE is refused without changing the draft or pixels; original adjustments and exact pixels are restored. It enables authenticated MCP reads/writes only as the test observer/restore mechanism, never model requests. Wire receipts use their own `crs-client-tests` directory. This does not establish real Lightroom application or rendering equivalence. See the [field audit](../crs-interop-20261012/README.md).
+
+### Individual masks (#150)
+
+Build with `build.py --terminal --mcp-clients`, then run `smoke.py --mcp-masks`.
+The owned CC0 fixture records an actual installed Claude client adding a second
+radial mask without resending its sibling. It verifies nested HSL defaults,
+compact replies, GUI Undo with exact restored pixels, shared Redo, nested patches,
+sidecar persistence across a frontend restart, single-id removal and missing-id
+no-ops. The combined untrusted-text policy phase verifies a context-name echo
+preserves the raw stored name, new names are projected before storage, 128-byte
+opaque IDs round-trip, and invalid IDs are refused. That hostile-text phase makes
+no model requests. The first fixture phase uses the client's existing login and
+makes a real model request; no user library or global client config is changed.
+
+## Shipped skill/plugin acceptance (#118)
+
+`--mcp-skill --skill-source /path/to/matching/clean/checkout` runs a fresh Claude session with the shipped plugin and its stdio MCP configuration. It uses the owned CC0 NEX-6 copy, an approved 4:5 crop, three temporary look variants, a native detail check, GPS-stripped 1080×1350 export and a source-backed exposure explanation. The source checkout must match the pinned app's `sourceCommit`; the app and checkout must be clean. Named virtual-copy tools remain coming, so this test uses temporary comparisons.
+
+Use a pinned `native-ui-test,mcp` build plus the adapter, and pass `--lock /tmp/rapidroom-gpu.lock` when running the native harness. The real client needs account access. Raw client transcripts, endpoint credentials and private source paths stay local; publish only allowlisted summaries and inspected CC0 panels. A pass proves workflow and source use, not the aesthetic quality of the grade.

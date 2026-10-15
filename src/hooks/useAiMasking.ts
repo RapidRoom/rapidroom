@@ -10,6 +10,11 @@ import { SubMask } from '../components/panel/right/Masks';
 import { Invokes } from '../components/ui/AppProperties';
 import { useCloudAuth } from '../context/CloudAuthContext';
 
+const getRejectionMessage = (error: unknown): string => {
+  const message = typeof error === 'object' && error !== null && 'message' in error ? error.message : undefined;
+  return message ? String(message) : String(error);
+};
+
 const getTransformAdjustments = (adj: Adjustments) => ({
   transformDistortion: adj.transformDistortion,
   transformVertical: adj.transformVertical,
@@ -38,7 +43,7 @@ export function useAiMasking() {
   const unregisterAiTask = useProcessStore((state) => state.unregisterAiTask);
 
   const updateSubMask = useCallback(
-    (subMaskId: string, updatedData: any) => {
+    (subMaskId: string, updatedData: Partial<SubMask>) => {
       setAdjustments((prev: Adjustments) => ({
         ...prev,
         masks: prev.masks.map((c: MaskContainer) => ({
@@ -99,7 +104,7 @@ export function useAiMasking() {
             ? 'generate_retouch_patch'
             : 'generate_manual_cleanup_patch';
 
-        const newPatchDataJson: any = await invoke(command, {
+        const newPatchDataJson = await invoke<string>(command, {
           currentAdjustments: adjustments,
           patchDefinition: patchDefinitionForBackend,
           sourcePoint: [sourceX, sourceY],
@@ -114,11 +119,11 @@ export function useAiMasking() {
             p.id === patchId ? { ...p, patchData: newPatchData, isLoading: false } : p,
           ),
         }));
-      } catch (err: any) {
+      } catch (err: unknown) {
         patchesSentToBackend.delete(patchId);
 
         if (!String(err).includes('cancelled')) {
-          toast.error(`Patch Generation Failed: ${err.message || String(err)}`);
+          toast.error(`Patch Generation Failed: ${getRejectionMessage(err)}`);
         }
         setAdjustments((prev: Partial<Adjustments>) => ({
           ...prev,
@@ -147,7 +152,7 @@ export function useAiMasking() {
       }));
 
       try {
-        const newPatchDataJson: any = await invoke(Invokes.InvokeGenerativeReplaseWithMaskDef, {
+        const newPatchDataJson = await invoke<string>(Invokes.InvokeGenerativeReplaseWithMaskDef, {
           currentAdjustments: adjustments,
           patchDefinition: patchDefinition,
           path: selectedImage.path,
@@ -176,7 +181,7 @@ export function useAiMasking() {
         if (!useFastInpaint) {
           useCloudStore.getState().fetchUsage(getToken);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!String(err).includes('cancelled')) {
           toast.error(`AI Replace Failed: ${err}`);
         }
@@ -210,7 +215,7 @@ export function useAiMasking() {
 
       try {
         const transformAdjustments = getTransformAdjustments(adjustments);
-        const newMaskParams: any = await invoke(Invokes.GenerateAiSubjectMask, {
+        const newMaskParams = await invoke<Record<string, unknown>>(Invokes.GenerateAiSubjectMask, {
           jsAdjustments: transformAdjustments,
           endPoint: [endPoint.x, endPoint.y],
           flipHorizontal: adjustments.flipHorizontal,
@@ -225,7 +230,7 @@ export function useAiMasking() {
         const subMaskToUpdate = adjustments.aiPatches
           ?.find((p: AiPatch) => p.id === patchId)
           ?.subMasks.find((sm: SubMask) => sm.id === subMaskId);
-        const finalSubMaskParams: any = { ...subMaskToUpdate?.parameters, ...newMaskParams };
+        const finalSubMaskParams: Record<string, unknown> = { ...subMaskToUpdate?.parameters, ...newMaskParams };
         const updatedAdjustmentsForBackend = {
           ...adjustments,
           aiPatches: adjustments.aiPatches.map((p: AiPatch) =>
@@ -241,7 +246,7 @@ export function useAiMasking() {
         };
 
         const patchDefinitionForBackend = updatedAdjustmentsForBackend.aiPatches.find((p: AiPatch) => p.id === patchId);
-        const newPatchDataJson: any = await invoke(Invokes.InvokeGenerativeReplaseWithMaskDef, {
+        const newPatchDataJson = await invoke<string>(Invokes.InvokeGenerativeReplaseWithMaskDef, {
           currentAdjustments: updatedAdjustmentsForBackend,
           patchDefinition: { ...patchDefinitionForBackend, prompt: '' },
           path: selectedImage.path,
@@ -269,9 +274,9 @@ export function useAiMasking() {
           ),
         }));
         setEditor({ activeAiPatchContainerId: null, activeAiSubMaskId: null });
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!String(err).includes('cancelled')) {
-          toast.error(`Quick Erase Failed: ${err.message || String(err)}`);
+          toast.error(`Quick Erase Failed: ${getRejectionMessage(err)}`);
         }
         setAdjustments((prev: Partial<Adjustments>) => ({
           ...prev,
@@ -329,7 +334,7 @@ export function useAiMasking() {
 
     try {
       const transformAdjustments = getTransformAdjustments(adjustments);
-      const newParameters = await invoke(Invokes.GenerateAiSubjectMask, {
+      const newParameters = await invoke<Record<string, unknown>>(Invokes.GenerateAiSubjectMask, {
         jsAdjustments: transformAdjustments,
         endPoint: [endPoint.x, endPoint.y],
         flipHorizontal: adjustments.flipHorizontal,
@@ -357,14 +362,17 @@ export function useAiMasking() {
     }
   };
 
-  const handleGenerateAiDepthMask = async (subMaskId: string, parameters: any) => {
+  const handleGenerateAiDepthMask = async (
+    subMaskId: string,
+    parameters: { feather?: number; maxDepth?: number; maxFade?: number; minDepth?: number; minFade?: number },
+  ) => {
     const { selectedImage, adjustments, patchesSentToBackend } = useEditorStore.getState();
     if (!selectedImage?.path) return;
     registerAiTask(subMaskId, 'depth');
 
     try {
       const transformAdjustments = getTransformAdjustments(adjustments);
-      const newParameters = await invoke('generate_ai_depth_mask', {
+      const newParameters = await invoke<Record<string, unknown>>('generate_ai_depth_mask', {
         jsAdjustments: transformAdjustments,
         path: selectedImage.path,
         minDepth: parameters.minDepth ?? 20,
@@ -402,7 +410,7 @@ export function useAiMasking() {
 
     try {
       const transformAdjustments = getTransformAdjustments(adjustments);
-      const newParameters = await invoke(Invokes.GenerateAiForegroundMask, {
+      const newParameters = await invoke<Record<string, unknown>>(Invokes.GenerateAiForegroundMask, {
         jsAdjustments: transformAdjustments,
         flipHorizontal: adjustments.flipHorizontal,
         flipVertical: adjustments.flipVertical,
@@ -434,7 +442,7 @@ export function useAiMasking() {
 
     try {
       const transformAdjustments = getTransformAdjustments(adjustments);
-      const newParameters = await invoke(Invokes.GenerateAiSkyMask, {
+      const newParameters = await invoke<Record<string, unknown>>(Invokes.GenerateAiSkyMask, {
         jsAdjustments: transformAdjustments,
         flipHorizontal: adjustments.flipHorizontal,
         flipVertical: adjustments.flipVertical,

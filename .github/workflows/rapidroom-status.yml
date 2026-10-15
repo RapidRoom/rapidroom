@@ -1,7 +1,7 @@
 name: RapidRoom change list
 
-# Keeps the "What RapidRoom adds" table (README) and CHANGES.md in sync with
-# rapidroom/changes.json and with the current state of the upstream issues and PRs.
+# Validate independent records in PRs. Generate main previews as artifacts;
+# release snapshots are attached by rapidroom-release-linux.yml, without bot commits.
 on:
   push:
     branches:
@@ -26,18 +26,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - name: Rendered files match changes.json
-        run: node rapidroom/status.mjs --check
+      - name: Test record validation and PR snapshot policy
+        run: node --test rapidroom/status-records.test.mjs
+      - name: Validate PR records without regenerating shared files
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node rapidroom/status.mjs --check --base "$PR_BASE_SHA"
 
   refresh:
-    # main is protected, so this job can't commit. It fails when the upstream
-    # statuses in the change list are out of date; a maintainer then runs
-    # `node rapidroom/status.mjs --refresh` and commits the result.
+    # Preview only: never commit generated files back onto protected main.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -53,9 +57,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node rapidroom/status.mjs --refresh
-      - name: Fail if the change list is out of date
-        run: |
-          if git diff --quiet; then echo "Change list is up to date."; exit 0; fi
-          git diff --stat
-          echo "::error::Upstream statuses changed. Run 'node rapidroom/status.mjs --refresh' and commit."
-          exit 1
+      - name: Verify generated preview
+        run: node rapidroom/status.mjs --check-generated
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rapidroom-changelog-${{ github.sha }}
+          path: |
+            CHANGES.md
+            .github/README.md
+            rapidroom/upstream-status.json
+          include-hidden-files: true
+          retention-days: 30

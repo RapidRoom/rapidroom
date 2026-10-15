@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Measure legacy/bounded production-shader 60MP tests on Linux DRM.
 Pass the lib-test executable emitted by cargo test --lib --no-run. Each run
-owns the shared build lock. Only its DRM clients are sampled, deduplicated by
+owns the shared GPU lock. Only its DRM clients are sampled, deduplicated by
 client ID. Resident/shared metrics are never double-counted as total memory.
 """
 import argparse
@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import time
 
@@ -46,8 +47,11 @@ def benchmark(binary, root, out, mode):
     env["LD_LIBRARY_PATH"] = ":".join(filter(None, [str(root / "src-tauri/resources"), str(binary.parent), env.get("LD_LIBRARY_PATH")]))
     command = ["nice", "-n", "10", str(binary), "tiled_export_sixty_mp_memory", "--ignored", "--nocapture", "--test-threads=1"]
     peaks = {}
-    with open("/tmp/rapidroom-build.lock", "a") as lock:
+    with open("/tmp/rapidroom-gpu.lock", "a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        subprocess.run(["df", "-h", "/home"], check=True)
+        if shutil.disk_usage(out).free < 25 * 1024**3:
+            raise RuntimeError("Memory sample stopped: less than 25 GiB free")
         start = time.time()
         with (out / f"{mode}.log").open("w") as log:
             process = subprocess.Popen(command, cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT)
