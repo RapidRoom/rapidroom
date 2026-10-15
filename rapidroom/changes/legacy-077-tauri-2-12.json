@@ -1,0 +1,12 @@
+{
+  "id": "tauri-2.12",
+  "title": "Tauri 2.12: Native Titlebar works with tiling Wayland compositors (Hyprland)",
+  "category": "platform",
+  "landed": "2026-10-02",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#1813"],
+  "rendering_change": false,
+  "highlight": "**At home on Linux tiling desktops.** The native title bar works with Wayland compositors like Hyprland instead of fighting them."
+}

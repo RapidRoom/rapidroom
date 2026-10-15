@@ -1056,9 +1056,13 @@ pub(crate) mod tests {
         let xmp = sidecar_with_corrections(
             "",
             &correction(
-                r#"crs:CorrectionName="Subject" crs:CorrectionActive="false" crs:LocalShadows2012="0.3""#,
+                r#"crs:CorrectionName="Subject" crs:LocalShadows2012="0.3""#,
                 &format!("{RADIAL_GRADIENT}\n{subtract_linear}\n{intersect_radial}"),
             ),
+        )
+        .replace(
+            r#"crs:CorrectionActive="true""#,
+            r#"crs:CorrectionActive="false""#,
         );
 
         let masks = imported_masks(&xmp);

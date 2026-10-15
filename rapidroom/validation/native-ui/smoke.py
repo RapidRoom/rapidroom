@@ -137,7 +137,7 @@ class Smoke:
           .find(e=>e.parentElement.parentElement.textContent.trim().startsWith(arguments[0]));
           const r=e.getBoundingClientRect(),x=r.left+(arguments[1]-Number(e.min)) /
             (Number(e.max)-Number(e.min))*r.width;
-          e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0,buttons:1,
+        e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,buttons:1,
             clientX:x,clientY:r.top+r.height/2}));return true;""", [label, value])
         time.sleep(0.3)  # React installs the document drag listeners after mousedown.
         self.execute("""document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0}));return true;""")
@@ -316,6 +316,9 @@ class Smoke:
             port = sock.getsockname()[1]
         env = os.environ.copy()
         env["RAPIDROOM_NATIVE_UI_TEST_PORT"] = str(port)
+        if (self.case / "native-wheel.so").exists():
+            env["LD_PRELOAD"] = str(self.case / "native-wheel.so")
+            env["RAPIDROOM_TEST_NATIVE_WHEEL_FILE"] = str(self.case / "native-wheel.command")
         app = self.start([str(self.case / "engine/rapidroom")], "app", env)
         base = f"http://127.0.0.1:{port}"
 
@@ -349,6 +352,9 @@ class Smoke:
                 return False
 
         wait_for(frontend_ready, "real frontend", 90)
+        wait_for(lambda: self.execute("return [...document.querySelectorAll('button')].some("
+                                      "e=>e.innerText.trim()==='Continue Session' && !e.disabled);"),
+                 "Continue Session control", 90)
         startup["phase"] = "frontend ready before Continue Session"
         save(self.case / "driver-startup.json", startup)
         self.execute("""const e=[...document.querySelectorAll('button')]
@@ -376,6 +382,34 @@ class Smoke:
                  "GPU-processed editor preview")
         baseline = self.stable_preview("preview")
         self.step("native preview", {"roi": self.roi, "capture": str(baseline.relative_to(self.case))})
+        if (self.case / "zoom-test.json").exists():
+            from zoom import run_zoom_checks
+            run_zoom_checks(self, wait_for)
+            # HiFi zoom keeps the full-resolution preview on zoom-out. The
+            # next adjustment renders at fit resolution, so normalize through
+            # an ordinary public Exposure edit/reset before the Undo comparison.
+            self.drag("Exposure", 0.5)
+            self.execute("""const e=[...document.querySelectorAll('input[type=range]')]
+              .find(e=>e.parentElement.parentElement.textContent.trim().startsWith('Exposure'));
+              e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true}));return true;""")
+            wait_for(lambda: self.slider("Exposure")["value"] == 0, "neutral fit-resolution preview")
+            baseline = self.stable_preview("post-zoom-fit")
+            self.step("post-zoom fit preview", {"capture": str(baseline.relative_to(self.case))})
+        if (self.case / "presets-test.json").exists():
+            from presets import run_preset_checks
+            run_preset_checks(self, wait_for, baseline)
+        if (self.case / "crs-interop-test.json").exists():
+            from crs_interop import run_crs_checks
+            run_crs_checks(self, wait_for)
+        if (self.case / "xmp-photo-policy-test.json").exists():
+            from xmp_photo_policy import run_photo_policy_checks
+            run_photo_policy_checks(self, wait_for)
+        if (self.case / "untrusted-text-test.json").exists():
+            from untrusted_text import run_untrusted_checks
+            run_untrusted_checks(self.case, self, wait_for, baseline)
+        if (self.case / "palette-test.json").exists():
+            from palette import run_palette_checks
+            run_palette_checks(self, wait_for, baseline)
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
         edited = self.stable_preview("edited")
         difference = ImageStat.Stat(ImageChops.difference(self.crop(baseline), self.crop(edited)))
@@ -442,7 +476,10 @@ class Smoke:
             run_packaging_checks(self.case, self)
         elif (self.case / "terminal-test.json").exists():
             self.terminal_flow()
-        if (self.case / "mcp-compact-test.json").exists():
+        if (self.case / "mcp-masks-test.json").exists():
+            from mcp_masks import run_mask_checks
+            run_mask_checks(self.case, self)
+        elif (self.case / "mcp-compact-test.json").exists():
             from mcp_compact import run_compact_checks
             run_compact_checks(self.case, self)
         elif (self.case / "mcp-revisions-test.json").exists():
@@ -451,12 +488,18 @@ class Smoke:
         elif (self.case / "mcp-measure-test.json").exists():
             from mcp_measure import run_measure_checks
             run_measure_checks(self.case, self)
+        elif (self.case / "mcp-skill-test.json").exists():
+            from mcp_skill import run_skill_checks
+            run_skill_checks(self.case, self)
         elif (self.case / "mcp-history-test.json").exists():
             from mcp_history import run_history_checks
             run_history_checks(self.case, self)
         elif (self.case / "mcp-clients-test.json").exists() and not (self.case / "terminal-test.json").exists():
             from mcp_clients import run_client_checks
             self.step("real Claude Code and Codex edit the open photo", run_client_checks(self.case, self))
+        if (self.case / "mask-drop-test.json").exists():
+            from mask_drop import run_mask_drop_checks
+            run_mask_drop_checks(self, wait_for)
         final = self.snapshot("final")
         if final["errors"]:
             raise RuntimeError("Frontend errors: " + str(final["errors"]))
@@ -476,6 +519,13 @@ class Smoke:
             self.step("PTY background process removed on app quit", {"pid": self.background_pid})
         native_errors = [line for line in (self.case / "app.log").read_text().splitlines()
                          if re.search(r"\[ERROR\]|CRITICAL|panicked at|Segmentation fault", line)]
+        if hasattr(self, "expected_crs_refusal_error"):
+            pattern = r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \[ERROR\] \[frontend\] " + re.escape(self.expected_crs_refusal_error)
+            expected = [line for line in native_errors if re.fullmatch(pattern, line)]
+            if len(expected) != 1:
+                raise RuntimeError("Expected exactly one native log entry for the verified CRS refusal")
+            native_errors.remove(expected[0])
+            self.step("verified CRS refusal logged exactly once", {"entry": expected[0]})
         if native_errors:
             raise RuntimeError("Native errors: " + str(native_errors))
         self.step("clean exit and no frontend/native errors", {"exit_code": app.returncode})
@@ -531,24 +581,49 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.zoom:
+        save(case / "zoom-test.json", {"issue": 142, "viewport": [WIDTH, HEIGHT]})
+        wheel_source = ROOT / "rapidroom/validation/native-ui/native_wheel.c"
+        flags = shlex.split(subprocess.check_output(
+            ["pkg-config", "--cflags", "--libs", "gtk+-3.0", "webkit2gtk-4.1"], text=True))
+        subprocess.run(["cc", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror",
+                        str(wheel_source), "-o", str(case / "native-wheel.so"), *flags], check=True)
+        save(case / "native-wheel-injector.json", {"source_sha256": sha(wheel_source),
+             "library_sha256": sha(case / "native-wheel.so"), "method": "GTK GDK_SCROLL_UP/DOWN through gtk_widget_event(WebView)"})
+    if args.palette:
+        save(case / "palette-test.json", {"issue": 162, "real_model_requests": False})
+    if args.mask_drop:
+        save(case / "mask-drop-test.json", {"issue": 204, "event": "synthetic DndContext onDragEnd"})
     if args.dock_layout:
         save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
         for index in range(1, 24):
             shutil.copy2(raw, case / f"input/smoke-{index:02d}.ARW")
+    if args.mcp_skill:
+        save(case / "mcp-skill-test.json", {"issue": 118, "real_model_requests": True, "source_checkout": str(args.skill_source.resolve())})
     if args.mcp_measure:
         save(case / "mcp-measure-test.json", {"issue": 117, "real_model_requests": True})
     if args.mcp_revisions:
         save(case / "mcp-revisions-test.json", {"issue": 148, "real_model_requests": True})
     if args.mcp_compact or args.mcp_compact_baseline:
         save(case / "mcp-compact-test.json", {"issue": 147, "baseline": args.mcp_compact_baseline, "real_model_requests": not args.mcp_compact_baseline})
+    if args.mcp_masks:
+        save(case / "mcp-masks-test.json", {"issue": 150, "real_model_requests": True})
     if args.mcp_history:
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_packaging:
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
+    if args.presets:
+        save(case / "presets-test.json", {"issue": 169})
+    if args.xmp_photo_policy:
+        save(case / "xmp-photo-policy-test.json", {"issue": 218, "real_model_requests": False})
+    if args.crs_interop:
+        save(case / "crs-interop-test.json", {"issue": 161, "real_model_requests": False})
+    if args.untrusted_text:
+        save(case / "untrusted-text-test.json", {"issue": 165, "real_model_requests": False})
     if args.crop_noop:
         save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
-        if not args.crop_noop and not args.mcp_compact_baseline:
+        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop:
             save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
@@ -647,21 +722,38 @@ def main():
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
     parser.add_argument("--terminal-clients", action="store_true", help="Use real clients from both terminal launch paths (implies --terminal --mcp-clients)")
+    parser.add_argument("--mcp-masks", action="store_true", help="Actual-client single-mask add, sibling preservation, nested defaults, history and sidecars")
     parser.add_argument("--mcp-history", action="store_true", help="Run actual-client labelled history/schema/preview scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-packaging", action="store_true", help="Verify default-off, launch consent, runtime toggle and real registered clients")
+    parser.add_argument("--mcp-skill", action="store_true", help="Fresh Claude session with only the plugin/MCP: grade, compare, export and explain source")
+    parser.add_argument("--skill-source", type=Path, help="Clean checkout matching the pinned app sourceCommit for the skill source explanation")
     parser.add_argument("--mcp-measure", action="store_true", help="Run read-only measurement/comparison scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-revisions", action="store_true", help="Real clients read latest state across a GUI edit and receive strict stale-write details")
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
     parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
+    parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
+    parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
+    parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
+    parser.add_argument("--xmp-photo-policy", action="store_true", help="Synthetic photo AlreadyApplied, pending draft/history and reusable preset checks")
+    parser.add_argument("--crs-interop", action="store_true", help="Check public CRS import and XML safety without model requests")
+    parser.add_argument("--mask-drop", action="store_true", help="Check mask creation drop insertion on a sub-mask row")
+    parser.add_argument("--untrusted-text", action="store_true", help="Check hostile descriptive text against real authenticated MCP without model requests")
+    parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     global WIDTH, HEIGHT
+    if args.viewport:
+        if not args.zoom or min(args.viewport) < 700:
+            parser.error("--viewport requires --zoom and dimensions >= 700")
+        WIDTH, HEIGHT = args.viewport
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop:
+    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop or args.xmp_photo_policy:
         args.mcp_clients = True
+    if args.mcp_skill and (not args.skill_source or not args.skill_source.is_dir()):
+        parser.error("--mcp-skill requires --skill-source matching the pinned app commit")
     if args.mcp_packaging:
         args.terminal_clients = True
     if args.terminal_clients:
@@ -670,6 +762,8 @@ def main():
         case = args.inside.resolve()
         if (case / "dock-layout-test.json").exists():
             WIDTH, HEIGHT = json.loads((case / "dock-layout-test.json").read_text())["viewport"]
+        if (case / "zoom-test.json").exists():
+            WIDTH, HEIGHT = json.loads((case / "zoom-test.json").read_text())["viewport"]
         runtime = Path((case / "runtime-path.txt").read_text().strip())
         if runtime.parent != Path("/run/user") / str(os.getuid()) or not runtime.name.startswith("rr-smoke-"):
             raise RuntimeError("Unexpected private runtime path")
