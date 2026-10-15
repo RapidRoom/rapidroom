@@ -1,0 +1,14 @@
+{
+  "id": "adjustment-group-translation-types",
+  "title": "Type copy and paste adjustment group labels as translation keys",
+  "category": "ci",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Adjustment group labels now use i18next's ParseKeys type, keeping the copy and paste settings UI's translation keys checked at compile time."
+}
