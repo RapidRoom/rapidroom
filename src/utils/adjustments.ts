@@ -1268,7 +1268,12 @@ export const getActiveTools = (adjustments: ToolStateSource): ActiveTools =>
 
 export const mergeActiveTools = (base: ToolStateSource, overrides: ToolStateSource): ActiveTools => ({
   ...getActiveTools(base),
-  ...getActiveTools(overrides),
+  ...(overrides.activeTools ?? {
+    ...Object.entries(overrides.sectionVisibility ?? {})
+      .filter(([, visible]) => visible)
+      .reduce((tools, [id]) => setToolActive(tools, id, true), {}),
+    ...getActiveTools(overrides),
+  }),
 });
 
 export const getAdjustmentToolOrder = (section: string, toolOrder?: Record<string, string[]>): string[] =>
