@@ -4362,7 +4362,7 @@ mod polynomial_tca_tests {
             let lens = db
                 .lenses
                 .iter()
-                .find(|lens| lens.get_model() == name)
+                .find(|lens| lens.get_canonical_model_name() == name)
                 .unwrap();
             assert_reference_coordinates(lens, entry);
         }
