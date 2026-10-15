@@ -10,5 +10,5 @@
   "upstream_prs": [],
   "rendering_change": false,
   "rapidroom_only": true,
-  "notes": "Virtualized library row render functions now declare their existing React element return type, matching react-window's row component contract without changing rendered output."
+  "notes": "Typed pass-through row components adapt memoized library rows to react-window's React element return contract while preserving the memoized rows and rendered output."
 }
