@@ -1,0 +1,9 @@
+{
+  "source": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "n_compared": 60,
+  "n_identical": 60,
+  "default_engine_sha256": "c5b6c1b1055e9d6f1f4d2078c7e8ba2c80e098edf761947f0728e054762acad3",
+  "combined_engine_sha256": "e609a79c4fbcb21be43b4587f073a3376be218f66523021a858be4e88fad0125",
+  "same_environment": true,
+  "reference_updated": false
+}

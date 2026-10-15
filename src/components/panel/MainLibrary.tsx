@@ -46,7 +46,7 @@ import SettingsPanel from './SettingsPanel';
 
 import LibraryGrid from './library/LibraryGrid';
 import { SearchInput, ViewOptionsDropdown } from './library/LibraryHeader';
-import { RAPIDRAW_BASE_VERSION, RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
+import { RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
 import { isPathInCardRoot } from '../../utils/cardMode';
 
 export interface ColumnWidths {
@@ -511,7 +511,7 @@ export default function MainLibrary(props: MainLibraryProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            RapidRAW {RAPIDRAW_BASE_VERSION}
+                            RapidRAW
                           </a>{' '}
                           {t('library.splash.upstreamBy')}{' '}
                           <a

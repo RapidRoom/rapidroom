@@ -3,9 +3,7 @@
   "title": "Import Lightroom AI masks from ACR sidecars",
   "category": "feature",
   "landed": "2026-10-13",
-  "authors": [
-    "yojen7"
-  ],
+  "authors": ["yojen7"],
   "source": "rapidroom (original implementation with Codex; shared ACR reader credited separately)",
   "commits": [],
   "upstream_issues": [],

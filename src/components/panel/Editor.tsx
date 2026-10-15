@@ -124,6 +124,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const isReferenceViewOn = isReferenceViewActive(referenceView);
   const isSliderDragging = useEditorStore((s) => s.isSliderDragging);
   const targetZoom = useEditorStore((s) => s.zoom);
+  const zoomRequest = useEditorStore((s) => s.zoomRequest);
   const dpr = useDevicePixelRatio();
   const isRotationActive = useEditorStore((s) => s.isRotationActive);
   const overlayMode = useEditorStore((s) => s.overlayMode);
@@ -131,6 +132,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const isStraightenActive = useEditorStore((s) => s.isStraightenActive);
   const isWbPickerActive = useEditorStore((s) => s.isWbPickerActive);
   const isMixerPickerActive = useEditorStore((s) => s.mixerPickerProperty !== null);
+  const isRelightPickerActive = useEditorStore((s) => s.isRelightPickerActive);
   const liveRotation = useEditorStore((s) => s.liveRotation);
   const brushSettings = useEditorStore((s) => s.brushSettings);
   const activeMaskContainerId = useEditorStore((s) => s.activeMaskContainerId);
@@ -141,6 +143,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const hasRenderedFirstFrame = useEditorStore((s) => s.hasRenderedFirstFrame);
 
   const setEditor = useEditorStore((s) => s.setEditor);
+  useEffect(() => () => setEditor({ zoomRequest: null }), [setEditor]);
   const toggleFullScreen = useUIStore((s) => s.toggleFullScreen);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
@@ -663,6 +666,34 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   );
 
   useEffect(() => {
+    if (!zoomRequest) return;
+    if (zoomRequest.imagePath !== selectedImage?.path) {
+      setEditor({ zoomRequest: null });
+      return;
+    }
+    if (zoomRequest.percent !== null) {
+      if (!selectedImage.isReady || !croppedDimensions || imageRenderSize.width <= 0) return;
+      // The layout hook may still hold the previous photo's fitted geometry.
+      const expectedScale = Math.min(
+        imageRenderSize.containerWidth / croppedDimensions.width,
+        imageRenderSize.containerHeight / croppedDimensions.height,
+      );
+      if (Math.abs(imageRenderSize.scale - expectedScale) > 1e-9) return;
+    }
+    const scale =
+      zoomRequest.percent === null ? 1 : transformFromPercent(zoomRequest.percent, imageRenderSize.scale, dpr);
+    setEditor({
+      zoomRequest: null,
+      zoom: scale,
+      baseRenderSize: {
+        ...imageRenderSize,
+        renderScale: imageRenderSize.scale,
+      },
+    });
+    zoomToCenter(scale, 200);
+  }, [zoomRequest, selectedImage, croppedDimensions, imageRenderSize, dpr, setEditor, zoomToCenter]);
+
+  useEffect(() => {
     if (!transformWrapperRef.current || !targetZoom || targetZoom <= 0) return;
 
     const currentScale = transformStateRef.current.scale || 1;
@@ -720,7 +751,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         activeSubMask?.type === Mask.Luminance ||
         activeSubMask?.parameters?.isInitialDraw)) ||
     isWbPickerActive ||
-    isMixerPickerActive;
+    isMixerPickerActive ||
+    isRelightPickerActive;
 
   useEffect(() => {
     const container = imageContainerRef.current;
@@ -728,6 +760,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
     const handleNativeWheel = (e: WheelEvent) => {
       e.preventDefault();
+      setEditor({ zoomRequest: null });
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
       if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
 
@@ -869,10 +902,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     liveRotation,
     getEffectiveCrop,
     setAdjustments,
+    setEditor,
   ]);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      setEditor({ zoomRequest: null });
       wasPanningDisabledOnDown.current = isPanningDisabled;
 
       const isCropHandle = isCropping && e.button === 0 && !!(e.target as HTMLElement).closest('[data-ord]');
@@ -959,7 +994,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
       if (e.pointerType === 'mouse') e.currentTarget.setPointerCapture(e.pointerId);
     },
-    [isPanningDisabled, isBrushActive, isCropping, getEffectiveCrop],
+    [isPanningDisabled, isBrushActive, isCropping, getEffectiveCrop, setEditor],
   );
 
   useEffect(() => {

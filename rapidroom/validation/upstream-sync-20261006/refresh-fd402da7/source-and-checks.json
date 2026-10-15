@@ -1,0 +1,134 @@
+{
+  "tested_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "merged_main": "fd402da7d01dfb2f45656b61dc82a6cdcbb75bba",
+  "upstream": "74597d066685283588502edbecd747bfe80404cf",
+  "application_tree_objects": {
+    "src": "fb2d4ab375d118239b6aacd14ccd70838600e2af",
+    "src-tauri": "74222991d0a7f12fbbc4eeccbd73746d17cac1b5",
+    "public": "f948ad9b6e4b9ee76ae645a5f0f71c133c8b92ce",
+    "package.json": "cd254f889bf51c044f6d8c23ac0ee0d9bba7c1fe",
+    "package-lock.json": "35129713df8095c7e17d230b4af0456236ac95e2",
+    ".github/workflows": "8eb202bc79c4d0d649d3f80179d7ea0aa630e7fb"
+  },
+  "engines": {
+    "default": {
+      "source": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "sha256": "c5b6c1b1055e9d6f1f4d2078c7e8ba2c80e098edf761947f0728e054762acad3",
+      "profile": "release"
+    },
+    "combined": {
+      "source": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "sha256": "e609a79c4fbcb21be43b4587f073a3376be218f66523021a858be4e88fad0125",
+      "profile": "release"
+    },
+    "native": {
+      "source": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "sha256": "610a4783011f89605f6f6eeb24ef2fcd7448503e0489bd205e7513e4dc44060c",
+      "profile": "release",
+      "features": ["native-ui-test", "terminal", "mcp"],
+      "stdio_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab"
+    }
+  },
+  "checks": {
+    "fmt": {
+      "exit": 0,
+      "finished": "2026-10-14T20:02:48.512931+00:00"
+    },
+    "schema": {
+      "exit": 0,
+      "finished": "2026-10-14T20:02:48.897351+00:00"
+    },
+    "status": {
+      "exit": 0,
+      "finished": "2026-10-14T20:02:49.030804+00:00"
+    },
+    "typecheck": {
+      "exit": 2,
+      "finished": "2026-10-14T20:02:59.565284+00:00",
+      "interpretation": "Four inherited main diagnostics; exact normalized full-message comparison introduces zero new diagnostics. This is not a zero-error TypeScript pass."
+    },
+    "clippy": {
+      "exit": 0,
+      "finished": "2026-10-14T20:03:26.588646+00:00"
+    },
+    "tests-default": {
+      "exit": 0,
+      "finished": "2026-10-14T20:05:00.089663+00:00",
+      "passed": 398,
+      "failed": 0,
+      "ignored": 8
+    },
+    "tests-combined": {
+      "exit": 0,
+      "finished": "2026-10-14T20:08:34.882045+00:00",
+      "passed": 449,
+      "failed": 0,
+      "ignored": 8
+    },
+    "vitest": {
+      "exit": 0,
+      "finished": "2026-10-14T20:17:59.946582+00:00",
+      "passed": 381
+    },
+    "release-default": {
+      "exit": 0,
+      "finished": "2026-10-14T20:27:54.427649+00:00"
+    },
+    "render-default": {
+      "exit": 0,
+      "finished": "2026-10-14T20:31:30.110210+00:00"
+    },
+    "release-combined": {
+      "exit": 0,
+      "finished": "2026-10-14T20:41:08.872119+00:00"
+    },
+    "render-combined": {
+      "exit": 0,
+      "finished": "2026-10-14T20:44:38.495575+00:00"
+    },
+    "native-build": {
+      "exit": 0,
+      "finished": "2026-10-14T20:55:21.220250+00:00"
+    },
+    "native-masks": {
+      "exit": 0,
+      "finished": "2026-10-15T03:10:09.268405+00:00"
+    },
+    "native-preview-fuji-xh2-40mp-compressed": {
+      "exit": 0,
+      "finished": "2026-10-15T03:11:01.215864+00:00"
+    },
+    "native-preview-fuji-xt4-26mp-lossless": {
+      "exit": 0,
+      "finished": "2026-10-15T03:15:04.535107+00:00"
+    },
+    "native-preview-sony-a7c2-15mp-uncompressed": {
+      "exit": 0,
+      "finished": "2026-10-15T03:15:51.429376+00:00"
+    },
+    "csp-default": {
+      "exit": 0,
+      "finished": "2026-10-15T03:15:58.866478+00:00"
+    },
+    "csp-cloud": {
+      "exit": 0,
+      "finished": "2026-10-15T03:16:05.900038+00:00"
+    }
+  },
+  "typecheck_comparison": {
+    "source": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+    "main": "fd402da7d01dfb2f45656b61dc82a6cdcbb75bba",
+    "method": "Normalized full multiline diagnostics compared to complete isolated main source snapshot with same dependencies; only locations and expanded i18n union display count/tail normalized",
+    "main_count": 4,
+    "candidate_count": 4,
+    "new": [],
+    "passed_no_new": true
+  },
+  "guard_count": 180,
+  "original_guards_unchanged": true,
+  "guards_receipt_sha256": "31d0b2d558a9807e42b04b71ad1c5e25febe37ae18511912a9103c9bcc5c80fd",
+  "reference_updated": false,
+  "josh_approval": false,
+  "source_review": "https://github.com/RapidRoom/rapidroom/pull/179#issuecomment-6101744763",
+  "scope": "Fresh migrated-main gates at523; prior Sony36, baseline80, pinned mainf30 controls and43 panels remain historical dcff/720 evidence. No fresh mainfd/native control or fresh settings/Sony run claimed."
+}

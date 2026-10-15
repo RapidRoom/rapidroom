@@ -24,6 +24,7 @@ pub(super) const LOCAL_ADJUSTMENTS: &[&str] = &[
     "lumaNoiseReduction",
     "saturation",
     "sectionVisibility",
+    "activeTools",
     "shadows",
     "sharpness",
     "sharpnessThreshold",

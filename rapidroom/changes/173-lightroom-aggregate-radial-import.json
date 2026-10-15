@@ -3,14 +3,9 @@
   "title": "Import Lightroom brush groups and correct radial polarity and rotated geometry",
   "category": "fix",
   "landed": "2026-10-06",
-  "authors": [
-    "yojen7",
-    "skymanbp"
-  ],
+  "authors": ["yojen7", "skymanbp"],
   "source": "rapidroom adaptation of measured XMP semantics from skymanbp/autoshade",
-  "commits": [
-    "https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba"
-  ],
+  "commits": ["https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba"],
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": true,

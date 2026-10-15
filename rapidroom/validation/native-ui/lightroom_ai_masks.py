@@ -1,6 +1,7 @@
 """Native import of an authored ACR/JXL fixture; no Adobe assets or model calls."""
 import hashlib
 import json
+import time
 from PIL import ImageChops
 from mcp_clients import image_state, rpc
 
@@ -17,11 +18,34 @@ def run_ai_mask_checks(smoke, wait_for):
     guard = hashlib.sha256(acr.read_bytes()).hexdigest()
     assert not xmp.exists()
 
+    observer = smoke.execute("""window.__aiMaskAudit={calls:[]};const api=window.__TAURI_INTERNALS__,callbacks=api.callbacks;
+  function record(cmd,payload,callback,error){
+   if(!['apply_adjustments','load_metadata','load_image','save_metadata_and_update_thumbnail','import_xmp_adjustments_for_image','import_matching_xmp_sidecars_in_folder'].includes(cmd))return;
+   const row={startedAt:performance.now(),command:cmd,args:JSON.parse(JSON.stringify(payload)),done:false};window.__aiMaskAudit.calls.push(row);
+   for(const [id,isError] of [[callback,false],[error,true]]){const old=callbacks.get(Number(id));if(!old)throw Error('Missing native callback '+cmd);callbacks.set(Number(id),value=>{row.done=true;row.completedAt=performance.now();if(isError)row.error=String(value);else if(cmd==='apply_adjustments'){row.previewBytes=value?.byteLength??value?.length;}else row.value=value;return old(value);});}
+  }
+  const oldFetch=window.fetch;const observer=function(url,options){if(String(url).startsWith('ipc://localhost/')){const cmd=decodeURIComponent(String(url).split('ipc://localhost/')[1]);record(cmd,typeof options.body==='string'?JSON.parse(options.body):options.body,options.headers.get('Tauri-Callback'),options.headers.get('Tauri-Error'));}return oldFetch.apply(this,arguments);};window.fetch=observer;
+  if(window.fetch!==observer)throw Error('Native fetch observer unavailable');return {nativeFetchObserved:true,invokeUntouched:true};""")
+    (case / 'ai-mask-native-observer.json').write_text(json.dumps(observer, indent=2)+'\n')
+
+    def sidecar_guard(path):
+        info = path.stat()
+        return {'size': info.st_size, 'mtime_ns': info.st_mtime_ns,
+                'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
+
+    def settled_import():
+        started = time.monotonic()
+        calls = wait_for(lambda: time.monotonic()-started >= 2 and smoke.execute(
+            "return window.__aiMaskAudit.calls.some(c=>c.command==='import_xmp_adjustments_for_image'&&c.done&&!c.error)&&window.__aiMaskAudit.calls.every(c=>c.done)&&window.__aiMaskAudit.calls;"),
+            'AI import and delayed native callbacks settled', 30)
+        return {'calls': calls, 'observation_seconds': time.monotonic()-started}
+
     def dismiss():
         smoke.execute("document.querySelectorAll('.Toastify__close-button').forEach(e=>e.click());return true;")
         wait_for(lambda: smoke.execute("return !document.querySelector('[role=alert]');"), 'AI import alerts dismissed')
 
     def import_xmp():
+        smoke.execute("window.__aiMaskAudit.calls=[];return true;")
         rect = smoke.roi
         smoke.execute("""const x=arguments[0],y=arguments[1],e=document.elementFromPoint(x,y);
           e.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2,clientX:x,clientY:y}));return true;""", [(rect[0]+rect[2])/2,(rect[1]+rect[3])/2])
@@ -48,6 +72,7 @@ def run_ai_mask_checks(smoke, wait_for):
     import_xmp()
     imported = wait_for(lambda: image_state(url, image, token=token)['adjustments'].get('masks'),
                         'persisted native AI import masks', 120)
+    successful_import = settled_import()
     assert len(imported) == 1
     types = [sub['type'] for sub in imported[0]['subMasks']]
     assert types[0:2] == ['ai-foreground', 'radial']
@@ -65,18 +90,26 @@ def run_ai_mask_checks(smoke, wait_for):
     persisted = case / 'input/smoke.ARW.rrdata'
     if not persisted.exists():
         persisted = next((case / 'input').glob('*.rrdata'))
-    saved = persisted.read_bytes()
+    saved = sidecar_guard(persisted)
+    saved_state = image_state(url, image, token=token)
     xmp.write_text(packet(False))
     acr.rename(acr.with_suffix('.acr.hidden'))
     import_xmp()
     notice = wait_for(lambda: smoke.execute("return [...document.querySelectorAll('[role=alert]')].map(e=>e.textContent).find(text=>text.includes('Subject coverage')&&text.includes('unavailable'));"), 'named missing ACR notice')
-    refused = {'notice': notice, 'evidence': 'visible native import refusal and unchanged sidecar'}
+    refusal_observation = settled_import()
+    assert sidecar_guard(persisted) == saved, 'Refused AI import changed the sidecar after callbacks settled'
+    assert image_state(url, image, token=token) == saved_state, 'Refused AI import changed native image state'
+    assert not any(c['command'] in ('save_metadata_and_update_thumbnail', 'apply_adjustments')
+                   for c in refusal_observation['calls']), 'Refused AI import triggered an unsolicited save or preview'
+    refused = {'notice': notice, 'before': saved, 'after': sidecar_guard(persisted),
+               'observation': refusal_observation,
+               'evidence': 'visible native refusal, completed import and delayed no-write observation'}
     smoke.capture('ai-mask-missing-companion-report')
-    assert persisted.read_bytes() == saved
+    assert sidecar_guard(persisted) == saved
     acr.with_suffix('.acr.hidden').rename(acr)
     assert hashlib.sha256(acr.read_bytes()).hexdigest() == guard
     dismiss()
-    result_file={'imported':result,'refused':refused,'sourceAcrUnchanged':True,'refusalPreservesSidecar':True,'previewChanged':True}
+    result_file={'imported':result,'successfulImportObservation':successful_import,'refused':refused,'sourceAcrUnchanged':True,'refusalPreservesSidecar':True,'previewChanged':True}
     (case / 'lightroom-ai-mask-evidence.json').write_text(json.dumps(result_file,indent=2)+'\n')
     current = image_state(url,image,token=token)
     restored = rpc(url,'tools/call',{'name':'set_adjustments','arguments':{

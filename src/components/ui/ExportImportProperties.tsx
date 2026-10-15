@@ -22,6 +22,7 @@ export const FILE_FORMATS: Array<FileFormat> = [
 
 export const FILENAME_VARIABLES: Array<string> = [
   '{original_filename}',
+  '{original_filename_number}',
   '{sequence}',
   '{title}',
   '{author}',
@@ -44,6 +45,10 @@ export const FILENAME_VARIABLES: Array<string> = [
 
 // Rename numbers bursts and brackets as groups; export and import have no groups.
 export const RENAME_VARIABLES: Array<string> = [...FILENAME_VARIABLES, '{group}', '{member}'];
+const UNIQUE_FILENAME_VARIABLES: Array<string> = ['{original_filename}', '{original_filename_number}', '{sequence}'];
+
+export const isUniqueFilenameTemplate = (template: string): boolean =>
+  UNIQUE_FILENAME_VARIABLES.some((variable) => template.includes(variable));
 
 export type TiffBitDepth = 8 | 16;
 
@@ -79,6 +84,8 @@ export function sanitizeFilenameTemplate(template: string | null | undefined): s
   const hasUnknownToken = usedTokens.some((token) => !knownTokens.has(token));
   return hasUnknownToken ? DEFAULT_FILENAME_TEMPLATE : template;
 }
+export const DEFAULT_EXPORT_DPI = 300;
+export const MAX_EXPORT_DPI = 65535;
 
 export interface ExportSettings {
   overwriteExisting?: boolean;
@@ -110,6 +117,7 @@ export interface ExportSettings {
   destinationType?: string;
   subfolder?: string;
   outputSharpening?: OutputSharpening | null;
+  dpi?: number;
 }
 
 export enum BorderBasis {
@@ -173,6 +181,7 @@ export interface ExportPreset {
   fileFormat: string;
   jpegQuality: number;
   tiffBitDepth?: TiffBitDepth;
+  dpi?: number;
   enableResize: boolean;
   resizeMode: string;
   resizeValue: number;
