@@ -3223,7 +3223,7 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
     {
         return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
     }
-    if unchanged && pending_adjustments.is_none() {
+    if unchanged {
         let metadata = read_sidecar_report_snapshot(&sidecar_path)?;
         return Ok(ImportedXmpSidecar {
             sidecar_path,
@@ -3237,11 +3237,7 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
             unchanged,
         });
     }
-    let mut metadata = if unchanged {
-        read_sidecar_report_snapshot(&sidecar_path)?
-    } else {
-        crate::exif_processing::load_sidecar(&sidecar_path)
-    };
+    let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
     if let Some(pending) = pending_adjustments {
         if !pending.is_object() {
             return Err("Pending editor adjustments must be an object".to_string());
@@ -6571,6 +6567,46 @@ mod tests {
         fs::write(&sidecar, "invalid JSON").unwrap();
         assert!(read_sidecar_report_snapshot(&sidecar).is_err());
         assert_eq!(fs::read_to_string(&sidecar).unwrap(), "invalid JSON");
+    }
+
+    #[test]
+    fn report_only_with_pending_draft_preserves_unknown_sidecar_bytes_and_does_not_consume_draft() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.NEF");
+        let sidecar = dir.path().join("photo.NEF.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&source, b"untouched raw").unwrap();
+        let saved = ImageMetadata {
+            adjustments: serde_json::json!({"exposure":2,"futureNativeControl":{"opaque":true}}),
+            ..ImageMetadata::default()
+        };
+        let mut native = serde_json::to_value(&saved).unwrap();
+        native["futureTopLevel"] = serde_json::json!({"mustSurvive":"unrecognized"});
+        let original = serde_json::to_string_pretty(&native).unwrap();
+        fs::write(&sidecar, &original).unwrap();
+        let pending = serde_json::json!({"exposure":0.75,"contrast":12});
+        for packet in [
+            r#"<root crs:PerspectiveVertical="2"/>"#,
+            r#"<root crs:AlreadyApplied="True" crs:Exposure2012="4"/>"#,
+        ] {
+            fs::write(&xmp, packet).unwrap();
+            let imported = import_xmp_adjustments_to_sidecar_with_draft(
+                source.to_str().unwrap(),
+                &xmp,
+                None,
+                Some(&pending),
+            )
+            .unwrap();
+            assert!(imported.unchanged);
+            assert!(!imported.adjustments_applied);
+            assert!(!imported.draft_preserved);
+            assert_eq!(imported.metadata.adjustments, saved.adjustments);
+            assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+            assert_eq!(fs::read_to_string(&xmp).unwrap(), packet);
+            assert_eq!(fs::read(&source).unwrap(), b"untouched raw");
+            assert_eq!(pending["exposure"], 0.75);
+        }
     }
 
     #[test]

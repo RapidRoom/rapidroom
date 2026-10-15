@@ -90,6 +90,32 @@ describe('public XMP import state and history', () => {
     expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: changed });
   });
 
+  it('keeps report-only imports read-only and resumes the unconsumed live draft autosave', async () => {
+    mockCommand(Invokes.ImportXmpAdjustmentsForImage, (args) => {
+      expect(args?.pendingAdjustments).toBe(draft);
+      return {
+        adjustments: { exposure: 2 },
+        adjustmentsApplied: false,
+        alreadyApplied: false,
+        draftPreserved: false,
+        unchanged: true,
+        settingsReport: {
+          mapped: 0,
+          approximated: 0,
+          ignored: 1,
+          omitted: 0,
+          settings: [{ field: 'PerspectiveVertical', outcome: 'ignored', reason: 'perspective' }],
+        },
+      };
+    });
+    await clickImport();
+    expect(useEditorStore.getState().adjustments).toBe(draft);
+    expect(useEditorStore.getState().history).toEqual([INITIAL_ADJUSTMENTS, draft]);
+    expect(invoke.mock.calls.map(([name]) => name)).toEqual([Invokes.ImportXmpAdjustmentsForImage]);
+    vi.advanceTimersByTime(300);
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: draft });
+  });
+
   it('waits for a previously started editor write before importing', async () => {
     let finish!: () => void;
     mockCommand(

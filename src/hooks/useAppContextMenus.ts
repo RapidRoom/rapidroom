@@ -368,14 +368,16 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         if (metadata.draftPreserved && draft?.path === targetPath && !newerDraft)
           markEditorDraftPersisted(targetPath, draft.adjustments);
         if (metadata.adjustmentsApplied) applyImportedXmpMetadata(targetPath, metadata, pause);
-        await props.refreshImageList();
-        toast.success(
-          t(
-            metadata.adjustmentsApplied
-              ? 'contextMenus.toasts.importedXmpAdjustments'
-              : 'contextMenus.xmpImportReport.metadataOnly',
-          ),
-        );
+        if (!metadata.unchanged) {
+          await props.refreshImageList();
+          toast.success(
+            t(
+              metadata.adjustmentsApplied
+                ? 'contextMenus.toasts.importedXmpAdjustments'
+                : 'contextMenus.xmpImportReport.metadataOnly',
+            ),
+          );
+        }
         if (newerDraft) toast.info(t('contextMenus.xmpImportReport.concurrentEditsPreserved'));
         if (metadata.alreadyApplied)
           toast.info(t('contextMenus.xmpImportReport.alreadyAppliedPhoto'), { autoClose: false });
