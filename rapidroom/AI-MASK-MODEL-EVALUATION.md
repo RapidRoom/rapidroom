@@ -91,3 +91,45 @@ Keep DA2's existing near/far meaning. DA3 Mono predicts direct relative depth wh
 6. Require focused adapter tests, native app/MCP checks, the applicable exact-head local/hosted gates and unchanged default renders. Intended changes to opted-in mask output need labelled before/after panels and human approval. Do not regenerate existing bitmap masks or close #222 merely because this document or PR #239 landed.
 
 Next implementation order: SAM adapter/provenance and timing → optional General-Lite quality experiment → measured higher tiers if justified → separately approved depth normalization or DA3 conversion. SkySeg replacement remains outside this evaluation because the mirror weight provenance is incomplete.
+
+## Reproducing the measured CPU graph baseline
+
+Use an already installed ONNX Runtime 1.30.0 plus NumPy and an owned local copy of the existing graph. Check its 99,373,606-byte size and SHA-256 `d2b11a11c1d4a12b47608fa65a17ee9a4c605b55ee1730c8e3b526304f2562be` **before** taking the model/app lock. No model downloader or remote Python code is needed. The following is the exact synthetic input and timing loop; substitute the verified local filename for `MODEL.onnx`.
+
+```sh
+flock /tmp/rapidroom-gpu.lock nice -n 10 python - MODEL.onnx <<'PY'
+import json, resource, statistics, sys, time
+import numpy as np
+import onnxruntime as ort
+options = ort.SessionOptions()
+options.intra_op_num_threads = 4
+options.inter_op_num_threads = 1
+options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+start = time.perf_counter()
+session = ort.InferenceSession(sys.argv[1], sess_options=options,
+                               providers=['CPUExecutionProvider'])
+load_seconds = time.perf_counter() - start
+x = np.arange(518, dtype=np.float32)
+y = x[:, None]
+image = np.stack([np.broadcast_to(x / 517, (518, 518)),
+                  np.broadcast_to(y / 517, (518, 518)), (x + y) / 1034])
+image = ((image - np.array([.485, .456, .406], dtype=np.float32)[:, None, None])
+         / np.array([.229, .224, .225], dtype=np.float32)[:, None, None])
+inputs = {session.get_inputs()[0].name: image[None]}
+times = []
+for index in range(6):
+    start = time.perf_counter()
+    outputs = session.run(None, inputs)
+    elapsed = time.perf_counter() - start
+    assert all(np.isfinite(value).all() for value in outputs)
+    if index:
+        times.append(elapsed)
+print(json.dumps({'runtime': ort.__version__, 'providers': session.get_providers(),
+                  'load_seconds': load_seconds, 'seconds': times,
+                  'median_seconds': statistics.median(times),
+                  'output_shapes': [list(value.shape) for value in outputs],
+                  'max_rss_kib': resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}))
+PY
+```
+
+The recorded run used an existing isolated Python environment. Reproduction times will vary with CPU load, thermals and runtime build; report those conditions instead of treating five runs as a stable p95.
