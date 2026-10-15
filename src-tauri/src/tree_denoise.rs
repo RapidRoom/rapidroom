@@ -22,7 +22,7 @@ use tauri::Manager;
 
 const TILE: usize = 256;
 const OVERLAP: usize = 64;
-const PIPELINE: &str = "rawforge-bayer-malvar-f16-cpu-v1";
+const PIPELINE: &str = "rawforge-bayer-malvar-f16-cpu-colour-cosine-v2";
 const CACHE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
 
 pub struct Model {
@@ -362,61 +362,6 @@ fn malvar(mosaic: &[f64], w: usize, h: usize, job: &DenoiseJob) -> Result<Vec<f1
     Ok(rgb)
 }
 
-#[derive(Debug)]
-struct Axis {
-    starts: Vec<usize>,
-    overlaps: Vec<(usize, usize)>,
-}
-fn axis(n: usize) -> Axis {
-    let mut starts = vec![0];
-    let mut overlaps = Vec::new();
-    let mut c = 1;
-    while starts.last().unwrap() + TILE < n {
-        let next = (TILE - OVERLAP) * c;
-        let last = next + TILE >= n;
-        let start = if last { n - TILE } else { next };
-        starts.push(start);
-        let mut zeros = if last {
-            starts[starts.len() - 2] + TILE - OVERLAP - start
-        } else {
-            0
-        };
-        let mut ramp = OVERLAP;
-        if last && c == 1 && TILE > n / 2 && TILE != n {
-            ramp += zeros;
-            zeros = 0;
-        }
-        if overlaps.is_empty() {
-            overlaps.push((zeros, ramp));
-        }
-        overlaps.push((zeros, ramp));
-        c += 1;
-    }
-    Axis { starts, overlaps }
-}
-fn weight(a: &Axis, tile: usize, pixel: usize) -> f16 {
-    if a.starts.len() == 1 {
-        return f16::ONE;
-    }
-    let (zeros, ramp) = a.overlaps[tile];
-    let rising = |p: usize| {
-        if p < zeros {
-            0.
-        } else if p < zeros + ramp {
-            (p - zeros) as f32 / (ramp - 1) as f32
-        } else {
-            1.
-        }
-    };
-    let mut v = f16::ONE;
-    if tile > 0 {
-        v = f16::from_f32(rising(pixel));
-    }
-    if tile + 1 < a.starts.len() {
-        v = f16::from_f32(v.to_f32() * f16::from_f32(rising(TILE - 1 - pixel)).to_f32());
-    }
-    v
-}
 fn infer(
     rgb: &[f16],
     w: usize,
@@ -426,8 +371,8 @@ fn infer(
     label: &str,
     job: &DenoiseJob,
 ) -> Result<Vec<f16>> {
-    let xs = axis(w);
-    let ys = axis(h);
+    let xs = crate::denoise_quality::Axis::new(w, TILE, OVERLAP).map_err(anyhow::Error::msg)?;
+    let ys = crate::denoise_quality::Axis::new(h, TILE, OVERLAP).map_err(anyhow::Error::msg)?;
     let total = xs.starts.len() * ys.starts.len();
     let options = Arc::new(RunOptions::new()?);
     job.attach_run_options(options.clone())
@@ -436,7 +381,7 @@ fn infer(
         [1usize, 1],
         vec![f16::from_f32(iso.min(65535) as f32 / 6400.)].into_boxed_slice(),
     ))?;
-    let mut output = vec![f16::ZERO; rgb.len()];
+    let mut output = vec![0.0f32; rgb.len()];
     for (yi, &y) in ys.starts.iter().enumerate() {
         for (xi, &x) in xs.starts.iter().enumerate() {
             job.check().map_err(anyhow::Error::msg)?;
@@ -474,14 +419,10 @@ fn infer(
             );
             for dy in 0..TILE {
                 for dx in 0..TILE {
-                    let mask =
-                        f16::from_f32(weight(&ys, yi, dy).to_f32() * weight(&xs, xi, dx).to_f32());
+                    let mask = ys.weights[yi][dy] * xs.weights[xi][dx];
                     for c in 0..3 {
                         let i = c * w * h + (y + dy) * w + x + dx;
-                        let prediction = f16::from_f32(
-                            tile[c * TILE * TILE + dy * TILE + dx].to_f32() * mask.to_f32(),
-                        );
-                        output[i] = f16::from_f32(output[i].to_f32() + prediction.to_f32());
+                        output[i] += tile[c * TILE * TILE + dy * TILE + dx].to_f32() * mask;
                     }
                 }
             }
@@ -493,7 +434,7 @@ fn infer(
             ));
         }
     }
-    Ok(output)
+    Ok(output.into_iter().map(f16::from_f32).collect())
 }
 fn restore(
     raw: &mut RawImage,
@@ -695,6 +636,14 @@ fn cached_sensor_at(
             job,
         )?;
     }
+    job.progress("Restoring whole-image colour…");
+    let reference = malvar(&normalized_mosaic(&raw, a, &matrix, job)?, a.w, a.h, job)?;
+    let reference: Vec<f32> = reference.into_iter().map(f16::to_f32).collect();
+    let mut corrected: Vec<f32> = rgb.into_iter().map(f16::to_f32).collect();
+    crate::denoise_quality::restore_colour(&mut corrected, &reference, a.w, a.h, || job.check())
+        .map_err(anyhow::Error::msg)?;
+    drop(reference);
+    let rgb: Vec<f16> = corrected.into_iter().map(f16::from_f32).collect();
     restore(&mut raw, a, &matrix, &rgb, job)?;
     drop(rgb);
     job.check().map_err(anyhow::Error::msg)?;
@@ -801,22 +750,6 @@ mod tests {
             for c in 0..3 {
                 assert!((actual[c * 8 + i].to_f64() - pixel[c]).abs() < 0.0002);
             }
-        }
-    }
-    #[test]
-    fn irregular_last_tiles_blend_constant_data_without_seams() {
-        for n in [256, 258, 320, 448, 512, 7028] {
-            let a = axis(n);
-            let mut sums = vec![0.; n];
-            for (t, &start) in a.starts.iter().enumerate() {
-                for p in 0..TILE {
-                    sums[start + p] += weight(&a, t, p).to_f32();
-                }
-            }
-            assert!(
-                sums.iter().all(|v| (v - 1.).abs() < 0.001),
-                "{n}: uncovered or double-weighted edge"
-            );
         }
     }
     #[test]
