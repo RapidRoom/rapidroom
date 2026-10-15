@@ -1,3 +1,4 @@
+import { useJpegMetadataReports } from './useJpegMetadataReports';
 import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -146,6 +147,7 @@ export interface UseAppContextMenusProps {
 }
 
 export function useAppContextMenus(props: UseAppContextMenusProps) {
+  const { writeMetadata, undoMetadata, undoToken } = useJpegMetadataReports(props.refreshImageList);
   const { t } = useTranslation();
   const { showContextMenu } = useContextMenu();
 
@@ -959,6 +961,17 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           onClick: () => importXmpAdjustmentsForImage(finalSelection[0]),
         },
         {
+          icon: FileUp,
+          label: t('jpegMetadata.write'),
+          onClick: () => void writeMetadata(finalSelection),
+        },
+        {
+          icon: Undo,
+          label: t('jpegMetadata.undo'),
+          disabled: !undoToken.current,
+          onClick: () => void undoMetadata(),
+        },
+        {
           label: t('contextMenus.editor.productivity'),
           icon: Gauge,
           submenu: [
@@ -1208,6 +1221,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       handleCopyAdjustments,
       handlePasteAdjustments,
       importXmpAdjustmentsForImage,
+      writeMetadata,
+      undoMetadata,
+      undoToken,
       handleRate,
       buildFlagMenu,
       handleSetColorLabel,

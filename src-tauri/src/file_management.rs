@@ -2969,38 +2969,41 @@ fn move_files_on_disk(
 }
 
 #[tauri::command]
-pub fn save_metadata_and_update_thumbnail(
+pub async fn save_metadata_and_update_thumbnail(
     path: String,
     adjustments: Value,
     app_handle: AppHandle,
-    state: tauri::State<AppState>,
 ) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        save_metadata_and_update_thumbnail_blocking(path, adjustments, app_handle)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn save_metadata_and_update_thumbnail_blocking(
+    path: String,
+    adjustments: Value,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    let state = app_handle.state::<AppState>();
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     ensure_card_writable(&source_path)?;
 
-    let mut metadata = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
-
-    let mut final_adjustments = adjustments;
-    {
+    let settings = load_settings(app_handle.clone()).unwrap_or_else(|_| AppSettings {
+        enable_xmp_sync: Some(false),
+        ..Default::default()
+    });
+    save_develop_metadata(&source_path, &sidecar_path, &settings, |metadata| {
+        let mut final_adjustments = adjustments;
         let lens_db_guard = state.lens_db.lock().unwrap();
         resolve_lens_params_in_adjustments(
             &mut final_adjustments,
             &metadata.exif,
             lens_db_guard.as_deref(),
         );
-    }
-
-    metadata.adjustments = final_adjustments;
-
-    let json_string = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
-    write_file_atomically(&sidecar_path, json_string).map_err(|e| e.to_string())?;
-
-    if let Ok(settings) = load_settings(app_handle.clone())
-        && settings.enable_xmp_sync.unwrap_or(false)
-    {
-        let create_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
-        sync_metadata_to_xmp(&source_path, &sidecar_path, &metadata, create_if_missing);
-    }
+        metadata.adjustments = final_adjustments;
+    })?;
 
     let loaded_image_lock = state.original_image.lock().unwrap();
     let preloaded_image_option = if let Some(loaded_image) = loaded_image_lock.as_ref() {
@@ -3236,7 +3239,7 @@ pub fn import_xmp_adjustments_for_image(
     let settings_report = imported.settings_report;
     let unchanged = imported.unchanged;
     if !unchanged {
-        save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
+        save_metadata_and_update_thumbnail_blocking(path, imported_adjustments, app_handle)?;
     }
 
     log::info!(
@@ -3836,6 +3839,30 @@ pub async fn apply_auto_adjustments_to_paths(
     Ok(())
 }
 
+/// Serialize ordinary develop autosaves with JPEG culling Undo before reading
+/// the sidecar, so a queued save merges into the restored culling state.
+pub(crate) fn save_develop_metadata(
+    source: &Path,
+    sidecar: &Path,
+    settings: &crate::app_settings::AppSettings,
+    update: impl FnOnce(&mut ImageMetadata),
+) -> Result<ImageMetadata, String> {
+    let _guard = crate::jpeg_culling::action_guard()?;
+    let mut metadata = crate::exif_processing::load_sidecar_with_exif(sidecar, source);
+    update(&mut metadata);
+    let text = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
+    write_file_atomically(sidecar, text).map_err(|e| e.to_string())?;
+    if settings.enable_xmp_sync.unwrap_or(false) {
+        sync_metadata_to_xmp(
+            source,
+            sidecar,
+            &metadata,
+            settings.create_xmp_if_missing.unwrap_or(false),
+        );
+    }
+    Ok(metadata)
+}
+
 fn update_sidecar(
     sidecar_path: &Path,
     update: impl Fn(&mut ImageMetadata),
@@ -3863,20 +3890,50 @@ fn update_metadata_for_paths(
         .enable_xmp_sync
         .unwrap_or(false)
         .then(|| settings.create_xmp_if_missing.unwrap_or(false));
-    update_metadata(paths, xmp_sync, update)
+    let _guard = crate::jpeg_culling::action_guard()?;
+    let before = settings
+        .write_jpeg_metadata
+        .unwrap_or(false)
+        .then(|| crate::jpeg_culling::capture(paths));
+    update_metadata_with_jpeg(
+        paths,
+        xmp_sync,
+        settings.write_jpeg_metadata.unwrap_or(false),
+        update,
+    )?;
+    if let Some(before) = before {
+        crate::jpeg_culling::sync(paths, before, app_handle, true);
+    }
+    Ok(())
 }
 
 /// `xmp_sync` is `Some(create_if_missing)` when XMP sync is on.
+#[cfg(test)]
 fn update_metadata(
     paths: &[String],
     xmp_sync: Option<bool>,
+    update: impl Fn(&mut ImageMetadata) + Sync,
+) -> Result<(), String> {
+    update_metadata_with_jpeg(paths, xmp_sync, false, update)
+}
+
+fn update_metadata_with_jpeg(
+    paths: &[String],
+    xmp_sync: Option<bool>,
+    embed_jpeg: bool,
     update: impl Fn(&mut ImageMetadata) + Sync,
 ) -> Result<(), String> {
     ensure_card_writable_for_paths(paths)?;
     paths.par_iter().try_for_each(|path| {
         let (source_path, sidecar_path) = parse_virtual_path(path);
 
-        let metadata = update_sidecar(&sidecar_path, &update)?;
+        let metadata = update_sidecar(&sidecar_path, |metadata| {
+            if embed_jpeg && crate::jpeg_culling::is_jpeg(&source_path) {
+                // Preserve a camera rating before a reject replaces its embedded value with -1.
+                metadata.rating = exif_processing::resolve_rating(&source_path, metadata);
+            }
+            update(metadata);
+        })?;
 
         if let Some(create_xmp_if_missing) = xmp_sync {
             sync_metadata_to_xmp(
@@ -3891,25 +3948,29 @@ fn update_metadata(
 }
 
 #[tauri::command]
-pub fn set_color_label_for_paths(
+pub async fn set_color_label_for_paths(
     paths: Vec<String>,
     color: Option<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    update_metadata_for_paths(&paths, &app_handle, |metadata| {
-        let mut tags = metadata.tags.take().unwrap_or_default();
-        tags.retain(|tag| !tag.starts_with(COLOR_TAG_PREFIX));
+    tauri::async_runtime::spawn_blocking(move || {
+        update_metadata_for_paths(&paths, &app_handle, |metadata| {
+            let mut tags = metadata.tags.take().unwrap_or_default();
+            tags.retain(|tag| !tag.starts_with(COLOR_TAG_PREFIX));
 
-        if let Some(c) = &color
-            && !c.is_empty()
-        {
-            tags.push(format!("{}{}", COLOR_TAG_PREFIX, c));
-        }
+            if let Some(c) = &color
+                && !c.is_empty()
+            {
+                tags.push(format!("{}{}", COLOR_TAG_PREFIX, c));
+            }
 
-        if !tags.is_empty() {
-            metadata.tags = Some(tags);
-        }
+            if !tags.is_empty() {
+                metadata.tags = Some(tags);
+            }
+        })
     })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 fn apply_user_rating(metadata: &mut ImageMetadata, rating: u8) {
@@ -3928,30 +3989,65 @@ fn apply_user_flag(metadata: &mut ImageMetadata, flag: Option<ImageFlag>) {
 }
 
 #[cfg(test)]
+mod jpeg_rating_preservation_tests {
+    use super::*;
+    #[test]
+    fn opt_in_reject_keeps_the_previous_embedded_star_rating_in_the_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("rated.jpg");
+        let mut bytes = Vec::new();
+        image::codecs::jpeg::JpegEncoder::new(&mut bytes)
+            .encode(&[30; 12], 2, 2, image::ExtendedColorType::Rgb8)
+            .unwrap();
+        fs::write(&path, bytes).unwrap();
+        crate::jpeg_metadata::write(&path, 3, None).unwrap();
+        let name = path.to_string_lossy().into_owned();
+        update_metadata_with_jpeg(std::slice::from_ref(&name), None, true, |metadata| {
+            apply_user_flag(metadata, Some(ImageFlag::Reject))
+        })
+        .unwrap();
+        let metadata = exif_processing::load_sidecar(&parse_virtual_path(&name).1);
+        assert_eq!(metadata.rating, 3);
+        assert_eq!(metadata.flag, Some(ImageFlag::Reject));
+    }
+}
+
+#[cfg(test)]
 fn store_user_rating(sidecar_path: &Path, rating: u8) -> ImageMetadata {
     update_sidecar(sidecar_path, |metadata| apply_user_rating(metadata, rating)).unwrap()
 }
 
 #[tauri::command]
-pub fn set_rating_for_paths(
+pub async fn set_rating_for_paths(
     paths: Vec<String>,
     rating: u8,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    update_metadata_for_paths(&paths, &app_handle, |metadata| {
-        apply_user_rating(metadata, rating)
+    if rating > 5 {
+        return Err("Rating must be between 0 and 5".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        update_metadata_for_paths(&paths, &app_handle, |metadata| {
+            apply_user_rating(metadata, rating)
+        })
     })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
-pub fn set_flag_for_paths(
+pub async fn set_flag_for_paths(
     paths: Vec<String>,
     flag: Option<ImageFlag>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    update_metadata_for_paths(&paths, &app_handle, |metadata| {
-        apply_user_flag(metadata, flag)
+    tauri::async_runtime::spawn_blocking(move || {
+        update_metadata_for_paths(&paths, &app_handle, |metadata| {
+            apply_user_flag(metadata, flag)
+        })
     })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

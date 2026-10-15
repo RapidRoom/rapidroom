@@ -1891,7 +1891,9 @@
       "toolFocusMode": "Tryb skupienia na narzędziach",
       "toolFocusModeDesc": "Automatycznie zwija inne narzędzia w panelu, gdy rozwijasz jedno z nich.",
       "xmpSync": "Synchronizacja metadanych XMP",
-      "xmpSyncDesc": "Synchronizuj oceny, etykiety kolorów i tagi do standardowych plików XMP w celu zachowania kompatybilności z innymi edytorami zdjęć."
+      "xmpSyncDesc": "Synchronizuj oceny, etykiety kolorów i tagi do standardowych plików XMP w celu zachowania kompatybilności z innymi edytorami zdjęć.",
+      "writeJpegMetadata": "Write ratings and labels into JPEG files",
+      "writeJpegMetadataDesc": "Embed ratings, color labels and reject flags in original JPEGs without re-encoding pixels. Off by default; other formats keep using sidecars."
     },
     "keybinds": {
       "actions": {
@@ -2329,5 +2331,18 @@
         "vectorscope": "Wektroskop"
       }
     }
+  },
+  "jpegMetadata": {
+    "write": "Write metadata to files",
+    "undo": "Undo last metadata write",
+    "written_one": "Wrote JPEG metadata to {{count}} file.",
+    "written_other": "Wrote JPEG metadata to {{count}} files.",
+    "restored_one": "Restored metadata for {{count}} file.",
+    "restored_other": "Restored metadata for {{count}} files.",
+    "failed": "Metadata write failed: {{error}}",
+    "written_few": "Wrote JPEG metadata to {{count}} files.",
+    "written_many": "Wrote JPEG metadata to {{count}} files.",
+    "restored_few": "Restored metadata for {{count}} files.",
+    "restored_many": "Restored metadata for {{count}} files."
   }
 }
