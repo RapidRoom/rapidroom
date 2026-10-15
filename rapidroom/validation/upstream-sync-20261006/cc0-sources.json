@@ -1,0 +1,182 @@
+[
+  {
+    "id": "sony-a7c2-33mp-uncompressed",
+    "file": "sony-a7c2-33mp-uncompressed.ARW",
+    "make": "Sony",
+    "model": "ILCE-7CM2",
+    "sha256": "55de0ff9abbd11c2d166fdd8cfa99129ef8478f2895a65105253e6fcdfdba430",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/6865/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW"
+  },
+  {
+    "id": "sony-a7c2-15mp-uncompressed",
+    "file": "sony-a7c2-15mp-uncompressed.ARW",
+    "make": "Sony",
+    "model": "ILCE-7CM2",
+    "sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/6866/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW"
+  },
+  {
+    "id": "sony-a7c2-37mp-4x3",
+    "file": "sony-a7c2-37mp-4x3.ARW",
+    "make": "Sony",
+    "model": "ILCE-7CM2",
+    "sha256": "342d893bd71fd050c273df181e3039d3f12d88947b0662de5de5325c84cc449b",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/6867/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%20%284%3A3%29.ARW"
+  },
+  {
+    "id": "sony-a7c2-33mp-compressed",
+    "file": "sony-a7c2-33mp-compressed.ARW",
+    "make": "Sony",
+    "model": "ILCE-7CM2",
+    "sha256": "3c1214b447b29fafd32b3a4c0a873362bcd516978037c77c31009bb598938fbc",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/6868/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%20%283%3A2%29.ARW"
+  },
+  {
+    "id": "sony-a7c2-15mp-compressed",
+    "file": "sony-a7c2-15mp-compressed.ARW",
+    "make": "Sony",
+    "model": "ILCE-7CM2",
+    "sha256": "002c86d38a16b08a2438780728b4fda8efcc745fa6c26231dad6af67b383b11e",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/6869/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%20%283%3A2%29.ARW"
+  },
+  {
+    "id": "sony-a7cr-61mp-compressed",
+    "file": "sony-a7cr-61mp-compressed.ARW",
+    "make": "Sony",
+    "model": "ILCE-7CR",
+    "sha256": "f5096e8fbccf0842c8a57763cabd2836608f019eb7fd54f7b22260c2f5bc4da5",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/7035/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20Compressed%20%283%3A2%29.ARW"
+  },
+  {
+    "id": "sony-a7cr-65mp-lossless",
+    "file": "sony-a7cr-65mp-lossless.ARW",
+    "make": "Sony",
+    "model": "ILCE-7CR",
+    "sha256": "3e1642f3a1ae7c9f93228c5f09f27e362608e6a4ca1b3e5d8dd9eb8fae576997",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/7032/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20losseless%20compressed%20%284%3A3%29.ARW"
+  },
+  {
+    "id": "sony-a7cr-26mp-uncompressed",
+    "file": "sony-a7cr-26mp-uncompressed.ARW",
+    "make": "Sony",
+    "model": "ILCE-7CR",
+    "sha256": "9fec10038779ed2590bdcd1e9de102209c00e7a4ec373add4aa0885b21030ef0",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/7039/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW"
+  },
+  {
+    "id": "sony-a7cr-18mp-lossless-s",
+    "file": "sony-a7cr-18mp-lossless-s.ARW",
+    "make": "Sony",
+    "model": "ILCE-7CR",
+    "sha256": "21f61c98fd7671cd6057520a5afab3b4a12d139c7833ead5f782736dee2d6b9e",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/7034/nice/Sony%20-%20ILCE-7CR%20-%20losseless%20compressed%20%284%3A3%29.ARW"
+  },
+  {
+    "id": "canon-r6m2-24mp-raw",
+    "file": "canon-r6m2-24mp-raw.CR3",
+    "make": "Canon",
+    "model": "EOS R6 Mark II",
+    "sha256": "1a93f96556aabbc4a7260750ab0a191ec7926bb978fe8428bf3465121da730d6",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/6402/nice/Canon%20-%20EOS%20R6%20Mark%20II%20-%203%3A2.cr3"
+  },
+  {
+    "id": "canon-r50-24mp-craw",
+    "file": "canon-r50-24mp-craw.CR3",
+    "make": "Canon",
+    "model": "EOS R50",
+    "sha256": "38fc458f2f74d0cfa04afd0ce513b40797080079f0786bedbfc55c39cc28d7d8",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/6645/nice/Canon%20-%20EOS%20R50%20-%20CRAW%20%283%3A2%29.CR3"
+  },
+  {
+    "id": "nikon-zf-24mp-compressed",
+    "file": "nikon-zf-24mp-compressed.NEF",
+    "make": "Nikon",
+    "model": "Z f",
+    "sha256": "83c82be0be8865d796096dfbcc8ef2abf5af1bd37db44dfad6715070b0c99d15",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/6885/nice/Nikon%20-%20Z%20f%20-%2014bit%2014bit%20compressed%20%283%3A2%29.NEF"
+  },
+  {
+    "id": "nikon-zfc-21mp-lossless",
+    "file": "nikon-zfc-21mp-lossless.NEF",
+    "make": "Nikon",
+    "model": "Z fc",
+    "sha256": "4099ecc46ebaca26e2a66a96a8313fed5e8c707b3836ccf0e77a134844b041c1",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/4812/nice/Nikon%20-%20Z%20fc%20-%2014bit%2014bit%20compressed%20%28Lossless%29%20%283%3A2%29.nef"
+  },
+  {
+    "id": "fuji-xh2-40mp-compressed",
+    "file": "fuji-xh2-40mp-compressed.RAF",
+    "make": "Fujifilm",
+    "model": "X-H2",
+    "sha256": "caeadb2666f6c5d9bbe32fbe692c2079b6a7e028f8514a13173f360656d08507",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/6001/nice/Fujifilm%20-%20X-H2%20-%2014bit%2014bit%20compressed%20%283%3A2%29.RAF"
+  },
+  {
+    "id": "fuji-xt4-26mp-lossless",
+    "file": "fuji-xt4-26mp-lossless.RAF",
+    "make": "Fujifilm",
+    "model": "X-T4",
+    "sha256": "07ea642656074834ffe5c661870a612ffa2e80fc1218a05166ee966bbe5f6fae",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/3914/nice/Fujifilm%20-%20X-T4%20-%2014bit%2014bit%20lossless%20compressed%20%283%3A2%29.RAF"
+  },
+  {
+    "id": "ricoh-griiix-24mp-dng",
+    "file": "ricoh-griiix-24mp-dng.DNG",
+    "make": "Ricoh",
+    "model": "GR IIIx",
+    "sha256": "1e318af31be4baa9949f0ed4af5cfe8ffb2c180e2c12926cd75ac1d029bb0fae",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/5818/nice/Ricoh%20-%20GR%20IIIx%20-%2014bit%20%283%3A2%29.DNG"
+  },
+  {
+    "id": "google-pixel7pro-dng",
+    "file": "google-pixel7pro-dng.DNG",
+    "make": "Google",
+    "model": "Pixel 7 Pro",
+    "sha256": "6b921558944db5fdb4f1c63dc64919b6666ef700857a187e18500099c6e7c6c6",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/6168/nice/Google%20-%20Pixel%207%20Pro%20-%2016bit%20%284%3A3%29.dng"
+  },
+  {
+    "id": "apple-iphone12pro-proraw",
+    "file": "apple-iphone12pro-proraw.DNG",
+    "make": "Apple",
+    "model": "iPhone 12 Pro",
+    "sha256": "e91e77a4533ed7cce551d83330676ea5c47dd5e55fb38adda7819366afdbdfc2",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/4264/nice/Apple%20-%20iPhone%2012%20Pro%20-%208bit%20%284%3A3%29.DNG"
+  },
+  {
+    "id": "om-om1-20mp",
+    "file": "om-om1-20mp.ORF",
+    "make": "OM System",
+    "model": "OM-1",
+    "sha256": "bf2eef6becc0851e48231617c3e2eac27a2cdb44c75b93035c561d837952c18b",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/5283/nice/OM%20System%20-%20OM-1%20-%2016bit%20%284%3A3%29.ORF"
+  },
+  {
+    "id": "panasonic-s5m2-24mp",
+    "file": "panasonic-s5m2-24mp.RW2",
+    "make": "Panasonic",
+    "model": "DC-S5M2",
+    "sha256": "53a171521a7f9af6910b4ab61c5a4a42de0cceb24166e15b07eee1e00675028f",
+    "license": "CC0-1.0",
+    "url": "https://raw.pixls.us/getfile.php/7790/nice/Panasonic%20-%20DC-S5M2%20-%2014bit%20%283%3A2%29.RW2"
+  }
+]

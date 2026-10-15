@@ -22,6 +22,8 @@ import type { FolderTree } from '../components/ui/AppProperties';
 import { Adjustments, INITIAL_ADJUSTMENTS, normalizeLoadedAdjustments } from '../utils/adjustments';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { debouncedSave, debouncedSetHistory } from './useEditorActions';
+import { clearLibrarySelection } from './useLibraryActions';
+import { computeSortedLibrary } from './useSortedLibrary';
 import type { ImageDimensions } from './useImageRenderSize';
 
 interface CachedEditorState {
@@ -195,8 +197,17 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
     debouncedSetHistory.cancel();
 
     const lastActivePath = selectedImage?.path ?? null;
+    const isStillVisible =
+      lastActivePath !== null &&
+      computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState()).some(
+        (img) => img.path === lastActivePath,
+      );
 
-    setLibrary({ libraryActivePath: lastActivePath });
+    if (isStillVisible) {
+      setLibrary({ libraryActivePath: lastActivePath });
+    } else {
+      clearLibrarySelection();
+    }
     setUI({ activeView: 'library', slideDirection: 1 });
   }, [refs]);
 
@@ -256,6 +267,8 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
         activeAiSubMaskId: null,
         isWbPickerActive: false,
         mixerPickerProperty: null,
+        isRelightPickerActive: false,
+        activeRelightLightId: null,
         previewOverride: null,
       });
 

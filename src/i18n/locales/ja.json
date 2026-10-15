@@ -65,7 +65,8 @@
       "vibrance": "自然な彩度",
       "wbPickerTooltip": "ホワイトバランススポイト",
       "wbPickerWgpuDisabled": "WBスポイト: 設定でWGPUを無効にしてください。",
-      "whiteBalance": "ホワイトバランス"
+      "whiteBalance": "ホワイトバランス",
+      "kelvinModeTooltip": "色温度をケルビンで表示"
     },
     "curves": {
       "channelTitle": "{{channel}} チャンネル",
@@ -123,6 +124,11 @@
       "bokehShape": "ボケの形状",
       "creative": "クリエイティブ",
       "feather": "ぼかし",
+      "fog": "霧",
+      "fogDensity": "濃度",
+      "fogHeight": "地表霧",
+      "fogStart": "開始距離",
+      "fogVariation": "ばらつき",
       "glow": "グロー",
       "grain": "粒子",
       "halation": "ハレーション",
@@ -131,9 +137,33 @@
       "lightFlares": "ライトフレア",
       "lut": "LUT",
       "midpoint": "中間点",
+      "relight": "リライト",
+      "relightAddLight": "ライトを追加",
+      "relightAmbient": "環境光",
+      "relightAngle": "角度",
+      "relightColor": "ライトの色",
+      "relightCone": "コーン",
+      "relightDepth": "奥行き",
+      "relightElevation": "仰角",
+      "relightFalloff": "減衰",
+      "relightHint": "ライトを追加または選択し、画像上をクリックまたはドラッグして配置します。",
+      "relightIntensity": "強度",
+      "relightLight": "ライト {{index}}",
+      "relightRemoveLight": "ライトを削除",
+      "relightShadows": "影",
+      "relightShadowSoftness": "影の柔らかさ",
+      "relightShine": "光沢",
+      "relightSoftness": "柔らかさ",
+      "relightType": "ライトの種類",
+      "relightTypes": {
+        "directional": "平行光",
+        "point": "点光源",
+        "spot": "スポットライト"
+      },
       "roughness": "粗さ",
       "roundness": "丸み",
       "size": "サイズ",
+      "spatial": "空間",
       "vignette": "周辺光量補正"
     }
   },
@@ -471,6 +501,7 @@
       "editSettingsTitle": "編集設定",
       "editsTitle": "編集一覧",
       "generatingDepthMap": "AI深度マップを計算中...",
+      "generatingNormalMap": "AI法線マップを計算中...",
       "generativeEditTitle": "生成編集",
       "inpaintingTitle": "インペインティング",
       "liquify": {
@@ -1102,7 +1133,8 @@
         "threeOnly": "3のみ",
         "twoAndUp": "2以上",
         "twoOnly": "2のみ",
-        "unrated": "未評価のみ"
+        "unrated": "未評価のみ",
+        "andDownSuffix": "以下"
       },
       "raw": {
         "all": "すべての種類",
@@ -1192,7 +1224,12 @@
         "sortDescending": "降順で並べ替え",
         "thumbnailFit": "サムネイルのフィット",
         "thumbnailSize": "サムネイルサイズ",
-        "title": "表示オプション"
+        "title": "表示オプション",
+        "ratingOperator": {
+          "eq": "この評価のみ",
+          "gte": "この評価以上",
+          "lte": "この評価以下"
+        }
       }
     },
     "import": {
@@ -1515,6 +1552,7 @@
       "deleteWarning": "ファイルはシステムのゴミ箱に移動されます。",
       "fileNaming": "ファイル名の命名",
       "folderOrganization": "フォルダ構成",
+      "notUniqueWarning": "{original_filename}、{original_filename_number}、{sequence} のいずれも含まれない場合、ファイル名が重複することがあります。重複したファイルはインポートされません。",
       "organizeByDate": "日付ごとにサブフォルダに整理する",
       "sourceFiles": "ソースファイル",
       "startImport": "インポートを開始",
@@ -1640,6 +1678,7 @@
       "groupSelection": "選択全体を1つのグループにする",
       "groups": "{group} と {member} のグループ",
       "newName": "新しい名前",
+      "notUniqueWarning": "{original_filename}、{original_filename_number}、{sequence} のいずれも含まれない場合、ファイル名が重複することがあります。その場合、名前は一切変更されません。",
       "preview": "プレビュー",
       "renamed_one": "{{count}} 件のファイル名を変更しました",
       "renamed_other": "{{count}} 件のファイル名を変更しました",
@@ -1873,7 +1912,9 @@
         "zoom_in": "ズームイン",
         "zoom_in_step": "段階的にズームイン",
         "zoom_out": "ズームアウト",
-        "zoom_out_step": "段階的にズームアウト"
+        "zoom_out_step": "段階的にズームアウト",
+        "toggle_pick": "採用フラグを切り替え",
+        "toggle_reject": "除外フラグを切り替え"
       },
       "sections": {
         "editing": "編集",
@@ -1917,6 +1958,11 @@
             "upgradeBtn": "Webサイトでアップグレード",
             "upgradeDesc": "クラウドAI機能を使用するには、クラウドサブスクリプションへの加入が必要です。"
           },
+          "statuses": {
+            "connecting": "接続中…",
+            "retry": "接続を再試行",
+            "unsupported": "クラウドへのサインインは現在、デスクトップでのみ利用可能です。"
+          },
           "title": "クラウドサービス"
         },
         "connector": {
@@ -1939,9 +1985,17 @@
           "feature3": "CPUベースの簡易生成塗りつぶし",
           "title": "内蔵AI (CPU)"
         },
+        "aiFree": {
+          "description": "すべてのAI機能をオフにします。AI関連のコントロールはすべてインターフェースから非表示になり、RapidRAWは純粋な従来型のRAWエディターとして動作します。",
+          "feature1": "AIマスク、レンズぼかし、生成編集をUIに表示しません",
+          "feature2": "既存のAI編集は引き続き通常どおり反映されます",
+          "feature3": "よりすっきりとした集中しやすいインターフェース",
+          "title": "AIなし"
+        },
         "description": "RapidRAWのAIは、優れた柔軟性を備えています。高速なローカル処理から本格的なセルフホストまで、最適なワークフローを選択してください。",
         "providers": {
           "aiConnector": "AI Connector",
+          "aiFree": "AIなし",
           "cloud": "クラウド",
           "cpu": "CPU"
         },
@@ -1986,6 +2040,10 @@
         "appleRaw9Desc": "AppleのCore Image RAW 9デコーダを使用してRAWファイルを現像します。これはNeural Engine上でデモザイク処理とノイズ低減を1ステップで行います。macOS 27以降および対応カメラが必要です。未対応のファイルは自動的に内蔵デコーダを使用します。デフォルトのデコーダより低速です。サムネイルには影響しません。",
         "applyPreprocessing": "RAW以外の画像にも事前処理を適用",
         "applyPreprocessingDesc": "有効にすると、上記のカラーノイズ低減と事前シャープ処理が標準フォーマットの画像にも適用されます。",
+        "baselineExposure": "ベース露出",
+        "baselineExposureAmount": "ベース量",
+        "baselineExposureAmountDesc": "RAWファイルに加える露出量です。darktableは+0.7 EVを使用します。",
+        "baselineExposureDesc": "すべてのRAWファイルを一定量明るくします（darktableのシーンリファード既定値と同様）。DNGのBaselineExposureタグがある場合はその値も加えます。このオプションの追加前に編集した画像には影響しません。",
         "colorNr": "カラーノイズ低減 (基本)",
         "colorNrDesc": "パイプラインの初期段階でクロスバイラテラルフィルタを適用し、カラーノイズを除去します。値が大きいほど効果が強まります。",
         "defaultNonRawTonemapper": "標準トーンマッパー (RAW以外)",
@@ -1993,8 +2051,12 @@
         "defaultRawTonemapper": "標準トーンマッパー (RAW)",
         "defaultRawTonemapperDesc": "RAW画像に適用される標準のトーンマッパーです。",
         "enableAppleRaw9": "RAWファイルにApple RAW 9を使用する",
+        "enableBaselineExposure": "RAWファイルにベース露出を適用",
+        "enableHighlightPreservation": "カメラのハイライト保護モードを補正",
         "enablePreprocessingNonRaws": "RAW以外の画像にも適用",
         "enableTonemapperOverride": "トーンマッパーの上書きを有効化",
+        "highlightPreservation": "ハイライト保護の補正",
+        "highlightPreservationDesc": "ハイライト保護モードでカメラが抑えた露出を、RAWファイルから読み取って補います（富士フイルム DR200/DR400、キヤノン 高輝度側・階調優先とオートライティングオプティマイザ、ニコン アクティブD-ライティング、オリンパス 階調、ペンタックス Dレンジ補正）。このオプションの追加前に編集した画像には影響しません。",
         "highlightRecovery": "RAWハイライト再現",
         "highlightRecoveryDesc": "RAWファイルで白とびしたハイライトから再現する情報のレベルを設定します。値を高くするとディテールが戻りますが、紫色のアーティファクトが発生する場合があります。",
         "linearOptions": {

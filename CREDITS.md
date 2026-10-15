@@ -7,6 +7,9 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.
 - **[RapidRAW-DngLab](https://github.com/CyberTimon/RapidRAW-DngLab)**, CyberTimon's fork of [dnglab/rawler](https://github.com/dnglab/dnglab) by Daniel Vogelbacher and contributors (raw decoding).
 
+The v1.6.5 sync retains contributions by Timon Käch, marclaliberte, Ramon Speets, MartinBspheroid, Reda Jamil and Yojen in normal merge history. Rendering, library, translations and curve changes are credited in the upstream commits; the RapidRoom integration was reconciled by Yojen with Codex.
+
+The 2026-10-12 refresh retains baseline exposure and export metadata work by marclaliberte, Italian translations by f-loren and filename-number tokens by apweisskopf in their original upstream commits. RapidRoom conflict reconciliation and regression checks are by Yojen with Codex.
 ## Individual MCP mask editing
 
 The typed mask/crop schemas, single-id edit tools and nested local-default normalization are original work for RapidRoom by yojen7 with Codex. They use RapidRoom’s existing renderer and editor history. No fork implementation or additional AI engine is included.
@@ -175,6 +178,7 @@ Terminal dock containment, compact header and stepped native layout checks: orig
   original work by Yojen with Codex/sora. Existing MCP/renderer/font authorship
   and full notices retained; no dependency or network connection added.
 
+- Current upstream sync through `eb3556bc`: CyberTimon, lalibertemarc and fabian-co; original history and licences retained. E-M1X Bayer metadata correction adapts Timon Käch’s [rawler a32bc1ff](https://github.com/CyberTimon/RapidRAW-DngLab/commit/a32bc1ff1f4f3c56d4d3226082f6eb17414f9159) while retaining RapidRoom’s pinned decoder extensions. Sony reduced-RGB white balance guard and picker reconciliation: Yojen with Codex.
 - Physical editor zoom/cropped-orientation math and reactive DPR hook adapted from Sebastian Eggli (SebastianEggli), `SebastianEggli/RapidRAW@4a14440611ed6cb7d064efda139b6ca133511023`, with Claude Opus 5.5 co-authorship. Original AGPL-3.0 licence retained. Shared 400% ceiling, tiny-image exception, regular stops and native tests by Yojen with Codex.
 
 ### RAWmakase starter presets
