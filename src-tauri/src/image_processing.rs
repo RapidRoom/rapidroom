@@ -219,6 +219,8 @@ pub struct GeometryParams {
     pub lens_model: u32,
     pub tca_vr: f32,
     pub tca_vb: f32,
+    #[serde(default)]
+    pub tca_poly3: Option<crate::lens_correction::TcaPolynomial>,
     pub vig_k1: f32,
     pub vig_k2: f32,
     pub vig_k3: f32,
@@ -256,6 +258,7 @@ impl Default for GeometryParams {
             lens_model: 0,
             tca_vr: 1.0,
             tca_vb: 1.0,
+            tca_poly3: None,
             vig_k1: 0.0,
             vig_k2: 0.0,
             vig_k3: 0.0,
@@ -322,6 +325,9 @@ pub fn get_geometry_params_from_json(adjustments: &serde_json::Value) -> Geometr
         tca_vb: lens_params
             .and_then(|p| p.get("tca_vb").and_then(|k| k.as_f64()))
             .unwrap_or(1.0) as f32,
+        tca_poly3: lens_params
+            .and_then(|p| p.get("tca_poly3"))
+            .and_then(|p| serde_json::from_value(p.clone()).ok()),
         vig_k1: lens_params
             .and_then(|p| p.get("vig_k1").and_then(|k| k.as_f64()))
             .unwrap_or(0.0) as f32,
@@ -631,6 +637,29 @@ struct TcaContext<'a> {
     src_height: usize,
     cx: f32,
     cy: f32,
+    polynomial: Option<&'a crate::lens_correction::TcaPolynomial>,
+    radius_norm: f64,
+    amount: f32,
+}
+
+impl TcaContext<'_> {
+    fn channel_scales(&self, x: f32, y: f32, vr: f32, vb: f32) -> (f32, f32) {
+        let Some(p) = self.polynomial else {
+            return (vr, vb);
+        };
+        let dx = (x - self.cx) as f64 * self.radius_norm;
+        let dy = (y - self.cy) as f64 * self.radius_norm;
+        let r2 = dx * dx + dy * dy;
+        let r = if p.cr != 0.0 || p.cb != 0.0 {
+            r2.sqrt()
+        } else {
+            0.0
+        };
+        (
+            vr + (self.amount as f64 * (p.cr * r + p.br * r2)) as f32,
+            vb + (self.amount as f64 * (p.cb * r + p.bb * r2)) as f32,
+        )
+    }
 }
 
 #[inline(always)]
@@ -650,6 +679,7 @@ fn interpolate_pixel_with_tca(
     let gx = base_x;
     let gy = base_y;
 
+    let (vr, vb) = tca.channel_scales(base_x, base_y, vr, vb);
     let rx = cx + (base_x - cx) * vr;
     let ry = cy + (base_y - cy) * vr;
 
@@ -912,17 +942,29 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
         1.0
     };
 
-    let vr = if (params.tca_vr - 1.0).abs() > 1e-5 {
+    let polynomial = params.tca_poly3.as_ref();
+    let vr = if polynomial.is_some() || (params.tca_vr - 1.0).abs() > 1e-5 {
         params.tca_vr + (1.0 - params.tca_vr) * (1.0 - params.lens_tca_amount)
     } else {
         1.0
     };
-    let vb = if (params.tca_vb - 1.0).abs() > 1e-5 {
+    let vb = if polynomial.is_some() || (params.tca_vb - 1.0).abs() > 1e-5 {
         params.tca_vb + (1.0 - params.tca_vb) * (1.0 - params.lens_tca_amount)
     } else {
         1.0
     };
-    let has_tca = params.lens_tca_enabled && ((vr - 1.0).abs() > 1e-5 || (vb - 1.0).abs() > 1e-5);
+    let has_tca = params.lens_tca_enabled
+        && if let Some(p) = polynomial {
+            params.lens_tca_amount != 0.0
+                && (params.tca_vr != 1.0
+                    || params.tca_vb != 1.0
+                    || p.cr != 0.0
+                    || p.cb != 0.0
+                    || p.br != 0.0
+                    || p.bb != 0.0)
+        } else {
+            (vr - 1.0).abs() > 1e-5 || (vb - 1.0).abs() > 1e-5
+        };
 
     let vk1 = params.vig_k1 as f64;
     let vk2 = params.vig_k2 as f64;
@@ -935,12 +977,27 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
     let src_raw = src_img.as_raw();
     let width_usize = width as usize;
     let height_usize = height as usize;
+    // New calibrated TCA uses pixel centres, matching Lensfun's (size - 1)
+    // convention. Saved constant-scale edits retain their original centre.
+    let (tca_cx, tca_cy) = if polynomial.is_some() {
+        (
+            width.saturating_sub(1) as f32 / 2.0,
+            height.saturating_sub(1) as f32 / 2.0,
+        )
+    } else {
+        (cx, cy)
+    };
     let tca_ctx = TcaContext {
         src_raw,
         src_width: width_usize,
         src_height: height_usize,
-        cx,
-        cy,
+        cx: tca_cx,
+        cy: tca_cy,
+        polynomial,
+        radius_norm: polynomial.map_or(0.0, |p| {
+            p.radius_scale / (tca_cx as f64).hypot(tca_cy as f64).max(1.0)
+        }),
+        amount: params.lens_tca_amount,
     };
 
     out_buffer
@@ -1481,9 +1538,19 @@ pub fn is_geometry_identity(params: &GeometryParams) -> bool {
             && params.lens_dist_k3.abs() < 1e-6);
 
     let tca_identity = !params.lens_tca_enabled
-        || ((params.lens_tca_amount - 1.0).abs() < 1e-4
-            && (params.tca_vr - 1.0).abs() < 1e-6
-            && (params.tca_vb - 1.0).abs() < 1e-6);
+        || if let Some(p) = &params.tca_poly3 {
+            params.lens_tca_amount == 0.0
+                || (params.tca_vr == 1.0
+                    && params.tca_vb == 1.0
+                    && p.cr == 0.0
+                    && p.cb == 0.0
+                    && p.br == 0.0
+                    && p.bb == 0.0)
+        } else {
+            (params.lens_tca_amount - 1.0).abs() < 1e-4
+                && (params.tca_vr - 1.0).abs() < 1e-6
+                && (params.tca_vb - 1.0).abs() < 1e-6
+        };
 
     let vig_identity = !params.lens_vignette_enabled
         || ((params.lens_vignette_amount - 1.0).abs() < 1e-4
@@ -4330,5 +4397,243 @@ mod tests {
                 to_rgb32f_parallel(&image).as_raw(),
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod polynomial_tca_tests {
+    use super::*;
+    use crate::lens_correction::LensDatabase;
+    use serde_json::{Value, json};
+
+    fn fixture() -> (LensDatabase, Value) {
+        let db = quick_xml::de::from_str(include_str!(
+            "../../rapidroom/validation/lensfun-tca/fixture.xml"
+        ))
+        .unwrap();
+        let oracle = serde_json::from_str(include_str!(
+            "../../rapidroom/validation/lensfun-tca/coordinates.json"
+        ))
+        .unwrap();
+        (db, oracle)
+    }
+
+    fn assert_reference_coordinates(lens: &crate::lens_correction::Lens, oracle: &Value) {
+        for row in oracle["records"].as_array().unwrap() {
+            let width = row["width"].as_u64().unwrap() as u32;
+            let height = row["height"].as_u64().unwrap() as u32;
+            let params = lens
+                .get_distortion_params(
+                    row["focal"].as_f64().unwrap() as f32,
+                    None,
+                    None,
+                    Some(row["crop"].as_f64().unwrap() as f32),
+                )
+                .unwrap();
+            let encoded = serde_json::to_value(&params).unwrap();
+            let actual_coefficients = [
+                encoded["tca_vr"].as_f64().unwrap(),
+                encoded["tca_vb"].as_f64().unwrap(),
+                encoded["tca_poly3"]["cr"].as_f64().unwrap(),
+                encoded["tca_poly3"]["cb"].as_f64().unwrap(),
+                encoded["tca_poly3"]["br"].as_f64().unwrap(),
+                encoded["tca_poly3"]["bb"].as_f64().unwrap(),
+            ];
+            for (i, value) in actual_coefficients.iter().enumerate() {
+                assert!(
+                    (value - row["coefficients"][i].as_f64().unwrap()).abs() < 2e-7,
+                    "coefficient {i}, {row}"
+                );
+            }
+            let parsed = get_geometry_params_from_json(&json!({"lensDistortionParams": encoded}));
+            let cx = (width - 1) as f32 / 2.0;
+            let cy = (height - 1) as f32 / 2.0;
+            let ctx = TcaContext {
+                src_raw: &[],
+                src_width: width as usize,
+                src_height: height as usize,
+                cx,
+                cy,
+                polynomial: parsed.tca_poly3.as_ref(),
+                radius_norm: parsed.tca_poly3.as_ref().unwrap().radius_scale
+                    / (cx as f64).hypot(cy as f64),
+                amount: 1.0,
+            };
+            let x = row["input"][0].as_f64().unwrap() as f32;
+            let y = row["input"][1].as_f64().unwrap() as f32;
+            let (r, b) = ctx.channel_scales(x, y, parsed.tca_vr, parsed.tca_vb);
+            let actual = [
+                cx + (x - cx) * r,
+                cy + (y - cy) * r,
+                x,
+                y,
+                cx + (x - cx) * b,
+                cy + (y - cy) * b,
+            ];
+            for (i, value) in actual.iter().enumerate() {
+                assert!(
+                    (*value as f64 - row["output"][i].as_f64().unwrap()).abs() < 0.003,
+                    "channel coordinate {i}: {actual:?}, {row}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn polynomial_tca_matches_independent_lensfun_channel_coordinates() {
+        let (db, oracle) = fixture();
+        assert_reference_coordinates(&db.lenses[0], &oracle);
+    }
+
+    #[test]
+    fn polynomial_tca_matches_bundled_sony_trip_lens_reference() {
+        let db: LensDatabase =
+            quick_xml::de::from_str(include_str!("../lensfun_db/mil-sony.xml")).unwrap();
+        let oracle: Value = serde_json::from_str(include_str!(
+            "../../rapidroom/validation/lensfun-tca/trip-coordinates.json"
+        ))
+        .unwrap();
+        for entry in oracle["lenses"].as_array().unwrap() {
+            let name = entry["model"].as_str().unwrap();
+            let lens = db
+                .lenses
+                .iter()
+                .find(|lens| lens.get_canonical_model_name() == name)
+                .unwrap();
+            assert_reference_coordinates(lens, entry);
+        }
+    }
+
+    #[test]
+    fn polynomial_tca_renderer_uses_reference_coordinates_and_amount() {
+        let (db, oracle) = fixture();
+        let (w, h) = (160, 120);
+        let image = DynamicImage::ImageRgb32F(image::Rgb32FImage::from_fn(w, h, |x, y| {
+            image::Rgb([
+                x as f32 / (w - 1) as f32,
+                y as f32 / (h - 1) as f32,
+                (x + y) as f32 / (w + h - 2) as f32,
+            ])
+        }));
+        for focal in [20.0, 27.5, 70.0, 151.25, 200.0] {
+            let encoded = serde_json::to_value(
+                db.lenses[0]
+                    .get_distortion_params(focal, None, None, Some(1.0))
+                    .unwrap(),
+            )
+            .unwrap();
+            for amount in [0.0, 50.0, 100.0] {
+                let adjustments = json!({"lensDistortionParams":encoded,"lensTcaAmount":amount});
+                let params = get_geometry_params_from_json(&adjustments);
+                assert_eq!(is_geometry_identity(&params), amount == 0.0);
+                let warped = apply_geometry_warp(&image, &adjustments).to_rgb32f();
+                for row in oracle["records"].as_array().unwrap().iter().filter(|r| {
+                    r["width"] == w && r["height"] == h && r["focal"] == focal && r["crop"] == 1
+                }) {
+                    let x = row["input"][0].as_f64().unwrap();
+                    let y = row["input"][1].as_f64().unwrap();
+                    if x.fract() != 0.0 || y.fract() != 0.0 {
+                        continue;
+                    }
+                    let coord = |i: usize| {
+                        let base = if i.is_multiple_of(2) { x } else { y };
+                        (base + amount / 100.0 * (row["output"][i].as_f64().unwrap() - base)).clamp(
+                            0.0,
+                            if i.is_multiple_of(2) {
+                                (w - 1) as f64
+                            } else {
+                                (h - 1) as f64
+                            },
+                        )
+                    };
+                    let expected = [
+                        coord(0) / (w - 1) as f64,
+                        coord(3) / (h - 1) as f64,
+                        (coord(4) + coord(5)) / (w + h - 2) as f64,
+                    ];
+                    let actual = warped.get_pixel(x as u32, y as u32).0;
+                    for i in 0..3 {
+                        assert!(
+                            (actual[i] as f64 - expected[i]).abs() < 0.000025,
+                            "amount{amount}, actual{actual:?}, expected{expected:?}, {row}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    #[ignore = "writes labelled diagnostic images only to an explicitly supplied samples directory"]
+    fn polynomial_tca_write_synthetic_panels() {
+        use std::path::Path;
+        let directory = std::env::var("RAPIDROOM_TCA_INPUTS").expect("RAPIDROOM_TCA_INPUTS");
+        let output = std::env::var("RAPIDROOM_TCA_DIAGNOSTICS").expect("RAPIDROOM_TCA_DIAGNOSTICS");
+        let input = Path::new(&directory);
+        let out = Path::new(&output);
+        assert!(input.components().any(|c| c.as_os_str() == "samples"));
+        assert!(out.components().any(|c| c.as_os_str() == "samples"));
+        std::fs::create_dir_all(out).unwrap();
+        let manifest: Value =
+            serde_json::from_slice(&std::fs::read(input.join("inputs.json")).unwrap()).unwrap();
+        let w = manifest["width"].as_u64().unwrap() as u32;
+        let h = manifest["height"].as_u64().unwrap() as u32;
+        let read = |filename: &str| {
+            let bytes = std::fs::read(input.join(filename)).unwrap();
+            let pixels: Vec<f32> = bytes
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|c| f32::from_le_bytes(*c))
+                .collect();
+            assert_eq!(pixels.len(), (w * h * 3) as usize);
+            assert!(pixels.iter().all(|v| v.is_finite()));
+            DynamicImage::ImageRgb32F(image::Rgb32FImage::from_vec(w, h, pixels).unwrap())
+        };
+        let ideal = read(manifest["ideal_file"].as_str().unwrap());
+        ideal.to_rgb8().save(out.join("ideal.png")).unwrap();
+        let (db, _) = fixture();
+        let mut rows = Vec::new();
+        for record in manifest["records"].as_array().unwrap() {
+            let focal = record["focal"].as_f64().unwrap() as f32;
+            let original = read(record["file"].as_str().unwrap());
+            original
+                .to_rgb8()
+                .save(out.join(format!("{focal}-before.png")))
+                .unwrap();
+            let params = db.lenses[0]
+                .get_distortion_params(focal, None, None, Some(1.0))
+                .unwrap();
+            let mut encoded = serde_json::to_value(params).unwrap();
+            let full = apply_geometry_warp(&original, &json!({"lensDistortionParams":encoded}))
+                .to_rgb32f();
+            assert!(full.as_raw().iter().all(|v| v.is_finite()));
+            DynamicImage::ImageRgb32F(full.clone())
+                .to_rgb8()
+                .save(out.join(format!("{focal}-full.png")))
+                .unwrap();
+            encoded.as_object_mut().unwrap().remove("tca_poly3");
+            let legacy = apply_geometry_warp(&original, &json!({"lensDistortionParams":encoded}))
+                .to_rgb32f();
+            DynamicImage::ImageRgb32F(legacy.clone())
+                .to_rgb8()
+                .save(out.join(format!("{focal}-legacy.png")))
+                .unwrap();
+            let expected = ideal.to_rgb32f();
+            let mse = |image: &image::Rgb32FImage| {
+                image
+                    .as_raw()
+                    .iter()
+                    .zip(expected.as_raw())
+                    .map(|(a, b)| (*a as f64 - *b as f64).powi(2))
+                    .sum::<f64>()
+                    / image.as_raw().len() as f64
+            };
+            rows.push(json!({"focal":focal,"synthetic":true,"real_lens_quality":false,"full_mse":mse(&full),"legacy_mse":mse(&legacy)}));
+        }
+        std::fs::write(
+            out.join("diagnostics.json"),
+            serde_json::to_vec_pretty(&rows).unwrap(),
+        )
+        .unwrap();
     }
 }

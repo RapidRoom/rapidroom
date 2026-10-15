@@ -2592,7 +2592,10 @@ pub fn resolve_lens_params_in_adjustments(
                         )
                     };
 
-                    if let Some(params) = resolved {
+                    if let Some(mut params) = resolved {
+                        if let Some(saved) = map.get("lensDistortionParams") {
+                            params.preserve_saved_tca(saved);
+                        }
                         map.insert(
                             "lensDistortionParams".to_string(),
                             serde_json::to_value(params).unwrap(),
@@ -7408,6 +7411,40 @@ mod lens_params_tests {
         });
         let resolved = resolve(&db, Some(old.clone()));
         assert_eq!(resolved, old);
+    }
+
+    #[test]
+    fn polynomial_tca_saved_marker_survives_the_real_sidecar_resolver() {
+        let db: LensDatabase = quick_xml::de::from_str(include_str!(
+            "../../rapidroom/validation/lensfun-tca/fixture.xml"
+        ))
+        .unwrap();
+        let base = serde_json::json!({"lensCorrectionMode":"manual","lensMaker":"RapidRoom test fixture","lensModel":"Polynomial TCA reference (synthetic)"});
+        let exif = Some(HashMap::from([(
+            "FocalLength".to_string(),
+            "35 mm".to_string(),
+        )]));
+        let mut fresh = base.clone();
+        resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db));
+        assert!(fresh["lensDistortionParams"]["tca_poly3"].is_object());
+        let snapshot = fresh.clone();
+        resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db));
+        assert_eq!(fresh, snapshot);
+        let mut unresolved = base.clone();
+        unresolved["lensDistortionParams"] = serde_json::Value::Null;
+        resolve_lens_params_in_adjustments(&mut unresolved, &exif, Some(&db));
+        assert_eq!(unresolved, snapshot);
+        for radius in [false, true] {
+            let mut old = base.clone();
+            old["lensDistortionParams"] = serde_json::json!({"tca_vr":1.003,"tca_vb":0.998});
+            if radius {
+                old["lensDistortionParams"]["radius_scale"] = serde_json::json!(1.8);
+            }
+            resolve_lens_params_in_adjustments(&mut old, &exif, Some(&db));
+            assert!(old["lensDistortionParams"].get("tca_poly3").is_none());
+            assert_eq!(old["lensDistortionParams"]["tca_vr"], 1.003);
+            assert_eq!(old["lensDistortionParams"]["tca_vb"], 0.998);
+        }
     }
 
     #[test]

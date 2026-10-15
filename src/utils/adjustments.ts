@@ -315,6 +315,7 @@ export interface Adjustments {
     radius_scale?: number;
     tca_vr: number;
     tca_vb: number;
+    tca_poly3?: { cr: number; cb: number; br: number; bb: number; radius_scale: number };
     vig_k1: number;
     vig_k2: number;
     vig_k3: number;

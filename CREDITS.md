@@ -197,6 +197,8 @@ Tile placement, raised-cosine overlap and whole-image five-level B3-spline colou
 
 The field and RDF representation audit compares [LightCraft by storytold](https://github.com/storytold/lightcraft/tree/265248c86fa3267709aea45633d0d135331e180c) (MIT OR Apache-2.0; [MIT notice](rapidroom/LICENSES/lightcraft-MIT.txt)) and [Redlamp by pdcgomes](https://github.com/pdcgomes/redlamp/tree/a70c86dc01ab8ee5d831642520b76ed529f556c0) (MPL-2.0). Supplementary semantics were checked in MIT AutoShade and RAWmakase; exact versions and limitations are in the [audit](rapidroom/validation/crs-interop-20261012/README.md). The namespace-aware photo/curve/look reader extends RapidRoom's existing bounded XML parser; this is original work, with no copied MPL source, Adobe assets, SDK-derived tables or external presets.
 
+Polynomial Lensfun TCA correction and synthetic reference fixtures: original RapidRoom implementation by yojen7 with Codex. Mathematical model, normalization and interpolation conventions checked against Lensfun 0.3.4; independent coordinate measurements use its public C API. Lensfun implementation and native-wrapper code are not included. See `rapidroom/validation/lensfun-tca/README.md` for pinned sources and reproduction.
+
 The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/history preservation follow-up (#218) are original RapidRoom work by Yojen with Codex, informed by the licence-first CRS audit above. No reference implementation source is copied.
 
 - **Lightroom Aggregate brushes and radial geometry (#173):** measured XMP rules
