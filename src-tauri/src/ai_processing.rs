@@ -1931,3 +1931,7 @@ mod remove_evidence_tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "depth_geometry_tests.rs"]
+mod depth_geometry_tests;

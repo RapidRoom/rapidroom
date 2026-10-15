@@ -1,0 +1,13 @@
+{
+  "id": "start-screen-upstream-name",
+  "title": "Keep the start-screen upstream credit current",
+  "category": "fix",
+  "landed": "2026-10-13",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "The start screen credits RapidRAW without a stale upstream release number. RapidRoom\u2019s own version stays visible, and upstream syncs no longer maintain a separate display-version constant."
+}

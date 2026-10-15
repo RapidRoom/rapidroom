@@ -1,0 +1,12 @@
+{
+  "id": "denoise-backend-cancel",
+  "title": "Cancelling a denoise stops the backend work, and each job's progress, preview and saved result are tied to its own job ID",
+  "category": "fix",
+  "landed": "2026-10-04",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": ["CyberTimon/RapidRAW#1697"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "The backend hands out a job ID; progress, preview, error and batch events carry it, and Save only takes the result of the job whose preview is shown. `cancel_denoise` sets a flag checked between BM3D patches, between AI tiles and between batch files, and terminates an ONNX tile already running. Not interruptible: the AI model download, the Apple RAW 9 develop call, image decoding and preview/file encoding. A cancelled batch keeps the files it already finished; the file being written goes to a hidden partial file that is deleted, and existing files are never removed. A new denoise can start right after Cancel. Denoise output is unchanged. Written with Claude Code."
+}

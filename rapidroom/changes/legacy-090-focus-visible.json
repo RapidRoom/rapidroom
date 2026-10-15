@@ -1,0 +1,13 @@
+{
+  "category": "fix",
+  "landed": "2026-10-02",
+  "source": "rapidroom",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "id": "focus-visible",
+  "title": "Keyboard focus is visible again on every button (Tab navigation), without rings on mouse clicks",
+  "authors": ["yojen7"],
+  "notes": "Made with OpenAI Codex. Fixes markallisongit/RapidRAW#30, which applies to upstream too.",
+  "highlight": "**Keyboard-friendly.** You can always see where keyboard focus is when you Tab through the app."
+}

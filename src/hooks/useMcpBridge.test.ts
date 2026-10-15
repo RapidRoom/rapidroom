@@ -157,6 +157,46 @@ describe('MCP editor bridge review', () => {
     expect(useEditorStore.getState().adjustments).toEqual(INITIAL_ADJUSTMENTS);
   });
 
+  it('rejects a queued single-mask snapshot after a user edit without overwriting it', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    await mount();
+    const base = useEditorStore.getState().adjustments;
+    const edited = { ...base, exposure: 1 };
+    await act(async () => useEditorStore.setState({ adjustments: edited }));
+    debouncedSetHistory(edited);
+    await act(async () =>
+      emit('mcp-command', {
+        requestId: 'mask-request',
+        kind: 'apply-adjustments',
+        path,
+        adjustments: { ...base, contrast: 20 },
+        baseAdjustments: base,
+      }),
+    );
+    expect(responses.at(-1)?.error).toMatch(/edit changed/);
+    expect(useEditorStore.getState().adjustments).toEqual(edited);
+    expect(useEditorStore.getState().history.map((entry) => entry.exposure)).toEqual([0, 1]);
+  });
+
+  it('rejects a queued single-mask snapshot after navigation without selecting the old photo', async () => {
+    useEditorStore.setState({ selectedImage: { ...image, path: '/photos/b.raw' } });
+    const select = await mount();
+    const before = useEditorStore.getState();
+    await act(async () =>
+      emit('mcp-command', {
+        requestId: 'mask-request',
+        kind: 'apply-adjustments',
+        path,
+        adjustments: { ...INITIAL_ADJUSTMENTS, contrast: 20 },
+        baseAdjustments: INITIAL_ADJUSTMENTS,
+      }),
+    );
+    expect(responses.at(-1)?.error).toMatch(/image changed/);
+    expect(select).not.toHaveBeenCalled();
+    expect(useEditorStore.getState().adjustments).toBe(before.adjustments);
+    expect(useEditorStore.getState().history).toBe(before.history);
+  });
+
   it('resets as one undoable step without a direct sidecar reset command', async () => {
     const edited: Adjustments = {
       ...INITIAL_ADJUSTMENTS,

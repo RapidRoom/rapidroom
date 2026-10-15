@@ -1,0 +1,105 @@
+{
+  "status": "inspected",
+  "source_commit": "1d061908d9e3e2ba6e7c956d9f778c67ca9973c2",
+  "native_capture_count": 19,
+  "preview_files": [
+    "first-mask.png",
+    "two-masks.png",
+    "undo.png",
+    "comparison.png"
+  ],
+  "human_visual_approval": false,
+  "inspector": "Codex Sora / Yojen",
+  "inspected_at": "2026-10-13T05:03:27.412858+00:00",
+  "harness_commit": "d5f8a08346958d2a2b193fa5a50d1befbd345f62",
+  "observations": [
+    "All 19 native captures inspected together at their capture contact sheet; library, edit, undo, export, mask-add and final policy states show the expected native photo and controls.",
+    "Second-mask preview visibly brightens the right/central grass while the stored first container remains unchanged.",
+    "GUI Undo restores the exact first-mask preview, including the sky, tree line, path and grass.",
+    "Published individual crops and comparison inspected at full image detail; no application path, endpoint, credentials or personal photo is included."
+  ],
+  "captures": [
+    {
+      "label": "compact-0",
+      "sha256": "7a162c4867977c1f5a8ca9c3e022839d7ec581f1aa757a0b7c3c5ddf17c43f07"
+    },
+    {
+      "label": "compact-1",
+      "sha256": "7a162c4867977c1f5a8ca9c3e022839d7ec581f1aa757a0b7c3c5ddf17c43f07"
+    },
+    {
+      "label": "edited-0",
+      "sha256": "e96166254b5d9091d9c5efaf141aeb48c31ac0f03baea0bd7efae0a2de1dcefd"
+    },
+    {
+      "label": "edited-1",
+      "sha256": "6324bef4fd459eb161d135b436b6eda9f7f4fcc39d34bad2362dec530e3d48ce"
+    },
+    {
+      "label": "export-done",
+      "sha256": "2ea65e096c0d77cde16e09958fa202a78540d81654d93dd998d8deb2fd67af90"
+    },
+    {
+      "label": "export-ready",
+      "sha256": "57d203a373da102018273b48433049cb3a847f682ba6c48b0d523b3a8de3e2a1"
+    },
+    {
+      "label": "first-mask-0",
+      "sha256": "d78c0663e5d1982776415d58652cb94ef0cffb2a8850a98d4a11c734566b8483"
+    },
+    {
+      "label": "first-mask-1",
+      "sha256": "3c40cb473ba782610f856b2abf2c14b1309613880e3972fa1bd73743f0eafb97"
+    },
+    {
+      "label": "library",
+      "sha256": "b4d36c4ae5fd411672a72e5a62620ac5d8b2854b84e34c63a5bf43d1ece1df96"
+    },
+    {
+      "label": "mask-undo-0",
+      "sha256": "71fd8b17dd5c1a1049f808f97429b225c24dd263c7c249077391a2853ee9d59e"
+    },
+    {
+      "label": "mask-undo-1",
+      "sha256": "f5d9dacde9730219ffc97d4b30f7ec9f2c57c126a4e61a1c1c734761e1a1677f"
+    },
+    {
+      "label": "preview-0",
+      "sha256": "915a15930aa5d6ccb935f3320cd56fe486c24590cdc38ec7b8e06fddfebc31a4"
+    },
+    {
+      "label": "preview-1",
+      "sha256": "767be7b51a8cbbd194e9ba032343bd3beeb26a23c8d1c966215810377d46c7e3"
+    },
+    {
+      "label": "restored-0",
+      "sha256": "1a9be543f612a529ea91c014a7c020f633bf1cd4eb96bc42001e62c85d4ffffd"
+    },
+    {
+      "label": "restored-1",
+      "sha256": "1a9be543f612a529ea91c014a7c020f633bf1cd4eb96bc42001e62c85d4ffffd"
+    },
+    {
+      "label": "settings-compact",
+      "sha256": "9df60a3ec76d38f232fc801321204c7736e298c58f76b862707b12a7289f90d3"
+    },
+    {
+      "label": "single-mask-policy",
+      "sha256": "7408056856fe43d97982ef8b5e8e6a1cbac323eda231b097e4f3bf752b0dfddd"
+    },
+    {
+      "label": "two-masks-0",
+      "sha256": "1945d79e22a75559d84dc207dbb2b762861da4b00ad7c108f297936c07f0b2b8"
+    },
+    {
+      "label": "two-masks-1",
+      "sha256": "1945d79e22a75559d84dc207dbb2b762861da4b00ad7c108f297936c07f0b2b8"
+    }
+  ],
+  "published_preview_sha256": {
+    "first-mask.png": "a746dc916c059fa744f009b9a43fa3ca920e3edfd7a916be8176aa7aa42d6d55",
+    "two-masks.png": "8f0d4bc3b756f3c8315813fcbc232f13b2c8917fa236d7e8ff1c88f0163ff372",
+    "undo.png": "a746dc916c059fa744f009b9a43fa3ca920e3edfd7a916be8176aa7aa42d6d55",
+    "comparison.png": "86a83cb0e9aee2e89e699a5c8b7ff351ce30147ea0f51c3b1654903ca974f024"
+  }
+}

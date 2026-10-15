@@ -352,6 +352,9 @@ class Smoke:
                 return False
 
         wait_for(frontend_ready, "real frontend", 90)
+        wait_for(lambda: self.execute("return [...document.querySelectorAll('button')].some("
+                                      "e=>e.innerText.trim()==='Continue Session' && !e.disabled);"),
+                 "Continue Session control", 90)
         startup["phase"] = "frontend ready before Continue Session"
         save(self.case / "driver-startup.json", startup)
         self.execute("""const e=[...document.querySelectorAll('button')]
@@ -395,6 +398,9 @@ class Smoke:
         if (self.case / "presets-test.json").exists():
             from presets import run_preset_checks
             run_preset_checks(self, wait_for, baseline)
+        if (self.case / "crs-interop-test.json").exists():
+            from crs_interop import run_crs_checks
+            run_crs_checks(self, wait_for)
         if (self.case / "untrusted-text-test.json").exists():
             from untrusted_text import run_untrusted_checks
             run_untrusted_checks(self.case, self, wait_for, baseline)
@@ -467,7 +473,10 @@ class Smoke:
             run_packaging_checks(self.case, self)
         elif (self.case / "terminal-test.json").exists():
             self.terminal_flow()
-        if (self.case / "mcp-compact-test.json").exists():
+        if (self.case / "mcp-masks-test.json").exists():
+            from mcp_masks import run_mask_checks
+            run_mask_checks(self.case, self)
+        elif (self.case / "mcp-compact-test.json").exists():
             from mcp_compact import run_compact_checks
             run_compact_checks(self.case, self)
         elif (self.case / "mcp-revisions-test.json").exists():
@@ -476,12 +485,18 @@ class Smoke:
         elif (self.case / "mcp-measure-test.json").exists():
             from mcp_measure import run_measure_checks
             run_measure_checks(self.case, self)
+        elif (self.case / "mcp-skill-test.json").exists():
+            from mcp_skill import run_skill_checks
+            run_skill_checks(self.case, self)
         elif (self.case / "mcp-history-test.json").exists():
             from mcp_history import run_history_checks
             run_history_checks(self.case, self)
         elif (self.case / "mcp-clients-test.json").exists() and not (self.case / "terminal-test.json").exists():
             from mcp_clients import run_client_checks
             self.step("real Claude Code and Codex edit the open photo", run_client_checks(self.case, self))
+        if (self.case / "mask-drop-test.json").exists():
+            from mask_drop import run_mask_drop_checks
+            run_mask_drop_checks(self, wait_for)
         final = self.snapshot("final")
         if final["errors"]:
             raise RuntimeError("Frontend errors: " + str(final["errors"]))
@@ -501,6 +516,13 @@ class Smoke:
             self.step("PTY background process removed on app quit", {"pid": self.background_pid})
         native_errors = [line for line in (self.case / "app.log").read_text().splitlines()
                          if re.search(r"\[ERROR\]|CRITICAL|panicked at|Segmentation fault", line)]
+        if hasattr(self, "expected_crs_refusal_error"):
+            pattern = r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \[ERROR\] \[frontend\] " + re.escape(self.expected_crs_refusal_error)
+            expected = [line for line in native_errors if re.fullmatch(pattern, line)]
+            if len(expected) != 1:
+                raise RuntimeError("Expected exactly one native log entry for the verified CRS refusal")
+            native_errors.remove(expected[0])
+            self.step("verified CRS refusal logged exactly once", {"entry": expected[0]})
         if native_errors:
             raise RuntimeError("Native errors: " + str(native_errors))
         self.step("clean exit and no frontend/native errors", {"exit_code": app.returncode})
@@ -567,28 +589,36 @@ def launch(args):
              "library_sha256": sha(case / "native-wheel.so"), "method": "GTK GDK_SCROLL_UP/DOWN through gtk_widget_event(WebView)"})
     if args.palette:
         save(case / "palette-test.json", {"issue": 162, "real_model_requests": False})
+    if args.mask_drop:
+        save(case / "mask-drop-test.json", {"issue": 204, "event": "synthetic DndContext onDragEnd"})
     if args.dock_layout:
         save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
         for index in range(1, 24):
             shutil.copy2(raw, case / f"input/smoke-{index:02d}.ARW")
+    if args.mcp_skill:
+        save(case / "mcp-skill-test.json", {"issue": 118, "real_model_requests": True, "source_checkout": str(args.skill_source.resolve())})
     if args.mcp_measure:
         save(case / "mcp-measure-test.json", {"issue": 117, "real_model_requests": True})
     if args.mcp_revisions:
         save(case / "mcp-revisions-test.json", {"issue": 148, "real_model_requests": True})
     if args.mcp_compact or args.mcp_compact_baseline:
         save(case / "mcp-compact-test.json", {"issue": 147, "baseline": args.mcp_compact_baseline, "real_model_requests": not args.mcp_compact_baseline})
+    if args.mcp_masks:
+        save(case / "mcp-masks-test.json", {"issue": 150, "real_model_requests": True})
     if args.mcp_history:
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_packaging:
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
     if args.presets:
         save(case / "presets-test.json", {"issue": 169})
+    if args.crs_interop:
+        save(case / "crs-interop-test.json", {"issue": 161, "real_model_requests": False})
     if args.untrusted_text:
         save(case / "untrusted-text-test.json", {"issue": 165, "real_model_requests": False})
     if args.crop_noop:
         save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
-        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text:
+        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop:
             save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
@@ -687,8 +717,11 @@ def main():
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
     parser.add_argument("--terminal-clients", action="store_true", help="Use real clients from both terminal launch paths (implies --terminal --mcp-clients)")
+    parser.add_argument("--mcp-masks", action="store_true", help="Actual-client single-mask add, sibling preservation, nested defaults, history and sidecars")
     parser.add_argument("--mcp-history", action="store_true", help="Run actual-client labelled history/schema/preview scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-packaging", action="store_true", help="Verify default-off, launch consent, runtime toggle and real registered clients")
+    parser.add_argument("--mcp-skill", action="store_true", help="Fresh Claude session with only the plugin/MCP: grade, compare, export and explain source")
+    parser.add_argument("--skill-source", type=Path, help="Clean checkout matching the pinned app sourceCommit for the skill source explanation")
     parser.add_argument("--mcp-measure", action="store_true", help="Run read-only measurement/comparison scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-revisions", action="store_true", help="Real clients read latest state across a GUI edit and receive strict stale-write details")
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
@@ -697,6 +730,8 @@ def main():
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
     parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
+    parser.add_argument("--crs-interop", action="store_true", help="Check public CRS import and XML safety without model requests")
+    parser.add_argument("--mask-drop", action="store_true", help="Check mask creation drop insertion on a sub-mask row")
     parser.add_argument("--untrusted-text", action="store_true", help="Check hostile descriptive text against real authenticated MCP without model requests")
     parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
@@ -709,8 +744,10 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text:
+    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop:
         args.mcp_clients = True
+    if args.mcp_skill and (not args.skill_source or not args.skill_source.is_dir()):
+        parser.error("--mcp-skill requires --skill-source matching the pinned app commit")
     if args.mcp_packaging:
         args.terminal_clients = True
     if args.terminal_clients:

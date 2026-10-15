@@ -59,6 +59,7 @@ mod lens_blur;
 mod lens_correction;
 mod lightroom;
 mod lightroom_masks;
+mod lightroom_report;
 mod lrtemplate;
 mod lut_processing;
 mod mask_generation;

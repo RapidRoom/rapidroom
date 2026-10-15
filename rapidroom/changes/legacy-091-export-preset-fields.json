@@ -1,0 +1,11 @@
+{
+  "category": "fix",
+  "landed": "2026-10-02",
+  "source": "rapidroom",
+  "upstream_issues": ["CyberTimon/RapidRAW#1397"],
+  "upstream_prs": ["CyberTimon/RapidRAW#1834"],
+  "rendering_change": false,
+  "id": "export-preset-fields",
+  "title": "Export presets keep their TIFF bit depth and \"set file timestamp from EXIF\" settings",
+  "authors": ["yojen7"]
+}
