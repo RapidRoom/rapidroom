@@ -7067,6 +7067,10 @@ mod lens_params_tests {
         let snapshot = fresh.clone();
         resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db));
         assert_eq!(fresh, snapshot);
+        let mut unresolved = base.clone();
+        unresolved["lensDistortionParams"] = serde_json::Value::Null;
+        resolve_lens_params_in_adjustments(&mut unresolved, &exif, Some(&db));
+        assert_eq!(unresolved, snapshot);
         for radius in [false, true] {
             let mut old = base.clone();
             old["lensDistortionParams"] = serde_json::json!({"tca_vr":1.003,"tca_vb":0.998});

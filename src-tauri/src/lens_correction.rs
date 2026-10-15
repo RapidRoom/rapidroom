@@ -185,9 +185,10 @@ pub struct LensDistortionParams {
 
 impl LensDistortionParams {
     pub fn preserve_saved_tca(&mut self, saved: &serde_json::Value) {
-        if saved
-            .get("tca_poly3")
-            .is_none_or(serde_json::Value::is_null)
+        if saved.is_object()
+            && saved
+                .get("tca_poly3")
+                .is_none_or(serde_json::Value::is_null)
         {
             self.tca_poly3 = None;
             self.tca_vr = saved

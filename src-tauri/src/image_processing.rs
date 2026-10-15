@@ -4377,10 +4377,10 @@ mod polynomial_tca_tests {
                         continue;
                     }
                     let coord = |i: usize| {
-                        let base = if i % 2 == 0 { x } else { y };
+                        let base = if i.is_multiple_of(2) { x } else { y };
                         (base + amount / 100.0 * (row["output"][i].as_f64().unwrap() - base)).clamp(
                             0.0,
-                            if i % 2 == 0 {
+                            if i.is_multiple_of(2) {
                                 (w - 1) as f64
                             } else {
                                 (h - 1) as f64
@@ -4421,8 +4421,10 @@ mod polynomial_tca_tests {
         let read = |filename: &str| {
             let bytes = std::fs::read(input.join(filename)).unwrap();
             let pixels: Vec<f32> = bytes
-                .chunks_exact(4)
-                .map(|c| f32::from_le_bytes(c.try_into().unwrap()))
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|c| f32::from_le_bytes(*c))
                 .collect();
             assert_eq!(pixels.len(), (w * h * 3) as usize);
             assert!(pixels.iter().all(|v| v.is_finite()));
