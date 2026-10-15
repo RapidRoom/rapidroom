@@ -1412,6 +1412,15 @@ fn apply_exif_from_rawler(metadata: &mut Metadata, meta: &RawMetadata) {
     if let Some(dt) = &exif.create_date {
         metadata.set_tag(ExifTag::CreateDate(dt.clone()));
     }
+    if let Some(offset) = &exif.offset_time_original {
+        metadata.set_tag(ExifTag::OffsetTimeOriginal(offset.clone()));
+    }
+    if let Some(offset) = &exif.offset_time_digitized {
+        metadata.set_tag(ExifTag::OffsetTimeDigitized(offset.clone()));
+    }
+    if let Some(sub_sec) = &exif.sub_sec_time_original {
+        metadata.set_tag(ExifTag::SubSecTimeOriginal(sub_sec.clone()));
+    }
     if let Some(lens_make) = &exif.lens_make {
         metadata.set_tag(ExifTag::LensMake(lens_make.clone()));
     }
