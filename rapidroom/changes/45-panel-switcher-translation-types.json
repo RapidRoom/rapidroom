@@ -1,0 +1,14 @@
+{
+  "id": "panel-switcher-translation-types",
+  "title": "Type panel switcher labels as translation keys",
+  "category": "ci",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Panel switcher tooltip labels now use i18next's ParseKeys type so each panel label must be a translation key."
+}
