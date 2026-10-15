@@ -986,8 +986,10 @@
       "selectFolderTitle_other": "Выберите папку для экспорта {{count}} изображений"
     },
     "file": {
+      "dpi": "DPI",
       "quality": "Качество",
       "qualityLossless": "Качество (без потерь)",
+      "resolution": "Разрешение",
       "tiffBitDepth": "Глубина цвета TIFF",
       "tiffBitDepth16": "16 бит",
       "tiffBitDepth8": "8 бит"

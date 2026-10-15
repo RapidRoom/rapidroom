@@ -934,8 +934,10 @@
       "selectFolderTitle_other": "이미지 {{count}}개를 내보낼 폴더 선택"
     },
     "file": {
+      "dpi": "DPI",
       "quality": "품질",
       "qualityLossless": "품질 (무손실)",
+      "resolution": "해상도",
       "tiffBitDepth": "TIFF 비트 심도",
       "tiffBitDepth16": "16비트",
       "tiffBitDepth8": "8비트"

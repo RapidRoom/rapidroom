@@ -235,6 +235,8 @@ impl Default for CopyPasteSettings {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportPreset {
+    #[serde(default)]
+    pub dpi: Option<u16>,
     pub id: String,
     pub name: String,
     pub file_format: String,
@@ -291,6 +293,7 @@ pub struct ExportPreset {
 pub fn default_export_presets() -> Vec<ExportPreset> {
     vec![
         ExportPreset {
+            dpi: None,
             id: "default-hq".to_string(),
             name: "High Quality".to_string(),
             file_format: "jpeg".to_string(),
@@ -327,6 +330,7 @@ pub fn default_export_presets() -> Vec<ExportPreset> {
             output_sharpening: None,
         },
         ExportPreset {
+            dpi: None,
             id: "default-fast".to_string(),
             name: "Fast (Web)".to_string(),
             file_format: "jpeg".to_string(),

@@ -934,8 +934,10 @@
       "selectFolderTitle_other": "選擇資料夾以匯出 {{count}} 張影像"
     },
     "file": {
+      "dpi": "DPI",
       "quality": "品質",
       "qualityLossless": "品質（無損）",
+      "resolution": "解析度",
       "tiffBitDepth": "TIFF 位元深度",
       "tiffBitDepth16": "16 位元",
       "tiffBitDepth8": "8 位元"
