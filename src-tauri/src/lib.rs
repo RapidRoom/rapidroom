@@ -38,6 +38,7 @@ mod cache_utils;
 mod camera_tethering;
 mod culling;
 mod dcp;
+mod denoise_quality;
 mod denoising;
 mod exif_processing;
 mod export_processing;

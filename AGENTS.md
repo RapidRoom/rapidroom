@@ -34,6 +34,10 @@ When a session is started with "take the next cloud issue":
   - `cargo fmt -p RapidRAW -- --check` and `cargo clippy --all-targets --all-features -- -D warnings` in `src-tauri/`;
   - `cargo test --lib` if you touched Rust;
   - `npx prettier --check`, `npx eslint` and `npx tsc --noEmit` on the files you changed. Upstream already has lint and type errors; don't add new ones.
+- **Tests: what to add (maintainer decision, 2026-10-15).** Integration, end-to-end and human acceptance checks protect RapidRoom most: the 60-render pixel regression, native UI runs of the real app, and the maintainer's review of before/after panels.
+  - **Don't add trivial unit tests** that restate the code (a test for a 4-line `match` is noise to write, review and maintain).
+  - **Do add reference checks** that pin behaviour to an outside source of truth: real camera files, Lensfun- or Adobe-published values, round trips through real sidecars, or a regression that has bitten us before.
+  - **Reviewers:** run throwaway probes against the real functions while reviewing. Commit one only if it guards something likely to regress.
 - **Rendering:**
   - The maintainers run a pixel-exact regression check: 60 renders of CC0 raws. It isn't in CI yet (issue #6).
   - If your change could alter rendered output, say so in the PR and show before/after images. Label it `rendering-change`.
@@ -52,5 +56,5 @@ When a session is started with "take the next cloud issue":
 
 ## Useful context
 
-- **Upstream style:** small, focused changes with few code comments. Upstream doesn't take test suites in PRs, but RapidRoom does welcome tests.
+- **Upstream style:** small, focused changes with few code comments. Upstream doesn't take tests in PRs (it asked us to remove them), so send upstream the fix only; RapidRoom keeps reference checks per the testing rule above.
 - **Builds:** a full release build takes 20–50 minutes. Use `cargo check` while iterating.
