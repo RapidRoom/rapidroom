@@ -185,6 +185,10 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 
 The data-only envelope, bounded UTF-8 text, shared free-text budget and assistant-output projection pattern were studied in [AutoShade by skymanbp](https://github.com/skymanbp/autoshade/tree/cbca12b5a903ff8d71faf25a3966ed3712e839ba/src/advisor), under the [MIT licence](rapidroom/LICENSES/autoshade-MIT.txt). RapidRoom’s MCP, terminal context, secret-pattern redaction and edit-name preservation integration are original adaptations. These deterministic boundaries reduce injection exposure; they do not establish immunity of a remote model to hostile instructions.
 
+## CalibRaw grain restoration
+
+Local AI Remove grain selection, deterministic sampling, Gaussian residual extraction and structure rejection are adapted from Duecki and CalibRaw contributors, [Duecki1/CalibRaw at 2466ca66](https://github.com/Duecki1/CalibRaw/tree/2466ca6662c3fd1e901377c0450b19f5f96d3e85), `crates/calibraw-ai/src/remove/lama/grain.rs` and `lama.rs`. These adapted portions retain **GPL-3.0-or-later** (included in `src-tauri/resources/remove-grain-licenses/CalibRaw-GPL-3.0.txt`) and are combined with RapidRoom under GPLv3 section 13. RapidRoom adaptations use its linear-sRGB scene domain and patch storage; no CalibRaw model weights, egui code or GIMP heal solver are included.
+
 ### CRS interoperability cross-check
 
 The field and RDF representation audit compares [LightCraft by storytold](https://github.com/storytold/lightcraft/tree/265248c86fa3267709aea45633d0d135331e180c) (MIT OR Apache-2.0; [MIT notice](rapidroom/LICENSES/lightcraft-MIT.txt)) and [Redlamp by pdcgomes](https://github.com/pdcgomes/redlamp/tree/a70c86dc01ab8ee5d831642520b76ed529f556c0) (MPL-2.0). Supplementary semantics were checked in MIT AutoShade and RAWmakase; exact versions and limitations are in the [audit](rapidroom/validation/crs-interop-20261012/README.md). The namespace-aware photo/curve/look reader extends RapidRoom's existing bounded XML parser; this is original work, with no copied MPL source, Adobe assets, SDK-derived tables or external presets.
