@@ -1,0 +1,13 @@
+{
+  "id": "lightroom-per-setting-import-report",
+  "title": "Explain each unsupported or approximated Lightroom import setting",
+  "category": "fix",
+  "landed": "2026-10-13",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Sidecar and preset imports report bounded, scoped CRS field outcomes with concrete reasons. Sharpening, hue and engine response approximations are explicit; unsupported-only sidecars remain untouched, and partial imports retain unrelated native edits."
+}

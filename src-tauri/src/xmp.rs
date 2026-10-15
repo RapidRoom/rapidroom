@@ -360,6 +360,7 @@ pub(crate) fn validate(content: &str) -> Result<(), Error> {
 pub(crate) enum PhotoProperty {
     Scalar(String),
     List(Vec<String>),
+    Structured,
 }
 
 /// Read only properties of the image subject, never fields of a nested look/mask.
@@ -429,6 +430,10 @@ pub(crate) fn photo_properties(
             };
             if let Some(value) = value {
                 properties.insert(local.to_string(), value);
+            } else if !doc.nodes[child].children.is_empty() {
+                // Keep the top-level name for reporting unsupported resources,
+                // without flattening nested adjustments into global settings.
+                properties.insert(local.to_string(), PhotoProperty::Structured);
             }
         }
     }
