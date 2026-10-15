@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import time
 
 
@@ -18,6 +19,8 @@ def main():
     parser.add_argument('--out', required=True, type=Path)
     parser.add_argument('--target', required=True, type=Path)
     args = parser.parse_args()
+    if sys.version_info < (3, 11):
+        parser.error('Use Python 3.11 or later')
     root, out, target = args.fork.resolve(), args.out.resolve(), args.target.resolve()
     expected = json.loads(Path(__file__).with_name('fixtures.json').read_text())['fork_commit']
     if 'samples' not in out.parts:

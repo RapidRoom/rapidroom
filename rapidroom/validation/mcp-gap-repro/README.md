@@ -16,7 +16,7 @@ the externally imported fork helpers retain their respective AGPL-3.0 licences.
 
 ## Clean checkout
 
-The measured target is Linux with `flock`, `nice`, Node >=22.12, Rust >=1.98,
+The measured target is Linux with `flock`, `nice`, Python >=3.11, Node >=22.12, Rust >=1.98,
 the fork's normal native build dependencies and a working native renderer.
 Other operating systems and GPU drivers need their own execution receipts.
 Use a local filesystem and at least 25 GiB free. Build steps own only
