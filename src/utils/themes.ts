@@ -59,6 +59,24 @@ export const THEMES: Array<ThemeProps> = [
       '--app-hover-color': 'rgb(220, 220, 220)',
     },
   },
+  {
+    id: Theme.Classic,
+    name: 'settings.themes.classic',
+    splashImage: '/splash-rapidroom.jpg',
+    // Neutral chrome and blue accent derived from LightCraft's MIT/Apache-2.0 theme values.
+    cssVariables: {
+      '--app-bg-primary': 'rgb(45, 45, 45)',
+      '--app-bg-secondary': 'rgb(28, 28, 28)',
+      '--app-surface': 'rgb(35, 35, 35)',
+      '--app-card-active': 'rgb(58, 58, 58)',
+      '--app-button-text': 'rgb(226, 226, 226)',
+      '--app-text-primary': 'rgb(226, 226, 226)',
+      '--app-text-secondary': 'rgb(188, 188, 188)',
+      '--app-accent': 'rgb(1, 101, 221)',
+      '--app-border-color': 'rgb(60, 60, 60)',
+      '--app-hover-color': 'rgb(76, 76, 76)',
+    },
+  },
 ];
 
 export const DEFAULT_THEME_ID = Theme.Dark;
