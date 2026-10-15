@@ -336,7 +336,7 @@
       "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
-        "maskBrushTable": "MaskBrushTable ブラシテーブル（未対応）",
+        "maskBrushTable": "インポートされなかったブラシテーブル",
         "aiDenoise": "AI Denoise",
         "aiMasks": "AI masks (subject, sky, people, objects)",
         "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
@@ -392,7 +392,9 @@
       },
       "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
       "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
-      "concurrentEditsPreserved": "Newer editor changes made during import were preserved."
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved.",
+      "brushTableGroup": "ブラシグループ「{{name}}」: {{reason}}",
+      "unchangedForImage": "既存の編集を保持しました。対応する調整は読み込まれていません。"
     },
     "toasts": {
       "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",

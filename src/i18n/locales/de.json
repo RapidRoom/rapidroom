@@ -336,7 +336,7 @@
       "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
-        "maskBrushTable": "MaskBrushTable-Pinseltabellen (nicht unterstützt)",
+        "maskBrushTable": "Nicht importierte Pinseltabellen",
         "aiDenoise": "AI Denoise",
         "aiMasks": "AI masks (subject, sky, people, objects)",
         "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
@@ -392,7 +392,9 @@
       },
       "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
       "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
-      "concurrentEditsPreserved": "Newer editor changes made during import were preserved."
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved.",
+      "brushTableGroup": "Pinselgruppe „{{name}}“: {{reason}}",
+      "unchangedForImage": "Vorhandene Bearbeitungen wurden beibehalten; keine unterstützten Anpassungen wurden importiert."
     },
     "toasts": {
       "albumFilesUnreachable": "Keine Dateien dieses Albums sind erreichbar. Bitte den Datenträger verbinden oder die Ordner neu zuordnen, falls sie verschoben wurden.",
