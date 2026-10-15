@@ -5,6 +5,9 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import argparse
+import tempfile
+import xml.etree.ElementTree as E
 
 ROOT = Path(__file__).resolve().parent
 P, F, I = C.c_void_p, C.c_float, C.c_int
@@ -59,5 +62,59 @@ def generate():
     print(f'Captured {len(rows)} independent channel-coordinate records')
 
 
+def generate_trip():
+    source = ROOT.parents[2] / 'src-tauri/lensfun_db/mil-sony.xml'
+    root = E.parse(source).getroot()
+    wanted = {'FE 35mm f/1.4 GM (SEL35F14GM)', 'FE 24-70mm f/2.8 GM II'}
+    results = []
+    with tempfile.TemporaryDirectory(prefix='lensfun-trip-') as directory:
+        for element in root.findall('lens'):
+            model = element.findtext('model') or ''
+            if model not in wanted:
+                continue
+            file = Path(directory) / 'lens.xml'
+            database = E.Element('lensdatabase', version='1')
+            database.append(element)
+            file.write_bytes(E.tostring(database))
+            db = lib.lf_db_new()
+            try:
+                assert lib.lf_db_load_file(db, str(file).encode()) == 0
+                lens = lib.lf_db_get_lenses(db)[0]
+                assert lens
+                rows = []
+                focals = [35] if '35mm' in model else [20, 24, 24.1, 30, 34, 35, 48, 50, 60, 70, 80]
+                width, height = 7008, 4672
+                for focal in focals:
+                    calibration = Calibration()
+                    assert lib.lf_lens_interpolate_tca(lens, focal, C.byref(calibration))
+                    modifier = lib.lf_modifier_new(lens, 1, width, height)
+                    try:
+                        assert lib.lf_modifier_initialize(modifier, lens, 3, focal, 4, 10, 1, 1, 1, 0) & 1
+                        points = [(0, 0), (width-1, height-1),
+                                  ((width-1)/2, (height-1)/2), (width*.2, height*.8)]
+                        for x, y in points:
+                            coordinates = (F * 6)()
+                            assert lib.lf_modifier_apply_subpixel_distortion(
+                                modifier, x, y, 1, 1, coordinates)
+                            rows.append(dict(focal=focal, width=width, height=height, crop=1,
+                                             input=[x, y], coefficients=list(calibration.terms),
+                                             output=list(coordinates)))
+                    finally:
+                        lib.lf_modifier_destroy(modifier)
+                results.append(dict(model=model, records=rows))
+            finally:
+                lib.lf_db_destroy(db)
+    assert len(results) == 2
+    report = dict(library=version, source_file='src-tauri/lensfun_db/mil-sony.xml',
+                  source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+                  method='Lensfun public C API on bundled Sony XML; no RapidRoom evaluator',
+                  lenses=results)
+    (ROOT / 'trip-coordinates.json').write_text(json.dumps(report, indent=2) + '\n')
+    print('Captured independent bundled Sony trip-lens records')
+
+
 if __name__ == '__main__':
-    generate()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--trip', action='store_true', help='Capture bundled Sony trip-lens calibrations')
+    args = parser.parse_args()
+    generate_trip() if args.trip else generate()

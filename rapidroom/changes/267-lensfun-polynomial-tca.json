@@ -2,12 +2,12 @@
   "id": "lensfun-polynomial-tca",
   "title": "Preserve complete Lensfun polynomial chromatic-aberration correction",
   "category": "fix",
-  "landed": "2026-10-14",
+  "landed": "2026-10-15",
   "authors": ["yojen7"],
   "source": "rapidroom (original implementation with Codex; Lensfun model conventions and independent C-API fixtures)",
   "commits": [],
   "upstream_issues": ["RapidRoom/rapidroom#267", "RapidRoom/rapidroom#18"],
   "upstream_prs": [],
   "rendering_change": true,
-  "notes": "Newly selected polynomial TCA calibrations retain radial channel terms and calibration normalization; prior saved constant-scale coefficients retain their existing evaluation. Independent numerical and renderer fixtures cover interpolation, crop/aspect, and Amount. Physical lens quality requires human review."
+  "notes": "Newly selected polynomial TCA calibrations retain radial channel terms and calibration normalization; prior saved constant-scale coefficients retain their existing evaluation. Independent numerical and renderer fixtures cover interpolation, crop/aspect, and Amount. Physical lens quality requires human review. Bundled Sony trip-lens references cover the 35 GM and 24-70 GM II, including Lensfun last-declaration handling for duplicate focal anchors."
 }

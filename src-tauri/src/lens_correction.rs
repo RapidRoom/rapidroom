@@ -779,6 +779,16 @@ fn interpolate_polynomial_tca(lens: &Lens, focal: f32) -> Option<[f64; 6]> {
         })
         .collect();
     anchors.sort_by(|a, b| a.focal.total_cmp(&b.focal));
+    // Lensfun replaces a calibration when the same focal length is added
+    // again. The bundled Sony 24-70 GM II contains repeated endpoint anchors.
+    anchors.dedup_by(|later, earlier| {
+        if later.focal == earlier.focal {
+            *earlier = *later;
+            true
+        } else {
+            false
+        }
+    });
     let first = *anchors.first()?;
     if focal <= first.focal {
         return Some(extract_tca_params(first));

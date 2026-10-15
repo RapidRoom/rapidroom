@@ -4282,13 +4282,11 @@ mod polynomial_tca_tests {
         (db, oracle)
     }
 
-    #[test]
-    fn polynomial_tca_matches_independent_lensfun_channel_coordinates() {
-        let (db, oracle) = fixture();
+    fn assert_reference_coordinates(lens: &crate::lens_correction::Lens, oracle: &Value) {
         for row in oracle["records"].as_array().unwrap() {
             let width = row["width"].as_u64().unwrap() as u32;
             let height = row["height"].as_u64().unwrap() as u32;
-            let params = db.lenses[0]
+            let params = lens
                 .get_distortion_params(
                     row["focal"].as_f64().unwrap() as f32,
                     None,
@@ -4342,6 +4340,31 @@ mod polynomial_tca_tests {
                     "channel coordinate {i}: {actual:?}, {row}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn polynomial_tca_matches_independent_lensfun_channel_coordinates() {
+        let (db, oracle) = fixture();
+        assert_reference_coordinates(&db.lenses[0], &oracle);
+    }
+
+    #[test]
+    fn polynomial_tca_matches_bundled_sony_trip_lens_reference() {
+        let db: LensDatabase =
+            quick_xml::de::from_str(include_str!("../lensfun_db/mil-sony.xml")).unwrap();
+        let oracle: Value = serde_json::from_str(include_str!(
+            "../../rapidroom/validation/lensfun-tca/trip-coordinates.json"
+        ))
+        .unwrap();
+        for entry in oracle["lenses"].as_array().unwrap() {
+            let name = entry["model"].as_str().unwrap();
+            let lens = db
+                .lenses
+                .iter()
+                .find(|lens| lens.get_model() == name)
+                .unwrap();
+            assert_reference_coordinates(lens, entry);
         }
     }
 
