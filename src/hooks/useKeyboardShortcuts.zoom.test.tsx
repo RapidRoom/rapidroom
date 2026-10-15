@@ -5,12 +5,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { executeAppAction } from '../utils/appActions';
 import { useEditorStore } from '../store/useEditorStore';
+import { useLibraryStore } from '../store/useLibraryStore';
 import { useUIStore } from '../store/useUIStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import type { SelectedImage } from '../components/ui/AppProperties';
+import { LibraryViewMode, Theme, type ImageFile, type SelectedImage } from '../components/ui/AppProperties';
 const zoom = vi.fn((percent: number) => useEditorStore.setState({ zoom: percent / 0.2 }));
 const callbacks = {
-  sortedImageList: [],
+  sortedImageList: [] as ImageFile[],
   handleBackToLibrary: vi.fn(),
   handleDeleteSelected: vi.fn(),
   handleDeleteRejected: vi.fn(),
@@ -27,11 +28,13 @@ function Harness() {
 let node: HTMLDivElement, root: Root;
 const editor = useEditorStore.getState(),
   ui = useUIStore.getState(),
+  library = useLibraryStore.getState(),
   settings = useSettingsStore.getState();
 beforeEach(async () => {
   vi.stubGlobal('devicePixelRatio', 1);
   useUIStore.setState({ ...ui, activeView: 'editor', isSettingsOpen: false });
   useSettingsStore.setState({ ...settings, osPlatform: 'linux' });
+  useLibraryStore.setState(library, true);
   useEditorStore.setState({
     ...editor,
     selectedImage: { path: '/test.raw', isReady: true, width: 1000, height: 500 } as SelectedImage,
@@ -60,7 +63,10 @@ afterEach(async () => {
   zoom.mockClear();
   useEditorStore.setState(editor, true);
   useUIStore.setState(ui, true);
+  useLibraryStore.setState(library, true);
   useSettingsStore.setState(settings, true);
+  callbacks.sortedImageList = [];
+  vi.mocked(callbacks.handleImageSelect).mockClear();
 });
 it('shares fixed zoom stops and the cap with palette actions despite a stale display readout', async () => {
   await act(async () => {
@@ -77,4 +83,69 @@ it('keeps the shared zoom action unavailable outside an active editor photo', as
   await act(async () => useUIStore.setState({ activeView: 'library' }));
   expect(executeAppAction('zoom_in_step')).toBe(false);
   expect(zoom).not.toHaveBeenCalled();
+});
+
+it('keeps arrow navigation within the active folder in Recursive view', async () => {
+  const paths = [
+    '/photos/FOLDER123/IMAGE1.jpg',
+    '/photos/FOLDER123/IMAGE2.jpg',
+    '/photos/FOLDER456/IMAGE3.jpg',
+    '/photos/FOLDER456/IMAGE4.jpg',
+    '/photos/FOLDER123/IMAGE47.jpg',
+  ];
+  callbacks.sortedImageList = paths.map((path) => ({ path }) as ImageFile);
+  await act(async () => {
+    root.render(<Harness />);
+    useUIStore.setState({ ...ui, activeView: 'library', isSettingsOpen: false });
+    useSettingsStore.setState({
+      ...settings,
+      osPlatform: 'linux',
+      appSettings: {
+        ...(settings.appSettings ?? { lastRootPath: null, theme: Theme.Dark }),
+        libraryViewMode: LibraryViewMode.Recursive,
+      },
+    });
+    useLibraryStore.setState({
+      ...library,
+      libraryActivePath: '/photos/FOLDER123/IMAGE2.jpg',
+      multiSelectedPaths: ['/photos/FOLDER123/IMAGE2.jpg'],
+    });
+  });
+  await act(async () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight', bubbles: true }));
+  });
+
+  expect(useLibraryStore.getState().libraryActivePath).toBe('/photos/FOLDER123/IMAGE47.jpg');
+  expect(callbacks.handleImageSelect).toHaveBeenCalledWith('/photos/FOLDER123/IMAGE47.jpg', false);
+});
+
+it('preserves global arrow navigation outside Recursive view', async () => {
+  callbacks.sortedImageList = [
+    '/photos/FOLDER123/IMAGE1.jpg',
+    '/photos/FOLDER123/IMAGE2.jpg',
+    '/photos/FOLDER456/IMAGE3.jpg',
+  ].map((path) => ({ path }) as ImageFile);
+  await act(async () => {
+    root.render(<Harness />);
+    useUIStore.setState({ ...ui, activeView: 'library', isSettingsOpen: false });
+    useSettingsStore.setState({
+      ...settings,
+      osPlatform: 'linux',
+      appSettings: {
+        ...(settings.appSettings ?? { lastRootPath: null, theme: Theme.Dark }),
+        libraryViewMode: LibraryViewMode.Flat,
+      },
+    });
+    useLibraryStore.setState({
+      ...library,
+      libraryActivePath: '/photos/FOLDER123/IMAGE2.jpg',
+      multiSelectedPaths: ['/photos/FOLDER123/IMAGE2.jpg'],
+    });
+  });
+  await act(async () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight', bubbles: true }));
+  });
+
+  expect(useLibraryStore.getState().libraryActivePath).toBe('/photos/FOLDER456/IMAGE3.jpg');
+  expect(callbacks.handleImageSelect).toHaveBeenCalledWith('/photos/FOLDER456/IMAGE3.jpg', false);
 });

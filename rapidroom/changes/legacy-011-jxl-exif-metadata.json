@@ -1,0 +1,13 @@
+{
+  "id": "jxl-exif-metadata",
+  "title": "Preserve source EXIF metadata in JPEG XL exports",
+  "category": "fix",
+  "landed": "2026-10-10",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "JXL exports retain supported source EXIF in an ISO BMFF container when metadata preservation is enabled. The export panel exposes metadata and GPS controls for JXL."
+}
