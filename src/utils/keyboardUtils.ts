@@ -404,13 +404,32 @@ export function getDefaultCombo(def: KeybindDefinition, osPlatform?: string): st
   return (osPlatform === 'macos' && def.macDefaultCombo) || def.defaultCombo;
 }
 
+// Canonical identifiers keep stored shortcuts compatible while the symbol
+// comes from the active keyboard layout rather than a physical QWERTY key.
+const punctuationCodes: Record<string, string> = {
+  '[': 'BracketLeft',
+  ']': 'BracketRight',
+  '-': 'Minus',
+  '=': 'Equal',
+  ',': 'Comma',
+  '.': 'Period',
+  '/': 'Slash',
+  ';': 'Semicolon',
+  "'": 'Quote',
+  '`': 'Backquote',
+  '\\': 'Backslash',
+};
+
 export function normalizeCombo(event: KeyboardEvent, osPlatform?: string): string[] {
+  if (event.isComposing || event.key === 'Dead' || event.key === 'Process') return [];
   const isMacDelete = osPlatform === 'macos' && event.code === 'Backspace' && (event.ctrlKey || event.metaKey);
   const parts: string[] = [];
   if ((event.ctrlKey || event.metaKey) && !isMacDelete) parts.push('ctrl');
   if (event.shiftKey) parts.push('shift');
   if (event.altKey) parts.push('alt');
   let code = isMacDelete ? 'Delete' : event.code;
+  // Unmodified number-row keys keep their physical rating bindings.
+  if (parts.length === 0 && /^Digit[0-9]$/.test(code)) return [code];
   if (event.key && /^[a-zA-Z]$/.test(event.key)) {
     code = `Key${event.key.toUpperCase()}`;
   } else if (/^Numpad[0-9]$/.test(code)) {
@@ -419,6 +438,8 @@ export function normalizeCombo(event: KeyboardEvent, osPlatform?: string): strin
     code = 'Equal';
   } else if (code === 'NumpadSubtract') {
     code = 'Minus';
+  } else if (!code.startsWith('Numpad') && punctuationCodes[event.key]) {
+    code = punctuationCodes[event.key];
   }
   if (isValidShortcutKey(code)) {
     parts.push(code);

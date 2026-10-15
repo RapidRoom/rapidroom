@@ -1548,6 +1548,7 @@ fn apply_gps_from_rawler(metadata: &mut Metadata, gps: ExifGPS) {
     }
 }
 
+#[cfg(test)]
 pub fn write_image_with_metadata(
     image_bytes: &mut Vec<u8>,
     original_path_str: &str,
@@ -1555,6 +1556,26 @@ pub fn write_image_with_metadata(
     keep_metadata: bool,
     strip_gps: bool,
     xmp: &ExportXmp,
+) -> Result<(), String> {
+    write_image_with_metadata_and_resolution(
+        image_bytes,
+        original_path_str,
+        output_format,
+        keep_metadata,
+        strip_gps,
+        xmp,
+        None,
+    )
+}
+
+pub fn write_image_with_metadata_and_resolution(
+    image_bytes: &mut Vec<u8>,
+    original_path_str: &str,
+    output_format: &str,
+    keep_metadata: bool,
+    strip_gps: bool,
+    xmp: &ExportXmp,
+    dpi: Option<u16>,
 ) -> Result<(), String> {
     // FIXME: temporary solution until I find a way to write metadata to TIFF
     if !keep_metadata || output_format.to_lowercase() == "tiff" {
@@ -1575,7 +1596,7 @@ pub fn write_image_with_metadata(
     if file_type == FileExtension::WEBP {
         convert_webp_to_extended(image_bytes);
     }
-    write_exif_metadata(image_bytes, original_path_str, file_type, strip_gps)?;
+    write_exif_metadata(image_bytes, original_path_str, file_type, strip_gps, dpi)?;
     embed_xmp(image_bytes, original_path_str, file_type, strip_gps, xmp);
 
     Ok(())
@@ -1586,6 +1607,7 @@ fn write_exif_metadata(
     original_path_str: &str,
     file_type: FileExtension,
     strip_gps: bool,
+    dpi: Option<u16>,
 ) -> Result<(), String> {
     let original_path = Path::new(original_path_str);
     if !original_path.exists() {
@@ -1835,6 +1857,18 @@ fn write_exif_metadata(
     metadata.set_tag(ExifTag::FlashpixVersion(b"0100".to_vec()));
     if matches!(file_type, FileExtension::JPEG) {
         metadata.set_tag(ExifTag::ComponentsConfiguration(vec![1, 2, 3, 0]));
+    }
+
+    if matches!(file_type, FileExtension::JPEG | FileExtension::PNG { .. })
+        && let Some(dpi) = dpi
+    {
+        let resolution = vec![uR64 {
+            nominator: dpi.into(),
+            denominator: 1,
+        }];
+        metadata.set_tag(ExifTag::XResolution(resolution.clone()));
+        metadata.set_tag(ExifTag::YResolution(resolution));
+        metadata.set_tag(ExifTag::ResolutionUnit(vec![2u16]));
     }
 
     let output_dimensions = if matches!(file_type, FileExtension::JXL) {
@@ -2389,6 +2423,37 @@ fn find_png_chunk(bytes: &[u8], wanted: &[u8; 4]) -> Option<usize> {
     }
     None
 }
+
+/// CRC32 using the IEEE polynomial, as required by PNG.
+pub(crate) fn crc32_ieee(data: &[u8]) -> u32 {
+    let mut crc: u32 = 0xFFFFFFFF;
+    for &byte in data {
+        let index = ((crc ^ byte as u32) & 0xFF) as usize;
+        crc = CRC32_TABLE[index] ^ (crc >> 8);
+    }
+    crc ^ 0xFFFFFFFF
+}
+
+/// Precomputed CRC32 IEEE lookup table.
+const CRC32_TABLE: [u32; 256] = {
+    let mut table = [0u32; 256];
+    let mut i = 0usize;
+    while i < 256 {
+        let mut c = i as u32;
+        let mut k = 0;
+        while k < 8 {
+            if c & 1 != 0 {
+                c = 0xEDB88320 ^ (c >> 1);
+            } else {
+                c >>= 1;
+            }
+            k += 1;
+        }
+        table[i] = c;
+        i += 1;
+    }
+    table
+};
 
 #[cfg(test)]
 mod xmp_keyword_tests {

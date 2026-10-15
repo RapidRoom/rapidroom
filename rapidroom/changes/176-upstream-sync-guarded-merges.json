@@ -1,0 +1,13 @@
+{
+  "id": "upstream-sync-guarded-merges",
+  "title": "Gate daily upstream sync on exact checks and unchanged renders",
+  "category": "ci",
+  "landed": "2026-10-13",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original workflow and merge-gate tests)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "The daily sync fails closed on missing checks, verifies the complete required hosted set on the exact head/base, and refreshes checks when main advances. Changed renders never trigger reference recording or merge: the PR remains open for human review, with an assigned issue and before/after artifact panels. Initial sync waits for PR #179."
+}
