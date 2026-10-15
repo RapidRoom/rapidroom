@@ -10,7 +10,6 @@ import { closeTerminal, mountTerminal } from '../../utils/terminalRuntime';
 import { normalizeTerminalSettings } from '../../utils/terminalSettings';
 import { useUIStore } from '../../store/useUIStore';
 import { Panel, type PanelRegion } from '../ui/AppProperties';
-import PanelSwitcher from './PanelSwitcher';
 import AgentLauncher from './AgentLauncher';
 
 export default function TerminalPanel() {
@@ -66,7 +65,6 @@ export default function TerminalPanel() {
       className="@container/terminal flex flex-col h-full min-h-0 w-full bg-bg-secondary text-text-primary rounded-lg overflow-hidden"
     >
       <div data-terminal-header className="flex items-center gap-1 h-8 px-1 border-b border-border-color shrink-0">
-        {region === 'bottom' && <PanelSwitcher region="bottom" side="bottom" placement="top" compact />}
         <div role="tablist" aria-label={t('terminal.tabs')} className="flex flex-1 min-w-0 overflow-x-auto">
           {tabs.map((tab) => (
             <div key={tab.id} className="group/tab flex shrink-0 items-center">
@@ -99,7 +97,7 @@ export default function TerminalPanel() {
         >
           <Plus size={16} />
         </button>
-        <AgentLauncher compact showDestination={false} />
+        {region !== 'bottom' && <AgentLauncher compact showDestination={false} />}
         <button
           aria-label={t('terminal.preferences')}
           aria-expanded={showPreferences}
@@ -108,14 +106,16 @@ export default function TerminalPanel() {
         >
           <Settings size={16} />
         </button>
-        <button
-          aria-label={t(region === 'bottom' ? 'terminal.collapseDock' : 'terminal.collapsePanel')}
-          data-terminal-collapse
-          className="p-1 shrink-0"
-          onClick={collapse}
-        >
-          <ChevronDown size={16} />
-        </button>
+        {region !== 'bottom' && (
+          <button
+            aria-label={t('terminal.collapsePanel')}
+            data-terminal-collapse
+            className="p-1 shrink-0"
+            onClick={collapse}
+          >
+            <ChevronDown size={16} />
+          </button>
+        )}
       </div>
       {showPreferences && (
         <div className="p-2 text-sm flex flex-wrap gap-3 border-b border-border-color shrink-0">
