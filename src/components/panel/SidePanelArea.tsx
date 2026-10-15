@@ -85,7 +85,7 @@ function RegionDroppableContainer({
       const x = activeRect.left + activeRect.width / 2 - rect.left;
       const y = activeRect.top + activeRect.height / 2 - rect.top;
 
-      let intendedPlacement: SwitcherPlacement = 'bottom';
+      let intendedPlacement: SwitcherPlacement;
       if (side === 'left') {
         const isTopLeft = y < (-rect.height / rect.width) * x + rect.height;
         intendedPlacement = isTopLeft ? 'left' : 'bottom';
@@ -243,7 +243,7 @@ function SplitOverlayDropzone({
       const x = activeRect.left + activeRect.width / 2 - rect.left;
       const y = activeRect.top + activeRect.height / 2 - rect.top;
 
-      let intendedPlacement: SwitcherPlacement = 'bottom';
+      let intendedPlacement: SwitcherPlacement;
       if (side === 'left') {
         const isTopLeft = y < (-rect.height / rect.width) * x + rect.height;
         intendedPlacement = isTopLeft ? 'left' : 'bottom';
