@@ -104,6 +104,14 @@ def run_zoom_checks(smoke, wait_for):
     for _ in range(3):
         smoke.key('ArrowUp', 'ArrowUp')
     smoke.step('rapid keyboard steps do not wait for readout', at(300))
+    percent(150)
+    at(150)
+    # French AZERTY '-' is on the physical Digit6 key. Exercise the real
+    # shortcut listener with the layout key/code pair, not a React fixture.
+    smoke.key('Digit6', '-', ctrl=True)
+    smoke.step('AZERTY Ctrl+- matches native Zoom out', at(100))
+    smoke.key('Equal', '=', ctrl=True)
+    smoke.step('QWERTY Ctrl+= still matches native Zoom in', at(150))
     for _ in range(8):
         smoke.key('Equal', '=', ctrl=True)
         time.sleep(0.3)
