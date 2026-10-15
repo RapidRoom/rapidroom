@@ -76,6 +76,7 @@ mod preset_converter;
 mod preset_xmp;
 mod raw_processing;
 mod remove_grain;
+mod remove_grain_match;
 mod starter_presets;
 mod tagging;
 mod tagging_utils;

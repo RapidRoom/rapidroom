@@ -34,11 +34,6 @@ impl NativeRect {
 
 /// The photo's grain around a pass, ready to be copied into its fill.
 pub(crate) struct Grain {
-    bounds: NativeRect,
-    /// Canonical-scene high-pass residual of the surroundings.
-    residual: Vec<[f32; 3]>,
-    /// Low-pass luminance, used to scale grain to the fill's brightness.
-    base_luma: Vec<f32>,
     /// Top-left corners (local) of blocks that hold pure grain.
     pub(crate) sources: Vec<(u32, u32)>,
     /// Origin of the block grid in the fill, so every fill block maps to one source.
@@ -126,31 +121,21 @@ impl Grain {
         }
         let sources = select_grain_sources(candidates, &residual, width);
         (!sources.is_empty()).then(|| Self {
-            bounds,
-            residual,
-            base_luma,
             sources,
             grid_origin: (fill.x, fill.y),
             seed: u64::from(fill.x) << 32 | u64::from(fill.y),
         })
     }
 
-    /// Adds grain to the generated canonical-scene pixel at native `(x, y)`.
-    pub(crate) fn add(&self, x: u32, y: u32, generated: &mut [f32; 3]) {
+    /// Deterministic address within the selected, contiguous 16x16 tiles.
+    pub(crate) fn donor_index(&self, x: u32, y: u32) -> usize {
         let local_x = x.wrapping_sub(self.grid_origin.0);
         let local_y = y.wrapping_sub(self.grid_origin.1);
         let block = (local_x / GRAIN_BLOCK, local_y / GRAIN_BLOCK);
         let pick = mix64(self.seed ^ (u64::from(block.0) << 32 | u64::from(block.1)));
-        let (source_x, source_y) = self.sources[(pick % self.sources.len() as u64) as usize];
-        let index = (source_y + local_y % GRAIN_BLOCK) as usize * self.bounds.width as usize
-            + (source_x + local_x % GRAIN_BLOCK) as usize;
-        // Shot noise grows with the square root of the signal.
-        let scale = ((luma(*generated).max(0.0) + 1e-3) / (self.base_luma[index].max(0.0) + 1e-3))
-            .sqrt()
-            .clamp(0.5, 2.0);
-        for (value, grain) in generated.iter_mut().zip(self.residual[index]) {
-            *value += grain * scale;
-        }
+        (pick % self.sources.len() as u64) as usize * 256
+            + (local_y % GRAIN_BLOCK) as usize * 16
+            + (local_x % GRAIN_BLOCK) as usize
     }
 }
 
@@ -299,7 +284,7 @@ pub(crate) fn mix64(mut value: u64) -> u64 {
     value ^ (value >> 31)
 }
 
-fn gaussian_blur_rgb(rgb: &[f32], width: usize, height: usize, sigma: f32) -> Vec<f32> {
+pub(crate) fn gaussian_blur_rgb(rgb: &[f32], width: usize, height: usize, sigma: f32) -> Vec<f32> {
     let radius = (sigma * 3.0).ceil() as isize;
     let kernel = (-radius..=radius)
         .map(|offset| (-(offset * offset) as f32 / (2.0 * sigma * sigma)).exp())
@@ -361,8 +346,9 @@ fn dilate_square(mask: &[bool], width: usize, height: usize, radius: usize) -> V
     out
 }
 
-/// Model fills are encoded sRGB. Only the native mask pixels receive a scene
-/// residual; LaMa's existing blend and the persisted mask keep their feathering.
+/// Match only new local fills; the native mask and stored feathering are unchanged.
+/// Noise is measured in encoded colour components to account for model noise
+/// without changing perceived brightness through another nonlinear conversion.
 pub(crate) fn restore_grain(
     scene: &Rgb32FImage,
     mask: &GrayImage,
@@ -388,21 +374,20 @@ pub(crate) fn restore_grain(
         mask.save(directory.join(format!("sample-{index}-mask.png")))
             .unwrap();
     }
-    let Some(grain) = Grain::sample(scene, mask, bounds) else {
+    if scene.dimensions() != mask.dimensions()
+        || scene.as_raw().iter().any(|v| !v.is_finite())
+        || bounds.width == 0
+        || bounds.height == 0
+        || bounds.x.saturating_add(bounds.width) > scene.width()
+        || bounds.y.saturating_add(bounds.height) > scene.height()
+    {
         return;
-    };
-    for (x, y, pixel) in fill.enumerate_pixels_mut() {
-        if mask.get_pixel(x, y)[0] == 0 {
-            continue;
-        }
-        let mut linear = [decode(pixel[0]), decode(pixel[1]), decode(pixel[2])];
-        grain.add(x, y, &mut linear);
-        for (value, linear) in pixel.0[..3].iter_mut().zip(linear) {
-            *value = encode(linear);
-        }
     }
+    let grain = Grain::sample(scene, mask, bounds);
+    crate::remove_grain_match::harmonize(scene, mask, fill, bounds, grain.as_ref());
 }
 
+#[cfg(test)]
 fn decode(value: u8) -> f32 {
     let value = f32::from(value) / 255.0;
     if value <= 0.04045 {
@@ -411,7 +396,7 @@ fn decode(value: u8) -> f32 {
         ((value + 0.055) / 1.055).powf(2.4)
     }
 }
-fn encode(value: f32) -> u8 {
+pub(crate) fn encode(value: f32) -> u8 {
     let value = value.max(0.0);
     let encoded = if value <= 0.0031308 {
         value * 12.92
@@ -473,17 +458,22 @@ mod tests {
                     || y >= bounds.bottom() + 8
             );
         }
+        let mut fill = image::RgbaImage::from_pixel(
+            size,
+            size,
+            Rgba([encode(0.2), encode(0.2), encode(0.2), 255]),
+        );
+        let mut again = fill.clone();
+        restore_grain(&scene, &mask, &mut fill, bounds);
+        restore_grain(&scene, &mask, &mut again, bounds);
+        assert_eq!(fill, again);
         let mut sum = 0.0;
         let mut squares = 0.0;
         for y in bounds.y..bounds.bottom() {
             for x in bounds.x..bounds.right() {
-                let mut pixel = [0.2; 3];
-                grain.add(x, y, &mut pixel);
-                let mut again = [0.2; 3];
-                grain.add(x, y, &mut again);
-                assert_eq!(pixel, again);
-                sum += pixel[1] - 0.2;
-                squares += (pixel[1] - 0.2).powi(2);
+                let value = decode(fill.get_pixel(x, y)[1]) - 0.2;
+                sum += value;
+                squares += value.powi(2);
             }
         }
         let deviation = (squares / 1024.0 - (sum / 1024.0).powi(2)).sqrt();
@@ -495,7 +485,7 @@ mod tests {
     fn clean_flat_fills_are_unchanged_and_bad_or_small_sources_are_skipped() {
         let (mask, bounds) = mask(160);
         let flat = Rgb32FImage::from_pixel(160, 160, Rgb([0.0; 3]));
-        let mut fill = image::RgbaImage::from_pixel(160, 160, Rgba([127, 99, 40, 255]));
+        let mut fill = image::RgbaImage::from_pixel(160, 160, Rgba([0, 0, 0, 255]));
         let original = fill.clone();
         restore_grain(&flat, &mask, &mut fill, bounds);
         assert_eq!(fill, original);
