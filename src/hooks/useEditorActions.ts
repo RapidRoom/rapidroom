@@ -150,10 +150,7 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
     debouncedSetHistory.flush();
     for (const [path, bufferedDraft] of buffered) captured.set(path, bufferedDraft);
     const active = captureEditorDraft();
-    if (active) {
-      captured.set(active.path, active);
-      if (active.path !== before?.path || active.adjustments !== before?.adjustments) buffered.set(active.path, active);
-    }
+    if (active) captured.set(active.path, active);
     const draft = targetPath ? captured.get(targetPath) : active;
     const hasNewerDraft = (path: string) => {
       const active = captureEditorDraft();

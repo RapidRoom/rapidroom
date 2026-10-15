@@ -279,7 +279,7 @@ describe('public XMP import state and history', () => {
     expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: latest });
   });
 
-  it('preserves the target photo draft if selection changes while an existing write drains', async () => {
+  it('preserves the target draft and queued edits to a newly selected photo while an existing write drains', async () => {
     let finish!: () => void;
     mockCommand(
       Invokes.SaveMetadataAndUpdateThumbnail,
@@ -297,6 +297,7 @@ describe('public XMP import state and history', () => {
     const other = { ...draft, exposure: 2 };
     const selected = useEditorStore.getState().selectedImage!;
     useEditorStore.setState({ selectedImage: { ...selected, path: '/photos/b.NEF' }, adjustments: other });
+    debouncedSave('/photos/b.NEF', other);
     finish();
     await operation;
     expect(useEditorStore.getState().adjustments).toBe(other);
