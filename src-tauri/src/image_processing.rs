@@ -4364,11 +4364,10 @@ mod polynomial_tca_tests {
             )
             .unwrap();
             for amount in [0.0, 50.0, 100.0] {
-                let params = get_geometry_params_from_json(
-                    &json!({"lensDistortionParams":encoded,"lensTcaAmount":amount}),
-                );
+                let adjustments = json!({"lensDistortionParams":encoded,"lensTcaAmount":amount});
+                let params = get_geometry_params_from_json(&adjustments);
                 assert_eq!(is_geometry_identity(&params), amount == 0.0);
-                let warped = warp_image_geometry(&image, params).to_rgb32f();
+                let warped = apply_geometry_warp(&image, &adjustments).to_rgb32f();
                 for row in oracle["records"].as_array().unwrap().iter().filter(|r| {
                     r["width"] == w && r["height"] == h && r["focal"] == focal && r["crop"] == 1
                 }) {
@@ -4444,19 +4443,16 @@ mod polynomial_tca_tests {
                 .get_distortion_params(focal, None, None, Some(1.0))
                 .unwrap();
             let mut encoded = serde_json::to_value(params).unwrap();
-            let parsed = get_geometry_params_from_json(&json!({"lensDistortionParams":encoded}));
-            let full = warp_image_geometry(&original, parsed).to_rgb32f();
+            let full = apply_geometry_warp(&original, &json!({"lensDistortionParams":encoded}))
+                .to_rgb32f();
             assert!(full.as_raw().iter().all(|v| v.is_finite()));
             DynamicImage::ImageRgb32F(full.clone())
                 .to_rgb8()
                 .save(out.join(format!("{focal}-full.png")))
                 .unwrap();
             encoded.as_object_mut().unwrap().remove("tca_poly3");
-            let legacy = warp_image_geometry(
-                &original,
-                get_geometry_params_from_json(&json!({"lensDistortionParams":encoded})),
-            )
-            .to_rgb32f();
+            let legacy = apply_geometry_warp(&original, &json!({"lensDistortionParams":encoded}))
+                .to_rgb32f();
             DynamicImage::ImageRgb32F(legacy.clone())
                 .to_rgb8()
                 .save(out.join(format!("{focal}-legacy.png")))
