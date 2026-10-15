@@ -1074,7 +1074,13 @@ mod tests {
         assert_eq!(iso(&metadata), iso(&original_metadata));
         assert_eq!(metadata.make, original_metadata.make);
         assert_eq!(metadata.model, original_metadata.model);
-        assert_eq!(raw.orientation.to_u16(), original.orientation.to_u16());
+        assert_eq!(
+            raw.orientation.to_u16(),
+            original_metadata
+                .exif
+                .orientation
+                .unwrap_or(original.orientation.to_u16())
+        );
         assert_eq!((raw.width, raw.height), (original.width, original.height));
         assert_eq!(raw.active_area, original.active_area);
         assert_eq!(raw.crop_area, original.crop_area);

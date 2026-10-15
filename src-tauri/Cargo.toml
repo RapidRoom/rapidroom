@@ -10,7 +10,7 @@ name = "rapidraw_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
-default = []
+default = ["native-openvino"]
 tethering = ["dep:gphoto2"]
 mcp = ["dep:ab_glyph", "dep:rmcp", "dep:http", "dep:bytes", "dep:http-body", "dep:http-body-util", "dep:rapidroom-mcp-client"]
 native-ui-test = ["dep:tauri-plugin-wdio-webdriver"]
