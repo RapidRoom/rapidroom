@@ -551,9 +551,27 @@ pub(crate) fn update(
     label: Option<&str>,
     tags: &[String],
 ) -> Result<String, Error> {
+    update_fields(content, Some(rating), label, Some(tags))
+}
+
+/// JPEG culling metadata must leave keywords and every unrelated field intact.
+pub(crate) fn update_rating_label(
+    content: &str,
+    rating: Option<i16>,
+    label: Option<&str>,
+) -> Result<String, Error> {
+    update_fields(content, rating, label, None)
+}
+
+fn update_fields(
+    content: &str,
+    rating: Option<i16>,
+    label: Option<&str>,
+    tags: Option<&[String]>,
+) -> Result<String, Error> {
     if label
         .into_iter()
-        .chain(tags.iter().map(String::as_str))
+        .chain(tags.unwrap_or_default().iter().map(String::as_str))
         .any(|s| s.chars().any(|c| !xml_char(c)))
     {
         return Err(malformed("metadata contains invalid XML characters"));
@@ -579,15 +597,22 @@ pub(crate) fn update(
             }
         }
         for (uri, local) in [(XMP, "Rating"), (XMP, "Label"), (DC, "subject")] {
+            if uri == DC && tags.is_none() {
+                continue;
+            }
             for i in doc.children(description, uri, local) {
                 let node = &doc.nodes[i];
                 edits.push((node.start.start..node.end.end, String::new()));
             }
         }
     }
-    let mut attributes = xmp_ns;
+    let mut attributes = if rating.is_some() || label.is_some() {
+        xmp_ns
+    } else {
+        String::new()
+    };
     let mut subject = String::new();
-    if !tags.is_empty() {
+    if let Some(tags) = tags.filter(|tags| !tags.is_empty()) {
         attributes.push_str(&dc_ns);
         attributes.push_str(&rdf_ns);
         subject.push_str(&format!("<{dc}:subject><{rdf}:Bag>"));
@@ -599,7 +624,9 @@ pub(crate) fn update(
         }
         subject.push_str(&format!("</{rdf}:Bag></{dc}:subject>"));
     }
-    attributes.push_str(&format!(" {xmp}:Rating=\"{rating}\""));
+    if let Some(rating) = rating {
+        attributes.push_str(&format!(" {xmp}:Rating=\"{rating}\""));
+    }
     if let Some(label) = label {
         attributes.push_str(&format!(
             " {xmp}:Label=\"{}\"",

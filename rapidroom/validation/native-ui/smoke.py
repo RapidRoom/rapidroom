@@ -367,8 +367,10 @@ class Smoke:
         if (self.case / "dock-layout-test.json").exists():
             from dock_layout import run_layout_checks
             run_layout_checks(self.case, self)
-        self.execute("""const e=[...document.images].find(e=>e.src.startsWith('asset:'));
-          e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;""")
+        self.execute("""const e=[...document.images].find(e=>e.src.startsWith('asset:') &&
+          (!arguments[0] || e.alt==='smoke.ARW'));
+          e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;""",
+          [(self.case / 'jpeg-metadata-test.json').exists()])
         wait_for(lambda: self.execute("return document.body.innerText.includes('4608 × 3072') && "
                                       "document.body.innerText.includes('Exposure');"), "editor opens")
         rect = self.execute("""const e=[...document.querySelectorAll('svg')]
@@ -407,6 +409,10 @@ class Smoke:
         if (self.case / "palette-test.json").exists():
             from palette import run_palette_checks
             run_palette_checks(self, wait_for, baseline)
+        if (self.case / "jpeg-metadata-test.json").exists():
+            from jpeg_metadata import run_jpeg_checks
+            run_jpeg_checks(self, wait_for)
+            baseline = self.stable_preview("post-jpeg-metadata")
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
         edited = self.stable_preview("edited")
         difference = ImageStat.Stat(ImageChops.difference(self.crop(baseline), self.crop(edited)))
@@ -578,6 +584,9 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.jpeg_metadata:
+        from jpeg_metadata import prepare
+        prepare(case)
     if args.zoom:
         save(case / "zoom-test.json", {"issue": 142, "viewport": [WIDTH, HEIGHT]})
         wheel_source = ROOT / "rapidroom/validation/native-ui/native_wheel.c"
@@ -632,6 +641,10 @@ def launch(args):
     if args.mcp_packaging:
         initial = json.loads((settings / "settings.json").read_text())
         initial.pop("mcpEnabled")
+        save(settings / "settings.json", initial)
+    if args.jpeg_metadata:
+        initial = json.loads((settings / "settings.json").read_text())
+        initial["enableXmpSync"] = False
         save(settings / "settings.json", initial)
     if args.terminal:
         tools = case / "tools"
@@ -730,6 +743,7 @@ def main():
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
     parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
+    parser.add_argument("--jpeg-metadata", action="store_true", help="Check opt-in JPEG culling writes and Undo with independent ExifTool/pixel checks")
     parser.add_argument("--crs-interop", action="store_true", help="Check public CRS import and XML safety without model requests")
     parser.add_argument("--mask-drop", action="store_true", help="Check mask creation drop insertion on a sub-mask row")
     parser.add_argument("--untrusted-text", action="store_true", help="Check hostile descriptive text against real authenticated MCP without model requests")

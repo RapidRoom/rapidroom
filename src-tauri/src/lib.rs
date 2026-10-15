@@ -54,6 +54,8 @@ mod hdr_fixtures;
 mod image_loader;
 mod image_processing;
 mod inpainting;
+mod jpeg_culling;
+mod jpeg_metadata;
 mod launch_request;
 mod lens_blur;
 mod lens_correction;
@@ -2602,6 +2604,8 @@ pub fn run() {
             file_management::clear_thumbnail_cache,
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,
+            jpeg_culling::write_jpeg_metadata_for_paths,
+            jpeg_culling::undo_jpeg_metadata_write,
             file_management::set_flag_for_paths,
             file_management::import_files,
             file_management::create_virtual_copy,

@@ -119,6 +119,8 @@ export enum Invokes {
   SetCardBrowseRoot = 'set_card_browse_root',
   SetColorLabelForPaths = 'set_color_label_for_paths',
   SetRatingForPaths = 'set_rating_for_paths',
+  WriteJpegMetadataForPaths = 'write_jpeg_metadata_for_paths',
+  UndoJpegMetadataWrite = 'undo_jpeg_metadata_write',
   SetFlagForPaths = 'set_flag_for_paths',
   ShowInFinder = 'show_in_finder',
   StartBackgroundIndexing = 'start_background_indexing',
@@ -281,6 +283,7 @@ export interface AppSettings {
   linearRawMode?: string;
   enableXmpSync?: boolean;
   createXmpIfMissing?: boolean;
+  writeJpegMetadata?: boolean;
   isWaveformVisible?: boolean;
   waveformHeight?: number;
   activeWaveformChannel?: string;
