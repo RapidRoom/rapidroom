@@ -289,3 +289,65 @@ harness corrections. Startup now permits one script-timeout retry only for
 its first side-effect-free readiness probe, before Continue Session. The
 successful final run needed no retry; GUI actions and MCP calls are never
 silently retried.
+
+## Optional zoom scenario
+
+Build the native driver engine normally, then run `smoke.py --zoom` at two
+native compositor sizes with `--viewport 1440 900` and `--viewport 1920 1200`,
+using separate output directories. The scenario types 100% through the public
+zoom input, injects native GTK wheel up/down events through WebKitGTK and records
+trusted DOM deltas, requires adjacent 100% / 150% stops and an unchanged cursor
+anchor, and checks repeated
+wheel/keyboard input, pinch and typed values against the same 400% ceiling.
+Fine pixel scrolling and pinch must produce intermediate percentages rather
+than snap. The slider maximum is checked and fit restored before the normal
+edit/Undo/export/clean-exit smoke. These are native DOM handler checks; physical
+mouse/touchpad hardware and other platforms remain untested.
+
+The zoom-only test injector (`native_wheel.c`) is compiled into the owned case
+and preloaded into the isolated app. It receives only scroll direction and
+viewport coordinates through an owned file, then calls the WebView GTK event
+handler. It is never bundled in the app. Physical devices remain untested.
+`--presets` checks Ctrl+Shift+N preset creation, grouped/name search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.
+
+## Optional command palette scenario
+
+Build normally and run `smoke.py --palette`. Public Ctrl+K and keyboard input
+set Exposure to 0.7; one Undo must restore the value and exact preview pixels.
+Search checks Lightroom Presence and Color Mixer aliases. Keyboard slider
+nudges preview without changing the actual slider, and Escape restores the
+pixels. A typed `crop 4:3` must alter the preview and be reversible in one Undo.
+The normal edit/Undo/Compact/export/clean-exit smoke follows. No model requests,
+React store fixtures or private photos are used. Physical input and other
+platforms remain untested.
+
+### Assistant untrusted text (#165)
+
+Build with `build.py --mcp-clients`, then run `smoke.py --untrusted-text`. The isolated native fixture exercises a hostile folder and filename through authenticated MCP, verifies the data-only envelope and exact operational paths, projects an assistant mask name before storage, refuses an out-of-range local mask exposure, and restores the original draft and exact native pixels. It sends no model requests. Unit fixtures separately cover EXIF, IPTC, XMP descriptions, presets, sidecars, errors, UTF-8/control/bidi handling, credential patterns and shared-budget exhaustion. Remote-model resistance is **not** claimed by these deterministic tests.
+
+The central tool result boundary labels both successes and errors as data-only. Descriptive strings have per-field UTF-8 byte caps (256 bytes normally, 1024 for longer text) and a shared 4096-byte budget. Controls/bidi are removed from descriptive text; secret-pattern matches are redacted. JSON display explicitly escapes bidi characters. Paths remain exact and must never be interpreted as shell commands or instructions. Only the user’s request can authorize operations. Binary data and validated opaque IDs retain their functional representations inside the same envelope.
+
+Assistant inputs project descriptive names/notes before UI storage. Names echoed from the current edit preserve the original stored name by identity, so reading a bounded display cannot silently rename an existing mask. Local numeric mask edits use the same existing numeric registry as global controls; invalid values are refused rather than applied. Terminal launches expose a data-only context and static trust policy without changing the actual working directory/path. The general terminal is not a photo-metadata prompt generator; arbitrary shell output remains data.
+
+Existing tool-result consumers must read the inner envelope. The native client helper `tool_data` supports that envelope and older results, while the hostile fixture asserts the envelope is actually present in the current build. Transport `isError`/protocol fields and image content blocks keep their roles.
+
+`--crs-interop` checks the public XMP import action with a synthetic packet: renamed namespaces and curve lists import, foreign/nested/other-subject settings do not; DOCTYPE is refused without changing the draft or pixels; original adjustments and exact pixels are restored. It enables authenticated MCP reads/writes only as the test observer/restore mechanism, never model requests. Wire receipts use their own `crs-client-tests` directory. This does not establish real Lightroom application or rendering equivalence. See the [field audit](../crs-interop-20261012/README.md).
+
+### Individual masks (#150)
+
+Build with `build.py --terminal --mcp-clients`, then run `smoke.py --mcp-masks`.
+The owned CC0 fixture records an actual installed Claude client adding a second
+radial mask without resending its sibling. It verifies nested HSL defaults,
+compact replies, GUI Undo with exact restored pixels, shared Redo, nested patches,
+sidecar persistence across a frontend restart, single-id removal and missing-id
+no-ops. The combined untrusted-text policy phase verifies a context-name echo
+preserves the raw stored name, new names are projected before storage, 128-byte
+opaque IDs round-trip, and invalid IDs are refused. That hostile-text phase makes
+no model requests. The first fixture phase uses the client's existing login and
+makes a real model request; no user library or global client config is changed.
+
+## Shipped skill/plugin acceptance (#118)
+
+`--mcp-skill --skill-source /path/to/matching/clean/checkout` runs a fresh Claude session with the shipped plugin and its stdio MCP configuration. It uses the owned CC0 NEX-6 copy, an approved 4:5 crop, three temporary look variants, a native detail check, GPS-stripped 1080×1350 export and a source-backed exposure explanation. The source checkout must match the pinned app's `sourceCommit`; the app and checkout must be clean. Named virtual-copy tools remain coming, so this test uses temporary comparisons.
+
+Use a pinned `native-ui-test,mcp` build plus the adapter, and pass `--lock /tmp/rapidroom-gpu.lock` when running the native harness. The real client needs account access. Raw client transcripts, endpoint credentials and private source paths stay local; publish only allowlisted summaries and inspected CC0 panels. A pass proves workflow and source use, not the aesthetic quality of the grade.

@@ -1,13 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Mask, SubMaskMode, formatMaskTypeName } from '../components/panel/right/Masks';
-import { ImageDimensions } from '../hooks/useImageRenderSize';
+import { Mask, SubMaskMode, formatMaskTypeName, type SubMask } from '../components/panel/right/Masks';
+import type { ImageDimensions } from '../hooks/useImageRenderSize';
 
 export const createSubMask = (
   type: Mask,
-  imageDimensions: ImageDimensions,
-  mode: SubMaskMode = SubMaskMode.Additive
-) => {
-  const { width, height } = imageDimensions || { width: 1000, height: 1000 };
+  imageDimensions: Partial<ImageDimensions> | null,
+  mode: SubMaskMode = SubMaskMode.Additive,
+): SubMask => {
+  const width = imageDimensions === null ? 1000 : (imageDimensions.width ?? Number.NaN);
+  const height = imageDimensions === null ? 1000 : (imageDimensions.height ?? Number.NaN);
   const common = {
     id: uuidv4(),
     visible: true,

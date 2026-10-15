@@ -1,0 +1,13 @@
+{
+  "id": "perceptual-hsl-mixer-hue",
+  "title": "HSL mixer hue and saturation are evaluated in sRGB perceptual space while luminance stays linear",
+  "category": "fix",
+  "landed": "2026-10-03",
+  "authors": ["lalibertemarc"],
+  "source": "CyberTimon/RapidRAW",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/e8834210d9c88793b463f4feca3b6e5ee3f65e55"],
+  "upstream_issues": ["CyberTimon/RapidRAW#1775"],
+  "upstream_prs": ["CyberTimon/RapidRAW#1777"],
+  "rendering_change": true,
+  "notes": "Normal upstream-main merge. Active effective bands convert linear RGB to sRGB before the HSV split and back before the linear-luminance rescale. Inactive bands now return original linear RGB exactly; the accompanying zero-HSL and vibrance-domain correction has its own entry and rendering evidence."
+}

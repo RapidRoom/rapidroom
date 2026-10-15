@@ -27,8 +27,11 @@ import {
   RefreshCw,
   Menu,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import type { Variants } from 'framer-motion';
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
@@ -40,30 +43,22 @@ import { useLibraryStore } from '../../../store/useLibraryStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useUIStore } from '../../../store/useUIStore';
 import { AlbumItem, AlbumGroup, Album, Invokes, FolderTreeSort, SortDirection } from '../../ui/AppProperties';
+import type { FolderTree } from '../../ui/AppProperties';
 import { useLibraryActions } from '../../../hooks/useLibraryActions';
 
-export interface FolderTree {
-  children: FolderTree[];
-  isDir: boolean;
-  name: string;
-  path: string;
-  imageCount?: number;
-  hasSubdirs?: boolean;
-  modified?: number;
-  created?: number;
-}
+export type { FolderTree } from '../../ui/AppProperties';
 
 interface FolderTreeProps {
   isResizing: boolean;
-  onContextMenu(event: any, path: string | null, isPinned?: boolean): void;
-  onAlbumContextMenu(event: any, item: AlbumItem | null): void;
+  onContextMenu(event: ReactMouseEvent, path: string | null, isPinned?: boolean): void;
+  onAlbumContextMenu(event: ReactMouseEvent, item: AlbumItem | null): void;
   onFolderSelect(folder: string, skipHistory?: boolean): void;
   onSelectAlbum(albumId: string, albumName: string, images: string[], skipHistory?: boolean): void;
   onToggleFolder(folder: string): void;
   onOpenFolder(): void;
   onNavBack(): void;
   onNavForward(): void;
-  style: any;
+  style: CSSProperties;
   isInstantTransition: boolean;
 }
 
@@ -72,7 +67,7 @@ interface TreeNodeProps {
   expandedFolders: Set<string>;
   isExpanded: boolean;
   node: FolderTree;
-  onContextMenu(event: any, path: string, isPinned?: boolean): void;
+  onContextMenu(event: ReactMouseEvent, path: string, isPinned?: boolean): void;
   onFolderSelect(folder: string): void;
   onToggle(path: string): void;
   selectedPath: string | null;
@@ -88,7 +83,7 @@ interface VisibleProps {
   total: number;
 }
 
-const ALBUM_ICONS: Record<string, React.ElementType> = {
+const ALBUM_ICONS: Record<string, LucideIcon> = {
   plane: Plane,
   mountain: Mountain,
   sun: Sun,
@@ -194,7 +189,7 @@ function FolderOptionsMenu({
   const { t } = useTranslation();
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: globalThis.MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setIsOpen(false);
     };
     if (isOpen) {
@@ -272,7 +267,7 @@ function FolderOptionsMenu({
                     className="w-full text-left px-3 py-2 text-sm rounded-md flex items-center gap-3 justify-between transition-colors duration-150 text-text-primary hover:bg-bg-primary"
                     onClick={() => {
                       if (sort.key !== opt.key) {
-                        onChange({ key: opt.key as any, order: sort.order });
+                        onChange({ key: opt.key as FolderTreeSort['key'], order: sort.order });
                       }
                       setIsOpen(false);
                     }}
@@ -337,12 +332,12 @@ function SectionHeader({ title, isOpen, onToggle }: { title: string; isOpen: boo
   );
 }
 
-const getAlbumImageCount = (item: any): number => {
+const getAlbumImageCount = (item: AlbumItem): number => {
   if (item.type === 'album' && item.images) {
     return item.images.length;
   }
   if (item.type === 'group' && item.children) {
-    return item.children.reduce((sum: number, child: any) => sum + getAlbumImageCount(child), 0);
+    return item.children.reduce((sum, child) => sum + getAlbumImageCount(child), 0);
   }
   return 0;
 };
@@ -363,7 +358,7 @@ function AlbumTreeNode({
   expandedGroups: Set<string>;
   onToggle: (id: string) => void;
   onSelectAlbum: (id: string, name: string, images: string[]) => void;
-  onContextMenu: (e: any, item: AlbumItem) => void;
+  onContextMenu: (e: ReactMouseEvent, item: AlbumItem) => void;
   selectedAlbumId: string | null;
   showImageCounts: boolean;
   isLayoutDragging: boolean;
@@ -382,7 +377,7 @@ function AlbumTreeNode({
   const isImageDrag = active?.data?.current?.type === 'library-image';
   const isDropTarget = isOver && isImageDrag && !isGroup;
 
-  let ItemIcon = isGroup ? (isExpanded ? FolderOpen : Folder) : AlbumIcon;
+  let ItemIcon: LucideIcon = isGroup ? (isExpanded ? FolderOpen : Folder) : AlbumIcon;
   if (item.icon && ALBUM_ICONS[item.icon]) {
     ItemIcon = ALBUM_ICONS[item.icon];
   }
@@ -521,7 +516,7 @@ function TreeNode({
   const isImageDrag = active?.data?.current?.type === 'library-image';
   const isDropTarget = isOver && isImageDrag;
 
-  const handleFolderIconClick = (e: any) => {
+  const handleFolderIconClick = (e: ReactMouseEvent) => {
     e.stopPropagation();
     if (hasChildren) {
       onToggle(node.path);
@@ -538,7 +533,7 @@ function TreeNode({
     }
   };
 
-  const containerVariants: any = {
+  const containerVariants: Variants = {
     closed: { height: 0, opacity: 0, transition: { duration: 0.2, ease: 'easeInOut' } },
     open: { height: 'auto', opacity: 1, transition: { duration: 0.25, ease: 'easeInOut' } },
   };
@@ -557,7 +552,7 @@ function TreeNode({
   };
 
   const currentFolderIconKey = folderIcons[node.path];
-  let ResolvedIcon = isExpanded ? FolderOpen : Folder;
+  let ResolvedIcon: LucideIcon = isExpanded ? FolderOpen : Folder;
 
   if (currentFolderIconKey && ALBUM_ICONS[currentFolderIconKey]) {
     ResolvedIcon = ALBUM_ICONS[currentFolderIconKey];
@@ -579,7 +574,7 @@ function TreeNode({
           'bg-accent/20': isDropTarget,
         })}
         onClick={handleNameClick}
-        onContextMenu={(e: any) => onContextMenu(e, node.path, isPinned)}
+        onContextMenu={(e: ReactMouseEvent) => onContextMenu(e, node.path, isPinned)}
       >
         <div
           className={clsx(
@@ -647,7 +642,7 @@ function TreeNode({
           >
             <div className="py-1">
               <AnimatePresence>
-                {node?.children?.map((childNode: any, index: number) => (
+                {node?.children?.map((childNode, index: number) => (
                   <motion.div
                     animate="visible"
                     custom={{ index, total: node.children.length }}
@@ -743,7 +738,7 @@ export default function FolderTree({
   const { refreshAllFolderTrees } = useLibraryActions();
 
   useEffect(() => {
-    invoke(Invokes.GetAlbums).then((res: any) => useLibraryStore.getState().setLibrary({ albumTree: res }));
+    invoke<AlbumItem[]>(Invokes.GetAlbums).then((res) => useLibraryStore.getState().setLibrary({ albumTree: res }));
   }, []);
 
   const toggleSection = (section: string) => {
@@ -755,7 +750,7 @@ export default function FolderTree({
     }
   };
 
-  const handleEmptyAreaContextMenu = (e: any) => {
+  const handleEmptyAreaContextMenu = (e: ReactMouseEvent) => {
     if (e.target === e.currentTarget) {
       onContextMenu(e, null, false);
     }
@@ -776,7 +771,7 @@ export default function FolderTree({
   const filteredTrees = useMemo(() => {
     let base = folderTrees;
     if (isSearching) {
-      base = base.map((tree: any) => filterTree(tree, trimmedQuery)).filter((t: any) => t !== null);
+      base = base.map((tree) => filterTree(tree, trimmedQuery)).filter((tree): tree is FolderTree => tree !== null);
     }
     return sortFolderTree(base, folderTreeSort);
   }, [folderTrees, trimmedQuery, isSearching, folderTreeSort]);
@@ -792,7 +787,7 @@ export default function FolderTree({
   const searchAutoExpandedFolders = useMemo(() => {
     if (!isSearching) return new Set<string>();
     const newExpanded = new Set<string>();
-    filteredTrees.forEach((t: any) => getAutoExpandedPaths(t, newExpanded));
+    filteredTrees.forEach((tree) => getAutoExpandedPaths(tree, newExpanded));
     filteredPinnedTrees.forEach((pinned) => getAutoExpandedPaths(pinned, newExpanded));
     return newExpanded;
   }, [isSearching, filteredTrees, filteredPinnedTrees]);
@@ -804,7 +799,9 @@ export default function FolderTree({
   const filteredAlbumTree = useMemo(() => {
     let base = albumTree;
     if (isSearching) {
-      base = base.map((item: any) => filterAlbumTree(item, trimmedQuery)).filter((t: any) => t !== null);
+      base = base
+        .map((item: AlbumItem) => filterAlbumTree(item, trimmedQuery))
+        .filter((t): t is AlbumItem => t !== null);
     }
     return base;
   }, [albumTree, trimmedQuery, isSearching]);
@@ -812,7 +809,7 @@ export default function FolderTree({
   const searchAutoExpandedAlbumGroups = useMemo(() => {
     if (!isSearching) return new Set<string>();
     const newExpanded = new Set<string>();
-    filteredAlbumTree.forEach((t: any) => getAutoExpandedAlbumGroups(t, newExpanded));
+    filteredAlbumTree.forEach((item) => getAutoExpandedAlbumGroups(item, newExpanded));
     return newExpanded;
   }, [isSearching, filteredAlbumTree]);
 
@@ -1016,7 +1013,7 @@ export default function FolderTree({
                     >
                       <div className="pt-1 pb-2">
                         <AnimatePresence>
-                          {filteredAlbumTree.map((item: any) => (
+                          {filteredAlbumTree.map((item) => (
                             <motion.div
                               key={`albums-${item.id}`}
                               initial={{ opacity: 0, height: 0, x: -15 }}
@@ -1073,7 +1070,7 @@ export default function FolderTree({
                     >
                       <div className="pt-1">
                         <AnimatePresence>
-                          {filteredTrees.map((tree: any, index: number) => (
+                          {filteredTrees.map((tree, index: number) => (
                             <motion.div
                               key={`current-${tree.path}`}
                               animate="visible"

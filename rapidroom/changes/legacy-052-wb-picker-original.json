@@ -1,0 +1,14 @@
+{
+  "id": "wb-picker-original",
+  "title": "White balance picker samples the original linear image (click for a small square, drag for an area) instead of an edited thumbnail, so picks are stable and correct",
+  "category": "fix",
+  "landed": "2026-10-03",
+  "authors": ["lalibertemarc"],
+  "source": "lalibertemarc/RapidRAW",
+  "commits": ["https://github.com/lalibertemarc/RapidRAW/commit/b41aa56622518ca33526139520011fed73ca129e"],
+  "upstream_issues": ["CyberTimon/RapidRAW#1251", "CyberTimon/RapidRAW#746", "CyberTimon/RapidRAW#1768"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Rendering pipeline unchanged; only the temperature/tint values the picker produces differ. A hover swatch shows the sampled colour and the resulting temperature/tint.",
+  "highlight": "**A white balance picker you can trust.** It reads the untouched raw data, averages a square or a dragged area, and shows a live preview before you click, which helps with mixed-light night shots."
+}
