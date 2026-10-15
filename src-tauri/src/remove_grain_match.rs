@@ -36,11 +36,61 @@ impl Moments {
         })
     }
 }
+// A flat colour or smooth gradient can constrain the entire fill, not just
+// its edge. Refuse this stronger correction across textured/structured borders.
+fn background_plane(points: &[(f32, f32, [f32; 3])]) -> Option<[[f32; 3]; 3]> {
+    if points.len() < 8 {
+        return None;
+    }
+    let mut a = [[0.0f64; 6]; 3];
+    for &(x, y, rgb) in points {
+        let v = [1.0, f64::from(x), f64::from(y)];
+        for r in 0..3 {
+            for c in 0..3 {
+                a[r][c] += v[r] * v[c];
+                a[r][c + 3] += v[r] * f64::from(rgb[c]);
+            }
+        }
+    }
+    for c in 0..3 {
+        let pivot = (c..3).max_by(|&x, &y| a[x][c].abs().total_cmp(&a[y][c].abs()))?;
+        a.swap(c, pivot);
+        let scale = a[c][c];
+        if scale.abs() < 1e-8 {
+            return None;
+        }
+        for value in &mut a[c][c..] {
+            *value /= scale;
+        }
+        let row = a[c];
+        for (r, other) in a.iter_mut().enumerate() {
+            if r == c {
+                continue;
+            }
+            let scale = other[c];
+            for k in c..6 {
+                other[k] -= row[k] * scale;
+            }
+        }
+    }
+    let plane = std::array::from_fn(|r| std::array::from_fn(|c| a[r][c + 3] as f32));
+    let mut square = [0.0; 3];
+    for &(x, y, v) in points {
+        for c in 0..3 {
+            square[c] += (v[c] - plane[0][c] - plane[1][c] * x - plane[2][c] * y).powi(2);
+        }
+    }
+    square
+        .iter()
+        .all(|v| (*v / points.len() as f32).sqrt() <= 1.5)
+        .then_some(plane)
+}
 struct ColorField {
     width: usize,
     height: usize,
     bounds: NativeRect,
     values: Vec<[f32; 3]>,
+    flat: bool,
 }
 impl ColorField {
     fn at(&self, x: u32, y: u32) -> [f32; 3] {
@@ -99,6 +149,8 @@ fn color_field(
     }
     let mut mean = [0.0; 3];
     let mut anchors = 0;
+    let mut guides = Vec::new();
+    let mut model = vec![[0.0; 3]; width * height];
     for y in 0..height {
         for x in 0..width {
             let i = y * width + x;
@@ -113,9 +165,6 @@ fn color_field(
                 || !active[i + 1]
                 || !active[i - width]
                 || !active[i + width];
-            if !edge {
-                continue;
-            }
             let (px, py) = coordinate(x, y);
             let mut outside = [0.0; 3];
             let mut inside = [0.0; 3];
@@ -144,7 +193,15 @@ fn color_field(
                     }
                 }
             }
-            if ow > 1e-6 && iw > 1e-6 {
+            if iw > 1e-6 {
+                model[i] = inside.map(|v| v / iw);
+            }
+            if edge && ow > 1e-6 && iw > 1e-6 {
+                guides.push((
+                    x as f32 / (width - 1) as f32,
+                    y as f32 / (height - 1) as f32,
+                    outside.map(|v| v / ow),
+                ));
                 fixed[i] = true;
                 anchors += 1;
                 for c in 0..3 {
@@ -153,6 +210,29 @@ fn color_field(
                 }
             }
         }
+    }
+    if let Some(plane) = background_plane(&guides) {
+        for y in 0..height {
+            for x in 0..width {
+                let i = y * width + x;
+                if active[i] {
+                    for c in 0..3 {
+                        values[i][c] = (plane[0][c]
+                            + plane[1][c] * x as f32 / (width - 1) as f32
+                            + plane[2][c] * y as f32 / (height - 1) as f32
+                            - model[i][c])
+                            .clamp(-32.0, 32.0);
+                    }
+                }
+            }
+        }
+        return ColorField {
+            width,
+            height,
+            bounds,
+            values,
+            flat: true,
+        };
     }
     if anchors > 0 {
         for v in &mut mean {
@@ -206,6 +286,7 @@ fn color_field(
         height,
         bounds,
         values,
+        flat: false,
     }
 }
 
@@ -252,6 +333,7 @@ pub(crate) fn harmonize(
     let field = color_field(&source, mask, fill, bounds);
     drop(source);
     let mut existing = Moments::default();
+    let mut model_low = None;
     if !pool.is_empty() {
         let model = fill
             .pixels()
@@ -273,12 +355,21 @@ pub(crate) fn harmonize(
             let i = (y as usize * w + x as usize) * 3;
             existing.add(ycc(std::array::from_fn(|c| f32::from(p[c]) - low[i + c])));
         }
+        model_low = Some(low);
     }
     let target = target.variance();
     let existing = existing.variance();
+    let attenuation: [f32; 3] = std::array::from_fn(|c| {
+        if field.flat && existing[c] > target[c] && existing[c] > 1e-8 {
+            (target[c] / existing[c]).sqrt()
+        } else {
+            1.0
+        }
+    });
     let gain: [f32; 3] = std::array::from_fn(|c| {
         if target[c] > 1e-8 {
-            ((target[c] - existing[c]).max(0.0) / target[c]).sqrt()
+            ((target[c] - attenuation[c] * attenuation[c] * existing[c]).max(0.0) / target[c])
+                .sqrt()
         } else {
             0.0
         }
@@ -288,6 +379,13 @@ pub(crate) fn harmonize(
             continue;
         }
         let correction = field.at(x, y);
+        let removal = if let Some(low) = model_low.as_ref() {
+            let i = (y as usize * w + x as usize) * 3;
+            let high = ycc(std::array::from_fn(|c| f32::from(pixel[c]) - low[i + c]));
+            rgb(std::array::from_fn(|c| high[c] * (attenuation[c] - 1.0)))
+        } else {
+            [0.0; 3]
+        };
         let noise = if let Some(grain) = grain.filter(|_| !pool.is_empty()) {
             let v = pool[grain.donor_index(x, y)];
             rgb(std::array::from_fn(|c| v[c] * gain[c]))
@@ -295,7 +393,7 @@ pub(crate) fn harmonize(
             [0.0; 3]
         };
         for c in 0..3 {
-            pixel[c] = (f32::from(pixel[c]) + correction[c] + noise[c])
+            pixel[c] = (f32::from(pixel[c]) + correction[c] + noise[c] + removal[c])
                 .round()
                 .clamp(0.0, 255.0) as u8;
         }
@@ -407,6 +505,50 @@ mod tests {
         for (x, y, p) in fill.enumerate_pixels() {
             if mask.get_pixel(x, y)[0] == 0 {
                 assert_eq!(p, before.get_pixel(x, y));
+            }
+        }
+    }
+    #[test]
+    fn flat_context_corrects_a_darker_interior_even_when_the_edge_already_matches() {
+        let size = 96;
+        let bounds = NativeRect {
+            x: 32,
+            y: 32,
+            width: 32,
+            height: 32,
+        };
+        let mask = GrayImage::from_fn(size, size, |x, y| {
+            Luma([if (32..64).contains(&x) && (32..64).contains(&y) {
+                255
+            } else {
+                0
+            }])
+        });
+        let scene = Rgb32FImage::from_pixel(
+            size,
+            size,
+            Rgb([linear(80.0), linear(100.0), linear(120.0)]),
+        );
+        let mut fill = RgbaImage::from_fn(size, size, |x, y| {
+            let r = (x as f32 - 47.5).powi(2) + (y as f32 - 47.5).powi(2);
+            let dip = (-r / 288.0).exp();
+            Rgba([
+                (80.0 - 6.0 * dip).round() as u8,
+                (100.0 - 4.0 * dip).round() as u8,
+                (120.0 - 10.0 * dip).round() as u8,
+                255,
+            ])
+        });
+        crate::remove_grain::restore_grain(&scene, &mask, &mut fill, bounds);
+        for y in 40..56 {
+            for x in 40..56 {
+                for (c, target) in [80i16, 100, 120].into_iter().enumerate() {
+                    assert!(
+                        (i16::from(fill.get_pixel(x, y)[c]) - target).abs() <= 1,
+                        "{:?}",
+                        fill.get_pixel(x, y)
+                    );
+                }
             }
         }
     }
