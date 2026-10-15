@@ -2004,6 +2004,10 @@ fn sony_correction_metadata(file_bytes: &[u8]) -> HashMap<&'static str, Vec<i16>
 
     let mut result = HashMap::new();
     let mut pending = vec![first_ifd];
+    // Bound both processed and queued IFDs. An untrusted IFD can name up to
+    // 32 SubIFDs, so limiting only the pop loop would still allow a crafted
+    // file to grow `pending` without bound before those offsets are visited.
+    let mut queued = std::collections::HashSet::from([first_ifd]);
     let mut seen = std::collections::HashSet::new();
     while let Some(ifd) = pending.pop() {
         if !seen.insert(ifd) || seen.len() > MAX_IFDS {
@@ -2072,6 +2076,8 @@ fn sony_correction_metadata(file_bytes: &[u8]) -> HashMap<&'static str, Vec<i16>
                 for index in 0..count {
                     if let Some(offset) =
                         u32_at(start + index * 4).and_then(|n| usize::try_from(n).ok())
+                        && queued.len() < MAX_IFDS
+                        && queued.insert(offset)
                     {
                         pending.push(offset);
                     }
@@ -2911,6 +2917,24 @@ mod tests {
         bytes.extend([0x46, 0x47, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
         bytes.extend(0u32.to_le_bytes());
         assert_eq!(rating(&bytes), Some(2));
+    }
+
+    #[test]
+    fn sony_correction_parser_bounds_malformed_subifd_fanout() {
+        let mut bytes = b"II*\0\x08\0\0\0".to_vec();
+        bytes.extend(1u16.to_le_bytes());
+        // IFD0 points at 32 otherwise-empty IFDs. The parser must dedupe and
+        // bound this graph before queueing more offsets from untrusted input.
+        bytes.extend([0x4a, 0x01, 4, 0, 32, 0, 0, 0, 26, 0, 0, 0]);
+        bytes.extend(0u32.to_le_bytes());
+        bytes.resize(26 + 32 * 4, 0);
+        for index in 0..32 {
+            let offset = 154 + index * 2;
+            bytes[26 + index * 4..30 + index * 4].copy_from_slice(&(offset as u32).to_le_bytes());
+        }
+        bytes.resize(218, 0); // each referenced IFD has a zero entry count
+
+        assert!(sony_correction_metadata(&bytes).is_empty());
     }
 
     #[test]
