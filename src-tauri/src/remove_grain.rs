@@ -372,6 +372,22 @@ pub(crate) fn restore_grain(
     if fill.dimensions() != scene.dimensions() {
         return;
     }
+    #[cfg(test)]
+    if let Ok(directory) = std::env::var("RAPIDROOM_REMOVE_DEBUG_DIR") {
+        static SAMPLE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let index = SAMPLE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let directory = std::path::Path::new(&directory);
+        crate::image_processing::apply_linear_to_srgb(image::DynamicImage::ImageRgb32F(
+            scene.clone(),
+        ))
+        .to_rgb8()
+        .save(directory.join(format!("sample-{index}-source.png")))
+        .unwrap();
+        fill.save(directory.join(format!("sample-{index}-model.png")))
+            .unwrap();
+        mask.save(directory.join(format!("sample-{index}-mask.png")))
+            .unwrap();
+    }
     let Some(grain) = Grain::sample(scene, mask, bounds) else {
         return;
     };
