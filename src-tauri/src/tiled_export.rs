@@ -171,14 +171,13 @@ pub(super) fn expanded(width: u32, height: u32, rect: Roi, halo: u32) -> Roi {
 }
 
 pub(super) fn validate_roi(width: u32, height: u32, roi: Option<Roi>) -> Result<(), String> {
-    if let Some(r) = roi {
-        if r.width == 0
+    if let Some(r) = roi
+        && (r.width == 0
             || r.height == 0
             || r.x.checked_add(r.width).is_none_or(|v| v > width)
-            || r.y.checked_add(r.height).is_none_or(|v| v > height)
-        {
-            return Err("Export region lies outside the transformed image".into());
-        }
+            || r.y.checked_add(r.height).is_none_or(|v| v > height))
+    {
+        return Err("Export region lies outside the transformed image".into());
     }
     Ok(())
 }
