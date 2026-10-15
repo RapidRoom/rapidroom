@@ -1,0 +1,9 @@
+{
+  "source": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "prior_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+  "n_compared": 60,
+  "n_identical": 60,
+  "changed": [],
+  "same_environment": true,
+  "method": "Two actual full60 manifests; current TIFF file hashes verified before deletion, prior measured hashes retained."
+}

@@ -1,0 +1,228 @@
+{
+  "application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "cases": [
+    {
+      "case": "native-masks",
+      "fixture": "sony-a7c2-15mp-uncompressed.ARW",
+      "fixture_sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+      "engine_sha256": "610a4783011f89605f6f6eeb24ef2fcd7448503e0489bd205e7513e4dc44060c",
+      "harness_sha256": "35a3759d64488fcfcc8bcf6b28dc95bae4edc8ab7cabb4d688dacb2146832800",
+      "result_sha256": "b0d43dbfcc7985f37057f3dc2413c1a4c015ef0ecfdf7917e2189771ff20e020",
+      "passed": true,
+      "passed_steps": [
+        "library thumbnail",
+        "native preview",
+        "edits change preview",
+        "Undo restores preview exactly",
+        "Compact enabled and persisted",
+        "GUI JPEG export",
+        "authenticated mask-tool discovery",
+        "sidecar reload frontend readiness",
+        "sidecar reload frontend readiness",
+        "actual-client single-mask add, local defaults, shared history and sidecar round-trip",
+        "clean exit and no frontend/native errors"
+      ],
+      "measured_repeat_edits": [],
+      "capture_count": 19,
+      "source_guards_unchanged": true,
+      "original100_capture_scope": "Screenshot preceded resource decode; use supplementary settled100 receipt for full-resolution visual evidence."
+    },
+    {
+      "case": "native-preview-fuji-xh2-40mp-compressed",
+      "fixture": "fuji-xh2-40mp-compressed.RAF",
+      "fixture_sha256": "caeadb2666f6c5d9bbe32fbe692c2079b6a7e028f8514a13173f360656d08507",
+      "engine_sha256": "610a4783011f89605f6f6eeb24ef2fcd7448503e0489bd205e7513e4dc44060c",
+      "harness_sha256": "13722d0f2307e53eb72f21acbea75031262cc8e020d4c58dd8549b9fbd673a4e",
+      "result_sha256": "7e4a3f62b213bc986cb4250348402204e4530c34dfd6256b43f4c0773a1443bb",
+      "passed": true,
+      "passed_steps": [
+        "library thumbnail",
+        "neutral fit view normalized before exact comparisons",
+        "native preview",
+        "repeated global edit updates full preview and histogram",
+        "repeated global edit updates full preview and histogram",
+        "repeated global edit updates full preview and histogram",
+        "repeated global edit updates full preview and histogram",
+        "repeated reset restores full preview exactly",
+        "actual 100 percent native preview capture",
+        "native u wheel adjacent stop 150 percent",
+        "native d wheel adjacent stop 100 percent",
+        "wheel notch 100 to 150 percent",
+        "wheel ceiling 400 percent",
+        "pinch and typed zoom share 400 percent ceiling",
+        "pinch remains continuous",
+        "fine pixel scroll remains continuous",
+        "keyboard step 100 to 150 percent",
+        "rapid keyboard steps do not wait for readout",
+        "keyboard ceiling 400 percent",
+        "slider maximum matches ceiling",
+        "zoom restored to fit",
+        "post-zoom fit preview",
+        "edits change preview",
+        "Undo restores preview exactly",
+        "Compact enabled and persisted",
+        "GUI JPEG export",
+        "clean exit and no frontend/native errors"
+      ],
+      "measured_repeat_edits": [
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [30.879699379962403, 31.454857896361137, 24.76582007687344],
+          "histogram_sha256": "4b8772206aa3c4db94ac1fe7ea7edb1f0574238e099c8acfca87e2af6529657f"
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [49.17017366663861, 50.11347249109222, 39.908007883735934],
+          "histogram_sha256": "6b1ee71aa2688a3f890867d44a0380241d396fd402849cf4d1208463599708dd"
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [68.3897258928822, 69.57669458238644, 55.80116362259069],
+          "histogram_sha256": "ef71d53f994f428b6638d534bf93d7d86559d683aeef99ca404c475083686607"
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [78.18594113851248, 79.62693937098449, 64.17366663861067],
+          "histogram_sha256": "5ee553fdf2062f0661759626f88432ae39dae0b4f116cea9ec1bcd654d9a1f04"
+        }
+      ],
+      "capture_count": 26,
+      "source_guards_unchanged": true,
+      "original100_capture_scope": "Screenshot preceded resource decode; use supplementary settled100 receipt for full-resolution visual evidence."
+    },
+    {
+      "case": "native-preview-fuji-xt4-26mp-lossless",
+      "fixture": "fuji-xt4-26mp-lossless.RAF",
+      "fixture_sha256": "07ea642656074834ffe5c661870a612ffa2e80fc1218a05166ee966bbe5f6fae",
+      "engine_sha256": "610a4783011f89605f6f6eeb24ef2fcd7448503e0489bd205e7513e4dc44060c",
+      "harness_sha256": "84ca4023a23cdea15f6601b5408ca8d192aaf7eacd142b1c8d6f53157ff32a04",
+      "result_sha256": "6f3206d188dcd8b6ba7e03e4836c301584633b2c19b0b4010fac4ad031cbbe79",
+      "passed": true,
+      "passed_steps": [
+        "library thumbnail",
+        "neutral fit view normalized before exact comparisons",
+        "native preview",
+        "repeated global edit updates full preview and histogram",
+        "repeated global edit updates full preview and histogram",
+        "repeated global edit updates full preview and histogram",
+        "repeated global edit updates full preview and histogram",
+        "repeated reset restores full preview exactly",
+        "actual 100 percent native preview capture",
+        "native u wheel adjacent stop 150 percent",
+        "native d wheel adjacent stop 100 percent",
+        "wheel notch 100 to 150 percent",
+        "wheel ceiling 400 percent",
+        "pinch and typed zoom share 400 percent ceiling",
+        "pinch remains continuous",
+        "fine pixel scroll remains continuous",
+        "keyboard step 100 to 150 percent",
+        "rapid keyboard steps do not wait for readout",
+        "keyboard ceiling 400 percent",
+        "slider maximum matches ceiling",
+        "zoom restored to fit",
+        "post-zoom fit preview",
+        "edits change preview",
+        "Undo restores preview exactly",
+        "Compact enabled and persisted",
+        "GUI JPEG export",
+        "clean exit and no frontend/native errors"
+      ],
+      "measured_repeat_edits": [
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [29.090771079073832, 32.53331148973351, 25.04023435062098],
+          "histogram_sha256": "99a58bc58d24c3ff8e5a92a9513772d477cb4f9284b93c2ecc4ecde71e57222d"
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [45.82025681832366, 50.960229045746736, 39.222427135992014],
+          "histogram_sha256": "112ec71d4c87f92d3828c9c96b057afbf604c8f9848b4c06248c628b68ab2dca"
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [64.55691349934469, 71.77981183299008, 55.51831273793921],
+          "histogram_sha256": "afdd25e717448dfe1e0e5b5ec22f3a87d7f42eb905007de146851e9b041bb9b2"
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [73.1254056668539, 81.39426761530301, 62.8901220121076],
+          "histogram_sha256": "b797c865ceb0a24d2527becb0a5417499b823af02390d0ed1c4f610c1329e9ea"
+        }
+      ],
+      "capture_count": 28,
+      "source_guards_unchanged": true,
+      "original100_capture_scope": "Screenshot preceded resource decode; use supplementary settled100 receipt for full-resolution visual evidence."
+    },
+    {
+      "case": "native-preview-sony-a7c2-15mp-uncompressed",
+      "fixture": "sony-a7c2-15mp-uncompressed.ARW",
+      "fixture_sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+      "engine_sha256": "610a4783011f89605f6f6eeb24ef2fcd7448503e0489bd205e7513e4dc44060c",
+      "harness_sha256": "84ca4023a23cdea15f6601b5408ca8d192aaf7eacd142b1c8d6f53157ff32a04",
+      "result_sha256": "2a27270afc9282c446dc771802a0559c1b4d3e0ca420a1bfd88d503783913495",
+      "passed": true,
+      "passed_steps": [
+        "library thumbnail",
+        "neutral fit view normalized before exact comparisons",
+        "native preview",
+        "repeated global edit updates full preview and histogram",
+        "repeated global edit updates full preview and histogram",
+        "repeated global edit updates full preview and histogram",
+        "repeated global edit updates full preview and histogram",
+        "repeated reset restores full preview exactly",
+        "actual 100 percent native preview capture",
+        "native u wheel adjacent stop 150 percent",
+        "native d wheel adjacent stop 100 percent",
+        "wheel notch 100 to 150 percent",
+        "wheel ceiling 400 percent",
+        "pinch and typed zoom share 400 percent ceiling",
+        "pinch remains continuous",
+        "fine pixel scroll remains continuous",
+        "keyboard step 100 to 150 percent",
+        "rapid keyboard steps do not wait for readout",
+        "keyboard ceiling 400 percent",
+        "slider maximum matches ceiling",
+        "zoom restored to fit",
+        "post-zoom fit preview",
+        "edits change preview",
+        "Undo restores preview exactly",
+        "Compact enabled and persisted",
+        "GUI JPEG export",
+        "clean exit and no frontend/native errors"
+      ],
+      "measured_repeat_edits": [
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [38.75243868189477, 41.40412063908132, 28.466733757723272],
+          "histogram_sha256": "206825e7d55b2031d694ef272e8424640aec888f52763c715e91f22352257bc6"
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [61.06279410846908, 66.69804343755851, 48.66915683704674],
+          "histogram_sha256": "c0a6d96e4055de687ea4e1878027d228d261f0e59428a3f6ec5d1ddbfe6696c4"
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [85.2550240279598, 90.27157211508457, 61.906556200461836],
+          "histogram_sha256": "49cc7f3410ef0d2f72ae1a29adb84eaadb073e0b1a18af12983a543cb8509476"
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "preview_mean_absolute_difference": [96.94150596018224, 103.94415995756101, 73.39625694314422],
+          "histogram_sha256": "51b5977dc7548d3d6bfc994bbfd929b95f1f3f2481467bc72b62249eb872fafb"
+        }
+      ],
+      "capture_count": 27,
+      "source_guards_unchanged": true,
+      "original100_capture_scope": "Screenshot preceded resource decode; use supplementary settled100 receipt for full-resolution visual evidence."
+    }
+  ],
+  "native_mcp": "Actual Claude second-mask creation with rendered change/sibling preservation and GUI Undo; no renewed claim of all #120 coverage.",
+  "main_controls": "Previously measured mainf30 retained historically, not re-run on mainfd.",
+  "physical_pointer_tested": false,
+  "limitations": [
+    "Linux Weston/WebKit does not establish Windows AMD or Zorin Flatpak reports",
+    "No Canon5DII CR2 or confirmed NikonHE* fixture",
+    "No liveCloud/model effect evaluation"
+  ]
+}
