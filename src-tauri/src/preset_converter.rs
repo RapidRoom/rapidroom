@@ -1078,10 +1078,11 @@ pub fn convert_xmp_sidecar_to_preset_for_image(
         } else {
             XmpImageKind::Rendered
         };
-    let geometry_needs_image_dimensions = (parse_xmp_attributes(xmp_content)
-        .ok()
-        .is_some_and(|attrs| is_xmp_true(attrs.get("HasCrop")))
-        || crate::lightroom_masks::has_mask_group_corrections(xmp_content))
+    let geometry_needs_image_dimensions = !adobe_camera_raw_already_applied(xmp_content)?
+        && (parse_xmp_attributes(xmp_content)
+            .ok()
+            .is_some_and(|attrs| is_xmp_true(attrs.get("HasCrop")))
+            || crate::lightroom_masks::has_mask_group_corrections(xmp_content))
         && (get_namespaced_f64(xmp_content, "tiff", "ImageWidth")
             .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelXDimension"))
             .is_none()
@@ -1108,8 +1109,7 @@ fn convert_adobe_camera_raw_xmp_to_preset(
     convert_xmp_to_preset_with_crop(xmp_content, true, None, Some(image_kind), None)
 }
 
-#[cfg(test)]
-fn adobe_camera_raw_already_applied(xmp_content: &str) -> Result<bool, String> {
+pub(crate) fn adobe_camera_raw_already_applied(xmp_content: &str) -> Result<bool, String> {
     Ok(is_xmp_true(
         parse_xmp_attributes(xmp_content)?.get("AlreadyApplied"),
     ))
@@ -1136,6 +1136,9 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
         Some(crate::xmp::PhotoProperty::Structured) => true,
         None => false,
     };
+    if preset.include_crop_transform == Some(true) && is_xmp_true(attrs.get("AlreadyApplied")) {
+        return Vec::new();
+    }
     let mut items = Vec::new();
 
     // Lightroom Classic sidecars carry no as-shot values, so a custom white
@@ -1341,6 +1344,13 @@ fn convert_xmp_to_preset_with_crop(
     let properties =
         crate::xmp::photo_properties(xmp_content, crate::xmp::CRS).map_err(|e| e.to_string())?;
     let attrs = scalar_attributes(&properties);
+    if include_crop_transform && is_xmp_true(attrs.get("AlreadyApplied")) {
+        return Ok(preset_from_xmp_fields(
+            &attrs,
+            Map::new(),
+            include_crop_transform,
+        ));
+    }
     let convert_to_grayscale = is_xmp_true(attrs.get("ConvertToGrayscale"));
 
     let mut adjustments = Map::new();
@@ -1650,13 +1660,25 @@ fn convert_xmp_to_preset_with_crop(
         }
     }
 
+    Ok(preset_from_xmp_fields(
+        &attrs,
+        adjustments,
+        include_crop_transform,
+    ))
+}
+
+fn preset_from_xmp_fields(
+    attrs: &HashMap<String, String>,
+    adjustments: Map<String, Value>,
+    include_crop_transform: bool,
+) -> Preset {
     let preset_name = attrs
         .get("Name")
         .filter(|v| !v.is_empty())
         .cloned()
         .unwrap_or_else(|| "Imported Preset".to_string());
 
-    Ok(Preset {
+    Preset {
         id: Uuid::new_v4().to_string(),
         name: preset_name,
         adjustments: Value::Object(adjustments),
@@ -1673,7 +1695,7 @@ fn convert_xmp_to_preset_with_crop(
             .cloned()
             .filter(|v| !v.is_empty())
             .map(|v| format!("Requires camera profile: {v}")),
-    })
+    }
 }
 
 #[cfg(test)]
@@ -1873,6 +1895,62 @@ mod tests {
             crate::preset_xmp::group_name(&xmp.replace("a:Group=\"Photo &amp; presets\"", ""))
                 .is_none()
         );
+    }
+
+    #[test]
+    fn already_applied_policy_uses_the_image_subject_namespace() {
+        let xml = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:crs="urn:foreign">
+          <r:Description r:about="photo" a:Exposure2012="1.25" crs:AlreadyApplied="True">
+          <a:Look><r:Description a:AlreadyApplied="True"/></a:Look></r:Description>
+          <r:Description r:about="other" a:AlreadyApplied="True"/></r:RDF>"#;
+        assert!(!adobe_camera_raw_already_applied(xml).unwrap());
+        assert_eq!(
+            convert_xmp_sidecar_to_preset_for_image(xml, Path::new("photo.DNG"))
+                .unwrap()
+                .adjustments["exposure"],
+            1.25
+        );
+        let baked = xml.replace(
+            "a:Exposure2012=\"1.25\"",
+            "a:Exposure2012=\"1.25\" a:AlreadyApplied=\"True\"",
+        );
+        assert!(adobe_camera_raw_already_applied(&baked).unwrap());
+        assert_eq!(
+            convert_xmp_sidecar_to_preset_for_image(&baked, Path::new("photo.DNG"))
+                .unwrap()
+                .adjustments,
+            json!({})
+        );
+        assert_eq!(
+            convert_xmp_to_preset(&baked).unwrap().adjustments["exposure"],
+            1.25
+        );
+    }
+
+    #[test]
+    fn already_applied_photo_settings_are_skipped_but_presets_stay_reusable() {
+        let xml = r#"<rdf:Description crs:AlreadyApplied="True" crs:Exposure2012="1.25"
+          crs:Contrast2012="20" crs:HasCrop="True" crs:CameraProfile="Adobe Color">
+          <crs:ToneCurvePV2012><rdf:Seq><rdf:li>0, 0</rdf:li><rdf:li>255, 220</rdf:li></rdf:Seq></crs:ToneCurvePV2012>
+        </rdf:Description>"#;
+        for extension in ["NEF", "DNG", "jpg", "tiff"] {
+            let path = format!("missing-photo.{extension}");
+            let photo = convert_xmp_sidecar_to_preset_for_image(xml, Path::new(&path)).unwrap();
+            assert_eq!(photo.adjustments, json!({}), "{extension}");
+            assert!(lightroom_settings_not_transferred(xml, &photo).is_empty());
+            for ordinary in [
+                xml.replace("AlreadyApplied=\"True\"", "AlreadyApplied=\"False\""),
+                xml.replace("crs:AlreadyApplied=\"True\"", ""),
+            ] {
+                let photo =
+                    convert_xmp_sidecar_to_preset_for_image(&ordinary, Path::new(&path)).unwrap();
+                assert!(photo.adjustments["exposure"].is_number(), "{extension}");
+                assert!(photo.adjustments["curves"].is_object(), "{extension}");
+            }
+        }
+        let preset = convert_xmp_to_preset(xml).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 1.25);
+        assert!(preset.adjustments["curves"].is_object());
     }
 
     #[test]
