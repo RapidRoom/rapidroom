@@ -1,3 +1,5 @@
+import PrintProfileControl from '../../ui/PrintProfileControl';
+import type { PrintProfileOptions } from '../../../utils/printProfile';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { save, open, confirm } from '@tauri-apps/plugin-dialog';
@@ -350,6 +352,7 @@ export default function ExportPanel({
     [t],
   );
 
+  const [printProfile, setPrintProfile] = useState<PrintProfileOptions | null>(null);
   const {
     fileFormat,
     setFileFormat,
@@ -594,6 +597,7 @@ export default function ExportPanel({
     if (!isPanelReallyActive) return;
 
     const exportSettings: ExportSettings = {
+      printProfile,
       filenameTemplate,
       jpegQuality,
       tiffBitDepth,
@@ -661,6 +665,7 @@ export default function ExportPanel({
     borderVerticalField.text,
     borderColor,
     keepMetadata,
+    printProfile,
     preserveTimestamps,
     stripGps,
     filenameTemplate,
@@ -695,6 +700,7 @@ export default function ExportPanel({
     if (numImages === 0 || isExporting || !isDpiValid) return;
 
     const exportSettings: ExportSettings = {
+      printProfile,
       filenameTemplate,
       overwriteExisting:
         overwriteExisting && (numImages > 1 || preserveFolders || destinationType === 'originalFolder'),
@@ -851,9 +857,16 @@ export default function ExportPanel({
                 appSettings={appSettings}
                 onSettingsChange={onSettingsChange}
                 currentSettings={currentSettingsObject}
-                onApplyPreset={handleApplyPreset}
+                onApplyPreset={(preset) => {
+                  setPrintProfile(null);
+                  handleApplyPreset(preset);
+                }}
               />
             </div>
+
+            <Section title={t('printProof.exportTitle')}>
+              <PrintProfileControl value={printProfile} onChange={setPrintProfile} disabled={isExporting} />
+            </Section>
 
             <Section title={t('export.sections.fileSettings')}>
               <div className="grid grid-cols-3 gap-2">

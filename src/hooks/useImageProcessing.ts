@@ -32,6 +32,7 @@ export function useImageProcessing(
   const selectedImage = useEditorStore((state) => state.selectedImage);
   const adjustments = useEditorStore((state) => state.adjustments);
   const previewOverride = useEditorStore((state) => state.previewOverride);
+  const softProof = useEditorStore((state) => state.softProof);
   const isWaveformVisible = useEditorStore((state) => state.isWaveformVisible);
   const activeWaveformChannel = useEditorStore((state) => state.activeWaveformChannel);
   const displaySize = useEditorStore((state) => state.displaySize);
@@ -178,12 +179,14 @@ export function useImageProcessing(
         });
       }
 
+      const proofOptions = useEditorStore.getState().softProof;
       const jobId = ++previewJobIdRef.current;
       const roi = calculateROI();
 
       try {
         const buffer: ArrayBuffer = await invoke(Invokes.ApplyAdjustments, {
           jsAdjustments: payload,
+          softProof: proofOptions,
           isInteractive: dragging,
           targetResolution: targetRes || null,
           roi: roi || null,
@@ -196,7 +199,9 @@ export function useImageProcessing(
           newlySentPatches.forEach((id) => patchesSentToBackend.add(id));
         }
 
-        if (currentPath !== selectedImagePathRef.current) return;
+        if (currentPath !== selectedImagePathRef.current || proofOptions !== useEditorStore.getState().softProof)
+          return;
+        if (proofOptions) setEditor({ softProofError: null });
 
         if (buffer && buffer.byteLength > 0 && jobId >= latestRenderedJobIdRef.current) {
           latestRenderedJobIdRef.current = jobId;
@@ -276,6 +281,13 @@ export function useImageProcessing(
           }
         }
       } catch (err) {
+        if (
+          proofOptions &&
+          proofOptions === useEditorStore.getState().softProof &&
+          currentPath === selectedImagePathRef.current &&
+          err !== 'Superseded or worker failed'
+        )
+          setEditor({ softProofError: String(err) });
         if (err !== 'Superseded or worker failed') {
           console.error('Failed to apply adjustments:', err);
         }
@@ -327,10 +339,11 @@ export function useImageProcessing(
       throttle(
         (adj: Adjustments) => {
           if (!useEditorStore.getState().selectedImage?.isReady) return;
+          const proofOptions = useEditorStore.getState().softProof;
           const jobId = ++uncroppedJobIdRef.current;
-          invoke<string>(Invokes.GenerateUncroppedPreview, { jsAdjustments: adj })
+          invoke<string>(Invokes.GenerateUncroppedPreview, { jsAdjustments: adj, softProof: proofOptions })
             .then((dataUrl) => {
-              if (jobId >= latestUncroppedJobIdRef.current) {
+              if (proofOptions === useEditorStore.getState().softProof && jobId >= latestUncroppedJobIdRef.current) {
                 latestUncroppedJobIdRef.current = jobId;
                 useEditorStore.getState().setEditor({ uncroppedAdjustedPreviewUrl: dataUrl });
               }
@@ -354,7 +367,7 @@ export function useImageProcessing(
     if (activeView === 'editor' && activePanel === Panel.Crop && selectedImage?.isReady) {
       generateUncroppedPreview(adjustments);
     }
-  }, [activeView, adjustments, activePanel, selectedImage?.isReady, generateUncroppedPreview]);
+  }, [activeView, adjustments, activePanel, selectedImage?.isReady, generateUncroppedPreview, softProof]);
 
   const calculateTargetRes = useCallback(() => {
     const baseTargetRes = appSettings?.editorPreviewResolution || 1920;
@@ -500,6 +513,7 @@ export function useImageProcessing(
     activeView,
     adjustments,
     previewOverride,
+    softProof,
     selectedImage?.path,
     selectedImage?.isReady,
     isSliderDragging,

@@ -351,3 +351,9 @@ makes a real model request; no user library or global client config is changed.
 `--mcp-skill --skill-source /path/to/matching/clean/checkout` runs a fresh Claude session with the shipped plugin and its stdio MCP configuration. It uses the owned CC0 NEX-6 copy, an approved 4:5 crop, three temporary look variants, a native detail check, GPS-stripped 1080×1350 export and a source-backed exposure explanation. The source checkout must match the pinned app's `sourceCommit`; the app and checkout must be clean. Named virtual-copy tools remain coming, so this test uses temporary comparisons.
 
 Use a pinned `native-ui-test,mcp` build plus the adapter, and pass `--lock /tmp/rapidroom-gpu.lock` when running the native harness. The real client needs account access. Raw client transcripts, endpoint credentials and private source paths stay local; publish only allowlisted summaries and inspected CC0 panels. A pass proves workflow and source use, not the aesthetic quality of the grade.
+
+## Optional print phase 1 checks
+
+Pass `--print-proof-profile /path/printer-paper.icc --print-export-profile /path/output-rgb.icc` to `smoke.py`. Both files are copied into the owned case and hashed before the app runs. The first must be an RGB/CMYK printer/paper output profile with a visibly different proof; the second must be an eligible RGB export profile.
+
+The scenario uses public path-entry controls instead of automating the native file-picker dialog. It requires default-off controls, a visible invalid-profile error, explicit proof enable, changed compositor photo pixels, exact off restoration, unchanged sidecar and Undo state, then an actual GUI JPEG export with metadata off and exact selected ICC bytes. No mocked Tauri call or React store access is used. File-picker dialogs, physical prints, monitor calibration and other platforms remain untested.

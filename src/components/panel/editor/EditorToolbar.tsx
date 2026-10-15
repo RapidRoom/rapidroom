@@ -1,5 +1,7 @@
+import PrintProfileControl from '../../ui/PrintProfileControl';
+import { useOsPlatform } from '../../../hooks/useOsPlatform';
 import { memo, useState, useEffect, useRef, useMemo } from 'react';
-import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Columns2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Columns2, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
@@ -58,6 +60,9 @@ const EditorToolbar = memo(
     goToAdjustmentsHistoryIndex,
   }: EditorToolbarProps) => {
     const { t } = useTranslation();
+    const osPlatform = useOsPlatform();
+    const softProof = useEditorStore((state) => state.softProof);
+    const softProofError = useEditorStore((state) => state.softProofError);
     const isAnyLoading = isLoading;
     const [isLoaderVisible, setIsLoaderVisible] = useState(false);
     const [isLoaderMounted, setIsLoaderMounted] = useState(false);
@@ -693,6 +698,37 @@ const EditorToolbar = memo(
           >
             {showOriginal ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>
+          {osPlatform === 'linux' && (
+            <details className="relative">
+              <summary
+                aria-label={t('printProof.title')}
+                data-testid="soft-proof-menu"
+                className={clsx(
+                  'list-none cursor-pointer p-2 rounded-full',
+                  softProof ? 'bg-accent text-button-text' : 'bg-surface hover:bg-card-active',
+                )}
+              >
+                <Printer size={20} />
+              </summary>
+              <div className="absolute right-0 top-full mt-2 w-72 rounded-lg bg-card p-3 shadow-xl border border-surface">
+                <p className="mb-2 text-sm font-semibold">{t('printProof.title')}</p>
+                <PrintProfileControl
+                  value={softProof}
+                  proof
+                  renderError={softProofError}
+                  onChange={(value) =>
+                    useEditorStore.getState().setEditor({
+                      softProof: value,
+                      softProofError: null,
+                      interactivePatch: null,
+                      finalPreviewUrl: null,
+                      uncroppedAdjustedPreviewUrl: null,
+                    })
+                  }
+                />
+              </div>
+            </details>
+          )}
           {onToggleReferenceView && (
             <button
               className={clsx(

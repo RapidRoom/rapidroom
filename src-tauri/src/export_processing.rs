@@ -127,6 +127,8 @@ pub struct PadOptions {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportSettings {
+    #[serde(default)]
+    pub print_profile: Option<crate::print_proof::PrintProfileOptions>,
     #[serde(default, deserialize_with = "deserialize_export_dpi")]
     pub dpi: Option<u16>,
     pub jpeg_quality: u8,
@@ -1075,8 +1077,9 @@ fn render_output_precision(
     output_format: &str,
     export_settings: &ExportSettings,
 ) -> RenderOutputPrecision {
-    if matches!(output_format.to_lowercase().as_str(), "tif" | "tiff")
-        && export_settings.tiff_bit_depth == TiffBitDepth::Sixteen
+    if export_settings.print_profile.is_some()
+        || (matches!(output_format.to_lowercase().as_str(), "tif" | "tiff")
+            && export_settings.tiff_bit_depth == TiffBitDepth::Sixteen)
     {
         RenderOutputPrecision::SixteenBit
     } else {
@@ -1227,11 +1230,32 @@ fn encode_grayscale_to_png(bitmap: &GrayImage) -> Result<Vec<u8>, String> {
 /// Exports are sRGB-encoded; tagging them lets color-managed apps read them correctly.
 const SRGB_ICC_PROFILE: &[u8] = include_bytes!("../icc/sRGB-v2-magic.icc");
 
+fn validate_print_export_format(settings: &ExportSettings, format: &str) -> Result<(), String> {
+    if settings.print_profile.is_some()
+        && !matches!(
+            format.to_lowercase().as_str(),
+            "jpg" | "jpeg" | "png" | "tif" | "tiff"
+        )
+    {
+        return Err("Chosen ICC export profiles are supported only for JPEG, PNG and TIFF".into());
+    }
+    Ok(())
+}
+
 fn encode_image_to_bytes(
     image: &DynamicImage,
     output_format: &str,
     export_settings: &ExportSettings,
 ) -> Result<Vec<u8>, String> {
+    validate_print_export_format(export_settings, output_format)?;
+    let converted;
+    let profile_bytes;
+    let (image, icc_profile) = if let Some(options) = &export_settings.print_profile {
+        (converted, profile_bytes) = crate::print_proof::convert_export(image, options)?;
+        (&converted, profile_bytes.as_slice())
+    } else {
+        (image, SRGB_ICC_PROFILE)
+    };
     let jpeg_quality = export_settings.jpeg_quality;
     let tiff_bit_depth = export_settings.tiff_bit_depth;
     let dpi = export_settings.dpi;
@@ -1287,7 +1311,7 @@ fn encode_image_to_bytes(
             let rgb_image = image.to_rgb8();
             let mut encoder = JpegEncoder::new_with_quality(&mut cursor, jpeg_quality);
             encoder
-                .set_icc_profile(SRGB_ICC_PROFILE.to_vec())
+                .set_icc_profile(icc_profile.to_vec())
                 .map_err(|e| e.to_string())?;
             if let Some(dpi) = dpi {
                 encoder.set_pixel_density(PixelDensity::dpi(dpi));
@@ -1305,7 +1329,7 @@ fn encode_image_to_bytes(
 
             let mut encoder = PngEncoder::new(&mut cursor);
             encoder
-                .set_icc_profile(SRGB_ICC_PROFILE.to_vec())
+                .set_icc_profile(icc_profile.to_vec())
                 .map_err(|e| e.to_string())?;
             image_to_encode
                 .write_with_encoder(encoder)
@@ -1323,6 +1347,7 @@ fn encode_image_to_bytes(
                         height,
                         image.to_rgb8().as_raw(),
                         dpi,
+                        icc_profile,
                     )?,
                     TiffBitDepth::Sixteen => write_tiff_with_resolution::<colortype::RGB16, _>(
                         &mut encoder,
@@ -1330,6 +1355,7 @@ fn encode_image_to_bytes(
                         height,
                         image.to_rgb16().as_raw(),
                         dpi,
+                        icc_profile,
                     )?,
                 }
             } else {
@@ -1339,7 +1365,7 @@ fn encode_image_to_bytes(
                 };
                 let mut encoder = TiffEncoder::new(&mut cursor);
                 encoder
-                    .set_icc_profile(SRGB_ICC_PROFILE.to_vec())
+                    .set_icc_profile(icc_profile.to_vec())
                     .map_err(|e| e.to_string())?;
                 image_to_encode
                     .write_with_encoder(encoder)
@@ -1367,6 +1393,7 @@ fn write_tiff_with_resolution<C: colortype::ColorType, W: Write + Seek>(
     height: u32,
     data: &[C::Inner],
     dpi: u16,
+    icc_profile: &[u8],
 ) -> Result<(), String>
 where
     [C::Inner]: TiffValue,
@@ -1383,7 +1410,7 @@ where
     );
     image
         .encoder()
-        .write_tag(Tag::IccProfile, SRGB_ICC_PROFILE)
+        .write_tag(Tag::IccProfile, icc_profile)
         .map_err(|e| e.to_string())?;
     image.write_data(data).map_err(|e| e.to_string())
 }
@@ -1740,6 +1767,7 @@ pub(crate) async fn export_images_impl(
     app_handle: tauri::AppHandle,
     completion_tx: Option<tokio::sync::oneshot::Sender<Result<(), Vec<String>>>>,
 ) -> Result<(), String> {
+    validate_print_export_format(&export_settings, &output_format)?;
     ensure_export_destination_writable(
         &paths,
         &output_folder_or_file,
@@ -2279,6 +2307,7 @@ fn headless_export_settings(
         }
         None => (
             ExportSettings {
+                print_profile: None,
                 dpi: None,
                 jpeg_quality: 90,
                 tiff_bit_depth: TiffBitDepth::default(),
@@ -2301,6 +2330,7 @@ fn headless_export_settings(
         ),
     };
 
+    settings.print_profile = session.print_profile.clone();
     settings.preserve_timestamps = true;
     settings.preserve_folders = true;
     settings.export_masks = false;
@@ -3105,6 +3135,104 @@ mod dpi_tests {
         assert_eq!(u32::from_be_bytes(density[4..8].try_into().unwrap()), 23622);
         assert_eq!(density[8], 1);
         assert!(encode_mask_alpha_to_png(&image, Some(0)).is_err());
+    }
+
+    #[test]
+    fn custom_icc_metadata_does_not_claim_srgb_or_copy_its_interoperability_marker() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source.jpeg");
+        let mut source_bytes = encode_image_to_bytes(&photo(), "jpeg", &settings(None)).unwrap();
+        let mut metadata = Metadata::new();
+        metadata.set_tag(ExifTag::ColorSpace(vec![1]));
+        metadata.set_tag(ExifTag::InteroperabilityIndex("R98".into()));
+        metadata
+            .write_to_vec(&mut source_bytes, FileExtension::JPEG)
+            .unwrap();
+        std::fs::write(&source, source_bytes).unwrap();
+        let (file, profile) = crate::print_proof::tests::fixture();
+        let mut settings = settings(Some(300));
+        settings.print_profile = Some(crate::print_proof::PrintProfileOptions {
+            profile_path: file.path().to_string_lossy().into(),
+            intent: crate::print_proof::PrintIntent::Relative,
+            black_point_compensation: true,
+        });
+        for format in ["jpeg", "png"] {
+            let mut bytes = encode_image_to_bytes(&photo(), format, &settings).unwrap();
+            exif_processing::write_image_with_metadata_and_resolution(
+                &mut bytes,
+                source.to_str().unwrap(),
+                format,
+                true,
+                true,
+                None,
+                Some(300),
+            )
+            .unwrap();
+            let reader = image::ImageReader::new(Cursor::new(&bytes))
+                .with_guessed_format()
+                .unwrap();
+            let mut decoder = reader.into_decoder().unwrap();
+            assert_eq!(decoder.icc_profile().unwrap().unwrap(), profile);
+            let file_type = if format == "jpeg" {
+                FileExtension::JPEG
+            } else {
+                FileExtension::PNG {
+                    as_zTXt_chunk: true,
+                }
+            };
+            let metadata = Metadata::new_from_vec(&bytes, file_type).unwrap();
+            assert!(
+                matches!(metadata.get_tag(&ExifTag::ColorSpace(Vec::new())).next(), Some(ExifTag::ColorSpace(value)) if value == &vec![65535])
+            );
+            assert!(
+                metadata
+                    .get_tag(&ExifTag::InteroperabilityIndex(String::new()))
+                    .next()
+                    .is_none()
+            );
+        }
+    }
+
+    #[test]
+    fn chosen_icc_export_converts_and_embeds_the_same_profile_with_or_without_dpi() {
+        let (file, profile) = crate::print_proof::tests::fixture();
+        let options = crate::print_proof::PrintProfileOptions {
+            profile_path: file.path().to_string_lossy().into(),
+            intent: crate::print_proof::PrintIntent::Relative,
+            black_point_compensation: true,
+        };
+        let image = photo();
+        let (expected, _) = crate::print_proof::convert_export(&image, &options).unwrap();
+        assert_ne!(expected.to_rgb16(), image.to_rgb16());
+        for dpi in [None, Some(300)] {
+            for depth in [TiffBitDepth::Eight, TiffBitDepth::Sixteen] {
+                let mut settings = settings(dpi);
+                settings.print_profile = Some(options.clone());
+                settings.tiff_bit_depth = depth;
+                let bytes = encode_image_to_bytes(&image, "tiff", &settings).unwrap();
+                let mut decoder = tiff::decoder::Decoder::new(Cursor::new(&bytes)).unwrap();
+                assert_eq!(decoder.get_tag_u8_vec(Tag::IccProfile).unwrap(), profile);
+                let decoded = image::load_from_memory(&bytes).unwrap();
+                if depth == TiffBitDepth::Sixteen {
+                    assert_eq!(decoded.to_rgb16(), expected.to_rgb16());
+                } else {
+                    assert_eq!(decoded.to_rgb8(), expected.to_rgb8());
+                }
+            }
+            let mut settings = settings(dpi);
+            settings.print_profile = Some(options.clone());
+            let bytes = encode_image_to_bytes(&image, "png", &settings).unwrap();
+            let mut decoder = image::codecs::png::PngDecoder::new(Cursor::new(&bytes)).unwrap();
+            assert_eq!(decoder.icc_profile().unwrap().unwrap(), profile);
+            assert_eq!(
+                image::load_from_memory(&bytes).unwrap().to_rgb16(),
+                expected.to_rgb16()
+            );
+            let bytes = encode_image_to_bytes(&image, "jpeg", &settings).unwrap();
+            let mut decoder = image::codecs::jpeg::JpegDecoder::new(Cursor::new(bytes)).unwrap();
+            assert_eq!(decoder.icc_profile().unwrap().unwrap(), profile);
+            assert!(encode_image_to_bytes(&image, "webp", &settings).is_err());
+        }
     }
 
     #[test]

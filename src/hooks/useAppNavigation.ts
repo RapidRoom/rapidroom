@@ -179,7 +179,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
     const { setLibrary } = useLibraryStore.getState();
     const { setUI } = useUIStore.getState();
 
-    if (selectedImage?.path && cachedEditStateRef.current) {
+    if (!useEditorStore.getState().softProof && selectedImage?.path && cachedEditStateRef.current) {
       globalImageCache.set(selectedImage.path, cachedEditStateRef.current);
     }
     if (transformWrapperRef.current) {
@@ -216,7 +216,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       debouncedSave.flush();
       debouncedSetHistory.cancel();
 
-      if (selectedImage?.path && cachedEditStateRef.current) {
+      if (!useEditorStore.getState().softProof && selectedImage?.path && cachedEditStateRef.current) {
         globalImageCache.set(selectedImage.path, cachedEditStateRef.current);
       }
 
@@ -274,7 +274,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
           previewSize: cached.previewSize,
           histogram: cached.histogram,
           waveform: cached.waveform,
-          finalPreviewUrl: cached.finalPreviewUrl,
+          finalPreviewUrl: useEditorStore.getState().softProof ? null : cached.finalPreviewUrl,
           uncroppedAdjustedPreviewUrl: cached.uncroppedPreviewUrl,
         });
 

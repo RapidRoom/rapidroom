@@ -209,6 +209,7 @@ pub fn preset_to_export_settings(preset: &ExportPreset) -> Result<ExportSettings
         return Err("DPI must be between 1 and 65535".to_string());
     }
     Ok(ExportSettings {
+        print_profile: None,
         dpi: preset.dpi,
         jpeg_quality: preset.jpeg_quality,
         tiff_bit_depth: preset

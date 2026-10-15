@@ -143,3 +143,30 @@ describe('useAppNavigation cached image refresh', () => {
     }
   });
 });
+
+describe('proof views and the ordinary photo cache', () => {
+  it('does not cache a proof preview when returning to the library', async () => {
+    const refs = createRefs();
+    const image = selectedImage('/proof.arw', false);
+    const cached = {
+      adjustments: INITIAL_ADJUSTMENTS,
+      selectedImage: image,
+      finalPreviewUrl: 'blob:proof-only',
+      uncroppedPreviewUrl: null,
+      histogram: null,
+      waveform: null,
+      originalSize: { width: 640, height: 480 },
+      previewSize: { width: 640, height: 480 },
+    };
+    refs.cachedEditStateRef.current = cached;
+    useEditorStore.setState({
+      selectedImage: image,
+      softProof: { profilePath: '/paper.icc', intent: 'relative', blackPointCompensation: true },
+    });
+    mockCommand(Invokes.SetCardBrowseRoot, () => null);
+    const { navigation, unmount } = await mountNavigation(refs);
+    await act(async () => navigation.handleBackToLibrary());
+    expect(globalImageCache.get(image.path)).toBeUndefined();
+    await unmount();
+  });
+});

@@ -1,3 +1,4 @@
+import type { PrintProfileOptions } from '../../utils/printProfile';
 import { Progress } from './AppProperties';
 
 export enum FileFormats {
@@ -83,6 +84,7 @@ export const DEFAULT_EXPORT_DPI = 300;
 export const MAX_EXPORT_DPI = 65535;
 
 export interface ExportSettings {
+  printProfile?: PrintProfileOptions | null;
   overwriteExisting?: boolean;
   filenameTemplate: string | null;
   jpegQuality: number;

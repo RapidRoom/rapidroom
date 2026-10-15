@@ -845,6 +845,7 @@ fn parse_export_settings(value: Option<&Value>) -> Result<ExportSettings, String
     };
 
     Ok(ExportSettings {
+        print_profile: None,
         dpi: None,
         output_sharpening: None,
         overwrite_existing: false,
@@ -869,6 +870,7 @@ fn parse_export_settings(value: Option<&Value>) -> Result<ExportSettings, String
 
 fn default_export_settings() -> ExportSettings {
     ExportSettings {
+        print_profile: None,
         dpi: None,
         output_sharpening: None,
         overwrite_existing: false,

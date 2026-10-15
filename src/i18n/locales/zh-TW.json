@@ -2241,5 +2241,20 @@
         "vectorscope": "向量示波器"
       }
     }
+  },
+  "printProof": {
+    "title": "Soft proof",
+    "enabled": "Preview printer/paper colours",
+    "exportEnabled": "Convert to chosen ICC profile",
+    "chooseProfile": "Choose a local ICC profile…",
+    "intent": "Rendering intent",
+    "relative": "Relative colorimetric",
+    "perceptual": "Perceptual",
+    "bpc": "Black point compensation",
+    "displayAssumption": "View only. Assumes an sRGB monitor; does not simulate paper white.",
+    "exportFormats": "RGB profiles only. JPEG, PNG and TIFF; the selected profile is embedded even with metadata off.",
+    "exportTitle": "Output colour profile",
+    "profilePath": "ICC profile path",
+    "useProfile": "Use profile"
   }
 }
