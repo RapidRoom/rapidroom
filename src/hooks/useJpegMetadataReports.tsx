@@ -9,6 +9,7 @@ interface WriteReport {
   action: 'write' | 'undo';
   written: number;
   failures: { path: string; reason: string }[];
+  warnings: { path: string; reason: string }[];
   undoToken: string | null;
 }
 
@@ -35,6 +36,7 @@ export function useJpegMetadataReports(refresh: () => unknown | Promise<unknown>
       if (closed) return;
       if (payload.undoToken || payload.action === 'undo') undoToken.current = payload.undoToken;
       const token = payload.undoToken;
+      const notices = [...payload.failures, ...(payload.warnings ?? [])];
       const content = (
         <div className="space-y-2">
           <p>
@@ -42,10 +44,10 @@ export function useJpegMetadataReports(refresh: () => unknown | Promise<unknown>
               count: payload.written,
             })}
           </p>
-          {payload.failures.length > 0 && (
+          {notices.length > 0 && (
             <ul className="max-h-48 overflow-auto break-words text-xs">
-              {payload.failures.map((failure) => (
-                <li key={failure.path}>
+              {notices.map((failure, index) => (
+                <li key={`${failure.path}:${index}`}>
                   {failure.path}: {failure.reason}
                 </li>
               ))}
@@ -59,8 +61,8 @@ export function useJpegMetadataReports(refresh: () => unknown | Promise<unknown>
         </div>
       );
       const options = {
-        type: payload.failures.length ? ('warning' as const) : ('info' as const),
-        autoClose: payload.failures.length ? (false as const) : 8000,
+        type: notices.length ? ('warning' as const) : ('info' as const),
+        autoClose: notices.length ? (false as const) : 8000,
         closeOnClick: false,
       };
       if (toast.isActive('jpeg-metadata-report')) toast.update('jpeg-metadata-report', { ...options, render: content });

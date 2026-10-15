@@ -67,6 +67,7 @@ struct Report {
     action: &'static str,
     written: usize,
     failures: Vec<Failure>,
+    warnings: Vec<Failure>,
     undo_token: Option<String>,
 }
 
@@ -178,11 +179,13 @@ fn restore_one_with(
     if Fields::from(&metadata) != item.expected {
         return Err("Culling metadata changed since this write; Undo refused".into());
     }
-    item.restored_hash = Some(jpeg_metadata::restore(
+    let restored = jpeg_metadata::restore(
         &item.source,
         &item.jpeg.before,
         item.restored_hash.unwrap_or(item.jpeg.after_hash),
-    )?);
+    )?;
+    item.restored_hash = Some(restored.after_hash);
+    item.jpeg.warning = restored.warning;
     // Re-read after the potentially long JPEG operation before merging. Ordinary
     // develop saves share ACTION; this also retains other completed sidecar edits.
     metadata = exif_processing::load_sidecar(&item.sidecar);
@@ -219,7 +222,14 @@ fn restore_batch_with(
     };
     let mut failed = Vec::new();
     for mut item in undo.items {
-        match restore(&mut item) {
+        let result = restore(&mut item);
+        if let Some(reason) = item.jpeg.warning.take() {
+            report.warnings.push(Failure {
+                path: item.path.clone(),
+                reason,
+            });
+        }
+        match result {
             Ok(()) => report.written += 1,
             Err(reason) => {
                 report.failures.push(Failure {
@@ -278,6 +288,12 @@ pub(crate) fn sync(
         match result {
             Ok(item) => {
                 report.written += 1;
+                if let Some(reason) = &item.jpeg.warning {
+                    report.warnings.push(Failure {
+                        path: item.path.clone(),
+                        reason: reason.clone(),
+                    });
+                }
                 undo.push(item);
             }
             Err(reason) => report.failures.push(Failure {
@@ -442,7 +458,13 @@ mod tests {
                 std::path::Path::new(&save_path),
                 &save_sidecar,
                 &Default::default(),
-                |metadata| metadata.adjustments = json!({"exposure":1.5}),
+                |metadata| {
+                    assert!(matches!(
+                        ACTION.try_lock(),
+                        Err(std::sync::TryLockError::WouldBlock)
+                    ));
+                    metadata.adjustments = json!({"exposure":1.5});
+                },
             )
             .unwrap();
             done_tx.send(()).unwrap();
@@ -503,6 +525,41 @@ mod tests {
         let actual = exif_processing::load_sidecar(&sidecar);
         assert_eq!(actual.rating, 0);
         assert!(!actual.rating_is_explicit);
+    }
+    #[test]
+    #[cfg(unix)]
+    fn directory_sync_warning_keeps_write_undo_and_reports_successful_restoration() {
+        let (_dir, path, sidecar) = fixture();
+        let metadata = ImageMetadata {
+            rating: 4,
+            rating_is_explicit: true,
+            ..Default::default()
+        };
+        save(&sidecar, &metadata);
+        let item = jpeg_metadata::with_directory_sync_failure(|| {
+            write_one(&path, &Fields::from(&Default::default()))
+        })
+        .unwrap();
+        assert!(item.jpeg.warning.is_some());
+        let undo = BatchUndo {
+            token: "durability-warning".into(),
+            items: vec![item],
+        };
+        let (report, retry) = restore_batch_with(undo, |item| {
+            jpeg_metadata::with_directory_sync_failure(|| restore_one(item, &Default::default()))
+        });
+        assert_eq!(report.written, 1);
+        assert_eq!(report.warnings.len(), 1);
+        assert!(report.failures.is_empty());
+        assert!(retry.is_none());
+        assert!(report.warnings[0].reason.contains("metadata committed"));
+        let actual = exif_processing::load_sidecar(&sidecar);
+        assert_eq!(actual.rating, 0);
+        assert!(!actual.rating_is_explicit);
+        assert_eq!(
+            exif_processing::resolve_rating(std::path::Path::new(&path), &actual),
+            3
+        );
     }
     #[test]
     fn undo_capture_is_deduplicated_and_bounds_tag_memory() {

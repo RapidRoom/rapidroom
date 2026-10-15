@@ -22,6 +22,32 @@ pub(crate) struct Snapshot {
 pub(crate) struct Change {
     pub before: Snapshot,
     pub after_hash: blake3::Hash,
+    pub warning: Option<String>,
+}
+
+#[cfg(all(test, unix))]
+thread_local! { static FAIL_DIRECTORY_SYNC: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
+
+#[cfg(all(test, unix))]
+pub(crate) fn with_directory_sync_failure<T>(operation: impl FnOnce() -> T) -> T {
+    struct Reset;
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            FAIL_DIRECTORY_SYNC.set(false);
+        }
+    }
+    assert!(!FAIL_DIRECTORY_SYNC.replace(true));
+    let _reset = Reset;
+    operation()
+}
+
+#[cfg(unix)]
+fn sync_parent(parent: &Path) -> std::io::Result<()> {
+    #[cfg(test)]
+    if FAIL_DIRECTORY_SYNC.get() {
+        return Err(std::io::Error::other("injected directory sync failure"));
+    }
+    File::open(parent).and_then(|directory| directory.sync_all())
 }
 struct Segment {
     marker: u8,
@@ -582,7 +608,7 @@ fn edit(
     let before = snapshot(&jpeg, &bytes)?;
     let next = desired(&bytes, &jpeg, &before)?;
     let out = replace(&bytes, &jpeg, &next)?;
-    if out != bytes {
+    let warning = if out != bytes {
         let parent = path
             .parent()
             .filter(|p| !p.as_os_str().is_empty())
@@ -632,13 +658,22 @@ fn edit(
         }
         temp.persist(path).map_err(|e| e.error.to_string())?;
         #[cfg(unix)]
-        File::open(parent)
-            .and_then(|d| d.sync_all())
-            .map_err(|e| format!("JPEG replaced but directory sync failed: {e}"))?;
-    }
+        {
+            // Rename already committed. Keep the snapshot/hash for Undo rather
+            // than returning an error that incorrectly describes unchanged bytes.
+            sync_parent(parent).err().map(|error| format!("JPEG metadata committed, but directory sync failed: {error}. Disk durability is not confirmed; Undo remains available"))
+        }
+        #[cfg(not(unix))]
+        {
+            None
+        }
+    } else {
+        None
+    };
     Ok(Change {
         before,
         after_hash: blake3::hash(&out),
+        warning,
     })
 }
 pub(crate) fn write(path: &Path, rating: i16, label: Option<&str>) -> Result<Change> {
@@ -661,12 +696,8 @@ pub(crate) fn write(path: &Path, rating: i16, label: Option<&str>) -> Result<Cha
         None,
     )
 }
-pub(crate) fn restore(
-    path: &Path,
-    before: &Snapshot,
-    expected: blake3::Hash,
-) -> Result<blake3::Hash> {
-    edit(path, |_, _, _| Ok(before.clone()), Some(expected)).map(|change| change.after_hash)
+pub(crate) fn restore(path: &Path, before: &Snapshot, expected: blake3::Hash) -> Result<Change> {
+    edit(path, |_, _, _| Ok(before.clone()), Some(expected))
 }
 
 #[cfg(test)]
@@ -940,6 +971,32 @@ mod tests {
             assert_eq!(fs::read(path).unwrap(), bytes);
         }
         assert!(segment(oversized.as_bytes()).is_err());
+    }
+    #[test]
+    #[cfg(unix)]
+    fn committed_write_and_restore_keep_undo_receipts_when_directory_sync_fails() {
+        let original = jpeg();
+        let (_dir, path) = file(&original);
+        let written = with_directory_sync_failure(|| write(&path, 4, Some("Blue"))).unwrap();
+        assert!(
+            written
+                .warning
+                .as_deref()
+                .unwrap()
+                .contains("metadata committed")
+        );
+        assert_eq!(blake3::hash(&fs::read(&path).unwrap()), written.after_hash);
+        assert_eq!(crate::exif_processing::read_embedded_rating(&path), Some(4));
+        let restored =
+            with_directory_sync_failure(|| restore(&path, &written.before, written.after_hash))
+                .unwrap();
+        assert!(restored.warning.is_some());
+        assert_eq!(fs::read(&path).unwrap(), original);
+        assert_eq!(restored.after_hash, blake3::hash(&original));
+        // A partial sidecar failure can retry with the already restored hash.
+        let retry = restore(&path, &written.before, restored.after_hash).unwrap();
+        assert!(retry.warning.is_none());
+        assert_eq!(fs::read(path).unwrap(), original);
     }
     #[test]
     fn preserves_permissions_and_mtime_and_refuses_read_only_files() {
