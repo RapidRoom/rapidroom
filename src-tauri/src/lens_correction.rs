@@ -1571,4 +1571,225 @@ mod tests {
         assert!((params.tca_vr - 1.0000409).abs() < 1e-6);
         assert!((params.tca_vb - 0.9999893).abs() < 1e-6);
     }
+
+    fn sigma_profile() -> Lens {
+        let xml = include_str!("../lensfun_db/local-sigma-20-200.xml");
+        let db: LensDatabase = quick_xml::de::from_str(xml).expect("Sigma profile parses");
+        assert_eq!(db.lenses.len(), 1);
+        db.lenses[0].clone()
+    }
+
+    #[test]
+    fn sigma_profile_matches_sony_exif_and_reports_unsupported_tca() {
+        let db = load_bundled_db();
+        let matched = find_best_lens_match(
+            &db,
+            "SONY",
+            "20-200mm F3.5-6.3 DG | Contemporary 025",
+            "ILCE-7CM2",
+        )
+        .expect("exact Sony lens name is supported");
+        assert_eq!(matched.0, "Sigma");
+        assert!(matched.1.contains("TCA unsupported"));
+        let lens = find_lens(&db, &matched.0, &matched.1).unwrap();
+        assert!(lens.mount.iter().any(|m| m == "Sony E"));
+        assert!(!lens.has_tca_data());
+        assert_eq!(camera_crop_factor(&db, "SONY", "ILCE-7CM2"), Some(1.0));
+        let p = resolve_lens_params(
+            &db,
+            &matched.0,
+            &matched.1,
+            20.0,
+            Some(3.5),
+            Some(10.0),
+            Some(1.0),
+        )
+        .unwrap();
+        assert_eq!((p.tca_vr, p.tca_vb), (1.0, 1.0));
+    }
+
+    #[test]
+    fn sigma_distortion_anchors_and_interpolation_use_lensfun_radius_once() {
+        let lens = sigma_profile();
+        let distortions: Vec<_> = lens
+            .calibration
+            .as_ref()
+            .unwrap()
+            .elements
+            .iter()
+            .filter_map(|e| {
+                if let CalibrationElement::Distortion(d) = e {
+                    Some(d)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(distortions.len(), 51);
+        for d in &distortions {
+            let p = lens
+                .get_distortion_params(d.focal, None, None, Some(1.0))
+                .unwrap();
+            assert_eq!(p.model, 0);
+            assert_eq!(p.k1, d.k1.unwrap() as f64);
+            assert_eq!(p.k2, d.k2.unwrap() as f64);
+            assert!((p.radius_scale.unwrap().powi(2) - 3.25).abs() < 1e-12);
+            for step in 0..=100 {
+                let r = step as f64 / 100.0;
+                let t = r * p.radius_scale.unwrap();
+                let derivative = 1.0 + 3.0 * p.k1 * t * t + 5.0 * p.k2 * t.powi(4);
+                assert!(
+                    derivative > 0.0,
+                    "monotonic warp at {}mm radius {}",
+                    d.focal,
+                    r
+                );
+            }
+        }
+        for pair in distortions.windows(2) {
+            let p = lens
+                .get_distortion_params((pair[0].focal + pair[1].focal) / 2.0, None, None, Some(1.0))
+                .unwrap();
+            let k1 = (pair[0].k1.unwrap() as f64 + pair[1].k1.unwrap() as f64) / 2.0;
+            let k2 = (pair[0].k2.unwrap() as f64 + pair[1].k2.unwrap() as f64) / 2.0;
+            assert!((p.k1 - k1).abs() < 1e-10 && (p.k2 - k2).abs() < 1e-10);
+        }
+        let p = lens
+            .get_distortion_params(20.0, None, None, Some(1.0))
+            .unwrap();
+        let corner_scale = 1.0 + p.k1 * 3.25 + p.k2 * 3.25_f64.powi(2);
+        assert!((corner_scale - 0.91426735625).abs() < 1e-7);
+        assert!(corner_scale > 0.0 && corner_scale < 1.0);
+    }
+
+    #[test]
+    fn sigma_vignetting_covers_all_measured_focal_aperture_anchors() {
+        let lens = sigma_profile();
+        let vignettings: Vec<_> = lens
+            .calibration
+            .as_ref()
+            .unwrap()
+            .elements
+            .iter()
+            .filter_map(|e| {
+                if let CalibrationElement::Vignetting(v) = e {
+                    Some(v)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(vignettings.len(), 99);
+        for v in vignettings {
+            let p = lens
+                .get_distortion_params(v.focal, Some(v.aperture), v.distance, Some(1.0))
+                .unwrap();
+            assert!((p.vig_k1 - v.k1.unwrap() as f64).abs() < 1e-6);
+            assert!((p.vig_k2 - v.k2.unwrap() as f64).abs() < 1e-6);
+            assert!((p.vig_k3 - v.k3.unwrap() as f64).abs() < 1e-6);
+            for step in 0..=100 {
+                let r = step as f64 / 100.0;
+                let illumination =
+                    1.0 + p.vig_k1 * r.powi(2) + p.vig_k2 * r.powi(4) + p.vig_k3 * r.powi(6);
+                assert!(illumination.is_finite() && illumination > 0.0);
+            }
+        }
+    }
+
+    #[test]
+    fn sigma_source_retains_all_original_tca_terms_and_provenance() {
+        let original = include_str!(
+            "../../rapidroom/lens-profiles/sigma-20-200/source/local-sigma-20-200.xml"
+        );
+        let db: LensDatabase = quick_xml::de::from_str(original).unwrap();
+        let tcas: Vec<_> = db.lenses[0]
+            .calibration
+            .as_ref()
+            .unwrap()
+            .elements
+            .iter()
+            .filter_map(|e| {
+                if let CalibrationElement::Tca(t) = e {
+                    Some(t)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(tcas.len(), 51);
+        assert!(tcas.iter().all(|t| t.model == "poly3"));
+        assert!(
+            tcas.iter()
+                .any(|t| t.br.unwrap_or(0.0) != 0.0 && t.bb.unwrap_or(0.0) != 0.0)
+        );
+        let provenance = include_str!(
+            "../../rapidroom/lens-profiles/sigma-20-200/source/local-sigma-20-200.README.md"
+        );
+        assert!(provenance.contains("CC-BY-SA") && provenance.contains("207"));
+    }
+
+    #[test]
+    #[ignore = "writes labelled synthetic geometry diagnostics only when explicitly requested"]
+    fn sigma_write_synthetic_geometry_diagnostics() {
+        use image::{DynamicImage, Rgb, Rgb32FImage};
+        let out = std::path::PathBuf::from(
+            std::env::var("RAPIDROOM_SIGMA_SYNTHETIC_OUT").expect("explicit output directory"),
+        );
+        std::fs::create_dir_all(&out).unwrap();
+        let ideal_source = DynamicImage::ImageRgb32F(Rgb32FImage::from_fn(1200, 800, |x, y| {
+            let grid = x % 60 < 2 || y % 60 < 2;
+            let v = if grid { 0.20 } else { 0.04 };
+            Rgb([v, v, v])
+        }));
+        ideal_source
+            .to_rgb8()
+            .save(out.join("synthetic-ideal-grid-input.png"))
+            .unwrap();
+        let lens = sigma_profile();
+        let mut reports = Vec::new();
+        for (focal, aperture) in [(20.0, 3.5), (50.0, 5.0), (200.0, 6.3)] {
+            let source = if let Ok(folder) = std::env::var("RAPIDROOM_SIGMA_SIMULATION_DIR") {
+                let path = std::path::Path::new(&folder)
+                    .join(format!("{}mm-linear-simulation.png", focal as u32));
+                DynamicImage::ImageRgb32F(
+                    image::open(path)
+                        .expect("independent linear Lensfun simulation")
+                        .to_rgb32f(),
+                )
+            } else {
+                ideal_source.clone()
+            };
+            source
+                .to_rgb8()
+                .save(out.join(format!("synthetic-{}mm-before.png", focal as u32)))
+                .unwrap();
+            let p = lens
+                .get_distortion_params(focal, Some(aperture), Some(10.0), Some(1.0))
+                .unwrap();
+            let off = serde_json::json!({"lensDistortionParams": p, "lensDistortionEnabled": false, "lensVignetteEnabled": false});
+            let unchanged =
+                crate::image_processing::apply_geometry_warp(&source, &off).into_owned();
+            assert_eq!(unchanged.to_rgb32f().as_raw(), source.to_rgb32f().as_raw());
+            for (name, vignette) in [("distortion-only", false), ("distortion-vignetting", true)] {
+                let adjustments = serde_json::json!({"lensDistortionParams": p, "lensDistortionEnabled": true,
+                    "lensVignetteEnabled": vignette, "lensDistortionAmount": 100, "lensVignetteAmount": 100});
+                let image = crate::image_processing::apply_geometry_warp(&source, &adjustments)
+                    .into_owned();
+                let rgb = image.to_rgb32f();
+                assert_eq!(rgb.dimensions(), (1200, 800));
+                assert!(rgb.as_raw().iter().all(|v| v.is_finite() && *v >= 0.0));
+                assert_ne!(rgb.as_raw(), source.to_rgb32f().as_raw());
+                let file = format!("synthetic-{}mm-{}.png", focal as u32, name);
+                image.to_rgb8().save(out.join(&file)).unwrap();
+                reports.push(serde_json::json!({"file":file,"focal":focal,"aperture":aperture,
+                    "synthetic":true,"purpose":"existing geometry renderer on explicit synthetic input; not real-lens correction acceptance",
+                    "adjustments":adjustments,"tca":"unsupported; neutral channel scales"}));
+            }
+        }
+        std::fs::write(
+            out.join("diagnostics.json"),
+            serde_json::to_string_pretty(&reports).unwrap(),
+        )
+        .unwrap();
+    }
 }
