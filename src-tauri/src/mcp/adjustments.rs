@@ -242,6 +242,10 @@ pub(super) fn adjustments_schema() -> Value {
         "aspectRatio".to_string(),
         json!({ "type": ["number", "null"], "exclusiveMinimum": 0 }),
     );
+    properties.insert(
+        "activeTools".to_string(),
+        json!({ "type": "object", "additionalProperties": { "type": "boolean" } }),
+    );
     properties.insert("aiPatches".to_string(), json!({ "type": "array" }));
     properties.insert("sectionVisibility".to_string(), json!({ "type": "object" }));
     properties.insert("showClipping".to_string(), json!({ "type": "boolean" }));
@@ -559,6 +563,7 @@ fn adjustment_keys() -> Vec<String> {
                 "baselineExposure",
                 "aiPatches",
                 "sectionVisibility",
+                "activeTools",
                 "showClipping",
                 "lensBlurEnabled",
                 "lensBlurAmount",
@@ -628,6 +633,14 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "fogDepthMap" | "relightNormalMap" => {
                     if !value.is_null() && !value.is_string() {
                         return Err(format!("adjustment {key} must be a string or null"));
+                    }
+                }
+                "activeTools" | "sectionVisibility" => {
+                    if !value
+                        .as_object()
+                        .is_some_and(|map| map.values().all(Value::is_boolean))
+                    {
+                        return Err(format!("adjustment {key} must be a boolean map"));
                     }
                 }
                 "crop" => super::masks::validate_crop(value)?,
@@ -1090,6 +1103,11 @@ pub(super) fn merge_adjustments(current: Value, changes: Value) -> Result<Value,
     let changes = changes
         .as_object()
         .ok_or("changes must be a JSON object".to_string())?;
+    if let Some(visibility) = changes.get("sectionVisibility").and_then(Value::as_object) {
+        let mut tools = crate::image_processing::active_tools(&Value::Object(current.clone()));
+        crate::image_processing::apply_section_visibility(&mut tools, visibility);
+        current.insert("activeTools".into(), Value::Object(tools));
+    }
     for (key, change) in changes {
         let merged = match (current.get(key), change) {
             (Some(existing), Value::Object(_)) if existing.is_object() => {

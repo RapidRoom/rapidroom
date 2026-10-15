@@ -76,9 +76,14 @@ import {
   MaskContainer,
   MaskAdjustments,
   ADJUSTMENT_SECTIONS,
+  getActiveTools,
   getVisibleAdjustmentSections,
-  showSectionAndTools,
+  isToolActive,
+  mergeActiveTools,
+  setToolActive,
+  toggleToolActive,
 } from '../../../utils/adjustments';
+import { ToolVisibilityContext } from '../../../context/ToolVisibilityContext';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import {
   OPTION_SEPARATOR,
@@ -1515,7 +1520,7 @@ function ContainerRow({
             label: ('name' in item ? item.name : undefined) || preset.name,
             onClick: () => {
               const newAdj = { ...container.adjustments, ...preset.adjustments };
-              newAdj.sectionVisibility = { ...container.adjustments.sectionVisibility, ...newAdj.sectionVisibility };
+              newAdj.activeTools = mergeActiveTools(container.adjustments, preset.adjustments);
               updateContainer(container.id, { adjustments: newAdj });
             },
           },
@@ -2030,10 +2035,7 @@ function SettingsPanel({
     const newMaskAdjustments = {
       ...currentAdjustments,
       ...presetAdjustments,
-      sectionVisibility: {
-        ...(currentAdjustments.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility),
-        ...(presetAdjustments.sectionVisibility || {}),
-      },
+      activeTools: mergeActiveTools(currentAdjustments, presetAdjustments),
     };
     updateContainer(container.id, { adjustments: newMaskAdjustments });
   };
@@ -2117,12 +2119,11 @@ function SettingsPanel({
     });
   };
 
-  const handleToggleVisibility = (sectionName: string) => {
+  const handleToggleVisibility = (id: string) => {
     if (!isActive) return;
     const cur = container.adjustments;
-    const vis = cur.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility;
     updateContainer(container.id, {
-      adjustments: { ...cur, sectionVisibility: { ...vis, [sectionName]: !(vis[sectionName] ?? true) } },
+      adjustments: { ...cur, activeTools: toggleToolActive(getActiveTools(cur), id) },
     });
   };
 
@@ -2150,10 +2151,7 @@ function SettingsPanel({
       setMaskContainerAdjustments((prev) => ({
         ...prev,
         ...copiedSectionAdjustments.values,
-        sectionVisibility: showSectionAndTools(
-          prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility,
-          sectionName,
-        ),
+        activeTools: setToolActive(getActiveTools(prev), sectionName, true),
       }));
     };
 
@@ -2167,10 +2165,7 @@ function SettingsPanel({
       setMaskContainerAdjustments((prev) => ({
         ...prev,
         ...resetValues,
-        sectionVisibility: showSectionAndTools(
-          prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility,
-          sectionName,
-        ),
+        activeTools: setToolActive(getActiveTools(prev), sectionName, true),
       }));
     };
 
@@ -2203,8 +2198,7 @@ function SettingsPanel({
     ]);
   };
 
-  const sectionVisibility =
-    displayContainer.adjustments.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility;
+  const activeTools = getActiveTools(displayContainer.adjustments);
   const visibleSections = getVisibleAdjustmentSections(appSettings?.adjustmentLayout) as MaskSection[];
 
   return (
@@ -2373,21 +2367,23 @@ function SettingsPanel({
               key={sectionName}
               title={title}
               isOpen={collapsibleState[sectionName]}
-              isContentVisible={sectionVisibility[sectionName]}
+              isContentVisible={isToolActive(activeTools, sectionName)}
               onToggle={() => handleToggleSection(sectionName)}
               onToggleVisibility={() => handleToggleVisibility(sectionName)}
               onContextMenu={(e: React.MouseEvent) => handleSectionContextMenu(e, sectionName)}
             >
-              <SectionComponent
-                adjustments={displayContainer.adjustments}
-                setAdjustments={setMaskContainerAdjustments}
-                histogram={histogram}
-                isForMask={true}
-                appSettings={appSettings}
-                onDragStateChange={onDragStateChange}
-                onToggleVisibility={handleToggleVisibility}
-                sectionVisibility={sectionVisibility}
-              />
+              <ToolVisibilityContext.Provider
+                value={{ activeTools, onToggleTool: handleToggleVisibility, section: sectionName }}
+              >
+                <SectionComponent
+                  adjustments={displayContainer.adjustments}
+                  setAdjustments={setMaskContainerAdjustments}
+                  histogram={histogram}
+                  isForMask={true}
+                  appSettings={appSettings}
+                  onDragStateChange={onDragStateChange}
+                />
+              </ToolVisibilityContext.Provider>
             </CollapsibleSection>
           );
         })}

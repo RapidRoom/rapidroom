@@ -10,6 +10,8 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 The v1.6.5 sync retains contributions by Timon Käch, marclaliberte, Ramon Speets, MartinBspheroid, Reda Jamil and Yojen in normal merge history. Rendering, library, translations and curve changes are credited in the upstream commits; the RapidRoom integration was reconciled by Yojen with Codex.
 
 The 2026-10-12 refresh retains baseline exposure and export metadata work by marclaliberte, Italian translations by f-loren and filename-number tokens by apweisskopf in their original upstream commits. RapidRoom conflict reconciliation and regression checks are by Yojen with Codex.
+The 2026-10-15 daily refresh retains upstream contributions by Timon Käch, marclaliberte, cl1x, Max (waxm134) and Yojen in normal merge history. Per-tool visibility, capture-time timezone, auto-lens sidecar completion, headless exit codes, mask-drop insertion and layout-aware shortcuts are integrated while preserving RapidRoom additions. Conflict resolution and compatibility work is by yojen7 with Codex.
+
 ## Individual MCP mask editing
 
 The typed mask/crop schemas, single-id edit tools and nested local-default normalization are original work for RapidRoom by yojen7 with Codex. They use RapidRoom’s existing renderer and editor history. No fork implementation or additional AI engine is included.

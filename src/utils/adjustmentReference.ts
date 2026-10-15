@@ -199,6 +199,7 @@ const typeOf = (value: unknown, path: string): string => {
 
 const rowsFor = (path: string, value: unknown, inMasks: boolean): Row[] => {
   const row = (p: string, v: unknown): Row => ({ path: p, type: typeOf(v, p), defaultValue: v, inMasks });
+  if (path === 'activeTools') return [row(path, value)];
   if (path === 'relightLights') {
     const light = { ...createRelightLight(0.5, 0.5), id: '<uuid>' };
     return [row(path, value), ...Object.entries(light).map(([key, item]) => row(`relightLights.<light>.${key}`, item))];

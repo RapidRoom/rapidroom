@@ -171,16 +171,8 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   lensBlurMinDepth: 'Depth (0–100) from which the image stays sharp; farther gets blurred.',
   lensBlurMinFade: 'Transition width at the far end of the sharp range.',
   lensDistortionParams: 'Lens profile coefficients, filled by the GUI from the lens database. Leave alone.',
-  'sectionVisibility.basic':
-    '`false` turns the whole Basic section off (like the eye icon), without losing its values.',
-  'sectionVisibility.curves': '`false` turns the curves off without losing them.',
-  'sectionVisibility.color': '`false` turns the Color section off without losing its values.',
-  'sectionVisibility.colorGrading':
-    '`false` bypasses Color Grading independently; the parent Color section must also be on.',
-  'sectionVisibility.colorMixer':
-    '`false` bypasses the HSL Color Mixer independently; the parent Color section must also be on.',
-  'sectionVisibility.details': '`false` turns the Details section off without losing its values.',
-  'sectionVisibility.effects': '`false` turns the Effects section off without losing its values.',
+  activeTools:
+    'Per-tool boolean map; omitted keys are enabled. Set colorMixer or colorGrading to false to bypass that tool without losing its values. Applies to global and mask edits; legacy sectionVisibility sidecars are migrated on load.',
   showClipping: 'Shows the clipping overlay in the editor. Display only; doesn’t change the photo.',
 };
 
