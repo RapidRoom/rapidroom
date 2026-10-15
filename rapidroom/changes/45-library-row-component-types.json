@@ -1,0 +1,14 @@
+{
+  "id": "library-row-component-return-types",
+  "title": "Narrow virtualized library row component return types",
+  "category": "ci",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Typed pass-through row components adapt memoized library rows to react-window's React element return contract while preserving the memoized rows and rendered output."
+}
