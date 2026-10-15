@@ -416,6 +416,8 @@ export function normalizeCombo(event: KeyboardEvent, osPlatform?: string): strin
   if (event.shiftKey) parts.push('shift');
   if (event.altKey) parts.push('alt');
   let code = isMacDelete ? 'Delete' : event.code;
+  // Unmodified number-row keys keep their physical rating bindings.
+  if (parts.length === 0 && /^Digit[0-9]$/.test(code)) return [code];
   if (event.key && /^[a-zA-Z]$/.test(event.key)) {
     code = `Key${event.key.toUpperCase()}`;
   } else if (/^Numpad[0-9]$/.test(code)) {
