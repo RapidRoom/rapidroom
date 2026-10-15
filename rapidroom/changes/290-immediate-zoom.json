@@ -1,0 +1,13 @@
+{
+  "id": "immediate-physical-zoom-after-photo-switch",
+  "title": "Keep the first 100% zoom request when switching photo sizes",
+  "category": "fix",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#290"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Bind explicit zoom percentages to the selected photo until its fitted geometry is ready, avoiding a second Ctrl+1 during mixed-resolution culling. Public native thumbnail/keyboard regression checks cover 15 MP and 33 MP transitions."
+}

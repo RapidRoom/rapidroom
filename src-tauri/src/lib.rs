@@ -40,6 +40,7 @@ mod cache_utils;
 mod camera_tethering;
 mod culling;
 mod dcp;
+mod denoise_quality;
 mod denoising;
 mod effect_maps;
 mod exif_processing;

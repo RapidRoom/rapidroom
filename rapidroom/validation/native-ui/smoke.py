@@ -367,7 +367,8 @@ class Smoke:
         if (self.case / "dock-layout-test.json").exists():
             from dock_layout import run_layout_checks
             run_layout_checks(self.case, self)
-        self.execute("""const e=[...document.images].find(e=>e.src.startsWith('asset:'));
+        self.execute("""const e=[...document.images].find(e=>e.src.startsWith('asset:') && e.alt==='smoke.ARW');
+          if(!e)throw Error('Smoke thumbnail missing');
           e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;""")
         wait_for(lambda: self.execute("return document.body.innerText.includes('4608 × 3072') && "
                                       "document.body.innerText.includes('Exposure');"), "editor opens")
@@ -582,6 +583,12 @@ def launch(args):
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
     if args.zoom:
+        zoom_raw = args.raw_dir.resolve() / "sony-a7c2-33mp-compressed.ARW"
+        zoom_expected = next(f["sha256"] for f in corpus["files"] if f["file"] == zoom_raw.name)
+        if sha(zoom_raw) != zoom_expected:
+            raise RuntimeError("Mixed-resolution zoom fixture differs from CC0 corpus")
+        shutil.copy2(zoom_raw, case / "input/zoom-33mp.ARW")
+        save(case / "zoom-fixture.json", {"file": zoom_raw.name, "sha256": zoom_expected})
         save(case / "zoom-test.json", {"issue": 142, "viewport": [WIDTH, HEIGHT]})
         wheel_source = ROOT / "rapidroom/validation/native-ui/native_wheel.c"
         flags = shlex.split(subprocess.check_output(
