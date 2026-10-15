@@ -216,3 +216,5 @@ The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/hi
   [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba)
   (MIT), adapted by Yojen with Codex/kano. The complete notice remains in
   `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.
+
+Upstream follow-up through `e90a9bba`: Timon Käch (CyberTimon), marclaliberte and waxm134 for advanced export DPI, touch preview gestures and Android build updates. Original AGPL-3.0 history retained; conflict reconciliation with RapidRoom’s existing DPI implementation by Yojen with Codex.

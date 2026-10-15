@@ -1,0 +1,17 @@
+{
+  "id": "daily-upstream-sync-e90-followup-296",
+  "title": "Sync upstream touch previews and advanced export resolution",
+  "category": "feature",
+  "landed": "2026-10-15",
+  "authors": ["CyberTimon", "lalibertemarc", "waxm134", "yojen7"],
+  "source": "CyberTimon/RapidRAW main at e90a9bba7422ed833892e4945f06da35a65470d2; RapidRoom conflict reconciliation",
+  "commits": [
+    "https://github.com/CyberTimon/RapidRAW/commit/e90a9bba7422ed833892e4945f06da35a65470d2",
+    "https://github.com/CyberTimon/RapidRAW/commit/66bbcb95e3faf25120e03c84aa56a64e766e1cd3",
+    "https://github.com/CyberTimon/RapidRAW/commit/79e202c64d492d06aa781db5ff384f12c92f0e5c"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Adds upstream pinch and pan in denoise/negative previews and places the single validated DPI control in Advanced export settings. Retains RapidRoom preset validation, DPI metadata for JPEG/PNG/TIFF and side masks, TIFF ICC and precision, output sharpening, overwrite controls, and filename tokens. Removes obsolete Android dependency downgrades without changing locked packages. Corrects surviving-finger target selection when a pinch ends over the denoise comparison divider."
+}

@@ -2158,22 +2158,29 @@ fn embed_jpeg_xmp(image_bytes: &mut Vec<u8>, packet: &str) {
 }
 
 fn embed_png_xmp(image_bytes: &mut Vec<u8>, packet: &str) {
+    let mut data = b"XML:com.adobe.xmp\0\0\0\0\0".to_vec();
+    data.extend_from_slice(packet.as_bytes());
+    insert_png_chunk(image_bytes, b"iTXt", &data);
+}
+
+pub fn insert_png_chunk(image_bytes: &mut Vec<u8>, chunk_type: &[u8; 4], data: &[u8]) {
     const IHDR_END: usize = 33;
 
-    if image_bytes.len() < IHDR_END || &image_bytes[12..16] != b"IHDR" {
+    if image_bytes.len() < IHDR_END
+        || &image_bytes[..8] != b"\x89PNG\r\n\x1a\n"
+        || &image_bytes[12..16] != b"IHDR"
+    {
         return;
     }
 
-    let mut data = b"XML:com.adobe.xmp\0\0\0\0\0".to_vec();
-    data.extend_from_slice(packet.as_bytes());
     let mut crc = crc32fast::Hasher::new();
-    crc.update(b"iTXt");
-    crc.update(&data);
+    crc.update(chunk_type);
+    crc.update(data);
 
     let mut chunk = Vec::with_capacity(data.len() + 12);
     chunk.extend_from_slice(&(data.len() as u32).to_be_bytes());
-    chunk.extend_from_slice(b"iTXt");
-    chunk.extend_from_slice(&data);
+    chunk.extend_from_slice(chunk_type);
+    chunk.extend_from_slice(data);
     chunk.extend_from_slice(&crc.finalize().to_be_bytes());
     image_bytes.splice(IHDR_END..IHDR_END, chunk);
 }
@@ -2432,37 +2439,6 @@ fn find_png_chunk(bytes: &[u8], wanted: &[u8; 4]) -> Option<usize> {
     }
     None
 }
-
-/// CRC32 using the IEEE polynomial, as required by PNG.
-pub(crate) fn crc32_ieee(data: &[u8]) -> u32 {
-    let mut crc: u32 = 0xFFFFFFFF;
-    for &byte in data {
-        let index = ((crc ^ byte as u32) & 0xFF) as usize;
-        crc = CRC32_TABLE[index] ^ (crc >> 8);
-    }
-    crc ^ 0xFFFFFFFF
-}
-
-/// Precomputed CRC32 IEEE lookup table.
-const CRC32_TABLE: [u32; 256] = {
-    let mut table = [0u32; 256];
-    let mut i = 0usize;
-    while i < 256 {
-        let mut c = i as u32;
-        let mut k = 0;
-        while k < 8 {
-            if c & 1 != 0 {
-                c = 0xEDB88320 ^ (c >> 1);
-            } else {
-                c >>= 1;
-            }
-            k += 1;
-        }
-        table[i] = c;
-        i += 1;
-    }
-    table
-};
 
 #[cfg(test)]
 mod xmp_keyword_tests {

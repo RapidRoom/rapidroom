@@ -1399,25 +1399,12 @@ fn encode_mask_alpha_to_png(image: &GrayImage, dpi: Option<u16>) -> Result<Vec<u
 }
 
 fn insert_png_phys_chunk(image_bytes: &mut Vec<u8>, dpi: u16) {
-    const IHDR_END: usize = 33;
-    if image_bytes.len() < IHDR_END
-        || &image_bytes[..8] != b"\x89PNG\r\n\x1a\n"
-        || &image_bytes[12..16] != b"IHDR"
-    {
-        return;
-    }
     let pixels_per_meter = (f64::from(dpi) / 0.0254).round() as u32;
     let mut data = Vec::with_capacity(9);
     data.extend_from_slice(&pixels_per_meter.to_be_bytes());
     data.extend_from_slice(&pixels_per_meter.to_be_bytes());
     data.push(1);
-    let mut chunk = Vec::with_capacity(21);
-    chunk.extend_from_slice(&9u32.to_be_bytes());
-    chunk.extend_from_slice(b"pHYs");
-    chunk.extend_from_slice(&data);
-    let crc = exif_processing::crc32_ieee(&chunk[4..]);
-    chunk.extend_from_slice(&crc.to_be_bytes());
-    image_bytes.splice(IHDR_END..IHDR_END, chunk);
+    exif_processing::insert_png_chunk(image_bytes, b"pHYs", &data);
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -860,8 +860,10 @@
       "selectFolderTitle_other": "Vyberte složku pro export {{count}} fotografií"
     },
     "file": {
+      "dpi": "DPI",
       "quality": "Kvalita",
       "qualityLossless": "Kvalita (bezeztrátová)",
+      "resolution": "Rozlišení",
       "tiffBitDepth": "Bitová hloubka TIFF",
       "tiffBitDepth16": "16bitová",
       "tiffBitDepth8": "8bitová"
