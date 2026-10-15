@@ -120,9 +120,21 @@ interface BrushTableRefusal {
   reason: string;
 }
 
+interface XmpMaskFailure {
+  correction: string;
+  component: string;
+  maskType: string;
+  reason: string;
+}
+
+function describeMaskFailure(failure: XmpMaskFailure): string {
+  return `${failure.correction} / ${failure.component} (${failure.maskType}): ${failure.reason}`;
+}
+
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
   notTransferred?: XmpNotTransferredItem[];
   brushTableRefusals?: BrushTableRefusal[];
+  maskFailures?: XmpMaskFailure[];
   adjustmentsApplied: boolean;
   alreadyApplied: boolean;
   draftPreserved: boolean;
@@ -134,6 +146,7 @@ interface XmpNotTransferred {
   path: string;
   items: XmpNotTransferredItem[];
   brushTableRefusals?: BrushTableRefusal[];
+  maskFailures?: XmpMaskFailure[];
   settingsReport?: LightroomSettingReport;
 }
 
@@ -413,6 +426,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         if (metadata.settingsReport?.settings.length) {
           reportParts.push(describeLightroomSettings(metadata.settingsReport, t));
         }
+        for (const failure of metadata.maskFailures ?? []) {
+          toast.info(describeMaskFailure(failure), { autoClose: false });
+        }
         if (metadata.notTransferred?.length) {
           reportParts.push(
             t('contextMenus.xmpImportReport.notTransferredForImage', {
@@ -551,9 +567,10 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           reportLines.push(
             '',
             t('contextMenus.xmpImportReport.notTransferred', { total: result.notTransferred.length }),
-            ...result.notTransferred.map(({ path, items, brushTableRefusals, settingsReport }) =>
+            ...result.notTransferred.map(({ path, items, brushTableRefusals, maskFailures, settingsReport }) =>
               [
                 path.replace(/\\/g, '/').split('/').pop(),
+                ...(maskFailures ?? []).map(describeMaskFailure),
                 items.length ? describeNotTransferred(items, brushTableRefusals) : '',
                 settingsReport?.settings.length ? describeLightroomSettings(settingsReport, t) : '',
               ]

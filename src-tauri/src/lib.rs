@@ -64,6 +64,7 @@ mod launch_request;
 mod lens_blur;
 mod lens_correction;
 mod lightroom;
+mod lightroom_acr;
 mod lightroom_brush_table;
 mod lightroom_masks;
 mod lightroom_report;

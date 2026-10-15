@@ -1,7 +1,7 @@
 //! Lightroom local corrections (`crs:MaskGroupBasedCorrections`) as RapidRAW
 //! masks: linear and radial gradients and brush strokes, with their local
-//! adjustments. AI masks (`Mask/Image`) keep their pixels in a separate `.acr`
-//! file, so corrections that use them are skipped and reported instead.
+//! adjustments. AI masks (`Mask/Image`) load supplied coverage from a read-only
+//! companion ACR file; incomplete corrections are skipped and reported.
 //! Aggregate composition and signed radial decoding adapt measured rules from
 //! skymanbp/autoshade@cbca12b5 (MIT; full notice in resources/licenses/).
 
@@ -109,6 +109,8 @@ pub struct MaskImportSummary {
     pub convertible: usize,
     /// Corrections skipped because they use AI (`Mask/Image`) components.
     pub skipped_ai: usize,
+    pub imported_ai: usize,
+    pub failures: Vec<MaskFailure>,
     /// Corrections skipped for other reasons (unsupported components, missing
     /// geometry, no components).
     pub skipped_unsupported: usize,
@@ -120,6 +122,15 @@ pub struct MaskImportSummary {
     pub brush_table_refusals: Vec<BrushTableRefusal>,
     /// Converted corrections that also set local adjustments RapidRAW lacks.
     pub with_unmapped_adjustments: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MaskFailure {
+    pub correction: String,
+    pub component: String,
+    pub mask_type: String,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -148,6 +159,54 @@ pub fn import_lightroom_masks_for_image(
     image_path: Option<&Path>,
     scale_exposure: impl Fn(&mut Map<String, Value>),
 ) -> (Vec<Value>, MaskImportSummary) {
+    let mut acr = image_path.map(|path| {
+        let lower = path.with_extension("acr");
+        crate::lightroom_acr::AcrMasks::read(&if lower.exists() {
+            lower
+        } else {
+            path.with_extension("ACR")
+        })
+    });
+    let error = acr
+        .as_ref()
+        .and_then(|result| result.as_ref().err())
+        .cloned();
+    import_lightroom_masks_with_acr_and_path(
+        xmp_content,
+        frame,
+        scale_exposure,
+        acr.as_mut().and_then(|result| result.as_mut().ok()),
+        error.as_deref(),
+        image_path,
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn import_lightroom_masks_with_acr(
+    xmp_content: &str,
+    frame: Option<&ImageFrame>,
+    scale_exposure: impl Fn(&mut Map<String, Value>),
+    acr: Option<&mut crate::lightroom_acr::AcrMasks>,
+    acr_error: Option<&str>,
+) -> (Vec<Value>, MaskImportSummary) {
+    import_lightroom_masks_with_acr_and_path(
+        xmp_content,
+        frame,
+        scale_exposure,
+        acr,
+        acr_error,
+        None,
+    )
+}
+
+fn import_lightroom_masks_with_acr_and_path(
+    xmp_content: &str,
+    frame: Option<&ImageFrame>,
+    scale_exposure: impl Fn(&mut Map<String, Value>),
+    mut acr: Option<&mut crate::lightroom_acr::AcrMasks>,
+    acr_error: Option<&str>,
+    image_path: Option<&Path>,
+) -> (Vec<Value>, MaskImportSummary) {
     let mut reader = BrushTableReader::new(image_path);
     let mut dab_budget = 65_536usize;
     let mut summary = MaskImportSummary::default();
@@ -165,6 +224,17 @@ pub fn import_lightroom_masks_for_image(
 
     for (index, item) in seq_items(corrections).into_iter().enumerate() {
         let correction = Resource::from_item(item);
+        if masks.len() >= crate::image_processing::MAX_MASKS {
+            let name = correction
+                .scalars
+                .get("CorrectionName")
+                .cloned()
+                .unwrap_or_else(|| format!("Lightroom mask {}", index + 1));
+            summary.skipped_unsupported += 1;
+            summary.failures.push(MaskFailure { correction:name,component:"Entire correction".into(),mask_type:"Correction".into(),reason:"RapidRoom supports at most 32 mask corrections; this correction was not imported".into() });
+            continue;
+        }
+
         match convert_correction(
             &correction,
             index,
@@ -173,6 +243,8 @@ pub fn import_lightroom_masks_for_image(
             &mut reader,
             &mut dab_budget,
             &mut summary,
+            acr.as_deref_mut(),
+            acr_error,
         ) {
             Converted::Mask(mask, unmapped) => {
                 summary.convertible += 1;
@@ -198,6 +270,7 @@ enum Converted {
     SkippedUnsupported,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn convert_correction(
     correction: &Resource,
     index: usize,
@@ -206,6 +279,8 @@ fn convert_correction(
     reader: &mut BrushTableReader,
     dab_budget: &mut usize,
     summary: &mut MaskImportSummary,
+    mut acr: Option<&mut crate::lightroom_acr::AcrMasks>,
+    acr_error: Option<&str>,
 ) -> Converted {
     let components: Vec<Resource> = correction
         .structs
@@ -217,7 +292,47 @@ fn convert_correction(
                 .collect()
         })
         .unwrap_or_default();
-    let has_ai = components.iter().any(|c| c.what() == Some("Mask/Image"));
+    let mut image_parameters = HashMap::new();
+    let mut failed_ai = false;
+    for (component_index, component) in components.iter().enumerate() {
+        if component.what() != Some("Mask/Image") {
+            continue;
+        }
+        let result = match (acr.as_deref_mut(), frame) {
+            (Some(acr), Some(frame)) => acr.image_parameters(&component.scalars, frame),
+            (_, None) => Err("Image dimensions are unavailable".into()),
+            _ => Err(acr_error
+                .unwrap_or("ACR sidecar is unavailable")
+                .to_string()),
+        };
+        match result {
+            Ok(parameters) => {
+                image_parameters.insert(component_index, parameters);
+            }
+            Err(reason) => {
+                failed_ai = true;
+                summary.failures.push(MaskFailure {
+                    correction: correction
+                        .scalars
+                        .get("CorrectionName")
+                        .cloned()
+                        .unwrap_or_else(|| format!("Lightroom mask {}", index + 1)),
+                    component: component
+                        .name()
+                        .unwrap_or_else(|| format!("Image component {}", component_index + 1)),
+                    mask_type: format!(
+                        "Mask/Image (subtype {})",
+                        component
+                            .scalars
+                            .get("MaskSubType")
+                            .map(String::as_str)
+                            .unwrap_or("unknown")
+                    ),
+                    reason,
+                });
+            }
+        }
+    }
     if components.is_empty() {
         return Converted::SkippedUnsupported;
     }
@@ -237,8 +352,8 @@ fn convert_correction(
             continue;
         }
         summary.brush_tables_seen += 1;
-        let result = if has_ai {
-            Err("this correction includes an unsupported AI mask".to_string())
+        let result = if failed_ai {
+            Err("this correction includes an unavailable AI mask".to_string())
         } else if component.what() != Some("Mask/Aggregate") {
             Err("brush table is attached to an unsupported component".to_string())
         } else {
@@ -268,17 +383,22 @@ fn convert_correction(
                 "another brush group in this correction could not be imported".to_string(),
             ));
         }
-        return if has_ai {
+        return if !image_parameters.is_empty() || failed_ai {
             Converted::SkippedAi
         } else {
             Converted::SkippedUnsupported
         };
     }
-    if has_ai {
+    if failed_ai {
         return Converted::SkippedAi;
     }
-    let Some(sub_masks) = convert_components(&components, &frame_or_unit, &tables, dab_budget)
-    else {
+    let Some(sub_masks) = convert_components(
+        &components,
+        &frame_or_unit,
+        &tables,
+        dab_budget,
+        &image_parameters,
+    ) else {
         if !tables.is_empty() {
             summary.with_brush_tables += 1;
             for component_index in tables.keys() {
@@ -290,8 +410,19 @@ fn convert_correction(
                 ));
             }
         }
+        if !image_parameters.is_empty() {
+            summary.failures.push(MaskFailure {
+                correction: correction.scalars.get("CorrectionName").cloned().unwrap_or_else(|| format!("Lightroom mask {}",index+1)),
+                component: "Mixed correction".into(), mask_type: "Mask/Image".into(),
+                reason: "A companion component or its blend/geometry is unsupported; no part of the correction was imported".into(),
+            });
+            return Converted::SkippedAi;
+        }
         return Converted::SkippedUnsupported;
     };
+    if !image_parameters.is_empty() {
+        summary.imported_ai += 1;
+    }
     if frame.is_some() {
         summary.brush_tables_imported += tables.len();
     } else if !tables.is_empty() {
@@ -411,6 +542,7 @@ fn convert_components(
     frame: &ImageFrame,
     tables: &BTreeMap<usize, Vec<Value>>,
     dab_budget: &mut usize,
+    image_parameters: &HashMap<usize, Value>,
 ) -> Option<Vec<Value>> {
     let mut sub_masks: Vec<Value> = Vec::new();
     let mut brush: Option<BrushGroup> = None;
@@ -513,6 +645,19 @@ fn convert_components(
                     mode,
                     invert,
                     radial_parameters(component, frame)?,
+                ));
+            }
+            "Mask/Image" => {
+                flush_brush(&mut brush, &mut sub_masks);
+                let (mode, invert) = sub_mask_mode(component, false)?;
+                // Preserve the supplied coverage for every Lightroom subtype.
+                // The bitmap renderer needs no model/people-part interpretation.
+                sub_masks.push(sub_mask(
+                    component,
+                    "ai-foreground",
+                    mode,
+                    invert,
+                    image_parameters.get(&component_index)?.clone(),
                 ));
             }
             _ => return None,

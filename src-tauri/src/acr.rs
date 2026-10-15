@@ -29,7 +29,7 @@ impl std::fmt::Display for AcrError {
         f.write_str(match self {
             Self::Unavailable => "the companion .acr file is unavailable",
             Self::ContainerInvalid => "the companion .acr container is invalid or unsupported",
-            Self::ReferenceMismatch => "the brush reference is missing or ambiguous",
+            Self::ReferenceMismatch => "the companion reference is missing or ambiguous",
             Self::DigestMismatch => "the referenced companion object failed its content check",
             Self::SourceChanged => "the companion changed while it was being read",
             Self::LimitExceeded => "the companion exceeds the import safety limits",
