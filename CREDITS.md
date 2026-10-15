@@ -7,6 +7,16 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.
 - **[RapidRAW-DngLab](https://github.com/CyberTimon/RapidRAW-DngLab)**, CyberTimon's fork of [dnglab/rawler](https://github.com/dnglab/dnglab) by Daniel Vogelbacher and contributors (raw decoding).
 
+## Public MCP reproduction package
+
+The reproduction package is original RapidRoom work by yojen7 with Codex. It
+imports the native evidence harness and PNG helpers from the separately checked
+out [sheldonxxxx/RapidRAW@4494beb9](https://github.com/sheldonxxxx/RapidRAW/commit/4494beb9bae0ee57f420a8292c4f4f6e1dba4bd2),
+retaining their AGPL-3.0 licence and original authorship. No fork implementation
+is vendored into RapidRoom's application. The genuine fixture is CC0 from
+raw.pixls.us; generated pixels and real captures are labelled separately in
+the [fixture manifest](rapidroom/validation/mcp-gap-repro/fixtures.json).
+
 ## Individual MCP mask editing
 
 The typed mask/crop schemas, single-id edit tools and nested local-default normalization are original work for RapidRoom by yojen7 with Codex. They use RapidRoom’s existing renderer and editor history. No fork implementation or additional AI engine is included.
