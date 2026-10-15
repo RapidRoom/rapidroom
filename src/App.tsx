@@ -1065,7 +1065,7 @@ function App() {
                 />
               )}
             </div>
-            <TerminalDock renderPanel={renderAppPanel} />
+            <TerminalDock renderPanel={renderAppPanel} hasMainContent={hasMainContent} />
             <DragOverlay modifiers={activeImageDragItem ? [imageDragModifier] : undefined} dropAnimation={null}>
               {activeLayoutDragItem && ActiveOverlayIcon ? (
                 <div className="w-10 h-10 bg-surface shadow-2xl rounded-md flex items-center justify-center text-text-primary ring-1 ring-border-color">
@@ -1133,10 +1133,21 @@ const AppWrapper = () => (
   </ContextMenuProvider>
 );
 
-function TerminalDock({ renderPanel }: { renderPanel: (panel: Panel) => React.ReactNode }) {
+function TerminalDock({
+  renderPanel,
+  hasMainContent,
+}: {
+  renderPanel: (panel: Panel) => React.ReactNode;
+  hasMainContent: boolean;
+}) {
   const supported = useUIStore((state) => state.terminalSupported);
   const fullscreen = useUIStore((state) => state.isFullScreen);
-  return supported && !fullscreen ? <BottomDock renderPanel={renderPanel} /> : null;
+  useEffect(() => {
+    if (!hasMainContent) {
+      useUIStore.getState().setUI((state) => ({ activePanels: { ...state.activePanels, bottom: null } }));
+    }
+  }, [hasMainContent]);
+  return supported && hasMainContent && !fullscreen ? <BottomDock renderPanel={renderPanel} /> : null;
 }
 
 export default AppWrapper;

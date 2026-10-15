@@ -11,6 +11,7 @@ import {
   Invokes,
 } from '../components/ui/AppProperties';
 import { useEditorStore } from './useEditorStore';
+import { clampDockHeight, DEFAULT_DOCK_HEIGHT } from '../utils/dockHeight';
 
 export type SwitcherPlacement = 'bottom' | 'right' | 'left' | 'top';
 export type LightsOutMode = 'off' | 'dim' | 'black';
@@ -172,7 +173,7 @@ export function reconcileWorkspace(
       bottom: 'top',
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
-    bottomDockHeight: 240,
+    bottomDockHeight: DEFAULT_DOCK_HEIGHT,
   };
 
   if (!savedWorkspace || !savedWorkspace.panelLayout) {
@@ -225,7 +226,7 @@ export function reconcileWorkspace(
 
   (['leftTop', 'leftBottom', 'rightTop', 'rightBottom', 'bottom'] as PanelRegion[]).forEach((region) => {
     const currentActive = savedWorkspace.activePanels?.[region];
-    if (region === 'bottom' && currentActive == null) {
+    if (region === 'bottom') {
       sanitizedActive.bottom = null;
     } else if (currentActive && sanitizedLayout[region].includes(currentActive)) {
       sanitizedActive[region] = currentActive;
@@ -246,7 +247,7 @@ export function reconcileWorkspace(
       ...(savedWorkspace.panelSwitcherPlacement || {}),
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
-    bottomDockHeight: Math.max(80, Math.min(800, savedWorkspace.bottomDockHeight || 240)),
+    bottomDockHeight: clampDockHeight(savedWorkspace.bottomDockHeight ?? DEFAULT_DOCK_HEIGHT),
   };
 }
 
