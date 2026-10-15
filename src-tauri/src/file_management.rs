@@ -2990,7 +2990,10 @@ fn save_metadata_and_update_thumbnail_blocking(
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     ensure_card_writable(&source_path)?;
 
-    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    let settings = load_settings(app_handle.clone()).unwrap_or_else(|_| AppSettings {
+        enable_xmp_sync: Some(false),
+        ..Default::default()
+    });
     save_develop_metadata(&source_path, &sidecar_path, &settings, |metadata| {
         let mut final_adjustments = adjustments;
         let lens_db_guard = state.lens_db.lock().unwrap();

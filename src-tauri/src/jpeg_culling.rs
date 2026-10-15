@@ -322,7 +322,13 @@ pub async fn undo_jpeg_metadata_write(token: String, app_handle: AppHandle) -> R
             }
             last.take().unwrap()
         };
-        let settings = crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default();
+        let settings =
+            crate::app_settings::load_settings(app_handle.clone()).unwrap_or_else(|_| {
+                crate::app_settings::AppSettings {
+                    enable_xmp_sync: Some(false),
+                    ..Default::default()
+                }
+            });
         let (report, retry) = restore_batch_with(undo, |item| restore_one(item, &settings));
         *LAST_UNDO.lock().map_err(|_| "Metadata Undo unavailable")? = retry;
         emit(&app_handle, &report);
