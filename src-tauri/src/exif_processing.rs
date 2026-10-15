@@ -1492,6 +1492,7 @@ fn apply_gps_from_rawler(metadata: &mut Metadata, original_path_str: &str) {
     }
 }
 
+#[cfg(test)]
 pub fn write_image_with_metadata(
     image_bytes: &mut Vec<u8>,
     original_path_str: &str,
@@ -1499,6 +1500,26 @@ pub fn write_image_with_metadata(
     keep_metadata: bool,
     strip_gps: bool,
     tags: Option<&[String]>,
+) -> Result<(), String> {
+    write_image_with_metadata_and_resolution(
+        image_bytes,
+        original_path_str,
+        output_format,
+        keep_metadata,
+        strip_gps,
+        tags,
+        None,
+    )
+}
+
+pub fn write_image_with_metadata_and_resolution(
+    image_bytes: &mut Vec<u8>,
+    original_path_str: &str,
+    output_format: &str,
+    keep_metadata: bool,
+    strip_gps: bool,
+    tags: Option<&[String]>,
+    dpi: Option<u16>,
 ) -> Result<(), String> {
     // FIXME: temporary solution until I find a way to write metadata to TIFF
     if !keep_metadata || output_format.to_lowercase() == "tiff" {
@@ -1820,6 +1841,18 @@ pub fn write_image_with_metadata(
     metadata.set_tag(ExifTag::Software("RapidRAW".to_string()));
     metadata.set_tag(ExifTag::Orientation(vec![1u16]));
     metadata.set_tag(ExifTag::ColorSpace(vec![1u16]));
+
+    if matches!(file_type, FileExtension::JPEG | FileExtension::PNG { .. })
+        && let Some(dpi) = dpi
+    {
+        let resolution = vec![uR64 {
+            nominator: dpi.into(),
+            denominator: 1,
+        }];
+        metadata.set_tag(ExifTag::XResolution(resolution.clone()));
+        metadata.set_tag(ExifTag::YResolution(resolution));
+        metadata.set_tag(ExifTag::ResolutionUnit(vec![2u16]));
+    }
 
     let output_dimensions = if output_format.eq_ignore_ascii_case("jxl") {
         jxl_oxide::JxlImage::builder()
@@ -2233,7 +2266,7 @@ fn find_png_chunk(bytes: &[u8], wanted: &[u8; 4]) -> Option<usize> {
 }
 
 /// CRC32 using the IEEE polynomial, as required by PNG.
-fn crc32_ieee(data: &[u8]) -> u32 {
+pub(crate) fn crc32_ieee(data: &[u8]) -> u32 {
     let mut crc: u32 = 0xFFFFFFFF;
     for &byte in data {
         let index = ((crc ^ byte as u32) & 0xFF) as usize;

@@ -56,6 +56,27 @@ describe('layout-aware punctuation shortcuts', () => {
     expect(normalizeCombo(event, 'windows')).toEqual(defaultFor('zoom_out', 'windows'));
   });
 
+  it.each([
+    ['Digit1', '&', 'rate_1'],
+    ['Digit2', 'é', 'rate_2'],
+    ['Digit3', '"', 'rate_3'],
+    ['Digit4', "'", 'rate_4'],
+    ['Digit5', '(', 'rate_5'],
+    ['Digit0', 'à', 'rate_0'],
+  ])('matches unmodified French %s (%s) to %s', (code, key, action) => {
+    for (const os of ['linux', 'windows', 'macos']) {
+      expect(normalizeCombo(keyboardEvent({ code, key }), os)).toEqual(defaultFor(action, os));
+    }
+  });
+
+  it('keeps modified number-row punctuation and shifted colour labels', () => {
+    expect(normalizeCombo(keyboardEvent({ code: 'Digit4', key: "'", ctrlKey: true }))).toEqual(['ctrl', 'Quote']);
+    expect(normalizeCombo(keyboardEvent({ code: 'Digit6', key: '-', ctrlKey: true }))).toEqual(defaultFor('zoom_out'));
+    expect(normalizeCombo(keyboardEvent({ code: 'Digit4', key: '4', shiftKey: true }))).toEqual(
+      defaultFor('color_label_blue'),
+    );
+  });
+
   it('records and matches relocated punctuation without changing modifiers', () => {
     for (const [key, expected] of [
       [';', 'Semicolon'],

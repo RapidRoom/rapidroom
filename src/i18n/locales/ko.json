@@ -355,9 +355,13 @@
           "cropGeometry": "Converted to native crop geometry",
           "unsupported": "No supported mapping for this CRS setting",
           "superseded": "The newer process-version setting takes precedence",
-          "inactive": "This setting is inactive in the source conversion mode"
+          "inactive": "This setting is inactive in the source conversion mode",
+          "alreadyApplied": "The photo marks development settings AlreadyApplied; existing native edits are preserved"
         }
-      }
+      },
+      "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
+      "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved."
     },
     "toasts": {
       "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
@@ -934,8 +938,10 @@
       "selectFolderTitle_other": "이미지 {{count}}개를 내보낼 폴더 선택"
     },
     "file": {
+      "dpi": "DPI",
       "quality": "품질",
       "qualityLossless": "품질 (무손실)",
+      "resolution": "해상도",
       "tiffBitDepth": "TIFF 비트 심도",
       "tiffBitDepth16": "16비트",
       "tiffBitDepth8": "8비트"

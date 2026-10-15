@@ -367,7 +367,8 @@ class Smoke:
         if (self.case / "dock-layout-test.json").exists():
             from dock_layout import run_layout_checks
             run_layout_checks(self.case, self)
-        self.execute("""const e=[...document.images].find(e=>e.src.startsWith('asset:'));
+        self.execute("""const e=[...document.images].find(e=>e.src.startsWith('asset:') && e.alt==='smoke.ARW');
+          if(!e)throw Error('Smoke thumbnail missing');
           e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;""")
         wait_for(lambda: self.execute("return document.body.innerText.includes('4608 × 3072') && "
                                       "document.body.innerText.includes('Exposure');"), "editor opens")
@@ -401,6 +402,9 @@ class Smoke:
         if (self.case / "crs-interop-test.json").exists():
             from crs_interop import run_crs_checks
             run_crs_checks(self, wait_for)
+        if (self.case / "xmp-photo-policy-test.json").exists():
+            from xmp_photo_policy import run_photo_policy_checks
+            run_photo_policy_checks(self, wait_for)
         if (self.case / "untrusted-text-test.json").exists():
             from untrusted_text import run_untrusted_checks
             run_untrusted_checks(self.case, self, wait_for, baseline)
@@ -579,6 +583,12 @@ def launch(args):
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
     if args.zoom:
+        zoom_raw = args.raw_dir.resolve() / "sony-a7c2-33mp-compressed.ARW"
+        zoom_expected = next(f["sha256"] for f in corpus["files"] if f["file"] == zoom_raw.name)
+        if sha(zoom_raw) != zoom_expected:
+            raise RuntimeError("Mixed-resolution zoom fixture differs from CC0 corpus")
+        shutil.copy2(zoom_raw, case / "input/zoom-33mp.ARW")
+        save(case / "zoom-fixture.json", {"file": zoom_raw.name, "sha256": zoom_expected})
         save(case / "zoom-test.json", {"issue": 142, "viewport": [WIDTH, HEIGHT]})
         wheel_source = ROOT / "rapidroom/validation/native-ui/native_wheel.c"
         flags = shlex.split(subprocess.check_output(
@@ -611,6 +621,8 @@ def launch(args):
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
     if args.presets:
         save(case / "presets-test.json", {"issue": 169})
+    if args.xmp_photo_policy:
+        save(case / "xmp-photo-policy-test.json", {"issue": 218, "real_model_requests": False})
     if args.crs_interop:
         save(case / "crs-interop-test.json", {"issue": 161, "real_model_requests": False})
     if args.untrusted_text:
@@ -730,6 +742,7 @@ def main():
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
     parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
+    parser.add_argument("--xmp-photo-policy", action="store_true", help="Synthetic photo AlreadyApplied, pending draft/history and reusable preset checks")
     parser.add_argument("--crs-interop", action="store_true", help="Check public CRS import and XML safety without model requests")
     parser.add_argument("--mask-drop", action="store_true", help="Check mask creation drop insertion on a sub-mask row")
     parser.add_argument("--untrusted-text", action="store_true", help="Check hostile descriptive text against real authenticated MCP without model requests")
@@ -744,7 +757,7 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop:
+    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop or args.xmp_photo_policy:
         args.mcp_clients = True
     if args.mcp_skill and (not args.skill_source or not args.skill_source.is_dir()):
         parser.error("--mcp-skill requires --skill-source matching the pinned app commit")
