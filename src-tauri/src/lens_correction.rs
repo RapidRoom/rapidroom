@@ -42,6 +42,10 @@ pub struct Tca {
     pub vr: Option<f32>,
     #[serde(rename = "@vb")]
     pub vb: Option<f32>,
+    #[serde(rename = "@kr")]
+    pub kr: Option<f32>,
+    #[serde(rename = "@kb")]
+    pub kb: Option<f32>,
     #[serde(rename = "@cr")]
     pub cr: Option<f32>,
     #[serde(rename = "@cb")]
@@ -148,6 +152,17 @@ pub struct MultiName {
     value: String,
 }
 
+/// Explicit marker for calibrated polynomial TCA. Its absence keeps saved
+/// constant-scale edits on the legacy sampling path.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct TcaPolynomial {
+    pub cr: f64,
+    pub cb: f64,
+    pub br: f64,
+    pub bb: f64,
+    pub radius_scale: f64,
+}
+
 #[derive(Serialize, Clone)]
 pub struct LensDistortionParams {
     k1: f64,
@@ -161,9 +176,30 @@ pub struct LensDistortionParams {
     radius_scale: Option<f64>,
     tca_vr: f64,
     tca_vb: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tca_poly3: Option<TcaPolynomial>,
     vig_k1: f64,
     vig_k2: f64,
     vig_k3: f64,
+}
+
+impl LensDistortionParams {
+    pub fn preserve_saved_tca(&mut self, saved: &serde_json::Value) {
+        if saved
+            .get("tca_poly3")
+            .is_none_or(serde_json::Value::is_null)
+        {
+            self.tca_poly3 = None;
+            self.tca_vr = saved
+                .get("tca_vr")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(self.tca_vr);
+            self.tca_vb = saved
+                .get("tca_vb")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(self.tca_vb);
+        }
+    }
 }
 
 fn strip_maker_prefix(name: &str, maker: &str) -> String {
@@ -302,6 +338,17 @@ impl Lens {
         (params.k1, params.k2, params.k3, params.model) =
             rescale_dist_params(params.k1, params.k2, params.k3, params.model);
         params.radius_scale = Some(distortion_radius_scale(self, camera_crop));
+        if let Some(values) = interpolate_polynomial_tca(self, focal_length) {
+            params.tca_vr = values[0];
+            params.tca_vb = values[1];
+            params.tca_poly3 = Some(TcaPolynomial {
+                cr: values[2],
+                cb: values[3],
+                br: values[4],
+                bb: values[5],
+                radius_scale: distortion_radius_scale(self, camera_crop),
+            });
+        }
 
         // The vignetting model "pa" has r = 1 at the corner of the sensor the
         // calibration was made on. See `rescale_polynomial_coefficients` in
@@ -323,6 +370,10 @@ impl Lens {
         distance: Option<f32>,
     ) -> Option<LensDistortionParams> {
         self.calibration_values(focal_length, aperture, distance, extract_legacy_dist_params)
+            .map(|mut params| {
+                params.tca_poly3 = None;
+                params
+            })
     }
 
     fn calibration_values(
@@ -332,6 +383,9 @@ impl Lens {
         distance: Option<f32>,
         extract_dist_params: fn(&Distortion) -> (f64, f64, f64, u32),
     ) -> Option<LensDistortionParams> {
+        if !focal_length.is_finite() {
+            return None;
+        }
         let cal = self.calibration.as_ref()?;
 
         let mut distortions: Vec<&Distortion> = cal
@@ -412,8 +466,8 @@ impl Lens {
             }
         };
 
-        let (tca_vr, tca_vb) = if tcas.is_empty() {
-            (1.0, 1.0)
+        let [tca_vr, tca_vb, tca_cr, tca_cb, tca_br, tca_bb] = if tcas.is_empty() {
+            [1.0, 1.0, 0.0, 0.0, 0.0, 0.0]
         } else {
             tcas.sort_by(|a, b| a.focal.partial_cmp(&b.focal).unwrap_or(Ordering::Equal));
 
@@ -424,7 +478,7 @@ impl Lens {
             } else if focal_length > tcas.last().unwrap().focal {
                 extract_tca_params(tcas.last().unwrap())
             } else {
-                let mut res = (1.0, 1.0);
+                let mut res = [1.0, 1.0, 0.0, 0.0, 0.0, 0.0];
                 for pair in tcas.windows(2) {
                     let (d1, d2) = (&pair[0], &pair[1]);
                     if focal_length >= d1.focal && focal_length <= d2.focal {
@@ -436,10 +490,7 @@ impl Lens {
                             res = p1;
                         } else {
                             let t = (focal_length - d1.focal) / range;
-                            res = (
-                                p1.0 + t as f64 * (p2.0 - p1.0),
-                                p1.1 + t as f64 * (p2.1 - p1.1),
-                            );
+                            res = std::array::from_fn(|i| p1[i] + t as f64 * (p2[i] - p1[i]));
                         }
                         break;
                     }
@@ -548,6 +599,16 @@ impl Lens {
             radius_scale: None,
             tca_vr,
             tca_vb,
+            tca_poly3: tcas
+                .iter()
+                .any(|t| t.model == "poly3")
+                .then_some(TcaPolynomial {
+                    cr: tca_cr,
+                    cb: tca_cb,
+                    br: tca_br,
+                    bb: tca_bb,
+                    radius_scale: 0.0,
+                }),
             vig_k1,
             vig_k2,
             vig_k3,
@@ -700,8 +761,85 @@ fn vignetting_radius_scale(lens: &Lens, camera_crop: Option<f32>) -> f64 {
     }
 }
 
-fn extract_tca_params(tca: &Tca) -> (f64, f64) {
-    (tca.vr.unwrap_or(1.0) as f64, tca.vb.unwrap_or(1.0) as f64)
+// Cubic Hermite interpolation in the Lensfun TCA parameter domains: v is
+// unscaled; c and b are interpolated after multiplication by focal length.
+fn interpolate_polynomial_tca(lens: &Lens, focal: f32) -> Option<[f64; 6]> {
+    if !focal.is_finite() {
+        return None;
+    }
+    let mut anchors: Vec<_> = lens
+        .calibration
+        .as_ref()?
+        .elements
+        .iter()
+        .filter_map(|e| match e {
+            CalibrationElement::Tca(t) if t.model == "poly3" && t.focal.is_finite() => Some(t),
+            _ => None,
+        })
+        .collect();
+    anchors.sort_by(|a, b| a.focal.total_cmp(&b.focal));
+    let first = *anchors.first()?;
+    if focal <= first.focal {
+        return Some(extract_tca_params(first));
+    }
+    let right = anchors.partition_point(|t| t.focal < focal);
+    if right == anchors.len() {
+        return Some(extract_tca_params(anchors[right - 1]));
+    }
+    if anchors[right].focal == focal {
+        return Some(extract_tca_params(anchors[right]));
+    }
+    let left = right - 1;
+    let t =
+        (focal - anchors[left].focal) as f64 / (anchors[right].focal - anchors[left].focal) as f64;
+    Some(std::array::from_fn(|i| {
+        let value = |index: usize| {
+            extract_tca_params(anchors[index])[i]
+                * if i < 2 {
+                    1.0
+                } else {
+                    anchors[index].focal as f64
+                }
+        };
+        let a = value(left);
+        let b = value(right);
+        let slope_a = if left == 0 {
+            b - a
+        } else {
+            (b - value(left - 1)) / 2.0
+        };
+        let slope_b = if right + 1 == anchors.len() {
+            b - a
+        } else {
+            (value(right + 1) - a) / 2.0
+        };
+        let interpolated = a + t
+            * (slope_a
+                + t * (3.0 * (b - a) - 2.0 * slope_a - slope_b
+                    + t * (2.0 * (a - b) + slope_a + slope_b)));
+        interpolated / if i < 2 { 1.0 } else { focal as f64 }
+    }))
+}
+
+fn extract_tca_params(tca: &Tca) -> [f64; 6] {
+    if tca.model == "linear" {
+        return [
+            tca.kr.unwrap_or(1.0) as f64,
+            tca.kb.unwrap_or(1.0) as f64,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        ];
+    }
+    [
+        tca.vr.unwrap_or(1.0) as f64,
+        tca.vb.unwrap_or(1.0) as f64,
+        tca.cr.unwrap_or(0.0) as f64,
+        tca.cb.unwrap_or(0.0) as f64,
+        tca.br.unwrap_or(0.0) as f64,
+        tca.bb.unwrap_or(0.0) as f64,
+    ]
 }
 
 fn extract_vig_params(vig: &Vignetting) -> (f64, f64, f64) {
@@ -1173,6 +1311,7 @@ pub fn resolve_lens_params(
     {
         merged.tca_vr = p.tca_vr;
         merged.tca_vb = p.tca_vb;
+        merged.tca_poly3 = p.tca_poly3;
     }
 
     if let Some(source) = group.iter().find(|l| l.has_vignetting_data())
@@ -1570,5 +1709,46 @@ mod tests {
         // The TCA comes from the full frame entry as well.
         assert!((params.tca_vr - 1.0000409).abs() < 1e-6);
         assert!((params.tca_vb - 0.9999893).abs() < 1e-6);
+    }
+}
+
+#[cfg(test)]
+mod polynomial_tca_compatibility_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn polynomial_tca_marker_is_absent_from_legacy_resolution_and_saved_values() {
+        let db: LensDatabase = quick_xml::de::from_str(include_str!(
+            "../../rapidroom/validation/lensfun-tca/fixture.xml"
+        ))
+        .unwrap();
+        let lens = &db.lenses[0];
+        let old = lens.get_legacy_distortion_params(27.5, None, None).unwrap();
+        assert!(
+            serde_json::to_value(old)
+                .unwrap()
+                .get("tca_poly3")
+                .is_none()
+        );
+        for saved in [
+            json!({"tca_vr":1.0012,"tca_vb":0.9991}),
+            json!({"tca_vr":1.0012,"tca_vb":0.9991,"radius_scale":1.8}),
+        ] {
+            let mut current = lens
+                .get_distortion_params(27.5, None, None, Some(1.0))
+                .unwrap();
+            current.preserve_saved_tca(&saved);
+            let encoded = serde_json::to_value(current).unwrap();
+            assert!(encoded.get("tca_poly3").is_none());
+            assert_eq!(encoded["tca_vr"], saved["tca_vr"]);
+            assert_eq!(encoded["tca_vb"], saved["tca_vb"]);
+        }
+        let mut fresh = lens
+            .get_distortion_params(27.5, None, None, Some(1.0))
+            .unwrap();
+        let saved = serde_json::to_value(&fresh).unwrap();
+        fresh.preserve_saved_tca(&saved);
+        assert_eq!(serde_json::to_value(fresh).unwrap(), saved);
     }
 }
