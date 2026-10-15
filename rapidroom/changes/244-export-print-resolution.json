@@ -1,0 +1,13 @@
+{
+  "id": "export-print-resolution",
+  "title": "Write selected print resolution in JPEG, PNG and TIFF exports",
+  "category": "feature",
+  "landed": "2026-10-12",
+  "authors": ["lalibertemarc", "yojen7"],
+  "source": "CyberTimon/RapidRAW (Marc Laliberté), adapted for RapidRoom",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/66bbcb95e3faf25120e03c84aa56a64e766e1cd3"],
+  "upstream_issues": ["RapidRoom/rapidroom#244", "RapidRoom/rapidroom#122"],
+  "upstream_prs": ["CyberTimon/RapidRAW#1910"],
+  "rendering_change": false,
+  "notes": "Export offers Resolution (DPI), default 300, stored with presets. Resolution metadata does not resize pixels. JPEG/PNG/TIFF retain the sRGB ICC profile and companion mask alpha PNGs carry the requested resolution; requests without DPI keep existing encoder behavior and JPEG XL metadata stays unchanged."
+}

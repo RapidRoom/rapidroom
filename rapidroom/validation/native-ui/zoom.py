@@ -66,6 +66,23 @@ def run_zoom_checks(smoke, wait_for):
         smoke.step(f'native {direction} wheel adjacent stop {expected} percent', {
             'before': before, 'after': result, 'native_event': event, 'anchor_error_css_px': error})
 
+    def rating():
+        return smoke.execute("""const buttons = [...document.querySelectorAll('button[data-tooltip]')]
+          .filter(e => e.getClientRects().length && e.querySelector('svg.lucide-star'));
+          if (buttons.length !== 5) throw Error('Expected five visible rating buttons');
+          return buttons.filter(e => e.querySelector('svg').classList.contains('fill-accent')).length;""")
+
+    original_rating = rating()
+    smoke.key('Digit0', 'à')
+    wait_for(lambda: rating() == 0, 'clear native rating before French row checks')
+    for digit, key in [(1, '&'), (2, 'é'), (3, '"'), (4, "'"), (5, '('), (0, 'à')]:
+        smoke.key('Digit' + str(digit), key)
+        wait_for(lambda: rating() == digit, 'French physical rating ' + str(digit))
+        smoke.step('French unmodified Digit' + str(digit) + ' sets native rating', {'rating': digit})
+    if original_rating:
+        smoke.key('Digit' + str(original_rating), ['', '&', 'é', '"', "'", '('][original_rating])
+        wait_for(lambda: rating() == original_rating, 'original native rating restored')
+
     percent(100)
     at(100)
     native_notch('u', 150)
@@ -104,6 +121,14 @@ def run_zoom_checks(smoke, wait_for):
     for _ in range(3):
         smoke.key('ArrowUp', 'ArrowUp')
     smoke.step('rapid keyboard steps do not wait for readout', at(300))
+    percent(150)
+    at(150)
+    # French AZERTY '-' is on the physical Digit6 key. Exercise the real
+    # shortcut listener with the layout key/code pair, not a React fixture.
+    smoke.key('Digit6', '-', ctrl=True)
+    smoke.step('AZERTY Ctrl+- matches native Zoom out', at(100))
+    smoke.key('Equal', '=', ctrl=True)
+    smoke.step('QWERTY Ctrl+= still matches native Zoom in', at(150))
     for _ in range(8):
         smoke.key('Equal', '=', ctrl=True)
         time.sleep(0.3)

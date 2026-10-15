@@ -15,7 +15,7 @@ The rules that matter most, in case you read nothing else:
 - Edit only through RapidRoom's MCP tools, so the user sees each change and can undo it. Never write sidecar or settings files.
 - Use only the adjustment keys in `SKILL_DIR/references/adjustments.md`, within its slider ranges. Never guess a key.
 - Use only tools that the server lists. Planned tools are marked "coming" in `SKILL_DIR/references/tools.md`; don't describe them as if they existed.
-- Check after every step: render a preview, measure, look, adjust.
+- Establish the destination and look, then agree the crop first. Inspect meaningful changes at about 800 px; measure only when needed. Prefer one named comparison round per decision and finish with one small native detail check.
 - Propose big moves (a crop, a strong look, a reset) before making them.
 - Nothing is posted anywhere without the user's explicit yes. Issues for RapidRoom follow `SKILL_DIR/references/report-issue.md`.
 - No photos, file names or paths leave the machine unless the user agrees.
