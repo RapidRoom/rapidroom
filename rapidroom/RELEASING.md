@@ -11,11 +11,10 @@ RapidRoom has its own version, `MAJOR.MINOR.PATCH`, independent of upstream. It 
 | RapidRoom version                       | `RAPIDROOM_VERSION` in `src/utils/rapidroom.ts` **and** `version` in `src-tauri/tauri.conf.json` (a Vitest test keeps them equal) | `2.2.0`  |
 | Release tag                             | `v` + RapidRoom version                                                                                                           | `v2.2.0` |
 | Package version (.deb, AppImage, About) | the RapidRoom version                                                                                                             | `2.2.0`  |
-| RapidRAW base (upstream)                | `RAPIDRAW_BASE_VERSION` in `src/utils/rapidroom.ts`                                                                               | `1.6.4`  |
 
-- The start screen shows `RapidRoom 2.2.0 - community build of RapidRAW 1.6.4`.
+- The start screen shows `RapidRoom 2.2.0 - community build of RapidRAW`.
 - The update check strips the `v` from the latest release's tag and compares the numbers with `RAPIDROOM_VERSION`, so suffixes like `-rc.1` don't compare. The release workflow refuses a tag that isn't exactly `v<RAPIDROOM_VERSION>`, or a `tauri.conf.json` version that differs.
-- **Upstream syncs:** upstream bumps `version` in `tauri.conf.json` on its releases. Keep RapidRoom's value there, and set `RAPIDRAW_BASE_VERSION` to the upstream release the sync brings in.
+- **Upstream syncs:** upstream bumps `version` in `tauri.conf.json` on its releases. Keep RapidRoom's value there. The start screen names RapidRAW without an upstream version number, so syncs do not update a separate display constant.
 - The update check only sees published, non-prerelease releases (`/releases/latest`). Drafts are invisible to users.
 
 ### Which number to bump
@@ -96,7 +95,7 @@ With stock RapidRAW installed:
 - [ ] AI masks work (ONNX Runtime loads from `/usr/lib/RapidRoom/resources`), film LUTs list, and lens correction finds lenses.
 - [ ] Both packages contain an executable stdio adapter; AI control initially has no endpoint/listener, and enable/cancel/disable work. Start Claude/Codex uses the installed adapter and a real client edit reaches the slider and preview.
 - [ ] The AppImage runs on its own (`chmod +x`, run it) with the same checks.
-- [ ] The start screen shows `RapidRoom 2.2.0` and `RapidRAW 1.6.4`.
+- [ ] The start screen shows `RapidRoom 2.2.0` and `community build of RapidRAW by Timon Käch`, without an upstream version number.
 - [ ] Upgrading from the previous RapidRoom `.deb` replaces it in place.
 
 ## Changelog snapshots

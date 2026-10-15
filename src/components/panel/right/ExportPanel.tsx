@@ -24,6 +24,7 @@ import {
   FileFormats,
   SharpenAmount,
   SharpenTarget,
+  MAX_EXPORT_DPI,
   TiffBitDepth,
   WatermarkAnchor,
 } from '../../ui/ExportImportProperties';
@@ -93,6 +94,11 @@ function useParsedTextField<T>(
   };
 
   return { text, parsed: parse(text), handleChange, resetText: () => setText(String(value)) };
+}
+
+function parseDpi(value: string): number | null {
+  const parsed = Number(value.trim());
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= MAX_EXPORT_DPI ? parsed : null;
 }
 
 interface ValidatedNumberInputProps {
@@ -351,6 +357,8 @@ export default function ExportPanel({
     setJpegQuality,
     tiffBitDepth,
     setTiffBitDepth,
+    dpi,
+    setDpi,
     enableResize,
     setEnableResize,
     resizeMode,
@@ -455,6 +463,10 @@ export default function ExportPanel({
     enablePad && padRatioWidthValue !== null && padRatioHeightValue !== null
       ? { ratioWidth: padRatioWidthValue, ratioHeight: padRatioHeightValue, color: padColor }
       : null;
+
+  const dpiField = useParsedTextField(dpi, setDpi, parseDpi);
+  const supportsDpi = [FileFormats.Jpeg, FileFormats.Png, FileFormats.Tiff].includes(fileFormat as FileFormats);
+  const isDpiValid = !supportsDpi || dpiField.parsed !== null;
 
   const borderHorizontalField = useParsedTextField(borderHorizontalPercent, setBorderHorizontalPercent, parsePercent);
   const borderVerticalField = useParsedTextField(borderVerticalPercent, setBorderVerticalPercent, parsePercent);
@@ -585,6 +597,7 @@ export default function ExportPanel({
       filenameTemplate,
       jpegQuality,
       tiffBitDepth,
+      dpi: supportsDpi ? dpi : undefined,
       keepMetadata,
       preserveTimestamps,
       preserveFolders,
@@ -633,6 +646,7 @@ export default function ExportPanel({
     fileFormat,
     jpegQuality,
     tiffBitDepth,
+    dpi,
     enableResize,
     resizeMode,
     resizeValue,
@@ -678,7 +692,7 @@ export default function ExportPanel({
   };
 
   const handleExport = async () => {
-    if (numImages === 0 || isExporting) return;
+    if (numImages === 0 || isExporting || !isDpiValid) return;
 
     const exportSettings: ExportSettings = {
       filenameTemplate,
@@ -686,6 +700,7 @@ export default function ExportPanel({
         overwriteExisting && (numImages > 1 || preserveFolders || destinationType === 'originalFolder'),
       jpegQuality,
       tiffBitDepth,
+      dpi: supportsDpi ? dpi : undefined,
       keepMetadata,
       preserveTimestamps,
       preserveFolders,
@@ -818,7 +833,7 @@ export default function ExportPanel({
     }
   };
 
-  const canExport = numImages > 0 && isPadValid && isBorderValid;
+  const canExport = numImages > 0 && isPadValid && isBorderValid && isDpiValid;
   const isLut = fileFormat === FileFormats.Cube;
   const itemLabel = isLut ? t('export.labels.lut') : t('export.labels.image');
   const itemLabelPlural = isLut ? t('export.labels.lut_plural') : t('export.labels.image_plural');
@@ -829,7 +844,7 @@ export default function ExportPanel({
         <Text variant={TextVariants.title}>{t('export.title')}</Text>
       </div>
       <div className="grow overflow-y-auto p-3 space-y-8">
-        {canExport ? (
+        {numImages > 0 ? (
           <>
             <div className={isExporting ? 'opacity-50 pointer-events-none' : ''}>
               <ExportPresetsList
@@ -885,6 +900,20 @@ export default function ExportPanel({
                     disabled={isExporting}
                     className="w-full"
                   />
+                </div>
+              )}
+              {supportsDpi && (
+                <div className="flex items-center gap-2">
+                  <Text variant={TextVariants.label} className="flex-1">
+                    {t('export.file.resolution')}
+                  </Text>
+                  <ValidatedNumberInput
+                    ariaLabel={t('export.file.resolution')}
+                    disabled={isExporting}
+                    field={dpiField}
+                    max={MAX_EXPORT_DPI}
+                  />
+                  <Text variant={TextVariants.label}>{t('export.file.dpi')}</Text>
                 </div>
               )}
             </Section>
