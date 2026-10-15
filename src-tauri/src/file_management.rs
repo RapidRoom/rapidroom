@@ -6571,7 +6571,7 @@ mod tests {
 
     #[test]
     fn report_only_with_pending_draft_preserves_unknown_sidecar_bytes_and_does_not_consume_draft() {
-        let _mode = CardMode::off();
+        let _mode = super::card_mode_test_support::CardMode::off();
         let dir = tempfile::tempdir().unwrap();
         let source = dir.path().join("photo.NEF");
         let sidecar = dir.path().join("photo.NEF.rrdata");
