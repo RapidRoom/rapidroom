@@ -1,0 +1,13 @@
+{
+  "id": "quick-noise-quality-fixtures-260",
+  "title": "Add synthetic reference fixtures and a measurement design for Quick noise reduction",
+  "category": "ci",
+  "landed": "2026-10-14",
+  "authors": ["yojen7", "RustRunner"],
+  "source": "RustRunner/RapidRAW-MKII (AGPL-3.0), adapted fixture families and metrics; original RapidRoom design/test support",
+  "commits": ["https://github.com/RustRunner/RapidRAW-MKII/commit/555f7c6ddd5b6b5d219f87e3552a334968e9ddd9"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Evaluation and paired fixture controls only. No production estimator, shader changes or fitted tables; existing defaults/manual values unchanged. Production GPU quality and Estimate remain follow-up work."
+}
