@@ -3016,6 +3016,7 @@ mod export_collision_tests {
 #[cfg(test)]
 mod dpi_tests {
     use super::*;
+    use crate::image_processing::ImageMetadata;
     use image::ImageDecoder;
     use little_exif::{
         exif_tag::ExifTag, filetype::FileExtension, metadata::Metadata, rational::uR64,
