@@ -492,12 +492,16 @@ export function useEditorActions() {
   );
 
   const handleZoomChange = useCallback((zoomValue: number, fitToWindow: boolean = false) => {
-    const { renderScale } = useEditorStore.getState().baseRenderSize;
-    let transformZoom = 1.0;
-    if (!fitToWindow && renderScale > 0) {
-      transformZoom = transformFromPercent(zoomValue, renderScale, getDpr());
-    }
-    useEditorStore.getState().setEditor({ zoom: transformZoom });
+    const { selectedImage, baseRenderSize, setEditor } = useEditorStore.getState();
+    if (!selectedImage) return;
+    const zoom =
+      !fitToWindow && baseRenderSize.renderScale > 0
+        ? transformFromPercent(zoomValue, baseRenderSize.renderScale, getDpr())
+        : 1;
+    setEditor({
+      zoom,
+      zoomRequest: { imagePath: selectedImage.path, percent: fitToWindow ? null : zoomValue },
+    });
   }, []);
 
   return {
