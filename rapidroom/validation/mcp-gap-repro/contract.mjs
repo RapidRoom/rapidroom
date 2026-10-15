@@ -21,7 +21,12 @@ export function verifyPhoto(bytes) {
   assert.equal(sha(bytes), manifest.photo.sha256, 'Fixture checksum mismatch');
 }
 
-export function assertExportMatches(actual, reference) {
+export function assertExportMatches(actual, reference, dimensions) {
+  assert.equal(
+    Math.max(actual.width, actual.height),
+    Math.min(800, Math.max(...dimensions)),
+    'Export does not match requested long edge',
+  );
   for (const image of [reference, actual]) {
     assert.equal(image.bitDepth, 8, 'Expected 8-bit PNG samples');
     assert.equal(image.colorType, 2, 'Expected RGB PNG without an alpha channel');

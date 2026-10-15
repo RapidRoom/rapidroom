@@ -72,7 +72,7 @@ test('export oracle refuses constant and nonblank wrong content, dimensions, dep
     channels: 3,
     pixels: Float64Array.from({ length: 8 * 6 * 3 }, (_, i) => ((i * 47 + Math.floor(i / 3) * 13) % 256) / 255),
   };
-  assert.doesNotThrow(() => assertExportMatches({ ...reference, pixels: reference.pixels.slice() }, reference));
+  assert.doesNotThrow(() => assertExportMatches({ ...reference, pixels: reference.pixels.slice() }, reference, [8, 6]));
   const constants = [
     [0, 0, 0],
     [1, 1, 1],
@@ -81,9 +81,13 @@ test('export oracle refuses constant and nonblank wrong content, dimensions, dep
   ];
   for (const colour of constants) {
     const pixels = Float64Array.from(reference.pixels, (_, i) => colour[i % 3]);
-    assert.throws(() => assertExportMatches({ ...reference, pixels }, reference), /pixels differ/);
-    assert.throws(() => assertExportMatches({ ...reference, pixels }, { ...reference, pixels }), /spatial variation/);
+    assert.throws(() => assertExportMatches({ ...reference, pixels }, reference, [8, 6]), /pixels differ/);
+    assert.throws(
+      () => assertExportMatches({ ...reference, pixels }, { ...reference, pixels }, [8, 6]),
+      /spatial variation/,
+    );
   }
+  assert.throws(() => assertExportMatches(reference, reference, [512, 384]), /requested long edge/);
   for (const changes of [
     { pixels: reference.pixels.map((v) => 1 - v) },
     { pixels: reference.pixels.map((v, i) => (i ? v : (Math.round(v * 255) + 1) / 255)) },
@@ -93,5 +97,5 @@ test('export oracle refuses constant and nonblank wrong content, dimensions, dep
     { colorType: 0, channels: 1 },
     { pixels: reference.pixels.slice(3) },
   ])
-    assert.throws(() => assertExportMatches({ ...reference, ...changes }, reference));
+    assert.throws(() => assertExportMatches({ ...reference, ...changes }, reference, [8, 6]));
 });

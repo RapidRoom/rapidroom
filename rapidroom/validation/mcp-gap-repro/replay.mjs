@@ -171,7 +171,7 @@ try {
     });
     await check(`${kind}_export_png`, async () => {
       const decoded = decodePng(await readFile(delivery));
-      assertExportMatches(decoded, finalPixels);
+      assertExportMatches(decoded, finalPixels, dimensions);
     });
     await check(`${kind}_original_preserved`, async () => {
       assert.equal(sha(await readFile(path)), originalSha);
