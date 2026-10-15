@@ -115,7 +115,9 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
   if (importSavePause) throw new Error('An XMP import is already in progress');
   const buffered = new Map<string, XmpEditorDraft>();
   const captured = new Map<string, XmpEditorDraft>();
-  if (queuedEditorDraft) captured.set(queuedEditorDraft.path, queuedEditorDraft);
+  // Active snapshots supply import data; only pending edits need resuming.
+  const queuedBeforePause = queuedEditorDraft;
+  if (queuedBeforePause) captured.set(queuedBeforePause.path, queuedBeforePause);
   const before = captureEditorDraft();
   if (before) captured.set(before.path, before);
   // Pause new requests synchronously, before waiting for existing writes. Never
@@ -128,8 +130,8 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
     finished = true;
     const current = captureEditorDraft();
     const writes = new Map<string, XmpEditorDraft>();
-    for (const [path, draft] of captured) {
-      if (!consumedPaths.includes(path)) writes.set(path, current?.path === path ? current : draft);
+    if (queuedBeforePause && !consumedPaths.includes(queuedBeforePause.path)) {
+      writes.set(queuedBeforePause.path, current?.path === queuedBeforePause.path ? current : queuedBeforePause);
     }
     for (const [path, draft] of buffered) {
       if (consumedPaths.includes(path) && draft.adjustments === captured.get(path)?.adjustments) continue;
@@ -148,7 +150,10 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
     debouncedSetHistory.flush();
     for (const [path, bufferedDraft] of buffered) captured.set(path, bufferedDraft);
     const active = captureEditorDraft();
-    if (active) captured.set(active.path, active);
+    if (active) {
+      captured.set(active.path, active);
+      if (active.path !== before?.path || active.adjustments !== before?.adjustments) buffered.set(active.path, active);
+    }
     const draft = targetPath ? captured.get(targetPath) : active;
     const hasNewerDraft = (path: string) => {
       const active = captureEditorDraft();
