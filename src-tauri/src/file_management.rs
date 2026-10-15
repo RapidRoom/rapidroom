@@ -2969,38 +2969,38 @@ fn move_files_on_disk(
 }
 
 #[tauri::command]
-pub fn save_metadata_and_update_thumbnail(
+pub async fn save_metadata_and_update_thumbnail(
     path: String,
     adjustments: Value,
     app_handle: AppHandle,
-    state: tauri::State<AppState>,
 ) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        save_metadata_and_update_thumbnail_blocking(path, adjustments, app_handle)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn save_metadata_and_update_thumbnail_blocking(
+    path: String,
+    adjustments: Value,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    let state = app_handle.state::<AppState>();
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     ensure_card_writable(&source_path)?;
 
-    let mut metadata = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
-
-    let mut final_adjustments = adjustments;
-    {
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    save_develop_metadata(&source_path, &sidecar_path, &settings, |metadata| {
+        let mut final_adjustments = adjustments;
         let lens_db_guard = state.lens_db.lock().unwrap();
         resolve_lens_params_in_adjustments(
             &mut final_adjustments,
             &metadata.exif,
             lens_db_guard.as_deref(),
         );
-    }
-
-    metadata.adjustments = final_adjustments;
-
-    let json_string = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
-    write_file_atomically(&sidecar_path, json_string).map_err(|e| e.to_string())?;
-
-    if let Ok(settings) = load_settings(app_handle.clone())
-        && settings.enable_xmp_sync.unwrap_or(false)
-    {
-        let create_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
-        sync_metadata_to_xmp(&source_path, &sidecar_path, &metadata, create_if_missing);
-    }
+        metadata.adjustments = final_adjustments;
+    })?;
 
     let loaded_image_lock = state.original_image.lock().unwrap();
     let preloaded_image_option = if let Some(loaded_image) = loaded_image_lock.as_ref() {
@@ -3236,7 +3236,7 @@ pub fn import_xmp_adjustments_for_image(
     let settings_report = imported.settings_report;
     let unchanged = imported.unchanged;
     if !unchanged {
-        save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
+        save_metadata_and_update_thumbnail_blocking(path, imported_adjustments, app_handle)?;
     }
 
     log::info!(
@@ -3834,6 +3834,30 @@ pub async fn apply_auto_adjustments_to_paths(
     });
 
     Ok(())
+}
+
+/// Serialize ordinary develop autosaves with JPEG culling Undo before reading
+/// the sidecar, so a queued save merges into the restored culling state.
+pub(crate) fn save_develop_metadata(
+    source: &Path,
+    sidecar: &Path,
+    settings: &crate::app_settings::AppSettings,
+    update: impl FnOnce(&mut ImageMetadata),
+) -> Result<ImageMetadata, String> {
+    let _guard = crate::jpeg_culling::action_guard()?;
+    let mut metadata = crate::exif_processing::load_sidecar_with_exif(sidecar, source);
+    update(&mut metadata);
+    let text = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
+    write_file_atomically(sidecar, text).map_err(|e| e.to_string())?;
+    if settings.enable_xmp_sync.unwrap_or(false) {
+        sync_metadata_to_xmp(
+            source,
+            sidecar,
+            &metadata,
+            settings.create_xmp_if_missing.unwrap_or(false),
+        );
+    }
+    Ok(metadata)
 }
 
 fn update_sidecar(

@@ -178,9 +178,32 @@ fn segment(data: &[u8]) -> Result<Vec<u8>> {
     Ok(out)
 }
 fn padded_packet(packet: &str, len: usize) -> Option<String> {
-    let end = packet.find("<?xpacket end=").unwrap_or(packet.len());
-    let front = packet[..end].trim_end_matches([' ', '\t', '\r', '\n']);
-    let tail = &packet[end..];
+    // Only whitespace outside the root element is padding. PI-like text in a
+    // foreign CDATA/comment/property is metadata and must remain byte-identical.
+    let mut reader = quick_xml::Reader::from_str(packet);
+    let mut depth = 0usize;
+    let mut root_end = None;
+    loop {
+        match reader.read_event().ok()? {
+            quick_xml::events::Event::Start(_) => depth += 1,
+            quick_xml::events::Event::End(_) => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    root_end = Some(reader.buffer_position() as usize);
+                }
+            }
+            quick_xml::events::Event::Empty(_) if depth == 0 => {
+                root_end = Some(reader.buffer_position() as usize)
+            }
+            quick_xml::events::Event::Eof => break,
+            _ => {}
+        }
+    }
+    let end = root_end?;
+    let after = &packet[end..];
+    let whitespace = after.len() - after.trim_start_matches([' ', '\t', '\r', '\n']).len();
+    let front = &packet[..end];
+    let tail = &packet[end + whitespace..];
     let pad = len.checked_sub(front.len() + tail.len())?;
     Some(format!("{front}{}{tail}", " ".repeat(pad)))
 }
@@ -638,8 +661,12 @@ pub(crate) fn write(path: &Path, rating: i16, label: Option<&str>) -> Result<Cha
         None,
     )
 }
-pub(crate) fn restore(path: &Path, before: &Snapshot, expected: blake3::Hash) -> Result<()> {
-    edit(path, |_, _, _| Ok(before.clone()), Some(expected)).map(|_| ())
+pub(crate) fn restore(
+    path: &Path,
+    before: &Snapshot,
+    expected: blake3::Hash,
+) -> Result<blake3::Hash> {
+    edit(path, |_, _, _| Ok(before.clone()), Some(expected)).map(|change| change.after_hash)
 }
 
 #[cfg(test)]
@@ -783,6 +810,19 @@ mod tests {
         assert_eq!(&value, b"kept");
     }
 
+    #[test]
+    fn packet_padding_never_edits_foreign_cdata_comments_or_element_whitespace() {
+        let foreign = "<f:note><![CDATA[foreign text   <?xpacket end=\"w\"?> more]]></f:note><!-- comment   <?xpacket end=\"w\"?> --><f:space>   </f:space>";
+        let p = packet().replace("<f:data>keep this</f:data>", foreign);
+        let p = format!("<?xpacket begin=\"\"?>{p}<?xpacket end=\"w\"?>");
+        let before = with_xmp(jpeg(), &p);
+        let (_dir, path) = file(&before);
+        write(&path, 5, Some("Purple")).unwrap();
+        let after = fs::read(path).unwrap();
+        assert_eq!(before.len(), after.len());
+        assert!(xmp(&after).contains(foreign));
+        assert!(xmp(&after).ends_with("<?xpacket end=\"w\"?>"));
+    }
     #[test]
     fn preserves_foreign_keywords_namespaces_toolkit_and_both_xmp_forms() {
         for p in [

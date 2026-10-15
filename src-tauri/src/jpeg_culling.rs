@@ -49,6 +49,7 @@ struct UndoItem {
     before: Fields,
     expected: Fields,
     jpeg: jpeg_metadata::Change,
+    restored_hash: Option<blake3::Hash>,
 }
 struct BatchUndo {
     token: String,
@@ -158,18 +159,44 @@ fn write_one(path: &str, old: &Fields) -> Result<UndoItem, String> {
         before: old.clone(),
         expected: current,
         jpeg,
+        restored_hash: None,
     })
 }
-fn restore_one(item: &UndoItem, settings: &crate::app_settings::AppSettings) -> Result<(), String> {
+fn restore_one(
+    item: &mut UndoItem,
+    settings: &crate::app_settings::AppSettings,
+) -> Result<(), String> {
+    restore_one_with(item, settings, || {})
+}
+fn restore_one_with(
+    item: &mut UndoItem,
+    settings: &crate::app_settings::AppSettings,
+    before_sidecar_write: impl FnOnce(),
+) -> Result<(), String> {
     file_management::ensure_card_writable(&item.source)?;
     let mut metadata = exif_processing::load_sidecar(&item.sidecar);
     if Fields::from(&metadata) != item.expected {
         return Err("Culling metadata changed since this write; Undo refused".into());
     }
-    jpeg_metadata::restore(&item.source, &item.jpeg.before, item.jpeg.after_hash)?;
+    item.restored_hash = Some(jpeg_metadata::restore(
+        &item.source,
+        &item.jpeg.before,
+        item.restored_hash.unwrap_or(item.jpeg.after_hash),
+    )?);
+    // Re-read after the potentially long JPEG operation before merging. Ordinary
+    // develop saves share ACTION; this also retains other completed sidecar edits.
+    metadata = exif_processing::load_sidecar(&item.sidecar);
+    if Fields::from(&metadata) != item.expected {
+        return Err(
+            "JPEG restored; sidecar culling values changed during restore. Undo retained".into(),
+        );
+    }
+    before_sidecar_write();
     item.before.apply(&mut metadata);
     let text = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
-    file_management::write_file_atomically(&item.sidecar, text).map_err(|e| e.to_string())?;
+    file_management::write_file_atomically(&item.sidecar, text).map_err(|e| {
+        format!("JPEG restored, but sidecar save failed: {e}. Undo retained; fix the write error and retry")
+    })?;
     if settings.enable_xmp_sync.unwrap_or(false) {
         metadata.rating = exif_processing::resolve_rating(&item.source, &metadata);
         file_management::sync_metadata_to_xmp(
@@ -180,6 +207,39 @@ fn restore_one(item: &UndoItem, settings: &crate::app_settings::AppSettings) -> 
         );
     }
     Ok(())
+}
+
+fn restore_batch_with(
+    undo: BatchUndo,
+    mut restore: impl FnMut(&mut UndoItem) -> Result<(), String>,
+) -> (Report, Option<BatchUndo>) {
+    let mut report = Report {
+        action: "undo",
+        ..Default::default()
+    };
+    let mut failed = Vec::new();
+    for mut item in undo.items {
+        match restore(&mut item) {
+            Ok(()) => report.written += 1,
+            Err(reason) => {
+                report.failures.push(Failure {
+                    path: item.path.clone(),
+                    reason,
+                });
+                failed.push(item);
+            }
+        }
+    }
+    let retry = if failed.is_empty() {
+        None
+    } else {
+        report.undo_token = Some(undo.token.clone());
+        Some(BatchUndo {
+            token: undo.token,
+            items: failed,
+        })
+    };
+    (report, retry)
 }
 
 fn emit(app: &AppHandle, report: &Report) {
@@ -262,21 +322,9 @@ pub async fn undo_jpeg_metadata_write(token: String, app_handle: AppHandle) -> R
             }
             last.take().unwrap()
         };
-        let mut report = Report {
-            action: "undo",
-            ..Default::default()
-        };
         let settings = crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default();
-        for item in undo.items {
-            let result = restore_one(&item, &settings);
-            match result {
-                Ok(()) => report.written += 1,
-                Err(reason) => report.failures.push(Failure {
-                    path: item.path,
-                    reason,
-                }),
-            }
-        }
+        let (report, retry) = restore_batch_with(undo, |item| restore_one(item, &settings));
+        *LAST_UNDO.lock().map_err(|_| "Metadata Undo unavailable")? = retry;
         emit(&app_handle, &report);
         Ok(())
     })
@@ -314,14 +362,14 @@ mod tests {
             ..Default::default()
         };
         save(&sidecar, &metadata);
-        let item = write_one(&path, &old).unwrap();
+        let mut item = write_one(&path, &old).unwrap();
         assert_eq!(
             exif_processing::read_embedded_rating(std::path::Path::new(&path)),
             None
         );
         metadata.adjustments = json!({"exposure":1.5});
         save(&sidecar, &metadata);
-        restore_one(&item, &Default::default()).unwrap();
+        restore_one(&mut item, &Default::default()).unwrap();
         let actual = exif_processing::load_sidecar(&sidecar);
         assert_eq!(actual.adjustments, json!({"exposure":1.5}));
         assert_eq!(actual.flag, None);
@@ -345,13 +393,110 @@ mod tests {
             ..Default::default()
         };
         save(&sidecar, &metadata);
-        let item = write_one(&path, &old).unwrap();
+        let mut item = write_one(&path, &old).unwrap();
         let written = std::fs::read(&path).unwrap();
         metadata.rating = 5;
         save(&sidecar, &metadata);
-        assert!(restore_one(&item, &Default::default()).is_err());
+        assert!(restore_one(&mut item, &Default::default()).is_err());
         assert_eq!(std::fs::read(path).unwrap(), written);
         assert_eq!(exif_processing::load_sidecar(&sidecar).rating, 5);
+    }
+    #[test]
+    fn develop_autosave_during_jpeg_restore_merges_after_undo_without_losing_culling_or_adjustments()
+     {
+        use std::sync::{Arc, Barrier, mpsc};
+        let (_dir, path, sidecar) = fixture();
+        let old = Fields::from(&ImageMetadata::default());
+        let metadata = ImageMetadata {
+            rating: 4,
+            rating_is_explicit: true,
+            ..Default::default()
+        };
+        save(&sidecar, &metadata);
+        let mut item = write_one(&path, &old).unwrap();
+        let entered = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let (entered_undo, release_undo) = (entered.clone(), release.clone());
+        let undo = std::thread::spawn(move || {
+            let _guard = action_guard().unwrap();
+            restore_one_with(&mut item, &Default::default(), || {
+                entered_undo.wait();
+                release_undo.wait();
+            })
+            .unwrap();
+        });
+        entered.wait();
+        let (attempted_tx, attempted_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let save_path = path.clone();
+        let save_sidecar = sidecar.clone();
+        let autosave = std::thread::spawn(move || {
+            attempted_tx.send(()).unwrap();
+            file_management::save_develop_metadata(
+                std::path::Path::new(&save_path),
+                &save_sidecar,
+                &Default::default(),
+                |metadata| metadata.adjustments = json!({"exposure":1.5}),
+            )
+            .unwrap();
+            done_tx.send(()).unwrap();
+        });
+        attempted_rx.recv().unwrap();
+        assert!(done_rx.try_recv().is_err());
+        release.wait();
+        undo.join().unwrap();
+        autosave.join().unwrap();
+        let actual = exif_processing::load_sidecar(&sidecar);
+        assert_eq!(actual.adjustments, json!({"exposure":1.5}));
+        assert_eq!(actual.rating, 0);
+        assert!(!actual.rating_is_explicit);
+        assert_eq!(
+            exif_processing::resolve_rating(std::path::Path::new(&path), &actual),
+            3
+        );
+    }
+    #[test]
+    fn partially_restored_undo_retains_its_token_and_retries_the_sidecar_write() {
+        let (_dir, path, sidecar) = fixture();
+        let metadata = ImageMetadata {
+            rating: 4,
+            rating_is_explicit: true,
+            ..Default::default()
+        };
+        save(&sidecar, &metadata);
+        let old = Fields::from(&ImageMetadata::default());
+        let item = write_one(&path, &old).unwrap();
+        let token = "retained-undo".to_string();
+        let undo = BatchUndo {
+            token: token.clone(),
+            items: vec![item],
+        };
+        let (failed, retry) = restore_batch_with(undo, |item| {
+            restore_one_with(item, &Default::default(), || {
+                // Force the write to fail after the original JPEG has been restored.
+                std::fs::remove_file(&sidecar).unwrap();
+                std::fs::create_dir(&sidecar).unwrap();
+            })
+        });
+        assert_eq!(failed.written, 0);
+        assert_eq!(failed.undo_token, Some(token));
+        assert!(
+            failed.failures[0]
+                .reason
+                .contains("JPEG restored, but sidecar save failed")
+        );
+        let retry = retry.unwrap();
+        assert!(retry.items[0].restored_hash.is_some());
+        std::fs::remove_dir(&sidecar).unwrap();
+        save(&sidecar, &metadata);
+        let (done, retry) =
+            restore_batch_with(retry, |item| restore_one(item, &Default::default()));
+        assert_eq!(done.written, 1);
+        assert!(retry.is_none());
+        assert!(done.undo_token.is_none());
+        let actual = exif_processing::load_sidecar(&sidecar);
+        assert_eq!(actual.rating, 0);
+        assert!(!actual.rating_is_explicit);
     }
     #[test]
     fn undo_capture_is_deduplicated_and_bounds_tag_memory() {
