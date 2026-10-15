@@ -822,7 +822,7 @@ const RowComponent = ({
   onToggleRecursiveFolder,
   groupBadgeInfo,
   onAspectRatioLoaded,
-}: any) => {
+}: any): React.ReactElement => {
   const { t } = useTranslation();
   const row = rows[index];
 

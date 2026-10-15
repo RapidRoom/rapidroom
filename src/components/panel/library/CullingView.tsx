@@ -960,7 +960,7 @@ const Row = React.memo(
     onImageClick,
     queueThumbnailRequest,
     hoveredCullingPath,
-  }: any) => {
+  }: any): React.ReactElement => {
     const image: ImageFile = imageList[index];
     const isSelected = multiSelectedPaths.includes(image.path);
 

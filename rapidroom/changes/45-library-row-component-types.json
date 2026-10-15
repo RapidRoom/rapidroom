@@ -1,0 +1,14 @@
+{
+  "id": "library-row-component-return-types",
+  "title": "Narrow virtualized library row component return types",
+  "category": "ci",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Virtualized library row render functions now declare their existing React element return type, matching react-window's row component contract without changing rendered output."
+}
