@@ -196,3 +196,9 @@ The field and RDF representation audit compares [LightCraft by storytold](https:
 Polynomial Lensfun TCA correction and synthetic reference fixtures: original RapidRoom implementation by yojen7 with Codex. Mathematical model, normalization and interpolation conventions checked against Lensfun 0.3.4; independent coordinate measurements use its public C API. Lensfun implementation and native-wrapper code are not included. See `rapidroom/validation/lensfun-tca/README.md` for pinned sources and reproduction.
 
 The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/history preservation follow-up (#218) are original RapidRoom work by Yojen with Codex, informed by the licence-first CRS audit above. No reference implementation source is copied.
+
+- **Lightroom Aggregate brushes and radial geometry (#173):** measured XMP rules
+  and signed ellipse decoding by skymanbp in
+  [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba),
+  adapted to RapidRoom masks by Yojen with Codex/kano. AutoShade’s complete MIT
+  notice is retained in `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.
