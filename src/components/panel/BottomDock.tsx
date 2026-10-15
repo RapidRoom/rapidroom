@@ -40,11 +40,12 @@ export default function BottomDock({ renderPanel }: { renderPanel: (panel: Panel
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     const start = event.clientY;
+    const startHeight = clampDockHeight(height, window.innerHeight);
     const element = event.currentTarget;
     const move = (next: globalThis.PointerEvent) =>
       useUIStore
         .getState()
-        .setUI({ bottomDockHeight: clampDockHeight(height + start - next.clientY, window.innerHeight) });
+        .setUI({ bottomDockHeight: clampDockHeight(startHeight + start - next.clientY, window.innerHeight) });
     const end = () => {
       element.removeEventListener('pointermove', move);
       element.removeEventListener('pointerup', end);
@@ -76,7 +77,10 @@ export default function BottomDock({ renderPanel }: { renderPanel: (panel: Panel
             if (active && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
               event.preventDefault();
               useUIStore.getState().setUI({
-                bottomDockHeight: clampDockHeight(height + (event.key === 'ArrowUp' ? 20 : -20), window.innerHeight),
+                bottomDockHeight: clampDockHeight(
+                  clampDockHeight(height, window.innerHeight) + (event.key === 'ArrowUp' ? 20 : -20),
+                  window.innerHeight,
+                ),
               });
             }
           }}
