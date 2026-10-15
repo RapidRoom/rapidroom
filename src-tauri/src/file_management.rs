@@ -547,6 +547,7 @@ struct ImportedXmpSidecar {
     settings_report: crate::lightroom_report::Report,
     unchanged: bool,
     brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
+    mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -576,6 +577,7 @@ pub struct XmpNotTransferred {
     pub items: Vec<&'static str>,
     pub settings_report: crate::lightroom_report::Report,
     pub brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
+    pub mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -590,6 +592,7 @@ pub struct XmpImageImportResult {
     pub settings_report: crate::lightroom_report::Report,
     pub unchanged: bool,
     pub brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
+    pub mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 #[derive(Deserialize)]
@@ -3243,6 +3246,7 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         && settings_report.settings.is_empty()
         && not_transferred.is_empty()
         && mask_summary.brush_table_refusals.is_empty()
+        && mask_summary.failures.is_empty()
     {
         return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
     }
@@ -3253,6 +3257,7 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
             metadata,
             not_transferred,
             brush_table_refusals: mask_summary.brush_table_refusals,
+            mask_failures: mask_summary.failures,
             adjustments_applied: false,
             metadata_applied: false,
             already_applied,
@@ -3291,6 +3296,7 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         metadata,
         not_transferred,
         brush_table_refusals: mask_summary.brush_table_refusals,
+        mask_failures: mask_summary.failures,
         adjustments_applied: has_supported_adjustments,
         metadata_applied: has_supported_metadata,
         already_applied,
@@ -3344,6 +3350,7 @@ pub fn import_xmp_adjustments_for_image(
     let sidecar_path = imported.sidecar_path.clone();
     let not_transferred = imported.not_transferred;
     let brush_table_refusals = imported.brush_table_refusals;
+    let mask_failures = imported.mask_failures;
     let adjustments_applied = imported.adjustments_applied;
     let already_applied = imported.already_applied;
     let settings_report = imported.settings_report;
@@ -3364,6 +3371,7 @@ pub fn import_xmp_adjustments_for_image(
         metadata: imported.metadata,
         not_transferred,
         brush_table_refusals,
+        mask_failures,
         adjustments_applied,
         already_applied,
         draft_preserved,
@@ -3463,11 +3471,13 @@ pub async fn import_matching_xmp_sidecars_in_folder(
                     }
                     if !imported.not_transferred.is_empty()
                         || !imported.settings_report.settings.is_empty()
+                        || !imported.mask_failures.is_empty()
                     {
                         result.not_transferred.push(XmpNotTransferred {
                             path: path_string.clone(),
                             items: imported.not_transferred,
                             brush_table_refusals: imported.brush_table_refusals,
+                            mask_failures: imported.mask_failures,
                             settings_report: imported.settings_report,
                         });
                     }
@@ -6745,6 +6755,7 @@ mod lightroom_xmp_import_tests {
             path: raw.to_string_lossy().to_string(),
             items: imported.not_transferred,
             brush_table_refusals: imported.brush_table_refusals,
+            mask_failures: imported.mask_failures,
             settings_report: imported.settings_report,
         })
         .unwrap();
