@@ -4,7 +4,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
-import { manifest, publicSummary, sha, verifyPhoto } from './contract.mjs';
+import { assertExportMatches, manifest, publicSummary, sha, verifyPhoto } from './contract.mjs';
 
 const { values } = parseArgs({
   options: Object.fromEntries(
@@ -70,7 +70,7 @@ async function check(id, fn) {
   }
 }
 async function render(session, options, name) {
-  const result = await h.call('render', { session_id: session, format: 'png', ...options });
+  const result = await h.call('render', { session_id: session, format: 'png', clipping_overlay: false, ...options });
   assert.equal(result.images.length, 1);
   const bytes = Buffer.from(result.images[0].data, 'base64');
   if (name) await writeFile(join(workspace, `${name}.png`), bytes, { flag: 'wx' });
@@ -164,14 +164,14 @@ try {
       path: delivery,
       format: 'png',
       bit_depth: 8,
+      color_profile: 'srgb',
       long_edge: 800,
       keep_metadata: false,
       strip_gps: true,
     });
     await check(`${kind}_export_png`, async () => {
       const decoded = decodePng(await readFile(delivery));
-      assert.equal(Math.max(decoded.width, decoded.height), Math.min(800, Math.max(...dimensions)));
-      assert.ok(decoded.pixels.some((v) => v > 0));
+      assertExportMatches(decoded, finalPixels);
     });
     await check(`${kind}_original_preserved`, async () => {
       assert.equal(sha(await readFile(path)), originalSha);

@@ -21,6 +21,29 @@ export function verifyPhoto(bytes) {
   assert.equal(sha(bytes), manifest.photo.sha256, 'Fixture checksum mismatch');
 }
 
+export function assertExportMatches(actual, reference) {
+  for (const image of [reference, actual]) {
+    assert.equal(image.bitDepth, 8, 'Expected 8-bit PNG samples');
+    assert.equal(image.colorType, 2, 'Expected RGB PNG without an alpha channel');
+    assert.equal(image.channels, 3, 'Expected three colour channels');
+    assert.equal(image.pixels.length, image.width * image.height * 3, 'Unexpected pixel layout');
+  }
+  assert.equal(actual.width, reference.width, 'Export width differs from final render');
+  assert.equal(actual.height, reference.height, 'Export height differs from final render');
+  assert.ok(
+    reference.pixels.some((v, i) => Math.abs(v - reference.pixels[i % 3]) > 1 / 255),
+    'Final fixture render must contain spatial variation',
+  );
+  // Both paths resize the same native frame with Lanczos3, then call to_rgb8.
+  // Profile embedding changes metadata only. No lossy/extra quantization occurs.
+  let maximum = 0;
+  for (let i = 0; i < reference.pixels.length; i++) {
+    assert.ok(Number.isFinite(actual.pixels[i]) && Number.isFinite(reference.pixels[i]));
+    maximum = Math.max(maximum, Math.abs(actual.pixels[i] - reference.pixels[i]));
+  }
+  assert.equal(maximum, 0, 'Export pixels differ from final-session render');
+}
+
 // Build a new object. Native records, metadata, errors and paths never enter it.
 export function publicSummary({ checks, binarySha, build, privateStatus, hostVersion, bridgeVersion, scriptSha }) {
   assert.match(binarySha, /^[0-9a-f]{64}$/);
@@ -44,6 +67,8 @@ export function publicSummary({ checks, binarySha, build, privateStatus, hostVer
     source_and_binary_match_build_receipt: sourceMatches,
     binary_sha256: binarySha,
     replay_script_sha256: scriptSha,
+    export_pixel_tolerance_codes: 0,
+    export_layout: 'RGB8',
     host_version: version(hostVersion),
     bridge_version: version(bridgeVersion),
     fixtures: [manifest.photo, manifest.procedural],

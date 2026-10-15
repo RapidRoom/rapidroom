@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expectedChecks, manifest, publicSummary, verifyPhoto } from './contract.mjs';
+import { assertExportMatches, expectedChecks, manifest, publicSummary, verifyPhoto } from './contract.mjs';
 
 const binarySha = 'a'.repeat(64),
   scriptSha = 'b'.repeat(64);
@@ -61,4 +61,37 @@ test('downloader refuses an existing file before networking and preserves its by
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('export oracle refuses constant and nonblank wrong content, dimensions, depth and channel layouts', () => {
+  const reference = {
+    width: 8,
+    height: 6,
+    bitDepth: 8,
+    colorType: 2,
+    channels: 3,
+    pixels: Float64Array.from({ length: 8 * 6 * 3 }, (_, i) => ((i * 47 + Math.floor(i / 3) * 13) % 256) / 255),
+  };
+  assert.doesNotThrow(() => assertExportMatches({ ...reference, pixels: reference.pixels.slice() }, reference));
+  const constants = [
+    [0, 0, 0],
+    [1, 1, 1],
+    [128 / 255, 128 / 255, 128 / 255],
+    [1, 0, 1],
+  ];
+  for (const colour of constants) {
+    const pixels = Float64Array.from(reference.pixels, (_, i) => colour[i % 3]);
+    assert.throws(() => assertExportMatches({ ...reference, pixels }, reference), /pixels differ/);
+    assert.throws(() => assertExportMatches({ ...reference, pixels }, { ...reference, pixels }), /spatial variation/);
+  }
+  for (const changes of [
+    { pixels: reference.pixels.map((v) => 1 - v) },
+    { pixels: reference.pixels.map((v, i) => (i ? v : (Math.round(v * 255) + 1) / 255)) },
+    { width: 6, height: 8 },
+    { bitDepth: 16 },
+    { colorType: 6, channels: 4 },
+    { colorType: 0, channels: 1 },
+    { pixels: reference.pixels.slice(3) },
+  ])
+    assert.throws(() => assertExportMatches({ ...reference, ...changes }, reference));
 });

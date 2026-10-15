@@ -68,8 +68,17 @@ Both fixtures use these operations through the real SDK/native bridge:
 | Shared history    | `undo`, then `redo`                                                                                      | Undo restores baseline pixels exactly; Redo restores edited pixels exactly            |
 | Manual local lift | Radial centre `(width/2,height*0.75)`, radii `(width/5,height/6)`, rotation 0, feather 0.2, exposure 0.5 | Central 64×64 native pixels change; the upper-left 64×64 native pixels stay identical |
 | Persistence       | `save_session`, close session, reconnect native process                                                  | Adjustments/revision and decoded final preview pixels survive exactly                 |
-| Delivery          | PNG, 8 bit, long edge 800, no metadata, GPS stripped                                                     | Independently decoded image is nonblank, bounded and has the expected long edge       |
+| Delivery          | PNG, 8 bit, sRGB profile, long edge 800, no capture metadata, GPS stripped                               | Decoded RGB8 layout/dimensions and every pixel equal the final-session render         |
 | Preservation      | Hash/mtime plus the fork's original-sidecar and source/binary guards                                     | Inputs and original sidecars remain unchanged                                         |
+
+The export comparison allows **zero** channel-code difference. At the pinned
+fork revision, previews (`mcp_bridge/render.rs:encode_preview_image`) and
+profiled 8-bit exports (`delivery.rs:encode_profiled_raster`) both convert the
+native frame with `to_rgb8`; both use Lanczos3 resizing to the same dimensions.
+The explicit sRGB profile embeds metadata without a colour transform. PNG is
+lossless, so there is no additional quantization allowance. RGB8/channel layout
+is checked explicitly: a transparent RGBA replacement cannot pass by hiding
+otherwise matching RGB samples. A constant final reference is refused too.
 
 The full call ledger preserves exact parameters and returned identities locally.
 The expected public result is 16 passed assertions and `passed:true`, **after**
