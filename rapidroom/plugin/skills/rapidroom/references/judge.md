@@ -18,18 +18,18 @@ This is a policy helper, not a judge model or an engine receipt verifier. A call
 {
   "strength": "balanced",
   "round": 1,
-  "liveRevision": 7,
+  "liveRevision": "7777777777777777777777777777777777777777777777777777777777777777",
   "accepted": {
     "id": "current",
     "renderSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "revision": 7,
+    "revision": "7777777777777777777777777777777777777777777777777777777777777777",
     "adjustments": { "exposure": 0 },
     "score": 70
   },
   "candidate": {
     "id": "proposal",
     "renderSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "revision": 7,
+    "revision": "7777777777777777777777777777777777777777777777777777777777777777",
     "adjustments": { "exposure": 0.3 },
     "judgement": {
       "score": 75,
@@ -41,7 +41,7 @@ This is a policy helper, not a judge model or an engine receipt verifier. A call
 }
 ```
 
-The example hashes are placeholders; use hashes of real returned image bytes during editing. IDs are short opaque labels, not paths. Snapshots can contain all current adjustments; only the selected move's numeric control is read, and unrelated settings are never output. Values are native slider units, not EV or Lightroom units. These initial moves are deliberately limited; do not substitute a different key if the requested correction is outside the catalogue. Stop and use the ordinary user-directed editing workflow instead.
+Revisions are nonempty opaque strings of at most 128 UTF-8 bytes, passed unchanged to MCP `expectedRevision`. Never parse, increment or coerce them to numbers. The example hashes/revision are placeholders; use hashes of real returned image bytes during editing. IDs are short opaque labels, not paths. Snapshots can contain all current adjustments; only the selected move's numeric control is read, and unrelated settings are never output. Values are native slider units, not EV or Lightroom units. These initial moves are deliberately limited; do not substitute a different key if the requested correction is outside the catalogue. Stop and use the ordinary user-directed editing workflow instead.
 
 ## Remaining #166 work
 

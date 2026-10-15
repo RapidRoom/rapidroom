@@ -4,24 +4,25 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { catalogue, decide, moves, projectControls } from '../plugin/skills/rapidroom/scripts/judge.mjs';
 const script = new URL('../plugin/skills/rapidroom/scripts/judge.mjs', import.meta.url);
+const editRevision = '7'.repeat(64);
 const schema = JSON.parse(readFileSync(new URL('../adjustment-schema.json', import.meta.url)));
 function input() {
   const accepted = {
     id: 'current',
     renderSha256: 'a'.repeat(64),
-    revision: 7,
+    revision: editRevision,
     score: 70,
     adjustments: { exposure: 0 },
   };
   return {
     strength: 'balanced',
     round: 1,
-    liveRevision: 7,
+    liveRevision: editRevision,
     accepted,
     candidate: {
       id: 'proposal',
       renderSha256: 'b'.repeat(64),
-      revision: 7,
+      revision: editRevision,
       adjustments: { exposure: 0.3 },
       judgement: {
         score: 75,
@@ -88,7 +89,10 @@ test('an accept or absent hint never spends another round; blank/unknown/raw-sli
   assert.throws(() => decide(data));
 });
 test('concurrent user edits or a candidate rendered against another revision require a refresh', () => {
-  for (const edit of [(data) => data.liveRevision++, (data) => data.candidate.revision++]) {
+  for (const edit of [
+    (data) => (data.liveRevision = 'c'.repeat(64)),
+    (data) => (data.candidate.revision = 'd'.repeat(64)),
+  ]) {
     const data = input();
     edit(data);
     const result = decide(data);
@@ -160,11 +164,32 @@ test('CLI works outside the checkout, outputs proposals only, and never echoes b
     }),
   );
   assert.equal(output.action, 'render_proposal');
-  assert.equal(output.expectedRevision, 7);
+  assert.equal(output.expectedRevision, editRevision);
   for (const input of ['PRIVATE_PHOTO_PATH secret', JSON.stringify({ private: 'PRIVATE_PHOTO_PATH secret' })]) {
     const result = spawnSync(process.execPath, [script.pathname, 'decide'], { input, encoding: 'utf8', cwd: '/tmp' });
     assert.equal(result.status, 1);
     assert.equal(result.stdout, '');
     assert.ok(!result.stderr.includes('PRIVATE_PHOTO_PATH'));
+  }
+});
+
+test('opaque revisions preserve real app strings and match the actual MCP expectedRevision schema', () => {
+  const tools = readFileSync(new URL('../../src-tauri/src/mcp/tools.rs', import.meta.url), 'utf8');
+  const update = tools.split('"name": "update_adjustments"')[1].split('json!(')[0];
+  const expectedRevisionSchema = JSON.parse(/"expectedRevision":\s*(\{[^}]+\})/.exec(update)[1]);
+  for (const revision of [editRevision, '7', ' token ', 'a'.repeat(128), '🌈'.repeat(32)]) {
+    const data = input();
+    data.liveRevision = data.accepted.revision = data.candidate.revision = revision;
+    const result = decide(data);
+    assert.equal(result.expectedRevision, revision);
+    assert.equal(typeof result.expectedRevision, expectedRevisionSchema.type);
+  }
+  for (const revision of [7, -1, null, undefined, '', 'a'.repeat(129), '🌈'.repeat(33)]) {
+    for (const field of ['live', 'accepted', 'candidate']) {
+      const data = input();
+      if (field === 'live') data.liveRevision = revision;
+      else data[field].revision = revision;
+      assert.throws(() => decide(data));
+    }
   }
 });

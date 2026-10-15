@@ -1,6 +1,7 @@
 // Decision policy adapted from skymanbp/autoshade@a1f3507808d1a9d61c44593244a5e6ee2c38cae3.
 // Copyright (c) 2026 skymanbp. MIT notice: ../../../LICENSES/autoshade-MIT.txt.
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -98,6 +99,12 @@ function judgement(value) {
     text(value.hint.reason);
   }
 }
+function revision(value) {
+  assert.ok(
+    typeof value === 'string' && value.length > 0 && Buffer.byteLength(value, 'utf8') <= 128,
+    'Revision must be a nonempty opaque string of at most 128 UTF-8 bytes',
+  );
+}
 function candidate(value, reviewed) {
   keys(
     value,
@@ -107,7 +114,7 @@ function candidate(value, reviewed) {
   );
   assert.match(value.id, /^[a-zA-Z0-9_-]{1,80}$/);
   assert.match(value.renderSha256, /^[a-f0-9]{64}$/);
-  assert.ok(Number.isSafeInteger(value.revision) && value.revision >= 0);
+  revision(value.revision);
   assert.ok(value.adjustments && typeof value.adjustments === 'object' && !Array.isArray(value.adjustments));
   if (reviewed) judgement(value.judgement);
   else score(value.score);
@@ -118,7 +125,7 @@ export function decide(input) {
   keys(input, ['strength', 'round', 'liveRevision', 'accepted', 'candidate']);
   const cap = tier(input.strength);
   assert.ok(Number.isSafeInteger(input.round) && input.round >= 1 && input.round <= cap, 'Invalid round');
-  assert.ok(Number.isSafeInteger(input.liveRevision) && input.liveRevision >= 0);
+  revision(input.liveRevision);
   candidate(input.accepted, false);
   candidate(input.candidate, true);
   assert.notEqual(input.accepted.id, input.candidate.id, 'Candidate must have a distinct identity');
