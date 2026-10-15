@@ -72,6 +72,43 @@ afterEach(() => {
 });
 
 describe('public XMP import state and history', () => {
+  it.each([false, true])(
+    'does not autosave a settled editor after a table-only refusal (folder=%s)',
+    async (folder) => {
+      debouncedSave.cancel();
+      debouncedSetHistory.flush();
+      const refusal = { name: 'Brush group', reason: 'the companion .acr file is unavailable' };
+      mockCommand(Invokes.ImportXmpAdjustmentsForImage, () => ({
+        adjustments: { exposure: 2 },
+        adjustmentsApplied: false,
+        alreadyApplied: false,
+        draftPreserved: false,
+        unchanged: true,
+        notTransferred: ['masks', 'maskBrushTable'],
+        brushTableRefusals: [refusal],
+      }));
+      mockCommand(Invokes.ImportMatchingXmpSidecarsInFolder, () => ({
+        matched: 1,
+        imported: 0,
+        unchanged: 1,
+        skipped: 0,
+        failed: 0,
+        failures: [],
+        importedPaths: [],
+        adjustmentsImportedPaths: [],
+        alreadyAppliedPaths: [],
+        preservedDraftPaths: [],
+        unchangedPaths: [path],
+        notTransferred: [{ path, items: ['masks', 'maskBrushTable'], brushTableRefusals: [refusal] }],
+      }));
+      await clickImport(folder);
+      vi.advanceTimersByTime(1200);
+      expect(useEditorStore.getState().adjustments).toBe(draft);
+      expect(useEditorStore.getState().history).toEqual([INITIAL_ADJUSTMENTS, draft]);
+      expect(invoke.mock.calls.some(([name]) => name === Invokes.SaveMetadataAndUpdateThumbnail)).toBe(false);
+    },
+  );
+
   it('preserves the live draft and queued history on AlreadyApplied metadata-only import, without autosaving into the incoming packet', async () => {
     mockCommand(Invokes.ImportXmpAdjustmentsForImage, (args) => {
       expect(args?.pendingAdjustments).toBe(draft);
@@ -242,7 +279,7 @@ describe('public XMP import state and history', () => {
     expect(invoke).toHaveBeenLastCalledWith(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: latest });
   });
 
-  it('preserves the target photo draft if selection changes while an existing write drains', async () => {
+  it('preserves the target draft and queued edits to a newly selected photo while an existing write drains', async () => {
     let finish!: () => void;
     mockCommand(
       Invokes.SaveMetadataAndUpdateThumbnail,
@@ -260,6 +297,7 @@ describe('public XMP import state and history', () => {
     const other = { ...draft, exposure: 2 };
     const selected = useEditorStore.getState().selectedImage!;
     useEditorStore.setState({ selectedImage: { ...selected, path: '/photos/b.NEF' }, adjustments: other });
+    debouncedSave('/photos/b.NEF', other);
     finish();
     await operation;
     expect(useEditorStore.getState().adjustments).toBe(other);

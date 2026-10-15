@@ -115,8 +115,14 @@ type XmpNotTransferredItem =
   | 'localAdjustments'
   | 'pointColor';
 
+interface BrushTableRefusal {
+  name: string;
+  reason: string;
+}
+
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
   notTransferred?: XmpNotTransferredItem[];
+  brushTableRefusals?: BrushTableRefusal[];
   adjustmentsApplied: boolean;
   alreadyApplied: boolean;
   draftPreserved: boolean;
@@ -127,6 +133,7 @@ interface ImportedXmpAdjustments extends ImportedXmpMetadata {
 interface XmpNotTransferred {
   path: string;
   items: XmpNotTransferredItem[];
+  brushTableRefusals?: BrushTableRefusal[];
   settingsReport?: LightroomSettingReport;
 }
 
@@ -169,7 +176,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   const { showContextMenu } = useContextMenu();
 
   const describeNotTransferred = useCallback(
-    (items: XmpNotTransferredItem[]) => {
+    (items: XmpNotTransferredItem[], brushTableRefusals: BrushTableRefusal[] = []) => {
       const labels: Record<XmpNotTransferredItem, string> = {
         aiDenoise: t('contextMenus.xmpImportReport.notTransferredItems.aiDenoise'),
         aiMasks: t('contextMenus.xmpImportReport.notTransferredItems.aiMasks'),
@@ -180,7 +187,12 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         profileLook: t('contextMenus.xmpImportReport.notTransferredItems.profileLook'),
         whiteBalance: t('contextMenus.xmpImportReport.notTransferredItems.whiteBalance'),
       };
-      return items.map((item) => labels[item] ?? item).join(', ');
+      return [
+        items.map((item) => labels[item] ?? item).join(', '),
+        ...brushTableRefusals.map(({ name, reason }) =>
+          t('contextMenus.xmpImportReport.brushTableGroup', { name, reason }),
+        ),
+      ].join('\n');
     },
     [t],
   );
@@ -391,7 +403,12 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           toast.info(t('contextMenus.xmpImportReport.alreadyAppliedPhoto'), { autoClose: false });
         if (metadata.adjustmentsApplied)
           toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
-        if (metadata.unchanged) toast.info(t('contextMenus.xmpImportReport.unchanged', { total: 1 }));
+        if (metadata.unchanged)
+          toast.info(
+            metadata.brushTableRefusals?.length
+              ? t('contextMenus.xmpImportReport.unchangedForImage')
+              : t('contextMenus.xmpImportReport.unchanged', { total: 1 }),
+          );
         const reportParts: string[] = [];
         if (metadata.settingsReport?.settings.length) {
           reportParts.push(describeLightroomSettings(metadata.settingsReport, t));
@@ -399,7 +416,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         if (metadata.notTransferred?.length) {
           reportParts.push(
             t('contextMenus.xmpImportReport.notTransferredForImage', {
-              items: describeNotTransferred(metadata.notTransferred),
+              items: describeNotTransferred(metadata.notTransferred, metadata.brushTableRefusals),
             }),
           );
         }
@@ -534,10 +551,10 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           reportLines.push(
             '',
             t('contextMenus.xmpImportReport.notTransferred', { total: result.notTransferred.length }),
-            ...result.notTransferred.map(({ path, items, settingsReport }) =>
+            ...result.notTransferred.map(({ path, items, brushTableRefusals, settingsReport }) =>
               [
                 path.replace(/\\/g, '/').split('/').pop(),
-                items.length ? describeNotTransferred(items) : '',
+                items.length ? describeNotTransferred(items, brushTableRefusals) : '',
                 settingsReport?.settings.length ? describeLightroomSettings(settingsReport, t) : '',
               ]
                 .filter(Boolean)

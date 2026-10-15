@@ -546,6 +546,7 @@ struct ImportedXmpSidecar {
     draft_preserved: bool,
     settings_report: crate::lightroom_report::Report,
     unchanged: bool,
+    brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -574,6 +575,7 @@ pub struct XmpNotTransferred {
     pub path: String,
     pub items: Vec<&'static str>,
     pub settings_report: crate::lightroom_report::Report,
+    pub brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -587,6 +589,7 @@ pub struct XmpImageImportResult {
     pub draft_preserved: bool,
     pub settings_report: crate::lightroom_report::Report,
     pub unchanged: bool,
+    pub brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
 }
 
 #[derive(Deserialize)]
@@ -3214,8 +3217,11 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
     ensure_card_writable(&source_path)?;
     let xmp_content = crate::xmp::read(xmp_path)
         .map_err(|error| format!("Failed to read XMP file: {}", error))?;
-    let converted_preset =
-        preset_converter::convert_xmp_sidecar_to_preset_for_image(&xmp_content, &source_path)?;
+    let (converted_preset, mask_summary) =
+        preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+            &xmp_content,
+            &source_path,
+        )?;
     let already_applied = preset_converter::adobe_camera_raw_already_applied(&xmp_content)?;
 
     let has_supported_adjustments = converted_preset
@@ -3227,12 +3233,16 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         || !extract_xmp_tags(&xmp_content).is_empty();
     let settings_report = crate::lightroom_report::settings_report(&xmp_content, &converted_preset);
     let unchanged = !has_supported_adjustments && !has_supported_metadata;
-    let not_transferred =
-        preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
+    let not_transferred = preset_converter::lightroom_settings_not_transferred_with_mask_summary(
+        &xmp_content,
+        &converted_preset,
+        &mask_summary,
+    );
     if unchanged
         && !already_applied
         && settings_report.settings.is_empty()
         && not_transferred.is_empty()
+        && mask_summary.brush_table_refusals.is_empty()
     {
         return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
     }
@@ -3242,6 +3252,7 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
             sidecar_path,
             metadata,
             not_transferred,
+            brush_table_refusals: mask_summary.brush_table_refusals,
             adjustments_applied: false,
             metadata_applied: false,
             already_applied,
@@ -3279,6 +3290,7 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         sidecar_path,
         metadata,
         not_transferred,
+        brush_table_refusals: mask_summary.brush_table_refusals,
         adjustments_applied: has_supported_adjustments,
         metadata_applied: has_supported_metadata,
         already_applied,
@@ -3331,6 +3343,7 @@ pub fn import_xmp_adjustments_for_image(
     hydrate_imported_xmp_exif(&path, &mut imported, lens_db.as_deref())?;
     let sidecar_path = imported.sidecar_path.clone();
     let not_transferred = imported.not_transferred;
+    let brush_table_refusals = imported.brush_table_refusals;
     let adjustments_applied = imported.adjustments_applied;
     let already_applied = imported.already_applied;
     let settings_report = imported.settings_report;
@@ -3350,6 +3363,7 @@ pub fn import_xmp_adjustments_for_image(
     Ok(XmpImageImportResult {
         metadata: imported.metadata,
         not_transferred,
+        brush_table_refusals,
         adjustments_applied,
         already_applied,
         draft_preserved,
@@ -3453,6 +3467,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
                         result.not_transferred.push(XmpNotTransferred {
                             path: path_string.clone(),
                             items: imported.not_transferred,
+                            brush_table_refusals: imported.brush_table_refusals,
                             settings_report: imported.settings_report,
                         });
                     }
@@ -6761,6 +6776,48 @@ mod tests {
 mod lightroom_xmp_import_tests {
     use super::card_mode_test_support::{CardMode, folders, path_str, snapshot};
     use super::*;
+
+    #[test]
+    fn refused_table_only_import_reports_groups_without_replacing_edits() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("sample.ARW");
+        let xmp = raw.with_extension("xmp");
+        let (_, sidecar) = parse_virtual_path(raw.to_str().unwrap());
+        let existing = ImageMetadata {
+            adjustments: serde_json::json!({"exposure":1.25}),
+            ..Default::default()
+        };
+        let original = serde_json::to_vec_pretty(&existing).unwrap();
+        fs::write(&sidecar, &original).unwrap();
+        let source = r#"<rdf:Description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+          xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:tiff="http://ns.adobe.com/tiff/1.0/"
+          tiff:ImageWidth="6000" tiff:ImageLength="4000">
+          <crs:MaskGroupBasedCorrections><rdf:Seq><rdf:li rdf:parseType="Resource">
+          <crs:CorrectionMasks><rdf:Seq><rdf:li rdf:parseType="Resource"
+            crs:What="Mask/Aggregate" crs:MaskName="Brush group"
+            crs:MaskBrushTable="00000000000000000000000000000000" crs:MaskBrushUncompressedBytes="185" />
+          </rdf:Seq></crs:CorrectionMasks></rdf:li></rdf:Seq></crs:MaskGroupBasedCorrections>
+          </rdf:Description>"#;
+        fs::write(&xmp, source).unwrap();
+        let imported =
+            import_xmp_adjustments_to_sidecar(raw.to_str().unwrap(), &xmp, None).unwrap();
+        assert!(imported.unchanged);
+        assert_eq!(imported.metadata.adjustments, existing.adjustments);
+        assert_eq!(fs::read(&sidecar).unwrap(), original);
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), source);
+        let report = serde_json::to_value(XmpNotTransferred {
+            path: raw.to_string_lossy().to_string(),
+            items: imported.not_transferred,
+            brush_table_refusals: imported.brush_table_refusals,
+            settings_report: imported.settings_report,
+        })
+        .unwrap();
+        assert_eq!(
+            report["items"],
+            serde_json::json!(["masks", "maskBrushTable"])
+        );
+        assert_eq!(report["brushTableRefusals"][0]["name"], "Brush group");
+    }
 
     fn lightroom_xmp(attributes: &str) -> String {
         format!(

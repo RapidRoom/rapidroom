@@ -365,6 +365,11 @@
           "inactive": "This setting is inactive in the source conversion mode",
           "alreadyApplied": "The photo marks development settings AlreadyApplied; existing native edits are preserved"
         }
+      },
+      "unchangedForImage": "Bestaande bewerkingen behouden; er zijn geen ondersteunde aanpassingen geïmporteerd.",
+      "brushTableGroup": "Penseelgroep ‘{{name}}’: {{reason}}",
+      "notTransferredItems": {
+        "maskBrushTable": "Penseeltabellen niet geïmporteerd"
       }
     }
   },
