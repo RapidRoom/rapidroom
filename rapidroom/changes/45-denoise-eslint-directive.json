@@ -1,0 +1,14 @@
+{
+  "id": "denoise-modal-stale-eslint-directive",
+  "title": "Remove a stale denoise hook lint directive",
+  "category": "ci",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Removed a disable directive for react-hooks/exhaustive-deps, which is not configured in the current ESLint setup and currently produces an undefined-rule error. Effect dependencies and behavior are unchanged."
+}

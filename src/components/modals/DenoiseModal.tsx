@@ -294,7 +294,6 @@ export default function DenoiseModal({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, targetPathsKey]);
 
   useEffect(() => {
