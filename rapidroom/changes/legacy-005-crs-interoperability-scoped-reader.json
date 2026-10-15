@@ -1,0 +1,16 @@
+{
+  "id": "crs-interoperability-scoped-reader",
+  "title": "Read CRS import fields by namespace and RDF subject",
+  "category": "fix",
+  "landed": "2026-10-12",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex; LightCraft/Redlamp interoperability cross-check)",
+  "commits": [
+    "https://github.com/storytold/lightcraft/commit/265248c86fa3267709aea45633d0d135331e180c",
+    "https://github.com/pdcgomes/redlamp/commit/a70c86dc01ab8ee5d831642520b76ed529f556c0"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Namespace-aware scalar, qualified, language and curve-list import keeps nested/foreign/other-subject fields out, scopes look curves to their own Parameters resource, preserves first-property precedence and existing canonical legacy fragments, and fixes HighlightRecovery classification. Audit covers 169 global fields plus local masks, formats and XML safety. Larger defaults, parametric, per-setting-report, cube-domain and already-applied policy gaps are tracked separately; no Adobe rendering parity is claimed."
+}

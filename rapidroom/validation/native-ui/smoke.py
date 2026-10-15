@@ -485,6 +485,9 @@ class Smoke:
         elif (self.case / "mcp-measure-test.json").exists():
             from mcp_measure import run_measure_checks
             run_measure_checks(self.case, self)
+        elif (self.case / "mcp-skill-test.json").exists():
+            from mcp_skill import run_skill_checks
+            run_skill_checks(self.case, self)
         elif (self.case / "mcp-history-test.json").exists():
             from mcp_history import run_history_checks
             run_history_checks(self.case, self)
@@ -592,6 +595,8 @@ def launch(args):
         save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
         for index in range(1, 24):
             shutil.copy2(raw, case / f"input/smoke-{index:02d}.ARW")
+    if args.mcp_skill:
+        save(case / "mcp-skill-test.json", {"issue": 118, "real_model_requests": True, "source_checkout": str(args.skill_source.resolve())})
     if args.mcp_measure:
         save(case / "mcp-measure-test.json", {"issue": 117, "real_model_requests": True})
     if args.mcp_revisions:
@@ -715,6 +720,8 @@ def main():
     parser.add_argument("--mcp-masks", action="store_true", help="Actual-client single-mask add, sibling preservation, nested defaults, history and sidecars")
     parser.add_argument("--mcp-history", action="store_true", help="Run actual-client labelled history/schema/preview scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-packaging", action="store_true", help="Verify default-off, launch consent, runtime toggle and real registered clients")
+    parser.add_argument("--mcp-skill", action="store_true", help="Fresh Claude session with only the plugin/MCP: grade, compare, export and explain source")
+    parser.add_argument("--skill-source", type=Path, help="Clean checkout matching the pinned app sourceCommit for the skill source explanation")
     parser.add_argument("--mcp-measure", action="store_true", help="Run read-only measurement/comparison scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-revisions", action="store_true", help="Real clients read latest state across a GUI edit and receive strict stale-write details")
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
@@ -737,8 +744,10 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop:
+    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop:
         args.mcp_clients = True
+    if args.mcp_skill and (not args.skill_source or not args.skill_source.is_dir()):
+        parser.error("--mcp-skill requires --skill-source matching the pinned app commit")
     if args.mcp_packaging:
         args.terminal_clients = True
     if args.terminal_clients:

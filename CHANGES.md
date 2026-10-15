@@ -2,14 +2,14 @@
 
 Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/CyberTimon/RapidRAW), with who made it and where it stands upstream.
 
-<sub>Generated from [rapidroom/changes.json](rapidroom/changes.json) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
+<sub>Generated from [rapidroom/changes/](rapidroom/changes/) by `node rapidroom/status.mjs`; don't edit by hand.</sub>
 
-**95 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
+**94 changes on top of RapidRAW.** 26 fix upstream issues that had been open a median of 52 days when RapidRoom shipped the fix; 15 of them still open upstream. 26 offered upstream as PRs, 12 merged so far.
 
 | Change                                                                                                                                                                                                                                                                            | Type        | By                                                                                                                             | Upstream                                                                                                                                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Keep changelog records independent between PRs                                                                                                                                                                                                                                    | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Filter AI mask edges in reduced and rotated previews ⚑                                                                                                                                                                                                                            | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#241](https://github.com/RapidRoom/rapidroom/issues/241); [#1902](https://github.com/CyberTimon/RapidRAW/issues/1902)                                                                                                                                          |
-| Honor .cube LUT input domain bounds ⚑                                                                                                                                                                                                                                             | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Keep RAW repair patches aligned in regenerated thumbnails ⚑                                                                                                                                                                                                                       | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | [RapidRoom/rapidroom#240](https://github.com/RapidRoom/rapidroom/issues/240); [#1903](https://github.com/CyberTimon/RapidRAW/issues/1903)                                                                                                                                          |
 | Keep Shift-click selection within visible folders in Recursive view                                                                                                                                                                                                               | fix         | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
 | Test atomic file writes under failure conditions                                                                                                                                                                                                                                  | ci          | [@yojen7](https://github.com/yojen7)                                                                                           | not yet offered                                                                                                                                                                                                                                                                    |
@@ -119,6 +119,14 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 
 ## Details
 
+### Keep changelog records independent between PRs
+
+- **Type:** ci
+- **Landed in RapidRoom:** 2026-10-13
+- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original documentation and validation tooling)
+- **Upstream:** not yet offered
+- **Notes:** Each PR adds its own validated change record. Published changelog and status snapshots are generated at release time, avoiding shared-file conflicts and bot commits on main.
+
 ### Filter AI mask edges in reduced and rotated previews
 
 - **Type:** fix (changes rendered output)
@@ -126,14 +134,6 @@ Everything RapidRoom adds on top of upstream [RapidRAW](https://github.com/Cyber
 - **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
 - **Upstream:** [RapidRoom/rapidroom#241](https://github.com/RapidRoom/rapidroom/issues/241); [#1902](https://github.com/CyberTimon/RapidRAW/issues/1902)
 - **Notes:** AI mask bitmaps are filtered before minification and sampled bilinearly at transformed pixel centers. Rotation, flip, crop and coarse orientation retain correct pixel alignment; subjects reaching frame edges do not gain an extra fade. Stored bitmap data and model selection are unchanged.
-
-### Honor .cube LUT input domain bounds
-
-- **Type:** fix (changes rendered output)
-- **Landed in RapidRoom:** 2026-10-13
-- **By:** [@yojen7](https://github.com/yojen7), from rapidroom (original implementation with Codex)
-- **Upstream:** not yet offered
-- **Notes:** Validate DOMAIN_MIN/MAX headers and normalize input coordinates once at tetrahedral sampling for scene/display LUTs, previews and 8/16-bit export readback. Unit domains keep the existing lookup and intensity behavior; non-unit LUTs now use their authored input ranges.
 
 ### Keep RAW repair patches aligned in regenerated thumbnails
 
