@@ -792,24 +792,13 @@ fn select_tile_params(quality_0_1: f32) -> TileParams {
     }
 }
 
-#[inline]
-fn mirror_coord(c: i32, size: i32) -> i32 {
-    if c < 0 {
-        (-c).min(size - 1)
-    } else if c >= size {
-        (2 * size - 1 - c).max(0)
-    } else {
-        c
-    }
-}
-
 fn extract_tile_mirror(img: &Rgb32FImage, x0: i32, y0: i32, cs: usize) -> Array4<f32> {
     let (w, h) = (img.width() as i32, img.height() as i32);
     let mut arr = Array4::zeros((1, 3, cs, cs));
     for dy in 0..cs as i32 {
         for dx in 0..cs as i32 {
-            let sx = mirror_coord(x0 + dx, w);
-            let sy = mirror_coord(y0 + dy, h);
+            let sx = crate::denoise_quality::reflect_index((x0 + dx) as i64, w as usize) as i32;
+            let sy = crate::denoise_quality::reflect_index((y0 + dy) as i64, h as usize) as i32;
             let px = img.get_pixel(sx as u32, sy as u32);
             arr[[0, 0, dy as usize, dx as usize]] = px[0];
             arr[[0, 1, dy as usize, dx as usize]] = px[1];
@@ -817,71 +806,6 @@ fn extract_tile_mirror(img: &Rgb32FImage, x0: i32, y0: i32, cs: usize) -> Array4
         }
     }
     arr
-}
-
-struct SeamlessBlend {
-    ud0: usize,
-    ud1: usize,
-    ud2: usize,
-    ud3: usize,
-    absx0: usize,
-    absy0: usize,
-    fswidth: usize,
-    fsheight: usize,
-    overlap: usize,
-}
-
-fn apply_seamless(tile: &mut Array4<f32>, blend: &SeamlessBlend) {
-    let SeamlessBlend {
-        ud0,
-        ud1,
-        ud2,
-        ud3,
-        absx0,
-        absy0,
-        fswidth,
-        fsheight,
-        overlap,
-    } = *blend;
-    let ol = overlap;
-    if absx0 > 0 {
-        for c in 0..3 {
-            for y in ud1..ud3 {
-                for x in ud0..(ud0 + ol).min(ud2) {
-                    tile[[0, c, y, x]] *= 0.5;
-                }
-            }
-        }
-    }
-    if absy0 > 0 {
-        for c in 0..3 {
-            for y in ud1..(ud1 + ol).min(ud3) {
-                for x in ud0..ud2 {
-                    tile[[0, c, y, x]] *= 0.5;
-                }
-            }
-        }
-    }
-    if absx0 + (ud2 - ud0) < fswidth && ol > 0 {
-        let right_start = (ud2 as i32 - ol as i32).max(ud0 as i32) as usize;
-        for c in 0..3 {
-            for y in ud1..ud3 {
-                for x in right_start..ud2 {
-                    tile[[0, c, y, x]] *= 0.5;
-                }
-            }
-        }
-    }
-    if absy0 + (ud3 - ud1) < fsheight && ol > 0 {
-        let bottom_start = (ud3 as i32 - ol as i32).max(ud1 as i32) as usize;
-        for c in 0..3 {
-            for y in bottom_start..ud3 {
-                for x in ud0..ud2 {
-                    tile[[0, c, y, x]] *= 0.5;
-                }
-            }
-        }
-    }
 }
 
 fn run_native_denoise(
@@ -896,21 +820,18 @@ fn run_native_denoise(
     let run_options = Arc::new(RunOptions::new().map_err(|e| e.to_string())?);
     job.attach_run_options(run_options.clone())?;
 
-    let w = width as i32;
-    let h = height as i32;
-    let step = params.ucs.saturating_sub(params.overlap).max(1);
-    let iperhl = (width.saturating_sub(params.ucs) as f64 / step as f64).ceil() as usize;
-    let ipervl = (height.saturating_sub(params.ucs) as f64 / step as f64).ceil() as usize;
-    let total = (iperhl + 1) * (ipervl + 1);
+    let xs = crate::denoise_quality::Axis::new(width, params.ucs, params.overlap)?;
+    let ys = crate::denoise_quality::Axis::new(height, params.ucs, params.overlap)?;
+    let total = xs.starts.len() * ys.starts.len();
 
     for i in 0..total {
         job.check()?;
-        let yi = i / (iperhl + 1);
-        let xi = i % (iperhl + 1);
-        let x0 =
-            params.ucs as i32 * xi as i32 - params.overlap as i32 * xi as i32 - params.pad as i32;
-        let y0 =
-            params.ucs as i32 * yi as i32 - params.overlap as i32 * yi as i32 - params.pad as i32;
+        let yi = i / xs.starts.len();
+        let xi = i % xs.starts.len();
+        let x = xs.starts[xi];
+        let y = ys.starts[yi];
+        let x0 = x as i32 - params.pad as i32;
+        let y0 = y as i32 - params.pad as i32;
 
         if i % 10 == 0 {
             let pct = (i as f32 / total as f32) * 100.0;
@@ -938,58 +859,23 @@ fn run_native_denoise(
                 .map_err(|e| format!("Unexpected output shape: {}", e))?
         };
 
-        let x1pad = (0i32).max(x0 + params.cs as i32 - w) as usize;
-        let y1pad = (0i32).max(y0 + params.cs as i32 - h) as usize;
-        let ud0 = params.pad;
-        let ud1 = params.pad;
-        let ud2 = params.cs - params.pad.max(x1pad);
-        let ud3 = params.cs - params.pad.max(y1pad);
-        let absx0 = (x0 + params.pad as i32).max(0) as usize;
-        let absy0 = (y0 + params.pad as i32).max(0) as usize;
-
-        let mut tile = out;
-        apply_seamless(
-            &mut tile,
-            &SeamlessBlend {
-                ud0,
-                ud1,
-                ud2,
-                ud3,
-                absx0,
-                absy0,
-                fswidth: width,
-                fsheight: height,
-                overlap: params.overlap,
-            },
-        );
-
-        for cy in 0..(ud3 - ud1) {
-            for cx in 0..(ud2 - ud0) {
-                let gx = absx0 + cx;
-                let gy = absy0 + cy;
-                if gx < width && gy < height {
-                    let base = (gy * width + gx) * 3;
-                    accumulator[base] += tile[[0, 0, ud1 + cy, ud0 + cx]].clamp(0.0, 1.0);
-                    accumulator[base + 1] += tile[[0, 1, ud1 + cy, ud0 + cx]].clamp(0.0, 1.0);
-                    accumulator[base + 2] += tile[[0, 2, ud1 + cy, ud0 + cx]].clamp(0.0, 1.0);
+        if out.shape() != [1, 3, params.cs, params.cs] {
+            return Err("Unexpected NIND output shape".into());
+        }
+        if out.iter().any(|p| !p.is_finite()) {
+            return Err("NIND returned nonfinite pixels".into());
+        }
+        for (cy, &wy) in ys.weights[yi].iter().enumerate() {
+            for (cx, &wx) in xs.weights[xi].iter().enumerate() {
+                let pixel = (y + cy) * width + x + cx;
+                for c in 0..3 {
+                    accumulator[c * width * height + pixel] +=
+                        out[[0, c, params.pad + cy, params.pad + cx]] * wx * wy;
                 }
             }
         }
     }
     Ok(())
-}
-
-fn accumulator_to_rgb32f(acc: &[f32], width: u32, height: u32) -> Rgb32FImage {
-    let mut out = Rgb32FImage::new(width, height);
-    for (i, p) in out.pixels_mut().enumerate() {
-        let i3 = i * 3;
-        *p = Rgb([
-            acc[i3].clamp(0.0, 1.0),
-            acc[i3 + 1].clamp(0.0, 1.0),
-            acc[i3 + 2].clamp(0.0, 1.0),
-        ]);
-    }
-    out
 }
 
 pub fn run_ai_denoise(
@@ -1013,8 +899,26 @@ pub fn run_ai_denoise(
         params,
     )?;
 
-    let out_img_buffer = accumulator_to_rgb32f(&accumulator, width, height);
-    Ok(DynamicImage::ImageRgb32F(out_img_buffer))
+    job.progress("Restoring whole-image colour…");
+    let plane = width as usize * height as usize;
+    let mut reference = vec![0.0; 3 * plane];
+    for (i, pixel) in rgb_img.pixels().enumerate() {
+        for c in 0..3 {
+            reference[c * plane + i] = pixel[c];
+        }
+    }
+    crate::denoise_quality::restore_colour(
+        &mut accumulator,
+        &reference,
+        width as usize,
+        height as usize,
+        || job.check(),
+    )?;
+    let out = Rgb32FImage::from_fn(width, height, |x, y| {
+        let i = y as usize * width as usize + x as usize;
+        Rgb(std::array::from_fn(|c| accumulator[c * plane + i]))
+    });
+    Ok(DynamicImage::ImageRgb32F(out))
 }
 
 pub fn run_lama_inpainting(
@@ -1941,6 +1845,69 @@ mod runtime_compatibility_tests {
         )
         .unwrap();
         println!("{report}");
+    }
+}
+
+#[cfg(test)]
+mod denoise_quality_tests {
+    use super::*;
+
+    #[test]
+    fn extraction_reflects_repeatedly_on_tiny_images() {
+        let input = Rgb32FImage::from_fn(3, 2, |x, y| Rgb([x as f32, y as f32, 0.0]));
+        let tile = extract_tile_mirror(&input, -32, -32, 504);
+        assert!(tile.iter().all(|p| p.is_finite()));
+        for y in 0..504 {
+            for x in 0..504 {
+                assert_eq!(
+                    tile[[0, 0, y, x]],
+                    crate::denoise_quality::reflect_index(x as i64 - 32, 3) as f32
+                );
+                assert_eq!(
+                    tile[[0, 1, y, x]],
+                    crate::denoise_quality::reflect_index(y as i64 - 32, 2) as f32
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "Local real NIND checkpoint integration; set RAPIDROOM_NIND_MODEL and RAPIDROOM_NIND_OUTPUT, under flock"]
+    fn real_nind_irregular_image_smoke() {
+        let model = std::env::var("RAPIDROOM_NIND_MODEL").unwrap();
+        let session = Session::builder()
+            .unwrap()
+            .with_intra_threads(4)
+            .unwrap()
+            .commit_from_file(model)
+            .unwrap();
+        let session = Mutex::new(session);
+        let input = Rgb32FImage::from_fn(513, 257, |x, y| {
+            let spot = if (x as i32 - 448).pow(2) + (y as i32 - 192).pow(2) < 5 {
+                0.05
+            } else {
+                0.0
+            };
+            Rgb([
+                0.03 + x as f32 / 5130.0 + spot,
+                0.04 + y as f32 / 2570.0 + spot,
+                0.08 + spot,
+            ])
+        });
+        for intensity in [0.1, 0.5, 0.9] {
+            let result = run_ai_denoise(&input, intensity, &session, &DenoiseJob::testing())
+                .unwrap()
+                .to_rgb32f();
+            assert_eq!(result.dimensions(), input.dimensions());
+            assert!(result.pixels().all(|p| p.0.iter().all(|v| v.is_finite())));
+            let name = format!("nind-{}.tiff", (intensity * 100.0) as u32);
+            DynamicImage::ImageRgb16(DynamicImage::ImageRgb32F(result).to_rgb16())
+                .save(
+                    std::path::Path::new(&std::env::var("RAPIDROOM_NIND_OUTPUT").unwrap())
+                        .join(name),
+                )
+                .unwrap();
+        }
     }
 }
 

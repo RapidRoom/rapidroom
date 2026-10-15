@@ -55,10 +55,11 @@ def image_state(url, image, version="2026-07-28", token=None):
     return tool_data(result)
 
 
-def execute_client(command, folder, name, config_home, cwd=None, own_group=True):
+def execute_client(command, folder, name, config_home, cwd=None, own_group=True, env_overrides=None):
     env = {key: value for key, value in os.environ.items()
            if not key.startswith("HCOM_") and key not in {"CLAUDECODE", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"}}
     env["XDG_CONFIG_HOME"] = str(config_home)
+    env.update(env_overrides or {})
     output = folder / (name + ".jsonl")
     with output.open("w") as log, (folder / (name + ".stderr.log")).open("w") as errors:
         output.chmod(0o600)
