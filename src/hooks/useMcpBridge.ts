@@ -1,3 +1,4 @@
+import { createResetAdjustmentsForImage } from '../utils/adjustments';
 import { toast } from 'react-toastify';
 import { isPathInCardRoot } from '../utils/cardMode';
 import { describeHistoryChange, sameAdjustmentValue } from '../utils/editHistory';
@@ -7,13 +8,9 @@ import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useEditorStore } from '../store/useEditorStore';
+import type { HistogramData } from '../components/ui/AppProperties';
 import { debouncedSetHistory } from './useEditorActions';
-import {
-  INITIAL_ADJUSTMENTS,
-  buildParametricCurves,
-  normalizeLoadedAdjustments,
-  type Adjustments,
-} from '../utils/adjustments';
+import { buildParametricCurves, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
 
 interface McpCommand {
   requestId: string;
@@ -29,6 +26,7 @@ interface McpCommand {
     | 'editor-context';
   path: string;
   adjustments?: Adjustments;
+  baseAdjustments?: Adjustments;
 }
 
 interface McpStateResponse {
@@ -37,13 +35,6 @@ interface McpStateResponse {
   editRevision: string;
   isSelected: boolean;
   validationError: string | null;
-}
-
-interface HistogramData {
-  red: Array<number>;
-  green: Array<number>;
-  blue: Array<number>;
-  luma: Array<number>;
 }
 
 interface McpHistogramResponse {
@@ -119,9 +110,18 @@ async function waitForAdjustmentRender(
 // Applies an MCP edit as one undoable step, after any pending GUI history push,
 // so an older queued snapshot cannot land on top of it. Returns whether a new
 // preview was rendered for it; ongoing user gestures remain a live-test case.
-async function applyEdit(path: string, nextAdjustments: Adjustments): Promise<boolean> {
+async function applyEdit(path: string, nextAdjustments: Adjustments, baseAdjustments?: Adjustments): Promise<boolean> {
   debouncedSetHistory.flush();
   const editor = useEditorStore.getState();
+  if (
+    baseAdjustments &&
+    (editor.selectedImage?.path !== path ||
+      !editor.selectedImage.isReady ||
+      !sameAdjustmentValue(baseAdjustments, editor.adjustments))
+  )
+    throw new Error(
+      'Active image or edit changed before the single-mask operation; read the current revision and retry',
+    );
   if (sameAdjustmentValue(nextAdjustments, editor.adjustments)) {
     return true;
   }
@@ -309,6 +309,9 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
           });
           return;
         } else {
+          if (command.baseAdjustments && useEditorStore.getState().selectedImage?.path !== command.path) {
+            throw new Error('Active image changed before the single-mask operation');
+          }
           if (useEditorStore.getState().selectedImage?.path !== command.path) {
             await selectImageRef.current(command.path, true);
             await waitForImage(command.path);
@@ -319,14 +322,13 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
             // Same result as the library's reset, but as an undoable step;
             // autosave writes it to the sidecar like any other edit.
             const image = useEditorStore.getState().selectedImage;
-            const aspectRatio = image && image.width > 0 && image.height > 0 ? image.width / image.height : null;
-            nextAdjustments = { ...INITIAL_ADJUSTMENTS, aspectRatio, aiPatches: [] };
+            nextAdjustments = createResetAdjustmentsForImage(image);
           } else if (command.adjustments) {
             nextAdjustments = normalizeMcpAdjustments(command.adjustments);
           } else {
             throw new Error('MCP adjustment command did not include adjustments');
           }
-          renderPending = !(await applyEdit(command.path, nextAdjustments));
+          renderPending = !(await applyEdit(command.path, nextAdjustments, command.baseAdjustments));
         }
 
         const response = await syncState(command.path);

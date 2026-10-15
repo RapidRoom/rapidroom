@@ -1,13 +1,125 @@
 {
-  "as_of": "2026-10-04",
+  "as_of": "2026-10-10",
   "refs": {
+    "CyberTimon/RapidRAW#1851": {
+      "kind": "pr",
+      "title": "fix: decode standard images saved with a RAW extension",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1851",
+      "state": "open",
+      "created": "2026-10-05",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1809": {
+      "kind": "pr",
+      "title": "Perf/raw thumbnails",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1809",
+      "state": "open",
+      "created": "2026-09-30",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW-DngLab#10": {
+      "kind": "pr",
+      "title": "Add fast preview paths: DNG LinearRaw proxies, CR3/ORF previews, zero…",
+      "url": "https://github.com/CyberTimon/RapidRAW-DngLab/pull/10",
+      "state": "open",
+      "created": "2026-09-30",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1542": {
+      "kind": "issue",
+      "title": "BUG: Lossy/compressed DNG files render pink and overexposed",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1542",
+      "state": "open",
+      "created": "2026-08-18",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1790": {
+      "kind": "pr",
+      "title": "perf(linux): fix multi-second allocation stalls and parallelize raw decoding improves 5-10x linux perf on Radeon 890M",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1790",
+      "state": "open",
+      "created": "2026-09-26",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1309": {
+      "kind": "pr",
+      "title": "feat: metadata export-naming tokens + single-image file naming",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1309",
+      "state": "open",
+      "created": "2026-06-26",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1697": {
+      "kind": "issue",
+      "title": "Clicking outside the denoise modal during processing dismisses it silently while the background process continuesBUG:",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1697",
+      "state": "open",
+      "created": "2026-09-06",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1599": {
+      "kind": "issue",
+      "title": "FEATURE: Reject Flag for images for quick deletion",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1599",
+      "state": "closed",
+      "created": "2026-08-24",
+      "closed": "2026-10-04"
+    },
+    "CyberTimon/RapidRAW#994": {
+      "kind": "issue",
+      "title": "FEATURE: Marking files for future clean-up.",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/994",
+      "state": "closed",
+      "created": "2026-04-08",
+      "closed": "2026-10-04"
+    },
+    "CyberTimon/RapidRAW#1057": {
+      "kind": "issue",
+      "title": "FEATURE: Improve Culling Support",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1057",
+      "state": "closed",
+      "created": "2026-04-19",
+      "closed": "2026-10-05"
+    },
+    "CyberTimon/RapidRAW#1833": {
+      "kind": "pr",
+      "title": "feat(adjustments): visibility toggles for every adjustment tool",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1833",
+      "state": "open",
+      "created": "2026-10-03",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1688": {
+      "kind": "issue",
+      "title": "Lens distortion: the Lensfun normalization radius, the 2.5x factor and the poly3 formula",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1688",
+      "state": "open",
+      "created": "2026-09-05",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1689": {
+      "kind": "issue",
+      "title": "Lens profile selection ignores the crop factor, so a full frame lens on a crop body picks the wrong entry",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1689",
+      "state": "open",
+      "created": "2026-09-05",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1705": {
+      "kind": "pr",
+      "title": "Evaluate the Lensfun profiles the way Lensfun does",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1705",
+      "state": "open",
+      "created": "2026-09-06",
+      "closed": null
+    },
     "CyberTimon/RapidRAW#1251": {
       "kind": "issue",
       "title": "FEATURE: White Balance Picker Sampling Area.",
       "url": "https://github.com/CyberTimon/RapidRAW/issues/1251",
-      "state": "open",
+      "state": "closed",
       "created": "2026-06-06",
-      "closed": null
+      "closed": "2026-10-05"
     },
     "CyberTimon/RapidRAW#746": {
       "kind": "issue",
@@ -21,145 +133,9 @@
       "kind": "issue",
       "title": "FEATURE: RGB value shown when sampling with the White Balance picker",
       "url": "https://github.com/CyberTimon/RapidRAW/issues/1768",
-      "state": "open",
-      "created": "2026-09-23",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1813": {
-      "kind": "pr",
-      "title": "chore(deps): bump tauri to 2.12 (fixes native titlebar on Hyprland/Sway)",
-      "url": "https://github.com/CyberTimon/RapidRAW/pull/1813",
-      "state": "merged",
-      "created": "2026-10-01",
-      "closed": "2026-10-02"
-    },
-    "CyberTimon/RapidRAW#1819": {
-      "kind": "pr",
-      "title": "fix: don't abort or hang when stdout/stderr is a closed pipe",
-      "url": "https://github.com/CyberTimon/RapidRAW/pull/1819",
-      "state": "open",
-      "created": "2026-10-01",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1489": {
-      "kind": "issue",
-      "title": "Feature request: Embed/select ICC color profile on export",
-      "url": "https://github.com/CyberTimon/RapidRAW/issues/1489",
-      "state": "open",
-      "created": "2026-08-07",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1820": {
-      "kind": "pr",
-      "title": "feat: embed an sRGB ICC profile in JPEG and PNG exports",
-      "url": "https://github.com/CyberTimon/RapidRAW/pull/1820",
-      "state": "merged",
-      "created": "2026-10-01",
-      "closed": "2026-10-03"
-    },
-    "CyberTimon/RapidRAW#850": {
-      "kind": "issue",
-      "title": "BUG: Strange green frames around images",
-      "url": "https://github.com/CyberTimon/RapidRAW/issues/850",
-      "state": "open",
-      "created": "2026-03-12",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW-DngLab#7": {
-      "kind": "pr",
-      "title": "fix: mRAW/sRAW active-area crop uses wrong width for scale factor",
-      "url": "https://github.com/CyberTimon/RapidRAW-DngLab/pull/7",
-      "state": "open",
-      "created": "2026-09-03",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1397": {
-      "kind": "issue",
-      "title": "BUG: Set File Timestamp from EXIF Capture Date Setting does not persist",
-      "url": "https://github.com/CyberTimon/RapidRAW/issues/1397",
-      "state": "open",
-      "created": "2026-07-18",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1834": {
-      "kind": "pr",
-      "title": "Persist TIFF bit depth and file timestamp option in export presets (fixes #1397)",
-      "url": "https://github.com/CyberTimon/RapidRAW/pull/1834",
-      "state": "open",
-      "created": "2026-10-03",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1161": {
-      "kind": "issue",
-      "title": "BUG: Invalid charset error in Comments EXIF data",
-      "url": "https://github.com/CyberTimon/RapidRAW/issues/1161",
-      "state": "open",
-      "created": "2026-05-10",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1609": {
-      "kind": "issue",
-      "title": "BUG: Auto tagging creates more tags than allowed",
-      "url": "https://github.com/CyberTimon/RapidRAW/issues/1609",
-      "state": "open",
-      "created": "2026-08-26",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1837": {
-      "kind": "pr",
-      "title": "Respect the maximum AI tag count (fixes #1609)",
-      "url": "https://github.com/CyberTimon/RapidRAW/pull/1837",
-      "state": "open",
-      "created": "2026-10-04",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1454": {
-      "kind": "issue",
-      "title": "BUG: directory with mixed types of RAW files and JPG doesn't present any files when grouping raw+jpeg is enabled",
-      "url": "https://github.com/CyberTimon/RapidRAW/issues/1454",
-      "state": "open",
-      "created": "2026-07-31",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1835": {
-      "kind": "pr",
-      "title": "Apply library filters before RAW+JPEG grouping (fixes #1454)",
-      "url": "https://github.com/CyberTimon/RapidRAW/pull/1835",
-      "state": "open",
-      "created": "2026-10-03",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1674": {
-      "kind": "issue",
-      "title": "BUG: Folder doesn't update after image(s) are exported into it",
-      "url": "https://github.com/CyberTimon/RapidRAW/issues/1674",
-      "state": "open",
-      "created": "2026-09-03",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1836": {
-      "kind": "pr",
-      "title": "Refresh the library and folder tree after an export (fixes #1674)",
-      "url": "https://github.com/CyberTimon/RapidRAW/pull/1836",
-      "state": "open",
-      "created": "2026-10-04",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1571": {
-      "kind": "issue",
-      "title": "BUG: During a batch export a few photos are mismatched",
-      "url": "https://github.com/CyberTimon/RapidRAW/issues/1571",
       "state": "closed",
-      "created": "2026-08-21",
-      "closed": "2026-10-03"
-    },
-    "CyberTimon/RapidRAW#1825": {
-      "kind": "pr",
-      "title": "Build colour/luminance mask sources from the exported image (fixes #1571)",
-      "url": "https://github.com/CyberTimon/RapidRAW/pull/1825",
-      "state": "merged",
-      "created": "2026-10-03",
-      "closed": "2026-10-03"
+      "created": "2026-09-23",
+      "closed": "2026-10-05"
     },
     "CyberTimon/RapidRAW#517": {
       "kind": "issue",
@@ -205,9 +181,9 @@
       "kind": "issue",
       "title": "BUG/FEATURE: Auto-select next image in culling view when rating an image and \"Unrated only\" filter is on",
       "url": "https://github.com/CyberTimon/RapidRAW/issues/1749",
-      "state": "open",
+      "state": "closed",
       "created": "2026-09-19",
-      "closed": null
+      "closed": "2026-10-06"
     },
     "CyberTimon/RapidRAW#1583": {
       "kind": "issue",
@@ -225,22 +201,6 @@
       "created": "2026-08-03",
       "closed": null
     },
-    "CyberTimon/RapidRAW#1790": {
-      "kind": "pr",
-      "title": "perf(linux): fix multi-second allocation stalls and parallelize raw decoding improves 5-10x linux perf on Radeon 890M",
-      "url": "https://github.com/CyberTimon/RapidRAW/pull/1790",
-      "state": "open",
-      "created": "2026-09-26",
-      "closed": null
-    },
-    "CyberTimon/RapidRAW#1697": {
-      "kind": "issue",
-      "title": "Clicking outside the denoise modal during processing dismisses it silently while the background process continuesBUG:",
-      "url": "https://github.com/CyberTimon/RapidRAW/issues/1697",
-      "state": "open",
-      "created": "2026-09-06",
-      "closed": null
-    },
     "CyberTimon/RapidRAW#1119": {
       "kind": "issue",
       "title": "BUG: compressed RAW Files, black Dots at Highlights",
@@ -248,6 +208,198 @@
       "state": "open",
       "created": "2026-05-01",
       "closed": null
+    },
+    "CyberTimon/RapidRAW#1633": {
+      "kind": "pr",
+      "title": "fix(color): use the sRGB exponent when linearising linear-raw files",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1633",
+      "state": "open",
+      "created": "2026-08-29",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1824": {
+      "kind": "pr",
+      "title": "fix(raw): make magenta highlight correction continuous",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1824",
+      "state": "merged",
+      "created": "2026-10-02",
+      "closed": "2026-10-03"
+    },
+    "CyberTimon/RapidRAW#1775": {
+      "kind": "issue",
+      "title": "BUG: Color Mixer affects other colors",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1775",
+      "state": "closed",
+      "created": "2026-09-24",
+      "closed": "2026-10-03"
+    },
+    "CyberTimon/RapidRAW#1777": {
+      "kind": "pr",
+      "title": "fix(color): compute HSL mixer hue in perceptual space",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1777",
+      "state": "merged",
+      "created": "2026-09-24",
+      "closed": "2026-10-03"
+    },
+    "CyberTimon/RapidRAW#1823": {
+      "kind": "pr",
+      "title": "fix(exif): read Nikon lens from MakerNote when EXIF has none",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1823",
+      "state": "merged",
+      "created": "2026-10-02",
+      "closed": "2026-10-03"
+    },
+    "CyberTimon/RapidRAW#1815": {
+      "kind": "pr",
+      "title": "fix(thumbnails): use embedded preview for RAF/CR3 thumbnails",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1815",
+      "state": "merged",
+      "created": "2026-10-01",
+      "closed": "2026-10-03"
+    },
+    "CyberTimon/RapidRAW#1827": {
+      "kind": "pr",
+      "title": "fix(masks): Esc does nothing while a mask is selected (fullscreen stuck)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1827",
+      "state": "merged",
+      "created": "2026-10-03",
+      "closed": "2026-10-03"
+    },
+    "CyberTimon/RapidRAW#1813": {
+      "kind": "pr",
+      "title": "chore(deps): bump tauri to 2.12 (fixes native titlebar on Hyprland/Sway)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1813",
+      "state": "merged",
+      "created": "2026-10-01",
+      "closed": "2026-10-02"
+    },
+    "CyberTimon/RapidRAW#1819": {
+      "kind": "pr",
+      "title": "fix: don't abort or hang when stdout/stderr is a closed pipe",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1819",
+      "state": "merged",
+      "created": "2026-10-01",
+      "closed": "2026-10-04"
+    },
+    "CyberTimon/RapidRAW#1489": {
+      "kind": "issue",
+      "title": "Feature request: Embed/select ICC color profile on export",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1489",
+      "state": "open",
+      "created": "2026-08-07",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1820": {
+      "kind": "pr",
+      "title": "feat: embed an sRGB ICC profile in JPEG and PNG exports",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1820",
+      "state": "merged",
+      "created": "2026-10-01",
+      "closed": "2026-10-03"
+    },
+    "CyberTimon/RapidRAW#850": {
+      "kind": "issue",
+      "title": "BUG: Strange green frames around images",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/850",
+      "state": "open",
+      "created": "2026-03-12",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW-DngLab#7": {
+      "kind": "pr",
+      "title": "fix: mRAW/sRAW active-area crop uses wrong width for scale factor",
+      "url": "https://github.com/CyberTimon/RapidRAW-DngLab/pull/7",
+      "state": "open",
+      "created": "2026-09-03",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1397": {
+      "kind": "issue",
+      "title": "BUG: Set File Timestamp from EXIF Capture Date Setting does not persist",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1397",
+      "state": "closed",
+      "created": "2026-07-18",
+      "closed": "2026-10-04"
+    },
+    "CyberTimon/RapidRAW#1834": {
+      "kind": "pr",
+      "title": "Persist TIFF bit depth and file timestamp option in export presets (fixes #1397)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1834",
+      "state": "merged",
+      "created": "2026-10-03",
+      "closed": "2026-10-04"
+    },
+    "CyberTimon/RapidRAW#1161": {
+      "kind": "issue",
+      "title": "BUG: Invalid charset error in Comments EXIF data",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1161",
+      "state": "open",
+      "created": "2026-05-10",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1609": {
+      "kind": "issue",
+      "title": "BUG: Auto tagging creates more tags than allowed",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1609",
+      "state": "closed",
+      "created": "2026-08-26",
+      "closed": "2026-10-04"
+    },
+    "CyberTimon/RapidRAW#1837": {
+      "kind": "pr",
+      "title": "Respect the maximum AI tag count (fixes #1609)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1837",
+      "state": "merged",
+      "created": "2026-10-04",
+      "closed": "2026-10-04"
+    },
+    "CyberTimon/RapidRAW#1454": {
+      "kind": "issue",
+      "title": "BUG: directory with mixed types of RAW files and JPG doesn't present any files when grouping raw+jpeg is enabled",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1454",
+      "state": "closed",
+      "created": "2026-07-31",
+      "closed": "2026-10-04"
+    },
+    "CyberTimon/RapidRAW#1835": {
+      "kind": "pr",
+      "title": "Apply library filters before RAW+JPEG grouping (fixes #1454)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1835",
+      "state": "merged",
+      "created": "2026-10-03",
+      "closed": "2026-10-04"
+    },
+    "CyberTimon/RapidRAW#1674": {
+      "kind": "issue",
+      "title": "BUG: Folder doesn't update after image(s) are exported into it",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1674",
+      "state": "open",
+      "created": "2026-09-03",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1836": {
+      "kind": "pr",
+      "title": "Refresh the library and folder tree after an export (fixes #1674)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1836",
+      "state": "open",
+      "created": "2026-10-04",
+      "closed": null
+    },
+    "CyberTimon/RapidRAW#1571": {
+      "kind": "issue",
+      "title": "BUG: During a batch export a few photos are mismatched",
+      "url": "https://github.com/CyberTimon/RapidRAW/issues/1571",
+      "state": "closed",
+      "created": "2026-08-21",
+      "closed": "2026-10-03"
+    },
+    "CyberTimon/RapidRAW#1825": {
+      "kind": "pr",
+      "title": "Build colour/luminance mask sources from the exported image (fixes #1571)",
+      "url": "https://github.com/CyberTimon/RapidRAW/pull/1825",
+      "state": "merged",
+      "created": "2026-10-03",
+      "closed": "2026-10-03"
     }
   }
 }

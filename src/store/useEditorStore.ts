@@ -1,8 +1,7 @@
 import type { HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import { Adjustments, INITIAL_ADJUSTMENTS, MaskContainer, AiPatch } from '../utils/adjustments';
-import { SelectedImage, WaveformData, BrushSettings } from '../components/ui/AppProperties';
-import { ChannelConfig } from '../components/adjustments/Curves';
+import { SelectedImage, WaveformData, BrushSettings, HistogramData } from '../components/ui/AppProperties';
 import { ImageDimensions } from '../hooks/useImageRenderSize';
 import { ToolType } from '../components/panel/right/Masks';
 import { OverlayMode } from '../components/panel/right/CropPanel';
@@ -27,6 +26,8 @@ interface BaseRenderSize extends ImageDimensions {
   containerWidth: number;
   offsetX: number;
   offsetY: number;
+  // CSS px per image px when fitted (transform scale 1)
+  renderScale: number;
 }
 
 interface EditorState {
@@ -50,7 +51,7 @@ interface EditorState {
   referenceView: ReferenceViewState;
 
   // Analytics
-  histogram: ChannelConfig | null;
+  histogram: HistogramData | null;
   waveform: WaveformData | null;
   isWaveformVisible: boolean;
   activeWaveformChannel: string;
@@ -59,6 +60,7 @@ interface EditorState {
   // Interaction State
   isSliderDragging: boolean;
   zoom: number;
+  zoomRequest: { imagePath: string; percent: number | null } | null;
   displaySize: ImageDimensions;
   previewSize: ImageDimensions;
   baseRenderSize: BaseRenderSize;
@@ -90,7 +92,7 @@ interface EditorState {
   // Clipboard
   copiedSectionAdjustments: any | null;
   copiedMask: MaskContainer | null;
-  copiedAdjustments: Adjustments | null;
+  copiedAdjustments: Partial<Adjustments> | null;
 
   // Actions
   setEditor: (updater: Partial<EditorState> | ((state: EditorState) => Partial<EditorState>)) => void;
@@ -130,9 +132,18 @@ export const useEditorStore = create<EditorState>((set) => ({
   activeAiSubMaskId: null,
 
   zoom: 1,
+  zoomRequest: null,
   displaySize: { width: 0, height: 0 },
   previewSize: { width: 0, height: 0 },
-  baseRenderSize: { width: 0, height: 0, offsetX: 0, offsetY: 0, containerWidth: 0, containerHeight: 0 },
+  baseRenderSize: {
+    width: 0,
+    height: 0,
+    offsetX: 0,
+    offsetY: 0,
+    containerWidth: 0,
+    containerHeight: 0,
+    renderScale: 0,
+  },
   originalSize: { width: 0, height: 0 },
 
   isRotationActive: false,

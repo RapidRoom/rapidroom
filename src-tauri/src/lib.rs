@@ -31,12 +31,15 @@ mod android_integration;
 mod app_settings;
 mod app_state;
 mod apple_raw;
+#[cfg(any(feature = "mcp", feature = "terminal", test))]
+mod assistant_text;
 mod batch_rename;
 mod bench;
 mod cache_utils;
 mod camera_tethering;
 mod culling;
 mod dcp;
+mod denoise_quality;
 mod denoising;
 mod exif_processing;
 mod export_processing;
@@ -59,6 +62,7 @@ mod lens_correction;
 mod lightroom;
 mod lightroom_brush_table;
 mod lightroom_masks;
+mod lightroom_report;
 mod lrtemplate;
 mod lut_processing;
 mod mask_generation;
@@ -72,7 +76,9 @@ mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
 mod preset_converter;
+mod preset_xmp;
 mod raw_processing;
+mod starter_presets;
 mod tagging;
 mod tagging_utils;
 mod terminal;
@@ -86,6 +92,7 @@ mod test_support;
 mod tree_denoise;
 mod two_phase_rename;
 mod window_customizer;
+mod xmp;
 
 use std::collections::{HashMap, hash_map::DefaultHasher};
 use std::fs;
@@ -2592,6 +2599,7 @@ pub fn run() {
             file_management::handle_import_legacy_presets_from_file,
             file_management::handle_import_presets_from_files,
             file_management::handle_export_presets_to_file,
+            file_management::export_lightroom_preset,
             file_management::save_community_preset,
             file_management::clear_all_sidecars,
             file_management::clear_thumbnail_cache,

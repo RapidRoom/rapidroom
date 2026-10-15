@@ -1,6 +1,5 @@
 use rawler::{decoders::RawDecodeParams, rawsource::RawSource};
 use regex::Regex;
-use regex::regex;
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 use std::fs;
@@ -935,88 +934,19 @@ fn apply_rendered_pv2012_policy(
     }
 }
 
-fn unescape_xml(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    let mut rest = value;
-    while let Some(start) = rest.find('&') {
-        out.push_str(&rest[..start]);
-        rest = &rest[start..];
-        let decoded = rest.find(';').and_then(|end| {
-            let entity = &rest[1..end];
-            let c = match entity {
-                "amp" => Some('&'),
-                "lt" => Some('<'),
-                "gt" => Some('>'),
-                "quot" => Some('"'),
-                "apos" => Some('\''),
-                _ => entity
-                    .strip_prefix("#x")
-                    .or_else(|| entity.strip_prefix("#X"))
-                    .map(|hex| u32::from_str_radix(hex, 16))
-                    .or_else(|| entity.strip_prefix('#').map(|dec| dec.parse::<u32>()))
-                    .and_then(Result::ok)
-                    .and_then(char::from_u32),
-            };
-            c.map(|c| (c, end))
-        });
-        match decoded {
-            Some((c, end)) => {
-                out.push(c);
-                rest = &rest[end + 1..];
-            }
-            None => {
-                out.push('&');
-                rest = &rest[1..];
-            }
-        }
-    }
-    out.push_str(rest);
-    out
-}
-
-fn extract_xmp_name(xmp_content: &str) -> Option<String> {
-    regex!(r#"(?s)<crs:Name>.*?<rdf:Alt>.*?<rdf:li[^>]*>([^<]+)</rdf:li>.*?</crs:Name>"#)
-        .captures(xmp_content)
-        .and_then(|c| {
-            c.get(1)
-                .map(|m| unescape_xml(m.as_str()).trim().to_string())
+fn parse_tone_curve_points(items: &[String]) -> Option<Vec<Value>> {
+    let points: Vec<_> = items
+        .iter()
+        .map(|item| {
+            let (x, y) = item.split_once(',')?;
+            let (x, y) = (x.trim().parse::<u32>().ok()?, y.trim().parse::<u32>().ok()?);
+            Some(json!({"x": x, "y": y}))
         })
-}
-
-fn extract_tone_curve_points(xmp_str: &str, curve_name: &str) -> Option<Vec<Value>> {
-    let pattern = format!(
-        r"(?s)<crs:{}>\s*<rdf:Seq>(.*?)</rdf:Seq>\s*</crs:{}>",
-        curve_name, curve_name
-    );
-    let re = Regex::new(&pattern).ok()?;
-    let captures = re.captures(xmp_str)?;
-    let seq_content = captures.get(1)?.as_str();
-
-    let point_re = regex!(r"<rdf:li>(\d+),\s*(\d+)</rdf:li>");
-    let mut points = Vec::new();
-
-    for point_cap in point_re.captures_iter(seq_content) {
-        let x: u32 = point_cap.get(1)?.as_str().parse().ok()?;
-        let y: u32 = point_cap.get(2)?.as_str().parse().ok()?;
-
-        let mut point = Map::new();
-        point.insert("x".to_string(), Value::Number(x.into()));
-        point.insert("y".to_string(), Value::Number(y.into()));
-        points.push(Value::Object(point));
-    }
-
-    if points.is_empty() {
-        None
-    } else {
-        Some(points)
-    }
+        .collect::<Option<_>>()?;
+    (!points.is_empty()).then_some(points)
 }
 
 const MAX_RAPIDRAW_CURVE_POINTS: usize = 16;
-
-fn strip_nested_looks(xmp_content: &str) -> std::borrow::Cow<'_, str> {
-    regex!(r"(?s)<crs:Look>.*?</crs:Look>").replace_all(xmp_content, "")
-}
 
 fn curve_points_as_f64(points: &[Value]) -> Vec<(f64, f64)> {
     points
@@ -1089,16 +1019,12 @@ fn evaluate_rapidraw_curve(points: &[(f64, f64)], x: f64) -> f64 {
 /// Tone curves of nested looks (the Adobe Color profile look, creative
 /// profiles), each scaled by its crs:Amount, in the order Lightroom applies them.
 fn extract_nested_look_luma_curves(xmp_content: &str) -> Vec<(f64, Vec<(f64, f64)>)> {
-    regex!(r"(?s)<crs:Look>(.*?)</crs:Look>")
-        .captures_iter(xmp_content)
-        .filter_map(|captures| {
-            let look = captures.get(1)?.as_str();
-            let amount = extract_namespaced_scalar(look, "crs", "Amount")
-                .and_then(|value| value.parse::<f64>().ok())
-                .filter(|value| value.is_finite())
-                .unwrap_or(1.0)
-                .clamp(0.0, 2.0);
-            let points = curve_points_as_f64(&extract_tone_curve_points(look, "ToneCurvePV2012")?);
+    crate::xmp::photo_looks(xmp_content)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|look| {
+            let amount = look.amount;
+            let points = curve_points_as_f64(&parse_tone_curve_points(&look.curve?)?);
             let is_identity = points.iter().all(|(x, y)| x == y);
             (amount > 0.0 && !is_identity).then_some((amount, points))
         })
@@ -1160,10 +1086,11 @@ pub fn convert_xmp_sidecar_to_preset_for_image_with_mask_report(
         } else {
             XmpImageKind::Rendered
         };
-    let geometry_needs_image_dimensions = (parse_xmp_attributes(xmp_content)
-        .ok()
-        .is_some_and(|attrs| is_xmp_true(attrs.get("HasCrop")))
-        || crate::lightroom_masks::has_mask_group_corrections(xmp_content))
+    let geometry_needs_image_dimensions = !adobe_camera_raw_already_applied(xmp_content)?
+        && (parse_xmp_attributes(xmp_content)
+            .ok()
+            .is_some_and(|attrs| is_xmp_true(attrs.get("HasCrop")))
+            || crate::lightroom_masks::has_mask_group_corrections(xmp_content))
         && (get_namespaced_f64(xmp_content, "tiff", "ImageWidth")
             .or_else(|| get_namespaced_f64(xmp_content, "exif", "PixelXDimension"))
             .is_none()
@@ -1194,8 +1121,7 @@ fn convert_adobe_camera_raw_xmp_to_preset(
     convert_xmp_to_preset_with_crop(xmp_content, true, None, Some(image_kind), None, None, None)
 }
 
-#[cfg(test)]
-fn adobe_camera_raw_already_applied(xmp_content: &str) -> Result<bool, String> {
+pub(crate) fn adobe_camera_raw_already_applied(xmp_content: &str) -> Result<bool, String> {
     Ok(is_xmp_true(
         parse_xmp_attributes(xmp_content)?.get("AlreadyApplied"),
     ))
@@ -1229,16 +1155,26 @@ pub fn lightroom_settings_not_transferred_with_mask_summary(
     preset: &Preset,
     masks: &crate::lightroom_masks::MaskImportSummary,
 ) -> Vec<&'static str> {
-    let Ok(attrs) = parse_xmp_attributes(xmp_content) else {
+    let Ok(properties) = crate::xmp::photo_properties(xmp_content, crate::xmp::CRS) else {
         return Vec::new();
     };
+    let attrs = scalar_attributes(&properties);
+    let active_property = |key: &str| match properties.get(key) {
+        Some(crate::xmp::PhotoProperty::Scalar(value)) => !value.is_empty(),
+        Some(crate::xmp::PhotoProperty::List(items)) => !items.is_empty(),
+        Some(crate::xmp::PhotoProperty::Structured) => true,
+        None => false,
+    };
+    if preset.include_crop_transform == Some(true) && is_xmp_true(attrs.get("AlreadyApplied")) {
+        return Vec::new();
+    }
     let mut items = Vec::new();
 
     // Lightroom Classic sidecars carry no as-shot values, so a custom white
     // balance often can't be turned into RapidRAW's relative controls.
     let custom_white_balance = attrs
         .get("WhiteBalance")
-        .is_some_and(|value| !value.eq_ignore_ascii_case("As Shot"));
+        .is_some_and(|value| !value.is_empty() && !value.eq_ignore_ascii_case("As Shot"));
     if custom_white_balance
         && preset.adjustments.get("temperature").is_none()
         && preset.adjustments.get("tint").is_none()
@@ -1247,13 +1183,10 @@ pub fn lightroom_settings_not_transferred_with_mask_summary(
     }
 
     // Only a look's tone curve is imported, never its colour table.
-    let has_profile_look = regex!(r"(?s)<crs:Look>(.*?)</crs:Look>")
-        .captures_iter(xmp_content)
-        .any(|captures| {
-            extract_namespaced_scalar(&captures[1], "crs", "Amount")
-                .and_then(|value| value.parse::<f64>().ok())
-                .is_none_or(|amount| amount > 0.0)
-        });
+    let has_profile_look = crate::xmp::photo_looks(xmp_content)
+        .unwrap_or_default()
+        .iter()
+        .any(|look| look.amount > 0.0);
     if has_profile_look {
         items.push("profileLook");
     }
@@ -1267,6 +1200,7 @@ pub fn lightroom_settings_not_transferred_with_mask_summary(
 
     // Only crs:MaskGroupBasedCorrections are imported; the older per-tool
     // lists are reported as they are.
+
     let imported_masks = preset
         .adjustments
         .get("masks")
@@ -1274,10 +1208,18 @@ pub fn lightroom_settings_not_transferred_with_mask_summary(
         .map_or(0, Vec::len);
     if masks.skipped_unsupported > 0
         || imported_masks < masks.convertible
-        || regex!(
-            r"(?s)<crs:(?:PaintBasedCorrections|GradientBasedCorrections|CircularGradientBasedCorrections)>\s*<rdf:Seq>\s*<rdf:li"
-        )
-        .is_match(xmp_content)
+        || (active_property("MaskGroupBasedCorrections")
+            && imported_masks == 0
+            && masks.convertible == 0
+            && masks.skipped_ai == 0
+            && masks.skipped_unsupported == 0)
+        || [
+            "PaintBasedCorrections",
+            "GradientBasedCorrections",
+            "CircularGradientBasedCorrections",
+        ]
+        .iter()
+        .any(|key| active_property(key))
     {
         items.push("masks");
     }
@@ -1291,44 +1233,32 @@ pub fn lightroom_settings_not_transferred_with_mask_summary(
         items.push("localAdjustments");
     }
 
-    if regex!(r"(?s)<crs:PointColors>\s*<rdf:Seq>\s*<rdf:li").is_match(xmp_content) {
+    if active_property("PointColors") {
         items.push("pointColor");
     }
 
     items
 }
 
-fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, String> {
-    // Lightroom sidecars can contain nested rdf:Description elements for
-    // profiles and looks. Only the outer description represents the image's
-    // active settings; nested attributes must not overwrite those values.
-    let description_re = Regex::new(r#"(?s)<rdf:Description\b([^>]*)>"#)
-        .map_err(|e| format!("Regex compilation failed: {}", e))?;
-    let attribute_source = description_re
-        .captures(xmp_content)
-        .and_then(|captures| captures.get(1))
-        .map_or(xmp_content, |attributes| attributes.as_str());
-
-    let attr_re = regex!(r#"crs:([A-Za-z0-9]+)="([^"]*)""#);
-    let mut attrs: HashMap<String, String> = HashMap::new();
-    for cap in attr_re.captures_iter(attribute_source) {
-        attrs.insert(cap[1].to_string(), cap[2].to_string());
-    }
-
-    let elem_re = Regex::new(r#"(?s)<crs:([A-Za-z0-9]+)>\s*([^<]+?)\s*</crs:([A-Za-z0-9]+)>"#)
-        .map_err(|e| format!("Regex compilation failed: {}", e))?;
-    for cap in elem_re.captures_iter(xmp_content) {
-        if cap[1] == cap[3] {
-            attrs
-                .entry(cap[1].to_string())
-                .or_insert_with(|| cap[2].trim().to_string());
-        }
-    }
-
-    Ok(attrs)
+fn scalar_attributes(
+    properties: &HashMap<String, crate::xmp::PhotoProperty>,
+) -> HashMap<String, String> {
+    properties
+        .iter()
+        .filter_map(|(key, value)| match value {
+            crate::xmp::PhotoProperty::Scalar(value) => Some((key.clone(), value.clone())),
+            crate::xmp::PhotoProperty::List(_) | crate::xmp::PhotoProperty::Structured => None,
+        })
+        .collect()
 }
 
-const BASIC_MAPPINGS: &[(&str, &str)] = &[
+fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, String> {
+    let properties =
+        crate::xmp::photo_properties(xmp_content, crate::xmp::CRS).map_err(|e| e.to_string())?;
+    Ok(scalar_attributes(&properties))
+}
+
+pub(crate) const BASIC_MAPPINGS: &[(&str, &str)] = &[
     ("Exposure2012", "exposure"),
     ("Contrast2012", "contrast"),
     ("Highlights2012", "highlights"),
@@ -1383,7 +1313,7 @@ pub(crate) fn is_mapped_xmp_scalar(key: &str) -> bool {
             | "Exposure"
             | "Brightness"
             | "Contrast"
-            | "Recovery"
+            | "HighlightRecovery"
             | "FillLight"
             | "Shadows"
             | "Clarity"
@@ -1438,7 +1368,16 @@ fn convert_xmp_to_preset_with_crop(
     image_path: Option<&Path>,
     mask_report: Option<&mut crate::lightroom_masks::MaskImportSummary>,
 ) -> Result<Preset, String> {
-    let attrs = parse_xmp_attributes(xmp_content)?;
+    let properties =
+        crate::xmp::photo_properties(xmp_content, crate::xmp::CRS).map_err(|e| e.to_string())?;
+    let attrs = scalar_attributes(&properties);
+    if include_crop_transform && is_xmp_true(attrs.get("AlreadyApplied")) {
+        return Ok(preset_from_xmp_fields(
+            &attrs,
+            Map::new(),
+            include_crop_transform,
+        ));
+    }
     let convert_to_grayscale = is_xmp_true(attrs.get("ConvertToGrayscale"));
 
     let mut adjustments = Map::new();
@@ -1688,10 +1627,11 @@ fn convert_xmp_to_preset_with_crop(
         (["ToneCurvePV2012Green", "ToneCurveGreen"], "green"),
         (["ToneCurvePV2012Blue", "ToneCurveBlue"], "blue"),
     ];
-    let outer_content = strip_nested_looks(xmp_content);
     for (xmp_curves, rr_curve) in curve_mappings {
         for xmp_curve in xmp_curves {
-            if let Some(points) = extract_tone_curve_points(&outer_content, xmp_curve) {
+            if let Some(crate::xmp::PhotoProperty::List(items)) = properties.get(xmp_curve)
+                && let Some(points) = parse_tone_curve_points(items)
+            {
                 curves_map.insert(rr_curve.to_string(), Value::Array(points));
                 break;
             }
@@ -1752,10 +1692,25 @@ fn convert_xmp_to_preset_with_crop(
         }
     }
 
-    let preset_name =
-        extract_xmp_name(xmp_content).unwrap_or_else(|| "Imported Preset".to_string());
+    Ok(preset_from_xmp_fields(
+        &attrs,
+        adjustments,
+        include_crop_transform,
+    ))
+}
 
-    Ok(Preset {
+fn preset_from_xmp_fields(
+    attrs: &HashMap<String, String>,
+    adjustments: Map<String, Value>,
+    include_crop_transform: bool,
+) -> Preset {
+    let preset_name = attrs
+        .get("Name")
+        .filter(|v| !v.is_empty())
+        .cloned()
+        .unwrap_or_else(|| "Imported Preset".to_string());
+
+    Preset {
         id: Uuid::new_v4().to_string(),
         name: preset_name,
         adjustments: Value::Object(adjustments),
@@ -1763,13 +1718,272 @@ fn convert_xmp_to_preset_with_crop(
         include_crop_transform: Some(include_crop_transform),
         preset_type: Some("style".to_string()),
         favorite: None,
-    })
+        camera_model_restriction: attrs
+            .get("CameraModelRestriction")
+            .cloned()
+            .filter(|v| !v.is_empty()),
+        unavailable_reason: attrs
+            .get("CameraProfile")
+            .cloned()
+            .filter(|v| !v.is_empty())
+            .map(|v| format!("Requires camera profile: {v}")),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn crs_audit_legacy_root_properties_stay_scoped_and_yield_to_rdf() {
+        let fragment = r#"<root xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" a:Exposure2012="1">
+          <a:Contrast2012>12</a:Contrast2012>
+          <a:Look><root a:Shadows2012="85" a:CameraModelRestriction="Nested"/></a:Look>
+        </root>"#;
+        let preset = convert_xmp_to_preset(fragment).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 1);
+        assert_eq!(preset.adjustments["contrast"], 12);
+        assert!(preset.adjustments.get("shadows").is_none());
+        assert!(preset.camera_model_restriction.is_none());
+
+        let document = r#"<root xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"
+          xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#" a:Exposure2012="4">
+          <a:Contrast2012>99</a:Contrast2012>
+          <r:RDF><r:Description r:about="photo" a:Exposure2012="0.5"/></r:RDF>
+        </root>"#;
+        let preset = convert_xmp_to_preset(document).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 0.5);
+        assert!(preset.adjustments.get("contrast").is_none());
+    }
+
+    #[test]
+    fn crs_audit_namespace_forms_and_subject_scope() {
+        let xmp = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+            xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:crs="urn:foreign">
+            <r:Description r:about="photo" a:Exposure2012='+0.50' crs:Contrast2012="99">
+              <a:Look><r:Description a:Highlights2012="90"><a:Shadows2012>85</a:Shadows2012></r:Description></a:Look>
+              <a:Texture>12</a:Texture>
+            </r:Description>
+            <r:Description r:about="photo" a:Exposure2012="4"><a:Contrast2012>20</a:Contrast2012></r:Description>
+            <r:Description r:about="other" a:Blacks2012="75"/>
+        </r:RDF>"#;
+        let preset = convert_xmp_to_preset(xmp).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 0.5);
+        assert_eq!(preset.adjustments["structure"], 12);
+        assert_eq!(preset.adjustments["contrast"], 20);
+        for key in ["highlights", "shadows", "blacks"] {
+            assert!(preset.adjustments.get(key).is_none(), "{key}");
+        }
+    }
+
+    #[test]
+    fn crs_audit_qualified_values_lists_and_default_language_name() {
+        let xmp = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+            xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/">
+          <r:Description r:about="">
+            <a:Exposure2012 r:parseType="Resource"><r:value>+1.25</r:value></a:Exposure2012>
+            <a:Texture><r:Description><r:value>+15</r:value></r:Description></a:Texture>
+            <a:Name><r:Alt><r:li xml:lang="fr">Autre</r:li><r:li xml:lang="x-default">Warm &amp; &#x2600;</r:li></r:Alt></a:Name>
+            <a:ToneCurvePV2012><r:Bag><r:li>0, 0</r:li><r:li> 128 , 144 </r:li><r:li>255, 255</r:li></r:Bag></a:ToneCurvePV2012>
+            <a:Look><r:Description a:CameraProfile="Nested profile" a:CameraModelRestriction="Nested camera"/></a:Look>
+          </r:Description>
+        </r:RDF>"#;
+        let preset = convert_xmp_to_preset(xmp).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 1.25);
+        assert_eq!(preset.adjustments["structure"], 15);
+        assert_eq!(
+            preset.adjustments["curves"]["luma"],
+            json!([
+                {"x":0,"y":0},{"x":128,"y":144},{"x":255,"y":255}
+            ])
+        );
+        assert_eq!(preset.name, "Warm & ☀");
+        assert!(preset.camera_model_restriction.is_none());
+        assert!(preset.unavailable_reason.is_none());
+    }
+
+    #[test]
+    fn crs_audit_invalid_curve_is_not_partially_imported() {
+        let xmp = r#"<rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/">
+            <crs:ToneCurvePV2012><rdf:Seq><rdf:li>0, 0</rdf:li><rdf:li>broken</rdf:li><rdf:li>255, 255</rdf:li></rdf:Seq></crs:ToneCurvePV2012>
+        </rdf:Description>"#;
+        assert!(
+            convert_xmp_to_preset(xmp)
+                .unwrap()
+                .adjustments
+                .get("curves")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn crs_audit_legacy_recovery_classifier_matches_conversion() {
+        assert!(is_mapped_xmp_scalar("HighlightRecovery"));
+        assert!(!is_mapped_xmp_scalar("Recovery"));
+        let preset =
+            convert_xmp_to_preset(r#"<rdf:Description crs:HighlightRecovery="30"/>"#).unwrap();
+        assert_eq!(preset.adjustments["highlights"], -30.0);
+    }
+
+    #[test]
+    fn crs_audit_refuses_doctype_and_preserves_foreign_writer_bytes() {
+        assert!(
+            convert_xmp_to_preset(
+                r#"<!DOCTYPE root [<!ENTITY x SYSTEM "file:///etc/passwd">]><root>&x;</root>"#
+            )
+            .is_err()
+        );
+        let foreign = r#"<a:Exposure2012>+0.50</a:Exposure2012><!--foreign--><z:data><![CDATA[a&b]]></z:data>"#;
+        let xmp = format!(
+            r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:z="urn:foreign"><r:Description r:about="photo">{foreign}</r:Description></r:RDF>"#
+        );
+        let updated = crate::xmp::update(&xmp, 3, None, &[]).unwrap();
+        assert!(updated.contains(foreign));
+        assert_eq!(
+            convert_xmp_to_preset(&updated).unwrap().adjustments["exposure"],
+            0.5
+        );
+    }
+
+    #[test]
+    fn crs_audit_look_parameters_keep_their_own_namespace_and_scope() {
+        let xmp = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+          xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:crs="urn:foreign">
+          <r:Description r:about="photo" a:Exposure2012="0.5">
+            <crs:Look><r:Description crs:Amount="2"><crs:ToneCurvePV2012><r:Seq><r:li>0, 0</r:li><r:li>255, 0</r:li></r:Seq></crs:ToneCurvePV2012></r:Description></crs:Look>
+            <a:Look><r:Description a:Amount="0.5"><a:Parameters><r:Description a:Exposure2012="4">
+              <a:ToneCurvePV2012><r:Seq><r:li>0, 0</r:li><r:li>255, 128</r:li></r:Seq></a:ToneCurvePV2012>
+            </r:Description></a:Parameters></r:Description></a:Look>
+          </r:Description>
+          <r:Description r:about="other"><a:Look><r:Description><a:ToneCurvePV2012><r:Seq><r:li>0, 0</r:li><r:li>255, 0</r:li></r:Seq></a:ToneCurvePV2012></r:Description></a:Look></r:Description>
+        </r:RDF>"#;
+        let preset = convert_xmp_to_preset(xmp).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 0.5);
+        assert_eq!(luma_at(&preset, 85), 64);
+        assert!(lightroom_settings_not_transferred(xmp, &preset).contains(&"profileLook"));
+    }
+
+    #[test]
+    fn crs_audit_legacy_root_look_curve_and_report_stay_scoped() {
+        let look = r#"<a:Look><r:Description a:Amount="0.5"><a:Parameters><r:Description a:Exposure2012="4">
+          <a:ToneCurvePV2012><r:Seq><r:li>0, 0</r:li><r:li>255, 128</r:li></r:Seq></a:ToneCurvePV2012>
+        </r:Description></a:Parameters></r:Description></a:Look>"#;
+        let root = format!(
+            r#"<root xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"
+              xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:f="urn:foreign"
+              a:Exposure2012="0.5">{look}<nested>{look}</nested>{foreign}</root>"#,
+            foreign = look.replace("a:", "f:")
+        );
+        let preset = convert_xmp_to_preset(&root).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 0.5);
+        assert_eq!(luma_at(&preset, 85), 64);
+        assert_eq!(crate::xmp::photo_looks(&root).unwrap().len(), 1);
+        assert!(lightroom_settings_not_transferred(&root, &preset).contains(&"profileLook"));
+
+        let rdf_subject = root.replace(
+            "</root>",
+            r#"<r:RDF><r:Description r:about="photo" a:Exposure2012="1"/></r:RDF></root>"#,
+        );
+        let preset = convert_xmp_to_preset(&rdf_subject).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 1);
+        assert!(preset.adjustments.get("curves").is_none());
+        assert!(crate::xmp::photo_looks(&rdf_subject).unwrap().is_empty());
+        assert!(
+            !lightroom_settings_not_transferred(&rdf_subject, &preset).contains(&"profileLook")
+        );
+    }
+
+    #[test]
+    fn crs_audit_namespace_declarations_cannot_be_adjustment_attributes() {
+        let xmp = r#"<rdf:Description xmlns:xmlns="http://ns.adobe.com/camera-raw-settings/1.0/"
+            xmlns:Exposure2012="4" xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"
+            a:Contrast2012="10"/>"#;
+        let preset = convert_xmp_to_preset(xmp).unwrap();
+        assert!(preset.adjustments.get("exposure").is_none());
+        assert_eq!(preset.adjustments["contrast"], 10);
+    }
+
+    #[test]
+    fn crs_audit_unknown_namespace_never_matches_unqualified_fields() {
+        let fields = crate::xmp::photo_properties(
+            "<rdf:Description><Exposure2012>4</Exposure2012></rdf:Description>",
+            "urn:unknown",
+        )
+        .unwrap();
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn crs_audit_preset_group_ignores_nested_profile_metadata() {
+        let xmp = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/">
+          <r:Description a:Group="Photo &amp; presets"><a:Look><r:Description><a:Group>Nested profile</a:Group></r:Description></a:Look></r:Description>
+        </r:RDF>"#;
+        assert_eq!(
+            crate::preset_xmp::group_name(xmp).as_deref(),
+            Some("Photo & presets")
+        );
+        assert!(
+            crate::preset_xmp::group_name(&xmp.replace("a:Group=\"Photo &amp; presets\"", ""))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn already_applied_policy_uses_the_image_subject_namespace() {
+        let xml = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:crs="urn:foreign">
+          <r:Description r:about="photo" a:Exposure2012="1.25" crs:AlreadyApplied="True">
+          <a:Look><r:Description a:AlreadyApplied="True"/></a:Look></r:Description>
+          <r:Description r:about="other" a:AlreadyApplied="True"/></r:RDF>"#;
+        assert!(!adobe_camera_raw_already_applied(xml).unwrap());
+        assert_eq!(
+            convert_xmp_sidecar_to_preset_for_image(xml, Path::new("photo.DNG"))
+                .unwrap()
+                .adjustments["exposure"],
+            1.25
+        );
+        let baked = xml.replace(
+            "a:Exposure2012=\"1.25\"",
+            "a:Exposure2012=\"1.25\" a:AlreadyApplied=\"True\"",
+        );
+        assert!(adobe_camera_raw_already_applied(&baked).unwrap());
+        assert_eq!(
+            convert_xmp_sidecar_to_preset_for_image(&baked, Path::new("photo.DNG"))
+                .unwrap()
+                .adjustments,
+            json!({})
+        );
+        assert_eq!(
+            convert_xmp_to_preset(&baked).unwrap().adjustments["exposure"],
+            1.25
+        );
+    }
+
+    #[test]
+    fn already_applied_photo_settings_are_skipped_but_presets_stay_reusable() {
+        let xml = r#"<rdf:Description crs:AlreadyApplied="True" crs:Exposure2012="1.25"
+          crs:Contrast2012="20" crs:HasCrop="True" crs:CameraProfile="Adobe Color">
+          <crs:ToneCurvePV2012><rdf:Seq><rdf:li>0, 0</rdf:li><rdf:li>255, 220</rdf:li></rdf:Seq></crs:ToneCurvePV2012>
+        </rdf:Description>"#;
+        for extension in ["NEF", "DNG", "jpg", "tiff"] {
+            let path = format!("missing-photo.{extension}");
+            let photo = convert_xmp_sidecar_to_preset_for_image(xml, Path::new(&path)).unwrap();
+            assert_eq!(photo.adjustments, json!({}), "{extension}");
+            assert!(lightroom_settings_not_transferred(xml, &photo).is_empty());
+            for ordinary in [
+                xml.replace("AlreadyApplied=\"True\"", "AlreadyApplied=\"False\""),
+                xml.replace("crs:AlreadyApplied=\"True\"", ""),
+            ] {
+                let photo =
+                    convert_xmp_sidecar_to_preset_for_image(&ordinary, Path::new(&path)).unwrap();
+                assert!(photo.adjustments["exposure"].is_number(), "{extension}");
+                assert!(photo.adjustments["curves"].is_object(), "{extension}");
+            }
+        }
+        let preset = convert_xmp_to_preset(xml).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 1.25);
+        assert!(preset.adjustments["curves"].is_object());
+    }
 
     #[test]
     fn imported_crops_and_masks_follow_image_pixels_in_all_exif_orientations() {
@@ -2856,6 +3070,25 @@ mod tests {
     fn not_transferred(xmp: &str) -> Vec<&'static str> {
         let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
         lightroom_settings_not_transferred(xmp, &preset)
+    }
+
+    #[test]
+    fn broad_import_categories_respect_namespace_subject_and_blank_values() {
+        let xmp = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+            xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:crs="urn:foreign">
+          <r:Description r:about="photo" a:WhiteBalance=" ">
+            <crs:PointColors><r:Seq><r:li>foreign</r:li></r:Seq></crs:PointColors>
+            <a:Look><r:Description a:Amount="0"><a:PointColors><r:Seq><r:li>nested</r:li></r:Seq></a:PointColors>
+              <a:PaintBasedCorrections><r:Seq><r:li>nested</r:li></r:Seq></a:PaintBasedCorrections></r:Description></a:Look>
+          </r:Description><r:Description r:about="other"><a:PointColors><r:Seq><r:li>other</r:li></r:Seq></a:PointColors></r:Description>
+        </r:RDF>"#;
+        assert!(not_transferred(xmp).is_empty());
+        let aliased = r#"<root xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"
+          xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+          <a:PointColors><r:Seq><r:li>unsupported</r:li></r:Seq></a:PointColors>
+          <a:PaintBasedCorrections><r:Seq><r:li>unsupported</r:li></r:Seq></a:PaintBasedCorrections>
+        </root>"#;
+        assert_eq!(not_transferred(aliased), vec!["masks", "pointColor"]);
     }
 
     #[test]

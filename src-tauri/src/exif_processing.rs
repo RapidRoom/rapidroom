@@ -1492,6 +1492,7 @@ fn apply_gps_from_rawler(metadata: &mut Metadata, original_path_str: &str) {
     }
 }
 
+#[cfg(test)]
 pub fn write_image_with_metadata(
     image_bytes: &mut Vec<u8>,
     original_path_str: &str,
@@ -1499,6 +1500,26 @@ pub fn write_image_with_metadata(
     keep_metadata: bool,
     strip_gps: bool,
     tags: Option<&[String]>,
+) -> Result<(), String> {
+    write_image_with_metadata_and_resolution(
+        image_bytes,
+        original_path_str,
+        output_format,
+        keep_metadata,
+        strip_gps,
+        tags,
+        None,
+    )
+}
+
+pub fn write_image_with_metadata_and_resolution(
+    image_bytes: &mut Vec<u8>,
+    original_path_str: &str,
+    output_format: &str,
+    keep_metadata: bool,
+    strip_gps: bool,
+    tags: Option<&[String]>,
+    dpi: Option<u16>,
 ) -> Result<(), String> {
     // FIXME: temporary solution until I find a way to write metadata to TIFF
     if !keep_metadata || output_format.to_lowercase() == "tiff" {
@@ -1527,6 +1548,7 @@ pub fn write_image_with_metadata(
         },
         "tiff" => FileExtension::TIFF,
         "webp" => FileExtension::WEBP,
+        "jxl" => FileExtension::JXL,
         _ => return Ok(()),
     };
 
@@ -1820,10 +1842,31 @@ pub fn write_image_with_metadata(
     metadata.set_tag(ExifTag::Orientation(vec![1u16]));
     metadata.set_tag(ExifTag::ColorSpace(vec![1u16]));
 
-    if let Ok(reader) =
-        image::ImageReader::new(Cursor::new(image_bytes.as_slice())).with_guessed_format()
-        && let Ok((width, height)) = reader.into_dimensions()
+    if matches!(file_type, FileExtension::JPEG | FileExtension::PNG { .. })
+        && let Some(dpi) = dpi
     {
+        let resolution = vec![uR64 {
+            nominator: dpi.into(),
+            denominator: 1,
+        }];
+        metadata.set_tag(ExifTag::XResolution(resolution.clone()));
+        metadata.set_tag(ExifTag::YResolution(resolution));
+        metadata.set_tag(ExifTag::ResolutionUnit(vec![2u16]));
+    }
+
+    let output_dimensions = if output_format.eq_ignore_ascii_case("jxl") {
+        jxl_oxide::JxlImage::builder()
+            .read(Cursor::new(image_bytes.as_slice()))
+            .ok()
+            .map(|jxl| (jxl.width(), jxl.height()))
+    } else {
+        image::ImageReader::new(Cursor::new(image_bytes.as_slice()))
+            .with_guessed_format()
+            .ok()
+            .and_then(|reader| reader.into_dimensions().ok())
+    };
+
+    if let Some((width, height)) = output_dimensions {
         metadata.set_tag(ExifTag::ExifImageWidth(vec![width]));
         metadata.set_tag(ExifTag::ExifImageHeight(vec![height]));
     }
@@ -2223,7 +2266,7 @@ fn find_png_chunk(bytes: &[u8], wanted: &[u8; 4]) -> Option<usize> {
 }
 
 /// CRC32 using the IEEE polynomial, as required by PNG.
-fn crc32_ieee(data: &[u8]) -> u32 {
+pub(crate) fn crc32_ieee(data: &[u8]) -> u32 {
     let mut crc: u32 = 0xFFFFFFFF;
     for &byte in data {
         let index = ((crc ^ byte as u32) & 0xFF) as usize;
@@ -2284,6 +2327,19 @@ mod xmp_keyword_tests {
         haystack.windows(needle.len()).position(|w| w == needle)
     }
 
+    fn render_jxl_pixels(bytes: &[u8]) -> (u32, u32, Vec<f32>) {
+        let image = jxl_oxide::JxlImage::builder()
+            .read(Cursor::new(bytes))
+            .unwrap();
+        let render = image.render_frame(0).unwrap();
+        let mut stream = render.stream();
+        let width = stream.width();
+        let height = stream.height();
+        let mut pixels = vec![0.0; (width * height * stream.channels()) as usize];
+        assert_eq!(stream.write_to_buffer(&mut pixels), pixels.len());
+        (width, height, pixels)
+    }
+
     fn export_with_keywords(format: &str) -> Vec<u8> {
         let dir = tempfile::tempdir().unwrap();
         let source = dir.path().join("source.png");
@@ -2331,6 +2387,105 @@ mod xmp_keyword_tests {
         assert_eq!(jpeg_xmp_insert_pos(&bytes), xmp_pos - 4);
         assert!(find(&bytes, b"<rdf:li>Tom &amp; Jerry</rdf:li>").is_some());
         image::load_from_memory_with_format(&bytes, ImageFormat::Jpeg).unwrap();
+    }
+
+    #[test]
+    fn jxl_export_preserves_source_exif_in_container() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source.jpg");
+        let mut source_bytes = encode("jpg");
+        let mut source_metadata = Metadata::new();
+        source_metadata.set_tag(ExifTag::Make("Sony".to_string()));
+        source_metadata.set_tag(ExifTag::ExifImageWidth(vec![16]));
+        source_metadata.set_tag(ExifTag::ExifImageHeight(vec![8]));
+        source_metadata.set_tag(ExifTag::GPSLatitudeRef("N".to_string()));
+        source_metadata
+            .write_to_vec(&mut source_bytes, FileExtension::JPEG)
+            .unwrap();
+        fs::write(&source, source_bytes).unwrap();
+
+        let jxl_bytes = jxl_encoder::LosslessConfig::new()
+            .encode(&[200, 80, 40], 1, 1, jxl_encoder::PixelLayout::Rgb8)
+            .unwrap();
+        let mut without_metadata = jxl_bytes.clone();
+        write_image_with_metadata(
+            &mut without_metadata,
+            source.to_str().unwrap(),
+            "jxl",
+            false,
+            false,
+            None,
+        )
+        .unwrap();
+        assert_eq!(without_metadata, jxl_bytes);
+
+        let mut output = jxl_bytes.clone();
+        write_image_with_metadata(
+            &mut output,
+            source.to_str().unwrap(),
+            "jxl",
+            true,
+            false,
+            None,
+        )
+        .unwrap();
+
+        let output_metadata = Metadata::new_from_vec(&output, FileExtension::JXL).unwrap();
+        assert!(matches!(
+            output_metadata
+                .get_tag(&ExifTag::Make(String::new()))
+                .next(),
+            Some(ExifTag::Make(make)) if make == "Sony"
+        ));
+        assert!(matches!(
+            output_metadata
+                .get_tag(&ExifTag::ExifImageWidth(Vec::new()))
+                .next(),
+            Some(ExifTag::ExifImageWidth(width)) if width == &vec![1u32]
+        ));
+        assert!(matches!(
+            output_metadata
+                .get_tag(&ExifTag::ExifImageHeight(Vec::new()))
+                .next(),
+            Some(ExifTag::ExifImageHeight(height)) if height == &vec![1u32]
+        ));
+        assert!(
+            output_metadata
+                .get_tag(&ExifTag::GPSLatitudeRef(String::new()))
+                .next()
+                .is_some()
+        );
+
+        let jxlc_type = find(&output, b"jxlc").unwrap();
+        let codestream_start = jxlc_type + b"jxlc".len();
+        assert_eq!(
+            &output[codestream_start..codestream_start + jxl_bytes.len()],
+            jxl_bytes.as_slice()
+        );
+        assert_eq!(render_jxl_pixels(&output), render_jxl_pixels(&jxl_bytes));
+
+        let mut without_gps = jxl_bytes;
+        write_image_with_metadata(
+            &mut without_gps,
+            source.to_str().unwrap(),
+            "jxl",
+            true,
+            true,
+            None,
+        )
+        .unwrap();
+        let stripped_metadata = Metadata::new_from_vec(&without_gps, FileExtension::JXL).unwrap();
+        assert!(
+            stripped_metadata
+                .get_tag(&ExifTag::GPSLatitudeRef(String::new()))
+                .next()
+                .is_none()
+        );
+        let decoded = jxl_oxide::JxlImage::builder()
+            .read(Cursor::new(output.as_slice()))
+            .unwrap();
+        assert_eq!(decoded.num_loaded_keyframes(), 1);
+        decoded.render_frame(0).unwrap();
     }
 
     #[test]

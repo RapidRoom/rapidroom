@@ -5,7 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from mcp_clients import client_command, execute_client, image_state, objects, rpc, run_client_checks
+from mcp_clients import tool_data, client_command, execute_client, image_state, objects, rpc, run_client_checks
 from mcp_history import read_tool
 from mcp_measure import images
 
@@ -123,7 +123,7 @@ def run_revision_checks(case, smoke):
                             ("set_adjustments", {"adjustments": latest["adjustments"]}),
                             ("reset_adjustments", {}), ("undo", {}), ("redo", {}), ("apply_auto_adjustments", {})):
             error = rpc(url, "tools/call", {"name": tool, "arguments": {"imagePath": path, "expectedRevision": before["editRevision"], **extra}}, token=token)
-            details = error.get("structuredContent")
+            details = tool_data(error)
             if not error.get("isError") or not details or details["error"] != "revision_conflict" or details["currentRevision"] != latest["editRevision"] or details["changedKeys"] != ["exposure"] or details["actor"] != "user" or details["changesKnown"] is not True:
                 raise RuntimeError(tool + " lacks strict structured current-revision/change details")
             refused.append(tool)

@@ -19,6 +19,7 @@ import {
   normalizeCropChange,
 } from '../../utils/cropUtils';
 import EditorToolbar from './editor/EditorToolbar';
+import EmbeddedPreviewWarning from './EmbeddedPreviewWarning';
 import ImageCanvas from './editor/ImageCanvas';
 import ReferencePane from './editor/ReferencePane';
 import { Mask, SubMask } from './right/Masks';
@@ -29,6 +30,18 @@ import { useUIStore } from '../../store/useUIStore';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useAiMasking } from '../../hooks/useAiMasking';
 import { useEditorActions } from '../../hooks/useEditorActions';
+import {
+  getDpr,
+  transformFromPercent,
+  zoomReferenceSize,
+  zoomLimits,
+  percentFromTransform,
+  stepZoomIn,
+  stepZoomOut,
+  isDiscreteWheel,
+  isAtMaxZoom,
+} from '../../utils/zoom';
+import { useDevicePixelRatio } from '../../hooks/useDevicePixelRatio';
 import { getReferenceLabel, isReferenceViewActive } from '../../utils/referenceView';
 
 const parseRgb = (rgbStr: string): [number, number, number, number] => {
@@ -111,7 +124,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const isReferenceViewOn = isReferenceViewActive(referenceView);
   const isSliderDragging = useEditorStore((s) => s.isSliderDragging);
   const targetZoom = useEditorStore((s) => s.zoom);
-  const originalSize = useEditorStore((s) => s.originalSize);
+  const zoomRequest = useEditorStore((s) => s.zoomRequest);
+  const dpr = useDevicePixelRatio();
   const isRotationActive = useEditorStore((s) => s.isRotationActive);
   const overlayMode = useEditorStore((s) => s.overlayMode);
   const overlayRotation = useEditorStore((s) => s.overlayRotation);
@@ -128,6 +142,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const hasRenderedFirstFrame = useEditorStore((s) => s.hasRenderedFirstFrame);
 
   const setEditor = useEditorStore((s) => s.setEditor);
+  useEffect(() => () => setEditor({ zoomRequest: null }), [setEditor]);
   const toggleFullScreen = useUIStore((s) => s.toggleFullScreen);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
@@ -289,7 +304,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }, []);
 
   const handleDisplaySizeChange = useCallback(
-    (size: RenderSize) => {
+    (size: RenderSize & { renderScale: number }) => {
       setEditor({ displaySize: { width: size.width, height: size.height } });
       if (size.scale) {
         const baseWidth = size.width / size.scale;
@@ -301,6 +316,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           offsetY: size.offsetY || 0,
           containerWidth: size.containerWidth || 0,
           containerHeight: size.containerHeight || 0,
+          renderScale: size.renderScale,
         };
         setEditor({ baseRenderSize: newSize });
       }
@@ -381,39 +397,18 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     if (!selectedImage?.width || !selectedImage?.height) {
       return null;
     }
-    if (adjustments.crop) {
-      return { width: adjustments.crop.width, height: adjustments.crop.height } as ImageDimensions;
-    }
-    if (selectedImage) {
-      const orientationSteps = adjustments.orientationSteps || 0;
-      const isSwapped = orientationSteps === 1 || orientationSteps === 3;
-      const width = isSwapped ? selectedImage.height : selectedImage.width;
-      const height = isSwapped ? selectedImage.width : selectedImage.height;
-      return { width, height } as ImageDimensions;
-    }
-    return null;
+    return zoomReferenceSize(
+      { width: selectedImage.width, height: selectedImage.height },
+      adjustments.orientationSteps || 0,
+      adjustments.crop,
+    );
   }, [selectedImage, adjustments.crop, adjustments.orientationSteps]);
 
   const imageRenderSize = useImageRenderSize(imageContainerRef, croppedDimensions);
   const imageRenderSizeRef = useRef(imageRenderSize);
   imageRenderSizeRef.current = imageRenderSize;
 
-  const transformConfig = useMemo(() => {
-    if (!selectedImage || !imageRenderSize.scale || !originalSize) {
-      return { minScale: 0.1, maxScale: 20 };
-    }
-
-    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    const scaleFor100Percent = 1 / imageRenderSize.scale;
-
-    const minScale = (0.1 / dpr) * scaleFor100Percent;
-    const maxScale = (2.0 / dpr) * scaleFor100Percent;
-
-    return {
-      minScale: Math.max(0.1, minScale),
-      maxScale: Math.max(20, maxScale),
-    };
-  }, [selectedImage, imageRenderSize.scale, originalSize]);
+  const transformConfig = useMemo(() => zoomLimits(imageRenderSize.scale, dpr), [imageRenderSize.scale, dpr]);
 
   const minScaleRef = useRef(transformConfig.minScale);
   const maxScaleRef = useRef(transformConfig.maxScale);
@@ -473,6 +468,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const applyTransform = useCallback(
     (x: number, y: number, scale: number) => {
+      scale = Math.min(Math.max(Number.isFinite(scale) ? scale : 1, minScaleRef.current), maxScaleRef.current);
       transformStateRef.current = { positionX: x, positionY: y, scale };
       setTransformState({ scale, positionX: x, positionY: y });
 
@@ -503,6 +499,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     },
     [handleZoomed],
   );
+
+  useEffect(() => {
+    const { positionX, positionY, scale } = transformStateRef.current;
+    const bounded = clampToBounds(positionX, positionY, scale);
+    if (bounded.scale !== scale) applyTransform(bounded.x, bounded.y, bounded.scale);
+  }, [transformConfig, clampToBounds, applyTransform]);
 
   const animateTransform = useCallback(
     (targetX: number, targetY: number, targetScale: number, duration: number) => {
@@ -663,6 +665,34 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   );
 
   useEffect(() => {
+    if (!zoomRequest) return;
+    if (zoomRequest.imagePath !== selectedImage?.path) {
+      setEditor({ zoomRequest: null });
+      return;
+    }
+    if (zoomRequest.percent !== null) {
+      if (!selectedImage.isReady || !croppedDimensions || imageRenderSize.width <= 0) return;
+      // The layout hook may still hold the previous photo's fitted geometry.
+      const expectedScale = Math.min(
+        imageRenderSize.containerWidth / croppedDimensions.width,
+        imageRenderSize.containerHeight / croppedDimensions.height,
+      );
+      if (Math.abs(imageRenderSize.scale - expectedScale) > 1e-9) return;
+    }
+    const scale =
+      zoomRequest.percent === null ? 1 : transformFromPercent(zoomRequest.percent, imageRenderSize.scale, dpr);
+    setEditor({
+      zoomRequest: null,
+      zoom: scale,
+      baseRenderSize: {
+        ...imageRenderSize,
+        renderScale: imageRenderSize.scale,
+      },
+    });
+    zoomToCenter(scale, 200);
+  }, [zoomRequest, selectedImage, croppedDimensions, imageRenderSize, dpr, setEditor, zoomToCenter]);
+
+  useEffect(() => {
     if (!transformWrapperRef.current || !targetZoom || targetZoom <= 0) return;
 
     const currentScale = transformStateRef.current.scale || 1;
@@ -728,6 +758,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
     const handleNativeWheel = (e: WheelEvent) => {
       e.preventDefault();
+      setEditor({ zoomRequest: null });
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
       if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
 
@@ -792,7 +823,17 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         const zoomSensitivity = 0.002 * zoomSpeedMult;
         const exponent = delta * zoomSensitivity;
 
-        let newScale = transformStateRef.current.scale * Math.exp(-exponent);
+        const renderScale = imageRenderSizeRef.current.scale;
+        const fit = renderScale * getDpr();
+        const currentPercent = percentFromTransform(renderScale, transformStateRef.current.scale, getDpr());
+        let newScale =
+          !isTrackpad && isDiscreteWheel(e) && fit > 0
+            ? transformFromPercent(
+                delta < 0 ? stepZoomIn(currentPercent, fit) : stepZoomOut(currentPercent, fit),
+                renderScale,
+                getDpr(),
+              )
+            : transformStateRef.current.scale * Math.exp(-exponent);
         newScale = Math.max(minScaleRef.current, Math.min(maxScaleRef.current, newScale));
 
         const ratio = newScale / transformStateRef.current.scale;
@@ -859,10 +900,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     liveRotation,
     getEffectiveCrop,
     setAdjustments,
+    setEditor,
   ]);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      setEditor({ zoomRequest: null });
       wasPanningDisabledOnDown.current = isPanningDisabled;
 
       const isCropHandle = isCropping && e.button === 0 && !!(e.target as HTMLElement).closest('[data-ord]');
@@ -949,7 +992,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
       if (e.pointerType === 'mouse') e.currentTarget.setPointerCapture(e.pointerId);
     },
-    [isPanningDisabled, isBrushActive, isCropping, getEffectiveCrop],
+    [isPanningDisabled, isBrushActive, isCropping, getEffectiveCrop, setEditor],
   );
 
   useEffect(() => {
@@ -1198,9 +1241,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         let zoomTarget = Math.min(currentScale * 2, maxScaleRef.current);
 
         if (appSettings?.zoomPhotoToPixelClick) {
-          const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-          const scaleForCss100 = imageRenderSizeRef.current.scale ? 1 / imageRenderSizeRef.current.scale : 1;
-          const scaleForPhysical100 = scaleForCss100 / dpr;
+          const renderScale = imageRenderSizeRef.current.scale || 1;
+          const scaleForPhysical100 = transformFromPercent(1, renderScale, getDpr());
           zoomTarget = Math.max(1.05, Math.min(scaleForPhysical100, maxScaleRef.current));
         } else {
           zoomTarget = savedZoomState.current ? savedZoomState.current.scale : zoomTarget;
@@ -1280,6 +1322,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           width: imageRenderSize.width * transformState.scale,
           height: imageRenderSize.height * transformState.scale,
           scale: transformState.scale,
+          renderScale: imageRenderSize.scale,
           offsetX: imageRenderSize.offsetX,
           offsetY: imageRenderSize.offsetY,
           containerWidth: imageContainerRef.current?.clientWidth || 0,
@@ -1550,7 +1593,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         lastWgpuTransformRef.current = currentTransform;
         isInvoking = true;
 
-        const isZoomedIn = scale >= maxScaleRef.current - 0.5;
+        const isZoomedIn = isAtMaxZoom(scale, maxScaleRef.current);
 
         invoke(Invokes.UpdateWgpuTransform, {
           payload: {
@@ -2251,7 +2294,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }
 
   const isZoomActionActive = !isPanningDisabled;
-  const isMaxZoom = transformState.scale >= maxScaleRef.current - 0.5;
+  const isMaxZoom = isAtMaxZoom(transformState.scale, maxScaleRef.current);
 
   let cursorStyle = 'default';
   if ((isShiftPressed && !isCropping) || straightenDragLine) {
@@ -2349,6 +2392,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onPointerCancel={handlePointerUp}
           onClick={handleClick}
         >
+          <EmbeddedPreviewWarning
+            isReady={selectedImage?.isReady ?? false}
+            usedEmbeddedPreview={selectedImage?.usedEmbeddedPreview}
+          />
           {showSpinner && (
             <div
               className={clsx(

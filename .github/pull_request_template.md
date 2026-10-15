@@ -6,7 +6,7 @@
 
 - [ ] Original work for RapidRoom
 - [ ] Harvested from another fork: <!-- fork, commit(s), author --> (authorship kept, CREDITS.md updated, author told)
-- [ ] Entry added to `rapidroom/changes.json` (and `node rapidroom/status.mjs` run)
+- [ ] Record added to `rapidroom/changes/<issue>-<slug>.json` (`node rapidroom/status.mjs --check` passes; generated snapshots unchanged)
 - [ ] Also offered upstream: <!-- link -->
 
 ## How it was made

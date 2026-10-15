@@ -16,6 +16,7 @@ fn instagram_recipe(
     ratio_height: f32,
 ) -> ExportPreset {
     ExportPreset {
+        dpi: None,
         id: format!("{RECIPE_ID_PREFIX}{id}"),
         name: name.to_string(),
         file_format: "jpeg".to_string(),
@@ -204,7 +205,11 @@ pub fn preset_to_export_settings(preset: &ExportPreset) -> Result<ExportSettings
         _ => None,
     };
 
+    if preset.dpi == Some(0) {
+        return Err("DPI must be between 1 and 65535".to_string());
+    }
     Ok(ExportSettings {
+        dpi: preset.dpi,
         jpeg_quality: preset.jpeg_quality,
         tiff_bit_depth: preset
             .tiff_bit_depth
@@ -224,6 +229,7 @@ pub fn preset_to_export_settings(preset: &ExportPreset) -> Result<ExportSettings
         destination_type: preset.destination_type.clone(),
         subfolder: preset.subfolder.clone(),
         output_sharpening: preset.output_sharpening,
+        overwrite_existing: false,
     })
 }
 
@@ -388,6 +394,27 @@ mod tests {
             TiffBitDepth::Eight
         );
         preset.resize_mode = "diagonal".to_string();
+        assert!(preset_to_export_settings(&preset).is_err());
+    }
+}
+
+#[cfg(test)]
+mod print_resolution_tests {
+    use super::*;
+
+    #[test]
+    fn stored_preset_resolution_survives_deserialization_and_export_conversion() {
+        let mut preset = crate::app_settings::default_export_presets().remove(0);
+        assert!(preset_to_export_settings(&preset).unwrap().dpi.is_none());
+        preset.dpi = Some(240);
+        let saved = serde_json::to_vec(&preset).unwrap();
+        let restored: ExportPreset = serde_json::from_slice(&saved).unwrap();
+        assert_eq!(preset_to_export_settings(&restored).unwrap().dpi, Some(240));
+        let mut old = serde_json::to_value(&restored).unwrap();
+        old.as_object_mut().unwrap().remove("dpi");
+        let restored: ExportPreset = serde_json::from_value(old).unwrap();
+        assert!(restored.dpi.is_none());
+        preset.dpi = Some(0);
         assert!(preset_to_export_settings(&preset).is_err());
     }
 }

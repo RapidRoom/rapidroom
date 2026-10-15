@@ -1,0 +1,12 @@
+{
+  "id": "inactive-hsl-vibrance-domain",
+  "title": "Inactive HSL preserves linear RGB exactly; saturated colours no longer turn grey under positive vibrance",
+  "category": "fix",
+  "landed": "2026-10-03",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Check all eight effective per-pixel HSL bands before clamping or conversion, including mask contributions. Keep the positive-vibrance fractional power base nonnegative when HSV saturation rounds above one. Active HSL retains the upstream perceptual conversion and existing negative-channel policy; HDR values above one remain supported. Written with Codex. Rendering evidence and GPU regression tests accompany the upstream-main sync."
+}

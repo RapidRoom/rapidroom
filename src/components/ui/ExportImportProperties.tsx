@@ -79,8 +79,11 @@ export function sanitizeFilenameTemplate(template: string | null | undefined): s
   const hasUnknownToken = usedTokens.some((token) => !knownTokens.has(token));
   return hasUnknownToken ? DEFAULT_FILENAME_TEMPLATE : template;
 }
+export const DEFAULT_EXPORT_DPI = 300;
+export const MAX_EXPORT_DPI = 65535;
 
 export interface ExportSettings {
+  overwriteExisting?: boolean;
   filenameTemplate: string | null;
   jpegQuality: number;
   tiffBitDepth: TiffBitDepth;
@@ -109,6 +112,7 @@ export interface ExportSettings {
   destinationType?: string;
   subfolder?: string;
   outputSharpening?: OutputSharpening | null;
+  dpi?: number;
 }
 
 export enum BorderBasis {
@@ -172,6 +176,7 @@ export interface ExportPreset {
   fileFormat: string;
   jpegQuality: number;
   tiffBitDepth?: TiffBitDepth;
+  dpi?: number;
   enableResize: boolean;
   resizeMode: string;
   resizeValue: number;

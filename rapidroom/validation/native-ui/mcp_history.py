@@ -6,14 +6,14 @@ import json
 
 from PIL import Image
 
-from mcp_clients import client_command, execute_client, image_state, objects, rpc, run_client_checks
+from mcp_clients import tool_data, client_command, execute_client, image_state, objects, rpc, run_client_checks
 
 
 def read_tool(url, token, name, arguments):
     value = rpc(url, "tools/call", {"name": name, "arguments": arguments}, token=token)
     if value.get("isError"):
         raise RuntimeError(name + " failed: " + str(value))
-    return value.get("structuredContent") or json.loads(next(item["text"] for item in value["content"] if item["type"] == "text"))
+    return tool_data(value)
 
 
 def run_history_checks(case, smoke):

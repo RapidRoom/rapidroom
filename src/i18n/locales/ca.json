@@ -296,7 +296,6 @@
       "virtualCopy": "Còpia virtual"
     },
     "xmpImportReport": {
-      "brushTableGroup": "Grup de pinzell \"{{name}}\": {{reason}}",
       "calibrationWarning": "Lightroom import is uncalibrated: global adjustments and masks are not ready for real use until full import calibration (#31 and #133) is complete.",
       "available": "Informe d'importació XMP: {{unchanged}} sense canvis, {{failed}} amb error. Feu clic per veure'n els detalls.",
       "copied": "S'ha copiat l'informe d'importació.",
@@ -318,6 +317,53 @@
       },
       "title": "Informe d'importació XMP",
       "unchanged": "No importats — sense canvis compatibles ({{total}})",
+      "settings": {
+        "summary": "Lightroom settings: {{mapped}} mapped, {{approximated}} approximated, {{ignored}} ignored.",
+        "detail": "{{field}} — {{outcome}}: {{reason}}",
+        "omitted": "{{count}} additional settings omitted.",
+        "outcomes": {
+          "mapped": "mapped",
+          "approximated": "approximated",
+          "ignored": "ignored"
+        },
+        "reasons": {
+          "sharpenCompanion": "Lightroom sharpening radius/detail has no matching operator",
+          "noiseCompanion": "Lightroom noise detail/contrast/smoothness has no matching operator",
+          "calibration": "Camera calibration primaries and shadow tint are not supported",
+          "perspective": "Lightroom perspective/Upright transforms are not imported",
+          "defringe": "Lightroom defringe controls are not supported",
+          "manualLens": "Manual Adobe lens corrections are not imported",
+          "vignetteCompanion": "Lightroom vignette style/highlights has no matching operator",
+          "retouch": "Lightroom retouch/spot removal is not imported",
+          "parametricCurve": "Lightroom parametric curves are not imported",
+          "cameraProfile": "Adobe camera profiles are not available in the engine",
+          "aiEnhancement": "AI enhancement is not recreated; enhanced pixels may already contain it",
+          "pointColor": "Lightroom Point Color is not imported",
+          "invalidValue": "Invalid or non-finite setting value",
+          "whiteBalanceBaseline": "White balance was not converted; source baseline or supported mapping is missing",
+          "cropUnavailable": "Crop was not imported; geometry is unavailable or not included in presets",
+          "lensUnavailable": "Lens correction was not enabled or is not included in presets",
+          "notConverted": "No corresponding adjustment was produced by the converter",
+          "sharpnessScale": "Amount is scaled from 0-150 to 0-100; the sharpening operator differs",
+          "sharpenMasking": "Masking is approximated by the native sharpening threshold",
+          "hueScale": "Hue is scaled by 0.75; engine colour response differs",
+          "monochrome": "Monochrome is approximated with desaturation and HSL luminance",
+          "curveInterpolation": "Curve points are transferred; engine interpolation differs",
+          "lensfun": "Lensfun substitutes for the Adobe lens profile when a matching lens is available",
+          "nativeResponse": "Transferred to native controls; Lightroom rendering and units may differ",
+          "asShot": "The source requests as-shot white balance; no native override is imported",
+          "disabled": "The source disables this feature; no native adjustment is applied",
+          "cropGeometry": "Converted to native crop geometry",
+          "unsupported": "No supported mapping for this CRS setting",
+          "superseded": "The newer process-version setting takes precedence",
+          "inactive": "This setting is inactive in the source conversion mode",
+          "alreadyApplied": "The photo marks development settings AlreadyApplied; existing native edits are preserved"
+        }
+      },
+      "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
+      "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved.",
+      "brushTableGroup": "Grup de pinzell \"{{name}}\": {{reason}}",
       "unchangedForImage": "S’han mantingut les edicions existents; no s’ha importat cap ajust compatible."
     },
     "toasts": {
@@ -857,7 +903,8 @@
         "undo": "Desfer (Ctrl+Z) o Historial (Clic dret)"
       },
       "vc": "CV"
-    }
+    },
+    "embeddedPreviewWarning": "Ha fallat el revelatge RAW; es mostra la previsualització incrustada."
   },
   "export": {
     "advanced": {
@@ -900,8 +947,10 @@
       "selectFolderTitle_other": "Seleccioneu la carpeta per exportar {{count}} imatges"
     },
     "file": {
+      "dpi": "PPP",
       "quality": "Qualitat",
       "qualityLossless": "Qualitat (Sense pèrdua)",
+      "resolution": "Resolució",
       "tiffBitDepth": "Profunditat de bits TIFF",
       "tiffBitDepth16": "16 bits",
       "tiffBitDepth8": "8 bits"
@@ -983,6 +1032,11 @@
       "scale": "Escala",
       "spacing": "Espaiat",
       "watermarkImage": "Imatge de la marca d'aigua"
+    },
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "library": {
