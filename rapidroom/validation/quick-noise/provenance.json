@@ -1,0 +1,29 @@
+{
+  "donor": {
+    "repository": "RustRunner/RapidRAW-MKII",
+    "revision": "555f7c6ddd5b6b5d219f87e3552a334968e9ddd9",
+    "license": "AGPL-3.0",
+    "files_sha256": {
+      "src-tauri/src/noise_analysis.rs": "dd6d44ac6385330e109cf6e9e6b920a6fe39dd4fffa0995b2b1fd0f5cbb79337",
+      "src-tauri/src/noise_calibration.rs": "0f5a0e630e65bf1cc71aea1b851ee606c84d43227c56acaec300e642057abea7",
+      "src-tauri/src/gpu_processing/denoise_tests/qualification.rs": "160ee1bb10b66581dff7ecc361772a475b573c2e5d370f3dd9c739701978b7dc",
+      "bench/estimator-clipped-validation.md": "b520ccd34cab229d70f1c31321817ad6bf6f358f8336ab8d1617a84f7a165ca5",
+      "bench/estimator-suggestion-validation.md": "ab9f4d17da2b1fda1710a2ab39a9c8d2946a464587f649faeabbff3c3dce4c23",
+      "bench/denoise-enhancement-implementation.md": "e54b65e2fc823107e6e37ea464f6968b28e4eaf05690fc626bbf6198701ca1e3",
+      "LICENSE": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef"
+    }
+  },
+  "rapidroom": {
+    "base": "271c9ed2b7c83900bad8210c34bfb962cbf227ae",
+    "files_sha256": {
+      "src-tauri/src/shaders/shader.wgsl": "5a0c096821407db12e971e9a6aeb711ba139457677ef92f33d63f84272994abd",
+      "src-tauri/src/gpu_processing.rs": "789e94183e967311367483791fe24ac0f7d09f2ef308d4d74706f103a8452591",
+      "src-tauri/src/image_processing.rs": "7600e857b7d1c467eb880b7b89d1be1e5c03862aa0668a5d983749d437a2a75f",
+      "src/components/adjustments/Details.tsx": "35a682ff425284f1a7d71b380499b446265bf6617cade9d77c92d46d4da92d19",
+      "src/utils/adjustments.ts": "43f1ecfb6f9a631773827ddc323f1e685897a5a83f8de3d331eeec6242748fbe"
+    }
+  },
+  "adapted": "Fixture families, YCbCr conversion and centered residual metric formulas from qualification.rs; no estimator, tables or shader copied.",
+  "donor_tests_executed": false,
+  "production_shader_executed": false
+}

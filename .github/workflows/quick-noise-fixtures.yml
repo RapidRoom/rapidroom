@@ -1,0 +1,29 @@
+name: Quick noise fixture controls
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - rapidroom/validation/quick-noise/**
+      - .github/workflows/quick-noise-fixtures.yml
+  push:
+    branches: [main]
+    paths:
+      - rapidroom/validation/quick-noise/**
+      - .github/workflows/quick-noise-fixtures.yml
+
+permissions:
+  contents: read
+
+jobs:
+  fixture-controls:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check paired reference metrics and destructive controls
+        run: python3 -m unittest discover -s rapidroom/validation/quick-noise -p test_fixtures.py -v
+      - name: Generate all synthetic reference cases
+        run: python3 rapidroom/validation/quick-noise/fixtures.py --out "$RUNNER_TEMP/quick-noise-references.json"
