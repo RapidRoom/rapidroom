@@ -188,3 +188,7 @@ The data-only envelope, bounded UTF-8 text, shared free-text budget and assistan
 ### CRS interoperability cross-check
 
 The field and RDF representation audit compares [LightCraft by storytold](https://github.com/storytold/lightcraft/tree/265248c86fa3267709aea45633d0d135331e180c) (MIT OR Apache-2.0; [MIT notice](rapidroom/LICENSES/lightcraft-MIT.txt)) and [Redlamp by pdcgomes](https://github.com/pdcgomes/redlamp/tree/a70c86dc01ab8ee5d831642520b76ed529f556c0) (MPL-2.0). Supplementary semantics were checked in MIT AutoShade and RAWmakase; exact versions and limitations are in the [audit](rapidroom/validation/crs-interop-20261012/README.md). The namespace-aware photo/curve/look reader extends RapidRoom's existing bounded XML parser; this is original work, with no copied MPL source, Adobe assets, SDK-derived tables or external presets.
+
+## Bounded assistant judge policy
+
+The offline nondecreasing-score and bounded-round policy is adapted from skymanbp’s [autoshade@a1f3507808d1a9d61c44593244a5e6ee2c38cae3](https://github.com/skymanbp/autoshade/tree/a1f3507808d1a9d61c44593244a5e6ee2c38cae3), `src/pipeline.rs` and `src/advisor/judge.rs`, MIT copyright 2026 skymanbp. The notice is retained in `rapidroom/plugin/LICENSES/autoshade-MIT.txt`. Yojen adapted the policy with Codex; the closed move catalogue, generated RapidRoom range projection and local CLI are original integration. No remote model client or external dependency is imported.

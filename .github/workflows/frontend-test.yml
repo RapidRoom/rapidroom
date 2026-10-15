@@ -24,3 +24,8 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Check assistant judge registry and policy
+        run: |
+          node rapidroom/assist/generate-controls.mjs --check
+          node --test rapidroom/assist/judge.test.mjs
