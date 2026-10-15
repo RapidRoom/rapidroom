@@ -725,9 +725,12 @@ export default function CropPanel() {
     Math.abs(adjustments.lensDistortionParams?.k1 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.k2 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.k3 || 0) > 1e-6;
-  const hasTca =
-    Math.abs((adjustments.lensDistortionParams?.tca_vr || 1) - 1) > 1e-5 ||
-    Math.abs((adjustments.lensDistortionParams?.tca_vb || 1) - 1) > 1e-5;
+  const tcaParams = adjustments.lensDistortionParams;
+  const hasTca = tcaParams?.tca_poly3
+    ? tcaParams.tca_vr !== 1 ||
+      tcaParams.tca_vb !== 1 ||
+      Object.entries(tcaParams.tca_poly3).some(([key, value]) => key !== 'radius_scale' && value !== 0)
+    : Math.abs((tcaParams?.tca_vr || 1) - 1) > 1e-5 || Math.abs((tcaParams?.tca_vb || 1) - 1) > 1e-5;
   const hasVignetting =
     Math.abs(adjustments.lensDistortionParams?.vig_k1 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.vig_k2 || 0) > 1e-6 ||

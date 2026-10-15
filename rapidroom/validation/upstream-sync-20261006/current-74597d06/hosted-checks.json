@@ -1,0 +1,92 @@
+{
+  "application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+  "checks": [
+    {
+      "name": "refresh",
+      "head_sha": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "status": "completed",
+      "conclusion": "skipped",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38355977230/job/115158849089",
+      "completed_at": "2026-10-13T06:18:36Z"
+    },
+    {
+      "name": "build (ubuntu-24.04, 03) / build",
+      "head_sha": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38355977433/job/115158848389",
+      "completed_at": "2026-10-13T06:38:56Z"
+    },
+    {
+      "name": "Frontend Lint & Format",
+      "head_sha": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38355977220/job/115158847785",
+      "completed_at": "2026-10-13T06:20:57Z"
+    },
+    {
+      "name": "cargo fmt",
+      "head_sha": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38355977220/job/115158847722",
+      "completed_at": "2026-10-13T06:19:50Z"
+    },
+    {
+      "name": "cargo clippy",
+      "head_sha": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38355977220/job/115158847693",
+      "completed_at": "2026-10-13T06:20:11Z"
+    },
+    {
+      "name": "Headless CLI exit codes",
+      "head_sha": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38355977220/job/115158847638",
+      "completed_at": "2026-10-13T06:23:43Z"
+    },
+    {
+      "name": "regression",
+      "head_sha": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "status": "completed",
+      "conclusion": "failure",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38355977210/job/115158847622",
+      "completed_at": "2026-10-13T07:10:49Z"
+    },
+    {
+      "name": "Vitest",
+      "head_sha": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38355977199/job/115158847577",
+      "completed_at": "2026-10-13T06:19:20Z"
+    },
+    {
+      "name": "check",
+      "head_sha": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38355977230/job/115158847464",
+      "completed_at": "2026-10-13T06:19:06Z"
+    },
+    {
+      "name": "csp",
+      "head_sha": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38355977202/job/115158847206",
+      "completed_at": "2026-10-13T06:19:44Z"
+    }
+  ],
+  "regression": {
+    "repeatability_exact": 18,
+    "reference_neutral_exact": 6,
+    "reference_edited_mismatches": 12,
+    "reference_frozen": true,
+    "human_approval_pending": true
+  }
+}

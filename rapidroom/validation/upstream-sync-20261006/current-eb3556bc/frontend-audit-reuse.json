@@ -1,0 +1,14 @@
+{
+  "measured_source": "d970a21d979cfe18ce0eec5b37a0efa420af2062",
+  "current_application": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+  "method": "Fresh src-only ESLint and whole TypeScript checks were measured at d970. All frontend code, dependency manifests, TypeScript/ESLint/Vite/Vitest configuration git objects are identical to the final head; the sole final delta is generated schema source locations. Schema/reference/Effects19tests pass on the regenerated file.",
+  "identical_objects": {
+    "src": "5ca661a0ee73fff083f16629743db28d951d72f5",
+    "package.json": "cd254f889bf51c044f6d8c23ac0ee0d9bba7c1fe",
+    "package-lock.json": "35129713df8095c7e17d230b4af0456236ac95e2",
+    "eslint.config.js": "dde66887c5c0b84501ea0f12706eb08eba39bbc3",
+    "tsconfig.json": "e1fc65a46487e6570bf101fb8de5e90492afd83b",
+    "vite.config.mjs": "6bf7915fb85c1b95fe8fdeeab9c975042a47648a",
+    "vitest.config.mjs": "341dde0c2379b1d28cd008f342f76bc89d2fffeb"
+  }
+}
