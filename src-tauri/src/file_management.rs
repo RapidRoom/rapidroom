@@ -3367,19 +3367,13 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         metadata.adjustments = pending.clone();
     }
     if has_supported_adjustments {
-        if metadata.adjustments.is_null() {
-            crate::raw_processing::apply_camera_crop_default_from_path(
-                &mut metadata.adjustments,
-                &source_path,
-            );
-            apply_default_raw_lens_policy(
-                &mut metadata,
-                &source_path,
-                &sidecar_path,
-                settings,
-                lens_db,
-            );
-        }
+        apply_fresh_raw_defaults(
+            &mut metadata,
+            &source_path,
+            &sidecar_path,
+            settings,
+            lens_db,
+        );
         let before = metadata.adjustments.clone();
         let imported = converted_preset.adjustments;
         merge_imported_adjustments(&mut metadata.adjustments, imported.clone());
@@ -3700,20 +3694,12 @@ pub async fn apply_adjustments_to_paths(
         paths.par_iter().for_each(|path| {
             let (source_path, sidecar_path) = parse_virtual_path(path);
 
-            let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-            if existing_metadata.adjustments.is_null() {
-                crate::raw_processing::apply_camera_crop_default_from_path(
-                    &mut existing_metadata.adjustments,
-                    &source_path,
-                );
-                apply_default_raw_lens_policy(
-                    &mut existing_metadata,
-                    &source_path,
-                    &sidecar_path,
-                    &settings,
-                    lens_db.as_deref(),
-                );
-            }
+            let mut existing_metadata = load_sidecar_with_raw_defaults(
+                &sidecar_path,
+                &source_path,
+                &settings,
+                lens_db.as_deref(),
+            );
             if existing_metadata.exif.is_none() {
                 existing_metadata.exif =
                     crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path)
@@ -4250,6 +4236,33 @@ pub(crate) fn apply_default_raw_lens_policy(
     resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
 }
 
+pub(crate) fn apply_fresh_raw_defaults(
+    metadata: &mut ImageMetadata,
+    source_path: &Path,
+    sidecar_path: &Path,
+    settings: &AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) {
+    if metadata.adjustments.is_null() {
+        crate::raw_processing::apply_camera_crop_default_from_path(
+            &mut metadata.adjustments,
+            source_path,
+        );
+        apply_default_raw_lens_policy(metadata, source_path, sidecar_path, settings, lens_db);
+    }
+}
+
+pub(crate) fn load_sidecar_with_raw_defaults(
+    sidecar_path: &Path,
+    source_path: &Path,
+    settings: &AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) -> ImageMetadata {
+    let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
+    apply_fresh_raw_defaults(&mut metadata, source_path, sidecar_path, settings, lens_db);
+    metadata
+}
+
 #[tauri::command]
 pub async fn get_default_raw_lens_adjustments(
     path: String,
@@ -4289,27 +4302,14 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
     let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
 
     let (source_path, sidecar_path) = parse_virtual_path(&path);
-    let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-
-    if metadata.adjustments.is_null() {
-        crate::raw_processing::apply_camera_crop_default_from_path(
-            &mut metadata.adjustments,
-            &source_path,
-        );
-        let lens_db = app_handle
-            .state::<AppState>()
-            .lens_db
-            .lock()
-            .unwrap()
-            .clone();
-        apply_default_raw_lens_policy(
-            &mut metadata,
-            &source_path,
-            &sidecar_path,
-            &settings,
-            lens_db.as_deref(),
-        );
-    }
+    let lens_db = app_handle
+        .state::<AppState>()
+        .lens_db
+        .lock()
+        .unwrap()
+        .clone();
+    let mut metadata =
+        load_sidecar_with_raw_defaults(&sidecar_path, &source_path, &settings, lens_db.as_deref());
 
     if enable_xmp_sync
         && sync_metadata_from_xmp(&source_path, &sidecar_path, &mut metadata)
