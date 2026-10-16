@@ -1,0 +1,13 @@
+{
+  "id": "offline-mode-design-evaluation",
+  "title": "Document the proposed Offline policy and validation plan",
+  "category": "privacy",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original design and source evaluation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Design only: inventories app-owned network paths, persisted policy transitions, verified local-model requirements and proxy/process validation. Offline mode is not implemented or certified by this change; no network behavior or model licensing is changed."
+}
