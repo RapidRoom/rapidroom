@@ -266,6 +266,7 @@ export interface UIState {
   isLayoutReady: boolean;
   uiVisibility: UiVisibility;
   isLibraryExportPanelVisible: boolean;
+  instagramExportRequest: number | null;
   isSettingsOpen: boolean;
   lightsOutMode: LightsOutMode;
 
@@ -346,6 +347,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   isLayoutReady: false,
   uiVisibility: { filmstrip: true, leftPanel: true, rightPanel: true, quickFilter: false },
   isLibraryExportPanelVisible: false,
+  instagramExportRequest: null,
   isSettingsOpen: false,
   lightsOutMode: 'off',
 

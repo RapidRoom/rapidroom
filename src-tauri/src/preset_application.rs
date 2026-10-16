@@ -148,6 +148,50 @@ mod tests {
     }
 
     #[test]
+    fn concurrent_framing_preset_and_stale_edit_writers_preserve_both_owned_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let sidecar = dir.path().join("photo.rrdata");
+        let original = json!({"adjustments":{"exposure":2},"unknown":{"keep":true}});
+        std::fs::write(&sidecar, serde_json::to_vec(&original).unwrap()).unwrap();
+        let start = std::sync::Barrier::new(3);
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                start.wait();
+                for _ in 0..12 {
+                    crate::file_management::update_applied_preset(
+                        &sidecar,
+                        serde_json::to_value(record()).unwrap(),
+                    )
+                    .unwrap();
+                }
+            });
+            scope.spawn(|| {
+                start.wait();
+                for revision in 0..12 {
+                    crate::file_management::update_export_framing(&sidecar, |metadata| {
+                        assert_eq!(metadata["unknown"], original["unknown"]);
+                        Ok(json!({"instagram":{"revision":revision}}))
+                    })
+                    .unwrap();
+                }
+            });
+            start.wait();
+            for _ in 0..12 {
+                crate::file_management::write_file_atomically(
+                    &sidecar,
+                    serde_json::to_vec(&original).unwrap(),
+                )
+                .unwrap();
+            }
+        });
+        let saved: Value = serde_json::from_slice(&std::fs::read(&sidecar).unwrap()).unwrap();
+        assert_eq!(read_record(&sidecar).unwrap(), Some(record()));
+        assert_eq!(saved["exportFraming"]["instagram"]["revision"], 11);
+        assert_eq!(saved["adjustments"], original["adjustments"]);
+        assert_eq!(saved["unknown"], original["unknown"]);
+    }
+
+    #[test]
     fn damaged_sidecar_is_not_overwritten_and_bad_record_does_not_poison_photo_edits() {
         let dir = tempfile::tempdir().unwrap();
         let sidecar = dir.path().join("photo.rrdata");

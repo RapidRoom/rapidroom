@@ -45,10 +45,12 @@ mod denoise_quality;
 mod denoising;
 mod effect_maps;
 mod exif_processing;
+mod export_framing;
 mod export_processing;
 mod export_recipes;
 mod file_management;
 mod file_naming;
+mod file_transfer;
 mod focus_stacking;
 mod fog;
 mod formats;
@@ -76,6 +78,12 @@ mod mcp;
 mod mcp_control;
 mod multi_exposure;
 mod negative_conversion;
+#[cfg(all(
+    feature = "native-openvino",
+    target_os = "linux",
+    target_arch = "x86_64"
+))]
+mod openvino_runtime;
 mod output_sharpening;
 mod panorama_stitching;
 mod panorama_utils;
@@ -2268,7 +2276,11 @@ pub fn run() {
                         #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
                         { "libonnxruntime.so" }
                     };
-                    let ort_library_path = resource_path.join(ort_library_name);
+                    #[cfg(all(feature = "native-openvino", target_os = "linux", target_arch = "x86_64"))]
+                    let accelerated = openvino_runtime::configure(&resource_path);
+                    #[cfg(not(all(feature = "native-openvino", target_os = "linux", target_arch = "x86_64")))]
+                    let accelerated: Option<std::path::PathBuf> = None;
+                    let ort_library_path = accelerated.unwrap_or_else(|| resource_path.join(ort_library_name));
                     std::env::set_var("ORT_DYLIB_PATH", &ort_library_path);
                     cli_println!("Set ORT_DYLIB_PATH to: {}", ort_library_path.display());
                 }
@@ -2719,6 +2731,8 @@ pub fn run() {
             file_management::load_metadata,
             preset_application::load_applied_preset,
             preset_application::save_applied_preset,
+            export_framing::get_instagram_framing_preview,
+            export_framing::save_instagram_framing,
             file_management::load_presets,
             file_management::save_presets,
             file_management::get_or_create_internal_library_root,
