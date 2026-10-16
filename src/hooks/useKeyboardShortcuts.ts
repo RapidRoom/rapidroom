@@ -142,6 +142,13 @@ export const useKeyboardShortcuts = ({
       }
     };
 
+    const getPreviewIndex = (s: StoreState) => {
+      const requestedIndex = sortedListRef.current.findIndex((img) => img.path === s.library.libraryActivePath);
+      return requestedIndex >= 0
+        ? requestedIndex
+        : sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage?.path);
+    };
+
     const actions: Record<string, ShortcutAction> = {
       reset_adjustments: {
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
@@ -241,7 +248,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage!.path);
+          const currentIndex = getPreviewIndex(s);
           if (currentIndex === -1) return;
           const nextIndex = currentIndex - 1 < 0 ? sortedListRef.current.length - 1 : currentIndex - 1;
           handleImageSelect(sortedListRef.current[nextIndex].path, true);
@@ -251,7 +258,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage!.path);
+          const currentIndex = getPreviewIndex(s);
           if (currentIndex === -1) return;
           const nextIndex = currentIndex + 1 >= sortedListRef.current.length ? 0 : currentIndex + 1;
           handleImageSelect(sortedListRef.current[nextIndex].path, true);
