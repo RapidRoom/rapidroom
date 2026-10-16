@@ -1565,6 +1565,13 @@
       "title": "Importeinstellungen"
     },
     "lensCorrection": {
+      "sourceApplied": "Angewendet: {{source}}",
+      "sourceAvailable": "Verfügbar: {{source}}",
+      "sourceCameraData": "Kameradaten",
+      "sourceExistingRecipe": "gespeicherte Bearbeitung",
+      "sourceNoData": "Keine Korrekturdaten",
+      "sourceUnavailable": "Korrekturquellen nicht verfügbar",
+      "sourceChecking": "Korrekturquellen werden geprüft…",
       "amount": "Betrag",
       "apply": "Anwenden",
       "autoDetectLens": "Objektiv autom. erkennen",

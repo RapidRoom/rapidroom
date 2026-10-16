@@ -1909,10 +1909,29 @@ pub(crate) async fn export_images_impl(
                     ExportAdjustmentsMode::GlobalOverride(_) => false,
                 };
 
-                let sidecar = crate::exif_processing::load_sidecar_with_camera_crop(
-                    &sidecar_path,
-                    &source_path,
-                );
+                let mut sidecar = crate::exif_processing::load_sidecar(&sidecar_path);
+                if sidecar.adjustments.is_null() {
+                    crate::raw_processing::apply_camera_crop_default_from_path(
+                        &mut sidecar.adjustments,
+                        &source_path,
+                    );
+                    let uses_fresh_sidecar = match &adjustments_mode {
+                        ExportAdjustmentsMode::UseSidecars {
+                            active_adjustments, ..
+                        } => !is_current_edit || active_adjustments.is_none(),
+                        ExportAdjustmentsMode::GlobalOverride(_) => false,
+                    };
+                    if uses_fresh_sidecar {
+                        let lens_db = state.lens_db.lock().unwrap().clone();
+                        crate::file_management::apply_default_raw_lens_policy(
+                            &mut sidecar,
+                            &source_path,
+                            &sidecar_path,
+                            &settings,
+                            lens_db.as_deref(),
+                        );
+                    }
+                }
                 let export_xmp = crate::exif_processing::ExportXmp::from_metadata(&sidecar);
                 let framing = export_settings.instagram.as_ref().and_then(|instagram| {
                     instagram

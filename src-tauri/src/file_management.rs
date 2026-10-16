@@ -3360,7 +3360,10 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         metadata.adjustments = pending.clone();
     }
     if has_supported_adjustments {
-        merge_imported_adjustments(&mut metadata.adjustments, converted_preset.adjustments);
+        let before = metadata.adjustments.clone();
+        let imported = converted_preset.adjustments;
+        merge_imported_adjustments(&mut metadata.adjustments, imported.clone());
+        normalize_lens_policy_version(&before, &imported, &mut metadata.adjustments, 100.0);
         resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
     }
     let draft_preserved = !has_supported_adjustments && pending_adjustments.is_some();
@@ -3680,6 +3683,7 @@ pub async fn apply_adjustments_to_paths(
             if new_adjustments.is_null() {
                 new_adjustments = default_adjustments();
             }
+            let before = new_adjustments.clone();
 
             if let (Some(new_map), Some(pasted_map)) =
                 (new_adjustments.as_object_mut(), adjustments.as_object())
@@ -3696,6 +3700,7 @@ pub async fn apply_adjustments_to_paths(
                 }
             }
 
+            normalize_lens_policy_version(&before, &adjustments, &mut new_adjustments, 100.0);
             resolve_lens_params_in_adjustments(
                 &mut new_adjustments,
                 &existing_metadata.exif,
@@ -3853,6 +3858,10 @@ pub async fn apply_auto_lens_correction_to_paths(
 
             if let Some(obj) = existing_metadata.adjustments.as_object_mut() {
                 obj.insert("lensCorrectionMode".to_string(), serde_json::json!("auto"));
+                obj.insert(
+                    "cameraLensCorrectionVersion".to_string(),
+                    serde_json::json!(1),
+                );
                 obj.insert("lensDistortionEnabled".to_string(), serde_json::json!(true));
                 obj.insert("lensTcaEnabled".to_string(), serde_json::json!(true));
                 obj.insert("lensVignetteEnabled".to_string(), serde_json::json!(true));
@@ -4141,7 +4150,30 @@ pub fn set_flag_for_paths(
     })
 }
 
-fn apply_default_raw_lens_policy(
+pub(crate) fn normalize_lens_policy_version(
+    target: &Value,
+    source: &Value,
+    merged: &mut Value,
+    amount: f64,
+) {
+    let Some(map) = merged.as_object_mut() else {
+        return;
+    };
+    let replacing = source
+        .as_object()
+        .is_some_and(|source| source.contains_key("lensCorrectionMode"))
+        && amount >= 100.0;
+    let version = if replacing { source } else { target }.get("cameraLensCorrectionVersion");
+    if version.and_then(Value::as_u64) == Some(1) {
+        map.insert("cameraLensCorrectionVersion".into(), serde_json::json!(1));
+    } else if target.get("cameraLensCorrectionVersion").is_some() {
+        map.insert("cameraLensCorrectionVersion".into(), serde_json::json!(0));
+    } else {
+        map.remove("cameraLensCorrectionVersion");
+    }
+}
+
+pub(crate) fn apply_default_raw_lens_policy(
     metadata: &mut ImageMetadata,
     source_path: &Path,
     sidecar_path: &Path,
@@ -4161,6 +4193,7 @@ fn apply_default_raw_lens_policy(
         metadata.adjustments = serde_json::json!({});
     }
     metadata.adjustments["lensCorrectionMode"] = serde_json::json!("auto");
+    metadata.adjustments["cameraLensCorrectionVersion"] = serde_json::json!(1);
     resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
 }
 
@@ -4204,13 +4237,6 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
-    if enable_xmp_sync
-        && sync_metadata_from_xmp(&source_path, &sidecar_path, &mut metadata)
-        && let Ok(json) = serde_json::to_string_pretty(&metadata)
-    {
-        let _ = write_file_atomically(&sidecar_path, json);
-    }
-
     if metadata.adjustments.is_null() {
         crate::raw_processing::apply_camera_crop_default_from_path(
             &mut metadata.adjustments,
@@ -4229,6 +4255,13 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
             &settings,
             lens_db.as_deref(),
         );
+    }
+
+    if enable_xmp_sync
+        && sync_metadata_from_xmp(&source_path, &sidecar_path, &mut metadata)
+        && let Ok(json) = serde_json::to_string_pretty(&metadata)
+    {
+        let _ = write_file_atomically(&sidecar_path, json);
     }
 
     Ok(metadata)
@@ -8145,5 +8178,59 @@ mod export_framing_sidecar_transactions {
         fs::write(&sidecar, b"{ broken sidecar").unwrap();
         assert!(update_export_framing(&sidecar, |_| Ok(json!({"instagram":null}))).is_err());
         assert_eq!(fs::read(sidecar).unwrap(), b"{ broken sidecar");
+    }
+}
+
+#[cfg(test)]
+mod lens_policy_version_tests {
+    use super::normalize_lens_policy_version;
+    use serde_json::Value;
+
+    #[test]
+    fn batch_merge_matches_the_shared_legacy_camera_policy_contract() {
+        let contract: Value = serde_json::from_str(include_str!(
+            "../../rapidroom/validation/lens-policy-version-cases.json"
+        ))
+        .unwrap();
+        for case in contract["cases"].as_array().unwrap() {
+            let mut merged = case["target"].clone();
+            merged
+                .as_object_mut()
+                .unwrap()
+                .extend(case["source"].as_object().unwrap().clone());
+            let mut ordinary = merged.clone();
+            ordinary
+                .as_object_mut()
+                .unwrap()
+                .remove("cameraLensCorrectionVersion");
+            normalize_lens_policy_version(
+                &case["target"],
+                &case["source"],
+                &mut merged,
+                case["amount"].as_f64().unwrap(),
+            );
+            if case["expected_version"].is_null() {
+                assert!(
+                    merged.get("cameraLensCorrectionVersion").is_none(),
+                    "{}",
+                    case["name"]
+                );
+            } else {
+                assert_eq!(
+                    merged["cameraLensCorrectionVersion"], case["expected_version"],
+                    "{}",
+                    case["name"]
+                );
+            }
+            merged
+                .as_object_mut()
+                .unwrap()
+                .remove("cameraLensCorrectionVersion");
+            assert_eq!(
+                merged, ordinary,
+                "Version normalization changed numeric/control payload: {}",
+                case["name"]
+            );
+        }
     }
 }

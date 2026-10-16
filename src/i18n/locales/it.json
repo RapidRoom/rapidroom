@@ -1599,6 +1599,13 @@
       "title": "Impostazioni di Importazione"
     },
     "lensCorrection": {
+      "sourceApplied": "Applicato: {{source}}",
+      "sourceAvailable": "Disponibile: {{source}}",
+      "sourceCameraData": "Dati della fotocamera",
+      "sourceExistingRecipe": "modifiche salvate",
+      "sourceNoData": "Nessun dato di correzione",
+      "sourceUnavailable": "Sorgenti di correzione non disponibili",
+      "sourceChecking": "Verifica delle sorgenti di correzione…",
       "amount": "Quantità",
       "apply": "Applica",
       "autoDetectLens": "Rilevamento Automatico Obiettivo",

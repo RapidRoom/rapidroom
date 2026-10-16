@@ -90,6 +90,7 @@ export enum Invokes {
   LoadImage = 'load_image',
   LoadMetadata = 'load_metadata',
   GetDefaultRawLensAdjustments = 'get_default_raw_lens_adjustments',
+  GetLensCorrectionResolution = 'get_lens_correction_resolution',
   LoadPresets = 'load_presets',
   LoadSettings = 'load_settings',
   PreviewRenameFiles = 'preview_rename_files',

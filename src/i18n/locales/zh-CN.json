@@ -1561,6 +1561,13 @@
       "title": "导入设置"
     },
     "lensCorrection": {
+      "sourceApplied": "已应用：{{source}}",
+      "sourceAvailable": "可用：{{source}}",
+      "sourceCameraData": "相机数据",
+      "sourceExistingRecipe": "已保存的编辑设置",
+      "sourceNoData": "无校正数据",
+      "sourceUnavailable": "无法获取校正来源",
+      "sourceChecking": "正在检查校正来源…",
       "amount": "数量",
       "apply": "应用",
       "autoDetectLens": "自动检测镜头",

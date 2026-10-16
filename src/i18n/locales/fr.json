@@ -1596,6 +1596,13 @@
       "title": "Paramètres d'importation"
     },
     "lensCorrection": {
+      "sourceApplied": "Appliqué : {{source}}",
+      "sourceAvailable": "Disponible : {{source}}",
+      "sourceCameraData": "Données de l’appareil",
+      "sourceExistingRecipe": "réglages enregistrés",
+      "sourceNoData": "Aucune donnée de correction",
+      "sourceUnavailable": "Sources de correction indisponibles",
+      "sourceChecking": "Vérification des sources de correction…",
       "amount": "Quantité",
       "apply": "Appliquer",
       "autoDetectLens": "Détection automatique de l'objectif",

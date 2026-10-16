@@ -1629,6 +1629,13 @@
       "title": "Параметры импорта"
     },
     "lensCorrection": {
+      "sourceApplied": "Применено: {{source}}",
+      "sourceAvailable": "Доступно: {{source}}",
+      "sourceCameraData": "Данные камеры",
+      "sourceExistingRecipe": "сохранённые настройки",
+      "sourceNoData": "Нет данных коррекции",
+      "sourceUnavailable": "Источники коррекции недоступны",
+      "sourceChecking": "Проверка источников коррекции…",
       "amount": "Интенсивность",
       "apply": "Применить",
       "autoDetectLens": "Автоопределение объектива",

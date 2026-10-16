@@ -1569,6 +1569,13 @@
       "title": "Configuració d'importació"
     },
     "lensCorrection": {
+      "sourceApplied": "Aplicat: {{source}}",
+      "sourceAvailable": "Disponible: {{source}}",
+      "sourceCameraData": "Dades de la càmera",
+      "sourceExistingRecipe": "edició desada",
+      "sourceNoData": "Sense dades de correcció",
+      "sourceUnavailable": "Fonts de correcció no disponibles",
+      "sourceChecking": "Comprovant les fonts de correcció…",
       "amount": "Quantitat",
       "apply": "Aplicar",
       "autoDetectLens": "Autodetectar objectiu",

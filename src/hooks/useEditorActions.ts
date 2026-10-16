@@ -1,4 +1,5 @@
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
+import { copyLensPolicyVersion, normalizeLensPolicyVersion } from '../utils/lensPolicyVersion';
 import { getDpr, transformFromPercent } from '../utils/zoom';
 import { useCallback, type SyntheticEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -431,7 +432,9 @@ export function useEditorActions() {
         adjustmentsToCopy[key] = structuredClone(sourceAdjustments[key]);
       }
     }
-    useEditorStore.getState().setEditor({ copiedAdjustments: adjustmentsToCopy });
+    useEditorStore
+      .getState()
+      .setEditor({ copiedAdjustments: copyLensPolicyVersion(sourceAdjustments, adjustmentsToCopy) });
     useProcessStore.getState().setProcess({ isCopied: true });
   }, []);
 
@@ -446,7 +449,7 @@ export function useEditorActions() {
 
       const mode = appSettings.copyPasteSettings?.mode ?? PasteMode.Merge;
       const includedAdjustments = appSettings.copyPasteSettings?.includedAdjustments ?? COPYABLE_ADJUSTMENT_KEYS;
-      const adjustmentsToApply: Partial<Adjustments> = {};
+      let adjustmentsToApply: Partial<Adjustments> = {};
 
       for (const key of includedAdjustments) {
         if (Object.prototype.hasOwnProperty.call(copiedAdjustments, key)) {
@@ -460,6 +463,8 @@ export function useEditorActions() {
           }
         }
       }
+
+      adjustmentsToApply = copyLensPolicyVersion(copiedAdjustments, adjustmentsToApply);
 
       if (includedAdjustments.includes(LensAdjustment.LensMaker)) {
         if (!adjustmentsToApply.lensMaker) {
@@ -479,7 +484,13 @@ export function useEditorActions() {
       pathsToUpdate.forEach((p) => globalImageCache.delete(p));
 
       if (selectedImage && pathsToUpdate.includes(selectedImage.path)) {
-        setAdjustments({ ...adjustments, ...adjustmentsToApply });
+        setAdjustments(
+          normalizeLensPolicyVersion(
+            { ...adjustments, ...adjustmentsToApply },
+            adjustmentsToApply,
+            adjustments,
+          ) as Adjustments,
+        );
       }
 
       invoke(Invokes.ApplyAdjustmentsToPaths, { paths: pathsToUpdate, adjustments: adjustmentsToApply })

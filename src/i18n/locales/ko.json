@@ -1561,6 +1561,13 @@
       "title": "가져오기 설정"
     },
     "lensCorrection": {
+      "sourceApplied": "적용됨: {{source}}",
+      "sourceAvailable": "사용 가능: {{source}}",
+      "sourceCameraData": "카메라 데이터",
+      "sourceExistingRecipe": "저장된 편집 설정",
+      "sourceNoData": "보정 데이터 없음",
+      "sourceUnavailable": "보정 소스를 가져올 수 없음",
+      "sourceChecking": "보정 소스 확인 중…",
       "amount": "양",
       "apply": "적용",
       "autoDetectLens": "렌즈 자동 감지",

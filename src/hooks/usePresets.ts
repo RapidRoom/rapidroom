@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import debounce from 'lodash.debounce';
 import { Adjustments, COPYABLE_ADJUSTMENT_KEYS, ADJUSTMENT_GROUPS, INITIAL_ADJUSTMENTS } from '../utils/adjustments';
 import { Folder, Invokes, Preset } from '../components/ui/AppProperties';
+import { copyLensPolicyVersion } from '../utils/lensPolicyVersion';
 
 export enum PresetListType {
   Folder = 'folder',
@@ -100,7 +101,7 @@ export function usePresets(currentAdjustments: Adjustments) {
     }
 
     const newPresetData: Preset = {
-      adjustments: presetAdjustments,
+      adjustments: copyLensPolicyVersion(currentAdjustments, presetAdjustments),
       id: crypto.randomUUID(),
       name,
       includeMasks,
@@ -259,6 +260,8 @@ export function usePresets(currentAdjustments: Adjustments) {
     if (!includeCropTransform) {
       for (const k of GEOMETRY_KEYS) delete newAdjustments[k];
     }
+    if (!Object.prototype.hasOwnProperty.call(newAdjustments, 'lensCorrectionMode'))
+      delete newAdjustments.cameraLensCorrectionVersion;
 
     let updatedPreset: Preset | null = null;
     const updatedPresets = presets.map((item: UserPreset) => {
@@ -359,7 +362,7 @@ export function usePresets(currentAdjustments: Adjustments) {
       if (item.preset?.id === id) {
         updatedPreset = {
           ...item.preset,
-          adjustments: presetAdjustments,
+          adjustments: copyLensPolicyVersion(currentAdjustments, presetAdjustments),
           includeMasks,
           includeCropTransform,
           presetType,
@@ -373,7 +376,7 @@ export function usePresets(currentAdjustments: Adjustments) {
             found = true;
             updatedPreset = {
               ...child,
-              adjustments: presetAdjustments,
+              adjustments: copyLensPolicyVersion(currentAdjustments, presetAdjustments),
               includeMasks,
               includeCropTransform,
               presetType,

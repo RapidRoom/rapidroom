@@ -162,7 +162,7 @@ export const useKeyboardShortcuts = ({
             const current = useEditorStore.getState();
             if (current.selectedImage?.path !== image?.path || current.adjustments !== before) return;
             debouncedSetHistory.flush();
-            setAdjustments(reset);
+            setAdjustments(() => reset);
             debouncedSetHistory.flush();
           } catch (error) {
             toast.error(`Failed to reset adjustments: ${error}`);

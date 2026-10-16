@@ -1561,6 +1561,13 @@
       "title": "匯入設定"
     },
     "lensCorrection": {
+      "sourceApplied": "已套用：{{source}}",
+      "sourceAvailable": "可用：{{source}}",
+      "sourceCameraData": "相機資料",
+      "sourceExistingRecipe": "已儲存的編輯設定",
+      "sourceNoData": "無校正資料",
+      "sourceUnavailable": "無法取得校正來源",
+      "sourceChecking": "正在檢查校正來源…",
       "amount": "數量",
       "apply": "應用",
       "autoDetectLens": "自動檢測鏡頭",

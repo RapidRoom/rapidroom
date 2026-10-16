@@ -1427,6 +1427,13 @@
       "title": "Nastavení importu"
     },
     "lensCorrection": {
+      "sourceApplied": "Použito: {{source}}",
+      "sourceAvailable": "K dispozici: {{source}}",
+      "sourceCameraData": "Data fotoaparátu",
+      "sourceExistingRecipe": "uložené úpravy",
+      "sourceNoData": "Žádná data korekce",
+      "sourceUnavailable": "Zdroje korekce nejsou dostupné",
+      "sourceChecking": "Kontrola zdrojů korekce…",
       "amount": "Míra",
       "apply": "Použít",
       "autoDetectLens": "Automatická detekce objektivu",

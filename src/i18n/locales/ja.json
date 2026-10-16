@@ -1561,6 +1561,13 @@
       "title": "インポート設定"
     },
     "lensCorrection": {
+      "sourceApplied": "適用中: {{source}}",
+      "sourceAvailable": "利用可能: {{source}}",
+      "sourceCameraData": "カメラのデータ",
+      "sourceExistingRecipe": "保存済みの編集設定",
+      "sourceNoData": "補正データなし",
+      "sourceUnavailable": "補正元を取得できません",
+      "sourceChecking": "補正元を確認中…",
       "amount": "適用量",
       "apply": "適用",
       "autoDetectLens": "レンズを自動検出",

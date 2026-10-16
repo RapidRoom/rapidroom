@@ -1629,6 +1629,13 @@
       "title": "Ustawienia importu"
     },
     "lensCorrection": {
+      "sourceApplied": "Zastosowano: {{source}}",
+      "sourceAvailable": "Dostępne: {{source}}",
+      "sourceCameraData": "Dane aparatu",
+      "sourceExistingRecipe": "zapisane ustawienia",
+      "sourceNoData": "Brak danych korekcji",
+      "sourceUnavailable": "Źródła korekcji są niedostępne",
+      "sourceChecking": "Sprawdzanie źródeł korekcji…",
       "amount": "Ilość",
       "apply": "Zastosuj",
       "autoDetectLens": "Automatyczne wykrywanie obiektywu",

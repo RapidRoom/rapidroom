@@ -9,5 +9,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": true,
-  "notes": "A default-on Settings preference resolves available local lens profiles for fresh and reset RAWs. Existing saved recipes and shared preset/copy defaults remain unchanged. Missing profiles remain uncorrected; Sony camera-data application is delivered separately."
+  "notes": "A default-on Settings preference resolves Auto lens correction for fresh/reset RAWs and unopened sidecar-based exports. Saved recipes preserve legacy behavior; a discrete camera-fallback version travels with explicit lens-policy copies and presets without changing numeric Amount interpolation or tone-only policies. Auto source labels use renderer-reported component provenance. Validated Sony camera-data rendering and the source-status command are delivered by the lens resolver dependency."
 }

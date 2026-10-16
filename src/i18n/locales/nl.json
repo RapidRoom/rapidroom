@@ -1488,6 +1488,13 @@
       "title": "Importinstellingen"
     },
     "lensCorrection": {
+      "sourceApplied": "Toegepast: {{source}}",
+      "sourceAvailable": "Beschikbaar: {{source}}",
+      "sourceCameraData": "Cameragegevens",
+      "sourceExistingRecipe": "opgeslagen bewerking",
+      "sourceNoData": "Geen correctiegegevens",
+      "sourceUnavailable": "Correctiebronnen niet beschikbaar",
+      "sourceChecking": "Correctiebronnen controleren…",
       "amount": "Hoeveelheid",
       "apply": "Toepassen",
       "autoDetectLens": "Lens automatisch detecteren",

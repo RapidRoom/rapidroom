@@ -1646,6 +1646,13 @@
       "title": "Import Settings"
     },
     "lensCorrection": {
+      "sourceApplied": "Applied: {{source}}",
+      "sourceAvailable": "Available: {{source}}",
+      "sourceCameraData": "Camera data",
+      "sourceExistingRecipe": "existing recipe",
+      "sourceNoData": "No correction data",
+      "sourceUnavailable": "Correction sources unavailable",
+      "sourceChecking": "Checking correction sources…",
       "amount": "Amount",
       "apply": "Apply",
       "autoDetectLens": "Auto-detect Lens",
