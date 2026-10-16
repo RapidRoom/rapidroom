@@ -1,0 +1,13 @@
+{
+  "id": "print-icc-export-soft-proof-phase1",
+  "title": "Add opt-in ICC export conversion and printer-profile soft proof",
+  "category": "feature",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex; MIT LittleCMS and lcms2)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Both options default off. Convert final sRGB output to a chosen local RGB profile for JPEG/PNG/TIFF and embed the same profile. Linux editor soft proof uses RGB/CMYK printer profiles as a session-only view. Relative/perceptual intent and BPC; no paper-white/gamut overlay, monitor management, wide-gamut output, CMYK export or print-quality guarantee."
+}

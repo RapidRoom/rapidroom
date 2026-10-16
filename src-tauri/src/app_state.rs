@@ -150,7 +150,8 @@ pub struct PreviewJob {
     pub request_analytics: bool,
     pub compute_waveform: bool,
     pub active_waveform_channel: Option<String>,
-    pub responder: tokio::sync::oneshot::Sender<Vec<u8>>,
+    pub soft_proof: Option<crate::print_proof::PrintProfileOptions>,
+    pub responder: tokio::sync::oneshot::Sender<Result<Vec<u8>, String>>,
 }
 
 pub struct AnalyticsJob {

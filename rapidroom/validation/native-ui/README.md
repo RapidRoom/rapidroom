@@ -390,3 +390,9 @@ and supplies the owned JPEG for at most one exact stock-image fallback request.
 The request and its real temp-file IPC are counted and bounded; no external
 image is downloaded. Search/navigation and the final frontend/native error
 checks remain real and unfiltered.
+
+## Optional print phase 1 checks
+
+Pass `--print-proof-profile /path/printer-paper.icc --print-export-profile /path/output-rgb.icc` to `smoke.py`. Both files are copied into the owned case and hashed before the app runs. The first must be an RGB/CMYK printer/paper output profile with a visibly different proof; the second must be an eligible RGB export profile.
+
+The scenario uses public path-entry controls instead of automating the native file-picker dialog. It requires default-off controls, a visible invalid-profile error, explicit proof enable, changed compositor photo pixels, exact off restoration, unchanged sidecar and Undo state, then an actual GUI JPEG export with metadata off and exact selected ICC bytes. No mocked Tauri call or React store access is used. File-picker dialogs, physical prints, monitor calibration and other platforms remain untested.

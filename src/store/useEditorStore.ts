@@ -1,3 +1,4 @@
+import type { PrintProfileOptions } from '../utils/printProfile';
 import type { HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import { Adjustments, INITIAL_ADJUSTMENTS, MaskContainer, AiPatch } from '../utils/adjustments';
@@ -40,6 +41,9 @@ interface EditorState {
   history: Adjustments[];
   historyDetails: Array<HistoryDetails | null>;
   historyIndex: number;
+
+  softProof: PrintProfileOptions | null;
+  softProofError: string | null;
 
   // Previews & Overlays
   finalPreviewUrl: string | null;
@@ -114,6 +118,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   historyDetails: [null],
   historyIndex: 0,
 
+  softProof: null,
+  softProofError: null,
   finalPreviewUrl: null,
   uncroppedAdjustedPreviewUrl: null,
   previewRenderVersion: 0,

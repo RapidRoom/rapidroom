@@ -1,3 +1,5 @@
+import PrintProfileControl from '../../ui/PrintProfileControl';
+import type { PrintProfileOptions } from '../../../utils/printProfile';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { save, open, confirm } from '@tauri-apps/plugin-dialog';
@@ -286,6 +288,8 @@ export default function ExportPanel({
     [t],
   );
 
+  const [printProfile, setPrintProfile] = useState<PrintProfileOptions | null>(null);
+  const [profileSelectionGeneration, setProfileSelectionGeneration] = useState(0);
   const {
     fileFormat,
     setFileFormat,
@@ -367,6 +371,8 @@ export default function ExportPanel({
   const appliedInstagramRequest = useRef<number | null>(null);
   const rememberRecipe = useCallback(
     (preset: ExportPreset) => {
+      setPrintProfile(null);
+      setProfileSelectionGeneration((value) => value + 1);
       useUIStore.getState().setUI({ instagramExportRequest: null });
       handleApplyPreset(preset);
       if (!appSettings) return;
@@ -594,6 +600,7 @@ export default function ExportPanel({
     if (!isPanelReallyActive) return;
 
     const exportSettings: ExportSettings = {
+      printProfile,
       instagram: instagramRatio ? { ratio: instagramRatio, framesByPath: instagramFrames } : null,
       filenameTemplate,
       jpegQuality,
@@ -664,6 +671,7 @@ export default function ExportPanel({
     borderVerticalField.text,
     borderColor,
     keepMetadata,
+    printProfile,
     preserveTimestamps,
     stripGps,
     filenameTemplate,
@@ -705,6 +713,7 @@ export default function ExportPanel({
       return;
 
     const exportSettings: ExportSettings = {
+      printProfile,
       instagram: instagramRatio ? { ratio: instagramRatio, framesByPath: instagramFrames } : null,
       filenameTemplate,
       overwriteExisting:
@@ -897,6 +906,15 @@ export default function ExportPanel({
                 </button>
               </Section>
             )}
+
+            <Section title={t('printProof.exportTitle')}>
+              <PrintProfileControl
+                value={printProfile}
+                onChange={setPrintProfile}
+                disabled={isExporting}
+                selectionGeneration={profileSelectionGeneration}
+              />
+            </Section>
 
             <fieldset disabled={!!instagramRatio} className={instagramRatio ? 'opacity-50 pointer-events-none' : ''}>
               <Section title={t('export.sections.fileSettings')}>

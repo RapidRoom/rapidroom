@@ -220,3 +220,7 @@ The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/hi
   [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba)
   (MIT), adapted by Yojen with Codex/kano. The complete notice remains in
   `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.
+
+## Print colour management
+
+Phase 1 print transforms use [lcms2 6.2.0](https://crates.io/crates/lcms2), the Rust wrapper by Kornel Lesiński, with [LittleCMS](https://www.littlecms.com/) by Marti Maria Saguer, statically bundled through lcms2-sys 4.0.7. Both are MIT licensed; notices are retained in [lcms2-MIT](rapidroom/LICENSES/lcms2-6.2.0-MIT.txt) and [LittleCMS-MIT](rapidroom/LICENSES/LittleCMS-MIT.txt). No profile supplier’s calibration data is implied by the library licence.
