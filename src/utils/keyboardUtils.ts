@@ -21,6 +21,12 @@ export const KEYBIND_SECTIONS: KeybindSection[] = [
 
 export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
   {
+    action: 'toggle_denoise_mark',
+    description: 'settings.keybinds.actions.toggle_denoise_mark',
+    defaultCombo: ['KeyQ'],
+    section: 'rating',
+  },
+  {
     action: 'open_image',
     description: 'settings.keybinds.actions.open_image',
     defaultCombo: ['Enter'],

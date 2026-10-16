@@ -403,6 +403,7 @@ export interface FilterCriteria {
   rawStatus: RawStatus;
   editedStatus?: EditedStatus;
   flagStatus?: FlagStatus;
+  denoiseStatus?: 'all' | 'marked' | 'done';
 }
 
 export interface Folder {

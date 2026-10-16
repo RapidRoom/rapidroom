@@ -40,6 +40,7 @@ interface LibraryState {
 
   // Images & Selection
   imageList: Array<ImageFile>;
+  denoiseStatuses: Record<string, { marked: boolean; denoised: boolean }>;
   imageRatings: Record<string, number>;
   multiSelectedPaths: Array<string>;
   selectionAnchorPath: string | null;
@@ -83,6 +84,7 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   expandedAlbumGroups: new Set<string>(),
 
   imageList: [],
+  denoiseStatuses: {},
   imageRatings: {},
   multiSelectedPaths: [],
   selectionAnchorPath: null,
