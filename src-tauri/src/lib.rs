@@ -40,6 +40,7 @@ mod bench;
 mod cache_utils;
 mod camera_tethering;
 mod culling;
+mod culling_preview;
 mod dcp;
 mod denoise_quality;
 mod denoising;
@@ -1567,6 +1568,38 @@ async fn generate_preview_for_path(
     ))
 }
 
+#[tauri::command]
+async fn generate_culling_preview_for_path(
+    path: String,
+    js_adjustments: Value,
+    generation: usize,
+    app_handle: tauri::AppHandle,
+) -> Result<Response, String> {
+    match render_preview_for_path(
+        path,
+        js_adjustments,
+        0,
+        PreviewRenderOptions {
+            cancel_token: Some(culling_preview::token(generation)),
+            ..PreviewRenderOptions::default()
+        },
+        app_handle,
+    )
+    .await?
+    {
+        RenderedPreview::Jpeg(bytes) => Ok(Response::new(bytes)),
+        #[cfg(feature = "mcp")]
+        RenderedPreview::Pixels(_) => Err("Expected encoded preview".into()),
+    }
+}
+
+#[derive(Default)]
+struct PreviewRenderOptions {
+    native_region: Option<(u32, u32, u32, u32)>,
+    raw_pixels: bool,
+    cancel_token: Option<culling_preview::CancelToken>,
+}
+
 enum RenderedPreview {
     Jpeg(Vec<u8>),
     #[cfg(feature = "mcp")]
@@ -1583,8 +1616,7 @@ pub async fn generate_preview_bytes_for_path(
         path,
         js_adjustments,
         target_resolution,
-        None,
-        false,
+        PreviewRenderOptions::default(),
         app_handle,
     )
     .await?
@@ -1607,8 +1639,11 @@ pub(crate) async fn generate_measurement_pixels_for_path(
         path,
         js_adjustments,
         target_resolution,
-        native_region,
-        true,
+        PreviewRenderOptions {
+            native_region,
+            raw_pixels: true,
+            ..PreviewRenderOptions::default()
+        },
         app_handle,
     )
     .await?
@@ -1622,23 +1657,26 @@ async fn render_preview_for_path(
     path: String,
     js_adjustments: Value,
     target_resolution: u32,
-    native_region: Option<(u32, u32, u32, u32)>,
-    raw_pixels: bool,
+    options: PreviewRenderOptions,
     app_handle: tauri::AppHandle,
 ) -> Result<RenderedPreview, String> {
-    // Culling fires one of these per image and nothing here is cancellable, so
-    // without a permit a burst of navigation stacks up full decodes — each
+    let PreviewRenderOptions {
+        native_region,
+        raw_pixels,
+        cancel_token,
+    } = options;
+    // Keep one full decode in flight, cancelling superseded culling requests
+    // before they acquire the permit. Otherwise navigation stacks up images — each
     // holding the source image plus its f16 RGBA upload buffer (~190 MB for a
     // 24MP frame) before it ever reaches the GPU mutex. Enough of them in
     // flight exhausts system memory.
     let decode_permit = app_handle.state::<AppState>().decode_permit.clone();
-    let decode_permit = decode_permit
-        .acquire_owned()
-        .await
-        .map_err(|e| e.to_string())?;
+    let decode_permit =
+        culling_preview::acquire_decode_permit(decode_permit, &cancel_token).await?;
 
     tokio::task::spawn_blocking(move || {
         let _decode_permit = decode_permit;
+        culling_preview::ensure_current(&cancel_token)?;
         let state = app_handle.state::<AppState>();
         let context = get_or_init_gpu_context(&state, &app_handle)?;
         let (source_path, _) = parse_virtual_path(&path);
@@ -1654,7 +1692,7 @@ async fn render_preview_for_path(
                 &js_adjustments,
                 false,
                 &settings,
-                None,
+                cancel_token.clone(),
             )
             .map_err(|e| e.to_string())?,
             Err(e) => {
@@ -1670,12 +1708,13 @@ async fn render_preview_for_path(
                     &js_adjustments,
                     false,
                     &settings,
-                    None,
+                    cancel_token.clone(),
                 )
                 .map_err(|e| e.to_string())?
             }
         };
 
+        culling_preview::ensure_current(&cancel_token)?;
         drop(load_span);
         let transform_span = perf_trace::span("full.transform");
         let (transformed_image, unscaled_crop_offset) =
@@ -1729,6 +1768,7 @@ async fn render_preview_for_path(
         let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
         let unique_hash = calculate_full_job_hash(&source_path_str, &js_adjustments);
 
+        culling_preview::ensure_current(&cancel_token)?;
         let final_image = process_and_get_dynamic_image(
             &context,
             &state,
@@ -1767,6 +1807,7 @@ async fn render_preview_for_path(
             .encode_rgb(&rgb_pixels, width, height)
             .map_err(|e| format!("Failed to encode with mozjpeg-rs: {}", e))?;
 
+        culling_preview::ensure_current(&cancel_token)?;
         Ok(RenderedPreview::Jpeg(bytes))
     })
     .await
@@ -2620,6 +2661,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             apply_adjustments,
             generate_preview_for_path,
+            culling_preview::begin_culling_preview_batch,
+            generate_culling_preview_for_path,
             generate_preset_preview,
             generate_uncropped_preview,
             get_log_file_path,

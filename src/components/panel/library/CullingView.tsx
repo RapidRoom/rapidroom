@@ -25,6 +25,9 @@ import FlagBadges from '../../ui/FlagBadges';
 import { Thumbnail } from './LibraryItems';
 import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
+import { useCullingPreviewPrefetch } from '../../../hooks/useCullingPreviewPrefetch';
+import { cullingPreviewKey } from '../../../utils/cullingPreviewQueue';
+import { useImageRenderSize } from '../../../hooks/useImageRenderSize';
 import { useProcessStore } from '../../../store/useProcessStore';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
@@ -40,7 +43,7 @@ interface SyncViewport {
   isDragging: boolean;
 }
 
-function CullingPreview({
+export function CullingPreview({
   image,
   rating,
   isActive,
@@ -56,6 +59,7 @@ function CullingPreview({
   setShowRateBar,
   showInfoBar,
   setShowInfoBar,
+  failedPreviewKey,
 }: {
   image: ImageFile;
   rating: number;
@@ -72,16 +76,18 @@ function CullingPreview({
   setShowRateBar: React.Dispatch<React.SetStateAction<boolean>>;
   showInfoBar: boolean;
   setShowInfoBar: React.Dispatch<React.SetStateAction<boolean>>;
+  failedPreviewKey?: string;
 }) {
   const { t } = useTranslation();
   const thumbUrl = useProcessStore((s) => s.mediumThumbnails[image.path] || s.thumbnails[image.path]);
   const initialPreview = useProcessStore((s) => s.previews[image.path]);
-  const setPreview = useProcessStore((s) => s.setPreview);
-  const safeThumbKey = thumbUrl || '';
+  const safeThumbKey = cullingPreviewKey(thumbUrl || '');
   const [highResSrc, setHighResSrc] = useState<string | null>(
     initialPreview?.thumbKey === safeThumbKey ? initialPreview.url : null,
   );
   const [isLoading, setIsLoading] = useState(!highResSrc);
+  const wasCached = useRef(Boolean(highResSrc));
+  const [rawPainted, setRawPainted] = useState(Boolean(highResSrc));
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -240,73 +246,14 @@ function CullingPreview({
   }, [updateFitScale]);
 
   useEffect(() => {
-    const currentPreview = useProcessStore.getState().previews[image.path];
-    if (currentPreview && currentPreview.thumbKey === safeThumbKey) {
-      setHighResSrc(currentPreview.url);
-      setIsLoading(false);
-      setPreview(image.path, currentPreview.url, safeThumbKey);
-      return;
+    const currentPreview = initialPreview?.thumbKey === safeThumbKey ? initialPreview : null;
+    setHighResSrc(currentPreview?.url ?? null);
+    setIsLoading(!currentPreview && failedPreviewKey !== safeThumbKey);
+    if (!currentPreview) {
+      setRawPainted(false);
+      wasCached.current = false;
     }
-
-    let active = true;
-    setIsLoading(true);
-    setHighResSrc(null);
-
-    const fetchPreviewWithAdjustments = async () => {
-      try {
-        const metadata: any = await invoke(Invokes.LoadMetadata, { path: image.path });
-        if (!active) return;
-
-        const adjustments =
-          metadata && metadata.adjustments && !metadata.adjustments.is_null ? metadata.adjustments : {};
-
-        const bytes = await invoke<Uint8Array>(Invokes.GeneratePreviewForPath, {
-          path: image.path,
-          jsAdjustments: adjustments,
-        });
-        if (!active) return;
-
-        const blob = new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' });
-        const localBlobUrl = URL.createObjectURL(blob);
-
-        setPreview(image.path, localBlobUrl, safeThumbKey);
-
-        if (active) {
-          setHighResSrc(localBlobUrl);
-          setIsLoading(false);
-        }
-      } catch (err) {
-        console.error('Error loading culling preview with adjustments:', err);
-
-        if (active) {
-          try {
-            const fallbackBytes = await invoke<Uint8Array>(Invokes.GeneratePreviewForPath, {
-              path: image.path,
-              jsAdjustments: {},
-            });
-            if (!active) return;
-            const blob = new Blob([new Uint8Array(fallbackBytes)], { type: 'image/jpeg' });
-            const localBlobUrl = URL.createObjectURL(blob);
-
-            setPreview(image.path, localBlobUrl, safeThumbKey);
-            setHighResSrc(localBlobUrl);
-          } catch (fallbackErr) {
-            console.error('Fallback preview generation also failed:', fallbackErr);
-          }
-          setIsLoading(false);
-        }
-      }
-    };
-
-    const delayTimeout = setTimeout(() => {
-      fetchPreviewWithAdjustments();
-    }, 200);
-
-    return () => {
-      active = false;
-      clearTimeout(delayTimeout);
-    };
-  }, [image.path, safeThumbKey, setPreview]);
+  }, [initialPreview, safeThumbKey, failedPreviewKey]);
 
   useEffect(() => {
     if (syncViewport.isActive) {
@@ -462,6 +409,19 @@ function CullingPreview({
   const effectiveDragging = isDragging || (syncViewport.isActive && syncViewport.isDragging);
 
   const SCALE_FACTOR = 4;
+  const knownDimensions = initialPreview?.thumbKey === safeThumbKey ? (initialPreview.dimensions ?? null) : null;
+  const previewFrame = useImageRenderSize(containerRef, knownDimensions);
+  const thumbnailFrameStyle: React.CSSProperties | undefined =
+    previewFrame.containerWidth > 0 && previewFrame.containerHeight > 0 && knownDimensions
+      ? {
+          left: `${(previewFrame.offsetX / previewFrame.containerWidth) * 100}%`,
+          top: `${(previewFrame.offsetY / previewFrame.containerHeight) * 100}%`,
+          width: `${(previewFrame.width / previewFrame.containerWidth) * 100}%`,
+          height: `${(previewFrame.height / previewFrame.containerHeight) * 100}%`,
+          objectFit: 'cover',
+        }
+      : undefined;
+
   const imageTransformStyle: React.CSSProperties = {
     position: 'relative',
     width: `${SCALE_FACTOR * 100}%`,
@@ -511,9 +471,10 @@ function CullingPreview({
         style={{ isolation: 'isolate' }}
       >
         <div style={imageTransformStyle}>
-          {thumbUrl && (
+          {thumbUrl && !rawPainted && (
             <img
               src={thumbUrl}
+              style={thumbnailFrameStyle}
               className="absolute inset-0 w-full h-full object-contain"
               alt={t('library.culling.altThumbnailLoading')}
               draggable={false}
@@ -524,9 +485,10 @@ function CullingPreview({
             <motion.img
               ref={imageRef}
               onLoad={updateFitScale}
-              initial={{ opacity: 0 }}
+              initial={wasCached.current ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.15 }}
+              onAnimationComplete={() => setRawPainted(true)}
               src={highResSrc}
               className="absolute inset-0 w-full h-full object-contain"
               alt={t('library.culling.altCullingPreviewHighRes')}
@@ -1181,6 +1143,11 @@ export default function CullingView(props: any) {
     .map((p: string) => imageList.find((img: ImageFile) => img.path === p))
     .filter(Boolean);
   const displayCount = displayImages.length;
+  const previewFailures = useCullingPreviewPrefetch(
+    imageList.map((image: ImageFile) => image.path),
+    displayPaths,
+    activePath,
+  );
 
   const handleSidebarEmptyClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -1222,6 +1189,7 @@ export default function CullingView(props: any) {
               <CullingPreview
                 key={img.path}
                 image={img}
+                failedPreviewKey={previewFailures[img.path]}
                 rating={imageRatings?.[img.path] || 0}
                 onContextMenu={onContextMenu}
                 onImageDoubleClick={onImageDoubleClick}
