@@ -1847,6 +1847,8 @@
       "clearThumbnail": "Wyczyść pamięć podręczną miniatur",
       "clearThumbnailButton": "Wyczyść",
       "clearThumbnailDesc": "Zostaną usunięte wszystkie zbuforowane miniatury. Zostaną wygenerowane na nowo w trakcie przeglądania biblioteki.",
+      "cacheUsage": "Miniatury i podglądy: {{size}} · Pliki: {{files}}",
+      "cacheUsageError": "Nie można odczytać wykorzystania pamięci podręcznej.",
       "loading": "Wczytywanie...",
       "logs": "Wyświetl logi aplikacji",
       "logsButton": "Otwórz",

@@ -4553,6 +4553,46 @@ pub fn clear_all_sidecars(root_path: String) -> Result<usize, String> {
     Ok(deleted_count)
 }
 
+#[derive(Serialize)]
+pub struct ThumbnailCacheUsage {
+    bytes: u64,
+    files: u64,
+}
+
+#[tauri::command]
+pub async fn get_thumbnail_cache_usage(
+    app_handle: AppHandle,
+) -> Result<ThumbnailCacheUsage, String> {
+    let directory = app_handle
+        .path()
+        .app_cache_dir()
+        .map_err(|error| error.to_string())?
+        .join("thumbnails");
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut usage = ThumbnailCacheUsage { bytes: 0, files: 0 };
+        let entries = match fs::read_dir(directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(usage),
+            Err(error) => return Err(error.to_string()),
+        };
+        for entry in entries {
+            let entry = entry.map_err(|error| error.to_string())?;
+            let metadata = match fs::symlink_metadata(entry.path()) {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.to_string()),
+            };
+            if metadata.is_file() {
+                usage.bytes = usage.bytes.saturating_add(metadata.len());
+                usage.files += 1;
+            }
+        }
+        Ok(usage)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
 pub fn clear_thumbnail_cache(app_handle: AppHandle) -> Result<(), String> {
     let cache_dir = app_handle

@@ -1811,6 +1811,8 @@
       "clearThumbnail": "Cancella Cache Miniature",
       "clearThumbnailButton": "Cancella",
       "clearThumbnailDesc": "Questo eliminerà tutte le immagini miniatura memorizzate nella cache. Verranno rigenerate automaticamente sfogliando la libreria.",
+      "cacheUsage": "Miniature e anteprime: {{size}} · File: {{files}}",
+      "cacheUsageError": "Impossibile leggere lo spazio utilizzato dalla cache.",
       "loading": "Caricamento...",
       "logs": "Visualizza Log Applicazione",
       "logsButton": "Apri",

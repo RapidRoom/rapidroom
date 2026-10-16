@@ -1585,6 +1585,8 @@
       "clearThumbnail": "Vymazat mezipaměť miniatur",
       "clearThumbnailButton": "Vymazat",
       "clearThumbnailDesc": "Tím se vymažou všechny miniatury snímků uložené v mezipaměti. Při procházení knihovny se automaticky znovu vygenerují.",
+      "cacheUsage": "Miniatury a náhledy: {{size}} · Soubory: {{files}}",
+      "cacheUsageError": "Využití mezipaměti se nepodařilo načíst.",
       "loading": "Načítání...",
       "logs": "Zobrazit protokoly aplikace",
       "logsButton": "Otevřít",
