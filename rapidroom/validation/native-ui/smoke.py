@@ -694,6 +694,9 @@ def launch(args):
         with args.lock.open("a") as lock:
             print("Waiting for native UI lock", flush=True)
             fcntl.flock(lock, fcntl.LOCK_EX)
+            subprocess.run(["df", "-h", "/home"], check=True)
+            if shutil.disk_usage(case).free < 25 * 1024**3:
+                raise RuntimeError("Native sample stopped: less than 25 GiB free")
             (case / "engine").mkdir()
             engine = args.engine.resolve()
             source_hash = sha(engine)

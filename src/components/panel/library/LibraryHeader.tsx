@@ -273,18 +273,20 @@ export function SearchInput({ indexingProgress, isIndexing }: any) {
     pendingEditRef.current = pendingEdit;
   }, [pendingEdit]);
 
-  useEffect(() => () => {
-    // Community Presets replaces this component while criteria remain shared.
-    // Cancel the unfinished edit before its local transaction disappears.
-    const edit = pendingEditRef.current;
-    if (!edit) return;
-    useLibraryStore.getState().setSearchCriteria((prev) => {
-      const nextTags = [...prev.tags];
-      nextTags.splice(edit.index, 0, edit.tag);
-      return { ...prev, tags: nextTags, text: edit.draftText };
-    });
-  }, []);
-
+  useEffect(
+    () => () => {
+      // Community Presets replaces this component while criteria remain shared.
+      // Cancel the unfinished edit before its local transaction disappears.
+      const edit = pendingEditRef.current;
+      if (!edit) return;
+      useLibraryStore.getState().setSearchCriteria((prev) => {
+        const nextTags = [...prev.tags];
+        nextTags.splice(edit.index, 0, edit.tag);
+        return { ...prev, tags: nextTags, text: edit.draftText };
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     if (isSearchActive) {

@@ -364,3 +364,8 @@ restore prior input drafts, edit the last chip with Backspace, delete
 only one duplicate using the separate x button, and navigate chip controls with
 Left/Right. Captures record the workflow; the usual RAW/edit/Undo/export/clean-exit
 checks still follow. Export counting excludes pre-existing fixture JPEGs.
+
+The chip-navigation check supplies an empty catalog only for the unrelated
+`fetch_community_presets` IPC request, restores the original transport afterwards,
+and requires zero stock-preview downloads. Search/navigation and the final
+frontend/native error checks remain real and unfiltered.
