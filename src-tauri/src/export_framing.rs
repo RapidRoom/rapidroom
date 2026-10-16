@@ -178,6 +178,34 @@ pub struct FramingPreview {
     framing: InstagramFraming,
 }
 
+impl FramingPreview {
+    fn from_render(
+        bytes: Vec<u8>,
+        finished_dimensions: (u32, u32),
+        saved: Option<InstagramFraming>,
+        signature: String,
+        ratio: InstagramRatio,
+    ) -> Result<Self, String> {
+        let image = image::load_from_memory(&bytes).map_err(|e| e.to_string())?;
+        let (width, height) = image.dimensions();
+        let (finished_width, finished_height) = finished_dimensions;
+        let framing = saved
+            .filter(|f| usable_frame(f, &signature, ratio, finished_width, finished_height))
+            .unwrap_or(InstagramFraming {
+                version: 1,
+                ratio,
+                geometry_signature: signature,
+                frame: centered_frame(finished_width, finished_height, ratio),
+            });
+        Ok(Self {
+            jpeg: base64::engine::general_purpose::STANDARD.encode(bytes),
+            width,
+            height,
+            framing,
+        })
+    }
+}
+
 #[tauri::command]
 pub async fn get_instagram_framing_preview(
     path: String,
@@ -188,32 +216,17 @@ pub async fn get_instagram_framing_preview(
     let (source, sidecar) = crate::file_management::parse_virtual_path(&path);
     let metadata = crate::exif_processing::load_sidecar_with_camera_crop(&sidecar, &source);
     let signature = geometry_signature(&metadata.adjustments);
-    let bytes = crate::generate_preview_bytes_for_path(
+    let (bytes, finished_dimensions) = crate::generate_preview_with_geometry_for_path(
         path,
         metadata.adjustments,
         max_size.unwrap_or(1280).clamp(160, 1280),
         app_handle,
     )
     .await?;
-    let image = image::load_from_memory(&bytes).map_err(|e| e.to_string())?;
-    let (width, height) = image.dimensions();
     let saved = metadata
         .export_framing
         .and_then(|v| serde_json::from_value::<InstagramFraming>(v["instagram"].clone()).ok());
-    let framing = saved
-        .filter(|f| usable_frame(f, &signature, ratio, width, height))
-        .unwrap_or(InstagramFraming {
-            version: 1,
-            ratio,
-            geometry_signature: signature,
-            frame: centered_frame(width, height, ratio),
-        });
-    Ok(FramingPreview {
-        jpeg: base64::engine::general_purpose::STANDARD.encode(bytes),
-        width,
-        height,
-        framing,
-    })
+    FramingPreview::from_render(bytes, finished_dimensions, saved, signature, ratio)
 }
 
 #[tauri::command]
@@ -239,6 +252,111 @@ pub fn save_instagram_framing(path: String, framing: InstagramFraming) -> Result
 #[cfg(test)]
 mod framing_geometry_regression {
     use super::*;
+
+    fn encoded_preview(width: u32, height: u32) -> Vec<u8> {
+        let image = DynamicImage::ImageRgb8(image::RgbImage::new(width, height));
+        let mut bytes = Vec::new();
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, 90)
+            .encode_image(&image)
+            .unwrap();
+        bytes
+    }
+
+    fn assert_resolution_independent_frames(image: &DynamicImage, adjustments: &Value) {
+        let dimensions = image.dimensions();
+        let signature = geometry_signature(adjustments);
+        let previews = [320, 1280, dimensions.0.max(dimensions.1)]
+            .into_iter()
+            .map(|size| {
+                let small = image.thumbnail(size, size);
+                (
+                    small.dimensions(),
+                    encoded_preview(small.width(), small.height()),
+                )
+            })
+            .collect::<Vec<_>>();
+        for ratio in [
+            InstagramRatio::Portrait,
+            InstagramRatio::Grid,
+            InstagramRatio::Stories,
+            InstagramRatio::Landscape,
+        ] {
+            let centered = centered_frame(dimensions.0, dimensions.1, ratio);
+            let mut offcenter = centered.clone();
+            if offcenter.width < 1.0 {
+                offcenter.x = (1.0 - offcenter.width) * 0.8;
+            } else {
+                offcenter.y = (1.0 - offcenter.height) * 0.8;
+            }
+            let saved = InstagramFraming {
+                version: 1,
+                ratio,
+                geometry_signature: signature.clone(),
+                frame: offcenter,
+            };
+            let expected_centered = apply_instagram_crop(image.clone(), None, ratio, &signature);
+            let expected_offcenter =
+                apply_instagram_crop(image.clone(), Some(&saved), ratio, &signature);
+            for (preview_dimensions, bytes) in &previews {
+                for remembered in [None, Some(saved.clone())] {
+                    let preview = FramingPreview::from_render(
+                        bytes.clone(),
+                        dimensions,
+                        remembered.clone(),
+                        signature.clone(),
+                        ratio,
+                    )
+                    .unwrap();
+                    assert_eq!((preview.width, preview.height), *preview_dimensions);
+                    let expected_frame = remembered.as_ref().map_or(&centered, |f| &f.frame);
+                    assert_eq!(
+                        serde_json::to_value(&preview.framing.frame).unwrap(),
+                        serde_json::to_value(expected_frame).unwrap(),
+                        "{ratio:?} at {preview_dimensions:?} must retain canonical geometry"
+                    );
+                    let actual = apply_instagram_crop(
+                        image.clone(),
+                        Some(&preview.framing),
+                        ratio,
+                        &signature,
+                    );
+                    let expected = if remembered.is_some() {
+                        &expected_offcenter
+                    } else {
+                        &expected_centered
+                    };
+                    assert_eq!(actual.dimensions(), expected.dimensions());
+                    assert_eq!(actual.as_bytes(), expected.as_bytes());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn strip_active_and_full_previews_preserve_default_and_offcenter_export_pixels() {
+        let image = DynamicImage::ImageRgb8(image::RgbImage::from_fn(4608, 3072, |x, y| {
+            image::Rgb([(x % 251) as u8, (y % 241) as u8, ((x ^ y) % 256) as u8])
+        }));
+        // This native case previously produced y330/h2412 from1280x853,
+        // and rejected a valid remembered frame entirely at320x213.
+        let crop = apply_instagram_crop(image.clone(), None, InstagramRatio::Landscape, "");
+        assert_eq!(crop.dimensions(), (4608, 2411));
+        assert_eq!(crop.get_pixel(0, 0), image.get_pixel(0, 331));
+        assert_resolution_independent_frames(&image, &json!({}));
+    }
+
+    #[test]
+    fn rotated_cropped_finished_geometry_is_independent_of_preview_resolution() {
+        let image = DynamicImage::ImageRgb8(image::RgbImage::from_fn(4608, 3072, |x, y| {
+            image::Rgb([(x % 251) as u8, (y % 241) as u8, ((x ^ y) % 256) as u8])
+        }));
+        let adjustments =
+            json!({"orientationSteps":1,"crop":{"x":14,"y":20,"width":2201,"height":3407}});
+        let (finished, _) =
+            crate::adjustment_utils::apply_all_transformations(&image, &adjustments);
+        assert_eq!(finished.dimensions(), (2201, 3407));
+        assert_resolution_independent_frames(&finished, &adjustments);
+    }
 
     #[test]
     fn first_editor_colour_save_retains_a_sparse_sidecars_export_framing() {
