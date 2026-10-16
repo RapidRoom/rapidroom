@@ -1892,6 +1892,8 @@
       "clearThumbnail": "Clear Thumbnail Cache",
       "clearThumbnailButton": "Clear",
       "clearThumbnailDesc": "This will delete all cached thumbnail images. They will be regenerated automatically as you browse your library.",
+      "cacheUsage": "Thumbnails and previews: {{size}} · Files: {{files}}",
+      "cacheUsageError": "Unable to read cache usage.",
       "loading": "Loading...",
       "logs": "View Application Logs",
       "logsButton": "Open",
