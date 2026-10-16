@@ -719,15 +719,13 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       setEditor({ zoomRequest: null });
       return;
     }
-    if (zoomRequest.percent !== null) {
-      if (!selectedImage.isReady || !croppedDimensions || imageRenderSize.width <= 0) return;
-      // The layout hook may still hold the previous photo's fitted geometry.
-      const expectedScale = Math.min(
-        imageRenderSize.containerWidth / croppedDimensions.width,
-        imageRenderSize.containerHeight / croppedDimensions.height,
-      );
-      if (Math.abs(imageRenderSize.scale - expectedScale) > 1e-9) return;
-    }
+    if (!selectedImage.isReady || !croppedDimensions || imageRenderSize.width <= 0) return;
+    // Wait for fitted geometry after a photo or crop change, including Fit requests.
+    const expectedScale = Math.min(
+      imageRenderSize.containerWidth / croppedDimensions.width,
+      imageRenderSize.containerHeight / croppedDimensions.height,
+    );
+    if (Math.abs(imageRenderSize.scale - expectedScale) > 1e-9) return;
     const scale =
       zoomRequest.percent === null ? 1 : transformFromPercent(zoomRequest.percent, imageRenderSize.scale, dpr);
     setEditor({
