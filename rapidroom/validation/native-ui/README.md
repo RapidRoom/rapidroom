@@ -361,3 +361,21 @@ Delete after import is enabled for a skipped file. It also uses the real Library
 keyboard copy/paste path and checks visible copy/import/partial-failure summaries.
 No IPC, filesystem write or frontend error handler is mocked. The ordinary RAW
 preview/edit/Undo/export and clean-exit assertions still run afterwards.
+
+### Editable Library filter chips (#312)
+
+Run `smoke.py --filter-chips` with a pinned native engine and the GPU lock.
+Three owned synthetic JPEGs carry explicit ISO/lens metadata beside the CC0 RAW.
+The native checks edit numeric and text queries and assert the displayed photo
+set changes, cancel edits with Escape and across Community Presets navigation,
+restore prior input drafts, edit the last chip with Backspace, delete
+only one duplicate using the separate x button, and navigate chip controls with
+Left/Right. Captures record the workflow; the usual RAW/edit/Undo/export/clean-exit
+checks still follow. Export counting excludes pre-existing fixture JPEGs.
+
+The chip-navigation check supplies an empty catalog only for the unrelated
+`fetch_community_presets` IPC request, restores the original transport afterwards,
+and supplies the owned JPEG for at most one exact stock-image fallback request.
+The request and its real temp-file IPC are counted and bounded; no external
+image is downloaded. Search/navigation and the final frontend/native error
+checks remain real and unfiltered.

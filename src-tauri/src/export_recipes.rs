@@ -16,6 +16,7 @@ fn instagram_recipe(
     ratio_height: f32,
 ) -> ExportPreset {
     ExportPreset {
+        instagram_ratio: None,
         dpi: None,
         id: format!("{RECIPE_ID_PREFIX}{id}"),
         name: name.to_string(),
@@ -57,10 +58,45 @@ fn instagram_recipe(
     }
 }
 
-// Read-only recipes shipped with the app. Exports are already sRGB; the photo is
-// padded to the post's aspect ratio (no cropping) and scaled to Instagram's 1080 px width.
+// The original padded recipe IDs retain their behaviour. New crop recipes
+// opt into separately remembered framing of the finished edit.
+fn instagram_crop_recipe(
+    ratio: crate::export_framing::InstagramRatio,
+    id: &str,
+    label: &str,
+    rw: f32,
+    rh: f32,
+) -> ExportPreset {
+    let mut preset = instagram_recipe(id, label, id, rw, rh);
+    preset.instagram_ratio = Some(ratio);
+    preset.enable_pad = Some(false);
+    preset
+}
+
 pub fn builtin_export_recipes() -> Vec<ExportPreset> {
+    use crate::export_framing::InstagramRatio;
     vec![
+        instagram_crop_recipe(
+            InstagramRatio::Portrait,
+            "instagram-crop-4x5",
+            "Instagram Portrait crop 4:5 (1080×1350)",
+            4.0,
+            5.0,
+        ),
+        instagram_crop_recipe(
+            InstagramRatio::Grid,
+            "instagram-crop-3x4",
+            "Instagram Grid crop 3:4 (1080×1440)",
+            3.0,
+            4.0,
+        ),
+        instagram_crop_recipe(
+            InstagramRatio::Stories,
+            "instagram-crop-9x16",
+            "Instagram Stories crop 9:16 (1080×1920)",
+            9.0,
+            16.0,
+        ),
         instagram_recipe(
             "instagram-portrait",
             "Instagram Portrait 4:5 (1080×1350)",
@@ -209,6 +245,12 @@ pub fn preset_to_export_settings(preset: &ExportPreset) -> Result<ExportSettings
         return Err("DPI must be between 1 and 65535".to_string());
     }
     Ok(ExportSettings {
+        instagram: preset
+            .instagram_ratio
+            .map(|ratio| crate::export_framing::InstagramExport {
+                ratio,
+                frames_by_path: Default::default(),
+            }),
         dpi: preset.dpi,
         jpeg_quality: preset.jpeg_quality,
         tiff_bit_depth: preset
@@ -276,6 +318,9 @@ mod tests {
     #[test]
     fn instagram_recipes_produce_exact_sizes() {
         for border in [false, true] {
+            assert_recipe_size("recipe-instagram-crop-4x5", (1080, 1350), border);
+            assert_recipe_size("recipe-instagram-crop-3x4", (1080, 1440), border);
+            assert_recipe_size("recipe-instagram-crop-9x16", (1080, 1920), border);
             assert_recipe_size("recipe-instagram-portrait", (1080, 1350), border);
             assert_recipe_size("recipe-instagram-square", (1080, 1080), border);
             assert_recipe_size("recipe-instagram-landscape", (1080, 566), border);

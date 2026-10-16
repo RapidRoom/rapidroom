@@ -42,7 +42,7 @@ def main():
         fcntl.flock(lock, fcntl.LOCK_EX)
         subprocess.run(["df", "-h", "/home"], check=True)
         if shutil.disk_usage(out).free < 25 * 1024**3:
-            raise RuntimeError("Native build disk guard: less than 25 GiB free")
+            raise RuntimeError("Native build stopped: less than 25 GiB free")
         before = source(root)
         with (out / "build.log").open("w") as log:
             subprocess.run(["nice", "-n", "10", "npm", "run", "tauri", "build", "--", "--no-bundle",
