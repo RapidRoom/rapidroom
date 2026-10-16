@@ -58,12 +58,12 @@ def run_atomic_export_checks(smoke, wait_for, first):
         args = observer['args']
         assert args and args['exportSettings'].get('overwriteExisting', False) is False, args
         assert all(str(smoke.case / 'input') in source for source in args['paths']), args['paths']
-        smoke.execute("""const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Export Image');
-          if(!e||e.disabled)throw Error('Export Image unavailable');e.click();return true;""")
+        smoke.execute("""const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Export successful!');
+          if(!e||e.disabled)throw Error('Completed export action unavailable');e.click();return true;""")
         added = wait_for(lambda: set(folder.glob('*.jpg')) - before, 'second GUI export', 90)
         assert len(added) == 1
         second = next(iter(added))
-        wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Export Image'&&!e.disabled);"), 'second export finished')
+        wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Export successful!'&&!e.disabled);"), 'second export finished')
         assert hashlib.sha256(first.read_bytes()).hexdigest() == original
         with Image.open(second) as image:
             image.load()
@@ -79,7 +79,7 @@ def run_atomic_export_checks(smoke, wait_for, first):
         invocation = wait_for(lambda: smoke.execute('return window.__atomicOverwrite.pending?null:window.__atomicOverwrite;'), 'native overwrite accepted')
         assert 'error' not in invocation, invocation
         wait_for(lambda: first.stat().st_ino != old_inode, 'atomic overwrite replaced inode', 90)
-        wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Export Image'&&!e.disabled);"), 'native overwrite finished')
+        wait_for(lambda: smoke.execute("return [...document.querySelectorAll('button')].some(e=>e.innerText.trim()==='Export successful!'&&!e.disabled);"), 'native overwrite finished')
         with Image.open(first) as image:
             image.load()
             assert image.format == 'JPEG' and image.size == (4608, 3072)
