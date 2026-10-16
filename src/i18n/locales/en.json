@@ -1246,6 +1246,8 @@
         "searchOrQuery": "Search or add query",
         "tooltipAdvancedQueries": "Advanced Queries: iso:>800, f:<=2.8, s:1/200, mm:50, camera:sony",
         "tooltipClearSearch": "Clear search",
+        "editFilter": "Edit filter {{filter}}",
+        "removeFilter": "Remove filter {{filter}}",
         "tooltipSearchFilter": "Search or Filter"
       },
       "title": "Library",
