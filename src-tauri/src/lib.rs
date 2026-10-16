@@ -77,6 +77,12 @@ mod mcp;
 mod mcp_control;
 mod multi_exposure;
 mod negative_conversion;
+#[cfg(all(
+    feature = "native-openvino",
+    target_os = "linux",
+    target_arch = "x86_64"
+))]
+mod openvino_runtime;
 mod output_sharpening;
 mod panorama_stitching;
 mod panorama_utils;
@@ -2268,7 +2274,11 @@ pub fn run() {
                         #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
                         { "libonnxruntime.so" }
                     };
-                    let ort_library_path = resource_path.join(ort_library_name);
+                    #[cfg(all(feature = "native-openvino", target_os = "linux", target_arch = "x86_64"))]
+                    let accelerated = openvino_runtime::configure(&resource_path);
+                    #[cfg(not(all(feature = "native-openvino", target_os = "linux", target_arch = "x86_64")))]
+                    let accelerated: Option<std::path::PathBuf> = None;
+                    let ort_library_path = accelerated.unwrap_or_else(|| resource_path.join(ort_library_name));
                     std::env::set_var("ORT_DYLIB_PATH", &ort_library_path);
                     cli_println!("Set ORT_DYLIB_PATH to: {}", ort_library_path.display());
                 }
