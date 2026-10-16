@@ -17,7 +17,7 @@ def run_styles_checks(smoke, wait_for, baseline):
         if not value['ok']:raise RuntimeError(value)
         return value['value']
     search('copper warmth')
-    wait_for(lambda:smoke.execute("return document.body.innerText.includes('Teal & Ember') && !document.body.innerText.includes('Neon Circuit');"),'style description search')
+    wait_for(lambda:smoke.execute("return document.body.innerText.includes('Teal & Orange') && !document.body.innerText.includes('Neon Night');"),'style description search')
     smoke.capture('styles-description-search')
     smoke.step('built-in Styles descriptions searchable in native browser')
     row="[...document.querySelectorAll('[data-tooltip]')].find(e=>e.dataset.tooltip==='Cyan city shadows and copper warmth. Best with blue skies, warm buildings and people in mixed light.')?.closest('[role=button]')"
@@ -53,10 +53,10 @@ def run_styles_checks(smoke, wait_for, baseline):
         return ipc('load_metadata',{'path':str(photo)})['adjustments']
     original=edit()
     gothic=next(p for p in styles['children'] if p['id']=='rapidroom-style:forest-gothic')
-    search('Forest Gothic')
+    search(gothic['name'])
     beamrow="[...document.querySelectorAll('[data-tooltip]')].find(e=>e.dataset.tooltip===arguments[0])?.closest('[role=button]')"
     def apply_beam():
-        smoke.execute('const r='+beamrow+";if(!r)throw Error('Forest Gothic row missing');r.click();return true;",[gothic['description']])
+        smoke.execute('const r='+beamrow+";if(!r)throw Error('Dark Forest row missing');r.click();return true;",[gothic['description']])
     apply_beam()
     full=smoke.stable_preview('styles-gothic-100')
     first=wait_for(lambda:edit() if len(edit().get('masks',[]))==len(original.get('masks',[]))+1 else None,'beam autosaved as native mask')
@@ -83,6 +83,46 @@ def run_styles_checks(smoke, wait_for, baseline):
     smoke.drag('Amount',100)
     first_pixels=smoke.stable_preview('styles-gothic-first-mask')
     first=wait_for(lambda:edit() if len(edit().get('masks',[]))==len(original.get('masks',[]))+1 else None,'first beam restored')
+    smoke.execute("document.querySelector('[data-tab-id=\"layout-tab-masks\"]').click();return true;")
+    wait_for(lambda:smoke.execute("return document.body.innerText.includes('Warm diagonal light beam');"),'editable beam in Masks panel')
+    smoke.execute("const e=[...document.querySelectorAll('span,div')].find(e=>e.textContent.trim()==='Warm diagonal light beam');if(!e)throw Error('Beam row missing');e.closest('[role=button]').click();return true;")
+    if not smoke.execute("return [...document.querySelectorAll('input[type=range]')].some(e=>e.parentElement.parentElement.textContent.trim().startsWith('Opacity'));"):
+        smoke.execute("const e=[...document.querySelectorAll('button,[role=button]')].find(e=>e.textContent.trim()==='Mask Properties');if(!e)throw Error('Mask Properties missing');e.click();return true;")
+    smoke.drag('Opacity',72)
+    actual=smoke.slider('Opacity')['value']
+    wait_for(lambda:abs(edit().get('masks',[])[-1]['opacity']-actual)<.001,'native beam edited through ordinary mask controls')
+    component_visible="return [...document.querySelectorAll('[role=button]')].some(e=>e.textContent.trim()==='Movable warm beam');"
+    if not smoke.execute(component_visible):
+        smoke.execute("const e=[...document.querySelectorAll('span')].find(e=>e.textContent.trim()==='Warm diagonal light beam');e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true}));return true;")
+    wait_for(lambda:smoke.execute(component_visible),'movable beam component row')
+    smoke.execute("const e=[...document.querySelectorAll('[role=button]')].find(e=>e.textContent.trim()==='Movable warm beam');e.click();return true;")
+    geometry_before=edit()['masks'][-1]['subMasks'][0]['parameters']
+    point=smoke.execute("const e=[...document.querySelectorAll('svg')].find(e=>{const r=e.getBoundingClientRect();return r.width>500&&r.height>300});const r=e.getBoundingClientRect();return [Math.round(r.left+r.width*arguments[0]/4608),Math.round(r.top+r.height*arguments[1]/3072)];",[geometry_before['centerX'],geometry_before['centerY']])
+    time.sleep(.5)
+    point_evidence=smoke.execute("window.__beamEvents=[];for(const type of ['mousedown','mousemove','mouseup','pointerdown','pointermove'])window.addEventListener(type,e=>{if(window.__beamEvents.length<40)window.__beamEvents.push({type:e.type,x:e.clientX,y:e.clientY,target:e.target.tagName})},{capture:true});const e=document.elementFromPoint(arguments[0],arguments[1]);return {tag:e.tagName,cls:e.className,canvas:[...document.querySelectorAll('.konvajs-content canvas')].map(c=>{const r=c.getBoundingClientRect();return [r.left,r.top,r.width,r.height]})};",point)
+    request(smoke.url+'/actions',{'actions':[{'type':'pointer','id':'beam-mouse','parameters':{'pointerType':'mouse'},'actions':[{'type':'pointerMove','duration':0,'x':point[0],'y':point[1],'origin':'viewport'},{'type':'pointerDown','button':0},{'type':'pause','duration':100},{'type':'pointerMove','duration':400,'x':point[0]+65,'y':point[1]+30,'origin':'viewport'},{'type':'pointerUp','button':0}]}]})
+    def beam_moved():
+        now=edit()['masks'][-1]['subMasks'][0]['parameters']
+        return now if abs(now['centerX']-geometry_before['centerX'])>1 and abs(now['centerY']-geometry_before['centerY'])>1 else None
+    time.sleep(1)
+    input_method='W3C mouse drag on native canvas'
+    if not beam_moved():
+        input_method='DOM mouse drag through normal Konva listeners'
+        smoke.execute("const e=document.elementFromPoint(arguments[0],arguments[1]);window.__beamTarget=e;e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,buttons:1,clientX:arguments[0],clientY:arguments[1]}));return true;",point)
+        time.sleep(.2)
+        for dx,dy in [(10,5),(35,15),(65,30)]:
+            smoke.execute("window.__beamTarget.dispatchEvent(new MouseEvent('mousemove',{bubbles:true,cancelable:true,button:0,buttons:1,clientX:arguments[0],clientY:arguments[1]}));return true;",[point[0]+dx,point[1]+dy])
+            time.sleep(.15)
+        smoke.execute("window.__beamTarget.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,button:0,buttons:0,clientX:arguments[0],clientY:arguments[1]}));return true;",[point[0]+65,point[1]+30])
+    trace=smoke.execute('return window.__beamEvents;')
+    (smoke.case/'beam-pointer-trace.json').write_text(json.dumps({'point':point,'target':point_evidence,'events':trace,'input':input_method},indent=2)+'\n')
+    moved=wait_for(beam_moved,'ordinary canvas drag moves saved beam geometry')
+    assert moved['radiusX']==geometry_before['radiusX'] and moved['radiusY']==geometry_before['radiusY']
+    smoke.step('native pointer drag moves Dark Forest beam without resizing',{'before':geometry_before,'after':moved,'input':input_method})
+    smoke.execute("document.querySelector('[data-tab-id=\"layout-tab-adjustments\"]').click();return true;")
+    first_pixels=smoke.stable_preview('styles-gothic-edited-mask')
+    first=edit()
+    smoke.step('Dark Forest beam is editable through ordinary native mask controls',{'opacity':actual})
     apply_beam()
     smoke.stable_preview('styles-gothic-second-mask')
     second=wait_for(lambda:edit() if len(edit().get('masks',[]))==len(first['masks'])+1 else None,'second style preserves existing local mask')

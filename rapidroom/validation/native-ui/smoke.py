@@ -2,6 +2,7 @@
 """Exercise the real Linux release on a private Weston compositor (issue #134)."""
 
 import argparse
+import base64
 import fcntl
 import hashlib
 import json
@@ -150,6 +151,9 @@ class Smoke:
         return {"label": label, "requested": value, "before": before, "after": after}
 
     def crop(self, path):
+        native=path.with_suffix('.preview.png')
+        if native.exists():
+            with Image.open(native) as image:return image.convert('RGB')
         with Image.open(path) as image:
             return image.convert("RGB").crop(self.roi)
 
@@ -158,6 +162,13 @@ class Smoke:
         for attempt in range(12):
             time.sleep(0.5)
             path = self.capture(name + "-" + str(attempt))
+            if (self.case / "presets-test.json").exists():
+                frame=request(self.url+'/execute/async',{'script':"""const done=arguments[arguments.length-1];
+                  const images=[...document.querySelectorAll('svg image')].filter(e=>{const r=e.getBoundingClientRect();return r.width>500&&r.height>300&&Number(getComputedStyle(e).opacity)>.99});
+                  const image=images.at(-1);if(!image){done({error:'Native preview missing'});return;}
+                  const decoded=new Image();decoded.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=decoded.naturalWidth;canvas.height=decoded.naturalHeight;canvas.getContext('2d').drawImage(decoded,0,0);done({png:canvas.toDataURL('image/png').split(',')[1]})}catch(e){done({error:String(e)})}};decoded.onerror=()=>done({error:'Preview decode failed'});decoded.src=image.getAttribute('href');""",'args':[]})['value']
+                if 'error' in frame:raise RuntimeError(frame)
+                path.with_suffix('.preview.png').write_bytes(base64.b64decode(frame['png']))
             image = self.crop(path)
             if previous is not None and ImageChops.difference(previous, image).getbbox() is None:
                 stats = ImageStat.Stat(image)
