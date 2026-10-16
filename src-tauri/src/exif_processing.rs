@@ -3040,7 +3040,9 @@ pub(crate) mod rating_samples {
 #[cfg(test)]
 mod tests {
     use super::rating_samples::*;
-    use super::{XMP_UUID, parse_xmp_rating, read_image_rating, xmp_rating};
+    use super::{
+        XMP_UUID, parse_xmp_rating, read_image_rating, sony_correction_metadata, xmp_rating,
+    };
     use std::io::Cursor;
 
     fn rating(bytes: &[u8]) -> Option<u8> {
