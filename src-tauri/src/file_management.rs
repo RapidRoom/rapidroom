@@ -4870,19 +4870,7 @@ pub async fn import_files(
                 if settings.delete_after_import
                     && let crate::file_transfer::TransferOutcome::Copied { files, .. } = &outcome
                 {
-                    // Keep sources if any member changed after staging. Identical
-                    // skips never delete the source or its sidecars.
-                    for (source, dest) in files {
-                        if !crate::file_transfer::identical(source, dest)
-                            .map_err(|e| e.to_string())?
-                        {
-                            return Err(format!(
-                                "Source changed after copying; retained: {}",
-                                source.display()
-                            ));
-                        }
-                    }
-                    for (source, _) in files {
+                    crate::file_transfer::remove_import_sources(files, |source| {
                         #[cfg(any(
                             target_os = "windows",
                             target_os = "macos",
@@ -4897,7 +4885,8 @@ pub async fn import_files(
                             target_os = "linux"
                         )))]
                         fs::remove_file(source).map_err(|e| e.to_string())?;
-                    }
+                        Ok(())
+                    })?;
                 }
                 Ok(outcome)
             })(

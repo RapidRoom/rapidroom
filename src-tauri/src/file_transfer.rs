@@ -5,7 +5,12 @@ use std::{
     ffi::OsString,
     fs, io,
     path::{Path, PathBuf},
+    sync::Mutex,
 };
+
+// Planning, sharing an existing sidecar, publication and rollback must be one
+// critical section across all native copy/import commands in this process.
+static TRANSFER_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,8 +42,91 @@ pub enum TransferOutcome {
     Identical,
     Copied {
         renamed: bool,
-        files: Vec<(PathBuf, PathBuf)>,
+        files: Vec<CopiedFile>,
     },
+}
+
+pub struct CopiedFile {
+    source: PathBuf,
+    destination: PathBuf,
+    stem_sidecar: bool,
+}
+
+// Keep shared metadata for every remaining same-stem file, including formats
+// unknown to this build. Inaccessible directory entries also mean "retain".
+fn has_remaining_sibling(source: &Path) -> bool {
+    let Some(parent) = source.parent() else {
+        return true;
+    };
+    let stem = source
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_lowercase();
+    let Ok(entries) = fs::read_dir(parent) else {
+        return true;
+    };
+    for entry in entries {
+        let Ok(entry) = entry else {
+            return true;
+        };
+        let path = entry.path();
+        if path == source
+            || path
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_lowercase()
+                != stem
+        {
+            continue;
+        }
+        let Ok(kind) = entry.file_type() else {
+            return true;
+        };
+        if !kind.is_file() && !kind.is_symlink() {
+            continue;
+        }
+        let extension = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if !["xmp", "acr", "dop", "pp3", "rrdata", "rrexif"].contains(&extension.as_str()) {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn remove_import_sources(
+    files: &[CopiedFile],
+    mut remove: impl FnMut(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+    let _guard = TRANSFER_LOCK
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    // Recheck the complete bundle before removing any member. Skipped bundles
+    // never reach this function; the image is always the last member removed.
+    for file in files {
+        crate::file_management::ensure_card_writable(&file.source)?;
+        if !identical(&file.source, &file.destination).map_err(|e| e.to_string())? {
+            return Err(format!(
+                "Source changed after copying; retained: {}",
+                file.source.display()
+            ));
+        }
+    }
+    let retain_stem_sidecars = files
+        .last()
+        .is_none_or(|image| has_remaining_sibling(&image.source));
+    for file in files {
+        if file.stem_sidecar && retain_stem_sidecars {
+            continue;
+        }
+        remove(&file.source)?;
+    }
+    Ok(())
 }
 
 // The suffix is retained separately so a renamed photo keeps all its metadata,
@@ -165,8 +253,21 @@ fn transfer_with(
     source: &Path,
     destination: &Path,
     in_place: bool,
-    mut copy: impl FnMut(&Path, &Path) -> io::Result<()>,
+    copy: impl FnMut(&Path, &Path) -> io::Result<()>,
 ) -> Result<TransferOutcome, String> {
+    transfer_with_publish_hook(source, destination, in_place, copy, |_| {})
+}
+
+fn transfer_with_publish_hook(
+    source: &Path,
+    destination: &Path,
+    in_place: bool,
+    mut copy: impl FnMut(&Path, &Path) -> io::Result<()>,
+    mut published_hook: impl FnMut(&Path),
+) -> Result<TransferOutcome, String> {
+    let _guard = TRANSFER_LOCK
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let bundle = members(source)?;
     let mut candidate = destination.to_path_buf();
     let mut index = if in_place { 1 } else { 2 };
@@ -200,7 +301,11 @@ fn transfer_with(
             let mut files = Vec::new();
             for member in &bundle {
                 let dest = target(member, &candidate);
-                files.push((member.source.clone(), dest.clone()));
+                files.push(CopiedFile {
+                    source: member.source.clone(),
+                    destination: dest.clone(),
+                    stem_sidecar: member.stem_sidecar,
+                });
                 if member.stem_sidecar && identical(&member.source, &dest)? {
                     continue;
                 }
@@ -229,6 +334,7 @@ fn transfer_with(
                     return Err(error.error);
                 }
                 published.push(dest);
+                published_hook(published.last().unwrap());
             }
             #[cfg(unix)]
             fs::File::open(candidate.parent().unwrap())?.sync_all()?;
@@ -402,5 +508,170 @@ mod tests {
             b"our edits"
         );
         assert_eq!(fs::read_dir(&dest).unwrap().count(), 3);
+    }
+
+    #[test]
+    fn delete_after_import_keeps_metadata_for_unselected_or_later_failed_siblings() {
+        let _mode = crate::file_management::card_mode_test_support::CardMode::off();
+        for fail_later_sibling in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let card = root.path().join("card");
+            let dest = root.path().join("dest");
+            fs::create_dir(&card).unwrap();
+            fs::create_dir(&dest).unwrap();
+            fs::write(card.join("photo.ARW"), b"raw image").unwrap();
+            fs::write(card.join("photo.JPG"), b"unselected JPEG").unwrap();
+            for suffix in ["XMP", "acr", "dop"] {
+                fs::write(card.join(format!("photo.{suffix}")), b"shared edits").unwrap();
+            }
+            fs::write(card.join("photo.ARW.rrdata"), b"RAW edits").unwrap();
+            let TransferOutcome::Copied { files, .. } =
+                transfer(&card.join("photo.ARW"), &dest.join("photo.ARW"), false).unwrap()
+            else {
+                panic!("Expected copied RAW");
+            };
+            remove_import_sources(&files, |path| {
+                fs::remove_file(path).map_err(|e| e.to_string())
+            })
+            .unwrap();
+            assert!(!card.join("photo.ARW").exists());
+            assert!(!card.join("photo.ARW.rrdata").exists());
+            assert_eq!(
+                fs::read(card.join("photo.JPG")).unwrap(),
+                b"unselected JPEG"
+            );
+            for suffix in ["XMP", "acr", "dop"] {
+                assert_eq!(
+                    fs::read(card.join(format!("photo.{suffix}"))).unwrap(),
+                    b"shared edits"
+                );
+                assert_eq!(
+                    fs::read(dest.join(format!("photo.{suffix}"))).unwrap(),
+                    b"shared edits"
+                );
+            }
+            if fail_later_sibling {
+                let error = transfer_with(
+                    &card.join("photo.JPG"),
+                    &dest.join("photo.JPG"),
+                    false,
+                    |_, _| {
+                        Err(io::Error::new(
+                            io::ErrorKind::StorageFull,
+                            "later JPEG import failed",
+                        ))
+                    },
+                );
+                assert!(error.is_err());
+                assert_eq!(
+                    fs::read(card.join("photo.JPG")).unwrap(),
+                    b"unselected JPEG"
+                );
+                for suffix in ["XMP", "acr", "dop"] {
+                    assert_eq!(
+                        fs::read(card.join(format!("photo.{suffix}"))).unwrap(),
+                        b"shared edits"
+                    );
+                }
+                assert!(!dest.join("photo.JPG").exists());
+            }
+            // Once the final sibling actually succeeds, its own metadata cleanup
+            // can remove the retained sidecars. Both destination images keep them.
+            let TransferOutcome::Copied { files, .. } =
+                transfer(&card.join("photo.JPG"), &dest.join("photo.JPG"), false).unwrap()
+            else {
+                panic!("Expected copied JPEG");
+            };
+            remove_import_sources(&files, |path| {
+                fs::remove_file(path).map_err(|e| e.to_string())
+            })
+            .unwrap();
+            assert_eq!(fs::read_dir(&card).unwrap().count(), 0);
+            assert_eq!(
+                fs::read(dest.join("photo.JPG")).unwrap(),
+                b"unselected JPEG"
+            );
+            for suffix in ["XMP", "acr", "dop"] {
+                assert_eq!(
+                    fs::read(dest.join(format!("photo.{suffix}"))).unwrap(),
+                    b"shared edits"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn concurrent_bundle_cannot_share_a_sidecar_before_its_owner_finishes_rollback() {
+        use std::{sync::mpsc, thread, time::Duration};
+        let root = tempfile::tempdir().unwrap();
+        let card = root.path().join("card");
+        let dest = root.path().join("dest");
+        fs::create_dir(&card).unwrap();
+        fs::create_dir(&dest).unwrap();
+        fs::write(card.join("photo.ARW"), b"RAW image").unwrap();
+        fs::write(card.join("photo.JPG"), b"JPEG image").unwrap();
+        fs::write(card.join("photo.XMP"), b"shared XMP edits").unwrap();
+        let (published_tx, published_rx) = mpsc::channel();
+        let (resume_tx, resume_rx) = mpsc::channel();
+        let (b_started_tx, b_started_rx) = mpsc::channel();
+        let (b_done_tx, b_done_rx) = mpsc::channel();
+        thread::scope(|scope| {
+            let card = &card;
+            let dest = &dest;
+            let a = scope.spawn(move || {
+                let mut paused = false;
+                transfer_with_publish_hook(
+                    &card.join("photo.ARW"),
+                    &dest.join("photo.ARW"),
+                    false,
+                    |from, to| fs::copy(from, to).map(|_| ()),
+                    |path| {
+                        if !paused && path == dest.join("photo.XMP") {
+                            paused = true;
+                            published_tx.send(()).unwrap();
+                            resume_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+                        }
+                    },
+                )
+            });
+            published_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            assert_eq!(
+                fs::read(dest.join("photo.XMP")).unwrap(),
+                b"shared XMP edits"
+            );
+            let b = scope.spawn(move || {
+                b_started_tx.send(()).unwrap();
+                let result = transfer(&card.join("photo.JPG"), &dest.join("photo.JPG"), false);
+                b_done_tx.send(()).unwrap();
+                result
+            });
+            b_started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            let premature_b = b_done_rx.recv_timeout(Duration::from_millis(200)).is_ok();
+            // Force A's photo publication to fail after its XMP was published.
+            fs::write(dest.join("photo.ARW"), b"external collision").unwrap();
+            resume_tx.send(()).unwrap();
+            let a = a.join().unwrap().unwrap();
+            let b = b.join().unwrap().unwrap();
+            assert!(
+                !premature_b,
+                "B shared metadata before A's publication/rollback finished"
+            );
+            assert!(matches!(a, TransferOutcome::Copied { renamed: true, .. }));
+            assert!(matches!(b, TransferOutcome::Copied { renamed: false, .. }));
+        });
+        assert_eq!(
+            fs::read(dest.join("photo.ARW")).unwrap(),
+            b"external collision"
+        );
+        assert_eq!(fs::read(dest.join("photo-2.ARW")).unwrap(), b"RAW image");
+        assert_eq!(
+            fs::read(dest.join("photo-2.XMP")).unwrap(),
+            b"shared XMP edits"
+        );
+        assert_eq!(fs::read(dest.join("photo.JPG")).unwrap(), b"JPEG image");
+        assert_eq!(
+            fs::read(dest.join("photo.XMP")).unwrap(),
+            b"shared XMP edits"
+        );
     }
 }
