@@ -1631,12 +1631,16 @@ pub fn write_file_atomically(
     {
         // Dedicated metadata transactions own these destination-bound fields.
         // Ordinary edit/EXIF/rating writers may have loaded an older snapshot.
+        let mut preserved = false;
         for key in ["appliedPreset", "exportFraming"] {
             if let Some(value) = current.get(key) {
                 object.insert(key.into(), value.clone());
+                preserved = true;
             }
         }
-        bytes = serde_json::to_vec_pretty(&incoming).map_err(std::io::Error::other)?;
+        if preserved {
+            bytes = serde_json::to_vec_pretty(&incoming).map_err(std::io::Error::other)?;
+        }
     }
     write_file_atomically_with_backend(path, &bytes, &mut TempfileAtomicWriteBackend)
 }
