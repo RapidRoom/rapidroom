@@ -45,3 +45,6 @@ bench/out/
 
 # Staged existing adapter for opt-in Linux packaging
 /rapidroom/mcp-client/binaries/
+
+# Explicitly staged optional native runtime; binaries never belong in Git.
+/src-tauri/resources/openvino-cpu/runtime/

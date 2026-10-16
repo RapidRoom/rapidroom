@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { useEditorStore } from '../store/useEditorStore';
-import { Adjustments, HueSatLum, INITIAL_ADJUSTMENTS } from '../utils/adjustments';
+import { Adjustments, getActiveTools, HueSatLum, INITIAL_ADJUSTMENTS, isToolActive } from '../utils/adjustments';
 import { HslMixerBand, HslMixerProperty, HslPresence, sampleHslPresence } from '../utils/hslMixer';
 import { RenderSize } from './useImageRenderSize';
 import { Invokes } from '../components/ui/AppProperties';
@@ -59,10 +59,7 @@ export function useHslMixerPicker({
   setAdjustments,
 }: HslMixerPickerOptions) {
   const selectedProperty = useEditorStore((state) => state.mixerPickerProperty);
-  const mixerVisible = useEditorStore(
-    (state) =>
-      (state.adjustments.sectionVisibility?.color ?? true) && (state.adjustments.sectionVisibility?.colorMixer ?? true),
-  );
+  const mixerVisible = useEditorStore((state) => isToolActive(getActiveTools(state.adjustments), 'colorMixer'));
   const property = mixerVisible ? selectedProperty : null;
   const setEditor = useEditorStore((state) => state.setEditor);
   const [isDragging, setIsDragging] = useState(false);

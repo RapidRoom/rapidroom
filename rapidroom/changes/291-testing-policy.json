@@ -1,0 +1,13 @@
+{
+  "id": "agents-testing-policy",
+  "title": "Prefer reference and end-to-end checks over trivial unit tests in contributor guidance",
+  "category": "ci",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (maintainer decision, contributor guidance)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "AGENTS.md now asks for reference checks pinned to outside truth and integration/end-to-end/acceptance checks rather than unit tests that restate the code; upstream PRs carry the fix only."
+}

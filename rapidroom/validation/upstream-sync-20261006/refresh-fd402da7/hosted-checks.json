@@ -1,0 +1,87 @@
+{
+  "source": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "checks": [
+    {
+      "name": "regression",
+      "head_sha": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "status": "completed",
+      "conclusion": "failure",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597429/job/116074062243"
+    },
+    {
+      "name": "build (ubuntu-24.04, 03) / build",
+      "head_sha": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597573/job/116074060676"
+    },
+    {
+      "name": "refresh",
+      "head_sha": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "status": "completed",
+      "conclusion": "skipped",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597487/job/116074059823"
+    },
+    {
+      "name": "Vitest",
+      "head_sha": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597984/job/116074059630"
+    },
+    {
+      "name": "csp",
+      "head_sha": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597696/job/116074059249"
+    },
+    {
+      "name": "cargo clippy",
+      "head_sha": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597584/job/116074059145"
+    },
+    {
+      "name": "cargo fmt",
+      "head_sha": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597584/job/116074058994"
+    },
+    {
+      "name": "Headless CLI exit codes",
+      "head_sha": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597584/job/116074058859"
+    },
+    {
+      "name": "Frontend Lint & Format",
+      "head_sha": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597584/job/116074058559"
+    },
+    {
+      "name": "check",
+      "head_sha": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597487/job/116074057662"
+    }
+  ],
+  "regression": {
+    "job_url": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597429/job/116074062243",
+    "repeatability_exact": 18,
+    "neutral_reference_exact": 6,
+    "edited_reference_mismatches": 12,
+    "local_frozen_exact": 19,
+    "local_frozen_total": 60,
+    "reference_gate_pass": false,
+    "reference_updated": false,
+    "log_sha256": "a6fe5712b91ab5a1a5c5c27c9a6f5772ae57a95f01020ac07064b1d3bc16bc74"
+  },
+  "scope": "Actual completed checks for compiled523 source, not evidence-only publication head. No CI tolerance/policy/reference change."
+}

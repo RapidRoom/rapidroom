@@ -529,10 +529,12 @@ async fn apply_auto_adjustments(
     check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
     ui::require_active_session(app_handle, Some(&path))?;
     let state = app_handle.state::<AppState>();
-    let (image, _) = crate::get_original_image(&state)?;
-    let auto = crate::image_processing::perform_auto_analysis(&image);
-    let auto_json = crate::image_processing::auto_results_to_json(&auto);
     let current = get_image_state(app_handle, arguments)?;
+    let auto_json = crate::image_processing::calculate_auto_adjustments(
+        current["adjustments"].clone(),
+        state,
+        app_handle.clone(),
+    )?;
     let merged = adjustments::merge_adjustments(
         current
             .get("adjustments")
@@ -845,6 +847,7 @@ fn parse_export_settings(value: Option<&Value>) -> Result<ExportSettings, String
     };
 
     Ok(ExportSettings {
+        instagram: None,
         dpi: None,
         output_sharpening: None,
         overwrite_existing: false,
@@ -869,6 +872,7 @@ fn parse_export_settings(value: Option<&Value>) -> Result<ExportSettings, String
 
 fn default_export_settings() -> ExportSettings {
     ExportSettings {
+        instagram: None,
         dpi: None,
         output_sharpening: None,
         overwrite_existing: false,
@@ -1299,6 +1303,35 @@ mod tests {
         );
 
         let schema = adjustments::adjustments_schema();
+        for tool in definitions.iter().filter(|tool| {
+            matches!(
+                tool["name"].as_str(),
+                Some("set_adjustments" | "update_adjustments" | "get_preview")
+            )
+        }) {
+            let property = if tool["name"] == "update_adjustments" {
+                "changes"
+            } else {
+                "adjustments"
+            };
+            let controls = &tool["inputSchema"]["properties"][property];
+            for key in crate::app_settings::SPATIAL_EFFECT_ADJUSTMENTS {
+                assert!(
+                    !controls["properties"][*key].is_null(),
+                    "{} omits {key}",
+                    tool["name"]
+                );
+                assert!(
+                    controls["propertyNames"]["enum"]
+                        .as_array()
+                        .unwrap()
+                        .contains(&json!(key))
+                );
+            }
+            let light = &tool["inputSchema"]["$defs"]["relightLight"];
+            assert_eq!(light["properties"]["elevation"]["minimum"], -180.0);
+            assert_eq!(light["required"], json!(["id", "type", "x", "y"]));
+        }
         assert_eq!(schema["properties"]["exposure"]["minimum"], -5.0);
         assert_eq!(schema["properties"]["hue"]["maximum"], 180.0);
         assert_eq!(schema["properties"]["toneMapper"]["enum"][0], "basic");

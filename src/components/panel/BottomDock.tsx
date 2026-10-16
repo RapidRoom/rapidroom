@@ -1,17 +1,37 @@
-import type { PointerEvent, ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 import { Panel } from '../ui/AppProperties';
 import PanelSwitcher from './PanelSwitcher';
 import AgentLauncher from './AgentLauncher';
+import { clampDockHeight } from '../../utils/dockHeight';
+import { DockHeaderContext } from './DockHeaderContext';
 
 export default function BottomDock({ renderPanel }: { renderPanel: (panel: Panel) => ReactNode }) {
   const { t } = useTranslation();
   const height = useUIStore((state) => state.bottomDockHeight);
   const active = useUIStore((state) => state.activePanels.bottom);
   const panels = useUIStore((state) => state.panelLayout.bottom);
+  const lastActive = useRef<Panel | null>(null);
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+  const [headerSlot, setHeaderSlot] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const resize = () => setViewportHeight(window.innerHeight);
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+  useEffect(() => {
+    if (active) lastActive.current = active;
+  }, [active]);
+  const toggle = () => {
+    const panel = panels.find((panel) => panel === lastActive.current) ?? panels[0] ?? null;
+    useUIStore.getState().setUI((state) => ({
+      activePanels: { ...state.activePanels, bottom: state.activePanels.bottom ? null : panel },
+    }));
+  };
+  const toggleLabel = t(active ? 'terminal.collapseDock' : 'terminal.expandDock');
   const { setNodeRef, isOver } = useDroppable({
     id: 'layout-region-bottom',
     data: { type: 'layout-region', region: 'bottom' },
@@ -20,11 +40,12 @@ export default function BottomDock({ renderPanel }: { renderPanel: (panel: Panel
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     const start = event.clientY;
+    const startHeight = clampDockHeight(height, window.innerHeight);
     const element = event.currentTarget;
     const move = (next: globalThis.PointerEvent) =>
       useUIStore
         .getState()
-        .setUI({ bottomDockHeight: Math.max(80, Math.min(window.innerHeight * 0.7, height + start - next.clientY)) });
+        .setUI({ bottomDockHeight: clampDockHeight(startHeight + start - next.clientY, window.innerHeight) });
     const end = () => {
       element.removeEventListener('pointermove', move);
       element.removeEventListener('pointerup', end);
@@ -37,52 +58,65 @@ export default function BottomDock({ renderPanel }: { renderPanel: (panel: Panel
     element.addEventListener('lostpointercapture', end);
   };
   return (
-    <aside
-      ref={setNodeRef}
-      data-bottom-dock
-      data-layout-region="bottom"
-      className={`lights-out-chrome shrink-0 flex flex-col min-h-0 rounded-lg bg-bg-secondary ${isOver ? 'ring-2 ring-accent' : ''}`}
-      style={{ height: active ? height : 52 }}
-    >
-      {active && (
+    <DockHeaderContext.Provider value={{ element: headerSlot, onToggle: toggle }}>
+      <aside
+        ref={setNodeRef}
+        data-bottom-dock
+        data-layout-region="bottom"
+        className={`lights-out-chrome shrink-0 flex flex-col min-h-0 rounded-lg bg-bg-secondary ${isOver ? 'ring-2 ring-accent' : ''}`}
+        style={{ height: active ? clampDockHeight(height, viewportHeight) : 44 }}
+      >
         <div
           role="separator"
           aria-label={t('terminal.resizeDock')}
           aria-orientation="horizontal"
-          tabIndex={0}
-          className="h-1 shrink-0 cursor-row-resize bg-border-color"
-          onPointerDown={resize}
+          tabIndex={active ? 0 : -1}
+          className={`h-1 shrink-0 ${active ? 'cursor-row-resize bg-border-color' : ''}`}
+          onPointerDown={active ? resize : undefined}
           onKeyDown={(event) => {
-            if (['ArrowUp', 'ArrowDown'].includes(event.key)) {
+            if (active && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
               event.preventDefault();
               useUIStore.getState().setUI({
-                bottomDockHeight: Math.max(80, Math.min(800, height + (event.key === 'ArrowUp' ? 20 : -20))),
+                bottomDockHeight: clampDockHeight(
+                  clampDockHeight(height, window.innerHeight) + (event.key === 'ArrowUp' ? 20 : -20),
+                  window.innerHeight,
+                ),
               });
             }
           }}
         />
-      )}
-      {active !== Panel.Terminal && (
-        <div className="flex shrink-0 items-center justify-between">
-          <div className="flex-1 min-w-0">
-            <PanelSwitcher region="bottom" side="bottom" placement="top" />
+        <div data-dock-header className="flex h-10 shrink-0 items-center cursor-pointer" onClick={toggle}>
+          <button
+            type="button"
+            data-dock-toggle
+            aria-label={toggleLabel}
+            aria-expanded={!!active}
+            aria-controls="bottom-dock-content"
+            data-tooltip={toggleLabel}
+            disabled={!panels.length}
+            className="p-2 shrink-0 rounded hover:bg-surface disabled:opacity-40"
+            onClick={(event) => {
+              event.stopPropagation();
+              toggle();
+            }}
+          >
+            {active ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+          </button>
+          <div onClick={(event) => event.stopPropagation()}>
+            <PanelSwitcher region="bottom" side="bottom" placement="top" compact />
           </div>
-          <AgentLauncher />
-          {active && (
-            <button
-              aria-label={t('terminal.collapseDock')}
-              className="p-2"
-              onClick={() =>
-                useUIStore.getState().setUI((state) => ({ activePanels: { ...state.activePanels, bottom: null } }))
-              }
-            >
-              <ChevronDown size={18} />
-            </button>
-          )}
+          <div ref={setHeaderSlot} data-dock-header-slot className="flex-1 min-w-0 self-stretch" />
+          <div onClick={(event) => event.stopPropagation()}>
+            <AgentLauncher />
+          </div>
           {!panels.length && <span className="text-xs text-text-secondary px-2">{t('terminal.dropPanel')}</span>}
         </div>
-      )}
-      {active && <div className="flex-1 min-h-0">{renderPanel(active)}</div>}
-    </aside>
+        {active && (
+          <div id="bottom-dock-content" className="flex-1 min-h-0">
+            {renderPanel(active)}
+          </div>
+        )}
+      </aside>
+    </DockHeaderContext.Provider>
   );
 }

@@ -3,6 +3,8 @@
 // image_processing.rs; keep them short, they end up in table cells. The test fails if a key has
 // no note or a note's key no longer exists.
 export const ADJUSTMENT_NOTES: Record<string, string> = {
+  baselineExposure:
+    'Eligibility marker for Settings baseline/highlight-preservation compensation: new/reset images use true; legacy sidecars without the marker use false. Does not change the Exposure slider or enable the Settings option.',
   exposure:
     '+ brightens linear light before tone mapping: ×2^(value/0.8), so 1.0 is about +1.25 EV. The first slider for overall brightness.',
   toneMapper:
@@ -10,10 +12,13 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   brightness:
     '+ lifts the midtones after tone mapping; black and white stay put. Use after exposure, for the feel rather than the level.',
   contrast: '+ S-curve around middle grey. Keep moderate; contrast between regions comes from masks.',
-  highlights: '− recovers detail in bright areas (sky, snow); + brightens them. Starts above about 10 % linear luma.',
+  highlights:
+    '− recovers bright-area detail; + brightens it. Uses a log-space edge-aware base and mid-scale detail reinjection.',
   shadows: '+ lifts and opens the shadows with some local detail; − deepens them.',
   whites:
-    'A gain on the whole image, not only the whites (applied before shadows and contrast): +100 ≈ ×6, −100 ≈ ×0.55. Small steps.',
+    'Selectively lifts or compresses bright tones above an edge-aware base, with local and mid-scale detail reinjection. It no longer applies a uniform gain to the whole image.',
+  whiteBalance:
+    'Optional absolute Kelvin baseline {temperature: 2000–50000, tint: −150–150}; null uses the camera as-shot baseline. The relative temperature/tint offsets apply on top. Set both offsets to0 when setting an absolute target, as the GUI does.',
   blacks: '+ lifts the deepest tones (faded look); − deepens them.',
   'curves.<channel>':
     'Points `{x, y}` from 0 to 255, sorted by x, at most 16, after tone mapping. `luma` is applied to R, G and B alike. The renderer reads only `curves`.',
@@ -125,22 +130,49 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   lensBlurDiffusion: 'Softens the blur discs.',
   lensBlurShape: 'Bokeh shape: `circle`, `hexagon`, `octagon` or `ring`.',
   lensBlurDepthMap: 'Depth map the GUI generates when lens blur is turned on. Without it the blur does nothing.',
+  relightEnabled:
+    'Enables relight using a source-space normal map; the GUI generates it on explicit activation. Off by default.',
+  relightNormalMap: 'Generated source-space normal map. Set by the GUI; leave its encoded data alone.',
+  relightLights:
+    'Array of point, spot or directional lights. Replacing the array replaces all lights; preserve existing entries and stable IDs.',
+  relightAmbient: 'Adds ambient illumination to the relit surface.',
+  relightSoftness: 'Softens local relight contrast.',
+  relightShine: 'Increases the specular highlight contribution.',
+  relightShadows: 'Enables shadows cast by relight lights.',
+  relightShadowSoftness: 'Softens relight shadow edges.',
+  fogEnabled: 'Enables atmospheric fog using a generated depth map. Off by default.',
+  fogDepthMap: 'Generated source-space depth map. Set by the GUI; leave its encoded data alone.',
+  fogAmount: 'Increases the fog blend strength; 0 leaves the image unchanged.',
+  fogStart: 'Moves the start of fog farther into the depth range.',
+  fogDensity: 'Increases optical fog density.',
+  fogHeight: 'Controls the height-dependent fog distribution.',
+  fogVariation: 'Increases spatial variation in the fog.',
+  fogGlow: 'Increases light scattered into the fog.',
+  fogTemperature: '+ warms the fog colour; − cools it.',
+  fogTint: '+ magenta, − green, in the fog colour.',
+  'relightLights.<light>.id':
+    'Stable light ID. Retain it when editing an existing light; use a new UUID for a new light.',
+  'relightLights.<light>.type': '`point`, `spot` or `directional`; controls which geometry and aiming fields apply.',
+  'relightLights.<light>.x': 'Horizontal placement in normalized source-image coordinates, 0–1.',
+  'relightLights.<light>.y': 'Vertical placement in normalized source-image coordinates, 0–1.',
+  'relightLights.<light>.depth': 'Position of a point or spot light along the depth axis.',
+  'relightLights.<light>.intensity': 'Light strength; 0 contributes no illumination.',
+  'relightLights.<light>.radius': 'Falloff extent for point and spot lights.',
+  'relightLights.<light>.angle': 'Aim direction in degrees in the image plane.',
+  'relightLights.<light>.elevation': 'Aim elevation in degrees; applies to spot and directional lights.',
+  'relightLights.<light>.cone': 'Spotlight cone width; ignored for other light types.',
+  'relightLights.<light>.feather': 'Softens the spotlight cone edge.',
+  'relightLights.<light>.temperature': '+ warms the light; − cools it.',
+  'relightLights.<light>.tint': '+ magenta, − green, in the light colour.',
+  'relightLights.<light>.color': 'Light colour as a six-digit `#RRGGBB` string, before temperature/tint shifts.',
   lensBlurEnabled: 'Turns lens blur on. Turn it on in the GUI, which also makes the depth map.',
   lensBlurMaxDepth: 'Depth (0–100) up to which the image stays sharp; nearer gets blurred.',
   lensBlurMaxFade: 'Transition width at the near end of the sharp range.',
   lensBlurMinDepth: 'Depth (0–100) from which the image stays sharp; farther gets blurred.',
   lensBlurMinFade: 'Transition width at the far end of the sharp range.',
   lensDistortionParams: 'Lens profile coefficients, filled by the GUI from the lens database. Leave alone.',
-  'sectionVisibility.basic':
-    '`false` turns the whole Basic section off (like the eye icon), without losing its values.',
-  'sectionVisibility.curves': '`false` turns the curves off without losing them.',
-  'sectionVisibility.color': '`false` turns the Color section off without losing its values.',
-  'sectionVisibility.colorGrading':
-    '`false` bypasses Color Grading independently; the parent Color section must also be on.',
-  'sectionVisibility.colorMixer':
-    '`false` bypasses the HSL Color Mixer independently; the parent Color section must also be on.',
-  'sectionVisibility.details': '`false` turns the Details section off without losing its values.',
-  'sectionVisibility.effects': '`false` turns the Effects section off without losing its values.',
+  activeTools:
+    'Per-tool boolean map; omitted keys are enabled. Set colorMixer or colorGrading to false to bypass that tool without losing its values. Applies to global and mask edits; legacy sectionVisibility sidecars are migrated on load.',
   showClipping: 'Shows the clipping overlay in the editor. Display only; doesn’t change the photo.',
 };
 
