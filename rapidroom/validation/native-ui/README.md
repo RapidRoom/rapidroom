@@ -359,7 +359,8 @@ Use a pinned `native-ui-test,mcp` build plus the adapter, and pass `--lock /tmp/
 Run `smoke.py --filter-chips` with a pinned native engine and the GPU lock.
 Three owned synthetic JPEGs carry explicit ISO/lens metadata beside the CC0 RAW.
 The native checks edit numeric and text queries and assert the displayed photo
-set changes, cancel edits with Escape, edit the last chip with Backspace, delete
+set changes, cancel edits with Escape and across Community Presets navigation,
+restore prior input drafts, edit the last chip with Backspace, delete
 only one duplicate using the separate x button, and navigate chip controls with
 Left/Right. Captures record the workflow; the usual RAW/edit/Undo/export/clean-exit
 checks still follow. Export counting excludes pre-existing fixture JPEGs.

@@ -267,6 +267,24 @@ export function SearchInput({ indexingProgress, isIndexing }: any) {
 
   const [contentWidth, setContentWidth] = useState(0);
   const [pendingEdit, setPendingEdit] = useState<{ tag: string; index: number; draftText: string } | null>(null);
+  const pendingEditRef = useRef(pendingEdit);
+
+  useEffect(() => {
+    pendingEditRef.current = pendingEdit;
+  }, [pendingEdit]);
+
+  useEffect(() => () => {
+    // Community Presets replaces this component while criteria remain shared.
+    // Cancel the unfinished edit before its local transaction disappears.
+    const edit = pendingEditRef.current;
+    if (!edit) return;
+    useLibraryStore.getState().setSearchCriteria((prev) => {
+      const nextTags = [...prev.tags];
+      nextTags.splice(edit.index, 0, edit.tag);
+      return { ...prev, tags: nextTags, text: edit.draftText };
+    });
+  }, []);
+
 
   useEffect(() => {
     if (isSearchActive) {
