@@ -17,9 +17,10 @@ afterEach(async () => {
   toast.clearWaitingQueue();
   vi.useRealTimers();
 });
+const fixtureFailure = 'Source file not found: an owned fixture path';
 const notice = ({ toastProps }: ToastContentProps) => (
   <span data-notice={toastProps.toastId} data-auto-close={String(toastProps.autoClose)}>
-    Source file not found: an owned fixture path
+    {fixtureFailure}
   </span>
 );
 it('retains queued startup errors and progress failures while later successes keep their timeout', async () => {
