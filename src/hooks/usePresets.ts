@@ -258,10 +258,11 @@ export function usePresets(currentAdjustments: Adjustments) {
       }
     }
 
-    if (newAdjustments.exposure !== undefined) {
-      newAdjustments.baselineExposure =
-        existingPreset.adjustments.baselineExposure ?? INITIAL_ADJUSTMENTS.baselineExposure;
-      newAdjustments.cameraExposureCompensation = existingPreset.adjustments.cameraExposureCompensation ?? false;
+    // Configuring metadata or type must retain explicit flags and legacy omissions.
+    for (const key of ['baselineExposure', 'cameraExposureCompensation'] as const) {
+      const value = existingPreset.adjustments[key];
+      if (value === undefined) delete newAdjustments[key];
+      else newAdjustments[key] = value;
     }
 
     if (!includeMasks) {

@@ -566,6 +566,12 @@ pub(super) fn original_adjustments() -> Result<Value, String> {
     ))
 }
 
+pub(super) fn original_adjustments_for(current: &Value) -> Result<Value, String> {
+    let mut original = original_adjustments()?;
+    crate::image_processing::copy_exposure_policy(current, &mut original);
+    Ok(original)
+}
+
 async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
     let path = required_image_path(arguments)?;
     ui::require_active_session(app_handle, Some(&path))?;
@@ -577,7 +583,7 @@ async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value,
         return Err("original cannot be combined with adjustments or side_by_side".into());
     }
     let adjustments = if original {
-        original_adjustments()?
+        original_adjustments_for(&current["adjustments"])?
     } else if let Some(adjustments) = arguments.get("adjustments") {
         adjustments::validate_adjustments(adjustments)?;
         adjustments.clone()
@@ -610,7 +616,7 @@ async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value,
     let (result, labels) = if comparison {
         let neutral = crate::generate_preview_bytes_for_path(
             path.clone(),
-            original_adjustments()?,
+            original_adjustments_for(&current["adjustments"])?,
             render_dimension,
             app_handle.clone(),
         )
