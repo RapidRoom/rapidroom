@@ -4086,12 +4086,21 @@ fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String
 #[tauri::command]
 pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
     let path = get_presets_path(&app_handle)?;
-    if !path.exists() {
-        return crate::starter_presets::library();
+    let marker = path.with_file_name(".rapidroom-styles-v1");
+    let mut presets = if path.exists() {
+        let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    } else {
+        crate::starter_presets::library()?
+    };
+    if !marker.exists() {
+        crate::starter_presets::include_styles(&mut presets)?;
+        // Persist the migration before marking it complete. Later user deletions
+        // must survive reload, including removal of the entire Styles folder.
+        let content = serde_json::to_string_pretty(&presets).map_err(|e| e.to_string())?;
+        write_file_atomically(&path, content).map_err(|e| e.to_string())?;
+        write_file_atomically(&marker, "1\n").map_err(|e| e.to_string())?;
     }
-    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let mut presets = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    crate::starter_presets::include_styles(&mut presets)?;
     Ok(presets)
 }
 

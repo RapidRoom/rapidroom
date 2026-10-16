@@ -68,8 +68,8 @@ const blendGradingHue = (
   const to = target.hue;
   const from = source.hue;
   if (typeof to !== 'number' || !Number.isFinite(to)) return from;
-  if (typeof from !== 'number' || !Number.isFinite(from) || !source.saturation) return to;
-  if (!target.saturation) return from;
+  if (typeof from !== 'number' || !Number.isFinite(from) || source.saturation === 0) return to;
+  if (target.saturation === 0) return from;
   const delta = ((to - from + 540) % 360) - 180;
   return (((from + delta * fraction) % 360) + 360) % 360;
 };

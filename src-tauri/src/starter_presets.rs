@@ -215,9 +215,9 @@ mod tests {
                 PresetItem::Preset(preset) => vec![preset],
             })
             .collect();
-        assert_eq!(presets.len(), 35);
+        assert_eq!(presets.len(), 34);
         let ids: std::collections::HashSet<_> = presets.iter().map(|p| &p.id).collect();
-        assert_eq!(ids.len(), 35);
+        assert_eq!(ids.len(), 34);
         for preset in presets {
             assert!(preset.unavailable_reason.is_none(), "{}", preset.name);
             assert!(
