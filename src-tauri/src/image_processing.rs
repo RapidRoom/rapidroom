@@ -1746,6 +1746,8 @@ pub struct GlobalAdjustments {
     pub halation_amount: f32,
     pub flare_amount: f32,
     pub sharpness_threshold: f32,
+    pub lut_domain_min: [f32; 4],
+    pub lut_domain_max: [f32; 4],
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Pod, Zeroable, Default)]
@@ -2514,6 +2516,8 @@ fn get_global_adjustments_from_json(
     };
 
     GlobalAdjustments {
+        lut_domain_min: [0.0; 4],
+        lut_domain_max: [1.0, 1.0, 1.0, 0.0],
         exposure: get_val("basic", "exposure", SCALES.exposure, None) + baseline_exposure,
         brightness: get_val("basic", "brightness", SCALES.brightness, None),
         contrast: get_val("basic", "contrast", SCALES.contrast, None),
