@@ -263,6 +263,8 @@ impl Default for CopyPasteSettings {
 #[serde(rename_all = "camelCase")]
 pub struct ExportPreset {
     #[serde(default)]
+    pub instagram_ratio: Option<crate::export_framing::InstagramRatio>,
+    #[serde(default)]
     pub dpi: Option<u16>,
     pub id: String,
     pub name: String,
@@ -320,6 +322,7 @@ pub struct ExportPreset {
 pub fn default_export_presets() -> Vec<ExportPreset> {
     vec![
         ExportPreset {
+            instagram_ratio: None,
             dpi: None,
             id: "default-hq".to_string(),
             name: "High Quality".to_string(),
@@ -357,6 +360,7 @@ pub fn default_export_presets() -> Vec<ExportPreset> {
             output_sharpening: None,
         },
         ExportPreset {
+            instagram_ratio: None,
             dpi: None,
             id: "default-fast".to_string(),
             name: "Fast (Web)".to_string(),
@@ -570,6 +574,10 @@ pub struct AppSettings {
     #[serde(default = "default_export_presets")]
     pub export_presets: Vec<ExportPreset>,
     #[serde(default)]
+    pub last_selected_export_preset_id: Option<String>,
+    #[serde(default)]
+    pub last_instagram_export_preset_id: Option<String>,
+    #[serde(default)]
     pub my_lenses: Option<Vec<MyLens>>,
     #[serde(default)]
     pub enable_folder_image_counts: Option<bool>,
@@ -714,6 +722,8 @@ impl Default for AppSettings {
             linux_gpu_optimization_migrated_v1: Some(true),
             library_view_mode: Some("flat".to_string()),
             export_presets: default_export_presets(),
+            last_selected_export_preset_id: None,
+            last_instagram_export_preset_id: None,
             my_lenses: Some(Vec::new()),
             #[cfg(target_os = "android")]
             high_res_zoom_multiplier: Some(0.75),
