@@ -8265,7 +8265,7 @@ mod lens_policy_version_tests {
             let bytes = crate::exif_processing::rating_samples::sony_arw(true, Some("4"), None);
             std::fs::write(&raw, &bytes).unwrap();
             if saved {
-                let saved_recipe = crate::exif_processing::ImageMetadata {
+                let saved_recipe = crate::image_processing::ImageMetadata {
                     adjustments: serde_json::json!({"lensCorrectionMode":"manual","contrast":20}),
                     ..Default::default()
                 };
