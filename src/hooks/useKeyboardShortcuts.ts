@@ -723,11 +723,12 @@ export const useKeyboardShortcuts = ({
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           if (e.repeat) return;
+          // The slider drag owns its preview crop until it commits on release.
+          if (s.editor.isRotationActive || s.editor.liveRotation !== null) return;
           if (e.code === 'KeyX') {
             handleCropOrientationToggle();
             return;
           }
-          if (s.editor.liveRotation !== null) setAdjustments({ rotation: s.editor.liveRotation });
           debouncedSetHistory.flush();
           s.editor.setEditor({
             isStraightenActive: false,
