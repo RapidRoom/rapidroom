@@ -55,6 +55,7 @@ export const useKeyboardShortcuts = ({
     toggleShowOriginal,
     handleAutoAdjustments,
     setAdjustments,
+    handleCropOrientationToggle,
   } = useEditorActions();
   const { handleRate, handleSetFlag, handleToggleFlag, handleSetColorLabel } = useLibraryActions();
 
@@ -711,6 +712,34 @@ export const useKeyboardShortcuts = ({
 
     const builtinShortcuts: BuiltinShortcut[] = [
       {
+        match: (e: KeyboardEvent, s: StoreState) =>
+          s.ui.activeView === 'editor' &&
+          s.ui.activePanel === Panel.Crop &&
+          !!s.editor.selectedImage?.isReady &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey &&
+          ['Enter', 'NumpadEnter', 'KeyX'].includes(e.code),
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          if (e.repeat) return;
+          if (e.code === 'KeyX') {
+            handleCropOrientationToggle();
+            return;
+          }
+          if (s.editor.liveRotation !== null) setAdjustments({ rotation: s.editor.liveRotation });
+          debouncedSetHistory.flush();
+          s.editor.setEditor({
+            isStraightenActive: false,
+            isGuidedPerspectiveActive: false,
+            liveRotation: null,
+            isRotationActive: false,
+          });
+          s.ui.setPanel(Panel.Adjustments);
+          handleZoomChange(0, true);
+        },
+      },
+      {
         match: (e: KeyboardEvent) => e.code === 'Escape',
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
@@ -784,6 +813,7 @@ export const useKeyboardShortcuts = ({
     ];
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
       const state = getStoreState();
 
       const isModalOpen =
@@ -810,7 +840,9 @@ export const useKeyboardShortcuts = ({
       }
 
       const isInputFocused =
-        document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable);
       if (isInputFocused) return;
 
       for (const builtin of builtinShortcuts) {
@@ -846,6 +878,7 @@ export const useKeyboardShortcuts = ({
     handleImageSelect,
     handlePasteFiles,
     handleZoomChange,
+    handleCropOrientationToggle,
     handleRotate,
     handleCopyAdjustments,
     handleCopyImagePaths,
