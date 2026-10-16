@@ -1,4 +1,4 @@
-import { useCallback, type RefObject } from 'react';
+import { useCallback, useRef, type RefObject } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { homeDir } from '@tauri-apps/api/path';
@@ -60,6 +60,7 @@ interface PreviousAdjustments {
 }
 
 interface TransformWrapper {
+  getZoomIntent?(): number | null;
   resetTransform(duration?: number): void;
 }
 
@@ -211,6 +212,9 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
     setUI({ activeView: 'library', slideDirection: 1 });
   }, [refs]);
 
+  const imageSelectionGenerationRef = useRef(0);
+  const committedImageGenerationRef = useRef(0);
+
   const handleImageSelect = useCallback(
     async (path: string, openInEditor: boolean = true) => {
       const { selectedImage, isSliderDragging, resetHistory, setEditor } = useEditorStore.getState();
@@ -221,6 +225,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
         setUI({ activeView: 'editor' });
       }
 
+      const generation = ++imageSelectionGenerationRef.current;
       if (selectedImage?.path === path) return;
 
       useEditorStore.getState().patchesSentToBackend.clear();
@@ -239,6 +244,19 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       const isCachedInBackend = isFrontendCached
         ? await invoke<boolean>('is_image_cached', { path }).catch(() => false)
         : false;
+
+      // A cached selection can await the backend while later arrow presses overtake it.
+      if (generation !== imageSelectionGenerationRef.current) return;
+      const pendingZoom = useEditorStore.getState().zoomRequest;
+      const currentPath = useEditorStore.getState().selectedImage?.path;
+      const percent =
+        pendingZoom && pendingZoom.imagePath === currentPath
+          ? pendingZoom.percent
+          : (transformWrapperRef.current?.getZoomIntent?.() ?? null);
+      const zoomRequest = { imagePath: path, percent, resetPosition: true };
+      committedImageGenerationRef.current = generation;
+      const isCurrentSelection = () =>
+        committedImageGenerationRef.current === generation && selectedImagePathRef.current === path;
 
       const hasDifferentResolution =
         cached &&
@@ -279,6 +297,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
       if (isFrontendCached) {
         setEditor({
+          zoomRequest,
           selectedImage: {
             ...cached.selectedImage,
             thumbnailUrl: cachedMedium || cached.selectedImage.thumbnailUrl,
@@ -303,7 +322,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
         invoke<LoadedImageResult>(Invokes.LoadImage, { path })
           .then((_result) => {
-            if (selectedImagePathRef.current !== path) return;
+            if (!isCurrentSelection()) return;
             isBackendReadyRef.current = true;
             currentResRef.current = 0;
             setEditor((state) => {
@@ -318,7 +337,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
             });
           })
           .catch((err: unknown) => {
-            if (String(err).includes('cancelled')) return;
+            if (!isCurrentSelection() || String(err).includes('cancelled')) return;
             console.error('Background load_image failed on cache hit:', err);
             isBackendReadyRef.current = true;
             currentResRef.current = 0;
@@ -326,7 +345,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
         invoke<LoadedImageMetadata>(Invokes.LoadMetadata, { path })
           .then((metadata) => {
-            if (selectedImagePathRef.current !== path) return;
+            if (!isCurrentSelection()) return;
             let freshAdjustments: Adjustments;
             if (metadata.adjustments && !metadata.adjustments.is_null) {
               freshAdjustments = normalizeLoadedAdjustments(metadata.adjustments);
@@ -352,6 +371,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
       const imageFile = useLibraryStore.getState().imageList.find((img) => img.path === path);
       setEditor({
+        zoomRequest,
         selectedImage: {
           exif: null,
           group_id: imageFile?.group_id ?? null,
