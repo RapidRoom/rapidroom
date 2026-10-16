@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import clsx from 'clsx';
 import { Slide, ToastContainer, toast } from 'react-toastify';
 
 export default function AppNotifications({ isLightTheme }: { isLightTheme: boolean }) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const persistentErrors = new Set<string | number>();
     return toast.onChange(({ id, containerId, type, status }) => {
       if (status === 'removed' || type !== 'error') {
