@@ -824,20 +824,33 @@ export function ViewOptionsDropdown({
           <div className="px-3">
             <label>
               {t('denoiseQueue.filter')}
-              <select
-                className="bg-bg-secondary rounded p-1 w-full"
-                value={filterCriteria.denoiseStatus ?? 'all'}
-                onChange={(e) =>
-                  setFilterCriteria((prev: FilterCriteria) => ({
-                    ...prev,
-                    denoiseStatus: e.target.value as FilterCriteria['denoiseStatus'],
-                  }))
-                }
-              >
-                <option value="all">{t('denoiseQueue.all')}</option>
-                <option value="marked">{t('denoiseQueue.marked')}</option>
-                <option value="done">{t('denoiseQueue.done')}</option>
-              </select>
+              <span className="relative block">
+                <select
+                  className="appearance-none bg-bg-secondary text-text-primary rounded p-1 pr-6 w-full"
+                  value={filterCriteria.denoiseStatus ?? 'all'}
+                  onChange={(e) =>
+                    setFilterCriteria((prev: FilterCriteria) => ({
+                      ...prev,
+                      denoiseStatus: e.target.value as FilterCriteria['denoiseStatus'],
+                    }))
+                  }
+                >
+                  <option className="bg-bg-secondary text-text-primary" value="all">
+                    {t('denoiseQueue.all')}
+                  </option>
+                  <option className="bg-bg-secondary text-text-primary" value="marked">
+                    {t('denoiseQueue.marked')}
+                  </option>
+                  <option className="bg-bg-secondary text-text-primary" value="done">
+                    {t('denoiseQueue.done')}
+                  </option>
+                </select>
+                <ChevronDown
+                  size={14}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+                  aria-hidden="true"
+                />
+              </span>
             </label>
           </div>
           <div>

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useTranslation } from 'react-i18next';
-import { Check, Grip, Loader2, X } from 'lucide-react';
+import { Check, ChevronDown, Grip, Loader2, X } from 'lucide-react';
 import { platform } from '@tauri-apps/plugin-os';
 import { toast } from 'react-toastify';
 import { useLibraryStore } from '../../store/useLibraryStore';
@@ -113,20 +113,32 @@ export default function DenoiseQueue() {
             <p className="text-sm break-all">{folder ?? t('denoiseQueue.chooseFolder')}</p>
             <label className="flex justify-between">
               {t('denoiseQueue.method')}
-              <select
-                aria-label={t('denoiseQueue.method')}
-                className={controlClass}
-                value={method}
-                onChange={(e) => setMethod(e.target.value)}
-              >
-                {(['best', 'fast', 'nind', 'bm3d', 'raw9'] as const)
-                  .filter((value) => value !== 'raw9' || platform() === 'macos')
-                  .map((value) => (
-                    <option key={value} value={value} disabled={aiFree && ['best', 'fast', 'nind'].includes(value)}>
-                      {t(`denoiseQueue.methods.${value}`)}
-                    </option>
-                  ))}
-              </select>
+              <span className="relative">
+                <select
+                  aria-label={t('denoiseQueue.method')}
+                  className={`${controlClass} appearance-none pr-7 text-text-primary`}
+                  value={method}
+                  onChange={(e) => setMethod(e.target.value)}
+                >
+                  {(['best', 'fast', 'nind', 'bm3d', 'raw9'] as const)
+                    .filter((value) => value !== 'raw9' || platform() === 'macos')
+                    .map((value) => (
+                      <option
+                        className="bg-bg-secondary text-text-primary"
+                        key={value}
+                        value={value}
+                        disabled={aiFree && ['best', 'fast', 'nind'].includes(value)}
+                      >
+                        {t(`denoiseQueue.methods.${value}`)}
+                      </option>
+                    ))}
+                </select>
+                <ChevronDown
+                  size={14}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+                  aria-hidden="true"
+                />
+              </span>
             </label>
             {method === 'best' || method === 'fast' ? (
               <label>
