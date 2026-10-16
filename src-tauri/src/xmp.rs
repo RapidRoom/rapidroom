@@ -7,6 +7,7 @@ const MAX_NODES: usize = 200_000;
 const RDF: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 const XMP: &str = "http://ns.adobe.com/xap/1.0/";
 const DC: &str = "http://purl.org/dc/elements/1.1/";
+pub(crate) const CRS: &str = "http://ns.adobe.com/camera-raw-settings/1.0/";
 
 #[derive(Debug)]
 pub(crate) enum Error {
@@ -216,17 +217,21 @@ impl<'a> Document<'a> {
     }
 
     fn matches(&self, index: usize, name: &str, uri: &str, local: &str) -> bool {
+        if name == "xmlns" || name.starts_with("xmlns:") {
+            return false;
+        }
         let (prefix, actual) = name.split_once(':').unwrap_or(("", name));
         let canonical = match uri {
             RDF => "rdf",
             XMP => "xmp",
             DC => "dc",
+            CRS => "crs",
             _ => "",
         };
         actual == local
             && self
                 .namespace(index, prefix)
-                .map_or(prefix == canonical, |ns| ns == uri)
+                .map_or(!canonical.is_empty() && prefix == canonical, |ns| ns == uri)
     }
 
     fn bound_matches(&self, index: usize, name: &str, uri: &str, local: &str) -> bool {
@@ -257,6 +262,19 @@ impl<'a> Document<'a> {
         self.descriptions().filter(move |&i| {
             Some(i) == first || about.is_some_and(|value| self.about(i) == Some(value))
         })
+    }
+
+    fn photo_subjects(&self) -> Vec<usize> {
+        let mut subjects: Vec<_> = self.image_descriptions().collect();
+        // Older preset fragments store properties directly on a non-RDF root.
+        // Never use this fallback when an RDF image subject is present.
+        if subjects.is_empty()
+            && let Some(root) = self.nodes.iter().position(|node| node.parent.is_none())
+            && !self.matches(root, &self.nodes[root].name, RDF, "RDF")
+        {
+            subjects.push(root);
+        }
+        subjects
     }
 
     fn children<'b>(
@@ -305,6 +323,18 @@ impl<'a> Document<'a> {
             }
         }
         None
+    }
+
+    fn list(&self, property: usize) -> Option<Vec<String>> {
+        let container = *self.nodes[property].children.first()?;
+        let name = &self.nodes[container].name;
+        if !self.matches(container, name, RDF, "Seq") && !self.matches(container, name, RDF, "Bag")
+        {
+            return None;
+        }
+        self.children(container, RDF, "li")
+            .map(|i| self.text(i).map(|s| s.trim().to_string()))
+            .collect()
     }
 
     fn prefix(&self, index: usize, preferred: &str, uri: &str) -> (String, String) {
@@ -603,24 +633,134 @@ pub(crate) fn replace_image_sequences(
     Ok(result)
 }
 
-/// New preset metadata requires a real namespace binding and decoded XML values.
-pub(crate) fn preset_scalar(
+pub(crate) enum PhotoProperty {
+    Scalar(String),
+    List(Vec<String>),
+    Structured,
+}
+
+/// Read only properties of the image subject, never fields of a nested look/mask.
+pub(crate) fn photo_properties(
     content: &str,
     uri: &str,
-    local: &str,
-) -> Result<Option<String>, Error> {
+) -> Result<std::collections::HashMap<String, PhotoProperty>, Error> {
     let doc = Document::parse(content)?;
-    for (index, node) in doc.nodes.iter().enumerate() {
-        for attribute in &node.attributes {
-            if let Some((prefix, actual)) = attribute.name.split_once(':')
-                && actual == local
-                && doc.namespace(index, prefix) == Some(uri)
+    let mut properties = std::collections::HashMap::new();
+    for description in doc.photo_subjects() {
+        for attr in &doc.nodes[description].attributes {
+            if let Some((_, local)) = attr.name.split_once(':')
+                && doc.matches(description, &attr.name, uri, local)
             {
-                return Ok(Some(attribute.value.trim().to_string()));
+                properties
+                    .entry(local.to_string())
+                    .or_insert_with(|| PhotoProperty::Scalar(attr.value.trim().to_string()));
+            }
+        }
+        for &child in &doc.nodes[description].children {
+            let name = &doc.nodes[child].name;
+            let local = name
+                .split_once(':')
+                .map_or(name.as_str(), |(_, local)| local);
+            if !doc.matches(child, name, uri, local) || properties.contains_key(local) {
+                continue;
+            }
+            let value = if let Some(text) = doc.text(child) {
+                Some(PhotoProperty::Scalar(text.trim().to_string()))
+            } else if let Some(container) = doc.nodes[child].children.first().copied() {
+                let node = &doc.nodes[container];
+                if doc.matches(container, &node.name, RDF, "Seq")
+                    || doc.matches(container, &node.name, RDF, "Bag")
+                {
+                    doc.children(container, RDF, "li")
+                        .map(|i| doc.text(i).map(|s| s.trim().to_string()))
+                        .collect::<Option<Vec<_>>>()
+                        .map(PhotoProperty::List)
+                } else if doc.matches(container, &node.name, RDF, "Alt") {
+                    let items: Vec<_> = doc.children(container, RDF, "li").collect();
+                    items
+                        .iter()
+                        .copied()
+                        .find(|&i| {
+                            doc.nodes[i]
+                                .attributes
+                                .iter()
+                                .any(|a| a.name == "xml:lang" && a.value == "x-default")
+                        })
+                        .or_else(|| items.first().copied())
+                        .and_then(|i| doc.text(i))
+                        .map(|s| PhotoProperty::Scalar(s.trim().to_string()))
+                } else {
+                    // Qualified simple properties carry rdf:value inside their resource.
+                    let resource = if doc.matches(container, &node.name, RDF, "Description") {
+                        container
+                    } else {
+                        child
+                    };
+                    doc.children(resource, RDF, "value")
+                        .next()
+                        .and_then(|i| doc.text(i))
+                        .map(|s| PhotoProperty::Scalar(s.trim().to_string()))
+                }
+            } else {
+                None
+            };
+            if let Some(value) = value {
+                properties.insert(local.to_string(), value);
+            } else if !doc.nodes[child].children.is_empty() {
+                // Keep the top-level name for reporting unsupported resources,
+                // without flattening nested adjustments into global settings.
+                properties.insert(local.to_string(), PhotoProperty::Structured);
             }
         }
     }
-    element_text(content, uri, local).map(|value| value.map(|v| v.trim().to_string()))
+    Ok(properties)
+}
+
+/// Profile curves are read in their own resource, never as global photo fields.
+pub(crate) struct PhotoLook {
+    pub amount: f64,
+    pub curve: Option<Vec<String>>,
+}
+
+pub(crate) fn photo_looks(content: &str) -> Result<Vec<PhotoLook>, Error> {
+    let doc = Document::parse(content)?;
+    let mut looks = Vec::new();
+    for description in doc.photo_subjects() {
+        for look in doc.children(description, CRS, "Look") {
+            let resource = doc
+                .children(look, RDF, "Description")
+                .next()
+                .unwrap_or(look);
+            let amount = doc.nodes[resource]
+                .attributes
+                .iter()
+                .find(|a| doc.matches(resource, &a.name, CRS, "Amount"))
+                .map(|a| a.value.clone())
+                .or_else(|| {
+                    doc.children(resource, CRS, "Amount")
+                        .next()
+                        .and_then(|i| doc.text(i))
+                })
+                .and_then(|v| v.trim().parse::<f64>().ok())
+                .filter(|v| v.is_finite())
+                .unwrap_or(1.0)
+                .clamp(0.0, 2.0);
+            let parameters = doc
+                .children(resource, CRS, "Parameters")
+                .next()
+                .unwrap_or(resource);
+            let parameters = doc
+                .children(parameters, RDF, "Description")
+                .next()
+                .unwrap_or(parameters);
+            let curve = doc
+                .children(parameters, CRS, "ToneCurvePV2012")
+                .next()
+                .and_then(|i| doc.list(i));
+            looks.push(PhotoLook { amount, curve });
+        }
+    }
+    Ok(looks)
 }
 
 pub(crate) fn element_text(content: &str, uri: &str, local: &str) -> Result<Option<String>, Error> {
@@ -687,6 +827,80 @@ pub(crate) fn update(
     label: Option<&str>,
     tags: &[String],
 ) -> Result<String, Error> {
+    update_values(content, Some(rating), label, tags)
+}
+
+/// Merge rendered-image metadata by namespace, retaining unspecified source
+/// ratings/labels while removing edits and dimensions that describe the source.
+pub(crate) fn update_export(
+    content: &str,
+    rating: Option<i16>,
+    label: Option<&str>,
+    tags: &[String],
+) -> Result<String, Error> {
+    let doc = Document::parse(content)?;
+    let subjects: Vec<_> = doc.image_descriptions().collect();
+    let mut edits: Vec<Range<usize>> = Vec::new();
+    let mut removed = vec![false; doc.nodes.len()];
+    let replaced = |index: usize, name: &str| {
+        let (prefix, local) = name.split_once(':').unwrap_or(("", name));
+        let uri = doc.namespace(index, prefix);
+        uri == Some("http://ns.adobe.com/camera-raw-settings/1.0/")
+            || (uri.is_none() && prefix == "crs")
+            || [
+                ("http://ns.adobe.com/tiff/1.0/", "tiff", "Orientation"),
+                ("http://ns.adobe.com/tiff/1.0/", "tiff", "ImageWidth"),
+                ("http://ns.adobe.com/tiff/1.0/", "tiff", "ImageLength"),
+                ("http://ns.adobe.com/exif/1.0/", "exif", "PixelXDimension"),
+                ("http://ns.adobe.com/exif/1.0/", "exif", "PixelYDimension"),
+                ("http://ns.adobe.com/xmp/note/", "xmpNote", "HasExtendedXMP"),
+            ]
+            .iter()
+            .any(|(expected, canonical, field)| {
+                local == *field && uri.map_or(prefix == *canonical, |uri| uri == *expected)
+            })
+    };
+    for (index, node) in doc.nodes.iter().enumerate() {
+        if node.parent.is_some_and(|parent| removed[parent]) {
+            removed[index] = true;
+        } else if node.parent.is_some_and(|parent| subjects.contains(&parent))
+            && replaced(index, &node.name)
+        {
+            removed[index] = true;
+            edits.push(node.start.start..node.end.end);
+        } else if subjects.contains(&index) {
+            for attribute in &node.attributes {
+                // Unprefixed attributes have no XML namespace, including on
+                // elements with a default namespace. Keep declarations too.
+                if attribute.name.contains(':')
+                    && !attribute.name.starts_with("xmlns:")
+                    && replaced(index, &attribute.name)
+                {
+                    edits.push(attribute.range.clone());
+                }
+            }
+        }
+    }
+    edits.sort_by_key(|range| std::cmp::Reverse(range.start));
+    let mut clean = content.to_string();
+    for range in edits {
+        clean.replace_range(range, "");
+    }
+    let old = metadata(&clean);
+    update_values(
+        &clean,
+        rating.or(old.rating.map(i16::from)),
+        label.or(old.label.as_deref()),
+        tags,
+    )
+}
+
+fn update_values(
+    content: &str,
+    rating: Option<i16>,
+    label: Option<&str>,
+    tags: &[String],
+) -> Result<String, Error> {
     if label
         .into_iter()
         .chain(tags.iter().map(String::as_str))
@@ -735,7 +949,9 @@ pub(crate) fn update(
         }
         subject.push_str(&format!("</{rdf}:Bag></{dc}:subject>"));
     }
-    attributes.push_str(&format!(" {xmp}:Rating=\"{rating}\""));
+    if let Some(rating) = rating {
+        attributes.push_str(&format!(" {xmp}:Rating=\"{rating}\""));
+    }
     if let Some(label) = label {
         attributes.push_str(&format!(
             " {xmp}:Label=\"{}\"",

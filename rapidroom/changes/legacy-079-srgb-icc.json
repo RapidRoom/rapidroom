@@ -1,0 +1,13 @@
+{
+  "id": "srgb-icc",
+  "title": "Exports embed an sRGB ICC profile (JPEG, PNG, TIFF), so colour-managed apps and print services read them correctly",
+  "category": "feature",
+  "landed": "2026-10-02",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": ["CyberTimon/RapidRAW#1489"],
+  "upstream_prs": ["CyberTimon/RapidRAW#1820"],
+  "rendering_change": false,
+  "notes": "Pixels unchanged; only the profile tag is added. The TIFF part goes upstream after #1752.",
+  "highlight": "**Colour-managed exports.** JPEG, PNG and TIFF files carry an sRGB profile, so browsers, other apps and print labs show your colours as intended."
+}

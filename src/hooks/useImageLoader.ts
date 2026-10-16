@@ -4,8 +4,22 @@ import { toast } from 'react-toastify';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { Invokes } from '../components/ui/AppProperties';
-import { INITIAL_ADJUSTMENTS, normalizeLoadedAdjustments } from '../utils/adjustments';
+import { Invokes, type SelectedImage } from '../components/ui/AppProperties';
+import { INITIAL_ADJUSTMENTS, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
+
+interface LoadedMetadata {
+  adjustments: (Adjustments & { is_null?: boolean }) | null;
+}
+
+interface LoadedImageData {
+  as_shot_white_balance: { temperature: number; tint: number };
+  exif: SelectedImage['exif'];
+  height: number;
+  is_raw: boolean;
+  metadata: SelectedImage['metadata'];
+  used_embedded_preview: boolean;
+  width: number;
+}
 
 export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string, unknown> | null>) {
   const selectedImage = useEditorStore((s) => s.selectedImage);
@@ -34,7 +48,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
           useEditorStore.getState().patchesSentToBackend.clear();
           await invoke('clear_session_caches').catch((e) => console.warn('Cache clear failed:', e));
 
-          const metadata: any = await invoke(Invokes.LoadMetadata, { path: selectedImage.path });
+          const metadata = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: selectedImage.path });
           if (!isEffectActive) return;
 
           let initialAdjusts;
@@ -53,7 +67,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
 
       const loadFullImageData = async () => {
         try {
-          const loadImageResult: any = await invoke(Invokes.LoadImage, { path: selectedImage.path });
+          const loadImageResult = await invoke<LoadedImageData>(Invokes.LoadImage, { path: selectedImage.path });
           if (!isEffectActive) return;
 
           const { width, height } = loadImageResult;
@@ -81,6 +95,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
               return {
                 selectedImage: {
                   ...state.selectedImage,
+                  asShotWhiteBalance: loadImageResult.as_shot_white_balance,
                   exif: loadImageResult.exif,
                   height: loadImageResult.height,
                   isRaw: loadImageResult.is_raw,

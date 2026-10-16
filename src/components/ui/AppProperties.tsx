@@ -1,6 +1,7 @@
 import { ExportPreset } from './ExportImportProperties';
 import { Adjustments, CopyPasteSettings } from '../../utils/adjustments';
 import { ToolType } from '../panel/right/Masks';
+import type { WhiteBalance, WhiteBalanceMode } from '../../utils/whiteBalance';
 
 export const GLOBAL_KEYS = [
   ' ',
@@ -192,6 +193,17 @@ export interface FolderTreeSort {
   order: SortDirection;
 }
 
+export interface FolderTree {
+  children: FolderTree[];
+  created?: number;
+  hasSubdirs?: boolean;
+  imageCount?: number;
+  isDir: boolean;
+  modified?: number;
+  name: string;
+  path: string;
+}
+
 export enum Theme {
   Arctic = 'arctic',
   Blue = 'blue',
@@ -246,7 +258,7 @@ export interface AppSettings {
   enableAiTagging?: boolean;
   aiTagCount?: number;
   customAiTags?: string[];
-  filterCriteria?: FilterCriteria;
+  filterCriteria?: Partial<FilterCriteria>;
   lastFolderState?: any;
   pinnedFolders?: any;
   lastRootPath: string | null;
@@ -276,13 +288,17 @@ export interface AppSettings {
   useWgpuRenderer?: boolean;
   editorNeutralGreyBg?: boolean;
   canvasInputMode?: 'mouse' | 'trackpad';
+  whiteBalanceMode?: WhiteBalanceMode;
   zoomSpeedMultiplier?: number;
   zoomPhotoToPixelClick?: boolean;
   keybinds?: { [action: string]: string[] };
+  enableBaselineExposure?: boolean;
+  baselineExposure?: number;
+  compensateHighlightPreservation?: boolean;
   tonemapperOverrideEnabled?: boolean;
   defaultRawTonemapper?: string;
   defaultNonRawTonemapper?: string;
-  copyPasteSettings?: CopyPasteSettings;
+  copyPasteSettings?: Partial<CopyPasteSettings>;
   enableFocusMode?: boolean;
   enableToolFocusMode?: boolean;
   autoAdvanceOnRate?: boolean;
@@ -354,9 +370,33 @@ export const FlagStatus = {
 
 export type FlagStatus = (typeof FlagStatus)[keyof typeof FlagStatus];
 
+export type RatingOperator = 'gte' | 'eq' | 'lte';
+
+export const RATING_OPERATORS = {
+  lte: {
+    symbol: '≤',
+    next: 'eq',
+    labelKey: 'library.header.viewOptions.ratingOperator.lte',
+    suffixKey: 'library.filters.rating.andDownSuffix',
+  },
+  eq: {
+    symbol: '=',
+    next: 'gte',
+    labelKey: 'library.header.viewOptions.ratingOperator.eq',
+    suffixKey: 'library.filters.rating.onlySuffix',
+  },
+  gte: {
+    symbol: '≥',
+    next: 'lte',
+    labelKey: 'library.header.viewOptions.ratingOperator.gte',
+    suffixKey: 'library.filters.rating.andUpSuffix',
+  },
+} as const;
+
 export interface FilterCriteria {
   colors: Array<string>;
   rating: number;
+  ratingOperator?: RatingOperator;
   ratingExact?: boolean;
   rawStatus: RawStatus;
   editedStatus?: EditedStatus;
@@ -364,7 +404,7 @@ export interface FilterCriteria {
 }
 
 export interface Folder {
-  children: any;
+  children: Preset[];
   id?: string | undefined;
   name?: string | undefined;
   imageCount?: number;
@@ -421,6 +461,7 @@ export interface Progress {
 }
 
 export interface SelectedImage {
+  asShotWhiteBalance?: WhiteBalance;
   exif: any;
   group_id?: string | null;
   height: number;
@@ -497,6 +538,13 @@ export interface WaveformData {
   parade: string;
   vectorscope: string;
   width: number;
+}
+
+export interface HistogramData {
+  blue: number[];
+  green: number[];
+  luma: number[];
+  red: number[];
 }
 
 export interface CullingSettings {

@@ -2,19 +2,28 @@ import { useEffect, useState, useMemo, CSSProperties, ReactNode } from 'react';
 import { Pipette, Sliders } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import Slider from '../ui/Slider';
+import Slider, { SliderChangeEvent } from '../ui/Slider';
 import ColorWheel from '../ui/ColorWheel';
-import {
-  ColorAdjustment,
-  ColorCalibration,
-  HueSatLum,
-  INITIAL_ADJUSTMENTS,
-  SectionVisibility,
-} from '../../utils/adjustments';
+import { ColorAdjustment, ColorCalibration, HueSatLum, INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
 import { Adjustments, ColorGrading, getAdjustmentToolOrder, getHiddenAdjustmentTools } from '../../utils/adjustments';
 import { AppSettings } from '../ui/AppProperties';
 import Text from '../ui/Text';
 import AdjustmentSubSection from './AdjustmentSubSection';
+import { useSettingsStore } from '../../store/useSettingsStore';
+import {
+  getRelativeWhiteBalance,
+  getWhiteBalanceMode,
+  kelvinSliderScale,
+  MAX_TEMPERATURE,
+  MAX_TINT,
+  MIN_TEMPERATURE,
+  RELATIVE_RANGE,
+  resolveWhiteBalance,
+  WhiteBalance,
+  WhiteBalanceMode,
+  withKelvinWhiteBalance,
+  withRelativeWhiteBalance,
+} from '../../utils/whiteBalance';
 import { TextColors, TextWeights } from '../../types/typography';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
@@ -28,12 +37,11 @@ interface ColorProps {
 
 interface ColorPanelProps {
   adjustments: Adjustments;
-  setAdjustments(adjustments: Partial<Adjustments>): any;
+  setAdjustments(adjustments: Partial<Adjustments> | ((prev: Adjustments) => Adjustments)): void;
   appSettings: AppSettings | null;
+  asShotWhiteBalance?: WhiteBalance;
   isForMask?: boolean;
   isWbPickerActive?: boolean;
-  onToggleVisibility?: (key: string) => void;
-  sectionVisibility?: SectionVisibility;
   toggleWbPicker?: () => void;
   onDragStateChange?: (isDragging: boolean) => void;
 }
@@ -78,7 +86,7 @@ interface ColorSwatchProps {
   onClick: (name: string) => void;
 }
 
-const ColorSwatch = ({ color, name, isActive, ariaLabel, onClick }: ColorSwatchProps) => {
+export const ColorSwatch = ({ color, name, isActive, ariaLabel, onClick }: ColorSwatchProps) => {
   const [isPressed, setIsPressed] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -157,7 +165,7 @@ const ColorGradingPanel = ({ adjustments, setAdjustments, onDragStateChange }: C
   const colorGrading = adjustments.colorGrading || INITIAL_ADJUSTMENTS.colorGrading;
 
   const handleChange = (grading: ColorGrading, newValue: HueSatLum) => {
-    setAdjustments((prev: Partial<Adjustments>) => ({
+    setAdjustments((prev: Adjustments) => ({
       ...prev,
       colorGrading: {
         ...(prev.colorGrading || INITIAL_ADJUSTMENTS.colorGrading),
@@ -166,12 +174,12 @@ const ColorGradingPanel = ({ adjustments, setAdjustments, onDragStateChange }: C
     }));
   };
 
-  const handleColorGradingSliderChange = (grading: ColorGrading, value: string) => {
-    setAdjustments((prev: Partial<Adjustments>) => ({
+  const handleColorGradingSliderChange = (grading: ColorGrading, value: string | number) => {
+    setAdjustments((prev: Adjustments) => ({
       ...prev,
       colorGrading: {
         ...(prev.colorGrading || INITIAL_ADJUSTMENTS.colorGrading),
-        [grading]: parseFloat(value),
+        [grading]: parseFloat(String(value)),
       },
     }));
   };
@@ -311,7 +319,7 @@ const ColorGradingPanel = ({ adjustments, setAdjustments, onDragStateChange }: C
           label={t('adjustments.color.grading.blending')}
           max={100}
           min={0}
-          onChange={(e: any) => handleColorGradingSliderChange(ColorGrading.Blending, e.target.value)}
+          onChange={(e) => handleColorGradingSliderChange(ColorGrading.Blending, e.target.value)}
           step={1}
           value={colorGrading.blending}
           onDragStateChange={onDragStateChange}
@@ -321,7 +329,7 @@ const ColorGradingPanel = ({ adjustments, setAdjustments, onDragStateChange }: C
           label={t('adjustments.color.grading.balance')}
           max={100}
           min={-100}
-          onChange={(e: any) => handleColorGradingSliderChange(ColorGrading.Balance, e.target.value)}
+          onChange={(e) => handleColorGradingSliderChange(ColorGrading.Balance, e.target.value)}
           step={1}
           value={colorGrading.balance}
           onDragStateChange={onDragStateChange}
@@ -345,23 +353,23 @@ const ColorCalibrationPanel = ({ adjustments, setAdjustments, onDragStateChange 
     [t],
   );
 
-  const handleShadowsChange = (value: string) => {
-    setAdjustments((prev: Partial<Adjustments>) => ({
+  const handleShadowsChange = (value: string | number) => {
+    setAdjustments((prev: Adjustments) => ({
       ...prev,
       colorCalibration: {
         ...(prev.colorCalibration || INITIAL_ADJUSTMENTS.colorCalibration),
-        shadowsTint: parseFloat(value),
+        shadowsTint: parseFloat(String(value)),
       },
     }));
   };
 
-  const handlePrimaryChange = (key: 'Hue' | 'Saturation', value: string) => {
+  const handlePrimaryChange = (key: 'Hue' | 'Saturation', value: string | number) => {
     const fullKey = `${activePrimary}${key}` as keyof ColorCalibration;
-    setAdjustments((prev: Partial<Adjustments>) => ({
+    setAdjustments((prev: Adjustments) => ({
       ...prev,
       colorCalibration: {
         ...(prev.colorCalibration || INITIAL_ADJUSTMENTS.colorCalibration),
-        [fullKey]: parseFloat(value),
+        [fullKey]: parseFloat(String(value)),
       },
     }));
   };
@@ -387,7 +395,7 @@ const ColorCalibrationPanel = ({ adjustments, setAdjustments, onDragStateChange 
           step={1}
           defaultValue={0}
           value={colorCalibration.shadowsTint}
-          onChange={(e: any) => handleShadowsChange(e.target.value)}
+          onChange={(e) => handleShadowsChange(e.target.value)}
           onDragStateChange={onDragStateChange}
           trackClassName="tint-gradient-track"
         />
@@ -416,7 +424,7 @@ const ColorCalibrationPanel = ({ adjustments, setAdjustments, onDragStateChange 
           step={1}
           defaultValue={0}
           value={currentValues.hue}
-          onChange={(e: any) => handlePrimaryChange('Hue', e.target.value)}
+          onChange={(e) => handlePrimaryChange('Hue', e.target.value)}
           onDragStateChange={onDragStateChange}
           trackClassName={`hue-slider-${trackSuffix}`}
         />
@@ -428,7 +436,7 @@ const ColorCalibrationPanel = ({ adjustments, setAdjustments, onDragStateChange 
           step={1}
           defaultValue={0}
           value={currentValues.saturation}
-          onChange={(e: any) => handlePrimaryChange('Saturation', e.target.value)}
+          onChange={(e) => handlePrimaryChange('Saturation', e.target.value)}
           onDragStateChange={onDragStateChange}
           trackClassName={`sat-slider-${trackSuffix}`}
         />
@@ -445,10 +453,10 @@ export default function ColorPanel({
   isWbPickerActive = false,
   toggleWbPicker,
   onDragStateChange,
-  onToggleVisibility,
-  sectionVisibility,
+  asShotWhiteBalance,
 }: ColorPanelProps) {
   const { t } = useTranslation();
+  const handleSettingsChange = useSettingsStore((state) => state.handleSettingsChange);
   const [activeColor, setActiveColor] = useState('reds');
   const hiddenTools = getHiddenAdjustmentTools(appSettings?.adjustmentLayout);
   const toolOrder = getAdjustmentToolOrder('color', appSettings?.adjustmentLayout?.toolOrder);
@@ -502,7 +510,11 @@ export default function ColorPanel({
   };
 
   const toggleMixerPicker = () => {
-    setEditor({ mixerPickerProperty: mixerPickerProperty ? null : mixerTab, isWbPickerActive: false });
+    setEditor({
+      mixerPickerProperty: mixerPickerProperty ? null : mixerTab,
+      isWbPickerActive: false,
+      isRelightPickerActive: false,
+    });
   };
 
   const selectMixerTab = (tab: HslMixerProperty) => {
@@ -510,18 +522,49 @@ export default function ColorPanel({
     if (mixerPickerProperty) setEditor({ mixerPickerProperty: tab });
   };
 
-  const handleAdjustmentChange = (key: ColorAdjustment, value: string) => {
-    setAdjustments((prev: Partial<Adjustments>) => ({ ...prev, [key]: parseFloat(value) }));
+  const handleAdjustmentChange = (key: ColorAdjustment, value: string | number) => {
+    setAdjustments((prev: Adjustments) => ({ ...prev, [key]: parseFloat(String(value)) }));
   };
 
-  const handleHslChange = (color: string, key: HslMixerProperty, value: string) => {
-    setAdjustments((prev: Partial<Adjustments>) => ({
+  const kelvinAsShot =
+    !isForMask && getWhiteBalanceMode(appSettings) === WhiteBalanceMode.Kelvin ? asShotWhiteBalance : undefined;
+  const isKelvinMode = !!kelvinAsShot;
+  const displayedWhiteBalance = kelvinAsShot
+    ? resolveWhiteBalance(kelvinAsShot, adjustments)
+    : getRelativeWhiteBalance(asShotWhiteBalance, adjustments);
+  const tintRange = kelvinAsShot ? MAX_TINT : RELATIVE_RANGE;
+
+  const toggleWhiteBalanceMode = () => {
+    if (appSettings) {
+      handleSettingsChange({
+        ...appSettings,
+        whiteBalanceMode: isKelvinMode ? WhiteBalanceMode.Relative : WhiteBalanceMode.Kelvin,
+      });
+    }
+  };
+
+  const handleWhiteBalanceChange = (key: keyof WhiteBalance, value: number | string) => {
+    setAdjustments((prev: Adjustments) => {
+      if (kelvinAsShot) {
+        return withKelvinWhiteBalance(prev, { ...resolveWhiteBalance(kelvinAsShot, prev), [key]: Number(value) });
+      }
+      return prev.whiteBalance
+        ? withRelativeWhiteBalance(prev, {
+            ...getRelativeWhiteBalance(asShotWhiteBalance, prev),
+            [key]: Number(value),
+          })
+        : { ...prev, [key]: Number(value) };
+    });
+  };
+
+  const handleHslChange = (color: string, key: HslMixerProperty, value: string | number) => {
+    setAdjustments((prev: Adjustments) => ({
       ...prev,
       hsl: {
         ...(prev.hsl || {}),
         [color]: {
           ...(prev.hsl?.[color] || {}),
-          [key]: parseFloat(value),
+          [key]: parseFloat(String(value)),
         },
       },
     }));
@@ -534,7 +577,7 @@ export default function ColorPanel({
       label={label}
       max={100}
       min={-100}
-      onChange={(e: any) => handleHslChange(color, property, e.target.value)}
+      onChange={(e) => handleHslChange(color, property, e.target.value)}
       step={1}
       value={hsl[color][property]}
       trackClassName={`${MIXER_TRACK_PREFIX[property]}-slider-${color}`}
@@ -547,15 +590,29 @@ export default function ColorPanel({
       {!hiddenTools.includes('whiteBalance') && (
         <AdjustmentSubSection
           actions={
-            !isForMask &&
-            toggleWbPicker && (
-              <ToggleIconButton
-                isActive={isWbPickerActive}
-                onClick={toggleWbPicker}
-                tooltip={t('adjustments.color.wbPickerTooltip')}
-              >
-                <Pipette size={16} />
-              </ToggleIconButton>
+            !isForMask && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={toggleWhiteBalanceMode}
+                  className={`w-6 h-6 flex items-center justify-center rounded-md text-xs font-semibold transition-colors ${
+                    isKelvinMode ? 'bg-accent text-button-text' : 'hover:bg-bg-secondary text-text-secondary'
+                  }`}
+                  data-tooltip={t('adjustments.color.kelvinModeTooltip')}
+                >
+                  K
+                </button>
+                {toggleWbPicker && (
+                  <button
+                    onClick={toggleWbPicker}
+                    className={`w-6 h-6 flex items-center justify-center rounded-md transition-colors ${
+                      isWbPickerActive ? 'bg-accent text-button-text' : 'hover:bg-bg-secondary text-text-secondary'
+                    }`}
+                    data-tooltip={t('adjustments.color.wbPickerTooltip')}
+                  >
+                    <Pipette size={16} />
+                  </button>
+                )}
+              </div>
             )
           }
           id="whiteBalance"
@@ -563,22 +620,28 @@ export default function ColorPanel({
           title={t('adjustments.color.whiteBalance')}
         >
           <Slider
+            key={isKelvinMode ? 'kelvinTemperature' : 'temperature'}
+            defaultValue={kelvinAsShot?.temperature}
             label={t('adjustments.color.temperature')}
-            max={100}
-            min={-100}
-            onChange={(e: any) => handleAdjustmentChange(ColorAdjustment.Temperature, e.target.value)}
-            step={1}
-            value={adjustments.temperature || 0}
+            max={kelvinAsShot ? MAX_TEMPERATURE : RELATIVE_RANGE}
+            min={kelvinAsShot ? MIN_TEMPERATURE : -RELATIVE_RANGE}
+            onChange={(e: SliderChangeEvent) => handleWhiteBalanceChange('temperature', e.target.value)}
+            scale={kelvinAsShot ? kelvinSliderScale : undefined}
+            step={kelvinAsShot ? 50 : 1}
+            suffix={kelvinAsShot ? 'K' : undefined}
+            value={displayedWhiteBalance.temperature}
             trackClassName="temperature-gradient-track"
             onDragStateChange={onDragStateChange}
           />
           <Slider
+            key={isKelvinMode ? 'kelvinTint' : 'tint'}
+            defaultValue={kelvinAsShot?.tint}
             label={t('adjustments.color.tint')}
-            max={100}
-            min={-100}
-            onChange={(e: any) => handleAdjustmentChange(ColorAdjustment.Tint, e.target.value)}
+            max={tintRange}
+            min={-tintRange}
+            onChange={(e: SliderChangeEvent) => handleWhiteBalanceChange('tint', e.target.value)}
             step={1}
-            value={adjustments.tint || 0}
+            value={displayedWhiteBalance.tint}
             trackClassName="tint-gradient-track"
             onDragStateChange={onDragStateChange}
           />
@@ -595,7 +658,7 @@ export default function ColorPanel({
             label={t('adjustments.color.vibrance')}
             max={100}
             min={-100}
-            onChange={(e: any) => handleAdjustmentChange(ColorAdjustment.Vibrance, e.target.value)}
+            onChange={(e) => handleAdjustmentChange(ColorAdjustment.Vibrance, e.target.value)}
             step={1}
             value={adjustments.vibrance || 0}
             onDragStateChange={onDragStateChange}
@@ -604,7 +667,7 @@ export default function ColorPanel({
             label={t('adjustments.color.saturation')}
             max={100}
             min={-100}
-            onChange={(e: any) => handleAdjustmentChange(ColorAdjustment.Saturation, e.target.value)}
+            onChange={(e) => handleAdjustmentChange(ColorAdjustment.Saturation, e.target.value)}
             step={1}
             value={adjustments.saturation || 0}
             onDragStateChange={onDragStateChange}
@@ -622,7 +685,7 @@ export default function ColorPanel({
             label={t('adjustments.color.hue')}
             max={180}
             min={-180}
-            onChange={(e: any) => handleAdjustmentChange(ColorAdjustment.Hue, e.target.value)}
+            onChange={(e) => handleAdjustmentChange(ColorAdjustment.Hue, e.target.value)}
             step={1}
             value={adjustments.hue || 0}
             trackClassName="hue-range-track"
@@ -634,8 +697,6 @@ export default function ColorPanel({
       {!hiddenTools.includes('colorGrading') && (
         <AdjustmentSubSection
           id="colorGrading"
-          isContentVisible={sectionVisibility?.colorGrading}
-          onToggleVisibility={onToggleVisibility && (() => onToggleVisibility('colorGrading'))}
           order={toolOrder.indexOf('colorGrading')}
           title={t('adjustments.color.colorGrading')}
         >
@@ -671,8 +732,6 @@ export default function ColorPanel({
             </div>
           }
           id="colorMixer"
-          isContentVisible={sectionVisibility?.colorMixer}
-          onToggleVisibility={onToggleVisibility && (() => onToggleVisibility('colorMixer'))}
           order={toolOrder.indexOf('colorMixer')}
           title={t('adjustments.color.colorMixer')}
         >

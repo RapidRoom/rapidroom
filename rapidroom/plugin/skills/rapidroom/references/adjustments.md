@@ -6,6 +6,7 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 
 - **Slider range** is what the editor slider shows. The MCP server validates against its own schema (`tools/list`), which is sometimes wider; stay inside the slider range so the user can see and adjust your value. Blank means there is no slider for it.
 - `<band>` is one of `aquas`, `blues`, `greens`, `magentas`, `oranges`, `purples`, `reds`, `yellows`. `<channel>` is one of `blue`, `green`, `luma`, `red`. `<primary>` is one of `red`, `green`, `blue` (for example `colorCalibration.redHue`).
+- `relightLights.<light>` describes one item in the `relightLights` array; its defaults apply to a newly placed light, while the array itself defaults to empty. Preserve other lights when replacing the array.
 - **Masks: yes** means a mask container has the key too, under `masks[i].adjustments`.
 - `update_adjustments` merges nested objects, so `{"hsl": {"blues": {"saturation": -20}}}` changes one value.
 
@@ -20,14 +21,14 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 
 ### Tone
 
-| Key          | Type   | Default | Slider range | Step | Masks | Notes                                                                                                                       |
-| ------------ | ------ | ------- | ------------ | ---- | ----- | --------------------------------------------------------------------------------------------------------------------------- |
-| `brightness` | number | `0`     | -5 to 5      | 0.01 | yes   | + lifts the midtones after tone mapping; black and white stay put. Use after exposure, for the feel rather than the level.  |
-| `contrast`   | number | `0`     | -100 to 100  | 1    | yes   | + S-curve around middle grey. Keep moderate; contrast between regions comes from masks.                                     |
-| `highlights` | number | `0`     | -100 to 100  | 1    | yes   | − recovers detail in bright areas (sky, snow); + brightens them. Starts above about 10 % linear luma.                       |
-| `shadows`    | number | `0`     | -100 to 100  | 1    | yes   | + lifts and opens the shadows with some local detail; − deepens them.                                                       |
-| `whites`     | number | `0`     | -100 to 100  | 1    | yes   | A gain on the whole image, not only the whites (applied before shadows and contrast): +100 ≈ ×6, −100 ≈ ×0.55. Small steps. |
-| `blacks`     | number | `0`     | -100 to 100  | 1    | yes   | + lifts the deepest tones (faded look); − deepens them.                                                                     |
+| Key          | Type   | Default | Slider range | Step | Masks | Notes                                                                                                                                                                       |
+| ------------ | ------ | ------- | ------------ | ---- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `brightness` | number | `0`     | -5 to 5      | 0.01 | yes   | + lifts the midtones after tone mapping; black and white stay put. Use after exposure, for the feel rather than the level.                                                  |
+| `contrast`   | number | `0`     | -100 to 100  | 1    | yes   | + S-curve around middle grey. Keep moderate; contrast between regions comes from masks.                                                                                     |
+| `highlights` | number | `0`     | -100 to 100  | 1    | yes   | − recovers bright-area detail; + brightens it. Uses a log-space edge-aware base and mid-scale detail reinjection.                                                           |
+| `shadows`    | number | `0`     | -100 to 100  | 1    | yes   | + lifts and opens the shadows with some local detail; − deepens them.                                                                                                       |
+| `whites`     | number | `0`     | -100 to 100  | 1    | yes   | Selectively lifts or compresses bright tones above an edge-aware base, with local and mid-scale detail reinjection. It no longer applies a uniform gain to the whole image. |
+| `blacks`     | number | `0`     | -100 to 100  | 1    | yes   | + lifts the deepest tones (faded look); − deepens them.                                                                                                                     |
 
 ### Curves
 
@@ -50,10 +51,11 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 
 ### White Balance
 
-| Key           | Type   | Default | Slider range | Step | Masks | Notes                                                                    |
-| ------------- | ------ | ------- | ------------ | ---- | ----- | ------------------------------------------------------------------------ |
-| `temperature` | number | `0`     | -100 to 100  | 1    | yes   | + warmer (yellow/orange), − cooler (blue). Strong: ±30 is already a lot. |
-| `tint`        | number | `0`     | -100 to 100  | 1    | yes   | + magenta, − green.                                                      |
+| Key            | Type           | Default | Slider range | Step | Masks | Notes                                                                                                                                                                                                                                          |
+| -------------- | -------------- | ------- | ------------ | ---- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `temperature`  | number         | `0`     | -100 to 100  | 1    | yes   | + warmer (yellow/orange), − cooler (blue). Strong: ±30 is already a lot.                                                                                                                                                                       |
+| `tint`         | number         | `0`     | -100 to 100  | 1    | yes   | + magenta, − green.                                                                                                                                                                                                                            |
+| `whiteBalance` | object \| null | `null`  |              |      |       | Optional absolute Kelvin baseline {temperature: 2000–50000, tint: −150–150}; null uses the camera as-shot baseline. The relative temperature/tint offsets apply on top. Set both offsets to0 when setting an absolute target, as the GUI does. |
 
 ### Presence
 
@@ -225,28 +227,55 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 
 Not part of Copy & Paste; most are set by the editor itself.
 
-| Key                              | Type           | Default    | Slider range | Step | Masks | Notes                                                                                         |
-| -------------------------------- | -------------- | ---------- | ------------ | ---- | ----- | --------------------------------------------------------------------------------------------- |
-| `aiPatches`                      | array          | `[]`       |              |      |       | Generative edits made in the GUI. Leave alone.                                                |
-| `lensBlurAmount`                 | number         | `40`       | 0 to 100     | 1    |       | Strength of the depth-of-field blur. Needs `lensBlurEnabled` and a depth map.                 |
-| `lensBlurDiffusion`              | number         | `0`        | 0 to 100     | 1    |       | Softens the blur discs.                                                                       |
-| `lensBlurShape`                  | string         | `"circle"` |              |      |       | Bokeh shape: `circle`, `hexagon`, `octagon` or `ring`.                                        |
-| `lensBlurDepthMap`               | string \| null | `null`     |              |      |       | Depth map the GUI generates when lens blur is turned on. Without it the blur does nothing.    |
-| `lensBlurEnabled`                | boolean        | `false`    |              |      |       | Turns lens blur on. Turn it on in the GUI, which also makes the depth map.                    |
-| `lensBlurMaxDepth`               | number         | `100`      |              |      |       | Depth (0–100) up to which the image stays sharp; nearer gets blurred.                         |
-| `lensBlurMaxFade`                | number         | `20`       |              |      |       | Transition width at the near end of the sharp range.                                          |
-| `lensBlurMinDepth`               | number         | `20`       |              |      |       | Depth (0–100) from which the image stays sharp; farther gets blurred.                         |
-| `lensBlurMinFade`                | number         | `20`       |              |      |       | Transition width at the far end of the sharp range.                                           |
-| `lensDistortionParams`           | object \| null | `null`     |              |      |       | Lens profile coefficients, filled by the GUI from the lens database. Leave alone.             |
-| `masks`                          | array          | `[]`       |              |      |       | Mask containers; see [Masks](#masks). Replacing the array replaces every mask.                |
-| `sectionVisibility.basic`        | boolean        | `true`     |              |      | yes   | `false` turns the whole Basic section off (like the eye icon), without losing its values.     |
-| `sectionVisibility.curves`       | boolean        | `true`     |              |      | yes   | `false` turns the curves off without losing them.                                             |
-| `sectionVisibility.color`        | boolean        | `true`     |              |      | yes   | `false` turns the Color section off without losing its values.                                |
-| `sectionVisibility.colorGrading` | boolean        | `true`     |              |      | yes   | `false` bypasses Color Grading independently; the parent Color section must also be on.       |
-| `sectionVisibility.colorMixer`   | boolean        | `true`     |              |      | yes   | `false` bypasses the HSL Color Mixer independently; the parent Color section must also be on. |
-| `sectionVisibility.details`      | boolean        | `true`     |              |      | yes   | `false` turns the Details section off without losing its values.                              |
-| `sectionVisibility.effects`      | boolean        | `true`     |              |      | yes   | `false` turns the Effects section off without losing its values.                              |
-| `showClipping`                   | boolean        | `false`    |              |      |       | Shows the clipping overlay in the editor. Display only; doesn’t change the photo.             |
+| Key                                 | Type           | Default     | Slider range | Step | Masks | Notes                                                                                                                                                                                                                            |
+| ----------------------------------- | -------------- | ----------- | ------------ | ---- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activeTools`                       | object         | `{}`        |              |      | yes   | Per-tool boolean map; omitted keys are enabled. Set colorMixer or colorGrading to false to bypass that tool without losing its values. Applies to global and mask edits; legacy sectionVisibility sidecars are migrated on load. |
+| `aiPatches`                         | array          | `[]`        |              |      |       | Generative edits made in the GUI. Leave alone.                                                                                                                                                                                   |
+| `baselineExposure`                  | boolean        | `true`      |              |      |       | Eligibility marker for Settings baseline/highlight-preservation compensation: new/reset images use true; legacy sidecars without the marker use false. Does not change the Exposure slider or enable the Settings option.        |
+| `lensBlurAmount`                    | number         | `40`        | 0 to 100     | 1    |       | Strength of the depth-of-field blur. Needs `lensBlurEnabled` and a depth map.                                                                                                                                                    |
+| `lensBlurDiffusion`                 | number         | `0`         | 0 to 100     | 1    |       | Softens the blur discs.                                                                                                                                                                                                          |
+| `lensBlurShape`                     | string         | `"circle"`  |              |      |       | Bokeh shape: `circle`, `hexagon`, `octagon` or `ring`.                                                                                                                                                                           |
+| `lensBlurDepthMap`                  | string \| null | `null`      |              |      |       | Depth map the GUI generates when lens blur is turned on. Without it the blur does nothing.                                                                                                                                       |
+| `lensBlurEnabled`                   | boolean        | `false`     |              |      |       | Turns lens blur on. Turn it on in the GUI, which also makes the depth map.                                                                                                                                                       |
+| `lensBlurMaxDepth`                  | number         | `100`       |              |      |       | Depth (0–100) up to which the image stays sharp; nearer gets blurred.                                                                                                                                                            |
+| `lensBlurMaxFade`                   | number         | `20`        |              |      |       | Transition width at the near end of the sharp range.                                                                                                                                                                             |
+| `lensBlurMinDepth`                  | number         | `20`        |              |      |       | Depth (0–100) from which the image stays sharp; farther gets blurred.                                                                                                                                                            |
+| `lensBlurMinFade`                   | number         | `20`        |              |      |       | Transition width at the far end of the sharp range.                                                                                                                                                                              |
+| `relightEnabled`                    | boolean        | `false`     |              |      |       | Enables relight using a source-space normal map; the GUI generates it on explicit activation. Off by default.                                                                                                                    |
+| `relightNormalMap`                  | string \| null | `null`      |              |      |       | Generated source-space normal map. Set by the GUI; leave its encoded data alone.                                                                                                                                                 |
+| `relightLights`                     | array          | `[]`        |              |      |       | Array of point, spot or directional lights. Replacing the array replaces all lights; preserve existing entries and stable IDs.                                                                                                   |
+| `relightLights.<light>.id`          | string         | `"<uuid>"`  |              |      |       | Stable light ID. Retain it when editing an existing light; use a new UUID for a new light.                                                                                                                                       |
+| `relightLights.<light>.type`        | string         | `"point"`   |              |      |       | `point`, `spot` or `directional`; controls which geometry and aiming fields apply.                                                                                                                                               |
+| `relightLights.<light>.x`           | number         | `0.5`       |              |      |       | Horizontal placement in normalized source-image coordinates, 0–1.                                                                                                                                                                |
+| `relightLights.<light>.y`           | number         | `0.5`       |              |      |       | Vertical placement in normalized source-image coordinates, 0–1.                                                                                                                                                                  |
+| `relightLights.<light>.depth`       | number         | `0`         | 0 to 100     | 1    |       | Position of a point or spot light along the depth axis.                                                                                                                                                                          |
+| `relightLights.<light>.intensity`   | number         | `60`        | 0 to 100     | 1    |       | Light strength; 0 contributes no illumination.                                                                                                                                                                                   |
+| `relightLights.<light>.radius`      | number         | `30`        | 0 to 100     | 1    |       | Falloff extent for point and spot lights.                                                                                                                                                                                        |
+| `relightLights.<light>.angle`       | number         | `135`       | 0 to 360     | 1    |       | Aim direction in degrees in the image plane.                                                                                                                                                                                     |
+| `relightLights.<light>.elevation`   | number         | `60`        | -180 to 180  | 1    |       | Aim elevation in degrees; applies to spot and directional lights.                                                                                                                                                                |
+| `relightLights.<light>.cone`        | number         | `40`        | 0 to 100     | 1    |       | Spotlight cone width; ignored for other light types.                                                                                                                                                                             |
+| `relightLights.<light>.feather`     | number         | `50`        | 0 to 100     | 1    |       | Softens the spotlight cone edge.                                                                                                                                                                                                 |
+| `relightLights.<light>.temperature` | number         | `0`         | -100 to 100  | 1    |       | + warms the light; − cools it.                                                                                                                                                                                                   |
+| `relightLights.<light>.tint`        | number         | `0`         | -100 to 100  | 1    |       | + magenta, − green, in the light colour.                                                                                                                                                                                         |
+| `relightLights.<light>.color`       | string         | `"#ffffff"` |              |      |       | Light colour as a six-digit `#RRGGBB` string, before temperature/tint shifts.                                                                                                                                                    |
+| `relightAmbient`                    | number         | `0`         | -100 to 100  | 1    |       | Adds ambient illumination to the relit surface.                                                                                                                                                                                  |
+| `relightSoftness`                   | number         | `25`        | 0 to 100     | 1    |       | Softens local relight contrast.                                                                                                                                                                                                  |
+| `relightShine`                      | number         | `0`         | 0 to 100     | 1    |       | Increases the specular highlight contribution.                                                                                                                                                                                   |
+| `relightShadows`                    | boolean        | `false`     |              |      |       | Enables shadows cast by relight lights.                                                                                                                                                                                          |
+| `relightShadowSoftness`             | number         | `15`        | 0 to 100     | 1    |       | Softens relight shadow edges.                                                                                                                                                                                                    |
+| `fogEnabled`                        | boolean        | `false`     |              |      |       | Enables atmospheric fog using a generated depth map. Off by default.                                                                                                                                                             |
+| `fogDepthMap`                       | string \| null | `null`      |              |      |       | Generated source-space depth map. Set by the GUI; leave its encoded data alone.                                                                                                                                                  |
+| `fogAmount`                         | number         | `50`        | 0 to 100     | 1    |       | Increases the fog blend strength; 0 leaves the image unchanged.                                                                                                                                                                  |
+| `fogStart`                          | number         | `0`         | 0 to 100     | 1    |       | Moves the start of fog farther into the depth range.                                                                                                                                                                             |
+| `fogDensity`                        | number         | `50`        | 0 to 100     | 1    |       | Increases optical fog density.                                                                                                                                                                                                   |
+| `fogHeight`                         | number         | `0`         | 0 to 100     | 1    |       | Controls the height-dependent fog distribution.                                                                                                                                                                                  |
+| `fogVariation`                      | number         | `25`        | 0 to 100     | 1    |       | Increases spatial variation in the fog.                                                                                                                                                                                          |
+| `fogGlow`                           | number         | `25`        | 0 to 100     | 1    |       | Increases light scattered into the fog.                                                                                                                                                                                          |
+| `fogTemperature`                    | number         | `0`         | -100 to 100  | 1    |       | + warms the fog colour; − cools it.                                                                                                                                                                                              |
+| `fogTint`                           | number         | `0`         | -100 to 100  | 1    |       | + magenta, − green, in the fog colour.                                                                                                                                                                                           |
+| `lensDistortionParams`              | object \| null | `null`      |              |      |       | Lens profile coefficients, filled by the GUI from the lens database. Leave alone.                                                                                                                                                |
+| `masks`                             | array          | `[]`        |              |      |       | Mask containers; see [Masks](#masks). Replacing the array replaces every mask.                                                                                                                                                   |
+| `showClipping`                      | boolean        | `false`     |              |      |       | Shows the clipping overlay in the editor. Display only; doesn’t change the photo.                                                                                                                                                |
 
 ## Masks
 
@@ -254,18 +283,23 @@ Masks live in the `masks` array. Each entry is a mask container with its own adj
 
 - Sub-masks are combined in order: each is inverted if set and scaled by its opacity, then `additive` takes the maximum, `subtractive` subtracts and `intersect` takes the minimum. The container’s `invert` and `opacity` apply last.
 - Positions and sizes are in full-resolution pixels of the image after rotation and flips, before the crop.
-- Over MCP today the `masks` array is accepted but not checked item by item, and writing it replaces every mask. Read the current masks first and keep the ones you aren’t changing. Mask tools, including AI masks, are [coming](tools.md#coming) (#120). Writing masks this way is untested: check the preview, and keep the user’s masks safe.
+- Discovery validates each container/component and local adjustment. `upsert_mask` creates or deep-updates one id while preserving siblings; `remove_mask` removes only that id. A supplied `subMasks` replaces only its container’s component array. Full `masks` arrays in set/update replace every container. Read the latest revision before each mutation.
+- IDs contain 1–128 ASCII letters, digits, underscore, colon, dot or hyphen. Sparse local settings receive defaults, including nested HSL/grading channels. Parametric `split1 < split2 < split3` is checked after existing-value merge or defaults 25/50/75. Echoed display names retain stored names; intentional new names use the existing bounded text policy.
+- Radial/brush feather is 0–1; colour/luminance/AI feather is 0–100. Coordinates are full-resolution image pixels before crop, independent of display/preview size. `crop` is `{x,y,width,height,unit:"px"}`, or null; set `aspectRatio` separately to width ÷ height. Last-preview coordinate conversion and AI generation remain #120 follow-ups. Editing a stored AI bitmap does not run a model.
 
-A new container looks like this (`id` is a UUID):
+A new container looks like this (`id` can be a UUID):
 
 ```json
 {
-  "adjustments": "{ …mask adjustments… }",
+  "adjustments": {
+    "exposure": 0.5
+  },
   "invert": false,
   "name": "New Mask",
   "opacity": 100,
   "subMasks": [],
-  "visible": true
+  "visible": true,
+  "id": "local-mask"
 }
 ```
 

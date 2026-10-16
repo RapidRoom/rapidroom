@@ -1,0 +1,13 @@
+{
+  "id": "physical-number-row-ratings",
+  "title": "Preserve physical number-row ratings on French keyboards",
+  "category": "fix",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["CyberTimon/RapidRAW#1142"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Unmodified physical number-row keys retain their rating bindings across layouts, including the French apostrophe on Digit4. Modified punctuation such as French Ctrl+- still uses the typed symbol. Regression fixtures use the actual French row and the native zoom smoke also exercises visible rating changes."
+}

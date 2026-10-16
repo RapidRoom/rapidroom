@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { save, open } from '@tauri-apps/plugin-dialog';
+import type { ReactNode } from 'react';
+import { save, open, confirm } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { FileInput, CheckCircle, XCircle, Loader, Ban, ChevronDown, ChevronRight, Settings, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import debounce from 'lodash.debounce';
 import Switch from '../../ui/Switch';
 import Button from '../../ui/Button';
 import Dropdown from '../../ui/Dropdown';
 import Slider from '../../ui/Slider';
 import ImagePicker from '../../ui/ImagePicker';
+import ColorField, { normalizeHexColor, ParsedTextField, useParsedTextField } from '../../ui/ColorField';
 import {
   BorderBasis,
   ExportPreset,
@@ -22,6 +25,7 @@ import {
   FileFormats,
   SharpenAmount,
   SharpenTarget,
+  MAX_EXPORT_DPI,
   TiffBitDepth,
   WatermarkAnchor,
 } from '../../ui/ExportImportProperties';
@@ -39,7 +43,7 @@ interface ExportPanelProps {
   exportState: ExportState;
   multiSelectedPaths: Array<string>;
   selectedImage: SelectedImage | null;
-  setExportState(state: any): void;
+  setExportState(state: Partial<ExportState> | ((current: ExportState) => Partial<ExportState>)): void;
   appSettings: AppSettings | null;
   onSettingsChange: (settings: AppSettings) => void;
   rootPaths: string[];
@@ -61,37 +65,9 @@ function parsePercent(value: string): number | null {
   return Number.isFinite(parsed) && parsed >= 0 && parsed <= MAX_BORDER_PERCENT ? parsed : null;
 }
 
-function normalizeHexColor(value: string): string | null {
-  const trimmed = value.trim();
-  const hex = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
-  return /^[0-9a-fA-F]{6}$/.test(hex) ? `#${hex.toLowerCase()}` : null;
-}
-
-interface ParsedTextField<T> {
-  text: string;
-  parsed: T | null;
-  handleChange: (text: string) => void;
-  resetText: () => void;
-}
-
-function useParsedTextField<T>(
-  value: T,
-  onValidChange: (value: T) => void,
-  parse: (text: string) => T | null,
-): ParsedTextField<T> {
-  const [text, setText] = useState<string>(String(value));
-
-  useEffect(() => {
-    setText(String(value));
-  }, [value]);
-
-  const handleChange = (next: string) => {
-    setText(next);
-    const parsed = parse(next);
-    if (parsed !== null) onValidChange(parsed);
-  };
-
-  return { text, parsed: parse(text), handleChange, resetText: () => setText(String(value)) };
+function parseDpi(value: string): number | null {
+  const parsed = Number(value.trim());
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= MAX_EXPORT_DPI ? parsed : null;
 }
 
 interface ValidatedNumberInputProps {
@@ -119,44 +95,8 @@ function ValidatedNumberInput({ ariaLabel, disabled, field, max }: ValidatedNumb
   );
 }
 
-interface ColorFieldProps {
-  color: string;
-  disabled: boolean;
-  field: ParsedTextField<string>;
-  label: string;
-  onColorChange: (color: string) => void;
-}
-
-function ColorField({ color, disabled, field, label, onColorChange }: ColorFieldProps) {
-  return (
-    <div>
-      <Text variant={TextVariants.label} className="mb-2 block">
-        {label}
-      </Text>
-      <div className="flex items-center gap-2 bg-surface p-2 rounded-md">
-        <input
-          aria-label={label}
-          className="w-8 h-8 p-0 border-none rounded-sm cursor-pointer bg-transparent"
-          disabled={disabled}
-          onChange={(e) => onColorChange(e.target.value)}
-          type="color"
-          value={color}
-        />
-        <input
-          className="w-full bg-bg-primary text-center rounded-md p-1 border border-surface focus:border-accent focus:ring-accent"
-          disabled={disabled}
-          onBlur={field.resetText}
-          onChange={(e) => field.handleChange(e.target.value)}
-          type="text"
-          value={field.text}
-        />
-      </div>
-    </div>
-  );
-}
-
 interface SectionProps {
-  children: any;
+  children: ReactNode;
   title: string;
 }
 
@@ -271,7 +211,7 @@ function WatermarkPreview({
   );
 }
 
-const formatBytes = (bytes: number, t: any, decimals = 2) => {
+const formatBytes = (bytes: number, t: TFunction, decimals = 2) => {
   if (!+bytes) return `0 ${t('export.bytes.bytes')}`;
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
@@ -350,6 +290,8 @@ export default function ExportPanel({
     setJpegQuality,
     tiffBitDepth,
     setTiffBitDepth,
+    dpi,
+    setDpi,
     enableResize,
     setEnableResize,
     resizeMode,
@@ -412,6 +354,7 @@ export default function ExportPanel({
 
   const adjustmentsRef = useRef(useEditorStore.getState().adjustments);
 
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
   const initDone = useRef(false);
 
@@ -453,6 +396,10 @@ export default function ExportPanel({
     enablePad && padRatioWidthValue !== null && padRatioHeightValue !== null
       ? { ratioWidth: padRatioWidthValue, ratioHeight: padRatioHeightValue, color: padColor }
       : null;
+
+  const dpiField = useParsedTextField(dpi, setDpi, parseDpi);
+  const supportsDpi = [FileFormats.Jpeg, FileFormats.Png, FileFormats.Tiff].includes(fileFormat as FileFormats);
+  const isDpiValid = !supportsDpi || dpiField.parsed !== null;
 
   const borderHorizontalField = useParsedTextField(borderHorizontalPercent, setBorderHorizontalPercent, parsePercent);
   const borderVerticalField = useParsedTextField(borderVerticalPercent, setBorderVerticalPercent, parsePercent);
@@ -506,7 +453,9 @@ export default function ExportPanel({
         return;
       }
       try {
-        const dims: any = await invoke('get_image_dimensions', { path: pathsToExport[0] });
+        const dims: { width: number; height: number } = await invoke('get_image_dimensions', {
+          path: pathsToExport[0],
+        });
         if (dims.width > 0 && dims.height > 0) setImageAspectRatio(dims.width / dims.height);
       } catch {
         setImageAspectRatio(3 / 2);
@@ -526,7 +475,7 @@ export default function ExportPanel({
           path: watermarkPath,
         });
         setWatermarkImageAspectRatio(dimensions.height > 0 ? dimensions.width / dimensions.height : 1);
-      } catch (error) {
+      } catch {
         setWatermarkImageAspectRatio(1);
       }
     };
@@ -565,7 +514,7 @@ export default function ExportPanel({
             currentEditAdjustments: currentAdj || null,
           });
           setEstimatedSize(size);
-        } catch (err) {
+        } catch {
           setEstimatedSize(null);
         } finally {
           setIsEstimating(false);
@@ -581,6 +530,7 @@ export default function ExportPanel({
       filenameTemplate,
       jpegQuality,
       tiffBitDepth,
+      dpi: supportsDpi ? dpi : undefined,
       keepMetadata,
       preserveTimestamps,
       preserveFolders,
@@ -629,6 +579,7 @@ export default function ExportPanel({
     fileFormat,
     jpegQuality,
     tiffBitDepth,
+    dpi,
     enableResize,
     resizeMode,
     resizeValue,
@@ -674,12 +625,15 @@ export default function ExportPanel({
   };
 
   const handleExport = async () => {
-    if (numImages === 0 || isExporting) return;
+    if (numImages === 0 || isExporting || !isDpiValid) return;
 
     const exportSettings: ExportSettings = {
       filenameTemplate,
+      overwriteExisting:
+        overwriteExisting && (numImages > 1 || preserveFolders || destinationType === 'originalFolder'),
       jpegQuality,
       tiffBitDepth,
+      dpi: supportsDpi ? dpi : undefined,
       keepMetadata,
       preserveTimestamps,
       preserveFolders,
@@ -706,7 +660,7 @@ export default function ExportPanel({
     const lastExportPath = appSettings?.exportPresets?.find((p) => p.id === '__last_used__')?.lastExportPath;
 
     try {
-      const selectedFormat: any = FILE_FORMATS.find((f) => f.id === fileFormat);
+      const selectedFormat: FileFormat = FILE_FORMATS.find((format) => format.id === fileFormat) ?? FILE_FORMATS[0];
 
       let outputFolderOrFile = '';
       const isOriginalFolder = destinationType === 'originalFolder';
@@ -755,6 +709,14 @@ export default function ExportPanel({
       }
 
       if (isAndroid || outputFolderOrFile) {
+        if (
+          exportSettings.overwriteExisting &&
+          !(await confirm(t('export.overwrite.confirm'), {
+            title: t('export.overwrite.title'),
+            kind: 'warning',
+          }))
+        )
+          return;
         if (!isAndroid) {
           if (isOriginalFolder) {
             saveLastUsedPreset(lastExportPath || '');
@@ -804,7 +766,7 @@ export default function ExportPanel({
     }
   };
 
-  const canExport = numImages > 0 && isPadValid && isBorderValid;
+  const canExport = numImages > 0 && isPadValid && isBorderValid && isDpiValid;
   const isLut = fileFormat === FileFormats.Cube;
   const itemLabel = isLut ? t('export.labels.lut') : t('export.labels.image');
   const itemLabelPlural = isLut ? t('export.labels.lut_plural') : t('export.labels.image_plural');
@@ -816,7 +778,7 @@ export default function ExportPanel({
       </div>
       <div className="grow overflow-y-auto p-3 space-y-8">
         <XmpSidecarExport disabled={isExporting} />
-        {canExport ? (
+        {numImages > 0 ? (
           <>
             <div className={isExporting ? 'opacity-50 pointer-events-none' : ''}>
               <ExportPresetsList
@@ -874,6 +836,20 @@ export default function ExportPanel({
                   />
                 </div>
               )}
+              {supportsDpi && (
+                <div className="flex items-center gap-2">
+                  <Text variant={TextVariants.label} className="flex-1">
+                    {t('export.file.resolution')}
+                  </Text>
+                  <ValidatedNumberInput
+                    ariaLabel={t('export.file.resolution')}
+                    disabled={isExporting}
+                    field={dpiField}
+                    max={MAX_EXPORT_DPI}
+                  />
+                  <Text variant={TextVariants.label}>{t('export.file.dpi')}</Text>
+                </div>
+              )}
             </Section>
 
             <Section title={t('export.sections.destination')}>
@@ -908,6 +884,14 @@ export default function ExportPanel({
             </Section>
 
             <Section title={t('export.sections.fileNaming')}>
+              {!isAndroid && (numImages > 1 || preserveFolders || destinationType === 'originalFolder') && (
+                <Switch
+                  label={t('export.overwrite.label')}
+                  checked={overwriteExisting}
+                  onChange={setOverwriteExisting}
+                  disabled={isExporting}
+                />
+              )}
               <input
                 className="w-full bg-surface border border-surface rounded-md p-2 text-sm text-text-primary focus:ring-accent focus:border-accent"
                 disabled={isExporting}
@@ -1110,7 +1094,9 @@ export default function ExportPanel({
                   )}
                 </Section>
 
-                {(fileFormat === FileFormats.Jpeg || fileFormat === FileFormats.Jxl) && (
+                {[FileFormats.Jpeg, FileFormats.Png, FileFormats.Webp, FileFormats.Jxl].includes(
+                  fileFormat as FileFormats,
+                ) && (
                   <Section title={t('export.sections.metadata')}>
                     <Switch
                       checked={keepMetadata}

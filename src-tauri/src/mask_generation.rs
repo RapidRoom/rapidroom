@@ -230,6 +230,9 @@ fn default_line_flow() -> f32 {
 struct FlowMaskParameters {
     #[serde(default)]
     lines: Vec<FlowLine>,
+    /// Imported Lightroom dabs may deposit less than one 8-bit alpha step.
+    #[serde(default)]
+    high_precision_accumulation: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -756,6 +759,9 @@ fn generate_flow_bitmap(
     let params: FlowMaskParameters =
         serde_json::from_value(params_value.clone()).unwrap_or_default();
     let mut final_mask = GrayImage::new(width, height);
+    let mut precise = params
+        .high_precision_accumulation
+        .then(|| vec![0.0f32; width as usize * height as usize]);
 
     for line in &params.lines {
         if line.points.is_empty() {
@@ -799,8 +805,16 @@ fn generate_flow_bitmap(
                 let abs_y = min_y + y;
                 let pixel = final_mask.get_pixel_mut(abs_x, abs_y);
 
-                let c_norm = pixel[0] as f32 / 255.0;
-                let delta = ((stroke_pixel / 255.0) * flow_per_stroke).round();
+                let index = abs_y as usize * width as usize + abs_x as usize;
+                let c_norm = precise
+                    .as_ref()
+                    .map_or(pixel[0] as f32 / 255.0, |p| p[index]);
+                let deposit = (stroke_pixel / 255.0) * flow_per_stroke;
+                let delta = if precise.is_some() {
+                    deposit
+                } else {
+                    deposit.round()
+                };
                 let d_norm = (delta / 255.0).clamp(0.0, 1.0);
 
                 let next = if is_eraser {
@@ -809,11 +823,20 @@ fn generate_flow_bitmap(
                     c_norm + d_norm - c_norm * d_norm
                 };
 
-                pixel[0] = (next.clamp(0.0, 1.0) * 255.0).round() as u8;
+                if let Some(p) = precise.as_mut() {
+                    p[index] = next.clamp(0.0, 1.0);
+                } else {
+                    pixel[0] = (next.clamp(0.0, 1.0) * 255.0).round() as u8;
+                }
             }
         }
     }
 
+    if let Some(precise) = precise {
+        for (pixel, weight) in final_mask.pixels_mut().zip(precise) {
+            pixel[0] = (weight * 255.0).round() as u8;
+        }
+    }
     final_mask
 }
 
@@ -834,6 +857,24 @@ fn generate_ai_bitmap_from_full_mask(
 ) -> GrayImage {
     let (full_mask_w, full_mask_h) = full_mask_image.dimensions();
     let mut final_mask = GrayImage::new(tf.width, tf.height);
+    if full_mask_w == 0 || full_mask_h == 0 || !tf.scale.is_finite() || tf.scale <= 0.0 {
+        return final_mask;
+    }
+
+    // Filter before minification so thin edges retain their pixel coverage.
+    // Interpolation alone cannot average pixels skipped by a reduced preview.
+    let sampled_mask = if tf.scale < 1.0 {
+        Cow::Owned(image::imageops::resize(
+            full_mask_image,
+            (full_mask_w as f32 * tf.scale).round().max(1.0) as u32,
+            (full_mask_h as f32 * tf.scale).round().max(1.0) as u32,
+            image::imageops::FilterType::Triangle,
+        ))
+    } else {
+        Cow::Borrowed(full_mask_image)
+    };
+    let sample_scale_x = sampled_mask.width() as f32 / full_mask_w as f32;
+    let sample_scale_y = sampled_mask.height() as f32 / full_mask_h as f32;
 
     let angle_rad = tf.rotation.to_radians();
     let cos_a = angle_rad.cos();
@@ -852,8 +893,8 @@ fn generate_ai_bitmap_from_full_mask(
 
     for y_out in 0..tf.height {
         for x_out in 0..tf.width {
-            let x_uncrop = x_out as f32 + tf.crop_offset.0;
-            let y_uncrop = y_out as f32 + tf.crop_offset.1;
+            let x_uncrop = x_out as f32 + 0.5 + tf.crop_offset.0;
+            let y_uncrop = y_out as f32 + 0.5 + tf.crop_offset.1;
 
             let x_centered = x_uncrop - center_x;
             let y_centered = y_uncrop - center_y;
@@ -883,34 +924,54 @@ fn generate_ai_bitmap_from_full_mask(
                 _ => (x_unflipped, y_unflipped),
             };
 
-            let x_src = x_unrotated_coarse / tf.scale;
-            let y_src = y_unrotated_coarse / tf.scale;
-
-            if x_src >= 0.0
-                && x_src < full_mask_w as f32
-                && y_src >= 0.0
-                && y_src < full_mask_h as f32
-            {
-                let pixel = full_mask_image.get_pixel(x_src as u32, y_src as u32);
-                final_mask.put_pixel(x_out, y_out, *pixel);
-            }
+            // Transform pixel centers, then sample in the filtered bitmap's grid.
+            let x_src = x_unrotated_coarse / tf.scale * sample_scale_x - 0.5;
+            let y_src = y_unrotated_coarse / tf.scale * sample_scale_y - 0.5;
+            final_mask.put_pixel(
+                x_out,
+                y_out,
+                Luma([sample_ai_mask_bilinear(&sampled_mask, x_src, y_src)]),
+            );
         }
     }
 
     final_mask
 }
 
+fn sample_ai_mask_bilinear(mask: &GrayImage, x: f32, y: f32) -> u8 {
+    let (width, height) = mask.dimensions();
+    if x < -0.5 || x >= width as f32 - 0.5 || y < -0.5 || y >= height as f32 - 0.5 {
+        return 0;
+    }
+    // Clamp to the frame edge rather than adding an artificial fade where a
+    // subject extends beyond the photo; pixels outside the frame remain zero.
+    let x = x.clamp(0.0, (width - 1) as f32);
+    let y = y.clamp(0.0, (height - 1) as f32);
+    let x0 = x.floor() as u32;
+    let y0 = y.floor() as u32;
+    let x1 = (x0 + 1).min(width - 1);
+    let y1 = (y0 + 1).min(height - 1);
+    let dx = x - x0 as f32;
+    let dy = y - y0 as f32;
+    let top = mask.get_pixel(x0, y0)[0] as f32 * (1.0 - dx) + mask.get_pixel(x1, y0)[0] as f32 * dx;
+    let bottom =
+        mask.get_pixel(x0, y1)[0] as f32 * (1.0 - dx) + mask.get_pixel(x1, y1)[0] as f32 * dx;
+    (top * (1.0 - dy) + bottom * dy).round() as u8
+}
+
 pub fn generate_ai_bitmap_from_base64(data_url: &str, tf: &TransformParams) -> Option<GrayImage> {
+    let full_mask_image = decode_ai_bitmap(data_url)?;
+    Some(generate_ai_bitmap_from_full_mask(&full_mask_image, tf))
+}
+
+fn decode_ai_bitmap(data_url: &str) -> Option<GrayImage> {
     let b64_data = if let Some(idx) = data_url.find(',') {
         &data_url[idx + 1..]
     } else {
         data_url
     };
-
     let decoded_bytes = general_purpose::STANDARD.decode(b64_data).ok()?;
-    let full_mask_image = image::load_from_memory(&decoded_bytes).ok()?.to_luma8();
-
-    Some(generate_ai_bitmap_from_full_mask(&full_mask_image, tf))
+    Some(image::load_from_memory(&decoded_bytes).ok()?.to_luma8())
 }
 
 fn generate_ai_sky_bitmap(
@@ -971,7 +1032,9 @@ fn generate_ai_depth_bitmap(
         crop_offset,
     };
 
-    let depth_map = generate_ai_bitmap_from_base64(&data_url, &tf)?;
+    // The range is nonlinear: filtering depth first could invent selected
+    // mid-range values between two excluded depths. Transform coverage instead.
+    let depth_map = decode_ai_bitmap(&data_url)?;
 
     let (w, h) = depth_map.dimensions();
     let mut mask = GrayImage::new(w, h);
@@ -996,6 +1059,8 @@ fn generate_ai_depth_bitmap(
 
         mask.put_pixel(x, y, Luma([(final_intensity * 255.0) as u8]));
     }
+
+    let mut mask = generate_ai_bitmap_from_full_mask(&mask, &tf);
 
     if params.feather > 0.0 {
         mask = image::imageops::blur(&mask, params.feather * 0.1);
@@ -1501,16 +1566,20 @@ pub fn resolve_warped_image_for_masks(
     }
 }
 
+pub fn build_full_source_image(base_image: &DynamicImage, is_raw: bool) -> Cow<'_, DynamicImage> {
+    let mut image = Cow::Borrowed(base_image);
+    if is_raw {
+        apply_cpu_default_raw_processing(image.to_mut());
+    }
+    image
+}
+
 pub fn build_full_warped_image<'a>(
     base_image: &'a DynamicImage,
     is_raw: bool,
     adjustments: &serde_json::Value,
 ) -> Cow<'a, DynamicImage> {
-    let mut image = Cow::Borrowed(base_image);
-    if is_raw {
-        apply_cpu_default_raw_processing(image.to_mut());
-    }
-    apply_geometry_warp(image, adjustments)
+    apply_geometry_warp(build_full_source_image(base_image, is_raw), adjustments)
 }
 
 pub fn build_warped_image_for_masks<'a>(
@@ -1666,5 +1735,183 @@ mod tests {
     fn unreadable_masks_leave_the_render_without_them() {
         assert!(parse_mask_definitions(&json!({ "masks": "not a list" })).is_empty());
         assert!(parse_mask_definitions(&json!({ "masks": [{ "id": "a" }] })).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod imported_flow_precision_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn tiny_imported_dabs_accumulate_and_erase_before_final_quantization() {
+        let line = json!({"tool":"brush","brushSize":8,"feather":0,"flow":0.01,"points":[{"x":10,"y":10}]});
+        let mut params = json!({"lines":vec![line;100]});
+        let legacy = generate_flow_bitmap(&params, 20, 20, 1.0, (0.0, 0.0));
+        assert_eq!(legacy.get_pixel(10, 10)[0], 0);
+        params["highPrecisionAccumulation"] = json!(true);
+        let precise = generate_flow_bitmap(&params, 20, 20, 1.0, (0.0, 0.0));
+        assert_eq!(precise.get_pixel(10, 10)[0], 3);
+        assert_eq!(precise.get_pixel(0, 0)[0], 0);
+        params["lines"].as_array_mut().unwrap().push(json!({"tool":"eraser","brushSize":8,"feather":0,"flow":100,"points":[{"x":10,"y":10}]}));
+        let erased = generate_flow_bitmap(&params, 20, 20, 1.0, (0.0, 0.0));
+        assert_eq!(erased.get_pixel(10, 10)[0], 0);
+    }
+
+    #[test]
+    fn existing_flow_parameters_keep_their_previous_rounding() {
+        let line = json!({"tool":"brush","brushSize":8,"feather":0,"flow":5.69,"points":[{"x":10,"y":10}]});
+        let mut params = json!({"lines":[line.clone(),line]});
+        assert_eq!(
+            generate_flow_bitmap(&params, 20, 20, 1.0, (0.0, 0.0)).get_pixel(10, 10)[0],
+            29
+        );
+        params["highPrecisionAccumulation"] = json!(true);
+        assert_eq!(
+            generate_flow_bitmap(&params, 20, 20, 1.0, (0.0, 0.0)).get_pixel(10, 10)[0],
+            28
+        );
+    }
+}
+
+#[cfg(test)]
+mod ai_transform_sampling_tests {
+    use super::*;
+    use image::imageops;
+
+    fn transform(width: u32, height: u32, scale: f32) -> TransformParams {
+        TransformParams {
+            rotation: 0.0,
+            flip_horizontal: false,
+            flip_vertical: false,
+            orientation_steps: 0,
+            width,
+            height,
+            scale,
+            crop_offset: (0.0, 0.0),
+        }
+    }
+
+    #[test]
+    fn reduced_checkerboard_preserves_coverage_instead_of_aliasing_to_one_colour() {
+        let source =
+            GrayImage::from_fn(8, 8, |x, y| Luma([if (x + y) % 2 == 0 { 0 } else { 255 }]));
+        let output = generate_ai_bitmap_from_full_mask(&source, &transform(4, 4, 0.5));
+        assert!(
+            output
+                .as_raw()
+                .iter()
+                .all(|pixel| (110..=145).contains(pixel))
+        );
+        let average = output
+            .as_raw()
+            .iter()
+            .map(|pixel| *pixel as f32)
+            .sum::<f32>()
+            / 16.0;
+        assert!((average - 127.5).abs() < 2.0);
+    }
+
+    #[test]
+    fn rotated_reduced_edge_has_intermediate_coverage() {
+        let source = GrayImage::from_fn(128, 128, |x, _| Luma([if x < 64 { 0 } else { 255 }]));
+        let mut tf = transform(64, 64, 0.5);
+        tf.rotation = 17.0;
+        let output = generate_ai_bitmap_from_full_mask(&source, &tf);
+        let values: std::collections::HashSet<_> = output.as_raw().iter().copied().collect();
+        assert!(values.contains(&0) && values.contains(&255));
+        assert!(
+            values
+                .iter()
+                .filter(|value| **value > 0 && **value < 255)
+                .count()
+                > 10
+        );
+    }
+
+    #[test]
+    fn native_identity_crop_flips_and_coarse_rotations_keep_pixel_alignment() {
+        let source = GrayImage::from_fn(4, 3, |x, y| Luma([(x + y * 4) as u8]));
+        for steps in 0..4 {
+            for flip_horizontal in [false, true] {
+                for flip_vertical in [false, true] {
+                    let mut expected = match steps {
+                        0 => source.clone(),
+                        1 => imageops::rotate90(&source),
+                        2 => imageops::rotate180(&source),
+                        _ => imageops::rotate270(&source),
+                    };
+                    if flip_horizontal {
+                        expected = imageops::flip_horizontal(&expected);
+                    }
+                    if flip_vertical {
+                        expected = imageops::flip_vertical(&expected);
+                    }
+                    let (width, height) = expected.dimensions();
+                    let mut tf = transform(width, height, 1.0);
+                    tf.orientation_steps = steps;
+                    tf.flip_horizontal = flip_horizontal;
+                    tf.flip_vertical = flip_vertical;
+                    assert_eq!(generate_ai_bitmap_from_full_mask(&source, &tf), expected);
+                    tf.width -= 1;
+                    tf.crop_offset = (1.0, 0.0);
+                    assert_eq!(
+                        generate_ai_bitmap_from_full_mask(&source, &tf),
+                        imageops::crop_imm(&expected, 1, 0, width - 1, height).to_image()
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn masks_reaching_photo_edges_do_not_gain_an_extra_fade() {
+        let source = GrayImage::from_pixel(8, 8, Luma([255]));
+        for scale in [0.5, 1.0, 2.0] {
+            let size = (8.0 * scale) as u32;
+            let output = generate_ai_bitmap_from_full_mask(&source, &transform(size, size, scale));
+            assert!(output.as_raw().iter().all(|value| *value == 255));
+        }
+    }
+
+    fn depth_parameters(min: f32, max: f32) -> Value {
+        let source =
+            GrayImage::from_fn(8, 8, |x, y| Luma([if (x + y) % 2 == 0 { 0 } else { 255 }]));
+        let mut png = Cursor::new(Vec::new());
+        DynamicImage::ImageLuma8(source)
+            .write_to(&mut png, ImageFormat::Png)
+            .unwrap();
+        serde_json::json!({"maskDataBase64":base64::Engine::encode(&general_purpose::STANDARD,png.into_inner()),
+            "minDepth":min,"maxDepth":max,"minFade":0.0,"maxFade":0.0,"feather":0.0,"grow":0.0})
+    }
+
+    #[test]
+    fn excluded_depths_do_not_create_selected_midrange_coverage_on_reduction() {
+        let params = depth_parameters(40.0, 60.0);
+        for (size, scale) in [(8, 1.0), (4, 0.5)] {
+            let mask = generate_ai_depth_bitmap(&params, size, size, scale, (0.0, 0.0)).unwrap();
+            assert!(mask.as_raw().iter().all(|value| *value == 0));
+        }
+    }
+
+    #[test]
+    fn selected_depths_retain_partial_coverage_on_reduction() {
+        let params = depth_parameters(80.0, 100.0);
+        let native = generate_ai_depth_bitmap(&params, 8, 8, 1.0, (0.0, 0.0)).unwrap();
+        assert_eq!(
+            native
+                .as_raw()
+                .iter()
+                .filter(|value| **value == 255)
+                .count(),
+            32
+        );
+        let reduced = generate_ai_depth_bitmap(&params, 4, 4, 0.5, (0.0, 0.0)).unwrap();
+        assert!(
+            reduced
+                .as_raw()
+                .iter()
+                .all(|value| (110..=145).contains(value))
+        );
     }
 }

@@ -1,12 +1,12 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
-use std::io::Cursor;
+use std::io::{Cursor, Seek, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use image::codecs::jpeg::JpegEncoder;
+use image::codecs::jpeg::{JpegEncoder, PixelDensity};
 use image::codecs::png::PngEncoder;
 use image::codecs::tiff::TiffEncoder;
 use image::{
@@ -21,8 +21,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::Emitter;
 use tauri::Manager;
+use tiff::encoder::{Rational, TiffEncoder as ResolutionTiffEncoder, TiffValue, colortype};
+use tiff::tags::{ResolutionUnit, Tag};
 
 use crate::AppState;
+use crate::baseline_exposure::BaselineOptions;
 use crate::exif_processing;
 use crate::file_management::{
     generate_filename_from_template, parse_virtual_path, read_file_mapped,
@@ -32,9 +35,10 @@ use crate::image_loader::{
     composite_patches_on_image, load_and_composite, load_base_image_from_bytes,
 };
 use crate::image_processing::{
-    AllAdjustments, Crop, GpuContext, RenderOutputPrecision, RenderRequest, downscale_f32_image,
-    get_all_adjustments_from_json, get_or_init_gpu_context, process_and_get_dynamic_image,
-    process_and_get_dynamic_image_with_precision, resolve_tonemapper_override_from_handle,
+    AllAdjustments, Crop, GpuContext, RenderOptions, RenderOutputPrecision, RenderRequest,
+    downscale_f32_image, get_all_adjustments_from_json, get_or_init_gpu_context,
+    process_and_get_dynamic_image, process_and_get_dynamic_image_with_precision,
+    resolve_render_options_from_handle,
 };
 use crate::lut_processing::{
     convert_image_to_cube_lut, generate_identity_lut_image, get_or_load_lut,
@@ -42,6 +46,7 @@ use crate::lut_processing::{
 use crate::mask_generation::{MaskDefinition, build_warped_image_for_masks, generate_mask_bitmap};
 use crate::output_sharpening::{OutputSharpening, apply_output_sharpening};
 
+use crate::as_shot::as_shot;
 use crate::cache_utils::{calculate_full_job_hash, calculate_transform_hash};
 use crate::{
     apply_all_transformations, generate_transformed_preview, get_cached_or_generate_mask,
@@ -125,6 +130,8 @@ pub struct PadOptions {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportSettings {
+    #[serde(default, deserialize_with = "deserialize_export_dpi")]
+    pub dpi: Option<u16>,
     pub jpeg_quality: u8,
     #[serde(default)]
     pub tiff_bit_depth: TiffBitDepth,
@@ -149,6 +156,18 @@ pub struct ExportSettings {
     pub subfolder: Option<String>,
     #[serde(default)]
     pub output_sharpening: Option<OutputSharpening>,
+    #[serde(default)]
+    pub overwrite_existing: bool,
+}
+
+fn deserialize_export_dpi<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<u16>, D::Error> {
+    let dpi = Option::<u16>::deserialize(deserializer)?;
+    if dpi == Some(0) {
+        return Err(serde::de::Error::custom("DPI must be between 1 and 65535"));
+    }
+    Ok(dpi)
 }
 
 #[cfg(feature = "mcp")]
@@ -1030,8 +1049,9 @@ fn process_image_for_export_pipeline(
         })
         .collect();
 
-    let tm_override = resolve_tonemapper_override_from_handle(app_handle, is_raw);
-    let mut all_adjustments = get_all_adjustments_from_json(js_adjustments, is_raw, tm_override);
+    let render = resolve_render_options_from_handle(app_handle, is_raw);
+    let mut all_adjustments =
+        get_all_adjustments_from_json(js_adjustments, is_raw, as_shot(path), render);
     all_adjustments.global.show_clipping = 0;
 
     let lut_path = js_adjustments["lutPath"].as_str();
@@ -1092,6 +1112,7 @@ fn save_image_with_metadata(
     image: &DynamicImage,
     output_path: &std::path::Path,
     source_path_str: &str,
+    export_xmp: &exif_processing::ExportXmp,
     export_settings: &ExportSettings,
 ) -> Result<(), String> {
     let extension = output_path
@@ -1100,26 +1121,16 @@ fn save_image_with_metadata(
         .unwrap_or("")
         .to_lowercase();
 
-    let mut image_bytes = encode_image_to_bytes(
-        image,
-        &extension,
-        export_settings.jpeg_quality,
-        export_settings.tiff_bit_depth,
-    )?;
+    let mut image_bytes = encode_image_to_bytes(image, &extension, export_settings)?;
 
-    let tags = if export_settings.keep_metadata {
-        exif_processing::load_tags_from_sidecar(Path::new(source_path_str))
-    } else {
-        None
-    };
-
-    exif_processing::write_image_with_metadata(
+    exif_processing::write_image_with_metadata_and_resolution(
         &mut image_bytes,
         source_path_str,
         &extension,
         export_settings.keep_metadata,
         export_settings.strip_gps,
-        tags.as_deref(),
+        export_xmp,
+        export_settings.dpi,
     )?;
 
     #[cfg(target_os = "android")]
@@ -1136,8 +1147,12 @@ fn save_image_with_metadata(
     }
 
     #[cfg(not(target_os = "android"))]
-    fs::write(output_path, image_bytes)
-        .map_err(|e| format!("Failed to write file to '{}': {}", output_path.display(), e))?;
+    write_export_bytes(
+        output_path,
+        &image_bytes,
+        export_settings.overwrite_existing,
+    )
+    .map_err(|e| format!("Failed to write file to '{}': {}", output_path.display(), e))?;
 
     Ok(())
 }
@@ -1214,9 +1229,14 @@ const SRGB_ICC_PROFILE: &[u8] = include_bytes!("../icc/sRGB-v2-magic.icc");
 fn encode_image_to_bytes(
     image: &DynamicImage,
     output_format: &str,
-    jpeg_quality: u8,
-    tiff_bit_depth: TiffBitDepth,
+    export_settings: &ExportSettings,
 ) -> Result<Vec<u8>, String> {
+    let jpeg_quality = export_settings.jpeg_quality;
+    let tiff_bit_depth = export_settings.tiff_bit_depth;
+    let dpi = export_settings.dpi;
+    if dpi == Some(0) {
+        return Err("DPI must be between 1 and 65535".to_string());
+    }
     let mut image_bytes = Vec::new();
     let mut cursor = Cursor::new(&mut image_bytes);
 
@@ -1268,6 +1288,9 @@ fn encode_image_to_bytes(
             encoder
                 .set_icc_profile(SRGB_ICC_PROFILE.to_vec())
                 .map_err(|e| e.to_string())?;
+            if let Some(dpi) = dpi {
+                encoder.set_pixel_density(PixelDensity::dpi(dpi));
+            }
             rgb_image
                 .write_with_encoder(encoder)
                 .map_err(|e| e.to_string())?;
@@ -1288,17 +1311,39 @@ fn encode_image_to_bytes(
                 .map_err(|e| e.to_string())?;
         }
         "tif" | "tiff" => {
-            let image_to_encode = match tiff_bit_depth {
-                TiffBitDepth::Eight => DynamicImage::ImageRgb8(image.to_rgb8()),
-                TiffBitDepth::Sixteen => DynamicImage::ImageRgb16(image.to_rgb16()),
-            };
-            let mut encoder = TiffEncoder::new(&mut cursor);
-            encoder
-                .set_icc_profile(SRGB_ICC_PROFILE.to_vec())
-                .map_err(|e| e.to_string())?;
-            image_to_encode
-                .write_with_encoder(encoder)
-                .map_err(|e| e.to_string())?;
+            if let Some(dpi) = dpi {
+                let (width, height) = image.dimensions();
+                let mut encoder =
+                    ResolutionTiffEncoder::new(&mut cursor).map_err(|e| e.to_string())?;
+                match tiff_bit_depth {
+                    TiffBitDepth::Eight => write_tiff_with_resolution::<colortype::RGB8, _>(
+                        &mut encoder,
+                        width,
+                        height,
+                        image.to_rgb8().as_raw(),
+                        dpi,
+                    )?,
+                    TiffBitDepth::Sixteen => write_tiff_with_resolution::<colortype::RGB16, _>(
+                        &mut encoder,
+                        width,
+                        height,
+                        image.to_rgb16().as_raw(),
+                        dpi,
+                    )?,
+                }
+            } else {
+                let image_to_encode = match tiff_bit_depth {
+                    TiffBitDepth::Eight => DynamicImage::ImageRgb8(image.to_rgb8()),
+                    TiffBitDepth::Sixteen => DynamicImage::ImageRgb16(image.to_rgb16()),
+                };
+                let mut encoder = TiffEncoder::new(&mut cursor);
+                encoder
+                    .set_icc_profile(SRGB_ICC_PROFILE.to_vec())
+                    .map_err(|e| e.to_string())?;
+                image_to_encode
+                    .write_with_encoder(encoder)
+                    .map_err(|e| e.to_string())?;
+            }
         }
         "avif" => {
             image
@@ -1307,7 +1352,72 @@ fn encode_image_to_bytes(
         }
         _ => return Err(format!("Unsupported file format: {}", output_format)),
     };
+    if output_format.eq_ignore_ascii_case("png")
+        && let Some(dpi) = dpi
+    {
+        insert_png_phys_chunk(&mut image_bytes, dpi);
+    }
     Ok(image_bytes)
+}
+
+fn write_tiff_with_resolution<C: colortype::ColorType, W: Write + Seek>(
+    encoder: &mut ResolutionTiffEncoder<W>,
+    width: u32,
+    height: u32,
+    data: &[C::Inner],
+    dpi: u16,
+) -> Result<(), String>
+where
+    [C::Inner]: TiffValue,
+{
+    let mut image = encoder
+        .new_image::<C>(width, height)
+        .map_err(|e| e.to_string())?;
+    image.resolution(
+        ResolutionUnit::Inch,
+        Rational {
+            n: dpi.into(),
+            d: 1,
+        },
+    );
+    image
+        .encoder()
+        .write_tag(Tag::IccProfile, SRGB_ICC_PROFILE)
+        .map_err(|e| e.to_string())?;
+    image.write_data(data).map_err(|e| e.to_string())
+}
+
+fn encode_mask_alpha_to_png(image: &GrayImage, dpi: Option<u16>) -> Result<Vec<u8>, String> {
+    if dpi == Some(0) {
+        return Err("DPI must be between 1 and 65535".to_string());
+    }
+    let mut bytes = encode_grayscale_to_png(image)?;
+    if let Some(dpi) = dpi {
+        insert_png_phys_chunk(&mut bytes, dpi);
+    }
+    Ok(bytes)
+}
+
+fn insert_png_phys_chunk(image_bytes: &mut Vec<u8>, dpi: u16) {
+    const IHDR_END: usize = 33;
+    if image_bytes.len() < IHDR_END
+        || &image_bytes[..8] != b"\x89PNG\r\n\x1a\n"
+        || &image_bytes[12..16] != b"IHDR"
+    {
+        return;
+    }
+    let pixels_per_meter = (f64::from(dpi) / 0.0254).round() as u32;
+    let mut data = Vec::with_capacity(9);
+    data.extend_from_slice(&pixels_per_meter.to_be_bytes());
+    data.extend_from_slice(&pixels_per_meter.to_be_bytes());
+    data.push(1);
+    let mut chunk = Vec::with_capacity(21);
+    chunk.extend_from_slice(&9u32.to_be_bytes());
+    chunk.extend_from_slice(b"pHYs");
+    chunk.extend_from_slice(&data);
+    let crc = exif_processing::crc32_ieee(&chunk[4..]);
+    chunk.extend_from_slice(&crc.to_be_bytes());
+    image_bytes.splice(IHDR_END..IHDR_END, chunk);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1317,11 +1427,14 @@ fn export_masks_for_image(
     export_settings: &ExportSettings,
     output_path_obj: &std::path::Path,
     source_path_str: &str,
+    export_xmp: &exif_processing::ExportXmp,
     context: &Arc<GpuContext>,
     state: &tauri::State<AppState>,
     is_raw: bool,
     app_handle: &tauri::AppHandle,
     cancellation_token: &AtomicBool,
+    source_paths: &[PathBuf],
+    used_paths: &Mutex<std::collections::HashSet<PathBuf>>,
 ) -> Result<(), String> {
     ensure_export_not_cancelled(cancellation_token)?;
     let (transformed_image, unscaled_crop_offset) =
@@ -1350,8 +1463,9 @@ fn export_masks_for_image(
     }
 
     if !mask_bitmaps.is_empty() {
-        let tm_override = resolve_tonemapper_override_from_handle(app_handle, is_raw);
-        let all_adjustments = get_all_adjustments_from_json(js_adjustments, is_raw, tm_override);
+        let render = resolve_render_options_from_handle(app_handle, is_raw);
+        let all_adjustments =
+            get_all_adjustments_from_json(js_adjustments, is_raw, as_shot(source_path_str), render);
         let lut_path = js_adjustments["lutPath"].as_str();
         let lut = lut_path.and_then(|p| get_or_load_lut(state, p).ok());
         let unique_hash = calculate_full_job_hash(source_path_str, js_adjustments);
@@ -1404,14 +1518,21 @@ fn export_masks_for_image(
             };
             ensure_export_not_cancelled(cancellation_token)?;
 
-            let mask_image_path =
-                output_dir.join(format!("{}_mask_{}_image.{}", stem, i, extension));
-            let mask_alpha_path = output_dir.join(format!("{}_mask_{}_alpha.png", stem, i));
+            let (mask_image_path, mask_alpha_path) = reserve_mask_export_paths(
+                output_dir,
+                stem,
+                i,
+                extension,
+                export_settings.overwrite_existing,
+                source_paths,
+                &mut used_paths.lock().unwrap(),
+            );
 
             save_image_with_metadata(
                 &with_options,
                 &mask_image_path,
                 source_path_str,
+                export_xmp,
                 export_settings,
             )?;
             ensure_export_not_cancelled(cancellation_token)?;
@@ -1420,7 +1541,7 @@ fn export_masks_for_image(
                 set_timestamps_from_exif(Path::new(source_path_str), &mask_image_path);
             }
 
-            let alpha_bytes = encode_grayscale_to_png(&alpha_resized)?;
+            let alpha_bytes = encode_mask_alpha_to_png(&alpha_resized, export_settings.dpi)?;
             ensure_export_not_cancelled(cancellation_token)?;
             #[cfg(target_os = "android")]
             {
@@ -1436,7 +1557,12 @@ fn export_masks_for_image(
             }
 
             #[cfg(not(target_os = "android"))]
-            fs::write(&mask_alpha_path, alpha_bytes).map_err(|e| e.to_string())?;
+            write_export_bytes(
+                &mask_alpha_path,
+                &alpha_bytes,
+                export_settings.overwrite_existing,
+            )
+            .map_err(|e| e.to_string())?;
             ensure_export_not_cancelled(cancellation_token)?;
         }
     }
@@ -1455,8 +1581,12 @@ fn export_adjustments_as_lut(
     let lut_size = 33;
     let identity_image = generate_identity_lut_image(lut_size);
 
-    let tm_override = resolve_tonemapper_override_from_handle(app_handle, false);
-    let mut all_adjustments = get_all_adjustments_from_json(js_adjustments, false, tm_override);
+    let render = RenderOptions {
+        baseline: BaselineOptions::default(),
+        ..resolve_render_options_from_handle(app_handle, false)
+    };
+    let mut all_adjustments =
+        get_all_adjustments_from_json(js_adjustments, false, as_shot(source_path_str), render);
 
     all_adjustments.global.show_clipping = 0;
     all_adjustments.global.vignette_amount = 0.0;
@@ -1508,6 +1638,99 @@ fn ensure_export_destination_writable(
     } else {
         crate::file_management::ensure_card_writable(std::path::Path::new(output_folder_or_file))
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn reserve_mask_export_paths(
+    directory: &Path,
+    stem: &str,
+    index: usize,
+    extension: &str,
+    overwrite: bool,
+    sources: &[PathBuf],
+    used: &mut std::collections::HashSet<PathBuf>,
+) -> (PathBuf, PathBuf) {
+    let image_stem = format!("{stem}_mask_{index}_image");
+    let alpha_stem = format!("{stem}_mask_{index}_alpha");
+    let image = reserve_export_path(
+        directory.join(format!("{image_stem}.{extension}")),
+        &image_stem,
+        extension,
+        overwrite,
+        sources,
+        used,
+    );
+    let alpha = reserve_export_path(
+        directory.join(format!("{alpha_stem}.png")),
+        &alpha_stem,
+        "png",
+        overwrite,
+        sources,
+        used,
+    );
+    (image, alpha)
+}
+
+fn write_export_bytes(path: &Path, bytes: &[u8], overwrite: bool) -> std::io::Result<()> {
+    if overwrite {
+        // Replace only after encoding succeeds; atomic replacement also leaves
+        // any other hard links to the old file untouched.
+        crate::file_management::write_file_atomically(path, bytes)
+    } else {
+        fs::write(path, bytes)
+    }
+}
+
+fn export_destination_is_source(output: &Path, sources: &[PathBuf]) -> bool {
+    let Ok(output_path) = output.canonicalize() else {
+        return false;
+    };
+    sources.iter().any(|source| {
+        if source.canonicalize().is_ok_and(|path| path == output_path) {
+            return true;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            if let (Ok(left), Ok(right)) = (output.metadata(), source.metadata()) {
+                return left.dev() == right.dev() && left.ino() == right.ino();
+            }
+        }
+        false
+    })
+}
+
+fn export_destination_identity(path: &Path) -> PathBuf {
+    if let Ok(resolved) = path.canonicalize() {
+        return resolved;
+    }
+    let parent = path.parent().unwrap_or(Path::new("."));
+    let resolved_parent = parent
+        .canonicalize()
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default().join(parent));
+    resolved_parent.join(path.file_name().unwrap_or_default())
+}
+
+fn reserve_export_path(
+    mut output: PathBuf,
+    stem: &str,
+    extension: &str,
+    overwrite_existing: bool,
+    sources: &[PathBuf],
+    used: &mut std::collections::HashSet<PathBuf>,
+) -> PathBuf {
+    let parent = output.parent().unwrap_or(Path::new("")).to_path_buf();
+    let mut counter = 1;
+    while used.contains(&export_destination_identity(&output))
+        || (!overwrite_existing && output.exists())
+        || export_destination_is_source(&output, sources)
+        || output.is_dir()
+    {
+        output = parent.join(format!("{stem}_{counter}.{extension}"));
+        counter += 1;
+    }
+    used.insert(export_destination_identity(&output));
+    output
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1613,6 +1836,12 @@ pub(crate) async fn export_images_impl(
             export_items.push((i, path_str, *count, explicit_vc));
         }
 
+        let source_paths: Arc<Vec<PathBuf>> = Arc::new(
+            export_items
+                .iter()
+                .map(|(_, path, _, _)| parse_virtual_path(path).0)
+                .collect(),
+        );
         let used_paths = Arc::new(Mutex::new(std::collections::HashSet::new()));
         let semaphore = Arc::new(tokio::sync::Semaphore::new(num_threads));
         let mut join_handles = Vec::new();
@@ -1638,6 +1867,7 @@ pub(crate) async fn export_images_impl(
             let cancellation_token_clone = Arc::clone(&cancellation_token);
             let adjustments_mode = adjustments_mode.clone();
             let used_paths_clone = Arc::clone(&used_paths);
+            let source_paths = Arc::clone(&source_paths);
 
             let handle = tokio::task::spawn_blocking(move || {
                 ensure_export_not_cancelled(&cancellation_token_clone)?;
@@ -1653,6 +1883,12 @@ pub(crate) async fn export_images_impl(
                     ExportAdjustmentsMode::GlobalOverride(_) => false,
                 };
 
+                let sidecar = crate::exif_processing::load_sidecar_with_camera_crop(
+                    &sidecar_path,
+                    &source_path,
+                );
+                let export_xmp = crate::exif_processing::ExportXmp::from_metadata(&sidecar);
+
                 let mut js_adjustments = match &adjustments_mode {
                     ExportAdjustmentsMode::UseSidecars {
                         active_adjustments, ..
@@ -1661,18 +1897,10 @@ pub(crate) async fn export_images_impl(
                             if let Some(adj) = active_adjustments {
                                 adj.clone()
                             } else {
-                                crate::exif_processing::load_sidecar_with_camera_crop(
-                                    &sidecar_path,
-                                    &source_path,
-                                )
-                                .adjustments
+                                sidecar.adjustments
                             }
                         } else {
-                            crate::exif_processing::load_sidecar_with_camera_crop(
-                                &sidecar_path,
-                                &source_path,
-                            )
-                            .adjustments
+                            sidecar.adjustments
                         }
                     }
                     ExportAdjustmentsMode::GlobalOverride(adj) => adj.clone(),
@@ -1762,21 +1990,25 @@ pub(crate) async fn export_images_impl(
 
                 let extension = output_format.to_lowercase();
 
-                if !(is_explicit_file_path && total_paths == 1) {
-                    let mut used = used_paths_clone.lock().unwrap();
-                    let parent_dir = output_path
-                        .parent()
-                        .unwrap_or(std::path::Path::new(""))
-                        .to_path_buf();
-                    let mut counter = 1;
-
-                    while output_path.exists() || used.contains(&output_path) {
-                        let incremented_filename =
-                            format!("{}_{}.{}", new_stem, counter, extension);
-                        output_path = parent_dir.join(&incremented_filename);
-                        counter += 1;
+                if is_explicit_file_path && total_paths == 1 {
+                    if export_destination_is_source(&output_path, &source_paths) {
+                        return Err(
+                            "Export destination is a source photo. Choose another name.".into()
+                        );
                     }
-                    used.insert(output_path.clone());
+                    used_paths_clone
+                        .lock()
+                        .unwrap()
+                        .insert(export_destination_identity(&output_path));
+                } else {
+                    output_path = reserve_export_path(
+                        output_path,
+                        &new_stem,
+                        &extension,
+                        export_settings.overwrite_existing,
+                        &source_paths,
+                        &mut used_paths_clone.lock().unwrap(),
+                    );
                 }
 
                 let result: Result<(), String> = (|| {
@@ -1803,7 +2035,12 @@ pub(crate) async fn export_images_impl(
                             )?;
                         }
                         #[cfg(not(target_os = "android"))]
-                        fs::write(&output_path, cube_bytes).map_err(|e| e.to_string())?;
+                        write_export_bytes(
+                            &output_path,
+                            &cube_bytes,
+                            export_settings.overwrite_existing,
+                        )
+                        .map_err(|e| e.to_string())?;
                         ensure_export_not_cancelled(&cancellation_token_clone)?;
                         return Ok(());
                     }
@@ -1881,6 +2118,7 @@ pub(crate) async fn export_images_impl(
                         &final_image,
                         &output_path,
                         &source_path_str,
+                        &export_xmp,
                         &export_settings,
                     )?;
                     ensure_export_not_cancelled(&cancellation_token_clone)?;
@@ -1897,11 +2135,14 @@ pub(crate) async fn export_images_impl(
                             &export_settings,
                             &output_path,
                             &source_path_str,
+                            &export_xmp,
                             &context_clone,
                             &state,
                             is_raw,
                             &app_handle_clone,
                             &cancellation_token_clone,
+                            &source_paths,
+                            &used_paths_clone,
                         )?;
                     }
 
@@ -2044,6 +2285,7 @@ fn headless_export_settings(
         }
         None => (
             ExportSettings {
+                dpi: None,
                 jpeg_quality: 90,
                 tiff_bit_depth: TiffBitDepth::default(),
                 resize: None,
@@ -2059,6 +2301,7 @@ fn headless_export_settings(
                 destination_type: None,
                 subfolder: None,
                 output_sharpening: None,
+                overwrite_existing: false,
             },
             None,
         ),
@@ -2336,9 +2579,9 @@ pub async fn estimate_export_sizes(
             })
             .collect();
 
-        let tm_override = resolve_tonemapper_override_from_handle(&app_handle, is_raw);
+        let render = resolve_render_options_from_handle(&app_handle, is_raw);
         let mut all_adjustments =
-            get_all_adjustments_from_json(&adjustments_clone, is_raw, tm_override);
+            get_all_adjustments_from_json(&adjustments_clone, is_raw, loaded_image.as_shot, render);
         all_adjustments.global.show_clipping = 0;
 
         let lut = adjustments_clone["lutPath"]
@@ -2362,12 +2605,8 @@ pub async fn estimate_export_sizes(
             render_output_precision(&output_format, &export_settings),
         )?;
 
-        let preview_bytes = encode_image_to_bytes(
-            &processed_preview,
-            &output_format,
-            export_settings.jpeg_quality,
-            export_settings.tiff_bit_depth,
-        )?;
+        let preview_bytes =
+            encode_image_to_bytes(&processed_preview, &output_format, &export_settings)?;
         let preview_byte_size = preview_bytes.len();
 
         let (transformed_full_res, _) =
@@ -2473,9 +2712,13 @@ pub async fn estimate_export_sizes(
             })
             .collect();
 
-        let tm_override = resolve_tonemapper_override_from_handle(&app_handle, is_raw);
-        let mut all_adjustments =
-            get_all_adjustments_from_json(&js_adjustments, is_raw, tm_override);
+        let render = resolve_render_options_from_handle(&app_handle, is_raw);
+        let mut all_adjustments = get_all_adjustments_from_json(
+            &js_adjustments,
+            is_raw,
+            as_shot(&source_path_str),
+            render,
+        );
         all_adjustments.global.show_clipping = 0;
 
         let lut = js_adjustments["lutPath"]
@@ -2499,12 +2742,8 @@ pub async fn estimate_export_sizes(
             render_output_precision(&output_format, &export_settings),
         )?;
 
-        let preview_bytes = encode_image_to_bytes(
-            &processed_preview,
-            &output_format,
-            export_settings.jpeg_quality,
-            export_settings.tiff_bit_depth,
-        )?;
+        let preview_bytes =
+            encode_image_to_bytes(&processed_preview, &output_format, &export_settings)?;
         let single_image_estimated_size = preview_bytes.len();
 
         let full_w = (shrunk_w as f32 / raw_scale_factor).round() as u32;
@@ -2564,5 +2803,519 @@ mod card_mode_tests {
         assert!(
             ensure_export_destination_writable(&from_library, "", Some("originalFolder")).is_ok()
         );
+    }
+}
+
+#[cfg(test)]
+mod export_collision_tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn rename_remains_default_and_overwrite_keeps_batch_names_distinct() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("photo.jpeg");
+        fs::write(&output, b"old export").unwrap();
+        assert_eq!(
+            reserve_export_path(
+                output.clone(),
+                "photo",
+                "jpeg",
+                false,
+                &[],
+                &mut HashSet::new()
+            ),
+            dir.path().join("photo_1.jpeg")
+        );
+        let mut used = HashSet::new();
+        assert_eq!(
+            reserve_export_path(output.clone(), "photo", "jpeg", true, &[], &mut used),
+            output
+        );
+        assert_eq!(
+            reserve_export_path(output.clone(), "photo", "jpeg", true, &[], &mut used),
+            dir.path().join("photo_1.jpeg")
+        );
+        assert_eq!(fs::read(output).unwrap(), b"old export");
+    }
+
+    #[test]
+    fn all_batch_sources_are_protected_from_replacement() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.jpeg");
+        fs::write(&source, b"source photo").unwrap();
+        let sources = vec![dir.path().join("other.jpeg"), source.clone()];
+        assert!(export_destination_is_source(&source, &sources));
+        let output = reserve_export_path(
+            source.clone(),
+            "photo",
+            "jpeg",
+            true,
+            &sources,
+            &mut HashSet::new(),
+        );
+        assert_eq!(output, dir.path().join("photo_1.jpeg"));
+        write_export_bytes(&output, b"new export", true).unwrap();
+        assert_eq!(fs::read(source).unwrap(), b"source photo");
+    }
+
+    #[test]
+    fn replacement_preserves_other_hard_links_to_existing_exports() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("export.jpeg");
+        let alias = dir.path().join("original.jpeg");
+        fs::write(&alias, b"source photo").unwrap();
+        fs::hard_link(&alias, &output).unwrap();
+        write_export_bytes(&output, b"new export", true).unwrap();
+        assert_eq!(fs::read(alias).unwrap(), b"source photo");
+        assert_eq!(fs::read(output).unwrap(), b"new export");
+    }
+
+    #[test]
+    fn old_requests_default_to_rename() {
+        let settings: ExportSettings = serde_json::from_value(serde_json::json!({
+            "jpegQuality":90,"resize":null,"keepMetadata":true,"stripGps":true,
+            "filenameTemplate":null,"watermark":null
+        }))
+        .unwrap();
+        assert!(!settings.overwrite_existing);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn source_aliases_are_protected() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("source.jpeg");
+        let symlink = dir.path().join("symlink.jpeg");
+        let hardlink = dir.path().join("hardlink.jpeg");
+        fs::write(&source, b"source photo").unwrap();
+        std::os::unix::fs::symlink(&source, &symlink).unwrap();
+        fs::hard_link(&source, &hardlink).unwrap();
+        assert!(export_destination_is_source(
+            &symlink,
+            std::slice::from_ref(&source)
+        ));
+        assert!(export_destination_is_source(
+            &hardlink,
+            std::slice::from_ref(&source)
+        ));
+    }
+
+    #[test]
+    fn mask_outputs_protect_sources_and_share_reservations_with_main_outputs() {
+        let dir = tempfile::tempdir().unwrap();
+        let main = dir.path().join("photo.jpeg");
+        let source_image = dir.path().join("photo_mask_0_image.jpeg");
+        let source_alpha = dir.path().join("photo_mask_0_alpha.png");
+        fs::write(&main, b"prior export").unwrap();
+        fs::write(&source_image, b"source image").unwrap();
+        fs::write(&source_alpha, b"source alpha").unwrap();
+        let sources = vec![source_image.clone(), source_alpha.clone()];
+        let mut used = HashSet::new();
+        assert_eq!(
+            reserve_export_path(main.clone(), "photo", "jpeg", true, &sources, &mut used),
+            main
+        );
+        let (image, alpha) =
+            reserve_mask_export_paths(dir.path(), "photo", 0, "jpeg", true, &sources, &mut used);
+        assert_eq!(image, dir.path().join("photo_mask_0_image_1.jpeg"));
+        assert_eq!(alpha, dir.path().join("photo_mask_0_alpha_1.png"));
+        write_export_bytes(&image, b"new mask image", true).unwrap();
+        write_export_bytes(&alpha, b"new mask alpha", true).unwrap();
+        assert_eq!(fs::read(source_image).unwrap(), b"source image");
+        assert_eq!(fs::read(source_alpha).unwrap(), b"source alpha");
+        // A later item's main output cannot claim an earlier mask filename.
+        assert_eq!(
+            reserve_export_path(
+                image,
+                "photo_mask_0_image_1",
+                "jpeg",
+                true,
+                &sources,
+                &mut used
+            ),
+            dir.path().join("photo_mask_0_image_1_1.jpeg")
+        );
+    }
+
+    #[test]
+    fn mask_outputs_cannot_claim_another_items_main_output() {
+        let dir = tempfile::tempdir().unwrap();
+        let image = dir.path().join("photo_mask_0_image.jpeg");
+        let alpha = dir.path().join("photo_mask_0_alpha.png");
+        let mut used = HashSet::from([image, alpha]);
+        let (image, alpha) =
+            reserve_mask_export_paths(dir.path(), "photo", 0, "jpeg", true, &[], &mut used);
+        assert_eq!(image, dir.path().join("photo_mask_0_image_1.jpeg"));
+        assert_eq!(alpha, dir.path().join("photo_mask_0_alpha_1.png"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn directory_aliases_share_reservations_for_existing_and_missing_outputs() {
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("real");
+        let alias = dir.path().join("alias");
+        fs::create_dir(&real).unwrap();
+        std::os::unix::fs::symlink(&real, &alias).unwrap();
+        for existing in [false, true] {
+            let first = real.join("triage.jpeg");
+            if existing {
+                fs::write(&first, b"old export").unwrap();
+            }
+            let mut used = HashSet::new();
+            assert_eq!(
+                reserve_export_path(first.clone(), "triage", "jpeg", true, &[], &mut used),
+                first
+            );
+            assert_eq!(
+                reserve_export_path(
+                    alias.join("triage.jpeg"),
+                    "triage",
+                    "jpeg",
+                    true,
+                    &[],
+                    &mut used
+                ),
+                alias.join("triage_1.jpeg")
+            );
+            let (image, _) =
+                reserve_mask_export_paths(&real, "triage", 0, "jpeg", true, &[], &mut used);
+            assert_eq!(
+                reserve_export_path(
+                    alias.join("triage_mask_0_image.jpeg"),
+                    "triage_mask_0_image",
+                    "jpeg",
+                    true,
+                    &[],
+                    &mut used
+                ),
+                alias.join("triage_mask_0_image_1.jpeg")
+            );
+            assert!(used.contains(&export_destination_identity(&image)));
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn output_file_symlinks_share_the_atomic_writers_target_identity() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("photo.jpeg");
+        let alias = dir.path().join("alias.jpeg");
+        fs::write(&output, b"old export").unwrap();
+        std::os::unix::fs::symlink(&output, &alias).unwrap();
+        let mut used = HashSet::new();
+        reserve_export_path(alias, "alias", "jpeg", true, &[], &mut used);
+        assert_eq!(
+            reserve_export_path(output, "photo", "jpeg", true, &[], &mut used),
+            dir.path().join("photo_1.jpeg")
+        );
+    }
+}
+
+#[cfg(test)]
+mod dpi_tests {
+    use super::*;
+    use crate::image_processing::ImageMetadata;
+    use image::ImageDecoder;
+    use little_exif::{
+        exif_tag::ExifTag, filetype::FileExtension, metadata::Metadata, rational::uR64,
+    };
+
+    fn settings(dpi: Option<u16>) -> ExportSettings {
+        serde_json::from_value(serde_json::json!({
+            "jpegQuality":100, "keepMetadata":false, "stripGps":true,
+            "resize":null, "filenameTemplate":null, "watermark":null, "dpi":dpi,
+        }))
+        .unwrap()
+    }
+
+    fn photo() -> DynamicImage {
+        DynamicImage::ImageRgb16(ImageBuffer::from_fn(7, 3, |x, y| {
+            image::Rgb([
+                (x * 9231) as u16,
+                (y * 28713) as u16,
+                ((x + y) * 7271) as u16,
+            ])
+        }))
+    }
+
+    fn png_density(bytes: &[u8]) -> Option<Vec<u8>> {
+        let mut offset = 8;
+        let mut density = None;
+        while offset + 12 <= bytes.len() {
+            let size = u32::from_be_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize;
+            let kind = &bytes[offset + 4..offset + 8];
+            if kind == b"pHYs" {
+                assert!(density.is_none(), "Duplicate pHYs chunks");
+                density = Some(bytes[offset + 8..offset + 8 + size].to_vec());
+            }
+            offset += size + 12;
+        }
+        density
+    }
+
+    #[test]
+    fn jpeg_png_density_preserves_pixels_and_icc() {
+        let image = photo();
+        for format in ["jpeg", "png"] {
+            let plain = encode_image_to_bytes(&image, format, &settings(None)).unwrap();
+            for dpi in [1, 300, 65535] {
+                let bytes = encode_image_to_bytes(&image, format, &settings(Some(dpi))).unwrap();
+                assert_eq!(
+                    image::load_from_memory(&bytes).unwrap(),
+                    image::load_from_memory(&plain).unwrap()
+                );
+                let mut decoder = image::ImageReader::new(Cursor::new(&bytes))
+                    .with_guessed_format()
+                    .unwrap()
+                    .into_decoder()
+                    .unwrap();
+                assert_eq!(decoder.icc_profile().unwrap().unwrap(), SRGB_ICC_PROFILE);
+                if format == "jpeg" {
+                    let offset = bytes.windows(5).position(|part| part == b"JFIF\0").unwrap();
+                    assert_eq!(bytes[offset + 7], 1, "Density unit is inches");
+                    assert_eq!(
+                        u16::from_be_bytes(bytes[offset + 8..offset + 10].try_into().unwrap()),
+                        dpi
+                    );
+                    assert_eq!(
+                        u16::from_be_bytes(bytes[offset + 10..offset + 12].try_into().unwrap()),
+                        dpi
+                    );
+                } else {
+                    let density = png_density(&bytes).unwrap();
+                    assert_eq!(density.len(), 9);
+                    let expected = (f64::from(dpi) / 0.0254).round() as u32;
+                    assert_eq!(
+                        u32::from_be_bytes(density[..4].try_into().unwrap()),
+                        expected
+                    );
+                    assert_eq!(
+                        u32::from_be_bytes(density[4..8].try_into().unwrap()),
+                        expected
+                    );
+                    assert_eq!(density[8], 1);
+                    assert!(png_density(&plain).is_none());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn companion_mask_alpha_density_preserves_grayscale_pixels_and_omitted_bytes() {
+        let image = GrayImage::from_raw(3, 2, vec![0, 17, 255, 63, 129, 200]).unwrap();
+        let plain = encode_grayscale_to_png(&image).unwrap();
+        assert_eq!(encode_mask_alpha_to_png(&image, None).unwrap(), plain);
+        assert!(png_density(&plain).is_none());
+        let bytes = encode_mask_alpha_to_png(&image, Some(600)).unwrap();
+        assert_eq!(image::load_from_memory(&bytes).unwrap().to_luma8(), image);
+        let density = png_density(&bytes).unwrap();
+        assert_eq!(density.len(), 9);
+        assert_eq!(u32::from_be_bytes(density[..4].try_into().unwrap()), 23622);
+        assert_eq!(u32::from_be_bytes(density[4..8].try_into().unwrap()), 23622);
+        assert_eq!(density[8], 1);
+        assert!(encode_mask_alpha_to_png(&image, Some(0)).is_err());
+    }
+
+    #[test]
+    fn tiff_resolution_preserves_eight_and_sixteen_bit_pixels_and_icc() {
+        let image = photo();
+        for depth in [TiffBitDepth::Eight, TiffBitDepth::Sixteen] {
+            let mut settings = settings(Some(300));
+            settings.tiff_bit_depth = depth;
+            let bytes = encode_image_to_bytes(&image, "tiff", &settings).unwrap();
+            let mut decoder = tiff::decoder::Decoder::new(Cursor::new(&bytes)).unwrap();
+            assert_eq!(decoder.dimensions().unwrap(), (7, 3));
+            assert!(matches!(
+                decoder.get_tag(Tag::XResolution).unwrap(),
+                tiff::decoder::ifd::Value::Rational(300, 1)
+            ));
+            assert!(matches!(
+                decoder.get_tag(Tag::YResolution).unwrap(),
+                tiff::decoder::ifd::Value::Rational(300, 1)
+            ));
+            assert_eq!(decoder.get_tag_u32(Tag::ResolutionUnit).unwrap(), 2);
+            assert_eq!(
+                decoder.get_tag_u8_vec(Tag::IccProfile).unwrap(),
+                SRGB_ICC_PROFILE
+            );
+            let decoded = image::load_from_memory(&bytes).unwrap();
+            match depth {
+                TiffBitDepth::Eight => assert_eq!(decoded.to_rgb8(), image.to_rgb8()),
+                TiffBitDepth::Sixteen => assert_eq!(decoded.to_rgb16(), image.to_rgb16()),
+            }
+        }
+    }
+
+    #[test]
+    fn kept_exif_source_density_is_overridden_only_for_supported_formats() {
+        let dir = tempfile::tempdir().unwrap();
+        let source_path = dir.path().join("source.jpeg");
+        let image = photo();
+        let mut source = encode_image_to_bytes(&image, "jpeg", &settings(None)).unwrap();
+        let mut metadata = Metadata::new();
+        metadata.set_tag(ExifTag::XResolution(vec![uR64 {
+            nominator: 72,
+            denominator: 1,
+        }]));
+        metadata.set_tag(ExifTag::YResolution(vec![uR64 {
+            nominator: 72,
+            denominator: 1,
+        }]));
+        metadata.set_tag(ExifTag::ResolutionUnit(vec![2]));
+        metadata
+            .write_to_vec(&mut source, FileExtension::JPEG)
+            .unwrap();
+        fs::write(&source_path, source).unwrap();
+        for (format, file_type) in [
+            ("jpeg", FileExtension::JPEG),
+            (
+                "png",
+                FileExtension::PNG {
+                    as_zTXt_chunk: true,
+                },
+            ),
+            ("jxl", FileExtension::JXL),
+        ] {
+            let mut bytes = encode_image_to_bytes(&image, format, &settings(Some(300))).unwrap();
+            let plain_pixels = if format != "jxl" {
+                Some(image::load_from_memory(&bytes).unwrap())
+            } else {
+                None
+            };
+            exif_processing::write_image_with_metadata_and_resolution(
+                &mut bytes,
+                source_path.to_str().unwrap(),
+                format,
+                true,
+                true,
+                &exif_processing::ExportXmp::from_metadata(&ImageMetadata::default()),
+                Some(300),
+            )
+            .unwrap();
+            let metadata = Metadata::new_from_vec(&bytes, file_type).unwrap();
+            let expected = if format == "jxl" { 72 } else { 300 };
+            assert!(
+                matches!(metadata.get_tag(&ExifTag::ResolutionUnit(Vec::new())).next(), Some(ExifTag::ResolutionUnit(value)) if value == &vec![2])
+            );
+            if format == "jpeg" {
+                let offset = bytes.windows(5).position(|part| part == b"JFIF\0").unwrap();
+                assert_eq!(bytes[offset + 7], 1);
+                assert_eq!(
+                    u16::from_be_bytes(bytes[offset + 8..offset + 10].try_into().unwrap()),
+                    300
+                );
+                assert_eq!(
+                    u16::from_be_bytes(bytes[offset + 10..offset + 12].try_into().unwrap()),
+                    300
+                );
+            }
+            assert!(
+                matches!(metadata.get_tag(&ExifTag::XResolution(Vec::new())).next(), Some(ExifTag::XResolution(value)) if value[0].nominator == expected && value[0].denominator == 1)
+            );
+            assert!(
+                matches!(metadata.get_tag(&ExifTag::YResolution(Vec::new())).next(), Some(ExifTag::YResolution(value)) if value[0].nominator == expected && value[0].denominator == 1)
+            );
+            if let Some(pixels) = plain_pixels {
+                assert_eq!(image::load_from_memory(&bytes).unwrap(), pixels);
+            }
+            if format == "png" {
+                assert!(png_density(&bytes).is_some());
+            }
+        }
+    }
+
+    #[test]
+    fn file_export_keeps_explicit_xmp_and_requested_dpi_without_changing_pixels() {
+        let _mode = crate::file_management::card_mode_test_support::CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let source_path = dir.path().join("source.jpeg");
+        let image = photo();
+        fs::write(
+            &source_path,
+            encode_image_to_bytes(&image, "jpeg", &settings(Some(72))).unwrap(),
+        )
+        .unwrap();
+        let xmp = exif_processing::ExportXmp::from_metadata(&ImageMetadata {
+            rating_is_explicit: true,
+            tags: Some(vec!["Literal &amp; token".to_string()]),
+            ..Default::default()
+        });
+        for (format, file_type) in [
+            ("jpeg", FileExtension::JPEG),
+            (
+                "png",
+                FileExtension::PNG {
+                    as_zTXt_chunk: true,
+                },
+            ),
+        ] {
+            let mut settings = settings(Some(300));
+            settings.keep_metadata = true;
+            let expected =
+                image::load_from_memory(&encode_image_to_bytes(&image, format, &settings).unwrap())
+                    .unwrap();
+            let output = dir.path().join(format!("output.{format}"));
+            save_image_with_metadata(
+                &image,
+                &output,
+                source_path.to_str().unwrap(),
+                &xmp,
+                &settings,
+            )
+            .unwrap();
+            let bytes = fs::read(&output).unwrap();
+            assert_eq!(image::load_from_memory(&bytes).unwrap(), expected);
+            let metadata = Metadata::new_from_vec(&bytes, file_type).unwrap();
+            assert!(matches!(
+                metadata.get_tag(&ExifTag::XResolution(Vec::new())).next(),
+                Some(ExifTag::XResolution(value))
+                    if value[0].nominator == 300 && value[0].denominator == 1
+            ));
+            let mut decoder = image::ImageReader::open(&output)
+                .unwrap()
+                .with_guessed_format()
+                .unwrap()
+                .into_decoder()
+                .unwrap();
+            let packet = String::from_utf8(decoder.xmp_metadata().unwrap().unwrap()).unwrap();
+            assert_eq!(crate::xmp::metadata(&packet).rating, Some(0));
+            assert_eq!(
+                crate::file_management::extract_xmp_tags(&packet),
+                vec!["Literal &amp; token"]
+            );
+        }
+    }
+
+    #[test]
+    fn omitted_dpi_and_unsupported_formats_keep_existing_behavior_and_invalid_dpi_is_rejected() {
+        let mut json = serde_json::to_value(settings(None)).unwrap();
+        json.as_object_mut().unwrap().remove("dpi");
+        assert!(
+            serde_json::from_value::<ExportSettings>(json.clone())
+                .unwrap()
+                .dpi
+                .is_none()
+        );
+        for invalid in [
+            serde_json::json!(0),
+            serde_json::json!(-1),
+            serde_json::json!(65536),
+            serde_json::json!(300.5),
+        ] {
+            json["dpi"] = invalid;
+            assert!(serde_json::from_value::<ExportSettings>(json.clone()).is_err());
+        }
+        let mut invalid = settings(None);
+        invalid.dpi = Some(0);
+        assert!(encode_image_to_bytes(&photo(), "png", &invalid).is_err());
+        let image = DynamicImage::ImageRgb8(photo().to_rgb8());
+        for format in ["jxl", "webp"] {
+            assert_eq!(
+                encode_image_to_bytes(&image, format, &settings(None)).unwrap(),
+                encode_image_to_bytes(&image, format, &settings(Some(300))).unwrap()
+            );
+        }
     }
 }

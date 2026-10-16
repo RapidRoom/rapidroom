@@ -1,0 +1,13 @@
+{
+  "id": "full-edit-xmp-round-trip",
+  "title": "Export a full photo edit beside Lightroom XMP fields with named losses",
+  "category": "feature",
+  "landed": "2026-10-10",
+  "authors": ["yojen7", "skymanbp"],
+  "source": "rapidroom (original implementation with Codex; MIT AutoShade payload/reconciliation design)",
+  "commits": ["https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "The Develop export panel and local MCP tool review named Lightroom projection losses before writing. Photo XMP stores a bounded compressed full RapidRoom edit with SHA-256 integrity alongside mapped Camera Raw fields. Import restores exact native values when the projection is unchanged and reconciles later Lightroom field changes, preserving foreign photo metadata and namespace bindings. Raster masks are bounded; external LUT files are not embedded. Actual Lightroom Classic payload preservation remains a human acceptance gate; synthetic rewrites are not proof of Adobe compatibility. Default rendering is unchanged."
+}
