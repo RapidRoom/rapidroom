@@ -1,4 +1,5 @@
 """Owned JPEG metadata and real native Library filter controls for issue312."""
+import base64
 import json
 from PIL import Image, ImageDraw
 
@@ -69,35 +70,42 @@ def run_filter_chip_checks(smoke, wait_for):
     wait_for(lambda: chips() == ['iso:>10000', 'lens:50mm'] and fixtures() == ['z-query-b.jpg'], 'edited text query updates native result')
     smoke.step('text filter chip edits and preserves query order', {'capture': capture('filters-text')})
 
-    # Keep a matching draft so Community never needs its stock preview image.
-    # Only the unrelated catalog IPC is replaced with an empty local fixture;
-    # all search, navigation, other IPC and final error assertions stay real.
+    # Community can mount once with the pre-cleanup empty image list. Keep
+    # catalog/image downloads local without replacing search/navigation IPC.
+    # At most one stock-image fallback may use the owned fixture JPEG.
     type_text('z-query-b'); edit(0)
     wait_for(lambda: value() == 'iso:>10000' and chips() == ['lens:50mm'], 'navigation fixture has a pending edit')
+    stock_image = base64.b64encode((smoke.case / 'input/z-query-b.jpg').read_bytes()).decode('ascii')
     smoke.execute("""const original=window.fetch;
+      const stock=Uint8Array.from(atob(arguments[0]),c=>c.charCodeAt(0));
       const catalog=window.__TAURI_INTERNALS__.convertFileSrc('fetch_community_presets','ipc');
-      const state={calls:0,defaultRequests:0,restore:()=>{window.fetch=original;delete window.__RR_FILTER_CATALOG__;}};
+      const saveTemp=window.__TAURI_INTERNALS__.convertFileSrc('save_temp_file','ipc');
+      const state={calls:0,defaultRequests:0,tempWrites:0,tempFinished:0,restore:()=>{window.fetch=original;delete window.__RR_FILTER_CATALOG__;}};
       window.__RR_FILTER_CATALOG__=state;
       window.fetch=function(resource,options){
         const url=typeof resource==='string'?resource:resource instanceof Request?resource.url:String(resource);
         if(url===catalog){state.calls++;return Promise.resolve(new Response('[]',{
           headers:{'Content-Type':'application/json','Tauri-Response':'ok'}}));}
         if(url==='https://raw.githubusercontent.com/CyberTimon/RapidRAW-Presets/main/sample-image.jpg'){
-          state.defaultRequests++;return Promise.reject(new Error('Unexpected stock preview request in filter navigation fixture'));}
+          state.defaultRequests++;return Promise.resolve(new Response(stock,{headers:{'Content-Type':'image/jpeg'}}));}
+        if(url===saveTemp){state.tempWrites++;return original.call(this,resource,options).then(response=>{state.tempFinished++;return response;});}
         return original.call(this,resource,options);
-      };return true;""")
+      };return true;""", [stock_image])
     try:
         smoke.execute("document.querySelector('button[data-tooltip=\"Community Presets\"]').click();return true;")
         wait_for(lambda: not smoke.execute('return !!document.querySelector(arguments[0]);', [input_selector]), 'Community Presets unmounts the search input')
         wait_for(lambda: smoke.execute('return window.__RR_FILTER_CATALOG__.calls===1;'), 'one deterministic catalog fixture response')
+        wait_for(lambda: smoke.execute('return window.__RR_FILTER_CATALOG__.tempFinished===window.__RR_FILTER_CATALOG__.defaultRequests;'), 'owned fallback image completes its real temp-file IPC')
         smoke.execute("const e=document.querySelector('header button');if(!e)throw Error('Community back button missing');e.click();return true;")
         wait_for(lambda: smoke.execute('return !!document.querySelector(arguments[0]);', [input_selector]), 'Library search remounts')
         wait_for(lambda: chips() == ['iso:>10000', 'lens:50mm'] and value() == 'z-query-b', 'navigation restores original chip order and prior draft')
         key('Escape')
         if chips() != ['iso:>10000', 'lens:50mm'] or value() != 'z-query-b':
             raise RuntimeError('Escape after navigation corrupted restored criteria')
-        network = smoke.execute('return {catalogCalls:window.__RR_FILTER_CATALOG__.calls,defaultRequests:window.__RR_FILTER_CATALOG__.defaultRequests};')
-        if network != {'catalogCalls': 1, 'defaultRequests': 0}:
+        network = smoke.execute('return {catalogCalls:window.__RR_FILTER_CATALOG__.calls,defaultRequests:window.__RR_FILTER_CATALOG__.defaultRequests,tempWrites:window.__RR_FILTER_CATALOG__.tempWrites,tempFinished:window.__RR_FILTER_CATALOG__.tempFinished};')
+        if (network['catalogCalls'] != 1 or network['defaultRequests'] not in (0, 1)
+                or network['tempWrites'] != network['defaultRequests']
+                or network['tempFinished'] != network['defaultRequests']):
             raise RuntimeError('Unbounded Community fixture effects: ' + str(network))
         smoke.step('Community navigation cancels pending edit and restores prior draft', {'capture': capture('filters-navigation'), 'catalog_fixture': network})
     finally:
