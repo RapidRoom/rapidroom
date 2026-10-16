@@ -1672,13 +1672,7 @@ fn reserve_mask_export_paths(
 }
 
 fn write_export_bytes(path: &Path, bytes: &[u8], overwrite: bool) -> std::io::Result<()> {
-    if overwrite {
-        // Replace only after encoding succeeds; atomic replacement also leaves
-        // any other hard links to the old file untouched.
-        crate::file_management::write_file_atomically(path, bytes)
-    } else {
-        fs::write(path, bytes)
-    }
+    crate::atomic_export::write(path, bytes, overwrite)
 }
 
 fn export_destination_is_source(output: &Path, sources: &[PathBuf]) -> bool {

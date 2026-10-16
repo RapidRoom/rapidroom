@@ -452,6 +452,9 @@ class Smoke:
         wait_for(lambda: json.loads(settings.read_text()).get("adjustmentDensity") == "compact", "Compact persisted")
         self.stable_preview("compact")
         self.step("Compact enabled and persisted", self.slider("Exposure"))
+        if (self.case / "atomic-exports-test.json").exists():
+            from atomic_exports import observe_atomic_exports
+            observe_atomic_exports(self)
         self.key("KeyE", "e")
         wait_for(lambda: self.execute("return [...document.querySelectorAll('button[aria-haspopup=listbox]')]"
                                       ".some(e=>e.innerText.trim()==='Custom folder');"), "Export panel")
@@ -475,6 +478,9 @@ class Smoke:
                 raise RuntimeError("Incorrect JPEG format or dimensions")
         self.capture("export-done")
         self.step("GUI JPEG export", {"file": str(files[0].relative_to(self.case)), "sha256": sha(files[0])})
+        if (self.case / "atomic-exports-test.json").exists():
+            from atomic_exports import run_atomic_export_checks
+            run_atomic_export_checks(self, wait_for, files[0])
         if (self.case / "mcp-packaging-test.json").exists():
             from mcp_packaging import run_packaging_checks
             run_packaging_checks(self.case, self)
@@ -585,6 +591,8 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.atomic_exports:
+        save(case / "atomic-exports-test.json", {"issue": 326, "io_mocked": False})
     if args.zoom:
         zoom_raw = args.raw_dir.resolve() / "sony-a7c2-33mp-compressed.ARW"
         zoom_expected = next(f["sha256"] for f in corpus["files"] if f["file"] == zoom_raw.name)
@@ -686,6 +694,9 @@ def launch(args):
         with args.lock.open("a") as lock:
             print("Waiting for native UI lock", flush=True)
             fcntl.flock(lock, fcntl.LOCK_EX)
+            subprocess.run(["df", "-h", "/home"], check=True)
+            if shutil.disk_usage(case).free < 25 * 1024**3:
+                raise RuntimeError("Native UI disk guard: less than 25 GiB free")
             (case / "engine").mkdir()
             engine = args.engine.resolve()
             source_hash = sha(engine)
@@ -734,6 +745,7 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--atomic-exports", action="store_true", help="Check real default/overwrite exports and complete final JPEG visibility")
     parser.add_argument("--dock-layout", action="store_true", help="Check stepped dock resize overlap and compact terminal controls (implies --terminal)")
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
