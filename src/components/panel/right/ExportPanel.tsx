@@ -367,6 +367,7 @@ export default function ExportPanel({
   const appliedInstagramRequest = useRef<number | null>(null);
   const rememberRecipe = useCallback(
     (preset: ExportPreset) => {
+      useUIStore.getState().setUI({ instagramExportRequest: null });
       handleApplyPreset(preset);
       if (!appSettings) return;
       const prior = appSettings.exportPresets?.find((p) => p.id === '__last_used__');
@@ -419,7 +420,7 @@ export default function ExportPanel({
         useUIStore.getState().setUI({ instagramExportRequest: null });
       })
       .catch((error: unknown) => {
-        if (cancelled) return;
+        if (cancelled || useUIStore.getState().instagramExportRequest !== instagramExportRequest) return;
         appliedInstagramRequest.current = null;
         console.error('Failed to open Instagram export:', error);
         toast.error(String(error));
