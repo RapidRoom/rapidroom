@@ -266,12 +266,23 @@ export function SearchInput({ indexingProgress, isIndexing }: any) {
   const lastSearchFocusRequest = useRef(searchFocusRequest);
 
   const [contentWidth, setContentWidth] = useState(0);
+  const [pendingEdit, setPendingEdit] = useState<{ tag: string; index: number; draftText: string } | null>(null);
 
   useEffect(() => {
     if (isSearchActive) {
       inputRef.current?.focus();
     }
   }, [isSearchActive]);
+
+  useEffect(() => {
+    if (pendingEdit && text === pendingEdit.tag) {
+      const node = inputRef.current;
+      if (node) {
+        node.focus();
+        node.setSelectionRange(node.value.length, node.value.length);
+      }
+    }
+  }, [pendingEdit, text]);
 
   useEffect(() => {
     if (searchFocusRequest === lastSearchFocusRequest.current) return;
@@ -307,33 +318,77 @@ export function SearchInput({ indexingProgress, isIndexing }: any) {
     setSearchCriteria((prev) => ({ ...prev, text: e.target.value }));
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if ((e.key === ',' || e.key === 'Enter') && text.trim()) {
-      e.preventDefault();
-      setSearchCriteria((prev) => ({
-        ...prev,
-        tags: [...prev.tags, text.trim()],
-        text: '',
-      }));
-    } else if (e.key === 'Backspace' && !text && tags.length > 0) {
-      e.preventDefault();
-      const lastTag = tags[tags.length - 1];
-      setSearchCriteria((prev) => ({
-        ...prev,
-        tags: prev.tags.slice(0, -1),
-        text: lastTag,
-      }));
+  const focusChip = (index: number) => {
+    const buttons = contentRef.current?.querySelectorAll<HTMLButtonElement>('[data-filter-chip-edit]');
+    if (!buttons?.length || index >= buttons.length) {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(0, 0);
+    } else {
+      buttons[Math.max(0, index)].focus();
     }
   };
 
-  const removeTag = (tagToRemove: string) => {
+  const editTag = (index: number) => {
+    const criteria = useLibraryStore.getState().searchCriteria;
+    const nextTags = [...criteria.tags];
+    let editIndex = index;
+    // Switching chips cancels the previous edit without losing its position
+    // or the uncommitted search text that preceded it.
+    if (pendingEdit) {
+      nextTags.splice(pendingEdit.index, 0, pendingEdit.tag);
+      if (index >= pendingEdit.index) editIndex += 1;
+    }
+    const tag = nextTags[editIndex];
+    if (tag === undefined) return;
+    nextTags.splice(editIndex, 1);
+    setPendingEdit({ tag, index: editIndex, draftText: pendingEdit?.draftText ?? criteria.text });
+    setSearchCriteria({ ...criteria, tags: nextTags, text: tag });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape' && pendingEdit) {
+      e.preventDefault();
+      e.stopPropagation();
+      const { tag, index, draftText } = pendingEdit;
+      setSearchCriteria((prev) => {
+        const nextTags = [...prev.tags];
+        nextTags.splice(index, 0, tag);
+        return { ...prev, tags: nextTags, text: draftText };
+      });
+      setPendingEdit(null);
+    } else if ((e.key === ',' || e.key === 'Enter') && text.trim()) {
+      e.preventDefault();
+      setSearchCriteria((prev) => {
+        const nextTags = [...prev.tags];
+        nextTags.splice(pendingEdit?.index ?? nextTags.length, 0, text.trim());
+        return { ...prev, tags: nextTags, text: pendingEdit?.draftText ?? '' };
+      });
+      setPendingEdit(null);
+    } else if (e.key === 'Backspace' && !text && !pendingEdit && tags.length > 0) {
+      e.preventDefault();
+      editTag(tags.length - 1);
+    } else if (
+      e.key === 'ArrowLeft' &&
+      e.currentTarget.selectionStart === 0 &&
+      e.currentTarget.selectionEnd === 0 &&
+      tags.length > 0
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      focusChip(tags.length - 1);
+    }
+  };
+
+  const removeTag = (index: number) => {
     setSearchCriteria((prev) => ({
       ...prev,
-      tags: prev.tags.filter((tag) => tag !== tagToRemove),
+      tags: prev.tags.filter((_, tagIndex) => tagIndex !== index),
     }));
+    setPendingEdit((edit) => (edit && index < edit.index ? { ...edit, index: edit.index - 1 } : edit));
   };
 
   const clearSearch = () => {
+    setPendingEdit(null);
     setSearchCriteria({ tags: [], text: '', mode: 'OR' });
     setIsSearchActive(false);
     inputRef.current?.blur();
@@ -389,41 +444,65 @@ export function SearchInput({ indexingProgress, isIndexing }: any) {
         style={{ opacity: isActive ? 1 : 0, pointerEvents: isActive ? 'auto' : 'none', transition: 'opacity 0.2s' }}
       >
         <div ref={contentRef} className="flex items-center gap-2 h-full flex-nowrap min-w-[250px] pr-2">
-          {tags.map((tag) => {
+          {tags.map((tag, i) => {
             const match = tag.match(ADVANCED_QUERY_REGEX);
             const isQuery = !!match;
 
             return (
               <motion.div
-                key={tag}
+                key={`${i}:${tag}`}
                 layout
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.5 }}
-                className="flex items-center gap-1 bg-bg-primary px-2 py-1 rounded-sm group cursor-pointer shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeTag(tag);
-                }}
+                className="flex items-center bg-bg-primary px-1 py-1 rounded-sm shrink-0"
               >
-                <Text variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                  {isQuery ? (
-                    <span className="flex gap-0.5">
-                      <span className="uppercase opacity-70">{match[1]}</span>
-                      <span>{match[2] || ':'}</span>
-                      <span>{match[3]}</span>
-                    </span>
-                  ) : (
-                    tag
-                  )}
-                </Text>
-                <span className="rounded-full group-hover:bg-black/20 p-0.5 transition-colors">
+                <button
+                  type="button"
+                  data-filter-chip-edit
+                  disabled={isIndexing}
+                  aria-label={t('library.header.search.editFilter', { filter: tag })}
+                  className="px-1 rounded-sm hover:bg-card-active focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    editTag(i);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      focusChip(i + (e.key === 'ArrowLeft' ? -1 : 1));
+                    }
+                  }}
+                >
+                  <Text variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
+                    {isQuery ? (
+                      <span className="flex gap-0.5">
+                        <span className="uppercase opacity-70">{match[1]}</span>
+                        <span>{match[2] || ':'}</span>
+                        <span>{match[3]}</span>
+                      </span>
+                    ) : (
+                      tag
+                    )}
+                  </Text>
+                </button>
+                <button
+                  type="button"
+                  aria-label={t('library.header.search.removeFilter', { filter: tag })}
+                  className="w-6 h-6 ml-1 flex items-center justify-center rounded-sm text-text-secondary hover:text-text-primary hover:bg-card-active focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeTag(i);
+                  }}
+                >
                   <X size={12} />
-                </span>
+                </button>
               </motion.div>
             );
           })}
           <input
+            aria-label={t('library.header.search.tooltipSearchFilter')}
             className="grow w-full h-full bg-transparent text-text-primary placeholder-text-secondary border-none focus:outline-hidden min-w-[150px]"
             disabled={isIndexing}
             onBlur={() => {

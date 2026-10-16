@@ -364,6 +364,9 @@ class Smoke:
                                       "e.complete && e.naturalWidth>100);"), "real library thumbnail")
         self.capture("library")
         self.step("library thumbnail", self.snapshot("library")["images"])
+        if (self.case / "filter-chips-test.json").exists():
+            from filter_chips import run_filter_chip_checks
+            run_filter_chip_checks(self, wait_for)
         if (self.case / "dock-layout-test.json").exists():
             from dock_layout import run_layout_checks
             run_layout_checks(self.case, self)
@@ -462,9 +465,10 @@ class Smoke:
           .find(e=>e.innerText.trim()==='Original image folder');
           if(!e)throw Error('Original folder choice missing');e.click();return true;""")
         self.capture("export-ready")
+        existing_jpegs = set((self.case / "input").rglob("*.jpg"))
         self.execute("""const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Export Image');
           if(!e||e.disabled)throw Error('Export Image unavailable');e.click();return true;""")
-        files = wait_for(lambda: list((self.case / "input").rglob("*.jpg")), "JPEG export", 90)
+        files = wait_for(lambda: list(set((self.case / "input").rglob("*.jpg")) - existing_jpegs), "JPEG export", 90)
         wait_for(lambda: self.execute("return document.body.innerText.includes('Export successful!');"),
                  "native export completion")
         if len(files) != 1:
@@ -585,6 +589,10 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.filter_chips:
+        from filter_chips import prepare_filter_chips
+        prepare_filter_chips(case)
+        save(case / "filter-chips-test.json", {"issue": 312, "owned_synthetic_jpegs": 3})
     if args.zoom:
         zoom_raw = args.raw_dir.resolve() / "sony-a7c2-33mp-compressed.ARW"
         zoom_expected = next(f["sha256"] for f in corpus["files"] if f["file"] == zoom_raw.name)
@@ -734,6 +742,7 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--filter-chips", action="store_true", help="Native numeric/text chip editing, Escape, Backspace, arrows and independent x-delete")
     parser.add_argument("--dock-layout", action="store_true", help="Check stepped dock resize overlap and compact terminal controls (implies --terminal)")
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")

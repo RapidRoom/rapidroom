@@ -353,3 +353,13 @@ makes a real model request; no user library or global client config is changed.
 `--mcp-skill --skill-source /path/to/matching/clean/checkout` runs a fresh Claude session with the shipped plugin and its stdio MCP configuration. It uses the owned CC0 NEX-6 copy, an approved 4:5 crop, three temporary look variants, a native detail check, GPS-stripped 1080×1350 export and a source-backed exposure explanation. The source checkout must match the pinned app's `sourceCommit`; the app and checkout must be clean. Named virtual-copy tools remain coming, so this test uses temporary comparisons.
 
 Use a pinned `native-ui-test,mcp` build plus the adapter, and pass `--lock /tmp/rapidroom-gpu.lock` when running the native harness. The real client needs account access. Raw client transcripts, endpoint credentials and private source paths stay local; publish only allowlisted summaries and inspected CC0 panels. A pass proves workflow and source use, not the aesthetic quality of the grade.
+
+### Editable Library filter chips (#312)
+
+Run `smoke.py --filter-chips` with a pinned native engine and the GPU lock.
+Three owned synthetic JPEGs carry explicit ISO/lens metadata beside the CC0 RAW.
+The native checks edit numeric and text queries and assert the displayed photo
+set changes, cancel edits with Escape, edit the last chip with Backspace, delete
+only one duplicate using the separate x button, and navigate chip controls with
+Left/Right. Captures record the workflow; the usual RAW/edit/Undo/export/clean-exit
+checks still follow. Export counting excludes pre-existing fixture JPEGs.
