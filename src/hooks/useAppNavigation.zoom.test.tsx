@@ -84,6 +84,7 @@ it('keeps the last arrow-selected photo when earlier cached checks finish out of
   const { navigation } = await harness();
   const first = navigation.handleImageSelect('/B.ARW');
   const last = navigation.handleImageSelect('/C.ARW');
+  expect(useLibraryStore.getState().libraryActivePath).toBe('/C.ARW');
   await act(async () => {
     c.resolve(true);
     await last;

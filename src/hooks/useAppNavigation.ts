@@ -226,6 +226,15 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       }
 
       const generation = ++imageSelectionGenerationRef.current;
+      // Keyboard navigation follows the requested photo even while its cache lookup awaits.
+      const newMultiSelectedPaths = multiSelectedPaths.includes(path) ? multiSelectedPaths : [path];
+
+      setLibrary({
+        multiSelectedPaths: newMultiSelectedPaths,
+        libraryActivePath: path,
+        selectionAnchorPath: path,
+      });
+
       if (selectedImage?.path === path) return;
 
       useEditorStore.getState().patchesSentToBackend.clear();
@@ -268,14 +277,6 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       }
 
       selectedImagePathRef.current = path;
-
-      const newMultiSelectedPaths = multiSelectedPaths.includes(path) ? multiSelectedPaths : [path];
-
-      setLibrary({
-        multiSelectedPaths: newMultiSelectedPaths,
-        libraryActivePath: path,
-        selectionAnchorPath: path,
-      });
 
       setEditor({
         showOriginal: false,
