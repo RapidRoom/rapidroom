@@ -1767,6 +1767,8 @@
       "clearThumbnail": "清除缩略图缓存",
       "clearThumbnailButton": "清除",
       "clearThumbnailDesc": "这将删除所有缓存的缩略图。在您浏览图库时，它们会自动重新生成。",
+      "cacheUsage": "缩略图和预览：{{size}} · 文件数：{{files}}",
+      "cacheUsageError": "无法读取缓存用量。",
       "loading": "加载中...",
       "logs": "查看应用日志",
       "logsButton": "打开",
