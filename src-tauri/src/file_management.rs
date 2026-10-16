@@ -1620,37 +1620,103 @@ pub fn write_file_atomically(
             &mut TempfileAtomicWriteBackend,
         );
     }
-    let _guard = SIDECAR_WRITE_LOCK
-        .lock()
-        .map_err(|_| std::io::Error::other("Sidecar write lock poisoned"))?;
+    let _guard = lock_sidecar(path)?;
     let mut bytes = contents.as_ref().to_vec();
     if let Ok(existing) = fs::read(path)
         && let Ok(current) = serde_json::from_slice::<Value>(&existing)
-        && let Ok(mut incoming) = serde_json::from_slice::<Value>(&bytes)
-        && let Some(object) = incoming.as_object_mut()
+        && SIDECAR_OWNED_FIELDS
+            .iter()
+            .any(|key| current.get(key).is_some())
     {
-        // Dedicated metadata transactions own these destination-bound fields.
-        // Ordinary edit/EXIF/rating writers may have loaded an older snapshot.
-        let mut preserved = false;
-        for key in ["appliedPreset", "exportFraming"] {
-            if let Some(value) = current.get(key) {
-                object.insert(key.into(), value.clone());
-                preserved = true;
-            }
-        }
-        if preserved {
-            bytes = serde_json::to_vec_pretty(&incoming).map_err(std::io::Error::other)?;
+        // Ordinary edit/EXIF/rating writers can hold stale snapshots. Each dedicated
+        // transaction owns its destination field, including an explicit null clear.
+        let mut incoming: Value = serde_json::from_slice(&bytes).map_err(std::io::Error::other)?;
+        let object = incoming
+            .as_object_mut()
+            .ok_or_else(|| std::io::Error::other("Sidecar must be a JSON object"))?;
+        preserve_sidecar_owned_fields(&current, object);
+        bytes = serde_json::to_vec_pretty(&incoming).map_err(std::io::Error::other)?;
+    }
+    // Retain the exact-byte/non-JSON contract when there are no owned fields.
+    write_file_atomically_unmerged(path, bytes)
+}
+
+pub(crate) const SIDECAR_OWNED_FIELDS: [&str; 3] = ["denoise", "appliedPreset", "exportFraming"];
+
+pub(crate) fn preserve_sidecar_owned_fields(
+    current: &Value,
+    incoming: &mut serde_json::Map<String, Value>,
+) {
+    for key in SIDECAR_OWNED_FIELDS {
+        if let Some(value) = current.get(key) {
+            incoming.insert(key.into(), value.clone());
         }
     }
-    write_file_atomically_with_backend(path, &bytes, &mut TempfileAtomicWriteBackend)
 }
 
 static SIDECAR_WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), String> {
-    let _guard = SIDECAR_WRITE_LOCK
+pub(crate) struct SidecarWriteGuard {
+    _file: fs::File,
+    _mutex: std::sync::MutexGuard<'static, ()>,
+}
+
+// All ordinary and dedicated writers acquire in this order. The file guard also
+// coordinates the headless CLI with a GUI running in another process.
+pub(crate) fn lock_sidecar(path: &Path) -> std::io::Result<SidecarWriteGuard> {
+    if is_card_read_only_path(path) {
+        return Err(card_read_only_io_error());
+    }
+    let mutex = SIDECAR_WRITE_LOCK
         .lock()
-        .map_err(|_| "Sidecar write lock poisoned")?;
+        .map_err(|_| std::io::Error::other("Sidecar write lock poisoned"))?;
+    let file = lock_sidecar_file(path)?;
+    Ok(SidecarWriteGuard {
+        _file: file,
+        _mutex: mutex,
+    })
+}
+
+fn lock_sidecar_file(path: &Path) -> std::io::Result<fs::File> {
+    let target = if path.is_symlink() {
+        fs::canonicalize(path)?
+    } else {
+        path.to_path_buf()
+    };
+    let name = target
+        .file_name()
+        .ok_or_else(|| std::io::Error::other("Missing filename"))?
+        .to_string_lossy();
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(target.with_file_name(format!(".{name}.rapidroom-lock")))?;
+    file.lock()?;
+    Ok(file)
+}
+
+#[cfg(test)]
+pub(crate) fn lock_sidecar_as_external_writer(path: &Path) -> std::io::Result<fs::File> {
+    // Simulate a different process: it has its own mutex but shares the OS lock.
+    lock_sidecar_file(path)
+}
+
+// Only call while holding lock_sidecar, or for a non-sidecar target.
+pub(crate) fn write_file_atomically_unmerged(
+    path: impl AsRef<Path>,
+    contents: impl AsRef<[u8]>,
+) -> std::io::Result<()> {
+    write_file_atomically_with_backend(
+        path.as_ref(),
+        contents.as_ref(),
+        &mut TempfileAtomicWriteBackend,
+    )
+}
+
+pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), String> {
+    let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
     let mut metadata = match fs::read(path) {
         Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -1663,17 +1729,14 @@ pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), St
         .ok_or("Invalid photo metadata")?
         .insert("appliedPreset".into(), record);
     let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
-    write_file_atomically_with_backend(path, &bytes, &mut TempfileAtomicWriteBackend)
-        .map_err(|e| e.to_string())
+    write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())
 }
 
 pub(crate) fn update_export_framing(
     path: &Path,
     update: impl FnOnce(&Value) -> Result<Value, String>,
 ) -> Result<(), String> {
-    let _guard = SIDECAR_WRITE_LOCK
-        .lock()
-        .map_err(|_| "Sidecar write lock poisoned")?;
+    let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
     let mut metadata = match fs::read(path) {
         Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -1687,8 +1750,7 @@ pub(crate) fn update_export_framing(
         .ok_or("Invalid photo metadata")?
         .insert("exportFraming".into(), framing);
     let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
-    write_file_atomically_with_backend(path, &bytes, &mut TempfileAtomicWriteBackend)
-        .map_err(|e| e.to_string())
+    write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())
 }
 
 trait AtomicWriteTemp: std::io::Write {

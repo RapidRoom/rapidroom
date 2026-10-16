@@ -1,3 +1,4 @@
+import DenoiseQueue from './components/panel/DenoiseQueue';
 import { createLightsOutFullscreenController } from './utils/lightsOutFullscreen';
 import {
   type PointerEvent as ReactPointerEvent,
@@ -899,6 +900,7 @@ function App() {
 
   return (
     <CloudAuthProvider>
+      <DenoiseQueue />
       <ImageProcessingManager
         transformWrapperRef={transformWrapperRef}
         prevAdjustmentsRef={prevAdjustmentsRef}

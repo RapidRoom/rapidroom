@@ -22,7 +22,7 @@ use tauri::Manager;
 
 const TILE: usize = 256;
 const OVERLAP: usize = 64;
-const PIPELINE: &str = "rawforge-bayer-malvar-f16-cpu-colour-cosine-v2";
+pub(crate) const PIPELINE: &str = "rawforge-bayer-malvar-f16-cpu-colour-cosine-v2";
 const CACHE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
 
 pub struct Model {
@@ -143,6 +143,27 @@ pub async fn models(
     sharpen: bool,
     job: &DenoiseJob,
 ) -> Result<Models> {
+    models_with_download(app, state, fast, sharpen, job, true).await
+}
+
+pub(crate) async fn cached_models(
+    app: &tauri::AppHandle,
+    state: &crate::app_state::AppState,
+    fast: bool,
+    sharpen: bool,
+    job: &DenoiseJob,
+) -> Result<Models> {
+    models_with_download(app, state, fast, sharpen, job, false).await
+}
+
+async fn models_with_download(
+    app: &tauri::AppHandle,
+    state: &crate::app_state::AppState,
+    fast: bool,
+    sharpen: bool,
+    job: &DenoiseJob,
+    allow_download: bool,
+) -> Result<Models> {
     let wanted: Vec<&Model> = if sharpen {
         vec![if fast { &FAST } else { &BEST }, &SHARPEN]
     } else {
@@ -171,26 +192,34 @@ pub async fn models(
             continue;
         }
         job.progress(format!("Preparing {} model…", model.name));
-        let url = format!(
-            "https://github.com/rymuelle/RawForge/releases/download/onnx_v1.0.0/{}",
-            model.file
-        );
-        let download = crate::ai_processing::download_and_verify_model(
-            app,
-            &dir,
-            model.file,
-            &url,
-            model.sha256,
-            model.name,
-        );
-        tokio::pin!(download);
-        loop {
-            tokio::select! {
-                r = &mut download => { r?; break; }
-                _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
-                    if let Err(e) = job.check() {
-                        let _ = app.emit("ai-model-download-finish", model.name);
-                        return Err(anyhow::Error::msg(e));
+        if !allow_download {
+            ensure!(
+                crate::ai_processing::verify_sha256(&dir.join(model.file), model.sha256)?,
+                "Required denoise model is missing or invalid: {}",
+                model.file
+            );
+        } else {
+            let url = format!(
+                "https://github.com/rymuelle/RawForge/releases/download/onnx_v1.0.0/{}",
+                model.file
+            );
+            let download = crate::ai_processing::download_and_verify_model(
+                app,
+                &dir,
+                model.file,
+                &url,
+                model.sha256,
+                model.name,
+            );
+            tokio::pin!(download);
+            loop {
+                tokio::select! {
+                    r = &mut download => { r?; break; }
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
+                        if let Err(e) = job.check() {
+                            let _ = app.emit("ai-model-download-finish", model.name);
+                            return Err(anyhow::Error::msg(e));
+                        }
                     }
                 }
             }

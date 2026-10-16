@@ -1,3 +1,4 @@
+import { DenoiseBadge } from '../DenoiseQueue';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Ban,
@@ -260,6 +261,7 @@ const ThumbnailComponent = ({
         )}
       />
 
+      <DenoiseBadge path={path} />
       <div className="absolute top-1.5 right-1.5 flex items-center justify-end z-10 pointer-events-none">
         <div
           className={clsx(
@@ -709,6 +711,7 @@ const ListItemComponent = ({
         <Text variant={TextVariants.small} className="truncate" weight={TextWeights.medium} color={TextColors.primary}>
           {baseName}
         </Text>
+        <DenoiseBadge path={path} inline />
         {isVirtualCopy && (
           <Text
             as="div"
