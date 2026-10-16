@@ -301,6 +301,38 @@ fn probe_xmp_crop_image_dimensions(image_path: &Path) -> Option<(f64, f64)> {
         .map(|(width, height)| (width as f64, height as f64))
 }
 
+pub(crate) fn photo_xmp_export_frame(image_path: &Path) -> Option<(f64, f64, u16)> {
+    if crate::formats::is_raw_file(image_path) {
+        let bytes = fs::read(image_path).ok()?;
+        let source = RawSource::new_from_slice(&bytes);
+        let decoder = rawler::get_decoder(&source).ok()?;
+        let raw = decoder
+            .raw_image(&source, &RawDecodeParams::default(), true)
+            .ok()?;
+        let (width, height) = raw
+            .default_crop_area
+            .or(raw.crop_area)
+            .or(raw.active_area)
+            .map(|area| (area.d.w, area.d.h))
+            .unwrap_or((raw.width, raw.height));
+        return Some((width as f64, height as f64, raw.orientation.to_u16()));
+    }
+    let (width, height) = image::image_dimensions(image_path).ok()?;
+    let orientation = fs::File::open(image_path)
+        .ok()
+        .and_then(|file| {
+            exif::Reader::new()
+                .read_from_container(&mut std::io::BufReader::new(file))
+                .ok()
+        })
+        .and_then(|exif| {
+            exif.get_field(exif::Tag::Orientation, exif::In::PRIMARY)
+                .and_then(|field| field.value.get_uint(0))
+        })
+        .unwrap_or(1);
+    Some((width as f64, height as f64, orientation as u16))
+}
+
 /// RapidRAW's exposure slider moves 1.25 EV per unit, so a 1:1 copy of
 /// Lightroom's EV value overshoots (+1.23 EV becomes +1.54 EV). Scaling fixes
 /// that, but on its own it darkens an already too dark midrange. Keep it off
@@ -1032,6 +1064,10 @@ fn extract_nested_look_luma_curves(xmp_content: &str) -> Vec<(f64, Vec<(f64, f64
         .collect()
 }
 
+pub(crate) fn has_nested_look_luma_curve(content: &str) -> bool {
+    !extract_nested_look_luma_curves(content).is_empty()
+}
+
 /// Lightroom applies the profile look before the user's tone curve. RapidRAW
 /// has one luma curve, so sample the composition at evenly spaced inputs.
 fn compose_luma_curve_with_looks(
@@ -1288,6 +1324,21 @@ pub(crate) const BASIC_MAPPINGS: &[(&str, &str)] = &[
     ("ColorGradeBlending", "blending"),
 ];
 
+pub(crate) const COLOR_GRADING_MAPPINGS: &[(&str, &str, &str)] = &[
+    ("SplitToningShadowHue", "shadows", "hue"),
+    ("SplitToningShadowSaturation", "shadows", "saturation"),
+    ("ColorGradeShadowLum", "shadows", "luminance"),
+    ("ColorGradeMidtoneHue", "midtones", "hue"),
+    ("ColorGradeMidtoneSat", "midtones", "saturation"),
+    ("ColorGradeMidtoneLum", "midtones", "luminance"),
+    ("SplitToningHighlightHue", "highlights", "hue"),
+    ("SplitToningHighlightSaturation", "highlights", "saturation"),
+    ("ColorGradeHighlightLum", "highlights", "luminance"),
+    ("ColorGradeGlobalHue", "global", "hue"),
+    ("ColorGradeGlobalSat", "global", "saturation"),
+    ("ColorGradeGlobalLum", "global", "luminance"),
+];
+
 pub(crate) fn is_mapped_xmp_scalar(key: &str) -> bool {
     if BASIC_MAPPINGS.iter().any(|(name, _)| *name == key) {
         return true;
@@ -1521,99 +1572,17 @@ fn convert_xmp_to_preset_with_crop(
     if !hsl_map.is_empty() {
         adjustments.insert("hsl".to_string(), Value::Object(hsl_map));
     }
-    let mut shadows_map = Map::new();
-    let mut midtones_map = Map::new();
-    let mut highlights_map = Map::new();
-    let mut global_map = Map::new();
-    if let Some(raw) = attrs.get("SplitToningShadowHue")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        shadows_map.insert("hue".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("ColorGradeMidtoneHue")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        midtones_map.insert("hue".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("SplitToningHighlightHue")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        highlights_map.insert("hue".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("SplitToningShadowSaturation")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        shadows_map.insert("saturation".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("ColorGradeMidtoneSat")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        midtones_map.insert("saturation".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("SplitToningHighlightSaturation")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        highlights_map.insert("saturation".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("ColorGradeShadowLum")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        shadows_map.insert("luminance".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("ColorGradeMidtoneLum")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        midtones_map.insert("luminance".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("ColorGradeHighlightLum")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        highlights_map.insert("luminance".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("ColorGradeGlobalHue")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        global_map.insert("hue".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("ColorGradeGlobalSat")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        global_map.insert("saturation".to_string(), json_val);
-    }
-    if let Some(raw) = attrs.get("ColorGradeGlobalLum")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
-    {
-        global_map.insert("luminance".to_string(), json_val);
+    for &(tag, wheel, channel) in COLOR_GRADING_MAPPINGS {
+        if let Some(raw) = attrs.get(tag)
+            && let Some(value) = parse_num(raw).and_then(num_to_json)
+        {
+            color_grading_map.entry(wheel).or_insert_with(|| json!({}))[channel] = value;
+        }
     }
     if let Some(raw) = attrs.get("SplitToningBalance")
-        && let Some(num) = parse_num(raw)
-        && let Some(json_val) = num_to_json(num)
+        && let Some(value) = parse_num(raw).and_then(num_to_json)
     {
-        color_grading_map.insert("balance".to_string(), json_val);
-    }
-    if !shadows_map.is_empty() {
-        color_grading_map.insert("shadows".to_string(), Value::Object(shadows_map));
-    }
-    if !midtones_map.is_empty() {
-        color_grading_map.insert("midtones".to_string(), Value::Object(midtones_map));
-    }
-    if !highlights_map.is_empty() {
-        color_grading_map.insert("highlights".to_string(), Value::Object(highlights_map));
-    }
-    if !global_map.is_empty() {
-        color_grading_map.insert("global".to_string(), Value::Object(global_map));
+        color_grading_map.insert("balance".to_string(), value);
     }
     if !color_grading_map.is_empty() {
         adjustments.insert("colorGrading".to_string(), Value::Object(color_grading_map));

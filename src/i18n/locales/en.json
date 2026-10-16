@@ -1104,7 +1104,7 @@
     },
     "xmp": {
       "title": "Lightroom XMP sidecar",
-      "description": "Export your full RapidRoom edit beside the settings Lightroom can read. Review what Lightroom will not display before writing.",
+      "description": "Export your full RapidRoom edit beside the settings Lightroom can read. Review what Lightroom will not display before writing. Lightroom may render the same settings differently.",
       "chooseDestination": "Choose another destination",
       "preview": "Review sidecar next to photo",
       "working": "Preparing sidecar…",

@@ -1,0 +1,80 @@
+{
+  "exposure": 1.26,
+  "curves": {
+    "blue": [
+      {
+        "x": 0,
+        "y": 0
+      },
+      {
+        "x": 255,
+        "y": 255
+      }
+    ],
+    "green": [
+      {
+        "x": 0,
+        "y": 0
+      },
+      {
+        "x": 255,
+        "y": 255
+      }
+    ],
+    "luma": [
+      {
+        "x": 34.09090909090908,
+        "y": 13.076923076923077
+      },
+      {
+        "x": 152.7272727272726,
+        "y": 92.84615384615392
+      },
+      {
+        "x": 234.5454545454544,
+        "y": 223.61538461538473
+      }
+    ],
+    "red": [
+      {
+        "x": 0,
+        "y": 0
+      },
+      {
+        "x": 182.72727272727275,
+        "y": 205.30769230769263
+      },
+      {
+        "x": 255,
+        "y": 255
+      }
+    ]
+  },
+  "colorGrading": {
+    "balance": 0,
+    "blending": 50,
+    "global": {
+      "hue": 0,
+      "luminance": 0,
+      "saturation": 0
+    },
+    "highlights": {
+      "hue": 38,
+      "luminance": 0,
+      "saturation": 73
+    },
+    "midtones": {
+      "hue": 0,
+      "luminance": 0,
+      "saturation": 0
+    },
+    "shadows": {
+      "hue": 239,
+      "luminance": 1,
+      "saturation": 62
+    }
+  },
+  "halationAmount": 65,
+  "aspectRatio": 1.5,
+  "crop": null
+}
