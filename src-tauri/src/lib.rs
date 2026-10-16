@@ -34,6 +34,7 @@ mod apple_raw;
 mod as_shot;
 #[cfg(any(feature = "mcp", feature = "terminal", test))]
 mod assistant_text;
+mod atomic_export;
 mod baseline_exposure;
 mod batch_rename;
 mod bench;
