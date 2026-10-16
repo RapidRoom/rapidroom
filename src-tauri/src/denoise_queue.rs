@@ -401,6 +401,7 @@ impl RenderedRecipe {
         app: &AppHandle,
         job: &DenoiseJob,
     ) -> Result<image::DynamicImage, String> {
+        use sha2::Digest;
         use std::hash::{Hash, Hasher};
         job.check()?;
         let state = app.state::<AppState>();
@@ -417,6 +418,7 @@ impl RenderedRecipe {
             as_shot: self.as_shot,
             lut: self.lut.clone(),
             job_hash: hash.finish(),
+            output_precision: crate::image_processing::RenderOutputPrecision::SixteenBit,
         };
         let view = crate::export_processing::process_source_view(
             &base,
@@ -425,16 +427,15 @@ impl RenderedRecipe {
             &state,
             true,
             "denoise_source_view",
-            crate::image_processing::RenderOutputPrecision::SixteenBit,
             &options,
         )?;
         job.check()?;
         let rgb = view.to_rgb16();
         log::info!(
-            "Denoise baked source view {}x{} RGB16-native BLAKE3 {}",
+            "Denoise baked source view {}x{} RGB16-native SHA256 {}",
             rgb.width(),
             rgb.height(),
-            blake3::hash(bytemuck::cast_slice(rgb.as_raw())).to_hex()
+            hex::encode(sha2::Sha256::digest(bytemuck::cast_slice(rgb.as_raw())))
         );
         Ok(view)
     }

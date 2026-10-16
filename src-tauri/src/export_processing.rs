@@ -1052,6 +1052,7 @@ fn process_image_for_export_pipeline(
             .as_str()
             .and_then(|path| get_or_load_lut(state, path).ok()),
         job_hash: calculate_full_job_hash(path, js_adjustments),
+        output_precision,
     };
     process_source_view(
         base_image,
@@ -1060,7 +1061,6 @@ fn process_image_for_export_pipeline(
         state,
         is_raw,
         debug_tag,
-        output_precision,
         &options,
     )
 }
@@ -1070,6 +1070,7 @@ pub(crate) struct SourceViewOptions {
     pub as_shot: crate::as_shot::AsShot,
     pub lut: Option<Arc<crate::lut_processing::Lut>>,
     pub job_hash: u64,
+    pub output_precision: RenderOutputPrecision,
 }
 
 /// The normal source renderer, before export-only framing, sizing and decoration.
@@ -1080,7 +1081,6 @@ pub(crate) fn process_source_view(
     state: &tauri::State<AppState>,
     is_raw: bool,
     debug_tag: &str,
-    output_precision: RenderOutputPrecision,
     options: &SourceViewOptions,
 ) -> Result<DynamicImage, String> {
     let (transformed_image, unscaled_crop_offset) =
@@ -1122,7 +1122,7 @@ pub(crate) fn process_source_view(
             roi: None,
         },
         debug_tag,
-        output_precision,
+        options.output_precision,
     )
 }
 
