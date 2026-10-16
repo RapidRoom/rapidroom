@@ -367,5 +367,7 @@ checks still follow. Export counting excludes pre-existing fixture JPEGs.
 
 The chip-navigation check supplies an empty catalog only for the unrelated
 `fetch_community_presets` IPC request, restores the original transport afterwards,
-and requires zero stock-preview downloads. Search/navigation and the final
-frontend/native error checks remain real and unfiltered.
+and supplies the owned JPEG for at most one exact stock-image fallback request.
+The request and its real temp-file IPC are counted and bounded; no external
+image is downloaded. Search/navigation and the final frontend/native error
+checks remain real and unfiltered.
