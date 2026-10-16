@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { FileInput, CheckCircle, XCircle, Loader, Ban, ChevronDown, ChevronRight, Settings, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import type { TFunction } from 'i18next';
 import debounce from 'lodash.debounce';
 import Switch from '../../ui/Switch';
@@ -17,6 +18,7 @@ import {
   BorderBasis,
   ExportPreset,
   ExportSettings,
+  InstagramFrame,
   FileFormat,
   FILE_FORMATS,
   FILENAME_VARIABLES,
@@ -31,6 +33,8 @@ import {
 } from '../../ui/ExportImportProperties';
 import { Invokes, SelectedImage, AppSettings, Panel } from '../../ui/AppProperties';
 import ExportPresetsList from '../../ui/ExportPresetsList';
+import InstagramFraming from '../../ui/InstagramFraming';
+import { debouncedSave, waitForPendingEditorSaves } from '../../../hooks/useEditorActions';
 import { useExportSettings } from '../../../hooks/useExportSettings';
 import { useOsPlatform } from '../../../hooks/useOsPlatform';
 import Text from '../../ui/Text';
@@ -349,22 +353,83 @@ export default function ExportPanel({
     setSubfolder,
     outputSharpening,
     setOutputSharpening,
+    instagramRatio,
   } = useExportSettings();
 
   const adjustmentsRef = useRef(useEditorStore.getState().adjustments);
 
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
+  const activePanels = useUIStore((state) => state.activePanels);
+  const isPanelReallyActive = Object.values(activePanels).includes(Panel.Export);
   const initDone = useRef(false);
+  const instagramExportRequest = useUIStore((state) => state.instagramExportRequest);
+  const appliedInstagramRequest = useRef<number | null>(null);
+  const rememberRecipe = useCallback(
+    (preset: ExportPreset) => {
+      useUIStore.getState().setUI({ instagramExportRequest: null });
+      handleApplyPreset(preset);
+      if (!appSettings) return;
+      const prior = appSettings.exportPresets?.find((p) => p.id === '__last_used__');
+      const lastUsed: ExportPreset = {
+        ...preset,
+        id: '__last_used__',
+        name: '__last_used__',
+        lastExportPath: prior?.lastExportPath,
+      };
+      onSettingsChange({
+        ...appSettings,
+        lastSelectedExportPresetId: preset.id,
+        lastInstagramExportPresetId: preset.instagramRatio ? preset.id : appSettings.lastInstagramExportPresetId,
+        exportPresets: [...(appSettings.exportPresets ?? []).filter((p) => p.id !== '__last_used__'), lastUsed],
+      });
+    },
+    [appSettings, handleApplyPreset, onSettingsChange],
+  );
 
   useEffect(() => {
-    if (initDone.current || appSettings === null || !isVisible) return;
+    if (initDone.current || appSettings === null || !isVisible || instagramExportRequest !== null) return;
     initDone.current = true;
     const lastUsed = appSettings.exportPresets?.find((p) => p.id === '__last_used__');
     if (lastUsed) {
       handleApplyPreset(lastUsed);
     }
-  }, [appSettings, handleApplyPreset, isVisible]);
+  }, [appSettings, handleApplyPreset, isVisible, instagramExportRequest]);
+
+  useEffect(() => {
+    if (
+      instagramExportRequest === null ||
+      appSettings === null ||
+      !isVisible ||
+      (!onClose && !isPanelReallyActive) ||
+      appliedInstagramRequest.current === instagramExportRequest
+    )
+      return;
+    appliedInstagramRequest.current = instagramExportRequest;
+    let cancelled = false;
+    void invoke<ExportPreset[]>(Invokes.GetExportRecipes)
+      .then((recipes) => {
+        if (cancelled || useUIStore.getState().instagramExportRequest !== instagramExportRequest) return;
+        const candidates = [...(appSettings.exportPresets ?? []), ...recipes];
+        const recipe =
+          candidates.find((p) => p.id === appSettings.lastInstagramExportPresetId && p.instagramRatio) ??
+          recipes.find((p) => p.id === 'recipe-instagram-crop-4x5');
+        if (!recipe) throw new Error('Instagram export recipe unavailable');
+        initDone.current = true;
+        rememberRecipe(recipe);
+        useUIStore.getState().setUI({ instagramExportRequest: null });
+      })
+      .catch((error: unknown) => {
+        if (cancelled || useUIStore.getState().instagramExportRequest !== instagramExportRequest) return;
+        appliedInstagramRequest.current = null;
+        console.error('Failed to open Instagram export:', error);
+        toast.error(String(error));
+      });
+    return () => {
+      cancelled = true;
+      appliedInstagramRequest.current = null;
+    };
+  }, [instagramExportRequest, appSettings, isVisible, isPanelReallyActive, onClose, rememberRecipe]);
 
   const saveLastUsedPreset = useCallback(
     (exportPath: string) => {
@@ -424,8 +489,6 @@ export default function ExportPanel({
   const filenameInputRef = useRef<HTMLInputElement>(null);
   const osPlatform = useOsPlatform();
   const isAndroid = osPlatform === 'android';
-  const activePanels = useUIStore((state) => state.activePanels);
-  const isPanelReallyActive = Object.values(activePanels).includes(Panel.Export);
 
   const { status, progress, errorMessage } = exportState;
   const isExporting = [Status.Exporting, Status.Cancelling].includes(status);
@@ -443,6 +506,11 @@ export default function ExportPanel({
   }, [isLibraryContext, multiSelectedPaths, selectedImage?.path]);
 
   const numImages = pathsToExport.length;
+  const [instagramFrames, setInstagramFrames] = useState<Record<string, InstagramFrame>>({});
+  const [instagramBusy, setInstagramBusy] = useState(true);
+  const onInstagramFrame = useCallback((path: string, frame: InstagramFrame) => {
+    setInstagramFrames((frames) => ({ ...frames, [path]: frame }));
+  }, []);
 
   useEffect(() => {
     const fetchDims = async () => {
@@ -526,6 +594,7 @@ export default function ExportPanel({
     if (!isPanelReallyActive) return;
 
     const exportSettings: ExportSettings = {
+      instagram: instagramRatio ? { ratio: instagramRatio, framesByPath: instagramFrames } : null,
       filenameTemplate,
       jpegQuality,
       tiffBitDepth,
@@ -573,6 +642,8 @@ export default function ExportPanel({
     };
   }, [
     isPanelReallyActive,
+    instagramRatio,
+    instagramFrames,
     pathsToExport,
     selectedImage?.path,
     fileFormat,
@@ -624,9 +695,17 @@ export default function ExportPanel({
   };
 
   const handleExport = async () => {
-    if (numImages === 0 || isExporting || !isDpiValid) return;
+    if (
+      numImages === 0 ||
+      isExporting ||
+      instagramExportRequest !== null ||
+      !isDpiValid ||
+      (instagramRatio && instagramBusy)
+    )
+      return;
 
     const exportSettings: ExportSettings = {
+      instagram: instagramRatio ? { ratio: instagramRatio, framesByPath: instagramFrames } : null,
       filenameTemplate,
       overwriteExisting:
         overwriteExisting && (numImages > 1 || preserveFolders || destinationType === 'originalFolder'),
@@ -691,10 +770,12 @@ export default function ExportPanel({
               defaultPath: lastExportPath ? `${lastExportPath}/${outputFileName}` : outputFileName,
               filters: [
                 { name: selectedFormat.name, extensions: selectedFormat.extensions },
-                ...FILE_FORMATS.filter((f: FileFormat) => f.id !== fileFormat).map((f: FileFormat) => ({
-                  name: f.name,
-                  extensions: f.extensions,
-                })),
+                ...FILE_FORMATS.filter((f: FileFormat) => !instagramRatio && f.id !== fileFormat).map(
+                  (f: FileFormat) => ({
+                    name: f.name,
+                    extensions: f.extensions,
+                  }),
+                ),
               ],
             })) as string);
       } else {
@@ -731,6 +812,8 @@ export default function ExportPanel({
         }
 
         setExportState({ status: Status.Exporting, progress: { current: 0, total: numImages }, errorMessage: '' });
+        debouncedSave.flush();
+        await waitForPendingEditorSaves();
         await invoke(Invokes.ExportImages, {
           paths: pathsToExport,
           outputFolderOrFile: outputFolderOrFile,
@@ -765,7 +848,13 @@ export default function ExportPanel({
     }
   };
 
-  const canExport = numImages > 0 && isPadValid && isBorderValid && isDpiValid;
+  const canExport =
+    instagramExportRequest === null &&
+    numImages > 0 &&
+    isPadValid &&
+    isBorderValid &&
+    isDpiValid &&
+    (!instagramRatio || !instagramBusy);
   const isLut = fileFormat === FileFormats.Cube;
   const itemLabel = isLut ? t('export.labels.lut') : t('export.labels.image');
   const itemLabelPlural = isLut ? t('export.labels.lut_plural') : t('export.labels.image_plural');
@@ -783,73 +872,96 @@ export default function ExportPanel({
                 appSettings={appSettings}
                 onSettingsChange={onSettingsChange}
                 currentSettings={currentSettingsObject}
-                onApplyPreset={handleApplyPreset}
+                onApplyPreset={rememberRecipe}
               />
             </div>
 
-            <Section title={t('export.sections.fileSettings')}>
-              <div className="grid grid-cols-3 gap-2">
-                {FILE_FORMATS.map((format: FileFormat) => (
-                  <button
-                    className={`px-2 py-1.5 rounded-md transition-colors ${fileFormat === format.id ? 'bg-accent' : 'bg-surface hover:bg-card-active'} disabled:opacity-50`}
-                    disabled={isExporting}
-                    key={format.id}
-                    onClick={() => setFileFormat(format.id)}
-                  >
-                    <Text color={fileFormat === format.id ? TextColors.button : TextColors.secondary}>
-                      {format.name}
-                    </Text>
-                  </button>
-                ))}
-              </div>
-              {[FileFormats.Jpeg, FileFormats.Webp, FileFormats.Jxl].includes(fileFormat as FileFormats) && (
-                <div className={isExporting ? 'opacity-50 pointer-events-none' : ''}>
-                  <Slider
-                    defaultValue={90}
-                    label={
-                      fileFormat === FileFormats.Jxl && jpegQuality === 100
-                        ? t('export.file.qualityLossless')
-                        : t('export.file.quality')
-                    }
-                    max={100}
-                    min={1}
-                    onChange={(e) => setJpegQuality(Number(e.target.value))}
-                    step={1}
-                    value={jpegQuality}
-                    fillOrigin="min"
-                  />
-                </div>
-              )}
-              {fileFormat === FileFormats.Tiff && (
-                <div className={isExporting ? 'opacity-50 pointer-events-none' : ''}>
-                  <Text variant={TextVariants.label} className="mb-1">
-                    {t('export.file.tiffBitDepth')}
-                  </Text>
-                  <Dropdown
-                    options={tiffBitDepthOptions}
-                    value={String(tiffBitDepth)}
-                    onChange={(value) => setTiffBitDepth(Number(value) as TiffBitDepth)}
-                    disabled={isExporting}
-                    className="w-full"
-                  />
-                </div>
-              )}
-              {supportsDpi && (
-                <div className="flex items-center gap-2">
-                  <Text variant={TextVariants.label} className="flex-1">
-                    {t('export.file.resolution')}
-                  </Text>
-                  <ValidatedNumberInput
-                    ariaLabel={t('export.file.resolution')}
-                    disabled={isExporting}
-                    field={dpiField}
-                    max={MAX_EXPORT_DPI}
-                  />
-                  <Text variant={TextVariants.label}>{t('export.file.dpi')}</Text>
-                </div>
-              )}
-            </Section>
+            {instagramExportRequest !== null && <p role="status">{t('export.instagram.loading')}</p>}
+            {instagramRatio && (
+              <Section title={t('export.instagram.title')}>
+                <InstagramFraming
+                  paths={pathsToExport}
+                  ratio={instagramRatio}
+                  active={isVisible && isPanelReallyActive}
+                  disabled={isExporting}
+                  onFrame={onInstagramFrame}
+                  onBusy={setInstagramBusy}
+                />
+                <button
+                  type="button"
+                  className="text-xs underline mt-2"
+                  disabled={isExporting}
+                  onClick={() => rememberRecipe({ ...currentSettingsObject, id: '', name: '', instagramRatio: null })}
+                >
+                  {t('export.instagram.disable')}
+                </button>
+              </Section>
+            )}
 
+            <fieldset disabled={!!instagramRatio} className={instagramRatio ? 'opacity-50 pointer-events-none' : ''}>
+              <Section title={t('export.sections.fileSettings')}>
+                <div className="grid grid-cols-3 gap-2">
+                  {FILE_FORMATS.map((format: FileFormat) => (
+                    <button
+                      className={`px-2 py-1.5 rounded-md transition-colors ${fileFormat === format.id ? 'bg-accent' : 'bg-surface hover:bg-card-active'} disabled:opacity-50`}
+                      disabled={isExporting}
+                      key={format.id}
+                      onClick={() => setFileFormat(format.id)}
+                    >
+                      <Text color={fileFormat === format.id ? TextColors.button : TextColors.secondary}>
+                        {format.name}
+                      </Text>
+                    </button>
+                  ))}
+                </div>
+                {[FileFormats.Jpeg, FileFormats.Webp, FileFormats.Jxl].includes(fileFormat as FileFormats) && (
+                  <div className={isExporting ? 'opacity-50 pointer-events-none' : ''}>
+                    <Slider
+                      defaultValue={90}
+                      label={
+                        fileFormat === FileFormats.Jxl && jpegQuality === 100
+                          ? t('export.file.qualityLossless')
+                          : t('export.file.quality')
+                      }
+                      max={100}
+                      min={1}
+                      onChange={(e) => setJpegQuality(Number(e.target.value))}
+                      step={1}
+                      value={jpegQuality}
+                      fillOrigin="min"
+                    />
+                  </div>
+                )}
+                {fileFormat === FileFormats.Tiff && (
+                  <div className={isExporting ? 'opacity-50 pointer-events-none' : ''}>
+                    <Text variant={TextVariants.label} className="mb-1">
+                      {t('export.file.tiffBitDepth')}
+                    </Text>
+                    <Dropdown
+                      options={tiffBitDepthOptions}
+                      value={String(tiffBitDepth)}
+                      onChange={(value) => setTiffBitDepth(Number(value) as TiffBitDepth)}
+                      disabled={isExporting}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+                {supportsDpi && (
+                  <div className="flex items-center gap-2">
+                    <Text variant={TextVariants.label} className="flex-1">
+                      {t('export.file.resolution')}
+                    </Text>
+                    <ValidatedNumberInput
+                      ariaLabel={t('export.file.resolution')}
+                      disabled={isExporting}
+                      field={dpiField}
+                      max={MAX_EXPORT_DPI}
+                    />
+                    <Text variant={TextVariants.label}>{t('export.file.dpi')}</Text>
+                  </div>
+                )}
+              </Section>
+            </fieldset>
             <Section title={t('export.sections.destination')}>
               <div className="space-y-3">
                 <Dropdown
@@ -915,7 +1027,7 @@ export default function ExportPanel({
             </Section>
 
             {fileFormat !== FileFormats.Cube && (
-              <>
+              <fieldset disabled={!!instagramRatio} className={instagramRatio ? 'opacity-50 pointer-events-none' : ''}>
                 <Section title={t('export.sections.imageSizing')}>
                   <Switch
                     label={t('export.border.addBorder')}
@@ -1190,7 +1302,7 @@ export default function ExportPanel({
                     </div>
                   )}
                 </Section>
-              </>
+              </fieldset>
             )}
 
             <div>

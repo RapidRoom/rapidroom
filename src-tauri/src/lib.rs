@@ -46,10 +46,12 @@ mod denoise_quality;
 mod denoising;
 mod effect_maps;
 mod exif_processing;
+mod export_framing;
 mod export_processing;
 mod export_recipes;
 mod file_management;
 mod file_naming;
+mod file_transfer;
 mod focus_stacking;
 mod fog;
 mod formats;
@@ -87,6 +89,7 @@ mod output_sharpening;
 mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
+mod preset_application;
 mod preset_converter;
 mod preset_xmp;
 mod raw_processing;
@@ -2017,11 +2020,16 @@ fn frontend_ready(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    #[cfg(unix)]
+    if args.first().map(String::as_str) == Some("denoise") {
+        unsafe {
+            libc::setpriority(libc::PRIO_PROCESS, 0, 10);
+        }
+    }
     let _ = rayon::ThreadPoolBuilder::new()
         .stack_size(8 * 1024 * 1024)
         .build_global();
-
-    let args: Vec<String> = std::env::args().skip(1).collect();
     let launch_req = parse_launch_args(&args);
     if let LaunchRequest::InvalidHeadless(error) = &launch_req {
         eprintln!("Headless export failed: {}", error);
@@ -2031,9 +2039,15 @@ pub fn run() {
         cli_eprintln!("Invalid bench arguments: {}", error);
         std::process::exit(2);
     }
+    if let LaunchRequest::InvalidDenoise(error) = &launch_req {
+        cli_eprintln!("Invalid denoise arguments: {error}");
+        std::process::exit(2);
+    }
     let is_headless = matches!(
         launch_req,
-        LaunchRequest::HeadlessExport(_) | LaunchRequest::HeadlessBench(_)
+        LaunchRequest::HeadlessExport(_)
+            | LaunchRequest::HeadlessBench(_)
+            | LaunchRequest::HeadlessDenoise(_)
     );
 
     let mut builder = tauri::Builder::default();
@@ -2302,6 +2316,15 @@ pub fn run() {
             }
 
             match launch_req {
+                LaunchRequest::HeadlessDenoise(session) => {
+                    let handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let code = crate::denoising::queue::headless(session, handle.clone()).await;
+                        set_process_exit_code(code);
+                        handle.exit(code);
+                    });
+                    return Ok(());
+                }
                 LaunchRequest::HeadlessExport(session) => {
                     let app_handle_clone = app_handle.clone();
                     let export = tauri::async_runtime::spawn(
@@ -2348,7 +2371,7 @@ pub fn run() {
 
                     return Ok(());
                 }
-                LaunchRequest::InvalidHeadless(_) | LaunchRequest::InvalidBench(_) => unreachable!("invalid headless arguments exit before app setup"),
+                LaunchRequest::InvalidHeadless(_) | LaunchRequest::InvalidBench(_) | LaunchRequest::InvalidDenoise(_) => unreachable!("invalid headless arguments exit before app setup"),
                 _ => {}
             }
 
@@ -2665,6 +2688,10 @@ pub fn run() {
             denoising::cancel_denoise,
             denoising::apply_denoising,
             denoising::batch_denoise_images,
+            denoising::queue::set_denoise_mark,
+            denoising::queue::denoise_mark_status,
+            denoising::queue::denoise_queue_paths,
+            denoising::queue::run_denoise_queue,
             denoising::save_denoised_image,
             focus_stacking::stitch_focus_stack,
             focus_stacking::save_focus_stack,
@@ -2727,6 +2754,10 @@ pub fn run() {
             file_management::import_matching_xmp_sidecars_in_folder,
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
+            preset_application::load_applied_preset,
+            preset_application::save_applied_preset,
+            export_framing::get_instagram_framing_preview,
+            export_framing::save_instagram_framing,
             file_management::load_presets,
             file_management::save_presets,
             file_management::get_or_create_internal_library_root,

@@ -273,6 +273,8 @@ export interface AppSettings {
   processingBackend?: string;
   linuxGpuOptimization?: boolean;
   exportPresets?: ExportPreset[];
+  lastSelectedExportPresetId?: string | null;
+  lastInstagramExportPresetId?: string | null;
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
   adjustmentLayout?: AdjustmentLayout;
@@ -401,6 +403,7 @@ export interface FilterCriteria {
   rawStatus: RawStatus;
   editedStatus?: EditedStatus;
   flagStatus?: FlagStatus;
+  denoiseStatus?: 'all' | 'marked' | 'done';
 }
 
 export interface Folder {

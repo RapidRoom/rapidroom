@@ -58,6 +58,7 @@ export function calculateCenteredCrop(
   orientationSteps: number,
   aspectRatio: number | null,
   rotation: number = 0,
+  center?: { x: number; y: number },
 ): Crop | null {
   if (!aspectRatio || aspectRatio <= 0) return null;
 
@@ -68,13 +69,41 @@ export function calculateCenteredCrop(
   const sin = Math.sin(rad);
   const cos = Math.cos(rad);
 
-  const h_c = Math.min(H / (aspectRatio * sin + cos), W / (aspectRatio * cos + sin));
+  const cx = center?.x ?? W / 2;
+  const cy = center?.y ?? H / 2;
+  // Measure the room around this frame centre in the unrotated image.
+  const inverseAngle = (-rotation * Math.PI) / 180;
+  const sourceX = Math.cos(inverseAngle) * (cx - W / 2) - Math.sin(inverseAngle) * (cy - H / 2) + W / 2;
+  const sourceY = Math.sin(inverseAngle) * (cx - W / 2) + Math.cos(inverseAngle) * (cy - H / 2) + H / 2;
+  const availableW = 2 * Math.min(sourceX, W - sourceX);
+  const availableH = 2 * Math.min(sourceY, H - sourceY);
+  if (availableW <= 0 || availableH <= 0) return null;
+  const h_c = Math.min(availableH / (aspectRatio * sin + cos), availableW / (aspectRatio * cos + sin));
   const w_c = aspectRatio * h_c;
+
+  if (center) {
+    // Round inward, then check the integer frame against the rotated source.
+    // Independent rounding of position and extent can otherwise cross an edge.
+    for (let inset = 0; inset <= 2; inset++) {
+      const height = Math.floor(h_c) - inset;
+      const width = Math.floor(aspectRatio * height);
+      if (width < 1 || height < 1) return null;
+      const candidate: Crop = {
+        unit: 'px',
+        x: Math.round(cx - width / 2),
+        y: Math.round(cy - height / 2),
+        width,
+        height,
+      };
+      if (isCropWithinBounds(candidate, W, H, rotation)) return candidate;
+    }
+    return null;
+  }
 
   return {
     unit: 'px',
-    x: Math.round((W - w_c) / 2),
-    y: Math.round((H - h_c) / 2),
+    x: Math.round(cx - w_c / 2),
+    y: Math.round(cy - h_c / 2),
     width: Math.round(w_c),
     height: Math.round(h_c),
   };
