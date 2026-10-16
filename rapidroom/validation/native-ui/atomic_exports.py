@@ -6,11 +6,23 @@ from PIL import Image
 
 
 def observe_atomic_exports(smoke):
-    smoke.execute("""window.__atomicExportOriginalInvoke=window.__TAURI_INTERNALS__.invoke;
-      window.__TAURI_INTERNALS__.invoke=function(...args){
-        if(args[0]==='export_images')window.__atomicExportArgs=JSON.parse(JSON.stringify(args[1]));
-        return window.__atomicExportOriginalInvoke.apply(this,args);
-      };return true;""")
+    installed = smoke.execute("""const original=window.fetch;
+      const endpoint=window.__TAURI_INTERNALS__.convertFileSrc('export_images','ipc');
+      const descriptor=Object.getOwnPropertyDescriptor(window.__TAURI_INTERNALS__,'invoke');
+      const state={calls:0,args:null,parseError:null,
+        invokeWritable:descriptor.writable===true,
+        restore:()=>{window.fetch=original;delete window.__atomicExportObserver;}};
+      window.__atomicExportObserver=state;
+      const observer=function(resource,options){
+        const url=typeof resource==='string'?resource:resource instanceof Request?resource.url:String(resource);
+        if(url===endpoint){state.calls++;
+          try{state.args=JSON.parse(options.body);}catch(error){state.parseError=String(error);}}
+        return original.call(this,resource,options);
+      };
+      window.fetch=observer;
+      return {installed:window.fetch===observer,invokeWritable:state.invokeWritable};""")
+    assert installed['installed'], installed
+    (smoke.case / 'atomic-export-observer-install.json').write_text(json.dumps(installed, indent=2))
 
 
 def run_atomic_export_checks(smoke, wait_for, first):
@@ -40,7 +52,10 @@ def run_atomic_export_checks(smoke, wait_for, first):
     worker = threading.Thread(target=watch, daemon=True)
     worker.start()
     try:
-        args = smoke.execute('return window.__atomicExportArgs;')
+        observer = smoke.execute('const s=window.__atomicExportObserver;return {calls:s.calls,args:s.args,parseError:s.parseError};')
+        (smoke.case / 'atomic-export-observer-first.json').write_text(json.dumps(observer, indent=2))
+        assert observer['calls'] == 1 and observer['parseError'] is None, observer
+        args = observer['args']
         assert args and args['exportSettings'].get('overwriteExisting', False) is False, args
         assert all(str(smoke.case / 'input') in source for source in args['paths']), args['paths']
         smoke.execute("""const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Export Image');
@@ -76,8 +91,10 @@ def run_atomic_export_checks(smoke, wait_for, first):
     finally:
         stop.set()
         worker.join(timeout=15)
-        smoke.execute("""window.__TAURI_INTERNALS__.invoke=window.__atomicExportOriginalInvoke;
-          delete window.__atomicExportOriginalInvoke;delete window.__atomicExportArgs;delete window.__atomicOverwrite;return true;""")
+        observer = smoke.execute('const s=window.__atomicExportObserver;return {calls:s.calls,parseError:s.parseError};')
+        (smoke.case / 'atomic-export-observer-final.json').write_text(json.dumps(observer, indent=2))
+        smoke.execute("window.__atomicExportObserver.restore();delete window.__atomicOverwrite;return true;")
+    assert observer['calls'] == 3 and observer['parseError'] is None, observer
     assert not worker.is_alive()
     assert not failures, failures
     assert len(observations) >= 3, observations

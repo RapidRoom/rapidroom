@@ -359,7 +359,8 @@ real Export panel with overwrite disabled and checks that the earlier JPEG is
 preserved. It submits an explicit overwrite for the owned fixture with the exact
 settings captured from the real panel, verifies inode replacement, checks that
 the sibling export is untouched and records every observed final JPEG state.
-The temporary invoke observer forwards every native call and is restored in a
-finally block; no IO or error handler is mocked. This does not automate the
+The temporary fetch observer records only the exact export IPC endpoint and
+forwards every request unchanged. Its installation and three observed requests
+are checked, and it is restored in a finally block; no IO or error handler is mocked. This does not automate the
 native overwrite-confirmation dialog. A separate Rust subprocess check kills a
 writer after partial staging to deterministically check interruption safety.
