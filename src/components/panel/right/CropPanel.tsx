@@ -921,7 +921,9 @@ export default function CropPanel() {
                       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                     >
                       <Text color={isPresetActive(preset) ? TextColors.button : TextColors.secondary}>
-                        {preset.name}
+                        {preset.instagram && isPresetActive(preset) && aspectRatio && aspectRatio > 1
+                          ? preset.name.replace(/(\d+):(\d+)/, '$2:$1')
+                          : preset.name}
                       </Text>
                       {savedIndex >= 0 && (
                         <button
