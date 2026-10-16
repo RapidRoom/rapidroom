@@ -50,6 +50,7 @@ mod export_processing;
 mod export_recipes;
 mod file_management;
 mod file_naming;
+mod file_transfer;
 mod focus_stacking;
 mod fog;
 mod formats;

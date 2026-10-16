@@ -364,6 +364,9 @@ class Smoke:
                                       "e.complete && e.naturalWidth>100);"), "real library thumbnail")
         self.capture("library")
         self.step("library thumbnail", self.snapshot("library")["images"])
+        if (self.case / "file-transfers-test.json").exists():
+            from file_transfers import run_transfer_checks
+            run_transfer_checks(self, wait_for)
         if (self.case / "filter-chips-test.json").exists():
             from filter_chips import run_filter_chip_checks
             run_filter_chip_checks(self, wait_for)
@@ -589,6 +592,9 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.file_transfers:
+        from file_transfers import prepare_transfers
+        prepare_transfers(case)
     if args.filter_chips:
         from filter_chips import prepare_filter_chips
         prepare_filter_chips(case)
@@ -745,6 +751,7 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--file-transfers", action="store_true", help="Check native collision-safe copies/imports, paired sidecars and visible summaries")
     parser.add_argument("--filter-chips", action="store_true", help="Native numeric/text chip editing, Escape, Backspace, arrows and independent x-delete")
     parser.add_argument("--dock-layout", action="store_true", help="Check stepped dock resize overlap and compact terminal controls (implies --terminal)")
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")

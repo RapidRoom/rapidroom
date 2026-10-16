@@ -1,3 +1,4 @@
+import { showTransferSummary, type TransferSummary } from '../utils/fileTransfers';
 import { useEffect, useRef } from 'react';
 import { listen as tauriListen, type Event, type UnlistenFn } from '@tauri-apps/api/event';
 import { convertFileSrc } from '@tauri-apps/api/core';
@@ -56,7 +57,7 @@ interface TauriEventPayloads {
     rating: number;
     tags: string[] | null;
   };
-  'import-complete': null;
+  'import-complete': TransferSummary;
   'import-error': string;
   'import-progress': { current: number; path: string; total: number };
   'import-start': { total: number };
@@ -293,9 +294,13 @@ export function useTauriListeners({
             progress: { current: event.payload.current, total: event.payload.total },
           });
       }),
-      listen('import-complete', () => {
+      listen('import-complete', (event) => {
         if (isEffectActive) {
-          useProcessStore.getState().setImportState({ status: Status.Success });
+          useProcessStore.getState().setImportState({
+            status: event.payload.failed ? Status.Error : Status.Success,
+            errorMessage: event.payload.errors.join('\n'),
+          });
+          showTransferSummary(event.payload, 'import');
           refs.current.refreshAllFolderTrees();
           const currentPath = useLibraryStore.getState().currentFolderPath;
           if (currentPath) {
