@@ -1609,11 +1609,62 @@ pub fn write_file_atomically(
     path: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
 ) -> std::io::Result<()> {
-    write_file_atomically_with_backend(
-        path.as_ref(),
-        contents.as_ref(),
-        &mut TempfileAtomicWriteBackend,
-    )
+    let path = path.as_ref();
+    if !path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("rrdata"))
+    {
+        return write_file_atomically_with_backend(
+            path,
+            contents.as_ref(),
+            &mut TempfileAtomicWriteBackend,
+        );
+    }
+    let _guard = SIDECAR_WRITE_LOCK
+        .lock()
+        .map_err(|_| std::io::Error::other("Sidecar write lock poisoned"))?;
+    let mut bytes = contents.as_ref().to_vec();
+    if path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("rrdata"))
+        && let Ok(existing) = fs::read(path)
+        && let Ok(current) = serde_json::from_slice::<Value>(&existing)
+        && let Some(framing) = current.get("exportFraming")
+        && let Ok(mut incoming) = serde_json::from_slice::<Value>(&bytes)
+        && let Some(object) = incoming.as_object_mut()
+    {
+        // Edit/EXIF/rating writers can hold an older metadata snapshot. Framing
+        // belongs to this destination and is updated only by its own transaction.
+        object.insert("exportFraming".into(), framing.clone());
+        bytes = serde_json::to_vec_pretty(&incoming).map_err(std::io::Error::other)?;
+    }
+    write_file_atomically_with_backend(path, &bytes, &mut TempfileAtomicWriteBackend)
+}
+
+static SIDECAR_WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+pub(crate) fn update_export_framing(
+    path: &Path,
+    update: impl FnOnce(&Value) -> Result<Value, String>,
+) -> Result<(), String> {
+    let _guard = SIDECAR_WRITE_LOCK
+        .lock()
+        .map_err(|_| "Sidecar write lock poisoned")?;
+    let mut metadata = match fs::read(path) {
+        Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            serde_json::to_value(ImageMetadata::default()).map_err(|e| e.to_string())?
+        }
+        Err(error) => return Err(error.to_string()),
+    };
+    let framing = update(&metadata)?;
+    metadata
+        .as_object_mut()
+        .ok_or("Invalid photo metadata")?
+        .insert("exportFraming".into(), framing);
+    let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
+    write_file_atomically_with_backend(path, &bytes, &mut TempfileAtomicWriteBackend)
+        .map_err(|e| e.to_string())
 }
 
 trait AtomicWriteTemp: std::io::Write {
@@ -7959,5 +8010,61 @@ mod xmp_preset_browser_tests {
             group.children[0].camera_model_restriction,
             preset.camera_model_restriction
         );
+    }
+}
+
+#[cfg(test)]
+mod export_framing_sidecar_transactions {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn framing_and_stale_edit_saves_preserve_each_others_owned_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.jpg");
+        let (_, primary) = parse_virtual_path(raw.to_str().unwrap());
+        let (_, copy) = parse_virtual_path(&format!("{}?vc=1", raw.display()));
+        let original = json!({"version":1,"adjustments":{"exposure":0,"crop":{"x":12,"y":8,"width":400,"height":300}},"rating":4,"flag":"pick","tags":["trip"],"unknown":{"preserve":true}});
+        write_file_atomically(&primary, serde_json::to_vec(&original).unwrap()).unwrap();
+        write_file_atomically(&copy, serde_json::to_vec(&original).unwrap()).unwrap();
+        let mut old_editor_snapshot = original.clone();
+        update_export_framing(&primary, |_| {
+            Ok(json!({"instagram":{"version":1,"frame":{"x":0.2}}}))
+        })
+        .unwrap();
+        let after_frame: Value = serde_json::from_slice(&fs::read(&primary).unwrap()).unwrap();
+        let mut without_frame = after_frame.clone();
+        without_frame
+            .as_object_mut()
+            .unwrap()
+            .remove("exportFraming");
+        assert_eq!(without_frame, original);
+        old_editor_snapshot["adjustments"]["exposure"] = json!(1.2);
+        // This save began before the framing transaction and finishes afterward.
+        write_file_atomically(&primary, serde_json::to_vec(&old_editor_snapshot).unwrap()).unwrap();
+        let saved: Value = serde_json::from_slice(&fs::read(&primary).unwrap()).unwrap();
+        assert_eq!(saved["adjustments"], old_editor_snapshot["adjustments"]);
+        assert_eq!(saved["exportFraming"], after_frame["exportFraming"]);
+        assert_eq!(
+            serde_json::from_slice::<Value>(&fs::read(&copy).unwrap()).unwrap(),
+            original
+        );
+        update_export_framing(&primary, |_| {
+            Ok(json!({"instagram":{"version":1,"frame":{"x":0.3}}}))
+        })
+        .unwrap();
+        let saved: Value = serde_json::from_slice(&fs::read(&primary).unwrap()).unwrap();
+        assert_eq!(saved["adjustments"], old_editor_snapshot["adjustments"]);
+        assert_eq!(saved["rating"], original["rating"]);
+        assert_eq!(saved["unknown"], original["unknown"]);
+    }
+
+    #[test]
+    fn framing_refuses_to_replace_unreadable_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let sidecar = dir.path().join("photo.jpg.rrdata");
+        fs::write(&sidecar, b"{ broken sidecar").unwrap();
+        assert!(update_export_framing(&sidecar, |_| Ok(json!({"instagram":null}))).is_err());
+        assert_eq!(fs::read(sidecar).unwrap(), b"{ broken sidecar");
     }
 }

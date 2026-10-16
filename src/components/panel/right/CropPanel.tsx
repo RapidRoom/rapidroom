@@ -57,6 +57,7 @@ interface CropPreset {
   name: string;
   value: number | null;
   tooltip: string;
+  instagram?: boolean;
 }
 
 interface OverlayOption {
@@ -153,6 +154,24 @@ export default function CropPanel() {
         tooltip: t('editor.crop.presets.original.desc'),
       },
       { name: t('editor.crop.presets.sq.name'), value: 1, tooltip: t('editor.crop.presets.sq.desc') },
+      {
+        name: t('editor.crop.presets.instagramPortrait.name'),
+        value: 4 / 5,
+        tooltip: t('editor.crop.presets.instagramPortrait.desc'),
+        instagram: true,
+      },
+      {
+        name: t('editor.crop.presets.instagramGrid.name'),
+        value: 3 / 4,
+        tooltip: t('editor.crop.presets.instagramGrid.desc'),
+        instagram: true,
+      },
+      {
+        name: t('editor.crop.presets.instagramStories.name'),
+        value: 9 / 16,
+        tooltip: t('editor.crop.presets.instagramStories.desc'),
+        instagram: true,
+      },
       { name: t('editor.crop.presets.r54.name'), value: 5 / 4, tooltip: t('editor.crop.presets.r54.desc') },
       { name: t('editor.crop.presets.r43.name'), value: 4 / 3, tooltip: t('editor.crop.presets.r43.desc') },
       { name: t('editor.crop.presets.r32.name'), value: 3 / 2, tooltip: t('editor.crop.presets.r32.desc') },
@@ -470,6 +489,11 @@ export default function CropPanel() {
 
   const handlePresetClick = (preset: CropPreset) => {
     setIsCustomMode(false);
+    if (preset.instagram) {
+      setPreferPortrait(true);
+      applyAspectRatio(preset.value);
+      return;
+    }
 
     if (preset.value === ORIGINAL_RATIO) {
       applyAspectRatio(getEffectiveOriginalRatio());

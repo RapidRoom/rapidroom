@@ -1,0 +1,220 @@
+use base64::Engine;
+use image::{DynamicImage, GenericImageView};
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub enum InstagramRatio {
+    #[serde(rename = "4:5")]
+    Portrait,
+    #[serde(rename = "3:4")]
+    Grid,
+    #[serde(rename = "9:16")]
+    Stories,
+}
+
+impl InstagramRatio {
+    pub fn dimensions(self) -> (u32, u32) {
+        match self {
+            Self::Portrait => (1080, 1350),
+            Self::Grid => (1080, 1440),
+            Self::Stories => (1080, 1920),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct NormalizedFrame {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+impl NormalizedFrame {
+    fn valid(&self) -> bool {
+        [self.x, self.y, self.width, self.height]
+            .iter()
+            .all(|n| n.is_finite())
+            && self.x >= 0.0
+            && self.y >= 0.0
+            && self.width > 0.0
+            && self.height > 0.0
+            && self.x + self.width <= 1.0 + 1e-9
+            && self.y + self.height <= 1.0 + 1e-9
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstagramFraming {
+    pub version: u32,
+    pub ratio: InstagramRatio,
+    pub geometry_signature: String,
+    pub frame: NormalizedFrame,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstagramExport {
+    pub ratio: InstagramRatio,
+    #[serde(default)]
+    pub frames_by_path: HashMap<String, InstagramFraming>,
+}
+
+pub fn geometry_signature(adjustments: &Value) -> String {
+    let mut geometry = serde_json::Map::new();
+    for key in [
+        "crop",
+        "orientationSteps",
+        "rotation",
+        "flipHorizontal",
+        "flipVertical",
+    ]
+    .into_iter()
+    .chain(
+        crate::cache_utils::GEOMETRY_KEYS
+            .iter()
+            .copied()
+            .filter(|key| !key.contains("Vignette") && !key.contains("Tca")),
+    ) {
+        geometry.insert(key.to_owned(), adjustments[key].clone());
+    }
+    format!(
+        "{:x}",
+        Sha256::digest(Value::Object(geometry).to_string().as_bytes())
+    )
+}
+
+fn source_adjustments(metadata: &Value, source: &std::path::Path) -> Value {
+    let mut adjustments = metadata["adjustments"].clone();
+    if adjustments.is_null() {
+        crate::raw_processing::apply_camera_crop_default_from_path(&mut adjustments, source);
+    }
+    adjustments
+}
+
+pub fn centered_frame(width: u32, height: u32, ratio: InstagramRatio) -> NormalizedFrame {
+    let (rw, rh) = ratio.dimensions();
+    let ratio = rw as f64 / rh as f64;
+    let image_ratio = width as f64 / height.max(1) as f64;
+    let (w, h) = if image_ratio > ratio {
+        (ratio / image_ratio, 1.0)
+    } else {
+        (1.0, image_ratio / ratio)
+    };
+    NormalizedFrame {
+        x: (1.0 - w) / 2.0,
+        y: (1.0 - h) / 2.0,
+        width: w,
+        height: h,
+    }
+}
+
+fn usable_frame(
+    framing: &InstagramFraming,
+    signature: &str,
+    ratio: InstagramRatio,
+    width: u32,
+    height: u32,
+) -> bool {
+    let (rw, rh) = ratio.dimensions();
+    framing.version == 1
+        && framing.ratio == ratio
+        && framing.geometry_signature == signature
+        && framing.frame.valid()
+        && ((framing.frame.width * width as f64) / (framing.frame.height * height as f64)
+            - rw as f64 / rh as f64)
+            .abs()
+            < 0.002
+}
+
+pub fn apply_instagram_crop(
+    image: DynamicImage,
+    framing: Option<&InstagramFraming>,
+    ratio: InstagramRatio,
+    signature: &str,
+) -> DynamicImage {
+    let (width, height) = image.dimensions();
+    let default = centered_frame(width, height, ratio);
+    let frame = framing
+        .filter(|f| usable_frame(f, signature, ratio, width, height))
+        .map_or(&default, |f| &f.frame);
+    let x = (frame.x * width as f64)
+        .round()
+        .clamp(0.0, (width - 1) as f64) as u32;
+    let y = (frame.y * height as f64)
+        .round()
+        .clamp(0.0, (height - 1) as f64) as u32;
+    let w = (frame.width * width as f64)
+        .round()
+        .clamp(1.0, (width - x) as f64) as u32;
+    let h = (frame.height * height as f64)
+        .round()
+        .clamp(1.0, (height - y) as f64) as u32;
+    image.crop_imm(x, y, w, h)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FramingPreview {
+    jpeg: String,
+    width: u32,
+    height: u32,
+    framing: InstagramFraming,
+}
+
+#[tauri::command]
+pub async fn get_instagram_framing_preview(
+    path: String,
+    ratio: InstagramRatio,
+    app_handle: tauri::AppHandle,
+) -> Result<FramingPreview, String> {
+    let (source, sidecar) = crate::file_management::parse_virtual_path(&path);
+    let metadata = crate::exif_processing::load_sidecar_with_camera_crop(&sidecar, &source);
+    let signature = geometry_signature(&metadata.adjustments);
+    let bytes =
+        crate::generate_preview_bytes_for_path(path, metadata.adjustments, 1280, app_handle)
+            .await?;
+    let image = image::load_from_memory(&bytes).map_err(|e| e.to_string())?;
+    let (width, height) = image.dimensions();
+    let saved = metadata
+        .export_framing
+        .and_then(|v| serde_json::from_value::<InstagramFraming>(v["instagram"].clone()).ok());
+    let framing = saved
+        .filter(|f| usable_frame(f, &signature, ratio, width, height))
+        .unwrap_or(InstagramFraming {
+            version: 1,
+            ratio,
+            geometry_signature: signature,
+            frame: centered_frame(width, height, ratio),
+        });
+    Ok(FramingPreview {
+        jpeg: base64::engine::general_purpose::STANDARD.encode(bytes),
+        width,
+        height,
+        framing,
+    })
+}
+
+#[tauri::command]
+pub fn save_instagram_framing(path: String, framing: InstagramFraming) -> Result<(), String> {
+    if framing.version != 1 || !framing.frame.valid() {
+        return Err("Invalid Instagram frame".into());
+    }
+    let (source, sidecar) = crate::file_management::parse_virtual_path(&path);
+    crate::file_management::update_export_framing(&sidecar, |metadata| {
+        if geometry_signature(&source_adjustments(metadata, &source)) != framing.geometry_signature
+        {
+            return Err("Photo geometry changed; reopen Instagram framing".into());
+        }
+        let mut export_framing = metadata["exportFraming"]
+            .as_object()
+            .cloned()
+            .unwrap_or_default();
+        export_framing.insert("instagram".into(), json!(framing));
+        Ok(Value::Object(export_framing))
+    })
+}

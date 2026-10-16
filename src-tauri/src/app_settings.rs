@@ -263,6 +263,8 @@ impl Default for CopyPasteSettings {
 #[serde(rename_all = "camelCase")]
 pub struct ExportPreset {
     #[serde(default)]
+    pub instagram_ratio: Option<crate::export_framing::InstagramRatio>,
+    #[serde(default)]
     pub dpi: Option<u16>,
     pub id: String,
     pub name: String,
@@ -320,6 +322,7 @@ pub struct ExportPreset {
 pub fn default_export_presets() -> Vec<ExportPreset> {
     vec![
         ExportPreset {
+            instagram_ratio: None,
             dpi: None,
             id: "default-hq".to_string(),
             name: "High Quality".to_string(),
@@ -357,6 +360,7 @@ pub fn default_export_presets() -> Vec<ExportPreset> {
             output_sharpening: None,
         },
         ExportPreset {
+            instagram_ratio: None,
             dpi: None,
             id: "default-fast".to_string(),
             name: "Fast (Web)".to_string(),
