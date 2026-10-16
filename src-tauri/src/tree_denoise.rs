@@ -45,7 +45,82 @@ pub const SHARPEN: Model = Model {
     file: "Deblur_deep_24.onnx",
     sha256: "4b714af59026352990f5cc1b84af5dc01cf4a66abd0b5f8d845b0c43d99511a7",
 };
-pub type Models = Vec<Arc<Mutex<Session>>>;
+#[derive(Clone)]
+pub struct ModelSession {
+    pub session: Arc<Mutex<Session>>,
+    pub profile: String,
+}
+pub type Models = Vec<ModelSession>;
+
+#[cfg(all(
+    feature = "native-openvino",
+    target_os = "linux",
+    target_arch = "x86_64"
+))]
+fn force_cpu_probe() -> bool {
+    #[cfg(test)]
+    {
+        std::env::var_os("RAPIDROOM_OPENVINO_TEST_CPU").is_some()
+    }
+    #[cfg(not(test))]
+    {
+        false
+    }
+}
+
+fn session_profile(provider: &str) -> String {
+    #[cfg(all(
+        feature = "native-openvino",
+        target_os = "linux",
+        target_arch = "x86_64"
+    ))]
+    let bundle = crate::openvino_runtime::fingerprint().unwrap_or("stock");
+    #[cfg(not(all(
+        feature = "native-openvino",
+        target_os = "linux",
+        target_arch = "x86_64"
+    )))]
+    let bundle = "stock";
+    format!("{provider}:{bundle}:{}", ort::info())
+}
+
+fn model_session(path: &Path) -> Result<ModelSession> {
+    #[cfg(all(
+        feature = "native-openvino",
+        target_os = "linux",
+        target_arch = "x86_64"
+    ))]
+    if crate::openvino_runtime::selected() && !force_cpu_probe() {
+        let accelerated = (|| {
+            Session::builder()?
+                .with_execution_providers([
+                    ort::execution_providers::OpenVINOExecutionProvider::default()
+                        .with_device_type("CPU")
+                        .with_num_threads(cpu_threads())
+                        .with_num_streams(1)
+                        .build()
+                        .error_on_failure(),
+                ])?
+                .with_intra_threads(cpu_threads())?
+                .commit_from_file(path)
+        })();
+        match accelerated {
+            Ok(session) => {
+                return Ok(ModelSession {
+                    session: Arc::new(Mutex::new(session)),
+                    profile: session_profile("OpenVINO CPU"),
+                });
+            }
+            Err(error) => {
+                log::warn!("OpenVINO model initialization failed; using ORT CPU: {error}")
+            }
+        }
+    }
+    Ok(ModelSession {
+        session: Arc::new(Mutex::new(cpu_session(path)?)),
+        profile: session_profile("CPU"),
+    })
+}
 
 fn cpu_threads() -> usize {
     std::thread::available_parallelism()
@@ -123,9 +198,8 @@ pub async fn models(
         job.check().map_err(anyhow::Error::msg)?;
         let _ = ort::init().with_name("AI-Raw-Denoise").commit();
         let path = dir.join(model.file);
-        let session = tokio::task::spawn_blocking(move || cpu_session(&path)).await??;
+        let session = tokio::task::spawn_blocking(move || model_session(&path)).await??;
         job.check().map_err(anyhow::Error::msg)?;
-        let session = Arc::new(Mutex::new(session));
         let mut ai = state.ai_state.lock().unwrap();
         ai.get_or_insert_with(crate::ai_processing::AiState::default)
             .tree_models
@@ -597,7 +671,7 @@ fn cached_sensor_at(
     let metadata = decoder.raw_metadata(&source, &RawDecodeParams::default())?;
     let a = area(&raw)?;
     let matrix = colour_matrix(&raw)?;
-    let identity = serde_json::json!({"pipeline":PIPELINE,"cpu_threads":cpu_threads(),"source":blake3::hash(bytes).to_hex().as_str(),"model":if fast {FAST.sha256} else {BEST.sha256},"sharpen":sharpen.then_some(SHARPEN.sha256),"shape":[raw.width,raw.height,a.x,a.y,a.w,a.h],"matrix":matrix.as_slice(),"black":raw.blacklevel.as_vec(),"white":raw.whitelevel.0});
+    let identity = serde_json::json!({"pipeline":PIPELINE,"providers":models.iter().map(|m|m.profile.as_str()).collect::<Vec<_>>(),"cpu_threads":cpu_threads(),"source":blake3::hash(bytes).to_hex().as_str(),"model":if fast {FAST.sha256} else {BEST.sha256},"sharpen":sharpen.then_some(SHARPEN.sha256),"shape":[raw.width,raw.height,a.x,a.y,a.w,a.h],"matrix":matrix.as_slice(),"black":raw.blacklevel.as_vec(),"white":raw.whitelevel.0});
     let key = blake3::hash(&serde_json::to_vec(&identity)?)
         .to_hex()
         .to_string();
@@ -631,7 +705,7 @@ fn cached_sensor_at(
             a.w,
             a.h,
             iso,
-            model,
+            &model.session,
             if i == 0 { "Denoising" } else { "Sharpening" },
             job,
         )?;
@@ -926,6 +1000,17 @@ mod tests {
     #[test]
     #[ignore = "Local real-RAW/model integration; set RAPIDROOM_TREE_RAW and RAPIDROOM_TREE_MODELS, under flock"]
     fn real_raw_chain_cache_smoke() {
+        #[cfg(all(
+            feature = "native-openvino",
+            target_os = "linux",
+            target_arch = "x86_64"
+        ))]
+        if let Some(resources) = std::env::var_os("RAPIDROOM_OPENVINO_RESOURCES") {
+            let core = crate::openvino_runtime::configure(Path::new(&resources))
+                .expect("verified runtime");
+            ort::init_from(core.to_string_lossy()).commit().unwrap();
+        }
+
         let source = std::env::var("RAPIDROOM_TREE_RAW").unwrap();
         let root = PathBuf::from(std::env::var("RAPIDROOM_TREE_MODELS").unwrap());
         let bytes = fs::read(source).unwrap();
@@ -943,7 +1028,7 @@ mod tests {
         }
         let models = wanted
             .into_iter()
-            .map(|m| Arc::new(Mutex::new(cpu_session(&root.join(m.file)).unwrap())))
+            .map(|m| model_session(&root.join(m.file)).unwrap())
             .collect();
         let job = DenoiseJob::testing();
         let started = std::time::Instant::now();
@@ -951,7 +1036,7 @@ mod tests {
         let inference_seconds = started.elapsed().as_secs_f64();
         let started = std::time::Instant::now();
         let before = fs::metadata(&path).unwrap().modified().unwrap();
-        let hit = cached_sensor_at(&bytes, cache.path(), fast, sharpen, &Vec::new(), &job).unwrap();
+        let hit = cached_sensor_at(&bytes, cache.path(), fast, sharpen, &models, &job).unwrap();
         assert_eq!(hit, path);
         assert_eq!(fs::metadata(&hit).unwrap().modified().unwrap(), before);
         let cache_seconds = started.elapsed().as_secs_f64();
@@ -989,7 +1074,13 @@ mod tests {
         assert_eq!(iso(&metadata), iso(&original_metadata));
         assert_eq!(metadata.make, original_metadata.make);
         assert_eq!(metadata.model, original_metadata.model);
-        assert_eq!(raw.orientation.to_u16(), original.orientation.to_u16());
+        assert_eq!(
+            raw.orientation.to_u16(),
+            original_metadata
+                .exif
+                .orientation
+                .unwrap_or(original.orientation.to_u16())
+        );
         assert_eq!((raw.width, raw.height), (original.width, original.height));
         assert_eq!(raw.active_area, original.active_area);
         assert_eq!(raw.crop_area, original.crop_area);
