@@ -48,12 +48,20 @@ def run_filter_chip_checks(smoke, wait_for):
         return smoke.execute("return [...document.images].map(e=>e.alt).filter(p=>p.startsWith('z-query-')).sort();")
 
     def capture(name):
-        request(smoke.url + '/execute/async', {'script': 'const done=arguments[arguments.length-1];requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(()=>done(true),100)));', 'args': []})
+        request(smoke.url + '/execute/async', {'script': 'const done=arguments[arguments.length-1];requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(()=>done(true),1000)));', 'args': []})
         path = smoke.capture(name)
-        smoke.snapshot(name)
+        snapshot = smoke.snapshot(name)
+        snapshot['search_geometry'] = smoke.execute("""const input=document.querySelector(arguments[0]);
+          const parents=[];for(let e=input?.parentElement;e&&parents.length<5;e=e.parentElement){
+            const r=e.getBoundingClientRect();parents.push({width:r.width,left:r.left,scrollLeft:e.scrollLeft,clientWidth:e.clientWidth,scrollWidth:e.scrollWidth});}
+          return {parents,chips:[...document.querySelectorAll('[data-filter-chip-edit]')].map(e=>{
+            const r=e.getBoundingClientRect();return {text:e.innerText,left:r.left,width:r.width};})};""", [input_selector])
+        (smoke.case / (name + '-geometry.json')).write_text(json.dumps(snapshot['search_geometry'], indent=2))
         return str(path.relative_to(smoke.case))
 
     wait_for(lambda: fixtures() == ['z-query-a.jpg', 'z-query-b.jpg', 'z-query-c.jpg'], 'owned filter fixtures loaded')
+    smoke.execute("document.querySelector('button[data-tooltip=\"Search or Filter\"]').click();return true;")
+    request(smoke.url + '/execute/async', {'script': 'const done=arguments[arguments.length-1];setTimeout(()=>done(true),1000);', 'args': []})
     type_text('iso:>3200'); key('Enter')
     wait_for(lambda: chips() == ['iso:>3200'] and fixtures() == ['z-query-a.jpg', 'z-query-b.jpg'], 'numeric ISO query filters real photos')
     edit(0)
