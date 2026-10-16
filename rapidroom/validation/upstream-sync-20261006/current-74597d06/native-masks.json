@@ -1,0 +1,19 @@
+{
+  "source": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+  "engine_sha256": "484cc824f616a171681cd76aa19799c8b5aa57a5b91d912e0f469bbe7c11dcf9",
+  "passed": true,
+  "passed_steps": [
+    "library thumbnail",
+    "native preview",
+    "edits change preview",
+    "Undo restores preview exactly",
+    "Compact enabled and persisted",
+    "GUI JPEG export",
+    "authenticated mask-tool discovery",
+    "actual-client single-mask add, local defaults, shared history and sidecar round-trip",
+    "clean exit and no frontend/native errors"
+  ],
+  "actual_client": true,
+  "physical_pointer_tested": false,
+  "inspection": "All19 actual captures inspected privately; full UI/path captures excluded from publication."
+}

@@ -1,0 +1,1652 @@
+{
+  "kind": "rapidraw-baseline-compare",
+  "created": "2026-10-09T23:00:44-10:00",
+  "profile": "exact",
+  "tolerances": {
+    "_why": "Same machine, same GPU driver. Measured: 60/60 renders bit-identical run to run, and 60/60 bit-identical between the daily build and stock 1.6.4. Any difference here is a real change.",
+    "max_abs": 0,
+    "mean_abs": 0,
+    "psnr_db_min": 1000,
+    "pct_over_threshold": 0,
+    "de00_mean": 0,
+    "de00_p99": 0
+  },
+  "pixel_threshold_codes": 257,
+  "de00_downsample_long_side": 1024,
+  "same_environment": true,
+  "reference_check": {
+    "matches_committed_reference": false,
+    "mismatched": [
+      "busy-agx-lut-effects/apple-iphone12pro-proraw",
+      "busy-agx-lut-effects/canon-r50-24mp-craw",
+      "busy-agx-lut-effects/canon-r6m2-24mp-raw",
+      "busy-agx-lut-effects/google-pixel7pro-dng",
+      "busy-agx-lut-effects/fuji-xh2-40mp-compressed",
+      "busy-agx-lut-effects/fuji-xt4-26mp-lossless",
+      "busy-agx-lut-effects/nikon-zf-24mp-compressed",
+      "busy-agx-lut-effects/nikon-zfc-21mp-lossless",
+      "busy-agx-lut-effects/om-om1-20mp",
+      "busy-agx-lut-effects/panasonic-s5m2-24mp",
+      "busy-agx-lut-effects/ricoh-griiix-24mp-dng",
+      "busy-agx-lut-effects/sony-a7c2-15mp-compressed",
+      "busy-agx-lut-effects/sony-a7c2-15mp-uncompressed",
+      "busy-agx-lut-effects/sony-a7c2-33mp-compressed",
+      "busy-agx-lut-effects/sony-a7c2-37mp-4x3",
+      "busy-agx-lut-effects/sony-a7c2-33mp-uncompressed",
+      "busy-agx-lut-effects/sony-a7cr-26mp-uncompressed",
+      "busy-tone-color-detail/apple-iphone12pro-proraw",
+      "busy-tone-color-detail/canon-r50-24mp-craw",
+      "busy-agx-lut-effects/sony-a7cr-61mp-compressed",
+      "busy-agx-lut-effects/sony-a7cr-65mp-lossless",
+      "busy-tone-color-detail/canon-r6m2-24mp-raw",
+      "busy-tone-color-detail/fuji-xt4-26mp-lossless",
+      "busy-tone-color-detail/fuji-xh2-40mp-compressed",
+      "busy-tone-color-detail/google-pixel7pro-dng",
+      "busy-tone-color-detail/nikon-zf-24mp-compressed",
+      "busy-tone-color-detail/nikon-zfc-21mp-lossless",
+      "busy-tone-color-detail/om-om1-20mp",
+      "busy-tone-color-detail/sony-a7c2-15mp-compressed",
+      "busy-tone-color-detail/panasonic-s5m2-24mp",
+      "busy-tone-color-detail/ricoh-griiix-24mp-dng",
+      "busy-tone-color-detail/sony-a7c2-15mp-uncompressed",
+      "busy-agx-lut-effects/sony-a7cr-18mp-lossless-s",
+      "busy-tone-color-detail/sony-a7c2-33mp-compressed",
+      "busy-tone-color-detail/sony-a7c2-33mp-uncompressed",
+      "busy-tone-color-detail/sony-a7c2-37mp-4x3",
+      "busy-tone-color-detail/sony-a7cr-26mp-uncompressed",
+      "busy-tone-color-detail/sony-a7cr-61mp-compressed",
+      "busy-tone-color-detail/sony-a7cr-65mp-lossless",
+      "busy-tone-color-detail/sony-a7cr-18mp-lossless-s"
+    ]
+  },
+  "n_compared": 60,
+  "n_missing": 0,
+  "n_failed": 2,
+  "n_identical": 58,
+  "worst": {
+    "max_abs": 14271,
+    "mean_abs": 2880.3256718197335,
+    "psnr_db_min": 24.7715515285216,
+    "pct_over_threshold": 99.6217700999898,
+    "de00_mean": 14.326404795335453,
+    "de00_p99": 28.09161185014076,
+    "de00_max": 35.05770219821
+  },
+  "pass": false,
+  "images": [
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "apple-iphone12pro-proraw",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        3024,
+        4032
+      ],
+      "test_size": [
+        3024,
+        4032
+      ],
+      "ref_pixel_sha256": "0d27519d070707821a9776f7554e4cd29a1764d3a9a77f90071c544d16ca00df",
+      "test_pixel_sha256": "0d27519d070707821a9776f7554e4cd29a1764d3a9a77f90071c544d16ca00df",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "canon-r50-24mp-craw",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "1a9941e91970deb4b0b71995d54ece04b52bf44b23a005d06a7ff184cfeb322e",
+      "test_pixel_sha256": "1a9941e91970deb4b0b71995d54ece04b52bf44b23a005d06a7ff184cfeb322e",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "canon-r6m2-24mp-raw",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "6f02c82a6d687dfd37776588bd8b50910c626b127c582ec492a1db7f27ff5c22",
+      "test_pixel_sha256": "6f02c82a6d687dfd37776588bd8b50910c626b127c582ec492a1db7f27ff5c22",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "fuji-xh2-40mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        5152,
+        7728
+      ],
+      "test_size": [
+        5152,
+        7728
+      ],
+      "ref_pixel_sha256": "b3c30145f9f72849ed60c6b55281b582ec88f8946f0e1d500472f3a4a872570d",
+      "test_pixel_sha256": "b3c30145f9f72849ed60c6b55281b582ec88f8946f0e1d500472f3a4a872570d",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "fuji-xt4-26mp-lossless",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6240,
+        4160
+      ],
+      "test_size": [
+        6240,
+        4160
+      ],
+      "ref_pixel_sha256": "17e9e40c34527d9ba7bb4a4e5bce8e67181a12826e0fe40a4c705bf8f3885b42",
+      "test_pixel_sha256": "17e9e40c34527d9ba7bb4a4e5bce8e67181a12826e0fe40a4c705bf8f3885b42",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "google-pixel7pro-dng",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        3866,
+        2908
+      ],
+      "test_size": [
+        3866,
+        2908
+      ],
+      "ref_pixel_sha256": "839a39d523a61afdc97a5b42c633c7f3048993e403c3fa83bb0914394f13211a",
+      "test_pixel_sha256": "839a39d523a61afdc97a5b42c633c7f3048993e403c3fa83bb0914394f13211a",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "nikon-zf-24mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6048,
+        4032
+      ],
+      "test_size": [
+        6048,
+        4032
+      ],
+      "ref_pixel_sha256": "e955e126a4b41b8300dbf1a64412f93a6c665e2933229f246828c8ee3289cca7",
+      "test_pixel_sha256": "e955e126a4b41b8300dbf1a64412f93a6c665e2933229f246828c8ee3289cca7",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "nikon-zfc-21mp-lossless",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        5568,
+        3712
+      ],
+      "test_size": [
+        5568,
+        3712
+      ],
+      "ref_pixel_sha256": "59a5feeb54a9d4f0db11bbc34baef958607e50bbe3b6fad5f1b7f76f01be112c",
+      "test_pixel_sha256": "59a5feeb54a9d4f0db11bbc34baef958607e50bbe3b6fad5f1b7f76f01be112c",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "om-om1-20mp",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        5184,
+        3888
+      ],
+      "test_size": [
+        5184,
+        3888
+      ],
+      "ref_pixel_sha256": "45d7cd174fd2437228b1e4a038858eb09107fe65e79cc5a826468ac942ba1545",
+      "test_pixel_sha256": "45d7cd174fd2437228b1e4a038858eb09107fe65e79cc5a826468ac942ba1545",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "panasonic-s5m2-24mp",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "9555951fbdaada64227de2dc4592c0011860524504204ba878d573b51e9d6daa",
+      "test_pixel_sha256": "9555951fbdaada64227de2dc4592c0011860524504204ba878d573b51e9d6daa",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "ricoh-griiix-24mp-dng",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "8aebb0211ab4b9eb0939a9eaff57143570fd6d4a96e81bf5e1753d750f164aaa",
+      "test_pixel_sha256": "8aebb0211ab4b9eb0939a9eaff57143570fd6d4a96e81bf5e1753d750f164aaa",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "sony-a7c2-15mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        4608,
+        3072
+      ],
+      "test_size": [
+        4608,
+        3072
+      ],
+      "ref_pixel_sha256": "76b03c2977d2b279c7472bb2421222523487c82df5ab3f3b7bb5c6fed84a4d93",
+      "test_pixel_sha256": "76b03c2977d2b279c7472bb2421222523487c82df5ab3f3b7bb5c6fed84a4d93",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "sony-a7c2-15mp-uncompressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        4608,
+        3072
+      ],
+      "test_size": [
+        4608,
+        3072
+      ],
+      "ref_pixel_sha256": "0a2c069a8d05ce21f018bf98d0267a6e81e56fbd4659050771ab1b5c98e41970",
+      "test_pixel_sha256": "0a2c069a8d05ce21f018bf98d0267a6e81e56fbd4659050771ab1b5c98e41970",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "sony-a7c2-33mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        7008,
+        4672
+      ],
+      "test_size": [
+        7008,
+        4672
+      ],
+      "ref_pixel_sha256": "05872c8cc53ed0416055e6c87a815d4a788cc0cbc2f6417a07141fa3def07850",
+      "test_pixel_sha256": "05872c8cc53ed0416055e6c87a815d4a788cc0cbc2f6417a07141fa3def07850",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "sony-a7c2-33mp-uncompressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        7008,
+        4672
+      ],
+      "test_size": [
+        7008,
+        4672
+      ],
+      "ref_pixel_sha256": "ab6cc9f85efda5e3deaf9237f6d13ca80b77e07f349f9b52f38a60004a80b6d8",
+      "test_pixel_sha256": "ab6cc9f85efda5e3deaf9237f6d13ca80b77e07f349f9b52f38a60004a80b6d8",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "sony-a7c2-37mp-4x3",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        7008,
+        4672
+      ],
+      "test_size": [
+        7008,
+        4672
+      ],
+      "ref_pixel_sha256": "cd0093143c081832ecb34eaf997cc7a7185306d02b42353b4188b6b75c509a9f",
+      "test_pixel_sha256": "cd0093143c081832ecb34eaf997cc7a7185306d02b42353b4188b6b75c509a9f",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "sony-a7cr-18mp-lossless-s",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        4752,
+        3168
+      ],
+      "test_size": [
+        4752,
+        3168
+      ],
+      "ref_pixel_sha256": "e69916b2ecf155bdde60763d6f0d6921f8895112f40a2e1a584cb2f19ccfa74e",
+      "test_pixel_sha256": "8d1792a9c2bee4159c9f70ae61f618922d4cffd924477f5cc152a771350852c6",
+      "identical": false,
+      "max_abs": 5792,
+      "mean_abs": 1838.3557126442952,
+      "psnr_db": 28.87331455319802,
+      "pct_over_threshold": 98.47634595109342,
+      "de00_mean": 8.299164711238507,
+      "de00_p99": 12.028407964091267,
+      "de00_max": 15.039297977383823,
+      "violations": [
+        "max_abs 5792 > 0",
+        "mean_abs 1838.356 > 0",
+        "PSNR 28.9 < 1000",
+        "pct>thr 98.4763% > 0%",
+        "dE00 mean 8.2992 > 0",
+        "dE00 p99 12.028 > 0"
+      ],
+      "pass": false
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "sony-a7cr-26mp-uncompressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6240,
+        4160
+      ],
+      "test_size": [
+        6240,
+        4160
+      ],
+      "ref_pixel_sha256": "e6ca6c284cece7c151083765b446af300cf1750aae9130fb47a9379b83d1ddf5",
+      "test_pixel_sha256": "e6ca6c284cece7c151083765b446af300cf1750aae9130fb47a9379b83d1ddf5",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "sony-a7cr-61mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        9504,
+        6336
+      ],
+      "test_size": [
+        9504,
+        6336
+      ],
+      "ref_pixel_sha256": "83a3dcd9ecd1b93c1726a2e145374bb9ece55278661b0705327e3bf364a87158",
+      "test_pixel_sha256": "83a3dcd9ecd1b93c1726a2e145374bb9ece55278661b0705327e3bf364a87158",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-agx-lut-effects",
+      "id": "sony-a7cr-65mp-lossless",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        9504,
+        6336
+      ],
+      "test_size": [
+        9504,
+        6336
+      ],
+      "ref_pixel_sha256": "b4da7f62b023a3a8f0a99e8932e48a90334d9dfafaa519e40b0aa0ae9cfdee50",
+      "test_pixel_sha256": "b4da7f62b023a3a8f0a99e8932e48a90334d9dfafaa519e40b0aa0ae9cfdee50",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "apple-iphone12pro-proraw",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        3024,
+        4032
+      ],
+      "test_size": [
+        3024,
+        4032
+      ],
+      "ref_pixel_sha256": "3f2e9b644c4633bb6697e6e5715fe89c3f8f84d7889d336f05424cb86046a99c",
+      "test_pixel_sha256": "3f2e9b644c4633bb6697e6e5715fe89c3f8f84d7889d336f05424cb86046a99c",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "canon-r50-24mp-craw",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "ff63cdb5e5d6089f11c20968eb82a031deae4f15953762398c37f11c6771635a",
+      "test_pixel_sha256": "ff63cdb5e5d6089f11c20968eb82a031deae4f15953762398c37f11c6771635a",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "canon-r6m2-24mp-raw",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "d76d42d8bef28edae33087ee698af1e8de80bd3778b7eeaf96f0660a52c87a7e",
+      "test_pixel_sha256": "d76d42d8bef28edae33087ee698af1e8de80bd3778b7eeaf96f0660a52c87a7e",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "fuji-xh2-40mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        5152,
+        7728
+      ],
+      "test_size": [
+        5152,
+        7728
+      ],
+      "ref_pixel_sha256": "e30ec2f9565b1bff5cf2391400406bebc9039a97e282e5d87d4e2058ac4fbfba",
+      "test_pixel_sha256": "e30ec2f9565b1bff5cf2391400406bebc9039a97e282e5d87d4e2058ac4fbfba",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "fuji-xt4-26mp-lossless",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6240,
+        4160
+      ],
+      "test_size": [
+        6240,
+        4160
+      ],
+      "ref_pixel_sha256": "7ca7844b281c3da5a1e84e302a8a1e767610c77d2301ebcdfdf793bb6337a7c4",
+      "test_pixel_sha256": "7ca7844b281c3da5a1e84e302a8a1e767610c77d2301ebcdfdf793bb6337a7c4",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "google-pixel7pro-dng",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        3866,
+        2908
+      ],
+      "test_size": [
+        3866,
+        2908
+      ],
+      "ref_pixel_sha256": "371f67b50a5b019727f8c187ff18928f05a9fcf388d311aaba74c1c57b9b59b1",
+      "test_pixel_sha256": "371f67b50a5b019727f8c187ff18928f05a9fcf388d311aaba74c1c57b9b59b1",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "nikon-zf-24mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6048,
+        4032
+      ],
+      "test_size": [
+        6048,
+        4032
+      ],
+      "ref_pixel_sha256": "d1c730b767cbd59f6d351e6421142cc10a8cf0c7e8f49fa678df4d2610e6c4e7",
+      "test_pixel_sha256": "d1c730b767cbd59f6d351e6421142cc10a8cf0c7e8f49fa678df4d2610e6c4e7",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "nikon-zfc-21mp-lossless",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        5568,
+        3712
+      ],
+      "test_size": [
+        5568,
+        3712
+      ],
+      "ref_pixel_sha256": "65fe7266d9a52fa6b6ba2bd13e7d7a3ff043615c854f6bb645d892939cc0f640",
+      "test_pixel_sha256": "65fe7266d9a52fa6b6ba2bd13e7d7a3ff043615c854f6bb645d892939cc0f640",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "om-om1-20mp",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        5184,
+        3888
+      ],
+      "test_size": [
+        5184,
+        3888
+      ],
+      "ref_pixel_sha256": "73c0edeb7b01b19f96ea3524f0b3d2507424c3282027a94f2493ee9f42f74074",
+      "test_pixel_sha256": "73c0edeb7b01b19f96ea3524f0b3d2507424c3282027a94f2493ee9f42f74074",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "panasonic-s5m2-24mp",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "0ce2a177fa2821ee11503517351488db1a950e626ec401d7376a88d9adbc07d7",
+      "test_pixel_sha256": "0ce2a177fa2821ee11503517351488db1a950e626ec401d7376a88d9adbc07d7",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "ricoh-griiix-24mp-dng",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "47f44ac79b4452fa82bb5e4448748779d8d8197d7466d6deadee005a589bbaf0",
+      "test_pixel_sha256": "47f44ac79b4452fa82bb5e4448748779d8d8197d7466d6deadee005a589bbaf0",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "sony-a7c2-15mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        4608,
+        3072
+      ],
+      "test_size": [
+        4608,
+        3072
+      ],
+      "ref_pixel_sha256": "e7a14303792669be2f9e3e93da1fb326e07fccde29ce8e15f82d23fa400e8369",
+      "test_pixel_sha256": "e7a14303792669be2f9e3e93da1fb326e07fccde29ce8e15f82d23fa400e8369",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "sony-a7c2-15mp-uncompressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        4608,
+        3072
+      ],
+      "test_size": [
+        4608,
+        3072
+      ],
+      "ref_pixel_sha256": "0e3ef8f04930d74b253389041b9604b13d60458995a54683ea72d41e94ef3522",
+      "test_pixel_sha256": "0e3ef8f04930d74b253389041b9604b13d60458995a54683ea72d41e94ef3522",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "sony-a7c2-33mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        7008,
+        4672
+      ],
+      "test_size": [
+        7008,
+        4672
+      ],
+      "ref_pixel_sha256": "b4f528a89092571c11a73e7e9bee60b18db0e30061e89b59bd54f22174c3b020",
+      "test_pixel_sha256": "b4f528a89092571c11a73e7e9bee60b18db0e30061e89b59bd54f22174c3b020",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "sony-a7c2-33mp-uncompressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        7008,
+        4672
+      ],
+      "test_size": [
+        7008,
+        4672
+      ],
+      "ref_pixel_sha256": "eddb2d611012c155e3a2abed084c294b7c7bd07a90ce8858693a26720b7dd7e0",
+      "test_pixel_sha256": "eddb2d611012c155e3a2abed084c294b7c7bd07a90ce8858693a26720b7dd7e0",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "sony-a7c2-37mp-4x3",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        7008,
+        4672
+      ],
+      "test_size": [
+        7008,
+        4672
+      ],
+      "ref_pixel_sha256": "85d95a44ae40e5824de9430d8f8980f35ed56bba719524ee4f6dfc824675df14",
+      "test_pixel_sha256": "85d95a44ae40e5824de9430d8f8980f35ed56bba719524ee4f6dfc824675df14",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "sony-a7cr-18mp-lossless-s",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        4752,
+        3168
+      ],
+      "test_size": [
+        4752,
+        3168
+      ],
+      "ref_pixel_sha256": "ba1659a728b8e9fa37776abc2b3ae3ce342c0036fb24a3f0918323de92622d60",
+      "test_pixel_sha256": "40f63a88455216f7732bb54965dbd94ba646a6da89db6253e0280128cc44a1cb",
+      "identical": false,
+      "max_abs": 14271,
+      "mean_abs": 2880.3256718197335,
+      "psnr_db": 24.7715515285216,
+      "pct_over_threshold": 99.6217700999898,
+      "de00_mean": 14.326404795335453,
+      "de00_p99": 28.09161185014076,
+      "de00_max": 35.05770219821,
+      "violations": [
+        "max_abs 14271 > 0",
+        "mean_abs 2880.326 > 0",
+        "PSNR 24.8 < 1000",
+        "pct>thr 99.6218% > 0%",
+        "dE00 mean 14.3264 > 0",
+        "dE00 p99 28.092 > 0"
+      ],
+      "pass": false
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "sony-a7cr-26mp-uncompressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6240,
+        4160
+      ],
+      "test_size": [
+        6240,
+        4160
+      ],
+      "ref_pixel_sha256": "fc6182d6b62604aedf1f6f3bb3b9589d31da3c3e6c12e102ed98470dce1b335c",
+      "test_pixel_sha256": "fc6182d6b62604aedf1f6f3bb3b9589d31da3c3e6c12e102ed98470dce1b335c",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "sony-a7cr-61mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        9504,
+        6336
+      ],
+      "test_size": [
+        9504,
+        6336
+      ],
+      "ref_pixel_sha256": "00bb2131ab5989558e479fc4762c8e777c71b6c9291f31b381b42903aff949dc",
+      "test_pixel_sha256": "00bb2131ab5989558e479fc4762c8e777c71b6c9291f31b381b42903aff949dc",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "busy-tone-color-detail",
+      "id": "sony-a7cr-65mp-lossless",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        9504,
+        6336
+      ],
+      "test_size": [
+        9504,
+        6336
+      ],
+      "ref_pixel_sha256": "e84497ae2e25dca1768ea96e14d34fca8e2cf0548f5446adce09f75dc5f97fe5",
+      "test_pixel_sha256": "e84497ae2e25dca1768ea96e14d34fca8e2cf0548f5446adce09f75dc5f97fe5",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "apple-iphone12pro-proraw",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        3024,
+        4032
+      ],
+      "test_size": [
+        3024,
+        4032
+      ],
+      "ref_pixel_sha256": "3aba7f16b7d7c54a8afe7567b78ede4cd2616dfe6530d24c5eabbe8dec575762",
+      "test_pixel_sha256": "3aba7f16b7d7c54a8afe7567b78ede4cd2616dfe6530d24c5eabbe8dec575762",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "canon-r50-24mp-craw",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "9cac0335dc200d635cc72493d5066682b80dd9c416805cb4cf07e1ab328992da",
+      "test_pixel_sha256": "9cac0335dc200d635cc72493d5066682b80dd9c416805cb4cf07e1ab328992da",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "canon-r6m2-24mp-raw",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "test_pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "fuji-xh2-40mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        5152,
+        7728
+      ],
+      "test_size": [
+        5152,
+        7728
+      ],
+      "ref_pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "test_pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "fuji-xt4-26mp-lossless",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6240,
+        4160
+      ],
+      "test_size": [
+        6240,
+        4160
+      ],
+      "ref_pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "test_pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "google-pixel7pro-dng",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        3866,
+        2908
+      ],
+      "test_size": [
+        3866,
+        2908
+      ],
+      "ref_pixel_sha256": "57b52ae6385ce1f15086b542e904c3dc24090514e364460841861908dd0def61",
+      "test_pixel_sha256": "57b52ae6385ce1f15086b542e904c3dc24090514e364460841861908dd0def61",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "nikon-zf-24mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6048,
+        4032
+      ],
+      "test_size": [
+        6048,
+        4032
+      ],
+      "ref_pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "test_pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "nikon-zfc-21mp-lossless",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        5568,
+        3712
+      ],
+      "test_size": [
+        5568,
+        3712
+      ],
+      "ref_pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "test_pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "om-om1-20mp",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        5184,
+        3888
+      ],
+      "test_size": [
+        5184,
+        3888
+      ],
+      "ref_pixel_sha256": "ba1de500310d45641789422f002738ff4a2d14b1ec54682656f1e0a36bb9c93c",
+      "test_pixel_sha256": "ba1de500310d45641789422f002738ff4a2d14b1ec54682656f1e0a36bb9c93c",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "panasonic-s5m2-24mp",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "fdd2af5c67eb87e201dbb52ee4db2b3d2e72dcede8a4b46ce9a8e3090282e62a",
+      "test_pixel_sha256": "fdd2af5c67eb87e201dbb52ee4db2b3d2e72dcede8a4b46ce9a8e3090282e62a",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "ricoh-griiix-24mp-dng",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6000,
+        4000
+      ],
+      "test_size": [
+        6000,
+        4000
+      ],
+      "ref_pixel_sha256": "eb4cf3cdbce65fb3e05ea5a0767529f0c405ffd58e13ae3d450bd67fe81e8b6b",
+      "test_pixel_sha256": "eb4cf3cdbce65fb3e05ea5a0767529f0c405ffd58e13ae3d450bd67fe81e8b6b",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "sony-a7c2-15mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        4608,
+        3072
+      ],
+      "test_size": [
+        4608,
+        3072
+      ],
+      "ref_pixel_sha256": "73226330bbef50a0c4ae4dc01d5a67d1a6b9797ac35cde3c19aced4c60befaf3",
+      "test_pixel_sha256": "73226330bbef50a0c4ae4dc01d5a67d1a6b9797ac35cde3c19aced4c60befaf3",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "sony-a7c2-15mp-uncompressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        4608,
+        3072
+      ],
+      "test_size": [
+        4608,
+        3072
+      ],
+      "ref_pixel_sha256": "fb4b99e2e742b2f7212a2e314151584d427eb82baa1fd141d31ec186c50c8ae7",
+      "test_pixel_sha256": "fb4b99e2e742b2f7212a2e314151584d427eb82baa1fd141d31ec186c50c8ae7",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "sony-a7c2-33mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        7008,
+        4672
+      ],
+      "test_size": [
+        7008,
+        4672
+      ],
+      "ref_pixel_sha256": "5617fa6a9aa773d42e5cd127215a60f9527dda346b1dc33a9cee1fc33d521824",
+      "test_pixel_sha256": "5617fa6a9aa773d42e5cd127215a60f9527dda346b1dc33a9cee1fc33d521824",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "sony-a7c2-33mp-uncompressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        7008,
+        4672
+      ],
+      "test_size": [
+        7008,
+        4672
+      ],
+      "ref_pixel_sha256": "db30f8e897c80a8ff7c7dd0cb5cf629aa982007e90947b067f7f544709590c2d",
+      "test_pixel_sha256": "db30f8e897c80a8ff7c7dd0cb5cf629aa982007e90947b067f7f544709590c2d",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "sony-a7c2-37mp-4x3",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        7008,
+        4672
+      ],
+      "test_size": [
+        7008,
+        4672
+      ],
+      "ref_pixel_sha256": "3098d29a48d22ca016a2eeb19d12cf18f3ebbeb7a497e501b485a2a1e6039f32",
+      "test_pixel_sha256": "3098d29a48d22ca016a2eeb19d12cf18f3ebbeb7a497e501b485a2a1e6039f32",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "sony-a7cr-18mp-lossless-s",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        4752,
+        3168
+      ],
+      "test_size": [
+        4752,
+        3168
+      ],
+      "ref_pixel_sha256": "d9170bf9b8693fb364674b2f619b8a720146d23011bf79563792fead6d56a270",
+      "test_pixel_sha256": "d9170bf9b8693fb364674b2f619b8a720146d23011bf79563792fead6d56a270",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "sony-a7cr-26mp-uncompressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        6240,
+        4160
+      ],
+      "test_size": [
+        6240,
+        4160
+      ],
+      "ref_pixel_sha256": "c95025ad694be3bd8ac5c046673c6ce2ac5776885e4e7733d1a29149bf0ed862",
+      "test_pixel_sha256": "c95025ad694be3bd8ac5c046673c6ce2ac5776885e4e7733d1a29149bf0ed862",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "sony-a7cr-61mp-compressed",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        9504,
+        6336
+      ],
+      "test_size": [
+        9504,
+        6336
+      ],
+      "ref_pixel_sha256": "1d46a837e7ed320b6c95120de015d9ba18853e57de53741af87ad2b90593cbe3",
+      "test_pixel_sha256": "1d46a837e7ed320b6c95120de015d9ba18853e57de53741af87ad2b90593cbe3",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    },
+    {
+      "set": "neutral",
+      "id": "sony-a7cr-65mp-lossless",
+      "ref_icc": "sRGB",
+      "test_icc": "sRGB",
+      "ref_size": [
+        9504,
+        6336
+      ],
+      "test_size": [
+        9504,
+        6336
+      ],
+      "ref_pixel_sha256": "2f363050d8bde49604efee9074068008c8e7a67ba669dc102e3680879be5c3fd",
+      "test_pixel_sha256": "2f363050d8bde49604efee9074068008c8e7a67ba669dc102e3680879be5c3fd",
+      "identical": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "psnr_db": null,
+      "pct_over_threshold": 0.0,
+      "de00_mean": 0.0,
+      "de00_p99": 0.0,
+      "de00_max": 0.0,
+      "violations": [],
+      "pass": true
+    }
+  ]
+}

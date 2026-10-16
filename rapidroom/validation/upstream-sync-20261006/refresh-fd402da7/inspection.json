@@ -1,0 +1,233 @@
+{
+  "application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "inspector": "Yojen / Codex visual agent",
+  "inspected_at": "2026-10-15T03:29:52.258742+00:00",
+  "josh_approval": false,
+  "public_panels": {
+    "native-fuji-xh2-40mp-compressed-100-percent.png": {
+      "sha256": "06df9eb9e38155ecff3768631786dfabfc31b917b3d7a59ae6f16fb17ad2e66b",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "eb0304e93499f5f7f849553a0a68bb9e737f17e80916e2a561a58f568992b992",
+        "eb0304e93499f5f7f849553a0a68bb9e737f17e80916e2a561a58f568992b992"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "fuji-xh2-40mp-compressed",
+      "right_capture_step": "settled 100 percent native preview capture"
+    },
+    "native-fuji-xh2-40mp-compressed-reset.png": {
+      "sha256": "5a9b69159739824e440c07bf40e6df56d1d8a5562b67e35d175c421e7e7ae992",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "93c706d6578c40e187df147da0d4a3563ab56ff344a349db3a424345e653a044",
+        "5fefdde87bcd986bc0b3df99d10e0b5e57cac205f731c4c3ee8f3e6a0aa71b4f"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "native-preview-fuji-xh2-40mp-compressed",
+      "right_capture_step": "repeated reset restores full preview exactly"
+    },
+    "native-fuji-xt4-26mp-lossless-100-percent.png": {
+      "sha256": "78f292f79e35b4e7df86eab1ab50e12de8e341dd0eb4994641bafe34f2beb901",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "6a5f0c2baa348582260b904d1dcda0f6e266d9823afff5d4d53c4602e898d895",
+        "6a5f0c2baa348582260b904d1dcda0f6e266d9823afff5d4d53c4602e898d895"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "fuji-xt4-26mp-lossless",
+      "right_capture_step": "settled 100 percent native preview capture"
+    },
+    "native-fuji-xt4-26mp-lossless-reset.png": {
+      "sha256": "372da369c8d6b02fb7fd863053c7470224200611e1a9fc9a123340f29cdc1675",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "823af15bf236a1e6db45efe38fe3fc53847854ac87f987bbb71a88f11b638b78",
+        "79248c3628b8bbf580e61077c07dfbeb126ebd21b729b4872842fe213b222244"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "native-preview-fuji-xt4-26mp-lossless",
+      "right_capture_step": "repeated reset restores full preview exactly"
+    },
+    "native-sony-a7c2-15mp-uncompressed-100-percent.png": {
+      "sha256": "619d481b422f3cfc5de72823ef4ce41433ac88a2a86b106c9625582cdb7f6680",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "46317fe6d354579b878144dd5911fae9d39216453e22919e3ce1653fcb3ef303",
+        "46317fe6d354579b878144dd5911fae9d39216453e22919e3ce1653fcb3ef303"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "sony-a7c2-15mp-uncompressed",
+      "right_capture_step": "settled 100 percent native preview capture"
+    },
+    "native-sony-a7c2-15mp-uncompressed-reset.png": {
+      "sha256": "eb774c8f25449069be91444b8af052c04ded3796207ba1747661b384e683f1a7",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "c2cf0f4947292e8e2f9a3c3fefdff687a4a15ae38995cacf0964de278a971a2d",
+        "c2cf0f4947292e8e2f9a3c3fefdff687a4a15ae38995cacf0964de278a971a2d"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "native-preview-sony-a7c2-15mp-uncompressed",
+      "right_capture_step": "repeated reset restores full preview exactly"
+    },
+    "native-mcp-masks-and-undo.png": {
+      "sha256": "fe07999600ad4713e89a3af084a6e1cfaa39b29efb2a3a6c4ec0802ce8a85435",
+      "kind": "Actual native CC0 photo ROI only",
+      "capture_sha256": [
+        "f5589932d5d499bbd406efd67a2023e72204c48cf29a429c913a75b90cf11939",
+        "11867402fbc534a565b224fda4071847d00fdd7e7eb904bed6856f360e1be85a",
+        "633ec7e81db51239e88a0b0172e294dd184902225ffb92acf815b94a110d09f8"
+      ],
+      "application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b"
+    }
+  },
+  "public_panel_count": 7,
+  "successful_native_capture_count": 115,
+  "native_capture_inventory": {
+    "native-masks": {
+      "captures/compact-0/wayland-screenshot-2026-10-14_17-09-00.png": "7a162c4867977c1f5a8ca9c3e022839d7ec581f1aa757a0b7c3c5ddf17c43f07",
+      "captures/compact-1/wayland-screenshot-2026-10-14_17-09-01.png": "7a162c4867977c1f5a8ca9c3e022839d7ec581f1aa757a0b7c3c5ddf17c43f07",
+      "captures/edited-0/wayland-screenshot-2026-10-14_17-08-55.png": "6050a5911089ab1b2cad8dd05b6c77f91de8f40f3f97d25fabcee6353f9112ba",
+      "captures/edited-1/wayland-screenshot-2026-10-14_17-08-56.png": "96f332f74dfbf9dbd1182b85be7ae6bac54e4af135c0f3398623ff20b5c58de4",
+      "captures/export-done/wayland-screenshot-2026-10-14_17-09-03.png": "ba6d0c3e20346faac83cc5c35713d16a28563ac63f1dfd6556273454fc3c19d7",
+      "captures/export-ready/wayland-screenshot-2026-10-14_17-09-01.png": "92b8d312b872abdd8f5d1b7002c36c210265c41e0300a7d5fae31713749fca3f",
+      "captures/first-mask-0/wayland-screenshot-2026-10-14_17-09-04.png": "ffd46f3e395e0393b0944dde753816dcc708bddc15f29bc7dd254add991bd82f",
+      "captures/first-mask-1/wayland-screenshot-2026-10-14_17-09-05.png": "f5589932d5d499bbd406efd67a2023e72204c48cf29a429c913a75b90cf11939",
+      "captures/library/wayland-screenshot-2026-10-14_17-08-48.png": "15af4ffb871a90c8236ca7debbdffd342abc2573c765c5883d65960550c1879a",
+      "captures/mask-undo-0/wayland-screenshot-2026-10-14_17-09-31.png": "8c4d722172f0d0e81d6b3e189474bab1abf0e7ecb902e0eae24de1aaa37feb20",
+      "captures/mask-undo-1/wayland-screenshot-2026-10-14_17-09-32.png": "633ec7e81db51239e88a0b0172e294dd184902225ffb92acf815b94a110d09f8",
+      "captures/preview-0/wayland-screenshot-2026-10-14_17-08-53.png": "d4b8174a8347380c3d2a25313f92c19a11322913f8af449ab578042799e282b3",
+      "captures/preview-1/wayland-screenshot-2026-10-14_17-08-54.png": "5f097872b925fffab7275bc3d9f1da083ddb40ef911621be855745744c31a075",
+      "captures/restored-0/wayland-screenshot-2026-10-14_17-08-58.png": "a43df0271c2d6edf6fc0fc47c620bc548bdf0bcb2e60ebd062e2dc99404f27f4",
+      "captures/restored-1/wayland-screenshot-2026-10-14_17-08-59.png": "a43df0271c2d6edf6fc0fc47c620bc548bdf0bcb2e60ebd062e2dc99404f27f4",
+      "captures/settings-compact/wayland-screenshot-2026-10-14_17-08-59.png": "7a66f85bc103e51f8ee3da55771f14e51f6358d6769633e8c452473113840b70",
+      "captures/single-mask-policy/wayland-screenshot-2026-10-14_17-10-08.png": "c84ccaaa7978fbbb2744a395d4f38ec44be6a04d93ff9d501112a1393e6be32e",
+      "captures/two-masks-0/wayland-screenshot-2026-10-14_17-09-29.png": "11867402fbc534a565b224fda4071847d00fdd7e7eb904bed6856f360e1be85a",
+      "captures/two-masks-1/wayland-screenshot-2026-10-14_17-09-30.png": "11867402fbc534a565b224fda4071847d00fdd7e7eb904bed6856f360e1be85a"
+    },
+    "native-preview-fuji-xh2-40mp-compressed": {
+      "captures/compact-0/wayland-screenshot-2026-10-14_17-10-56.png": "47086daf28729fcfb1c641c41974d028c7025b617be393398c92d854a5d1e874",
+      "captures/compact-1/wayland-screenshot-2026-10-14_17-10-57.png": "47086daf28729fcfb1c641c41974d028c7025b617be393398c92d854a5d1e874",
+      "captures/edited-0/wayland-screenshot-2026-10-14_17-10-51.png": "c402ba58cfb1cacb5bbe118bcda10496fab40b7c7ba11613f028724f584bf456",
+      "captures/edited-1/wayland-screenshot-2026-10-14_17-10-52.png": "5c9a7ab2e99c87ce03d9a2b3544c2caf2bb7a834f75ae26ca055be22bf7e8cc1",
+      "captures/export-done/wayland-screenshot-2026-10-14_17-11-00.png": "733dc25f2c0c11a9cf5793d0a59ebded2b3474d7be229c2edc012a10ecf78617",
+      "captures/export-ready/wayland-screenshot-2026-10-14_17-10-57.png": "560d4cc63bd3a970c837fe8400453c437df17372b31aab1113e59bade5b64ef4",
+      "captures/library/wayland-screenshot-2026-10-14_17-10-12.png": "32876dd7e66c7b08c70bacdc08216fd782a55bc3a72c6415de39ceb5e8de0794",
+      "captures/post-zoom-fit-0/wayland-screenshot-2026-10-14_17-10-49.png": "857ce07c982d94f2fcc96a33d3e7e78f4e6deb345ba7be72e5171d1291a282fd",
+      "captures/post-zoom-fit-1/wayland-screenshot-2026-10-14_17-10-50.png": "857ce07c982d94f2fcc96a33d3e7e78f4e6deb345ba7be72e5171d1291a282fd",
+      "captures/preview-0/wayland-screenshot-2026-10-14_17-10-21.png": "5fefdde87bcd986bc0b3df99d10e0b5e57cac205f731c4c3ee8f3e6a0aa71b4f",
+      "captures/preview-1/wayland-screenshot-2026-10-14_17-10-22.png": "5fefdde87bcd986bc0b3df99d10e0b5e57cac205f731c4c3ee8f3e6a0aa71b4f",
+      "captures/raf-or-sony-100-percent-0/wayland-screenshot-2026-10-14_17-10-35.png": "75b6d97dbcea67a6870e65483b96b4ff75d6b7639373daa5e7cfea7d9007d1af",
+      "captures/raf-or-sony-100-percent-1/wayland-screenshot-2026-10-14_17-10-36.png": "75b6d97dbcea67a6870e65483b96b4ff75d6b7639373daa5e7cfea7d9007d1af",
+      "captures/repeat-exposure-0-0/wayland-screenshot-2026-10-14_17-10-24.png": "70e5a4005a99383e1dd9cd66f46af7eeb30b1baaa5e43bedd34451441d75224a",
+      "captures/repeat-exposure-0-1/wayland-screenshot-2026-10-14_17-10-25.png": "231d59b6e151aad4ac3a3a78ff23e0f9766db3b1046f204740e2514ba43581fa",
+      "captures/repeat-exposure-1-0/wayland-screenshot-2026-10-14_17-10-26.png": "6bb8d950bf363fb0ffd9bbdd302cab052a198011976a4e857e44645730b8617e",
+      "captures/repeat-exposure-1-1/wayland-screenshot-2026-10-14_17-10-27.png": "ee3b4632d8d91ab2a818630ada5b25dfe8606bc43f2893149b937208b6d29a1e",
+      "captures/repeat-exposure-2-0/wayland-screenshot-2026-10-14_17-10-28.png": "a7267160856ffa6d04a853c44730b4e23a07542dae19cbf78377a69a0c8067f9",
+      "captures/repeat-exposure-2-1/wayland-screenshot-2026-10-14_17-10-29.png": "c05bbc4a4c82f20fc4457213786db00c1d4337202c32b5d523b2da0f5da41ac4",
+      "captures/repeat-exposure-3-0/wayland-screenshot-2026-10-14_17-10-30.png": "ae6937145031aa5d635ecfd09ccd86e1f19c12789412d9ff3955c716187add91",
+      "captures/repeat-exposure-3-1/wayland-screenshot-2026-10-14_17-10-31.png": "b3d3acd4eda0c1c27bd9b413347047be4bc9b5c7f39a8341e766fd48a7c4fb2b",
+      "captures/repeat-reset-0/wayland-screenshot-2026-10-14_17-10-33.png": "5fefdde87bcd986bc0b3df99d10e0b5e57cac205f731c4c3ee8f3e6a0aa71b4f",
+      "captures/repeat-reset-1/wayland-screenshot-2026-10-14_17-10-33.png": "5fefdde87bcd986bc0b3df99d10e0b5e57cac205f731c4c3ee8f3e6a0aa71b4f",
+      "captures/restored-0/wayland-screenshot-2026-10-14_17-10-54.png": "a57c073db72c44c80b05538392acd30ef600339f43ba69290a9bea19114361b5",
+      "captures/restored-1/wayland-screenshot-2026-10-14_17-10-54.png": "a57c073db72c44c80b05538392acd30ef600339f43ba69290a9bea19114361b5",
+      "captures/settings-compact/wayland-screenshot-2026-10-14_17-10-55.png": "bc43254bac11443d21449e8710dfb36264889e8aa2f7bce875a91b64e89c2d71"
+    },
+    "native-preview-fuji-xt4-26mp-lossless": {
+      "captures/compact-0/wayland-screenshot-2026-10-14_17-15-00.png": "4dcf452b9ccce3a48cfcc886c266f43b9de1dc0f81f5f1f3aa46ab944a308e95",
+      "captures/compact-1/wayland-screenshot-2026-10-14_17-15-01.png": "4dcf452b9ccce3a48cfcc886c266f43b9de1dc0f81f5f1f3aa46ab944a308e95",
+      "captures/edited-0/wayland-screenshot-2026-10-14_17-14-55.png": "bf91b12469bfb93d25fefecc0e7948bde49af0b58052ccbfa9075b30347a1df5",
+      "captures/edited-1/wayland-screenshot-2026-10-14_17-14-56.png": "68e1b7755fb3fe7ce7b54eea63102732fea27e53e46fd24e506ea3f3a7da1e6a",
+      "captures/export-done/wayland-screenshot-2026-10-14_17-15-03.png": "05e3a6d8064da95119a4fad28b54250e63d8b4010c35cb821b3ee6cf27aa00de",
+      "captures/export-ready/wayland-screenshot-2026-10-14_17-15-01.png": "b7963a5afe8b754ed716d199bd83dcee15b5aeda520b21c4b3f3aac71f055928",
+      "captures/library/wayland-screenshot-2026-10-14_17-14-14.png": "3fd671d17673ca0e20d6650e0cea5932e4f4d83b24aac44ef2fb420daef6a43b",
+      "captures/post-zoom-fit-0/wayland-screenshot-2026-10-14_17-14-52.png": "67c2e6566926d50b3aa65453f1efcae846d319cd225062d28dc660cc5ff856c2",
+      "captures/post-zoom-fit-1/wayland-screenshot-2026-10-14_17-14-53.png": "67c2e6566926d50b3aa65453f1efcae846d319cd225062d28dc660cc5ff856c2",
+      "captures/preview-0/wayland-screenshot-2026-10-14_17-14-22.png": "79248c3628b8bbf580e61077c07dfbeb126ebd21b729b4872842fe213b222244",
+      "captures/preview-1/wayland-screenshot-2026-10-14_17-14-23.png": "79248c3628b8bbf580e61077c07dfbeb126ebd21b729b4872842fe213b222244",
+      "captures/raf-or-sony-100-percent-0/wayland-screenshot-2026-10-14_17-14-36.png": "0baafc7add8c67a87e639ef8044f17e0e662003cf776b3640c7a9bb60a1e7f3c",
+      "captures/raf-or-sony-100-percent-1/wayland-screenshot-2026-10-14_17-14-37.png": "184a41aaa0d19685296a9365b04ae5cfe26c0706ed252236fe7af649627e207d",
+      "captures/raf-or-sony-100-percent-2/wayland-screenshot-2026-10-14_17-14-38.png": "6a5f0c2baa348582260b904d1dcda0f6e266d9823afff5d4d53c4602e898d895",
+      "captures/raf-or-sony-100-percent-3/wayland-screenshot-2026-10-14_17-14-39.png": "6a5f0c2baa348582260b904d1dcda0f6e266d9823afff5d4d53c4602e898d895",
+      "captures/repeat-exposure-0-0/wayland-screenshot-2026-10-14_17-14-24.png": "18b87708b50d268c4fc790edf2bd614df70f9018de01b81fee69e9b9f8826c6c",
+      "captures/repeat-exposure-0-1/wayland-screenshot-2026-10-14_17-14-25.png": "6cef1e39e1cfdf211ded5253f89a62812629079366449c8f2c45099212a4af64",
+      "captures/repeat-exposure-1-0/wayland-screenshot-2026-10-14_17-14-27.png": "2738632d8c6d838b38125d42477b70d7fbe1afed7dee75ae8eae383e9e384133",
+      "captures/repeat-exposure-1-1/wayland-screenshot-2026-10-14_17-14-28.png": "8c5c2c16ae8b37d4c3f1759307597efc7ce0ee9f333f3d12e1caff4075dde589",
+      "captures/repeat-exposure-2-0/wayland-screenshot-2026-10-14_17-14-29.png": "9f70fc05e97b448f6d6fbb8b6feb01e5887bcfcf832f44e2e4c63ae5fa206ccc",
+      "captures/repeat-exposure-2-1/wayland-screenshot-2026-10-14_17-14-30.png": "250ce249f8482e875c775237ab5c501e10cb999f8cd804efca7602f4da8ded24",
+      "captures/repeat-exposure-3-0/wayland-screenshot-2026-10-14_17-14-31.png": "e608615f9d4a3deadbebecafb355e884cbd90f1fad67c426ad691b70bfd37cb2",
+      "captures/repeat-exposure-3-1/wayland-screenshot-2026-10-14_17-14-32.png": "71641b756073670bd3a8a1773d7022513d1ea90b39099ee6946ddbc23997a05d",
+      "captures/repeat-reset-0/wayland-screenshot-2026-10-14_17-14-33.png": "79248c3628b8bbf580e61077c07dfbeb126ebd21b729b4872842fe213b222244",
+      "captures/repeat-reset-1/wayland-screenshot-2026-10-14_17-14-34.png": "79248c3628b8bbf580e61077c07dfbeb126ebd21b729b4872842fe213b222244",
+      "captures/restored-0/wayland-screenshot-2026-10-14_17-14-57.png": "dcf63ce2fa4fb200ce3e10854e3b571051cd7471683c4da5098d3823973e0789",
+      "captures/restored-1/wayland-screenshot-2026-10-14_17-14-58.png": "dcf63ce2fa4fb200ce3e10854e3b571051cd7471683c4da5098d3823973e0789",
+      "captures/settings-compact/wayland-screenshot-2026-10-14_17-14-59.png": "510285c0e7a690ade13a0bc34b317471a9f92d9b9b9791f2cc211695a7df8814"
+    },
+    "native-preview-sony-a7c2-15mp-uncompressed": {
+      "captures/compact-0/wayland-screenshot-2026-10-14_17-15-48.png": "0d60ec4650a9ce46e0f661c8c16ebf41f81e0c242b52241c4cb8a74ec6842e16",
+      "captures/compact-1/wayland-screenshot-2026-10-14_17-15-49.png": "0d60ec4650a9ce46e0f661c8c16ebf41f81e0c242b52241c4cb8a74ec6842e16",
+      "captures/edited-0/wayland-screenshot-2026-10-14_17-15-43.png": "eeaa97e5b05a387e1ee0548b1da26a087b8774dfd78e02bbc403de329913c3ac",
+      "captures/edited-1/wayland-screenshot-2026-10-14_17-15-44.png": "6b42a1b4052b34ba12a4b2f623ef63fd5d93108f6e496b870f2c400da19cd356",
+      "captures/export-done/wayland-screenshot-2026-10-14_17-15-50.png": "90481d681286eba686a2c45f3cb262c1365a629b56909b67793afe4acea2d1d7",
+      "captures/export-ready/wayland-screenshot-2026-10-14_17-15-49.png": "0500f79dab481eed25b49d469544b5144da34388cea6e7d78823d8acd2817185",
+      "captures/library/wayland-screenshot-2026-10-14_17-15-07.png": "c7037863e5f8ce2e54c9431b1f86dcc6e076318064a65037490a396cd02ca18c",
+      "captures/post-zoom-fit-0/wayland-screenshot-2026-10-14_17-15-41.png": "4e0f56a7832d8b4cece5def95f8db8abd387cd6e4b304317692496bbd52ae47d",
+      "captures/post-zoom-fit-1/wayland-screenshot-2026-10-14_17-15-42.png": "4e0f56a7832d8b4cece5def95f8db8abd387cd6e4b304317692496bbd52ae47d",
+      "captures/preview-0/wayland-screenshot-2026-10-14_17-15-13.png": "c2cf0f4947292e8e2f9a3c3fefdff687a4a15ae38995cacf0964de278a971a2d",
+      "captures/preview-1/wayland-screenshot-2026-10-14_17-15-14.png": "c2cf0f4947292e8e2f9a3c3fefdff687a4a15ae38995cacf0964de278a971a2d",
+      "captures/raf-or-sony-100-percent-0/wayland-screenshot-2026-10-14_17-15-26.png": "31d931ab30f8125d5cf4c98c17065c91789a8c940155730e699b3fcb176791cf",
+      "captures/raf-or-sony-100-percent-1/wayland-screenshot-2026-10-14_17-15-27.png": "46317fe6d354579b878144dd5911fae9d39216453e22919e3ce1653fcb3ef303",
+      "captures/raf-or-sony-100-percent-2/wayland-screenshot-2026-10-14_17-15-28.png": "46317fe6d354579b878144dd5911fae9d39216453e22919e3ce1653fcb3ef303",
+      "captures/repeat-exposure-0-0/wayland-screenshot-2026-10-14_17-15-15.png": "7a926fe219fb6ec72e3bd0017ed6beebc43eeb8188b2ffc1ba4d09cb85437d0b",
+      "captures/repeat-exposure-0-1/wayland-screenshot-2026-10-14_17-15-16.png": "e030104ac80ea35a47f96b0dc4d73c5929d2728b4fd39942e8c2f8b2347ee061",
+      "captures/repeat-exposure-1-0/wayland-screenshot-2026-10-14_17-15-17.png": "3f49d1e8a1c4625d621babbfa10044b356c4ce275eba17d3816fafc066299c6e",
+      "captures/repeat-exposure-1-1/wayland-screenshot-2026-10-14_17-15-18.png": "7fd973db41afc84955257565862834d04286678b7c4243dd1c7267726f62cf7e",
+      "captures/repeat-exposure-2-0/wayland-screenshot-2026-10-14_17-15-20.png": "879ee30160849c8e86530b8fd787f2df1693df8d8ba6ef224d9dee209977b69b",
+      "captures/repeat-exposure-2-1/wayland-screenshot-2026-10-14_17-15-20.png": "03bb1f49ce3f9aace73ee6ff87ebb8ea390faee0827b75e4e82df61741b74d75",
+      "captures/repeat-exposure-3-0/wayland-screenshot-2026-10-14_17-15-21.png": "0737b1139998df74dba47c0a673ee3c72c94e7a00fb34e02b4c2291f0535eb9f",
+      "captures/repeat-exposure-3-1/wayland-screenshot-2026-10-14_17-15-22.png": "4616e67e0b2de31b887cf5931d7acdd916cd50bd651f483bad82a956bbe3079b",
+      "captures/repeat-reset-0/wayland-screenshot-2026-10-14_17-15-24.png": "c2cf0f4947292e8e2f9a3c3fefdff687a4a15ae38995cacf0964de278a971a2d",
+      "captures/repeat-reset-1/wayland-screenshot-2026-10-14_17-15-25.png": "c2cf0f4947292e8e2f9a3c3fefdff687a4a15ae38995cacf0964de278a971a2d",
+      "captures/restored-0/wayland-screenshot-2026-10-14_17-15-46.png": "d106cb3f4660dc28b2ffa2da889e8f1833f23aa338d1da87747b62571bdbc342",
+      "captures/restored-1/wayland-screenshot-2026-10-14_17-15-47.png": "d106cb3f4660dc28b2ffa2da889e8f1833f23aa338d1da87747b62571bdbc342",
+      "captures/settings-compact/wayland-screenshot-2026-10-14_17-15-47.png": "84f8930c4f7b98f78aae3b5f09f1eb29e52cb8c9c67622a40d7e370956e196d5"
+    }
+  },
+  "supplemental_capture_inventory": {
+    "fuji-xh2-40mp-compressed": {
+      "captures/library/wayland-screenshot-2026-10-14_17-25-52.png": "5ae8e6014b023125d27d0473c8c515e7b7ada7f12c24a1705cb20320da23c734",
+      "captures/preview-0/wayland-screenshot-2026-10-14_17-26-02.png": "5fefdde87bcd986bc0b3df99d10e0b5e57cac205f731c4c3ee8f3e6a0aa71b4f",
+      "captures/preview-1/wayland-screenshot-2026-10-14_17-26-03.png": "5fefdde87bcd986bc0b3df99d10e0b5e57cac205f731c4c3ee8f3e6a0aa71b4f",
+      "captures/settled-fullsize-100-percent-0/wayland-screenshot-2026-10-14_17-26-06.png": "eb0304e93499f5f7f849553a0a68bb9e737f17e80916e2a561a58f568992b992",
+      "captures/settled-fullsize-100-percent-1/wayland-screenshot-2026-10-14_17-26-07.png": "eb0304e93499f5f7f849553a0a68bb9e737f17e80916e2a561a58f568992b992"
+    },
+    "fuji-xt4-26mp-lossless": {
+      "captures/library/wayland-screenshot-2026-10-14_17-26-10.png": "af1c98fcae817e9c9c5fbd8f4aa4dffd17f102bc1419b22a2cea30b8a76602af",
+      "captures/preview-0/wayland-screenshot-2026-10-14_17-26-18.png": "823af15bf236a1e6db45efe38fe3fc53847854ac87f987bbb71a88f11b638b78",
+      "captures/preview-1/wayland-screenshot-2026-10-14_17-26-19.png": "823af15bf236a1e6db45efe38fe3fc53847854ac87f987bbb71a88f11b638b78",
+      "captures/settled-fullsize-100-percent-0/wayland-screenshot-2026-10-14_17-26-22.png": "6a5f0c2baa348582260b904d1dcda0f6e266d9823afff5d4d53c4602e898d895",
+      "captures/settled-fullsize-100-percent-1/wayland-screenshot-2026-10-14_17-26-23.png": "6a5f0c2baa348582260b904d1dcda0f6e266d9823afff5d4d53c4602e898d895"
+    },
+    "sony-a7c2-15mp-uncompressed": {
+      "captures/library/wayland-screenshot-2026-10-14_17-26-27.png": "92cdb9e9506e54d85150d9a913f36e98ff56bac408465a8b9d557ab3004f8f19",
+      "captures/preview-0/wayland-screenshot-2026-10-14_17-26-36.png": "c7c02aacd4b67a081a9ba78390ddb64b417d01df4f8aadec41f8dc9a72de01cb",
+      "captures/preview-1/wayland-screenshot-2026-10-14_17-26-37.png": "c7c02aacd4b67a081a9ba78390ddb64b417d01df4f8aadec41f8dc9a72de01cb",
+      "captures/settled-fullsize-100-percent-0/wayland-screenshot-2026-10-14_17-26-39.png": "46317fe6d354579b878144dd5911fae9d39216453e22919e3ce1653fcb3ef303",
+      "captures/settled-fullsize-100-percent-1/wayland-screenshot-2026-10-14_17-26-40.png": "46317fe6d354579b878144dd5911fae9d39216453e22919e3ce1653fcb3ef303"
+    }
+  },
+  "method": "All100 original successful captures inspected in8 private contact sheets; all15 supplemental successful captures in3 private contact sheets; all7 final panels individually viewed full-size. Private originals retained, only metadata-free photoROI panels published. Earlier failed harness output retained privately and is not counted as successful gate evidence.",
+  "observations": [
+    "Three settled100 native photoROIs pixel-exact to dcff; XH2 coarse intermediate frame diagnosed as screenshot/decode ordering race",
+    "Four repeatedExposure edits update fullpreview andhistogram; exactreset/Undo and full-sizeexport passed",
+    "Masks render visibly, second mask changes preview, GUIUndo restores first-mask image",
+    "Reset panels match visible scene framing/brightness/colour; no additional rendering change found in refreshed60 hashes"
+  ],
+  "scope": "Agent inspection is not Josh approval, Lightroom calibration, platform parity, or fresh Sony36/settings80/maincontrol evidence."
+}
