@@ -1091,10 +1091,62 @@ mod tests {
     }
 
     #[test]
+    fn legacy_save_and_batch_do_not_inherit_the_source_queue_ownership() {
+        let (_dir, path) = fixture();
+        let identity = ident();
+        let (_, source_sidecar) = parse_virtual_path(&path);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&source_sidecar, fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        run_item(&path, &identity, &DenoiseJob::testing(), output).unwrap();
+        let results = run_batch(&DenoiseJob::testing(), std::slice::from_ref(&path), |_| {
+            output(&identity)
+        });
+        assert_eq!(results.len(), 1);
+        let (_, dest) = parse_virtual_path(&results[0]);
+        assert!(strict_json(&dest).unwrap().get("denoise").is_none());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(&dest).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        assert_eq!(
+            discover(Path::new(&path).parent().unwrap().to_str().unwrap(), false).unwrap(),
+            vec![path.clone()]
+        );
+        set_denoise_mark(results, true).unwrap();
+        mutate(&source_sidecar, |v| {
+            v["adjustments"]["exposure"] = 1.25.into();
+            Ok(())
+        })
+        .unwrap();
+        copy_denoised_sidecar(&source_sidecar, &dest).unwrap();
+        let target = strict_json(&dest).unwrap();
+        assert_eq!(target["adjustments"]["exposure"], 1.25);
+        let ownership = queue(&target).unwrap();
+        assert_eq!(ownership["marked"], true);
+        assert_eq!(ownership["completed"].as_array().unwrap().len(), 0);
+        assert_eq!(
+            queue(&strict_json(&source_sidecar).unwrap()).unwrap()["completed"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
     fn nind_queue_baseline_matches_source_defaults_with_actual_exposure_and_highlight_options() {
-        let mut settings = crate::app_settings::AppSettings::default();
-        settings.enable_baseline_exposure = true;
-        settings.baseline_exposure = 1.;
+        let mut settings = crate::app_settings::AppSettings {
+            enable_baseline_exposure: true,
+            baseline_exposure: 1.,
+            ..Default::default()
+        };
         let shot = crate::as_shot::AsShot {
             white_balance: crate::white_balance::WhiteBalance::reference(),
             exposure: crate::baseline_exposure::RawExposure {

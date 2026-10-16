@@ -475,7 +475,7 @@ fn run_batch(
             && let Some(output_path_str) = output_path.to_str()
         {
             let (_, dest_sidecar_path) = parse_virtual_path(output_path_str);
-            if let Err(e) = fs::copy(&source_sidecar_path, &dest_sidecar_path) {
+            if let Err(e) = copy_denoised_sidecar(&source_sidecar_path, &dest_sidecar_path) {
                 log::warn!("Failed to copy sidecar file for denoised image: {}", e);
             }
         }
@@ -484,6 +484,20 @@ fn run_batch(
     }
 
     results
+}
+
+fn copy_denoised_sidecar(source: &Path, destination: &Path) -> std::io::Result<()> {
+    let bytes = fs::read(source)?;
+    let contents = match serde_json::from_slice::<serde_json::Value>(&bytes) {
+        Ok(serde_json::Value::Object(mut metadata)) if metadata.contains_key("denoise") => {
+            metadata.remove("denoise");
+            serde_json::to_vec_pretty(&metadata).map_err(std::io::Error::other)?
+        }
+        _ => bytes,
+    };
+    // The regular atomic writer preserves any queue state already owned by the target.
+    crate::file_management::write_file_atomically(destination, contents)?;
+    fs::set_permissions(destination, fs::metadata(source)?.permissions())
 }
 
 fn write_denoised_output(
@@ -576,7 +590,7 @@ pub async fn save_denoised_image(
         && let Some(output_path_str) = output_path.to_str()
     {
         let (_, dest_sidecar_path) = crate::file_management::parse_virtual_path(output_path_str);
-        if let Err(e) = std::fs::copy(&source_sidecar_path, &dest_sidecar_path) {
+        if let Err(e) = copy_denoised_sidecar(&source_sidecar_path, &dest_sidecar_path) {
             log::warn!("Failed to copy sidecar file for denoised image: {}", e);
         }
     }
