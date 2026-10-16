@@ -30,7 +30,8 @@ export default function PrintProfileControl({ value, onChange, proof = false, di
       if (id !== request.current) return;
       setChosen(next);
       setDraftPath(next.profilePath);
-      onChange(enable ? next : null);
+      if (enable) onChange(next);
+      else if (value !== null) onChange(null);
     } catch (err) {
       if (id === request.current) setError(String(err));
     } finally {

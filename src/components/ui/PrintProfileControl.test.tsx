@@ -13,6 +13,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root;
 let host: HTMLDivElement;
+const changed = vi.fn();
 afterEach(async () => {
   if (root) await act(async () => root.unmount());
   host?.remove();
@@ -25,7 +26,14 @@ async function mount(initial: PrintProfileOptions | null = null, proof = false) 
   root = createRoot(host);
   function Harness() {
     const [value, onChange] = useState(initial);
-    return createElement(PrintProfileControl, { value, onChange, proof });
+    return createElement(PrintProfileControl, {
+      value,
+      onChange: (next) => {
+        changed(next);
+        onChange(next);
+      },
+      proof,
+    });
   }
   await act(async () => root.render(createElement(Harness)));
   return host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0];
@@ -43,6 +51,7 @@ describe('local ICC profile controls', () => {
     expect(toggle.checked).toBe(false);
     expect(toggle.disabled).toBe(true);
     await choose('/profiles/paper.icc');
+    expect(changed).not.toHaveBeenCalled();
     expect(toggle.checked).toBe(false);
     expect(toggle.disabled).toBe(false);
     await act(async () => toggle.click());

@@ -251,4 +251,65 @@ pub(crate) mod tests {
         let profile = Profile::new_srgb();
         assert!(parse_profile(&context, &profile.icc().unwrap(), true).is_err());
     }
+    /// Lossless outputs from the real transforms for independent tificc checks.
+    #[test]
+    #[ignore = "writes reference artifacts only when an owned case is supplied"]
+    fn write_littlecms_reference_artifacts() {
+        let dir =
+            std::path::PathBuf::from(std::env::var("RAPIDROOM_PRINT_REFERENCE_CASE").unwrap());
+        assert!(dir.is_dir() && dir.components().any(|p| p.as_os_str() == "samples"));
+        let image = DynamicImage::ImageRgba16(ImageBuffer::from_fn(257, 65, |x, y| {
+            Rgba([
+                (x * 255) as u16,
+                (y * 1023) as u16,
+                ((x * 187 + y * 887) % 65536) as u16,
+                [0, 16384, 32768, 65535][((x + y) % 4) as usize],
+            ])
+        }));
+        image.to_rgb16().save(dir.join("source16.tiff")).unwrap();
+        image.to_rgb8().save(dir.join("source8.tiff")).unwrap();
+        std::fs::write(dir.join("srgb.icc"), SRGB).unwrap();
+        let (_file, rgb_bytes) = fixture();
+        std::fs::write(dir.join("rgb-output.icc"), &rgb_bytes).unwrap();
+        let mut cases = Vec::new();
+        for (name, intent) in [
+            ("relative", PrintIntent::Relative),
+            ("perceptual", PrintIntent::Perceptual),
+        ] {
+            for bpc in [false, true] {
+                let options = PrintProfileOptions {
+                    profile_path: dir.join("rgb-output.icc").to_str().unwrap().into(),
+                    intent,
+                    black_point_compensation: bpc,
+                };
+                let (output, profile_bytes) = convert_export(&image, &options).unwrap();
+                assert_eq!(profile_bytes, rgb_bytes);
+                for (input, output) in image.to_rgba16().pixels().zip(output.to_rgba16().pixels()) {
+                    assert_eq!(input[3], output[3]);
+                }
+                let export_name = format!("export-{name}-{bpc}.tiff");
+                output.to_rgb16().save(dir.join(&export_name)).unwrap();
+                let proof_options = PrintProfileOptions {
+                    profile_path: dir.join("proof.icc").to_str().unwrap().into(),
+                    ..options
+                };
+                let proof = soft_proof(&image, &proof_options).unwrap();
+                for (input, output) in image.to_rgba8().pixels().zip(proof.to_rgba8().pixels()) {
+                    assert_eq!(input[3], output[3]);
+                }
+                let proof_name = format!("proof-{name}-{bpc}.tiff");
+                proof.to_rgb8().save(dir.join(&proof_name)).unwrap();
+                assert!(
+                    convert_export(&image, &proof_options).is_err(),
+                    "CMYK profile must not be tagged onto RGB export"
+                );
+                cases.push(serde_json::json!({"intent":name,"bpc":bpc,"export":export_name,"proof":proof_name}));
+            }
+        }
+        std::fs::write(
+            dir.join("cases.json"),
+            serde_json::to_vec_pretty(&cases).unwrap(),
+        )
+        .unwrap();
+    }
 }

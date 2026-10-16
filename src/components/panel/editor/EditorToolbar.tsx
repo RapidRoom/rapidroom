@@ -700,6 +700,11 @@ const EditorToolbar = memo(
           >
             {showOriginal ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>
+          {softProofError && (
+            <span role="alert" className="text-red-400 text-xs max-w-48">
+              {softProofError}
+            </span>
+          )}
           {osPlatform === 'linux' && (
             <details className="relative">
               <summary

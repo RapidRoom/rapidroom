@@ -8,7 +8,7 @@ In Export → Output colour profile, choose a local `.icc`/`.icm` file, then exp
 
 JPEG, PNG and TIFF accept RGB output/display/colour-space profiles. Final pixels are converted from the existing sRGB render after geometry, resizing, border, padding, watermark and output sharpening. A selected profile requests 16-bit rendering before format quantization; PNG preserves that precision and alpha. The exact profile bytes used for conversion are embedded, including when Keep Metadata is off and when TIFF resolution tags are requested. CMYK profiles and formats without supported profile embedding are refused for export. No selected profile keeps the existing path.
 
-This selection is local to the Export panel session, not saved in named recipes; choosing another recipe turns it off. It is independent of the proof view.
+This selection is local to the Export panel session, not saved in named recipes; choosing another recipe turns it off. It is independent of the proof view. RapidRoom currently treats non-RAW inputs as sRGB when opening them; review a non-sRGB exported file in an ICC-aware viewer rather than reopening it here for a colour comparison. Input ICC conversion is outside this phase.
 
 Headless examples (paths are illustrative):
 
