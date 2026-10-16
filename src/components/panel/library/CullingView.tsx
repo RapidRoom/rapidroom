@@ -1,3 +1,4 @@
+import { DenoiseBadge } from '../DenoiseQueue';
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
@@ -74,7 +75,7 @@ function CullingPreview({
   setShowInfoBar: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const { t } = useTranslation();
-  const thumbUrl = useProcessStore((s) => s.thumbnails[image.path]);
+  const thumbUrl = useProcessStore((s) => s.mediumThumbnails[image.path] || s.thumbnails[image.path]);
   const initialPreview = useProcessStore((s) => s.previews[image.path]);
   const setPreview = useProcessStore((s) => s.setPreview);
   const safeThumbKey = thumbUrl || '';
@@ -823,6 +824,7 @@ function CullingPreview({
           </div>
         )}
 
+        <DenoiseBadge path={image.path} inline />
         {hasAnyOverlay && (
           <div className="rounded-full h-5 px-1.5 flex items-center justify-center gap-0 shadow-md bg-surface/30 pointer-events-auto shrink-0 ml-1">
             {showEditIcon && (

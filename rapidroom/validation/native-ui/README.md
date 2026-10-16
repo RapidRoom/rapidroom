@@ -346,8 +346,47 @@ opaque IDs round-trip, and invalid IDs are refused. That hostile-text phase make
 no model requests. The first fixture phase uses the client's existing login and
 makes a real model request; no user library or global client config is changed.
 
+`--xmp-photo-policy` checks synthetic AlreadyApplied photo suppression versus reusable presets, metadata-only single/folder imports with a pending live edit and preserved Undo, ordinary False/absent packets, and input byte preservation with ordinary XMP sync enabled. It uses an isolated CC0 photo and authenticated MCP observations/restoration, with no models or Adobe application. See the [policy](../xmp-photo-policy-218/README.md).
+
 ## Shipped skill/plugin acceptance (#118)
 
 `--mcp-skill --skill-source /path/to/matching/clean/checkout` runs a fresh Claude session with the shipped plugin and its stdio MCP configuration. It uses the owned CC0 NEX-6 copy, an approved 4:5 crop, three temporary look variants, a native detail check, GPS-stripped 1080×1350 export and a source-backed exposure explanation. The source checkout must match the pinned app's `sourceCommit`; the app and checkout must be clean. Named virtual-copy tools remain coming, so this test uses temporary comparisons.
 
 Use a pinned `native-ui-test,mcp` build plus the adapter, and pass `--lock /tmp/rapidroom-gpu.lock` when running the native harness. The real client needs account access. Raw client transcripts, endpoint credentials and private source paths stay local; publish only allowlisted summaries and inspected CC0 panels. A pass proves workflow and source use, not the aesthetic quality of the grade.
+
+`--atomic-exports` keeps the ordinary RAW GUI export, then repeats it through the
+real Export panel with overwrite disabled and checks that the earlier JPEG is
+preserved. It submits an explicit overwrite for the owned fixture with the exact
+settings captured from the real panel, verifies inode replacement, checks that
+the sibling export is untouched and records every observed final JPEG state.
+The temporary fetch observer records only the exact export IPC endpoint and
+forwards every request unchanged. Its installation and three observed requests
+are checked, and it is restored in a finally block; no IO or error handler is mocked. This does not automate the
+native overwrite-confirmation dialog. A separate Rust subprocess check kills a
+writer after partial staging to deterministically check interruption safety.
+
+`--file-transfers` adds owned synthetic JPEGs from two cards with overlapping
+names, real native copy/import IPC, paired `.rrdata`/virtual-copy/`.XMP` checks,
+exact reimport skips, failure continuation and source preservation even when
+Delete after import is enabled for a skipped file. It also uses the real Library
+keyboard copy/paste path and checks visible copy/import/partial-failure summaries.
+No IPC, filesystem write or frontend error handler is mocked. The ordinary RAW
+preview/edit/Undo/export and clean-exit assertions still run afterwards.
+
+### Editable Library filter chips (#312)
+
+Run `smoke.py --filter-chips` with a pinned native engine and the GPU lock.
+Three owned synthetic JPEGs carry explicit ISO/lens metadata beside the CC0 RAW.
+The native checks edit numeric and text queries and assert the displayed photo
+set changes, cancel edits with Escape and across Community Presets navigation,
+restore prior input drafts, edit the last chip with Backspace, delete
+only one duplicate using the separate x button, and navigate chip controls with
+Left/Right. Captures record the workflow; the usual RAW/edit/Undo/export/clean-exit
+checks still follow. Export counting excludes pre-existing fixture JPEGs.
+
+The chip-navigation check supplies an empty catalog only for the unrelated
+`fetch_community_presets` IPC request, restores the original transport afterwards,
+and supplies the owned JPEG for at most one exact stock-image fallback request.
+The request and its real temp-file IPC are counted and bounded; no external
+image is downloaded. Search/navigation and the final frontend/native error
+checks remain real and unfiltered.

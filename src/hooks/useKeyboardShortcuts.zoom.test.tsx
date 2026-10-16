@@ -149,3 +149,30 @@ it('preserves global arrow navigation outside Recursive view', async () => {
   expect(useLibraryStore.getState().libraryActivePath).toBe('/photos/FOLDER456/IMAGE3.jpg');
   expect(callbacks.handleImageSelect).toHaveBeenCalledWith('/photos/FOLDER456/IMAGE3.jpg', false);
 });
+
+it('advances rapid editor arrows from the pending photo while the displayed photo is still loading', async () => {
+  const paths = ['/A.ARW', '/B.ARW', '/C.ARW', '/D.ARW'];
+  callbacks.sortedImageList = paths.map((path) => ({ path }) as ImageFile);
+  callbacks.handleImageSelect.mockImplementation((path: string) => {
+    // The real navigation hook publishes this intent before its asynchronous cache check.
+    useLibraryStore.getState().setLibrary({ libraryActivePath: path });
+  });
+  try {
+    await act(async () => {
+      useEditorStore
+        .getState()
+        .setEditor({ selectedImage: { ...useEditorStore.getState().selectedImage!, path: paths[0] } });
+      useLibraryStore.getState().setLibrary({ libraryActivePath: paths[1] });
+      root.render(<Harness />);
+    });
+    await act(async () => {
+      for (const code of ['ArrowRight', 'ArrowRight', 'ArrowLeft']) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code, key: code, bubbles: true }));
+      }
+    });
+    expect(callbacks.handleImageSelect.mock.calls.map(([path]) => path)).toEqual([paths[2], paths[3], paths[2]]);
+    expect(useEditorStore.getState().selectedImage?.path).toBe(paths[0]);
+  } finally {
+    callbacks.handleImageSelect.mockReset();
+  }
+});

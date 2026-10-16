@@ -4,7 +4,7 @@ import { useCloudStore } from '../store/useCloudStore';
 import { useCloudAuth } from '../context/CloudAuthContext';
 
 export function useCloudUsage() {
-  const { isSignedIn, isPro, getToken } = useCloudAuth();
+  const { isSignedIn, isPro } = useCloudAuth();
 
   const aiProvider = useSettingsStore((s) => s.appSettings?.aiProvider || 'cpu');
   const cloudUsage = useCloudStore((s) => s.cloudUsage);
@@ -13,9 +13,9 @@ export function useCloudUsage() {
 
   const refreshUsage = useCallback(async () => {
     if (aiProvider === 'cloud' && isSignedIn && isPro) {
-      await fetchUsage(getToken);
+      await fetchUsage();
     }
-  }, [aiProvider, isSignedIn, isPro, getToken, fetchUsage]);
+  }, [aiProvider, isSignedIn, isPro, fetchUsage]);
 
   useEffect(() => {
     refreshUsage();
