@@ -320,12 +320,15 @@ struct RecipeSnapshot {
     lut_bytes: Option<Vec<u8>>,
 }
 
-fn rendered_snapshot(metadata: &Value) -> Result<RecipeSnapshot, String> {
-    let adjustments = if metadata["adjustments"].is_null() {
-        crate::image_processing::default_adjustments()
-    } else {
-        metadata["adjustments"].clone()
-    };
+fn rendered_snapshot(metadata: &Value, source: &Path) -> Result<RecipeSnapshot, String> {
+    let mut adjustments = metadata["adjustments"].clone();
+    if adjustments.is_null() {
+        // Match ordinary export's load_sidecar_with_camera_crop before normalization.
+        crate::raw_processing::apply_camera_crop_default_from_path(&mut adjustments, source);
+        if adjustments.is_null() {
+            adjustments = crate::image_processing::default_adjustments();
+        }
+    }
     let mut assets = Vec::new();
     let lut_bytes = if let Some(path) = adjustments["lutPath"].as_str().filter(|p| !p.is_empty()) {
         crate::lut_processing::validate_lut_path(path).map_err(|e| e.to_string())?;
@@ -360,7 +363,7 @@ impl RenderedRecipe {
         }
         let metadata = strict_json(&sidecar)?;
         ensure_rendered_eligible(&metadata, &source, ident)?;
-        let snapshot = rendered_snapshot(&metadata)?;
+        let snapshot = rendered_snapshot(&metadata, &source)?;
         if snapshot.identity != ident["renderedSource"] {
             return Err("Source recipe or LUT changed before denoise; run the queue again.".into());
         }
@@ -451,7 +454,7 @@ fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> R
         );
     }
     if !ident["renderedSource"].is_null() {
-        if rendered_snapshot(metadata)?.identity != ident["renderedSource"] {
+        if rendered_snapshot(metadata, source)?.identity != ident["renderedSource"] {
             return Err("Source recipe or LUT changed during denoise; run the queue again.".into());
         }
     } else {
@@ -849,7 +852,7 @@ fn run_item(
             source_baseline_eligible(&metadata["adjustments"]).into();
     }
     if rendered_raw(&source, ident) {
-        item_identity["renderedSource"] = rendered_snapshot(&metadata)?.identity;
+        item_identity["renderedSource"] = rendered_snapshot(&metadata, &source)?.identity;
     }
     let ident = &item_identity;
     ensure_rendered_eligible(&metadata, &source, ident)?;
