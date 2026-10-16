@@ -779,7 +779,7 @@ fn denoise_image_with_settings(
     ai_session: DenoiseModels,
     job: &DenoiseJob,
     settings: crate::app_settings::AppSettings,
-    nind_baseline_eligible: Option<bool>,
+    source_recipe: Option<&queue::RenderedRecipe>,
 ) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
     let method = options.method.as_str();
     let intensity = options.intensity;
@@ -811,15 +811,8 @@ fn denoise_image_with_settings(
 
     let rgb_img_for_denoiser = if method == "ai" {
         let encoded = if is_raw {
-            if nind_baseline_eligible.is_some() {
-                nind_raw_view_with_baseline(
-                    path_str,
-                    &dynamic_img,
-                    &original_settings,
-                    app_handle,
-                    job,
-                    nind_baseline_eligible,
-                )?
+            if let Some(recipe) = source_recipe {
+                recipe.render(path_str, &dynamic_img, &original_settings, app_handle, job)?
             } else {
                 nind_raw_view(path_str, &dynamic_img, &original_settings, app_handle, job)?
             }
@@ -887,7 +880,14 @@ fn denoise_image_with_settings(
     };
     job.check()?;
 
-    if uses_default_raw_tone(is_raw, method) {
+    if is_raw
+        && method != "ai"
+        && let Some(recipe) = source_recipe
+    {
+        // BM3D keeps linear RGB input; RAW9 keeps sensor input. Develop their
+        // linear result with the source recipe only after the native denoiser.
+        out_dynamic = recipe.render(path_str, &out_dynamic, &original_settings, app_handle, job)?;
+    } else if uses_default_raw_tone(is_raw, method) {
         apply_cpu_default_raw_processing(&mut out_dynamic);
     }
 

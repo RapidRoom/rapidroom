@@ -1045,6 +1045,44 @@ fn process_image_for_export_pipeline(
     app_handle: &tauri::AppHandle,
     output_precision: RenderOutputPrecision,
 ) -> Result<DynamicImage, String> {
+    let options = SourceViewOptions {
+        render: resolve_render_options_from_handle(app_handle, is_raw),
+        as_shot: as_shot(path),
+        lut: js_adjustments["lutPath"]
+            .as_str()
+            .and_then(|path| get_or_load_lut(state, path).ok()),
+        job_hash: calculate_full_job_hash(path, js_adjustments),
+    };
+    process_source_view(
+        base_image,
+        js_adjustments,
+        context,
+        state,
+        is_raw,
+        debug_tag,
+        output_precision,
+        &options,
+    )
+}
+
+pub(crate) struct SourceViewOptions {
+    pub render: RenderOptions,
+    pub as_shot: crate::as_shot::AsShot,
+    pub lut: Option<Arc<crate::lut_processing::Lut>>,
+    pub job_hash: u64,
+}
+
+/// The normal source renderer, before export-only framing, sizing and decoration.
+pub(crate) fn process_source_view(
+    base_image: &DynamicImage,
+    js_adjustments: &Value,
+    context: &GpuContext,
+    state: &tauri::State<AppState>,
+    is_raw: bool,
+    debug_tag: &str,
+    output_precision: RenderOutputPrecision,
+    options: &SourceViewOptions,
+) -> Result<DynamicImage, String> {
     let (transformed_image, unscaled_crop_offset) =
         apply_all_transformations(Cow::Borrowed(base_image), js_adjustments);
     let (img_w, img_h) = transformed_image.dimensions();
@@ -1068,25 +1106,19 @@ fn process_image_for_export_pipeline(
         })
         .collect();
 
-    let render = resolve_render_options_from_handle(app_handle, is_raw);
     let mut all_adjustments =
-        get_all_adjustments_from_json(js_adjustments, is_raw, as_shot(path), render);
+        get_all_adjustments_from_json(js_adjustments, is_raw, options.as_shot, options.render);
     all_adjustments.global.show_clipping = 0;
-
-    let lut_path = js_adjustments["lutPath"].as_str();
-    let lut = lut_path.and_then(|p| get_or_load_lut(state, p).ok());
-
-    let unique_hash = calculate_full_job_hash(path, js_adjustments);
 
     process_and_get_dynamic_image_with_precision(
         context,
         state,
         transformed_image.as_ref(),
-        unique_hash,
+        options.job_hash,
         RenderRequest {
             adjustments: all_adjustments,
             mask_bitmaps: &mask_bitmaps,
-            lut,
+            lut: options.lut.clone(),
             roi: None,
         },
         debug_tag,

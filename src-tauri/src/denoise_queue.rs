@@ -310,8 +310,135 @@ fn source_baseline_eligible(adjustments: &Value) -> bool {
     adjustments.is_null() || adjustments["baselineExposure"].as_bool().unwrap_or(false)
 }
 
+fn rendered_raw(source: &Path, ident: &Value) -> bool {
+    is_raw_file(source) && !matches!(ident["method"].as_str(), Some("best" | "fast"))
+}
+
+struct RecipeSnapshot {
+    adjustments: Value,
+    identity: Value,
+    lut_bytes: Option<Vec<u8>>,
+}
+
+fn rendered_snapshot(metadata: &Value) -> Result<RecipeSnapshot, String> {
+    let adjustments = if metadata["adjustments"].is_null() {
+        crate::image_processing::default_adjustments()
+    } else {
+        metadata["adjustments"].clone()
+    };
+    let mut assets = Vec::new();
+    let lut_bytes = if let Some(path) = adjustments["lutPath"].as_str().filter(|p| !p.is_empty()) {
+        crate::lut_processing::validate_lut_path(path).map_err(|e| e.to_string())?;
+        let bytes = fs::read(path).map_err(|e| format!("Cannot freeze source LUT: {e}"))?;
+        assets.push(json!({"role":"lut","path":path,"bytes":bytes.len(),
+            "blake3":blake3::hash(&bytes).to_hex().as_str()}));
+        Some(bytes)
+    } else {
+        None
+    };
+    let identity = json!({"version":1,"adjustments":hash_value(&adjustments),"assets":assets});
+    Ok(RecipeSnapshot {
+        adjustments,
+        identity,
+        lut_bytes,
+    })
+}
+
+/// Holds the exact source recipe and parsed asset bytes used by a rendered RAW job.
+pub(crate) struct RenderedRecipe {
+    snapshot: RecipeSnapshot,
+    lut: Option<std::sync::Arc<crate::lut_processing::Lut>>,
+    identity_hash: String,
+    as_shot: crate::as_shot::AsShot,
+}
+
+impl RenderedRecipe {
+    fn load(path: &str, ident: &Value) -> Result<Option<Self>, String> {
+        let (source, sidecar) = parse_virtual_path(path);
+        if !rendered_raw(&source, ident) {
+            return Ok(None);
+        }
+        let metadata = strict_json(&sidecar)?;
+        ensure_rendered_eligible(&metadata, &source, ident)?;
+        let snapshot = rendered_snapshot(&metadata)?;
+        if snapshot.identity != ident["renderedSource"] {
+            return Err("Source recipe or LUT changed before denoise; run the queue again.".into());
+        }
+        let lut = snapshot
+            .lut_bytes
+            .as_deref()
+            .map(|bytes| {
+                crate::lut_processing::parse_lut_bytes(
+                    snapshot.adjustments["lutPath"].as_str().unwrap(),
+                    bytes,
+                )
+                .map(std::sync::Arc::new)
+                .map_err(|e| format!("Cannot freeze source LUT: {e}"))
+            })
+            .transpose()?;
+        // Bind camera WB/baseline to this source, avoiding the editor's path-only cache.
+        let bytes = crate::file_management::read_file_mapped(&source).map_err(|e| e.to_string())?;
+        let as_shot = crate::raw_processing::read_as_shot(&bytes)
+            .unwrap_or_else(crate::as_shot::AsShot::reference);
+        Ok(Some(Self {
+            snapshot,
+            lut,
+            identity_hash: hash_value(
+                &json!({"job":ident,"source":blake3::hash(&bytes).to_hex().as_str()}),
+            ),
+            as_shot,
+        }))
+    }
+
+    pub(crate) fn render(
+        &self,
+        path: &str,
+        image: &image::DynamicImage,
+        settings: &crate::app_settings::AppSettings,
+        app: &AppHandle,
+        job: &DenoiseJob,
+    ) -> Result<image::DynamicImage, String> {
+        use std::hash::{Hash, Hasher};
+        job.check()?;
+        let state = app.state::<AppState>();
+        let context = crate::image_processing::get_or_init_gpu_context(&state, app)?;
+        let base =
+            crate::image_loader::composite_patches_on_image(image, &self.snapshot.adjustments)
+                .map_err(|e| format!("Cannot composite source repairs: {e}"))?;
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        self.identity_hash.hash(&mut hash);
+        path.hash(&mut hash);
+        base.as_bytes().hash(&mut hash);
+        let options = crate::export_processing::SourceViewOptions {
+            render: crate::image_processing::resolve_render_options(settings, true),
+            as_shot: self.as_shot,
+            lut: self.lut.clone(),
+            job_hash: hash.finish(),
+        };
+        let view = crate::export_processing::process_source_view(
+            &base,
+            &self.snapshot.adjustments,
+            &context,
+            &state,
+            true,
+            "denoise_source_view",
+            crate::image_processing::RenderOutputPrecision::SixteenBit,
+            &options,
+        )?;
+        job.check()?;
+        let rgb = view.to_rgb16();
+        log::info!(
+            "Denoise baked source view {}x{} RGB16-native BLAKE3 {}",
+            rgb.width(),
+            rgb.height(),
+            blake3::hash(bytemuck::cast_slice(rgb.as_raw())).to_hex()
+        );
+        Ok(view)
+    }
+}
+
 fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> Result<(), String> {
-    if !is_raw_file(source) || matches!(ident["method"].as_str(), Some("best" | "fast")) {
+    if !rendered_raw(source, ident) {
         return Ok(());
     }
     let adjustments = &metadata["adjustments"];
@@ -323,22 +450,35 @@ fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> R
             "Source baseline setting changed during denoise; run the marked queue again.".into(),
         );
     }
-    let override_mode = (ident["settings"]["toneOverride"] == true).then(|| {
-        if ident["settings"]["rawTone"].as_str().unwrap_or("agx") == "agx" {
-            1
-        } else {
-            0
+    if !ident["renderedSource"].is_null() {
+        if rendered_snapshot(metadata)?.identity != ident["renderedSource"] {
+            return Err("Source recipe or LUT changed during denoise; run the queue again.".into());
         }
-    });
-    let cropped = adjustments.get("crop").is_some_and(|c| !c.is_null());
-    if cropped
-        || !adjustments["whiteBalance"].is_null()
-        || crate::image_processing::is_image_edited(adjustments, true, override_mode)
-    {
-        return Err("Edited photo: use Fast or Best, or reset edits first. Rendered-method RAW edit baking is not supported yet.".into());
+    } else {
+        // Callers without a frozen recipe retain the original eligibility contract.
+        let override_mode = (ident["settings"]["toneOverride"] == true).then(|| {
+            if ident["settings"]["rawTone"].as_str().unwrap_or("agx") == "agx" {
+                1
+            } else {
+                0
+            }
+        });
+        let cropped = adjustments.get("crop").is_some_and(|c| !c.is_null());
+        if cropped
+            || !adjustments["whiteBalance"].is_null()
+            || crate::image_processing::is_image_edited(adjustments, true, override_mode)
+        {
+            return Err("Edited photo: use Fast or Best, or reset edits first. A frozen source recipe is required for rendered RAW denoise.".into());
+        }
     }
     if ident["settings"]["toneOverride"] == true && ident["settings"]["nonRawTone"] == "agx" {
         return Err("Rendered-image AgX override would tone-map this TIFF again; use Fast or Best, or select Basic for rendered images in Processing settings.".into());
+    }
+    if ident["settings"]["applyToNonRaws"] == true
+        && (ident["settings"]["colorNR"].as_f64().unwrap_or(0.5) > 0.0
+            || ident["settings"]["preSharpen"].as_f64().unwrap_or(0.35) > 0.0)
+    {
+        return Err("Rendered-image preprocessing would process this TIFF again; use Fast or Best, or disable preprocessing for non-RAW images in Processing settings.".into());
     }
     Ok(())
 }
@@ -359,15 +499,19 @@ fn save_result_edits(
         source_edits["exif"] = json!(exif);
     }
     if is_raw_file(source_image) && !matches!(ident["method"].as_str(), Some("best" | "fast")) {
-        // These pixels already contain default RAW development/tone and camera WB.
-        // Only unedited RAW is eligible; never replay its RAW defaults on encoded TIFF.
+        // Source development, WB, geometry, masks and repairs are already baked.
+        // The encoded TIFF starts neutral and can receive its own raster edits.
         source_edits["adjustments"] = json!({"toneMapper":"basic","baselineExposure":false});
+        source_edits["appliedPreset"] = Value::Null;
+        source_edits["exportFraming"] = Value::Null;
         if let Some(exif) = source_edits.get_mut("exif").and_then(Value::as_object_mut) {
             exif.insert("Orientation".into(), "1".into());
         }
     }
     let (_, dest) = parse_virtual_path(&output.to_string_lossy());
     let _guard = crate::file_management::lock_sidecar(&dest).map_err(|e| e.to_string())?;
+    // A normal save can change the source while this job waits for the output lock.
+    ensure_rendered_eligible(&strict_json(source)?, source_image, ident)?;
     // The destination ownership check and write are one transaction with ordinary saves.
     if dest.exists() {
         let existing = strict_json(&dest)?;
@@ -610,6 +754,7 @@ pub async fn run(
                     json!({"current":index+1,"total":paths.len(),"path":path,"summary":summary}),
                 );
                 let result = run_item(path, &ident, &job, |item_identity| {
+                    let recipe = RenderedRecipe::load(path, item_identity)?;
                     denoise_image_with_settings(
                         &parse_virtual_path(path).0.to_string_lossy(),
                         &internal,
@@ -617,7 +762,7 @@ pub async fn run(
                         models.clone(),
                         &job,
                         frozen_settings.clone(),
-                        item_identity["sourceBaselineEligible"].as_bool(),
+                        recipe.as_ref(),
                     )
                     .map(|(image, _, raw)| {
                         raw.map_or_else(|| DenoisedOutput::Image(image), DenoisedOutput::Raw)
@@ -702,6 +847,9 @@ fn run_item(
     if is_raw_file(&source) && ident["method"] == "nind" {
         item_identity["sourceBaselineEligible"] =
             source_baseline_eligible(&metadata["adjustments"]).into();
+    }
+    if rendered_raw(&source, ident) {
+        item_identity["renderedSource"] = rendered_snapshot(&metadata)?.identity;
     }
     let ident = &item_identity;
     ensure_rendered_eligible(&metadata, &source, ident)?;
@@ -1356,6 +1504,153 @@ mod tests {
             crate::image_processing::RenderOptions::default(),
         );
         assert_eq!(all.global.tonemapper_mode, 0);
+    }
+
+    #[test]
+    fn baked_raw_sidecars_recover_and_key_edits_and_actual_lut_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("recipe.ARW");
+        // This exercises the publication/sidecar protocol; native checks supply real RAWs.
+        fs::write(&raw, b"queue protocol source").unwrap();
+        let path = raw.to_string_lossy().into_owned();
+        let lut = dir.path().join("source.cube");
+        let cube = "LUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n";
+        fs::write(&lut, cube).unwrap();
+        let (_, sidecar) = parse_virtual_path(&path);
+        set_denoise_mark(vec![path.clone()], true).unwrap();
+        let adjustments = json!({"toneMapper":"agx","whiteBalance":{"temperature":4300,"tint":12},
+            "temperature":10,"tint":-5,"exposure":0.75,
+            "crop":{"unit":"%","x":0,"y":0,"width":80,"height":80},"lutPath":lut});
+        mutate(&sidecar, |v| {
+            v["adjustments"] = adjustments.clone();
+            v["rating"] = 2.into();
+            v["appliedPreset"] = json!({"id":"source-preset"});
+            v["exportFraming"] = json!({"ratio":"4:5"});
+            Ok(())
+        })
+        .unwrap();
+        let (first, skipped) = run_item(&path, &ident(), &DenoiseJob::testing(), |identity| {
+            let recipe = RenderedRecipe::load(&path, identity)?.unwrap();
+            assert_eq!(recipe.snapshot.adjustments, adjustments);
+            assert_eq!(recipe.lut.unwrap().size, 2);
+            output(identity)
+        })
+        .unwrap();
+        assert!(!skipped);
+        let first_hash = hash_file(Path::new(&first)).unwrap();
+        let source = strict_json(&sidecar).unwrap();
+        assert_eq!(source["adjustments"], adjustments);
+        assert_eq!(source["appliedPreset"]["id"], "source-preset");
+        assert_eq!(source["exportFraming"]["ratio"], "4:5");
+        let original_recipe =
+            source["denoise"]["completed"][0]["identity"]["renderedSource"].clone();
+        assert!(!original_recipe.is_null());
+        let (_, result_sidecar) = parse_virtual_path(&first);
+        assert!(strict_json(&result_sidecar).unwrap()["appliedPreset"].is_null());
+        assert!(strict_json(&result_sidecar).unwrap()["exportFraming"].is_null());
+        assert_eq!(
+            strict_json(&result_sidecar).unwrap()["adjustments"],
+            json!({"toneMapper":"basic","baselineExposure":false})
+        );
+
+        // Simulate a crash after durable image/provenance publication, before completion.
+        mutate(&sidecar, |v| {
+            v["denoise"]["completed"] = json!([]);
+            v["rating"] = 5.into();
+            Ok(())
+        })
+        .unwrap();
+        let (recovered, skipped) = run_item(&path, &ident(), &DenoiseJob::testing(), |_| {
+            panic!("must recover without inference")
+        })
+        .unwrap();
+        assert!(skipped);
+        assert_eq!(recovered, first);
+        assert_eq!(hash_file(Path::new(&first)).unwrap(), first_hash);
+        assert_eq!(strict_json(&result_sidecar).unwrap()["rating"], 5);
+
+        mutate(&sidecar, |v| {
+            v["adjustments"]["exposure"] = 1.25.into();
+            Ok(())
+        })
+        .unwrap();
+        let (second, skipped) = run_item(&path, &ident(), &DenoiseJob::testing(), output).unwrap();
+        assert!(!skipped);
+        assert_ne!(first, second);
+
+        // Same pathname, byte count and timestamp, different external asset contents.
+        let time = filetime::FileTime::from_last_modification_time(&fs::metadata(&lut).unwrap());
+        fs::write(&lut, cube.replacen("0 0 0", "1 0 0", 1)).unwrap();
+        filetime::set_file_mtime(&lut, time).unwrap();
+        let (third, skipped) = run_item(&path, &ident(), &DenoiseJob::testing(), |identity| {
+            let recipe = RenderedRecipe::load(&path, identity)?.unwrap();
+            assert_eq!(recipe.lut.unwrap().data[0], 1.0);
+            output(identity)
+        })
+        .unwrap();
+        assert!(!skipped);
+        assert_ne!(second, third);
+        assert_eq!(hash_file(Path::new(&first)).unwrap(), first_hash);
+        let (_, target) = parse_virtual_path(&third);
+        mutate(&target, |v| {
+            v["adjustments"]["exposure"] = 2.0.into();
+            Ok(())
+        })
+        .unwrap();
+        let independent = fs::read(&target).unwrap();
+        assert!(
+            run_item(&path, &ident(), &DenoiseJob::testing(), |_| panic!(
+                "must reuse"
+            ))
+            .unwrap_err()
+            .contains("independent edits")
+        );
+        assert_eq!(fs::read(target).unwrap(), independent);
+    }
+
+    #[test]
+    fn changed_baked_recipe_or_asset_is_rejected_before_publication() {
+        for change_asset in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let raw = dir.path().join("changing.ARW");
+            fs::write(&raw, b"queue protocol source").unwrap();
+            let path = raw.to_string_lossy().into_owned();
+            let (_, sidecar) = parse_virtual_path(&path);
+            let lut = dir.path().join("source.cube");
+            fs::write(&lut, "original asset").unwrap();
+            set_denoise_mark(vec![path.clone()], true).unwrap();
+            mutate(&sidecar, |v| {
+                v["adjustments"] = json!({"lutPath":lut,"exposure":0.5});
+                Ok(())
+            })
+            .unwrap();
+            let error = run_item(&path, &ident(), &DenoiseJob::testing(), |identity| {
+                if change_asset {
+                    fs::write(&lut, "modified asset").unwrap();
+                } else {
+                    mutate(&sidecar, |v| {
+                        v["adjustments"]["exposure"] = 1.0.into();
+                        Ok(())
+                    })
+                    .unwrap();
+                }
+                output(identity)
+            })
+            .unwrap_err();
+            assert!(error.contains("Source recipe or LUT changed"), "{error}");
+            assert!(!fs::read_dir(dir.path()).unwrap().any(|p| {
+                p.unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("_Denoised_")
+            }));
+            assert!(
+                queue(&strict_json(&sidecar).unwrap()).unwrap()["completed"]
+                    .as_array()
+                    .unwrap()
+                    .is_empty()
+            );
+        }
     }
 
     #[cfg(target_os = "linux")]
