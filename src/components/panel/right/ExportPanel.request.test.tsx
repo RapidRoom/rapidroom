@@ -35,6 +35,7 @@ const recipe: ExportPreset = {
   resizeValue: 1080,
   dontEnlarge: false,
   keepMetadata: true,
+  preserveTimestamps: false,
   stripGps: true,
   filenameTemplate: '{original_filename}',
   enableWatermark: false,
