@@ -1,0 +1,13 @@
+{
+  "id": "tamron-a058-calibration-contribution-note",
+  "title": "Document the Tamron A058 Sony E alias and calibration requirements",
+  "category": "fix",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original investigation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Contribution note only: records the exact Sony EXIF alias, Nikon Z8 calibration attribution, narrow matching proposal and Sony validation requirements. Does not enable automatic Sony corrections, change coefficients, or close issue 184."
+}
