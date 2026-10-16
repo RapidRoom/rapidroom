@@ -48,3 +48,6 @@ bench/out/
 
 # Explicitly staged optional native runtime; binaries never belong in Git.
 /src-tauri/resources/openvino-cpu/runtime/
+
+# Build-time Python packaging helpers
+__pycache__/

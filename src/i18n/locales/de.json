@@ -1771,6 +1771,8 @@
       "clearThumbnail": "Miniaturbild-Cache löschen",
       "clearThumbnailButton": "Löschen",
       "clearThumbnailDesc": "Dies löscht alle zwischengespeicherten Miniaturbilder. Sie werden beim Durchsuchen der Bibliothek automatisch neu generiert.",
+      "cacheUsage": "Miniaturbilder und Vorschauen: {{size}} · Dateien: {{files}}",
+      "cacheUsageError": "Cache-Nutzung konnte nicht gelesen werden.",
       "loading": "Wird geladen...",
       "logs": "Anwendungsprotokolle anzeigen",
       "logsButton": "Öffnen",

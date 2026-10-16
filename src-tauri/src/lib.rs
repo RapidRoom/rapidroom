@@ -2771,6 +2771,7 @@ pub fn run() {
             file_management::export_lightroom_preset,
             file_management::save_community_preset,
             file_management::clear_all_sidecars,
+            file_management::get_thumbnail_cache_usage,
             file_management::clear_thumbnail_cache,
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,
