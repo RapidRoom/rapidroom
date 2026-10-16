@@ -99,6 +99,11 @@ export function usePresets(currentAdjustments: Adjustments) {
       }
     }
 
+    if (presetAdjustments.exposure !== undefined) {
+      presetAdjustments.baselineExposure = currentAdjustments.baselineExposure;
+      presetAdjustments.cameraExposureCompensation = currentAdjustments.cameraExposureCompensation;
+    }
+
     const newPresetData: Preset = {
       adjustments: presetAdjustments,
       id: crypto.randomUUID(),
@@ -253,6 +258,12 @@ export function usePresets(currentAdjustments: Adjustments) {
       }
     }
 
+    if (newAdjustments.exposure !== undefined) {
+      newAdjustments.baselineExposure =
+        existingPreset.adjustments.baselineExposure ?? INITIAL_ADJUSTMENTS.baselineExposure;
+      newAdjustments.cameraExposureCompensation = existingPreset.adjustments.cameraExposureCompensation ?? false;
+    }
+
     if (!includeMasks) {
       for (const k of MASK_KEYS) delete newAdjustments[k];
     }
@@ -352,6 +363,11 @@ export function usePresets(currentAdjustments: Adjustments) {
           presetAdjustments[key] = currentValue;
         }
       }
+    }
+
+    if (presetAdjustments.exposure !== undefined) {
+      presetAdjustments.baselineExposure = currentAdjustments.baselineExposure;
+      presetAdjustments.cameraExposureCompensation = currentAdjustments.cameraExposureCompensation;
     }
 
     let updatedPreset: Preset | null = null;

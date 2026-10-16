@@ -241,6 +241,7 @@ export function useEditorActions() {
         const override: Adjustments = { ...INITIAL_ADJUSTMENTS };
         const preservedKeys: Array<keyof Adjustments> = [
           'baselineExposure',
+          'cameraExposureCompensation',
           'crop',
           'rotation',
           'flipHorizontal',
@@ -450,6 +451,11 @@ export function useEditorActions() {
             adjustmentsToApply[key as keyof Adjustments] = value;
           }
         }
+      }
+
+      if (adjustmentsToApply.exposure !== undefined) {
+        adjustmentsToApply.baselineExposure = copiedAdjustments.baselineExposure ?? false;
+        adjustmentsToApply.cameraExposureCompensation = copiedAdjustments.cameraExposureCompensation ?? false;
       }
 
       if (includedAdjustments.includes(LensAdjustment.LensMaker)) {

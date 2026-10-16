@@ -104,5 +104,9 @@ export function mixAdjustments(
     }
     return target;
   };
-  return blend(preset, before, '') as Partial<Adjustments>;
+  const mixed = blend(preset, before, '') as Partial<Adjustments>;
+  if (preset.exposure !== undefined && preset.cameraExposureCompensation === undefined) {
+    mixed.cameraExposureCompensation = false;
+  }
+  return mixed;
 }

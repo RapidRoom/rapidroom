@@ -284,6 +284,7 @@ pub(super) fn adjustments_schema() -> Value {
     );
     for key in [
         "baselineExposure",
+        "cameraExposureCompensation",
         "lensBlurEnabled",
         "lensDistortionEnabled",
         "lensTcaEnabled",
@@ -561,6 +562,7 @@ fn adjustment_keys() -> Vec<String> {
         .chain(
             [
                 "baselineExposure",
+                "cameraExposureCompensation",
                 "aiPatches",
                 "sectionVisibility",
                 "activeTools",
@@ -625,7 +627,11 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "guidedPerspective" => validate_guided_perspective(value)?,
                 "whiteBalance" => validate_white_balance(value)?,
                 "relightLights" => validate_relight_lights(value)?,
-                "baselineExposure" | "fogEnabled" | "relightEnabled" | "relightShadows" => {
+                "baselineExposure"
+                | "cameraExposureCompensation"
+                | "fogEnabled"
+                | "relightEnabled"
+                | "relightShadows" => {
                     if !value.is_boolean() {
                         return Err(format!("adjustment {key} must be a boolean"));
                     }
