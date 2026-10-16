@@ -568,9 +568,7 @@ export default function CropPanel() {
     if (isOrientationToggleDisabled) {
       return t('editor.crop.tooltips.switchOrientation');
     }
-    return isPortrait
-      ? t('editor.crop.tooltips.switchToLandscape')
-      : t('editor.crop.tooltips.switchToPortrait');
+    return isPortrait ? t('editor.crop.tooltips.switchToLandscape') : t('editor.crop.tooltips.switchToPortrait');
   };
 
   const handleDragStateChange = useCallback(
@@ -856,11 +854,7 @@ export default function CropPanel() {
                     aria-keyshortcuts="X"
                     data-tooltip={`${getOrientationTooltip()} (X)`}
                   >
-                    {isPortrait ? (
-                      <RectangleVertical size={16} />
-                    ) : (
-                      <RectangleHorizontal size={16} />
-                    )}
+                    {isPortrait ? <RectangleVertical size={16} /> : <RectangleHorizontal size={16} />}
                     <kbd className="text-xs">X</kbd>
                   </button>
                 </div>
@@ -881,7 +875,7 @@ export default function CropPanel() {
                       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                     >
                       <Text color={isPresetActive(preset) ? TextColors.button : TextColors.secondary}>
-                        {preset.value && preset.value !== 1 && (preset.value < 1) !== preferPortrait
+                        {preset.value && preset.value !== 1 && preset.value < 1 !== preferPortrait
                           ? preset.name.replace(/(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)/, '$2:$1')
                           : preset.name}
                       </Text>
