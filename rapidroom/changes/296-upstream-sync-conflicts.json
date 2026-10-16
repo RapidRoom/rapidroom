@@ -1,0 +1,13 @@
+{
+  "id": "resolve-daily-upstream-sync-296",
+  "title": "Sync upstream tool visibility and export fixes while preserving RapidRoom features",
+  "category": "fix",
+  "landed": "2026-10-15",
+  "authors": ["CyberTimon", "marclaliberte", "cl1x", "waxm134", "yojen7"],
+  "source": "CyberTimon/RapidRAW main at 22f07217a7efd7ee3a973ff8557cd0082204025d; conflict resolution for RapidRoom",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/22f07217a7efd7ee3a973ff8557cd0082204025d"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Adopts upstream per-tool visibility, synchronous auto-lens sidecars, capture timezone, headless failure exits, mask-drop insertion and layout-aware punctuation. Preserves RapidRoom image-bound map requests, complete cache content hashing, read-only Card mode, terminal cleanup, independent legacy color-tool visibility and MCP compatibility."
+}

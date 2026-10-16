@@ -30,7 +30,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { Adjustments, INITIAL_ADJUSTMENTS } from '../../../utils/adjustments';
 import clsx from 'clsx';
-import { CustomAspectRatio, Orientation } from '../../ui/AppProperties';
+import { CustomAspectRatio } from '../../ui/AppProperties';
 import { motion, AnimatePresence } from 'framer-motion';
 import Text from '../../ui/Text';
 import Slider from '../../ui/Slider';
@@ -57,6 +57,7 @@ interface CropPreset {
   name: string;
   value: number | null;
   tooltip: string;
+  instagram?: boolean;
 }
 
 interface OverlayOption {
@@ -105,7 +106,7 @@ export default function CropPanel() {
   const isGuidedPerspectiveActive = useEditorStore((s) => s.isGuidedPerspectiveActive);
   const activeOverlay = useEditorStore((s) => s.overlayMode);
   const setEditor = useEditorStore((s) => s.setEditor);
-  const { setAdjustments, handleRotate } = useEditorActions();
+  const { setAdjustments, handleRotate, handleCropOrientationToggle } = useEditorActions();
 
   const [customW, setCustomW] = useState('');
   const [customH, setCustomH] = useState('');
@@ -153,6 +154,24 @@ export default function CropPanel() {
         tooltip: t('editor.crop.presets.original.desc'),
       },
       { name: t('editor.crop.presets.sq.name'), value: 1, tooltip: t('editor.crop.presets.sq.desc') },
+      {
+        name: t('editor.crop.presets.instagramPortrait.name'),
+        value: 4 / 5,
+        tooltip: t('editor.crop.presets.instagramPortrait.desc'),
+        instagram: true,
+      },
+      {
+        name: t('editor.crop.presets.instagramGrid.name'),
+        value: 3 / 4,
+        tooltip: t('editor.crop.presets.instagramGrid.desc'),
+        instagram: true,
+      },
+      {
+        name: t('editor.crop.presets.instagramStories.name'),
+        value: 9 / 16,
+        tooltip: t('editor.crop.presets.instagramStories.desc'),
+        instagram: true,
+      },
       { name: t('editor.crop.presets.r54.name'), value: 5 / 4, tooltip: t('editor.crop.presets.r54.desc') },
       { name: t('editor.crop.presets.r43.name'), value: 4 / 3, tooltip: t('editor.crop.presets.r43.desc') },
       { name: t('editor.crop.presets.r32.name'), value: 3 / 2, tooltip: t('editor.crop.presets.r32.desc') },
@@ -317,16 +336,7 @@ export default function CropPanel() {
     return null;
   }, [aspectRatio, getEffectiveOriginalRatio, PRESETS, ALL_PRESETS]);
 
-  let orientation = Orientation.Horizontal;
-  if (activePreset && activePreset.value && activePreset.value !== 1) {
-    let baseRatio: number | null = activePreset.value;
-    if (activePreset.value === ORIGINAL_RATIO) {
-      baseRatio = getEffectiveOriginalRatio();
-    }
-    if (baseRatio && aspectRatio && Math.abs(aspectRatio - baseRatio) > RATIO_TOLERANCE) {
-      orientation = Orientation.Vertical;
-    }
-  }
+  const isPortrait = !!aspectRatio && aspectRatio < 1;
 
   const isCustomActive = aspectRatio !== null && (isCustomMode || !activePreset);
   const selectedPreset = isCustomActive ? null : activePreset;
@@ -470,6 +480,11 @@ export default function CropPanel() {
 
   const handlePresetClick = (preset: CropPreset) => {
     setIsCustomMode(false);
+    if (preset.instagram) {
+      setPreferPortrait(true);
+      applyAspectRatio(preset.value);
+      return;
+    }
 
     if (preset.value === ORIGINAL_RATIO) {
       applyAspectRatio(getEffectiveOriginalRatio());
@@ -478,9 +493,7 @@ export default function CropPanel() {
 
     const targetRatio = preset.value;
     if (selectedPreset === preset && targetRatio && targetRatio !== 1) {
-      const newRatio = 1 / (adjustments.aspectRatio ? adjustments.aspectRatio : 1);
-      setPreferPortrait(newRatio < 1);
-      applyAspectRatio(newRatio);
+      handleCropOrientationToggle();
       return;
     }
 
@@ -489,20 +502,12 @@ export default function CropPanel() {
       if (preferPortrait) {
         newAspectRatio = targetRatio > 1 ? 1 / targetRatio : targetRatio;
       } else {
-        newAspectRatio = targetRatio > 1 ? targetRatio : targetRatio;
+        newAspectRatio = targetRatio > 1 ? targetRatio : 1 / targetRatio;
       }
     }
 
     applyAspectRatio(newAspectRatio);
   };
-
-  const handleOrientationToggle = useCallback(() => {
-    if (aspectRatio && aspectRatio !== 1) {
-      const newRatio = 1 / aspectRatio;
-      setPreferPortrait(newRatio < 1);
-      applyAspectRatio(newRatio);
-    }
-  }, [aspectRatio, applyAspectRatio]);
 
   const handleReset = () => {
     const originalAspectRatio =
@@ -547,7 +552,7 @@ export default function CropPanel() {
   };
 
   const isPresetActive = (preset: CropPreset) => preset === selectedPreset;
-  const isOrientationToggleDisabled = !aspectRatio || aspectRatio === 1 || selectedPreset?.value === ORIGINAL_RATIO;
+  const isOrientationToggleDisabled = !aspectRatio || aspectRatio === 1;
 
   const fineRotation = useMemo(() => {
     return rotation || 0;
@@ -587,9 +592,7 @@ export default function CropPanel() {
     if (isOrientationToggleDisabled) {
       return t('editor.crop.tooltips.switchOrientation');
     }
-    return orientation === Orientation.Vertical
-      ? t('editor.crop.tooltips.switchToLandscape')
-      : t('editor.crop.tooltips.switchToPortrait');
+    return isPortrait ? t('editor.crop.tooltips.switchToLandscape') : t('editor.crop.tooltips.switchToPortrait');
   };
 
   const handleDragStateChange = useCallback(
@@ -725,9 +728,12 @@ export default function CropPanel() {
     Math.abs(adjustments.lensDistortionParams?.k1 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.k2 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.k3 || 0) > 1e-6;
-  const hasTca =
-    Math.abs((adjustments.lensDistortionParams?.tca_vr || 1) - 1) > 1e-5 ||
-    Math.abs((adjustments.lensDistortionParams?.tca_vb || 1) - 1) > 1e-5;
+  const tcaParams = adjustments.lensDistortionParams;
+  const hasTca = tcaParams?.tca_poly3
+    ? tcaParams.tca_vr !== 1 ||
+      tcaParams.tca_vb !== 1 ||
+      Object.entries(tcaParams.tca_poly3).some(([key, value]) => key !== 'radius_scale' && value !== 0)
+    : Math.abs((tcaParams?.tca_vr || 1) - 1) > 1e-5 || Math.abs((tcaParams?.tca_vb || 1) - 1) > 1e-5;
   const hasVignetting =
     Math.abs(adjustments.lensDistortionParams?.vig_k1 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.vig_k2 || 0) > 1e-6 ||
@@ -865,22 +871,24 @@ export default function CropPanel() {
                     <Grid3x3 size={16} />
                   </button>
                   <button
-                    className="p-1.5 rounded-md hover:bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1.5 rounded-md flex items-center gap-1 hover:bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isOrientationToggleDisabled}
-                    onClick={handleOrientationToggle}
-                    data-tooltip={getOrientationTooltip()}
+                    onClick={handleCropOrientationToggle}
+                    aria-label={getOrientationTooltip()}
+                    aria-keyshortcuts="X"
+                    data-tooltip={`${getOrientationTooltip()} (X)`}
                   >
-                    {orientation === Orientation.Vertical ? (
-                      <RectangleVertical size={16} />
-                    ) : (
-                      <RectangleHorizontal size={16} />
-                    )}
+                    {isPortrait ? <RectangleVertical size={16} /> : <RectangleHorizontal size={16} />}
+                    <kbd className="text-xs">X</kbd>
                   </button>
                 </div>
               </Text>
               <div className="grid grid-cols-3 gap-2">
                 {ALL_PRESETS.map((preset: CropPreset, index: number) => {
                   const savedIndex = index - PRESETS.length;
+                  const flipLabel = preset.instagram
+                    ? isPresetActive(preset) && !!aspectRatio && aspectRatio > 1
+                    : !!preset.value && preset.value !== 1 && preset.value < 1 !== preferPortrait;
                   return (
                     <motion.div
                       className={clsx(
@@ -894,7 +902,7 @@ export default function CropPanel() {
                       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                     >
                       <Text color={isPresetActive(preset) ? TextColors.button : TextColors.secondary}>
-                        {preset.name}
+                        {flipLabel ? preset.name.replace(/(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)/, '$2:$1') : preset.name}
                       </Text>
                       {savedIndex >= 0 && (
                         <button

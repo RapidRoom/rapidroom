@@ -14,7 +14,7 @@
       },
       "reset": "Ripristina",
       "shadows": "Ombre",
-      "toneMapper": "Tone Mapper",
+      "toneMapper": "Mappatura tonale",
       "whites": "Bianchi"
     },
     "color": {
@@ -65,7 +65,8 @@
       "vibrance": "Vividezza",
       "wbPickerTooltip": "Selettore Bilanciamento del Bianco",
       "wbPickerWgpuDisabled": "Selettore BB: Disabilita WGPU nelle Impostazioni.",
-      "whiteBalance": "Bilanciamento del Bianco"
+      "whiteBalance": "Bilanciamento del Bianco",
+      "kelvinModeTooltip": "Mostra la temperatura in Kelvin"
     },
     "curves": {
       "channelTitle": "Canale {{channel}}",
@@ -123,6 +124,11 @@
       "bokehShape": "Forma del bokeh",
       "creative": "Creativo",
       "feather": "Sfumatura",
+      "fog": "Nebbia",
+      "fogDensity": "Densità",
+      "fogHeight": "Nebbia bassa",
+      "fogStart": "Inizio",
+      "fogVariation": "Variazione",
       "glow": "Bagliore",
       "grain": "Grana",
       "halation": "Alonatura",
@@ -131,9 +137,33 @@
       "lightFlares": "Riflessi di Luce",
       "lut": "LUT",
       "midpoint": "Punto Medio",
+      "relight": "Riilluminazione",
+      "relightAddLight": "Aggiungi luce",
+      "relightAmbient": "Ambiente",
+      "relightAngle": "Angolo",
+      "relightColor": "Colore luce",
+      "relightCone": "Cono",
+      "relightDepth": "Profondità",
+      "relightElevation": "Elevazione",
+      "relightFalloff": "Attenuazione",
+      "relightHint": "Aggiungi o seleziona una luce, poi clicca o trascina sull'immagine per posizionarla.",
+      "relightIntensity": "Intensità",
+      "relightLight": "Luce {{index}}",
+      "relightRemoveLight": "Rimuovi luce",
+      "relightShadows": "Ombre",
+      "relightShadowSoftness": "Morbidezza ombre",
+      "relightShine": "Lucentezza",
+      "relightSoftness": "Morbidezza",
+      "relightType": "Tipo di luce",
+      "relightTypes": {
+        "directional": "Direzionale",
+        "point": "Puntiforme",
+        "spot": "Spot"
+      },
       "roughness": "Ruvidezza",
       "roundness": "Rotondità",
       "size": "Dimensione",
+      "spatial": "Spaziale",
       "vignette": "Vignettatura"
     }
   },
@@ -217,7 +247,7 @@
       "redo": "Ripeti",
       "resetAdjustments": "Ripristina Regolazioni",
       "stitchPanorama": "Unisci Panorama",
-      "tagging": "Tagging",
+      "tagging": "Tag",
       "undo": "Annulla",
       "unflagged": "Senza flag"
     },
@@ -265,6 +295,7 @@
       "autoAdjust_many": "Regolazione Automatica Immagini",
       "autoAdjust_one": "Regolazione Automatica Immagine",
       "autoAdjust_other": "Regolazione Automatica Immagini",
+      "autoLensCorrection_many": "Correzione automatica obiettivo",
       "autoLensCorrection_one": "Correzione automatica obiettivo",
       "autoLensCorrection_other": "Correzione automatica obiettivo",
       "collage_many": "Crea Collage",
@@ -311,6 +342,37 @@
       "showExplorer": "Mostra in Esplora File",
       "virtualCopy": "Copia Virtuale"
     },
+    "toasts": {
+      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
+      "couldNotShowExplorer": "Impossibile mostrare il file in esplora risorse: {{err}}",
+      "couldNotShowFolder": "Impossibile mostrare la cartella: {{err}}",
+      "failedAddToAlbum": "Impossibile aggiungere all'album: {{err}}",
+      "failedApplyAuto": "Impossibile applicare le regolazioni automatiche: {{err}}",
+      "failedChangeIcon": "Impossibile cambiare l'icona: {{err}}",
+      "failedCopy": "Impossibile copiare i file: {{err}}",
+      "failedCreateVirtualCopy": "Impossibile creare copia virtuale: {{err}}",
+      "failedDelete": "Impossibile eliminare: {{err}}",
+      "failedDeleteFolder": "Impossibile eliminare la cartella: {{err}}",
+      "failedDuplicate": "Impossibile duplicare il file: {{err}}",
+      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
+      "failedImportMatchingXmpSidecars": "Failed to import matching XMP sidecars: {{err}}",
+      "failedImportXmpAdjustments": "Failed to import XMP adjustments: {{err}}",
+      "failedMatchingXmpSidecars_one": "Matching XMP sidecars failed to import: {{count}}.",
+      "failedMatchingXmpSidecars_many": "Matching XMP sidecars failed to import: {{count}}.",
+      "failedMatchingXmpSidecars_other": "Matching XMP sidecars failed to import: {{count}}.",
+      "failedMove": "Impossibile spostare i file: {{err}}",
+      "failedMoveError": "Impossibile spostare: {{err}}",
+      "failedMoveInvalid": "Impossibile spostare: Gruppo di destinazione non trovato o non valido.",
+      "failedRemoveImages": "Impossibile rimuovere le immagini: {{err}}",
+      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
+      "importedMatchingXmpSidecars_one": "Imported matching XMP sidecars: {{count}}.",
+      "importedMatchingXmpSidecars_many": "Imported matching XMP sidecars: {{count}}.",
+      "importedMatchingXmpSidecars_other": "Imported matching XMP sidecars: {{count}}.",
+      "importedXmpAdjustments": "Imported XMP adjustments.",
+      "importingMatchingXmpSidecars": "Importing matching XMP sidecars…",
+      "noMatchingXmpSidecars": "No matching XMP sidecars found.",
+      "unchangedMatchingXmpSidecars": "Skipped matching XMP sidecars with no importable changes: {{count}}."
+    },
     "xmpImportReport": {
       "calibrationWarning": "Lightroom import is uncalibrated: global adjustments and masks are not ready for real use until full import calibration (#31 and #133) is complete.",
       "available": "XMP import report: {{unchanged}} unchanged, {{failed}} failed. Click to view details.",
@@ -322,6 +384,7 @@
       "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
+        "maskBrushTable": "Tabelle pennello non importate",
         "aiDenoise": "AI Denoise",
         "aiMasks": "AI masks (subject, sky, people, objects)",
         "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
@@ -371,40 +434,15 @@
           "cropGeometry": "Converted to native crop geometry",
           "unsupported": "No supported mapping for this CRS setting",
           "superseded": "The newer process-version setting takes precedence",
-          "inactive": "This setting is inactive in the source conversion mode"
+          "inactive": "This setting is inactive in the source conversion mode",
+          "alreadyApplied": "The photo marks development settings AlreadyApplied; existing native edits are preserved"
         }
-      }
-    },
-    "toasts": {
-      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
-      "couldNotShowExplorer": "Impossibile mostrare il file in esplora risorse: {{err}}",
-      "couldNotShowFolder": "Impossibile mostrare la cartella: {{err}}",
-      "failedAddToAlbum": "Impossibile aggiungere all'album: {{err}}",
-      "failedApplyAuto": "Impossibile applicare le regolazioni automatiche: {{err}}",
-      "failedChangeIcon": "Impossibile cambiare l'icona: {{err}}",
-      "failedCopy": "Impossibile copiare i file: {{err}}",
-      "failedCreateVirtualCopy": "Impossibile creare copia virtuale: {{err}}",
-      "failedDelete": "Impossibile eliminare: {{err}}",
-      "failedDeleteFolder": "Impossibile eliminare la cartella: {{err}}",
-      "failedDuplicate": "Impossibile duplicare il file: {{err}}",
-      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
-      "failedImportMatchingXmpSidecars": "Failed to import matching XMP sidecars: {{err}}",
-      "failedImportXmpAdjustments": "Failed to import XMP adjustments: {{err}}",
-      "failedMatchingXmpSidecars_one": "Matching XMP sidecars failed to import: {{count}}.",
-      "failedMatchingXmpSidecars_many": "Matching XMP sidecars failed to import: {{count}}.",
-      "failedMatchingXmpSidecars_other": "Matching XMP sidecars failed to import: {{count}}.",
-      "failedMove": "Impossibile spostare i file: {{err}}",
-      "failedMoveError": "Impossibile spostare: {{err}}",
-      "failedMoveInvalid": "Impossibile spostare: Gruppo di destinazione non trovato o non valido.",
-      "failedRemoveImages": "Impossibile rimuovere le immagini: {{err}}",
-      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
-      "importedMatchingXmpSidecars_one": "Imported matching XMP sidecars: {{count}}.",
-      "importedMatchingXmpSidecars_many": "Imported matching XMP sidecars: {{count}}.",
-      "importedMatchingXmpSidecars_other": "Imported matching XMP sidecars: {{count}}.",
-      "importedXmpAdjustments": "Imported XMP adjustments.",
-      "importingMatchingXmpSidecars": "Importing matching XMP sidecars…",
-      "noMatchingXmpSidecars": "No matching XMP sidecars found.",
-      "unchangedMatchingXmpSidecars": "Skipped matching XMP sidecars with no importable changes: {{count}}."
+      },
+      "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
+      "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved.",
+      "brushTableGroup": "Gruppo pennello \"{{name}}\": {{reason}}",
+      "unchangedForImage": "Le modifiche esistenti sono state mantenute; nessuna regolazione supportata è stata importata."
     }
   },
   "editor": {
@@ -486,6 +524,7 @@
       "editSettingsTitle": "Impostazioni Modifica",
       "editsTitle": "Modifiche",
       "generatingDepthMap": "Calcolo mappa di profondità IA...",
+      "generatingNormalMap": "Calcolo della mappa delle normali IA...",
       "generativeEditTitle": "Modifica generativa",
       "inpaintingTitle": "Inpainting",
       "liquify": {
@@ -520,6 +559,7 @@
         "heal_other": "Ripara {{count}}",
         "invertedName": "{{name}} Invertita",
         "liquify": "Fluidifica {{count}}",
+        "liquify_many": "Fluidifica {{count}}",
         "liquify_one": "Fluidifica {{count}}",
         "liquify_other": "Fluidifica {{count}}",
         "quickErase": "Cancellazione Rapida {{count}}",
@@ -902,7 +942,7 @@
       }
     },
     "toolbar": {
-      "switchToVariant": "Switch to {{label}}",
+      "switchToVariant": "Passa a {{label}}",
       "tooltips": {
         "aperture": "Apertura",
         "backToLibrary": "Torna alla Libreria",
@@ -1126,7 +1166,8 @@
         "threeOnly": "Solo 3",
         "twoAndUp": "2 e superiori",
         "twoOnly": "Solo 2",
-        "unrated": "Solo Non Valutate"
+        "unrated": "Solo Non Valutate",
+        "andDownSuffix": "e inferiori"
       },
       "raw": {
         "all": "Tutti i Tipi",
@@ -1199,12 +1240,17 @@
         "filterByFileType": "Filtra per Tipo di File",
         "filterByFlag": "Filtra per Flag",
         "filterByRating": "Filtra per Valutazione",
-        "groupEditedFiles": "Include edited files in groups",
-        "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
-        "groupOff": "Off",
-        "groupPreferJpeg": "Prefer JPEG",
-        "groupPreferRaw": "Prefer RAW",
-        "groupRawJpeg": "Group RAW + JPEG",
+        "ratingOperator": {
+          "eq": "Esattamente questa valutazione",
+          "gte": "Questa valutazione o superiore",
+          "lte": "Questa valutazione o inferiore"
+        },
+        "groupEditedFiles": "Includi i file modificati nei gruppi",
+        "groupIgnoreMetadata": "Ignora le date EXIF non coincidenti",
+        "groupOff": "Disattivato",
+        "groupPreferJpeg": "Preferisci il JPEG",
+        "groupPreferRaw": "Preferisci il RAW",
+        "groupRawJpeg": "Raggruppa RAW + JPEG",
         "metadataAlways": "Sempre",
         "metadataHover": "Al passaggio del mouse",
         "metadataOff": "Spento",
@@ -1508,6 +1554,7 @@
       "description": "Combina più immagini con diverse distanze di messa a fuoco in un'unica immagine perfettamente nitida.",
       "descriptionWithCount_one": "Combina {{count}} immagine con diverse distanze di messa a fuoco in un'unica immagine perfettamente nitida.",
       "descriptionWithCount_other": "Combina {{count}} immagini con diverse distanze di messa a fuoco in un'unica immagine perfettamente nitida.",
+      "descriptionWithCount_many": "Combina {{count}} immagini con diverse distanze di messa a fuoco in un'unica immagine perfettamente nitida.",
       "failed": "Focus Stacking non riuscito",
       "initializing": "Inizializzazione...",
       "openInEditor": "Apri nell'editor",
@@ -1545,6 +1592,7 @@
       "deleteWarning": "I file verranno spostati nel cestino di sistema.",
       "fileNaming": "Nomenclatura File",
       "folderOrganization": "Organizzazione Cartelle",
+      "notUniqueWarning": "Senza {original_filename}, {original_filename_number} o {sequence}, più file possono ricevere lo stesso nome. Questi file non vengono importati.",
       "organizeByDate": "Organizza in sottocartelle per data",
       "sourceFiles": "File Sorgente",
       "startImport": "Inizia Importazione",
@@ -1673,6 +1721,7 @@
       "groupSelection": "Tutta la selezione è un gruppo",
       "groups": "Gruppi per {group} e {member}",
       "newName": "Nuovo Nome",
+      "notUniqueWarning": "Senza {original_filename}, {original_filename_number} o {sequence}, più file possono ricevere lo stesso nome. In tal caso non viene rinominato nulla.",
       "preview": "Anteprima",
       "renamed_many": "{{count}} file rinominati",
       "renamed_one": "{{count}} file rinominato",
@@ -1912,7 +1961,10 @@
         "zoom_in": "Ingrandisci",
         "zoom_in_step": "Ingrandisci (a step)",
         "zoom_out": "Riduci",
-        "zoom_out_step": "Riduci (a step)"
+        "zoom_out_step": "Riduci (a step)",
+        "toggle_pick": "Attiva/disattiva flag Scelta",
+        "toggle_reject": "Attiva/disattiva flag Rifiutata",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "Modifica",
@@ -1956,6 +2008,11 @@
             "upgradeBtn": "Esegui l'upgrade sul Sito Web",
             "upgradeDesc": "Per utilizzare le funzionalità dell'AI Cloud, è necessario un abbonamento Cloud."
           },
+          "statuses": {
+            "connecting": "Connessione in corso…",
+            "retry": "Riprova connessione",
+            "unsupported": "L'accesso al cloud è attualmente disponibile solo su desktop."
+          },
           "title": "Servizio Cloud"
         },
         "connector": {
@@ -1978,9 +2035,17 @@
           "feature3": "Sostituzione Generativa semplice basata su CPU",
           "title": "AI Integrata (CPU)"
         },
+        "aiFree": {
+          "description": "Disattiva tutte le funzioni di IA. Tutti i controlli legati all'IA vengono nascosti dall'interfaccia, così RapidRAW funziona come un editor RAW puramente tradizionale.",
+          "feature1": "Nessuna maschera IA, sfocatura dell'obiettivo o modifica generativa nell'interfaccia",
+          "feature2": "Le modifiche IA esistenti continuano a essere visualizzate normalmente",
+          "feature3": "Un'interfaccia più pulita e mirata",
+          "title": "Senza IA"
+        },
         "description": "L'AI di RapidRAW è concepita per essere flessibile. Scegli il tuo flusso di lavoro ideale, da strumenti locali veloci a un potente self-hosting.",
         "providers": {
           "aiConnector": "Connettore AI",
+          "aiFree": "Senza IA",
           "cloud": "Cloud",
           "cpu": "CPU"
         },
@@ -2025,6 +2090,10 @@
         "appleRaw9Desc": "Sviluppa i file RAW con il decodificatore RAW 9 di Core Image di Apple, che esegue la demosaicizzazione e la riduzione del rumore in un solo passaggio sul Neural Engine. Richiede macOS 27 o successivo e una fotocamera supportata; i file non supportati utilizzano automaticamente il decodificatore integrato. Più lento del decodificatore predefinito. Le miniature non ne sono influenzate.",
         "applyPreprocessing": "Applica Pre-elaborazione a File non RAW",
         "applyPreprocessingDesc": "Se abilitato, la riduzione del rumore cromatico di base e la pre-nitidezza indicate sopra verranno applicate anche ai formati standard.",
+        "baselineExposure": "Esposizione di base",
+        "baselineExposureAmount": "Valore di base",
+        "baselineExposureAmountDesc": "Esposizione aggiunta ai file RAW. darktable usa +0,7 EV.",
+        "baselineExposureDesc": "Schiarisce tutti i file RAW di un valore fisso, come l'impostazione predefinita di darktable in modalità scene-referred, più il tag DNG BaselineExposure se presente. Le immagini modificate prima dell'introduzione di questa opzione non cambiano.",
         "colorNr": "Riduzione Rumore Cromatico di Base",
         "colorNrDesc": "Applica un filtro bilaterale incrociato all'inizio del processo per rimuovere il rumore cromatico. Valore più alto = Riduzione Rumore (NR) più forte.",
         "defaultNonRawTonemapper": "Tonemapper Predefinito per Non-RAW",
@@ -2032,8 +2101,12 @@
         "defaultRawTonemapper": "Tonemapper Predefinito per RAW",
         "defaultRawTonemapperDesc": "Il tonemapper da applicare alle immagini RAW.",
         "enableAppleRaw9": "Usa Apple RAW 9 per i file RAW",
+        "enableBaselineExposure": "Applica l'esposizione di base ai file RAW",
+        "enableHighlightPreservation": "Compensa le modalità di protezione delle alte luci della fotocamera",
         "enablePreprocessingNonRaws": "Abilita per Non-RAW",
         "enableTonemapperOverride": "Abilita Sovrascrittura Tonemapper",
+        "highlightPreservation": "Compensazione della protezione delle alte luci",
+        "highlightPreservationDesc": "Ripristina l'esposizione trattenuta dalla fotocamera nelle modalità di protezione delle alte luci, letta dal file RAW (Fujifilm DR200/DR400, Priorità tonalità chiare e Auto Lighting Optimizer Canon, D-Lighting attivo Nikon, gradazione Olympus, espansione della gamma dinamica Pentax). Le immagini modificate prima dell'introduzione di questa opzione non cambiano.",
         "highlightRecovery": "Recupero Luci RAW",
         "highlightRecoveryDesc": "Controlla quanti dettagli vengono recuperati dalle luci bruciate nei file RAW. Valori più alti recuperano più dettagli ma possono introdurre artefatti viola.",
         "linearOptions": {
@@ -2109,7 +2182,7 @@
       "removeShortcutTooltip": "Rimuovi scorciatoia \"{{shortcut}}\"",
       "shortcuts": "Scorciatoie Tagging",
       "shortcutsDesc": "Una lista di tag che appariranno come scorciatoie nel menu contestuale del tagging.",
-      "title": "Tagging"
+      "title": "Tag"
     },
     "thanks": {
       "description": "Un enorme grazie ai seguenti progetti che sono stati molto importanti nello sviluppo di RapidRAW:",
@@ -2286,6 +2359,35 @@
         "vectorscope": "Vettorscopio"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
   },
   "printProof": {
     "title": "Soft proof",

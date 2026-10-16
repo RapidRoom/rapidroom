@@ -38,6 +38,8 @@ pub enum LaunchRequest {
     EditSession(ExternalEditSession),
     HeadlessExport(HeadlessExportSession),
     HeadlessBench(crate::bench::BenchSession),
+    HeadlessDenoise(crate::denoising::queue::Cli),
+    InvalidDenoise(String),
     InvalidHeadless(String),
     InvalidBench(String),
 }
@@ -96,6 +98,12 @@ fn parse_sharpen_arg(value: &str) -> Result<Option<OutputSharpening>, String> {
 }
 
 pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
+    if args.first().map(String::as_str) == Some("denoise") {
+        return match crate::denoising::queue::parse_args(&args[1..]) {
+            Ok(session) => LaunchRequest::HeadlessDenoise(session),
+            Err(error) => LaunchRequest::InvalidDenoise(error),
+        };
+    }
     if args.first().map(|s| s.as_str()) == Some("bench") {
         return match crate::bench::parse_bench_args(&args[1..]) {
             Ok(session) => LaunchRequest::HeadlessBench(session),
@@ -324,6 +332,10 @@ pub fn emit_launch_request(app_handle: &tauri::AppHandle, request: LaunchRequest
         LaunchRequest::InvalidBench(error) => {
             log::error!("Invalid bench request: {}", error);
         }
+        LaunchRequest::HeadlessDenoise(_) => {
+            cli_eprintln!("Denoise requires its own headless instance.")
+        }
+        LaunchRequest::InvalidDenoise(error) => log::error!("Invalid denoise request: {}", error),
         LaunchRequest::None => {}
     }
 }

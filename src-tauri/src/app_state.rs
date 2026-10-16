@@ -15,6 +15,7 @@ use tokio::task::JoinHandle;
 use wgpu::{Texture, TextureView};
 
 use crate::ai_processing::AiState;
+use crate::as_shot::AsShot;
 use crate::cache_utils::DecodedImageCache;
 use crate::camera_tethering::CameraSession;
 use crate::gpu_processing::GpuProcessor;
@@ -110,6 +111,7 @@ pub struct LoadedImage {
     pub path: String,
     pub image: Arc<DynamicImage>,
     pub is_raw: bool,
+    pub as_shot: AsShot,
 }
 
 #[derive(Clone)]
@@ -126,6 +128,9 @@ pub struct CachedPreview {
 pub struct GpuImageCache {
     pub texture: Texture,
     pub texture_view: TextureView,
+    pub gf_coeffs_view: TextureView,
+    pub gf_dehaze_view: TextureView,
+    pub is_raw: u32,
     pub width: u32,
     pub height: u32,
     pub transform_hash: u64,
@@ -211,7 +216,8 @@ impl MetadataManager {
 }
 
 pub type ThumbnailGeometryEntry = (u64, Arc<DynamicImage>, f32);
-pub type TransformedImageCache = (u64, Arc<DynamicImage>, (f32, f32));
+pub type TransformedImageCache = (u64, Arc<DynamicImage>, f32, (f32, f32));
+pub type TransformedPreview = (Arc<DynamicImage>, f32, (f32, f32));
 
 #[cfg(feature = "mcp")]
 #[derive(Clone)]
@@ -283,7 +289,10 @@ pub struct AppState {
     pub lens_db: Mutex<Option<Arc<LensDatabase>>>,
     pub load_image_generation: Arc<AtomicUsize>,
     pub full_warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
+    pub patched_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
     pub patched_warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
+    pub working_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
+    pub effects_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
     pub full_transformed_cache: Mutex<Option<TransformedImageCache>>,
     pub decoded_image_cache: Mutex<DecodedImageCache>,
     /// Only one full-resolution decode at a time. Arrowing through a folder

@@ -1,0 +1,354 @@
+{
+  "application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "engine_sha256": "610a4783011f89605f6f6eeb24ef2fcd7448503e0489bd205e7513e4dc44060c",
+  "cases": [
+    {
+      "fixture": "fuji-xh2-40mp-compressed",
+      "result_sha256": "ba73653fb7918056cba16a0b3219108404bcc31c06c4cc604dcb5e3f89e268e5",
+      "passed": true,
+      "capture_count": 5,
+      "fullsize_capture": {
+        "capture": "captures/settled-fullsize-100-percent-1/wayland-screenshot-2026-10-14_17-26-07.png",
+        "before": {
+          "bounds": [-1736, -3417, 3416, 4311],
+          "count": 1,
+          "decode_failed": false,
+          "height": 7728,
+          "history": [
+            {
+              "at_ms": 13915.000000000002,
+              "height": 1024,
+              "width": 683
+            },
+            {
+              "at_ms": 15937.000000000002,
+              "height": 7728,
+              "width": 5152
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 5152,
+          "zoom": "100%"
+        },
+        "after": {
+          "bounds": [-1736, -3417, 3416, 4311],
+          "count": 1,
+          "decode_failed": false,
+          "height": 7728,
+          "history": [
+            {
+              "at_ms": 13915.000000000002,
+              "height": 1024,
+              "width": 683
+            },
+            {
+              "at_ms": 15937.000000000002,
+              "height": 7728,
+              "width": 5152
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 5152,
+          "zoom": "100%"
+        },
+        "same_displayed_source_before_after": true,
+        "expected_dimensions": [5152, 7728],
+        "method": "Actual typed100, decoded single visible full-size SVG resource BEFORE screenshot, stable native compositor captures, same resource/dimensions verified AFTER; no store mutation or synthetic photo"
+      },
+      "comparison": {
+        "old_to_settled_exact": true,
+        "old_to_settled_mean_absolute_difference": [0.0, 0.0, 0.0],
+        "original_to_settled_exact": false,
+        "original_to_settled_mean_absolute_difference": [3.346758129225935, 2.3208624414331003, 3.8977709508178324],
+        "before": {
+          "bounds": [-1736, -3417, 3416, 4311],
+          "count": 1,
+          "decode_failed": false,
+          "height": 7728,
+          "history": [
+            {
+              "at_ms": 13915.000000000002,
+              "height": 1024,
+              "width": 683
+            },
+            {
+              "at_ms": 15937.000000000002,
+              "height": 7728,
+              "width": 5152
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 5152,
+          "zoom": "100%"
+        },
+        "after": {
+          "bounds": [-1736, -3417, 3416, 4311],
+          "count": 1,
+          "decode_failed": false,
+          "height": 7728,
+          "history": [
+            {
+              "at_ms": 13915.000000000002,
+              "height": 1024,
+              "width": 683
+            },
+            {
+              "at_ms": 15937.000000000002,
+              "height": 7728,
+              "width": 5152
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 5152,
+          "zoom": "100%"
+        },
+        "same_displayed_source_before_after": true
+      }
+    },
+    {
+      "fixture": "fuji-xt4-26mp-lossless",
+      "result_sha256": "3335c48ef8b864024d656e00c2f8a8c2e7450abd32d18df772a774c8efd9f75c",
+      "passed": true,
+      "capture_count": 5,
+      "fullsize_capture": {
+        "capture": "captures/settled-fullsize-100-percent-1/wayland-screenshot-2026-10-14_17-26-23.png",
+        "before": {
+          "bounds": [-2280, -1633, 3960, 2527],
+          "count": 1,
+          "decode_failed": false,
+          "height": 4160,
+          "history": [
+            {
+              "at_ms": 10719,
+              "height": 853,
+              "width": 1280
+            },
+            {
+              "at_ms": 12191,
+              "height": 4160,
+              "width": 6240
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 6240,
+          "zoom": "100%"
+        },
+        "after": {
+          "bounds": [-2280, -1633, 3960, 2527],
+          "count": 1,
+          "decode_failed": false,
+          "height": 4160,
+          "history": [
+            {
+              "at_ms": 10719,
+              "height": 853,
+              "width": 1280
+            },
+            {
+              "at_ms": 12191,
+              "height": 4160,
+              "width": 6240
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 6240,
+          "zoom": "100%"
+        },
+        "same_displayed_source_before_after": true,
+        "expected_dimensions": [6240, 4160],
+        "method": "Actual typed100, decoded single visible full-size SVG resource BEFORE screenshot, stable native compositor captures, same resource/dimensions verified AFTER; no store mutation or synthetic photo"
+      },
+      "comparison": {
+        "old_to_settled_exact": true,
+        "old_to_settled_mean_absolute_difference": [0.0, 0.0, 0.0],
+        "original_to_settled_exact": true,
+        "original_to_settled_mean_absolute_difference": [0.0, 0.0, 0.0],
+        "before": {
+          "bounds": [-2280, -1633, 3960, 2527],
+          "count": 1,
+          "decode_failed": false,
+          "height": 4160,
+          "history": [
+            {
+              "at_ms": 10719,
+              "height": 853,
+              "width": 1280
+            },
+            {
+              "at_ms": 12191,
+              "height": 4160,
+              "width": 6240
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 6240,
+          "zoom": "100%"
+        },
+        "after": {
+          "bounds": [-2280, -1633, 3960, 2527],
+          "count": 1,
+          "decode_failed": false,
+          "height": 4160,
+          "history": [
+            {
+              "at_ms": 10719,
+              "height": 853,
+              "width": 1280
+            },
+            {
+              "at_ms": 12191,
+              "height": 4160,
+              "width": 6240
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 6240,
+          "zoom": "100%"
+        },
+        "same_displayed_source_before_after": true
+      }
+    },
+    {
+      "fixture": "sony-a7c2-15mp-uncompressed",
+      "result_sha256": "cda641367e2b977d7fbc39ab00bee3f9fd9697eb02c9425ec35cc3a34b8bd60f",
+      "passed": true,
+      "capture_count": 5,
+      "fullsize_capture": {
+        "capture": "captures/settled-fullsize-100-percent-1/wayland-screenshot-2026-10-14_17-26-40.png",
+        "before": {
+          "bounds": [-1464, -1089, 3144, 1983],
+          "count": 1,
+          "decode_failed": false,
+          "height": 3072,
+          "history": [
+            {
+              "at_ms": 12452,
+              "height": 853,
+              "width": 1280
+            },
+            {
+              "at_ms": 13369,
+              "height": 3072,
+              "width": 4608
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 4608,
+          "zoom": "100%"
+        },
+        "after": {
+          "bounds": [-1464, -1089, 3144, 1983],
+          "count": 1,
+          "decode_failed": false,
+          "height": 3072,
+          "history": [
+            {
+              "at_ms": 12452,
+              "height": 853,
+              "width": 1280
+            },
+            {
+              "at_ms": 13369,
+              "height": 3072,
+              "width": 4608
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 4608,
+          "zoom": "100%"
+        },
+        "same_displayed_source_before_after": true,
+        "expected_dimensions": [4608, 3072],
+        "method": "Actual typed100, decoded single visible full-size SVG resource BEFORE screenshot, stable native compositor captures, same resource/dimensions verified AFTER; no store mutation or synthetic photo"
+      },
+      "comparison": {
+        "old_to_settled_exact": true,
+        "old_to_settled_mean_absolute_difference": [0.0, 0.0, 0.0],
+        "original_to_settled_exact": true,
+        "original_to_settled_mean_absolute_difference": [0.0, 0.0, 0.0],
+        "before": {
+          "bounds": [-1464, -1089, 3144, 1983],
+          "count": 1,
+          "decode_failed": false,
+          "height": 3072,
+          "history": [
+            {
+              "at_ms": 12452,
+              "height": 853,
+              "width": 1280
+            },
+            {
+              "at_ms": 13369,
+              "height": 3072,
+              "width": 4608
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 4608,
+          "zoom": "100%"
+        },
+        "after": {
+          "bounds": [-1464, -1089, 3144, 1983],
+          "count": 1,
+          "decode_failed": false,
+          "height": 3072,
+          "history": [
+            {
+              "at_ms": 12452,
+              "height": 853,
+              "width": 1280
+            },
+            {
+              "at_ms": 13369,
+              "height": 3072,
+              "width": 4608
+            }
+          ],
+          "image_rendering": "auto",
+          "opacity": "1",
+          "ready": true,
+          "source_length": 59,
+          "width": 4608,
+          "zoom": "100%"
+        },
+        "same_displayed_source_before_after": true
+      }
+    }
+  ],
+  "complete": true,
+  "diagnosis": "XH2 original100 screenshot captured an intermediate low-resolution frame. Targeted probes wait for decoded full-size single visible SVG resource before native screenshot and verify identical source/dimensions after. All three settled photoROIs equal historicaldcff pixel-for-pixel; no application fix. XT4/Sony original photoROIs were already exact.",
+  "reference_updated": false
+}

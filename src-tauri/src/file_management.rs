@@ -30,6 +30,8 @@ use crate::PendingMetadata;
 #[cfg(target_os = "android")]
 use crate::android_integration::*;
 use crate::app_settings::*;
+use crate::as_shot::as_shot;
+use crate::baseline_exposure::BaselineOptions;
 use crate::batch_rename::{RenameOptions, RenameOutcome, RenamePreview, UndoInfo, plan_rename};
 use crate::exif_processing;
 use crate::formats::{is_raw_file, is_supported_image_file};
@@ -38,8 +40,9 @@ use crate::image_loader;
 use crate::image_processing::GpuContext;
 use crate::image_processing::{
     Crop, ImageFlag, ImageMetadata, apply_coarse_rotation, apply_cpu_default_raw_processing,
-    apply_crop, apply_flip, apply_geometry_warp, apply_rotation, auto_results_to_json,
-    get_all_adjustments_from_json, perform_auto_analysis,
+    apply_crop, apply_exposure, apply_flip, apply_geometry_warp, apply_rotation,
+    auto_results_to_json, default_adjustments, effective_baseline_exposure,
+    get_all_adjustments_from_json, perform_auto_analysis, resolve_render_options,
 };
 
 use crate::lrtemplate;
@@ -534,12 +537,17 @@ pub struct ImportSettings {
 
 #[derive(Debug)]
 struct ImportedXmpSidecar {
-    source_path: PathBuf,
     sidecar_path: PathBuf,
     metadata: ImageMetadata,
     not_transferred: Vec<&'static str>,
+    adjustments_applied: bool,
+    metadata_applied: bool,
+    already_applied: bool,
+    draft_preserved: bool,
     settings_report: crate::lightroom_report::Report,
     unchanged: bool,
+    brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
+    mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -555,6 +563,9 @@ pub struct XmpSidecarImportResult {
     pub failed: usize,
     pub failures: Vec<String>,
     pub imported_paths: Vec<String>,
+    pub adjustments_imported_paths: Vec<String>,
+    pub already_applied_paths: Vec<String>,
+    pub preserved_draft_paths: Vec<String>,
     pub unchanged_paths: Vec<String>,
     pub not_transferred: Vec<XmpNotTransferred>,
 }
@@ -565,6 +576,8 @@ pub struct XmpNotTransferred {
     pub path: String,
     pub items: Vec<&'static str>,
     pub settings_report: crate::lightroom_report::Report,
+    pub brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
+    pub mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -573,8 +586,20 @@ pub struct XmpImageImportResult {
     #[serde(flatten)]
     pub metadata: ImageMetadata,
     pub not_transferred: Vec<&'static str>,
+    pub adjustments_applied: bool,
+    pub already_applied: bool,
+    pub draft_preserved: bool,
     pub settings_report: crate::lightroom_report::Report,
     pub unchanged: bool,
+    pub brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
+    pub mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct XmpEditorDraft {
+    path: String,
+    adjustments: Value,
 }
 
 pub fn parse_virtual_path(virtual_path: &str) -> (PathBuf, PathBuf) {
@@ -1584,11 +1609,148 @@ pub fn write_file_atomically(
     path: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
 ) -> std::io::Result<()> {
+    let path = path.as_ref();
+    if !path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("rrdata"))
+    {
+        return write_file_atomically_with_backend(
+            path,
+            contents.as_ref(),
+            &mut TempfileAtomicWriteBackend,
+        );
+    }
+    let _guard = lock_sidecar(path)?;
+    let mut bytes = contents.as_ref().to_vec();
+    if let Ok(existing) = fs::read(path)
+        && let Ok(current) = serde_json::from_slice::<Value>(&existing)
+        && SIDECAR_OWNED_FIELDS
+            .iter()
+            .any(|key| current.get(key).is_some())
+    {
+        // Ordinary edit/EXIF/rating writers can hold stale snapshots. Each dedicated
+        // transaction owns its destination field, including an explicit null clear.
+        let mut incoming: Value = serde_json::from_slice(&bytes).map_err(std::io::Error::other)?;
+        let object = incoming
+            .as_object_mut()
+            .ok_or_else(|| std::io::Error::other("Sidecar must be a JSON object"))?;
+        preserve_sidecar_owned_fields(&current, object);
+        bytes = serde_json::to_vec_pretty(&incoming).map_err(std::io::Error::other)?;
+    }
+    // Retain the exact-byte/non-JSON contract when there are no owned fields.
+    write_file_atomically_unmerged(path, bytes)
+}
+
+pub(crate) const SIDECAR_OWNED_FIELDS: [&str; 3] = ["denoise", "appliedPreset", "exportFraming"];
+
+pub(crate) fn preserve_sidecar_owned_fields(
+    current: &Value,
+    incoming: &mut serde_json::Map<String, Value>,
+) {
+    for key in SIDECAR_OWNED_FIELDS {
+        if let Some(value) = current.get(key) {
+            incoming.insert(key.into(), value.clone());
+        }
+    }
+}
+
+static SIDECAR_WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+pub(crate) struct SidecarWriteGuard {
+    _file: fs::File,
+    _mutex: std::sync::MutexGuard<'static, ()>,
+}
+
+// All ordinary and dedicated writers acquire in this order. The file guard also
+// coordinates the headless CLI with a GUI running in another process.
+pub(crate) fn lock_sidecar(path: &Path) -> std::io::Result<SidecarWriteGuard> {
+    if is_card_read_only_path(path) {
+        return Err(card_read_only_io_error());
+    }
+    let mutex = SIDECAR_WRITE_LOCK
+        .lock()
+        .map_err(|_| std::io::Error::other("Sidecar write lock poisoned"))?;
+    let file = lock_sidecar_file(path)?;
+    Ok(SidecarWriteGuard {
+        _file: file,
+        _mutex: mutex,
+    })
+}
+
+fn lock_sidecar_file(path: &Path) -> std::io::Result<fs::File> {
+    let target = if path.is_symlink() {
+        fs::canonicalize(path)?
+    } else {
+        path.to_path_buf()
+    };
+    let name = target
+        .file_name()
+        .ok_or_else(|| std::io::Error::other("Missing filename"))?
+        .to_string_lossy();
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(target.with_file_name(format!(".{name}.rapidroom-lock")))?;
+    file.lock()?;
+    Ok(file)
+}
+
+#[cfg(test)]
+pub(crate) fn lock_sidecar_as_external_writer(path: &Path) -> std::io::Result<fs::File> {
+    // Simulate a different process: it has its own mutex but shares the OS lock.
+    lock_sidecar_file(path)
+}
+
+// Only call while holding lock_sidecar, or for a non-sidecar target.
+pub(crate) fn write_file_atomically_unmerged(
+    path: impl AsRef<Path>,
+    contents: impl AsRef<[u8]>,
+) -> std::io::Result<()> {
     write_file_atomically_with_backend(
         path.as_ref(),
         contents.as_ref(),
         &mut TempfileAtomicWriteBackend,
     )
+}
+
+pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), String> {
+    let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
+    let mut metadata = match fs::read(path) {
+        Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            serde_json::to_value(ImageMetadata::default()).map_err(|e| e.to_string())?
+        }
+        Err(error) => return Err(error.to_string()),
+    };
+    metadata
+        .as_object_mut()
+        .ok_or("Invalid photo metadata")?
+        .insert("appliedPreset".into(), record);
+    let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
+    write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())
+}
+
+pub(crate) fn update_export_framing(
+    path: &Path,
+    update: impl FnOnce(&Value) -> Result<Value, String>,
+) -> Result<(), String> {
+    let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
+    let mut metadata = match fs::read(path) {
+        Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            serde_json::to_value(ImageMetadata::default()).map_err(|e| e.to_string())?
+        }
+        Err(error) => return Err(error.to_string()),
+    };
+    let framing = update(&metadata)?;
+    metadata
+        .as_object_mut()
+        .ok_or("Invalid photo metadata")?
+        .insert("exportFraming".into(), framing);
+    let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
+    write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())
 }
 
 trait AtomicWriteTemp: std::io::Write {
@@ -1906,7 +2068,9 @@ pub fn generate_thumbnail_data(
             let warped_image =
                 apply_geometry_warp(Cow::Borrowed(&composite_image), &meta.adjustments);
 
-            let blurred_image = crate::lens_blur::apply_lens_blur(warped_image, &meta.adjustments);
+            let relit_image = crate::relight::apply_relight(warped_image, &meta.adjustments);
+            let fogged_image = crate::fog::apply_fog(relit_image, &meta.adjustments);
+            let blurred_image = crate::lens_blur::apply_lens_blur(fogged_image, &meta.adjustments);
 
             let orientation_steps =
                 meta.adjustments["orientationSteps"].as_u64().unwrap_or(0) as u8;
@@ -2014,11 +2178,12 @@ pub fn generate_thumbnail_data(
             })
             .collect();
 
-        let gpu_is_raw = is_raw;
-        let tm_override =
-            crate::image_processing::resolve_tonemapper_override(&settings, gpu_is_raw);
-        let gpu_adjustments =
-            get_all_adjustments_from_json(&meta.adjustments, gpu_is_raw, tm_override);
+        let gpu_adjustments = get_all_adjustments_from_json(
+            &meta.adjustments,
+            is_raw,
+            as_shot(&source_path_str),
+            resolve_render_options(&settings, is_raw),
+        );
         let lut_path = meta.adjustments["lutPath"].as_str();
         let lut = lut_path.and_then(|p| {
             let mut cache = state.lut_cache.lock().unwrap();
@@ -2085,8 +2250,12 @@ pub fn generate_thumbnail_data(
     };
 
     if adjustments.is_null() {
-        let tm_override = crate::image_processing::resolve_tonemapper_override(&settings, is_raw);
-        let use_agx = tm_override == Some(1);
+        let render = resolve_render_options(&settings, is_raw);
+        final_image = apply_exposure(
+            final_image,
+            effective_baseline_exposure(&adjustments, as_shot(&source_path_str), render.baseline),
+        );
+        let use_agx = render.tonemapper_override == Some(1);
 
         if use_agx {
             if !is_raw {
@@ -2566,7 +2735,10 @@ pub fn resolve_lens_params_in_adjustments(
                         )
                     };
 
-                    if let Some(params) = resolved {
+                    if let Some(mut params) = resolved {
+                        if let Some(saved) = map.get("lensDistortionParams") {
+                            params.preserve_saved_tca(saved);
+                        }
                         map.insert(
                             "lensDistortionParams".to_string(),
                             serde_json::to_value(params).unwrap(),
@@ -2802,7 +2974,10 @@ fn find_all_associated_files(source_image_path: &Path) -> Result<Vec<PathBuf>, S
 }
 
 #[tauri::command]
-pub fn copy_files(source_paths: Vec<String>, destination_folder: String) -> Result<(), String> {
+pub fn copy_files(
+    source_paths: Vec<String>,
+    destination_folder: String,
+) -> Result<crate::file_transfer::TransferSummary, String> {
     let dest_path = Path::new(&destination_folder);
     ensure_card_writable(dest_path)?;
     if !dest_path.is_dir() {
@@ -2811,75 +2986,21 @@ pub fn copy_files(source_paths: Vec<String>, destination_folder: String) -> Resu
             destination_folder
         ));
     }
-
-    let unique_source_images: HashSet<PathBuf> = source_paths
-        .iter()
-        .map(|p| parse_virtual_path(p).0)
-        .collect();
-
-    let mut operations_to_perform = Vec::new();
-
-    for source_image_path in &unique_source_images {
-        let all_files_to_copy = find_all_associated_files(source_image_path)?;
-
-        let source_parent = source_image_path
-            .parent()
-            .ok_or("Could not get parent directory")?;
-
-        if source_parent == dest_path {
-            let stem = source_image_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .ok_or("Could not get file stem")?;
-            let extension = source_image_path
-                .extension()
-                .and_then(|s| s.to_str())
-                .unwrap_or("");
-
-            let mut counter = 1;
-            let new_base_path = loop {
-                let new_stem = format!("{}_copy_{}", stem, counter);
-                let temp_path = source_parent.join(format!("{}.{}", new_stem, extension));
-                if !temp_path.exists() {
-                    break temp_path;
-                }
-                counter += 1;
-            };
-            let new_filename = new_base_path.file_name().unwrap().to_string_lossy();
-
-            for original_file in all_files_to_copy {
-                let original_full_filename = original_file.file_name().unwrap().to_string_lossy();
-                let source_base_filename = source_image_path.file_name().unwrap().to_string_lossy();
-                let new_dest_filename =
-                    original_full_filename.replacen(&*source_base_filename, &new_filename, 1);
-
-                let final_dest_path = dest_path.join(new_dest_filename);
-                operations_to_perform.push((original_file, final_dest_path));
-            }
-        } else {
-            for file_to_copy in all_files_to_copy {
-                if let Some(file_name) = file_to_copy.file_name() {
-                    let dest_file_path = dest_path.join(file_name);
-
-                    if dest_file_path.exists() {
-                        return Err(format!(
-                            "Copy aborted: File already exists at destination: {}",
-                            dest_file_path.display()
-                        ));
-                    }
-
-                    operations_to_perform.push((file_to_copy, dest_file_path));
-                }
-            }
+    let mut seen = HashSet::new();
+    let mut summary = crate::file_transfer::TransferSummary::default();
+    for source in source_paths.iter().map(|p| parse_virtual_path(p).0) {
+        if !seen.insert(source.clone()) {
+            continue;
         }
+        let result = (|| {
+            let filename = source.file_name().ok_or("Source has no filename")?;
+            let in_place = source.parent().and_then(|p| p.canonicalize().ok())
+                == dest_path.canonicalize().ok();
+            crate::file_transfer::transfer(&source, &dest_path.join(filename), in_place)
+        })();
+        summary.record(result);
     }
-
-    for (source, dest) in operations_to_perform {
-        fs::copy(&source, &dest)
-            .map_err(|e| format!("Copy failed for {}: {}", source.display(), e))?;
-    }
-
-    Ok(())
+    Ok(summary)
 }
 
 #[tauri::command]
@@ -3002,6 +3123,15 @@ pub fn save_metadata_and_update_thumbnail(
         sync_metadata_to_xmp(&source_path, &sidecar_path, &metadata, create_if_missing);
     }
 
+    queue_import_thumbnail_refresh(path, app_handle, &state);
+    Ok(())
+}
+
+fn queue_import_thumbnail_refresh(
+    path: String,
+    app_handle: AppHandle,
+    state: &tauri::State<'_, AppState>,
+) {
     let loaded_image_lock = state.original_image.lock().unwrap();
     let preloaded_image_option = if let Some(loaded_image) = loaded_image_lock.as_ref() {
         if loaded_image.path == path {
@@ -3014,11 +3144,11 @@ pub fn save_metadata_and_update_thumbnail(
     };
     drop(loaded_image_lock);
 
-    let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
+    let gpu_context = gpu_processing::get_or_init_gpu_context(state, &app_handle).ok();
     let app_handle_clone = app_handle.clone();
     let path_clone = path.clone();
 
-    add_to_thumbnail_queue(&state, 1, &app_handle);
+    add_to_thumbnail_queue(state, 1, &app_handle);
 
     thread::spawn(move || {
         let state = app_handle_clone.state::<AppState>();
@@ -3061,8 +3191,6 @@ pub fn save_metadata_and_update_thumbnail(
 
         increment_thumbnail_progress(&state, &app_handle_clone);
     });
-
-    Ok(())
 }
 
 fn is_xmp_sidecar_path(path: &Path) -> bool {
@@ -3155,10 +3283,20 @@ fn merge_imported_adjustments(existing: &mut Value, imported: Value) {
     }
 }
 
+#[cfg(test)]
 fn import_xmp_adjustments_to_sidecar(
     path: &str,
     xmp_path: &Path,
     lens_db: Option<&crate::lens_correction::LensDatabase>,
+) -> Result<ImportedXmpSidecar, String> {
+    import_xmp_adjustments_to_sidecar_with_draft(path, xmp_path, lens_db, None)
+}
+
+fn import_xmp_adjustments_to_sidecar_with_draft(
+    path: &str,
+    xmp_path: &Path,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+    pending_adjustments: Option<&Value>,
 ) -> Result<ImportedXmpSidecar, String> {
     if !is_xmp_sidecar_path(xmp_path) {
         return Err("Selected file is not an XMP sidecar.".to_string());
@@ -3168,8 +3306,12 @@ fn import_xmp_adjustments_to_sidecar(
     ensure_card_writable(&source_path)?;
     let xmp_content = crate::xmp::read(xmp_path)
         .map_err(|error| format!("Failed to read XMP file: {}", error))?;
-    let converted_preset =
-        preset_converter::convert_xmp_sidecar_to_preset_for_image(&xmp_content, &source_path)?;
+    let (converted_preset, mask_summary) =
+        preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+            &xmp_content,
+            &source_path,
+        )?;
+    let already_applied = preset_converter::adobe_camera_raw_already_applied(&xmp_content)?;
 
     let has_supported_adjustments = converted_preset
         .adjustments
@@ -3180,46 +3322,101 @@ fn import_xmp_adjustments_to_sidecar(
         || !extract_xmp_tags(&xmp_content).is_empty();
     let settings_report = crate::lightroom_report::settings_report(&xmp_content, &converted_preset);
     let unchanged = !has_supported_adjustments && !has_supported_metadata;
-    let not_transferred =
-        preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
-    if unchanged && settings_report.settings.is_empty() && not_transferred.is_empty() {
+    let not_transferred = preset_converter::lightroom_settings_not_transferred_with_mask_summary(
+        &xmp_content,
+        &converted_preset,
+        &mask_summary,
+    );
+    if unchanged
+        && !already_applied
+        && settings_report.settings.is_empty()
+        && not_transferred.is_empty()
+        && mask_summary.brush_table_refusals.is_empty()
+        && mask_summary.failures.is_empty()
+    {
         return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
     }
     if unchanged {
         let metadata = read_sidecar_report_snapshot(&sidecar_path)?;
         return Ok(ImportedXmpSidecar {
-            source_path,
             sidecar_path,
             metadata,
             not_transferred,
+            brush_table_refusals: mask_summary.brush_table_refusals,
+            mask_failures: mask_summary.failures,
+            adjustments_applied: false,
+            metadata_applied: false,
+            already_applied,
+            draft_preserved: false,
             settings_report,
             unchanged,
         });
     }
     let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-    // An import replaces only controls it can convert. Unsupported fields must
-    // not erase unrelated native edits, such as repair or unsupported geometry.
-    merge_imported_adjustments(&mut metadata.adjustments, converted_preset.adjustments);
-    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    if let Some(pending) = pending_adjustments {
+        if !pending.is_object() {
+            return Err("Pending editor adjustments must be an object".to_string());
+        }
+        metadata.adjustments = pending.clone();
+    }
+    if has_supported_adjustments {
+        merge_imported_adjustments(&mut metadata.adjustments, converted_preset.adjustments);
+        resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    }
+    let draft_preserved = !has_supported_adjustments && pending_adjustments.is_some();
+    let preserved_adjustments =
+        (!has_supported_adjustments).then(|| std::mem::take(&mut metadata.adjustments));
     merge_xmp_metadata_fields(&xmp_content, &mut metadata);
+    if let Some(preserved) = preserved_adjustments {
+        metadata.adjustments = preserved;
+    }
 
-    let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
-    write_file_atomically(&sidecar_path, json_string).map_err(|error| error.to_string())?;
+    if has_supported_adjustments || has_supported_metadata || draft_preserved {
+        let json_string =
+            serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
+        write_file_atomically(&sidecar_path, json_string).map_err(|error| error.to_string())?;
+    }
 
     Ok(ImportedXmpSidecar {
-        source_path,
         sidecar_path,
         metadata,
         not_transferred,
+        brush_table_refusals: mask_summary.brush_table_refusals,
+        mask_failures: mask_summary.failures,
+        adjustments_applied: has_supported_adjustments,
+        metadata_applied: has_supported_metadata,
+        already_applied,
+        draft_preserved,
         settings_report,
         unchanged,
     })
+}
+
+fn hydrate_imported_xmp_exif(
+    path: &str,
+    imported: &mut ImportedXmpSidecar,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) -> Result<(), String> {
+    if !imported.adjustments_applied {
+        return Ok(());
+    }
+    // Keep the single-photo import's existing EXIF/lens resolution without
+    // invoking ordinary autosave, which would sync into the incoming XMP.
+    let (source_path, _) = parse_virtual_path(path);
+    let mut metadata =
+        crate::exif_processing::load_sidecar_with_exif(&imported.sidecar_path, &source_path);
+    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    let json = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
+    write_file_atomically(&imported.sidecar_path, json).map_err(|error| error.to_string())?;
+    imported.metadata = metadata;
+    Ok(())
 }
 
 #[tauri::command]
 pub fn import_xmp_adjustments_for_image(
     path: String,
     xmp_path: Option<String>,
+    pending_adjustments: Option<Value>,
     app_handle: AppHandle,
     state: tauri::State<AppState>,
 ) -> Result<XmpImageImportResult, String> {
@@ -3229,14 +3426,25 @@ pub fn import_xmp_adjustments_for_image(
         .or_else(|| find_matching_xmp_sidecar(&path))
         .ok_or_else(|| "No matching XMP sidecar was found next to this image.".to_string())?;
     let lens_db = state.lens_db.lock().unwrap().clone();
-    let imported = import_xmp_adjustments_to_sidecar(&path, &xmp_path, lens_db.as_deref())?;
-    let imported_adjustments = imported.metadata.adjustments.clone();
+    let mut imported = import_xmp_adjustments_to_sidecar_with_draft(
+        &path,
+        &xmp_path,
+        lens_db.as_deref(),
+        pending_adjustments.as_ref(),
+    )?;
+    hydrate_imported_xmp_exif(&path, &mut imported, lens_db.as_deref())?;
     let sidecar_path = imported.sidecar_path.clone();
     let not_transferred = imported.not_transferred;
+    let brush_table_refusals = imported.brush_table_refusals;
+    let mask_failures = imported.mask_failures;
+    let adjustments_applied = imported.adjustments_applied;
+    let already_applied = imported.already_applied;
     let settings_report = imported.settings_report;
     let unchanged = imported.unchanged;
-    if !unchanged {
-        save_metadata_and_update_thumbnail(path, imported_adjustments, app_handle, state)?;
+
+    let draft_preserved = imported.draft_preserved;
+    if adjustments_applied || imported.metadata_applied || draft_preserved {
+        queue_import_thumbnail_refresh(path, app_handle, &state);
     }
 
     log::info!(
@@ -3246,12 +3454,13 @@ pub fn import_xmp_adjustments_for_image(
     );
 
     Ok(XmpImageImportResult {
-        metadata: if unchanged {
-            imported.metadata
-        } else {
-            crate::exif_processing::load_sidecar(&sidecar_path)
-        },
+        metadata: imported.metadata,
         not_transferred,
+        brush_table_refusals,
+        mask_failures,
+        adjustments_applied,
+        already_applied,
+        draft_preserved,
         settings_report,
         unchanged,
     })
@@ -3260,6 +3469,7 @@ pub fn import_xmp_adjustments_for_image(
 #[tauri::command]
 pub async fn import_matching_xmp_sidecars_in_folder(
     folder_path: String,
+    pending_draft: Option<XmpEditorDraft>,
     app_handle: AppHandle,
 ) -> Result<XmpSidecarImportResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -3271,9 +3481,6 @@ pub async fn import_matching_xmp_sidecars_in_folder(
 
         let (matches, skipped, traversal_failures) = find_matching_xmp_sidecars_recursive(&folder);
         let total = matches.len();
-        let settings = load_settings(app_handle.clone()).unwrap_or_default();
-        let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-        let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
         let lens_db = app_handle
             .state::<AppState>()
             .lens_db
@@ -3289,6 +3496,9 @@ pub async fn import_matching_xmp_sidecars_in_folder(
             failed: traversal_failures.len(),
             failures: traversal_failures,
             imported_paths: Vec::new(),
+            adjustments_imported_paths: Vec::new(),
+            already_applied_paths: Vec::new(),
+            preserved_draft_paths: Vec::new(),
             unchanged_paths: Vec::new(),
             not_transferred: Vec::new(),
         };
@@ -3310,29 +3520,50 @@ pub async fn import_matching_xmp_sidecars_in_folder(
 
         for (index, (path, xmp_path)) in matches.into_iter().enumerate() {
             let path_string = path.to_string_lossy().to_string();
-            match import_xmp_adjustments_to_sidecar(&path_string, &xmp_path, lens_db.as_deref()) {
+            let pending = pending_draft
+                .as_ref()
+                .filter(|draft| draft.path == path_string)
+                .map(|draft| &draft.adjustments);
+            match import_xmp_adjustments_to_sidecar_with_draft(
+                &path_string,
+                &xmp_path,
+                lens_db.as_deref(),
+                pending,
+            ) {
                 Ok(imported) => {
-                    if enable_xmp_sync && !imported.unchanged {
-                        sync_metadata_to_xmp(
-                            &imported.source_path,
-                            &imported.sidecar_path,
-                            &imported.metadata,
-                            create_xmp_if_missing,
+                    if imported.already_applied {
+                        result.already_applied_paths.push(path_string.clone());
+                    }
+                    if imported.draft_preserved {
+                        result.preserved_draft_paths.push(path_string.clone());
+                        let state = app_handle.state::<AppState>();
+                        queue_import_thumbnail_refresh(
+                            path_string.clone(),
+                            app_handle.clone(),
+                            &state,
                         );
                     }
-                    if imported.unchanged {
+                    if !imported.adjustments_applied && !imported.metadata_applied {
                         result.unchanged += 1;
                         result.unchanged_paths.push(path_string.clone());
                     } else {
                         result.imported += 1;
                         result.imported_paths.push(path_string.clone());
+                        if imported.adjustments_applied {
+                            result
+                                .adjustments_imported_paths
+                                .push(path.to_string_lossy().to_string());
+                        }
                     }
                     if !imported.not_transferred.is_empty()
                         || !imported.settings_report.settings.is_empty()
+                        || !imported.mask_failures.is_empty()
                     {
                         result.not_transferred.push(XmpNotTransferred {
                             path: path_string.clone(),
                             items: imported.not_transferred,
+                            brush_table_refusals: imported.brush_table_refusals,
+                            mask_failures: imported.mask_failures,
                             settings_report: imported.settings_report,
                         });
                     }
@@ -3447,7 +3678,7 @@ pub async fn apply_adjustments_to_paths(
 
             let mut new_adjustments = existing_metadata.adjustments;
             if new_adjustments.is_null() {
-                new_adjustments = serde_json::json!({});
+                new_adjustments = default_adjustments();
             }
 
             if let (Some(new_map), Some(pasted_map)) =
@@ -3488,47 +3719,7 @@ pub async fn apply_adjustments_to_paths(
             }
         });
 
-        let state = app_handle.state::<AppState>();
-        let thumb_cache_dir = match resolve_thumbnail_cache_dir(&app_handle) {
-            Ok(dir) => dir,
-            Err(e) => {
-                log::warn!("Unable to initialize thumbnail cache directory: {}", e);
-                for path in &paths {
-                    emit_thumbnail_cache_setup_error(&app_handle, path, &e);
-                }
-                for _ in 0..paths.len() {
-                    increment_thumbnail_progress(&state, &app_handle);
-                }
-                return;
-            }
-        };
-
-        let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
-
-        paths.par_iter().for_each(|path_str| {
-            let result = generate_single_thumbnail_and_cache(
-                path_str,
-                &thumb_cache_dir,
-                gpu_context.as_ref(),
-                None,
-                true,
-                &app_handle,
-                &settings,
-            );
-
-            if let Some((small_path, medium_path, rating, is_edited)) = result {
-                emit_thumbnail_generated(
-                    &app_handle,
-                    path_str,
-                    &small_path,
-                    &medium_path,
-                    rating,
-                    is_edited,
-                );
-            }
-
-            increment_thumbnail_progress(&state, &app_handle);
-        });
+        regenerate_thumbnails(&paths, &app_handle, &settings);
     });
 
     Ok(())
@@ -3553,7 +3744,7 @@ pub async fn reset_adjustments_for_paths(
 
             let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
-            existing_metadata.adjustments = serde_json::json!({});
+            existing_metadata.adjustments = default_adjustments();
 
             if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
                 let _ = write_file_atomically(&sidecar_path, json_string);
@@ -3570,50 +3761,54 @@ pub async fn reset_adjustments_for_paths(
             }
         });
 
-        let state = app_handle.state::<AppState>();
-        let thumb_cache_dir = match resolve_thumbnail_cache_dir(&app_handle) {
-            Ok(dir) => dir,
-            Err(e) => {
-                log::warn!("Unable to initialize thumbnail cache directory: {}", e);
-                for path in &paths {
-                    emit_thumbnail_cache_setup_error(&app_handle, path, &e);
-                }
-                for _ in 0..paths.len() {
-                    increment_thumbnail_progress(&state, &app_handle);
-                }
-                return;
-            }
-        };
-
-        let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
-
-        paths.par_iter().for_each(|path_str| {
-            let result = generate_single_thumbnail_and_cache(
-                path_str,
-                &thumb_cache_dir,
-                gpu_context.as_ref(),
-                None,
-                true,
-                &app_handle,
-                &settings,
-            );
-
-            if let Some((small_path, medium_path, rating, is_edited)) = result {
-                emit_thumbnail_generated(
-                    &app_handle,
-                    path_str,
-                    &small_path,
-                    &medium_path,
-                    rating,
-                    is_edited,
-                );
-            }
-
-            increment_thumbnail_progress(&state, &app_handle);
-        });
+        regenerate_thumbnails(&paths, &app_handle, &settings);
     });
 
     Ok(())
+}
+
+fn regenerate_thumbnails(paths: &[String], app_handle: &AppHandle, settings: &AppSettings) {
+    let state = app_handle.state::<AppState>();
+    let thumb_cache_dir = match resolve_thumbnail_cache_dir(app_handle) {
+        Ok(dir) => dir,
+        Err(e) => {
+            log::warn!("Unable to initialize thumbnail cache directory: {}", e);
+            for path in paths {
+                emit_thumbnail_cache_setup_error(app_handle, path, &e);
+            }
+            for _ in 0..paths.len() {
+                increment_thumbnail_progress(&state, app_handle);
+            }
+            return;
+        }
+    };
+
+    let gpu_context = gpu_processing::get_or_init_gpu_context(&state, app_handle).ok();
+
+    paths.par_iter().for_each(|path_str| {
+        let result = generate_single_thumbnail_and_cache(
+            path_str,
+            &thumb_cache_dir,
+            gpu_context.as_ref(),
+            None,
+            true,
+            app_handle,
+            settings,
+        );
+
+        if let Some((small_path, medium_path, rating, is_edited)) = result {
+            emit_thumbnail_generated(
+                app_handle,
+                path_str,
+                &small_path,
+                &medium_path,
+                rating,
+                is_edited,
+            );
+        }
+
+        increment_thumbnail_progress(&state, app_handle);
+    });
 }
 
 #[tauri::command]
@@ -3622,36 +3817,25 @@ pub async fn apply_auto_lens_correction_to_paths(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     ensure_card_writable_for_paths(&paths)?;
-    let state = app_handle.state::<crate::AppState>();
-    add_to_thumbnail_queue(&state, paths.len(), &app_handle);
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
+    let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
+    let lens_db = app_handle
+        .state::<AppState>()
+        .lens_db
+        .lock()
+        .unwrap()
+        .clone();
 
+    let sidecar_paths = paths.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let settings = crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default();
-        let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-        let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
-
-        let state = app_handle.state::<crate::AppState>();
-        let thumb_cache_dir = match resolve_thumbnail_cache_dir(&app_handle) {
-            Ok(dir) => dir,
-            Err(e) => {
-                log::warn!("Unable to initialize thumbnail cache directory: {}", e);
-                for _ in 0..paths.len() {
-                    increment_thumbnail_progress(&state, &app_handle);
-                }
-                return;
-            }
-        };
-
-        let gpu_context = crate::gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
-        let lens_db = state.lens_db.lock().unwrap().clone();
-
-        paths.par_iter().for_each(|path| {
+        sidecar_paths.par_iter().for_each(|path| {
             let (source_path, sidecar_path) = parse_virtual_path(path);
             let mut existing_metadata =
                 crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
 
             if existing_metadata.adjustments.is_null() {
-                existing_metadata.adjustments = serde_json::json!({});
+                existing_metadata.adjustments = default_adjustments();
             }
 
             if let Some(obj) = existing_metadata.adjustments.as_object_mut() {
@@ -3680,30 +3864,14 @@ pub async fn apply_auto_lens_correction_to_paths(
                     create_xmp_if_missing,
                 );
             }
-
-            let result = generate_single_thumbnail_and_cache(
-                path,
-                &thumb_cache_dir,
-                gpu_context.as_ref(),
-                None,
-                true,
-                &app_handle,
-                &settings,
-            );
-
-            if let Some((small_path, medium_path, rating, is_edited)) = result {
-                emit_thumbnail_generated(
-                    &app_handle,
-                    path,
-                    &small_path,
-                    &medium_path,
-                    rating,
-                    is_edited,
-                );
-            }
-
-            increment_thumbnail_progress(&state, &app_handle);
         });
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    add_to_thumbnail_queue(&app_handle.state::<AppState>(), paths.len(), &app_handle);
+    tauri::async_runtime::spawn_blocking(move || {
+        regenerate_thumbnails(&paths, &app_handle, &settings)
     });
 
     Ok(())
@@ -3756,32 +3924,38 @@ pub async fn apply_auto_adjustments_to_paths(
                     )
                     .map_err(|e| e.to_string())?;
 
-                    let auto_results = perform_auto_analysis(&image);
-                    let auto_adjustments_json = auto_results_to_json(&auto_results);
-
                     let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
                     if existing_metadata.adjustments.is_null() {
-                        existing_metadata.adjustments = serde_json::json!({});
+                        existing_metadata.adjustments = default_adjustments();
                     }
+
+                    let auto_results = perform_auto_analysis(
+                        &image,
+                        effective_baseline_exposure(
+                            &existing_metadata.adjustments,
+                            as_shot(&source_path_str),
+                            BaselineOptions::from_settings(&settings),
+                        ),
+                    );
+                    let auto_adjustments_json = auto_results_to_json(&auto_results);
+
+                    let mut active_tools =
+                        crate::image_processing::active_tools(&existing_metadata.adjustments);
 
                     if let (Some(existing_map), Some(auto_map)) = (
                         existing_metadata.adjustments.as_object_mut(),
                         auto_adjustments_json.as_object(),
                     ) {
                         for (k, v) in auto_map {
-                            if k == "sectionVisibility" {
-                                if let Some(existing_vis_val) = existing_map.get_mut(k) {
-                                    if let (Some(existing_vis), Some(auto_vis)) =
-                                        (existing_vis_val.as_object_mut(), v.as_object())
-                                    {
-                                        for (vis_k, vis_v) in auto_vis {
-                                            existing_vis.insert(vis_k.clone(), vis_v.clone());
-                                        }
-                                    }
-                                } else {
-                                    existing_map.insert(k.clone(), v.clone());
+                            if k == "activeTools" {
+                                if let Some(auto_tools) = v.as_object() {
+                                    active_tools.extend(auto_tools.clone());
                                 }
+                                existing_map.insert(
+                                    k.clone(),
+                                    serde_json::Value::Object(std::mem::take(&mut active_tools)),
+                                );
                             } else {
                                 existing_map.insert(k.clone(), v.clone());
                             }
@@ -4727,13 +4901,14 @@ pub async fn import_files(
     let _ = app_handle.emit("import-start", serde_json::json!({ "total": total_files }));
 
     tauri::async_runtime::spawn_blocking(move || {
+        let mut summary = crate::file_transfer::TransferSummary::default();
         for (i, source_path_str) in source_paths.iter().enumerate() {
             let _ = app_handle.emit(
                 "import-progress",
                 serde_json::json!({ "current": i, "total": total_files, "path": source_path_str }),
             );
 
-            let import_result: Result<(), String> = (|| {
+            let import_result: Result<crate::file_transfer::TransferOutcome, String> = (|| {
                 #[cfg(target_os = "android")]
                 if is_android_content_uri(source_path_str) {
                     let resolved_name = resolve_android_content_uri_name(source_path_str)?;
@@ -4769,17 +4944,15 @@ pub async fn import_files(
                         .extension()
                         .and_then(|s| s.to_str())
                         .unwrap_or("");
-                    let new_filename = format!("{}.{}", new_stem, extension);
+                    let new_filename = if extension.is_empty() {
+                        new_stem
+                    } else {
+                        format!("{new_stem}.{extension}")
+                    };
                     let dest_file_path = final_dest_folder.join(new_filename);
 
-                    if dest_file_path.exists() {
-                        return Err(format!(
-                            "File already exists at destination: {}",
-                            dest_file_path.display()
-                        ));
-                    }
-
-                    fs::write(&dest_file_path, source_bytes).map_err(|e| e.to_string())?;
+                    let outcome =
+                        crate::file_transfer::transfer_bytes(&source_bytes, &dest_file_path)?;
 
                     if settings.delete_after_import {
                         log::info!(
@@ -4788,10 +4961,10 @@ pub async fn import_files(
                         );
                     }
 
-                    return Ok(());
+                    return Ok(outcome);
                 }
 
-                let (source_path, source_sidecar) = parse_virtual_path(source_path_str);
+                let (source_path, _source_sidecar) = parse_virtual_path(source_path_str);
                 if !source_path.exists() {
                     return Err(format!("Source file not found: {}", source_path_str));
                 }
@@ -4823,81 +4996,45 @@ pub async fn import_files(
                     .extension()
                     .and_then(|s| s.to_str())
                     .unwrap_or("");
-                let new_filename = format!("{}.{}", new_stem, extension);
+                let new_filename = if extension.is_empty() {
+                    new_stem
+                } else {
+                    format!("{new_stem}.{extension}")
+                };
                 let dest_file_path = final_dest_folder.join(new_filename);
 
-                if dest_file_path.exists() {
-                    return Err(format!(
-                        "File already exists at destination: {}",
-                        dest_file_path.display()
-                    ));
-                }
-
-                fs::copy(&source_path, &dest_file_path).map_err(|e| e.to_string())?;
-                if source_sidecar.exists()
-                    && let Some(dest_str) = dest_file_path.to_str()
+                let outcome = crate::file_transfer::transfer(&source_path, &dest_file_path, false)?;
+                if settings.delete_after_import
+                    && let crate::file_transfer::TransferOutcome::Copied { files, .. } = &outcome
                 {
-                    let (_, dest_sidecar) = parse_virtual_path(dest_str);
-                    fs::copy(&source_sidecar, &dest_sidecar).map_err(|e| e.to_string())?;
+                    crate::file_transfer::remove_import_sources(files, |source| {
+                        #[cfg(any(
+                            target_os = "windows",
+                            target_os = "macos",
+                            target_os = "linux"
+                        ))]
+                        trash::delete(source).map_err(|e| {
+                            format!("Copied, but could not trash {}: {e}", source.display())
+                        })?;
+                        #[cfg(not(any(
+                            target_os = "windows",
+                            target_os = "macos",
+                            target_os = "linux"
+                        )))]
+                        fs::remove_file(source).map_err(|e| e.to_string())?;
+                        Ok(())
+                    })?;
                 }
-
-                let mut source_rrexif_name = source_path.file_name().unwrap().to_os_string();
-                source_rrexif_name.push(".rrexif");
-                let source_rrexif = source_path.with_file_name(source_rrexif_name);
-
-                if source_rrexif.exists() {
-                    let mut dest_rrexif_name = dest_file_path.file_name().unwrap().to_os_string();
-                    dest_rrexif_name.push(".rrexif");
-                    let dest_rrexif = dest_file_path.with_file_name(dest_rrexif_name);
-                    let _ = fs::copy(&source_rrexif, &dest_rrexif);
-                }
-
-                if settings.delete_after_import {
-                    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
-                    {
-                        if let Err(trash_error) = trash::delete(&source_path) {
-                            log::warn!(
-                                "Failed to trash source file {}: {}. Deleting permanently.",
-                                source_path.display(),
-                                trash_error
-                            );
-                            fs::remove_file(&source_path).map_err(|e| e.to_string())?;
-                        }
-                        if source_sidecar.exists()
-                            && let Err(trash_error) = trash::delete(&source_sidecar)
-                        {
-                            log::warn!(
-                                "Failed to trash source sidecar {}: {}. Deleting permanently.",
-                                source_sidecar.display(),
-                                trash_error
-                            );
-                            fs::remove_file(&source_sidecar).map_err(|e| e.to_string())?;
-                        }
-                    }
-
-                    #[cfg(not(any(
-                        target_os = "windows",
-                        target_os = "macos",
-                        target_os = "linux"
-                    )))]
-                    {
-                        fs::remove_file(&source_path).map_err(|e| e.to_string())?;
-                        if source_sidecar.exists() {
-                            fs::remove_file(&source_sidecar).map_err(|e| e.to_string())?;
-                        }
-                        if source_rrexif.exists() {
-                            let _ = fs::remove_file(&source_rrexif);
-                        }
-                    }
-                }
-
-                Ok(())
-            })();
+                Ok(outcome)
+            })(
+            );
 
             if let Err(e) = import_result {
                 eprintln!("Failed to import {}: {}", source_path_str, e);
-                let _ = app_handle.emit("import-error", e);
-                continue;
+                let _ = app_handle.emit("import-error", e.clone());
+                summary.record(Err(e));
+            } else {
+                summary.record(import_result);
             }
         }
 
@@ -4905,7 +5042,7 @@ pub async fn import_files(
             "import-progress",
             serde_json::json!({ "current": total_files, "total": total_files, "path": "" }),
         );
-        let _ = app_handle.emit("import-complete", ());
+        let _ = app_handle.emit("import-complete", &summary);
     });
 
     Ok(())
@@ -5094,6 +5231,36 @@ pub fn extract_xmp_rating(content: &str) -> Option<i8> {
 
 const XMP_REJECTED_RATING: i8 = -1;
 
+pub fn xmp_rating(metadata: &ImageMetadata) -> String {
+    if metadata.flag == Some(ImageFlag::Reject) {
+        XMP_REJECTED_RATING.to_string()
+    } else {
+        metadata.rating.to_string()
+    }
+}
+
+pub fn xmp_label(tags: &[String]) -> Option<String> {
+    tags.iter()
+        .rev()
+        .find_map(|t| t.strip_prefix(COLOR_TAG_PREFIX))
+        .map(|color| {
+            let mut c = color.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        })
+}
+
+pub fn xmp_subject_bag<S: AsRef<str>>(items: &[S]) -> String {
+    let mut bag = String::from("<dc:subject>\n    <rdf:Bag>\n");
+    for item in items {
+        bag.push_str(&format!("     <rdf:li>{}</rdf:li>\n", item.as_ref()));
+    }
+    bag.push_str("    </rdf:Bag>\n   </dc:subject>");
+    bag
+}
+
 pub fn extract_xmp_label(content: &str) -> Option<String> {
     crate::xmp::metadata(content).label
 }
@@ -5196,10 +5363,11 @@ pub fn sync_metadata_from_xmp(
             && rating != 0
         {
             metadata.rating = rating;
+            if !metadata.adjustments.is_object() {
+                metadata.adjustments = default_adjustments();
+            }
             if let Some(obj) = metadata.adjustments.as_object_mut() {
                 obj.insert("rating".to_string(), serde_json::json!(rating));
-            } else {
-                metadata.adjustments = serde_json::json!({"rating": rating});
             }
             changed = true;
         }
@@ -6378,10 +6546,7 @@ mod tests {
             imported.metadata.tags,
             Some(vec!["portfolio".to_string(), "color:red".to_string()])
         );
-        assert_eq!(
-            imported.metadata.adjustments["rating"],
-            serde_json::json!(3)
-        );
+        assert_eq!(imported.metadata.adjustments, Value::Null);
 
         fs::remove_dir_all(test_directory).unwrap();
     }
@@ -6463,6 +6628,46 @@ mod tests {
         fs::write(&sidecar, "invalid JSON").unwrap();
         assert!(read_sidecar_report_snapshot(&sidecar).is_err());
         assert_eq!(fs::read_to_string(&sidecar).unwrap(), "invalid JSON");
+    }
+
+    #[test]
+    fn report_only_with_pending_draft_preserves_unknown_sidecar_bytes_and_does_not_consume_draft() {
+        let _mode = super::card_mode_test_support::CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.NEF");
+        let sidecar = dir.path().join("photo.NEF.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&source, b"untouched raw").unwrap();
+        let saved = ImageMetadata {
+            adjustments: serde_json::json!({"exposure":2,"futureNativeControl":{"opaque":true}}),
+            ..ImageMetadata::default()
+        };
+        let mut native = serde_json::to_value(&saved).unwrap();
+        native["futureTopLevel"] = serde_json::json!({"mustSurvive":"unrecognized"});
+        let original = serde_json::to_string_pretty(&native).unwrap();
+        fs::write(&sidecar, &original).unwrap();
+        let pending = serde_json::json!({"exposure":0.75,"contrast":12});
+        for packet in [
+            r#"<root crs:PerspectiveVertical="2"/>"#,
+            r#"<root crs:AlreadyApplied="True" crs:Exposure2012="4"/>"#,
+        ] {
+            fs::write(&xmp, packet).unwrap();
+            let imported = import_xmp_adjustments_to_sidecar_with_draft(
+                source.to_str().unwrap(),
+                &xmp,
+                None,
+                Some(&pending),
+            )
+            .unwrap();
+            assert!(imported.unchanged);
+            assert!(!imported.adjustments_applied);
+            assert!(!imported.draft_preserved);
+            assert_eq!(imported.metadata.adjustments, saved.adjustments);
+            assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+            assert_eq!(fs::read_to_string(&xmp).unwrap(), packet);
+            assert_eq!(fs::read(&source).unwrap(), b"untouched raw");
+            assert_eq!(pending["exposure"], 0.75);
+        }
     }
 
     #[test]
@@ -6567,6 +6772,49 @@ mod lightroom_xmp_import_tests {
     use super::card_mode_test_support::{CardMode, folders, path_str, snapshot};
     use super::*;
 
+    #[test]
+    fn refused_table_only_import_reports_groups_without_replacing_edits() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("sample.ARW");
+        let xmp = raw.with_extension("xmp");
+        let (_, sidecar) = parse_virtual_path(raw.to_str().unwrap());
+        let existing = ImageMetadata {
+            adjustments: serde_json::json!({"exposure":1.25}),
+            ..Default::default()
+        };
+        let original = serde_json::to_vec_pretty(&existing).unwrap();
+        fs::write(&sidecar, &original).unwrap();
+        let source = r#"<rdf:Description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+          xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:tiff="http://ns.adobe.com/tiff/1.0/"
+          tiff:ImageWidth="6000" tiff:ImageLength="4000">
+          <crs:MaskGroupBasedCorrections><rdf:Seq><rdf:li rdf:parseType="Resource">
+          <crs:CorrectionMasks><rdf:Seq><rdf:li rdf:parseType="Resource"
+            crs:What="Mask/Aggregate" crs:MaskName="Brush group"
+            crs:MaskBrushTable="00000000000000000000000000000000" crs:MaskBrushUncompressedBytes="185" />
+          </rdf:Seq></crs:CorrectionMasks></rdf:li></rdf:Seq></crs:MaskGroupBasedCorrections>
+          </rdf:Description>"#;
+        fs::write(&xmp, source).unwrap();
+        let imported =
+            import_xmp_adjustments_to_sidecar(raw.to_str().unwrap(), &xmp, None).unwrap();
+        assert!(imported.unchanged);
+        assert_eq!(imported.metadata.adjustments, existing.adjustments);
+        assert_eq!(fs::read(&sidecar).unwrap(), original);
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), source);
+        let report = serde_json::to_value(XmpNotTransferred {
+            path: raw.to_string_lossy().to_string(),
+            items: imported.not_transferred,
+            brush_table_refusals: imported.brush_table_refusals,
+            mask_failures: imported.mask_failures,
+            settings_report: imported.settings_report,
+        })
+        .unwrap();
+        assert_eq!(
+            report["items"],
+            serde_json::json!(["masks", "maskBrushTable"])
+        );
+        assert_eq!(report["brushTableRefusals"][0]["name"], "Brush group");
+    }
+
     fn lightroom_xmp(attributes: &str) -> String {
         format!(
             r#"<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
@@ -6599,6 +6847,177 @@ mod lightroom_xmp_import_tests {
                     .is_some_and(|name| name.to_string_lossy().starts_with(".rapidraw-"))
             })
             .collect()
+    }
+
+    #[test]
+    fn single_photo_import_retains_source_exif_without_syncing_input() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.NEF");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        fs::write(
+            crate::exif_processing::get_rrexif_path(&raw),
+            r#"{"Make":"Nikon","Model":"Synthetic cached camera"}"#,
+        )
+        .unwrap();
+        let xml = lightroom_xmp(r#"crs:Exposure2012="1.25""#);
+        fs::write(&xmp, &xml).unwrap();
+        let mut imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+        hydrate_imported_xmp_exif(&path_str(&raw), &mut imported, None).unwrap();
+        assert_eq!(
+            imported
+                .metadata
+                .exif
+                .as_ref()
+                .unwrap()
+                .get("Model")
+                .unwrap(),
+            "Synthetic cached camera"
+        );
+        assert_eq!(imported.metadata.adjustments["exposure"], 1.25);
+        assert_eq!(
+            crate::exif_processing::load_sidecar(&imported.sidecar_path).exif,
+            imported.metadata.exif
+        );
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), xml);
+        assert_eq!(fs::read(&raw).unwrap(), b"raw bytes");
+    }
+
+    #[test]
+    fn metadata_only_import_persists_the_live_draft_without_rewriting_input() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.NEF");
+        let sidecar = dir.path().join("photo.NEF.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        let pending = serde_json::json!({"exposure": 0.75, "lensDistortion": 12,
+            "curves": {"luma": [{"x":0,"y":0},{"x":255,"y":220}]},
+            "masks": [{"id":"pending-mask","subMasks":[]}]});
+        for flag in ["", "crs:AlreadyApplied=\"True\" crs:Exposure2012=\"4\""] {
+            let xml = lightroom_xmp(&format!("xmp:Rating=\"5\" {flag}"));
+            fs::write(&xmp, &xml).unwrap();
+            let imported = import_xmp_adjustments_to_sidecar_with_draft(
+                &path_str(&raw),
+                &xmp,
+                None,
+                Some(&pending),
+            )
+            .unwrap();
+            assert!(imported.draft_preserved);
+            assert!(!imported.adjustments_applied);
+            assert_eq!(imported.metadata.adjustments, pending);
+            assert_eq!(imported.metadata.rating, 5);
+            assert_eq!(
+                crate::exif_processing::load_sidecar(&sidecar).adjustments,
+                pending
+            );
+            assert_eq!(fs::read_to_string(&xmp).unwrap(), xml);
+            assert_eq!(fs::read(&raw).unwrap(), b"raw bytes");
+        }
+    }
+
+    #[test]
+    fn partial_photo_import_merges_live_controls_and_reports_unsupported_fields_read_only() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.NEF");
+        let sidecar = dir.path().join("photo.NEF.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        let pending = serde_json::json!({"exposure": 0.75, "contrast": 12,
+            "aiPatches": [{"id":"live-repair"}], "hsl": {"reds": {"hue": 4}}});
+        let xml = lightroom_xmp(r#"crs:Exposure2012="1.25" crs:PerspectiveVertical="2""#);
+        fs::write(&xmp, &xml).unwrap();
+        let imported = import_xmp_adjustments_to_sidecar_with_draft(
+            &path_str(&raw),
+            &xmp,
+            None,
+            Some(&pending),
+        )
+        .unwrap();
+        let mut expected = pending;
+        expected["exposure"] = serde_json::json!(1.25);
+        assert!(imported.adjustments_applied);
+        assert!(!imported.unchanged);
+        assert_eq!(imported.metadata.adjustments, expected);
+        assert_eq!(
+            crate::exif_processing::load_sidecar(&sidecar).adjustments,
+            expected
+        );
+        assert!(
+            imported
+                .settings_report
+                .settings
+                .iter()
+                .any(|setting| setting.field == "PerspectiveVertical"
+                    && setting.reason == "perspective")
+        );
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), xml);
+        assert_eq!(fs::read(&raw).unwrap(), b"raw bytes");
+    }
+
+    #[test]
+    fn metadata_only_xmp_import_preserves_saved_adjustments() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.NEF");
+        let sidecar = dir.path().join("photo.NEF.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        let metadata = ImageMetadata {
+            adjustments: serde_json::json!({
+                "exposure": 0.75,
+                "curves": {"luma": [{"x": 0, "y": 0}, {"x": 255, "y": 220}]},
+                "masks": [{"id": "kept-mask", "subMasks": []}],
+                "lensCorrectionMode": "manual",
+                "lensDistortion": 12
+            }),
+            ..Default::default()
+        };
+        fs::write(&sidecar, serde_json::to_string(&metadata).unwrap()).unwrap();
+        fs::write(&raw, b"untouched raw bytes").unwrap();
+        let xml = lightroom_xmp(r#"xmp:Rating="5""#);
+        fs::write(&xmp, &xml).unwrap();
+
+        let imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+        assert_eq!(imported.metadata.adjustments, metadata.adjustments);
+        assert_eq!(imported.metadata.rating, 5);
+        assert_eq!(
+            crate::exif_processing::load_sidecar(&sidecar).adjustments,
+            metadata.adjustments
+        );
+        assert_eq!(fs::read(&raw).unwrap(), b"untouched raw bytes");
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), xml);
+        assert!(leftover_temp_files(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn already_applied_photo_without_metadata_keeps_sidecar_bytes() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.NEF");
+        let sidecar = dir.path().join("photo.NEF.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        let metadata = ImageMetadata {
+            adjustments: serde_json::json!({"exposure": 0.75, "contrast": 12}),
+            ..Default::default()
+        };
+        let original = serde_json::to_string(&metadata).unwrap();
+        fs::write(&sidecar, &original).unwrap();
+        fs::write(&raw, b"untouched raw bytes").unwrap();
+        let xml = lightroom_xmp(r#"crs:AlreadyApplied="True" crs:Exposure2012="4""#);
+        fs::write(&xmp, &xml).unwrap();
+
+        let imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+        assert!(imported.already_applied);
+        assert!(!imported.adjustments_applied);
+        assert!(!imported.metadata_applied);
+        assert!(imported.not_transferred.is_empty());
+        assert_eq!(imported.metadata.adjustments, metadata.adjustments);
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        assert_eq!(fs::read(&raw).unwrap(), b"untouched raw bytes");
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), xml);
     }
 
     #[test]
@@ -7045,6 +7464,40 @@ mod lens_params_tests {
         });
         let resolved = resolve(&db, Some(old.clone()));
         assert_eq!(resolved, old);
+    }
+
+    #[test]
+    fn polynomial_tca_saved_marker_survives_the_real_sidecar_resolver() {
+        let db: LensDatabase = quick_xml::de::from_str(include_str!(
+            "../../rapidroom/validation/lensfun-tca/fixture.xml"
+        ))
+        .unwrap();
+        let base = serde_json::json!({"lensCorrectionMode":"manual","lensMaker":"RapidRoom test fixture","lensModel":"Polynomial TCA reference (synthetic)"});
+        let exif = Some(HashMap::from([(
+            "FocalLength".to_string(),
+            "35 mm".to_string(),
+        )]));
+        let mut fresh = base.clone();
+        resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db));
+        assert!(fresh["lensDistortionParams"]["tca_poly3"].is_object());
+        let snapshot = fresh.clone();
+        resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db));
+        assert_eq!(fresh, snapshot);
+        let mut unresolved = base.clone();
+        unresolved["lensDistortionParams"] = serde_json::Value::Null;
+        resolve_lens_params_in_adjustments(&mut unresolved, &exif, Some(&db));
+        assert_eq!(unresolved, snapshot);
+        for radius in [false, true] {
+            let mut old = base.clone();
+            old["lensDistortionParams"] = serde_json::json!({"tca_vr":1.003,"tca_vb":0.998});
+            if radius {
+                old["lensDistortionParams"]["radius_scale"] = serde_json::json!(1.8);
+            }
+            resolve_lens_params_in_adjustments(&mut old, &exif, Some(&db));
+            assert!(old["lensDistortionParams"].get("tca_poly3").is_none());
+            assert_eq!(old["lensDistortionParams"]["tca_vr"], 1.003);
+            assert_eq!(old["lensDistortionParams"]["tca_vb"], 0.998);
+        }
     }
 
     #[test]
@@ -7555,5 +8008,61 @@ mod xmp_preset_browser_tests {
             group.children[0].camera_model_restriction,
             preset.camera_model_restriction
         );
+    }
+}
+
+#[cfg(test)]
+mod export_framing_sidecar_transactions {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn framing_and_stale_edit_saves_preserve_each_others_owned_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.jpg");
+        let (_, primary) = parse_virtual_path(raw.to_str().unwrap());
+        let (_, copy) = parse_virtual_path(&format!("{}?vc=1", raw.display()));
+        let original = json!({"version":1,"adjustments":{"exposure":0,"crop":{"x":12,"y":8,"width":400,"height":300}},"rating":4,"flag":"pick","tags":["trip"],"unknown":{"preserve":true}});
+        write_file_atomically(&primary, serde_json::to_vec(&original).unwrap()).unwrap();
+        write_file_atomically(&copy, serde_json::to_vec(&original).unwrap()).unwrap();
+        let mut old_editor_snapshot = original.clone();
+        update_export_framing(&primary, |_| {
+            Ok(json!({"instagram":{"version":1,"frame":{"x":0.2}}}))
+        })
+        .unwrap();
+        let after_frame: Value = serde_json::from_slice(&fs::read(&primary).unwrap()).unwrap();
+        let mut without_frame = after_frame.clone();
+        without_frame
+            .as_object_mut()
+            .unwrap()
+            .remove("exportFraming");
+        assert_eq!(without_frame, original);
+        old_editor_snapshot["adjustments"]["exposure"] = json!(1.2);
+        // This save began before the framing transaction and finishes afterward.
+        write_file_atomically(&primary, serde_json::to_vec(&old_editor_snapshot).unwrap()).unwrap();
+        let saved: Value = serde_json::from_slice(&fs::read(&primary).unwrap()).unwrap();
+        assert_eq!(saved["adjustments"], old_editor_snapshot["adjustments"]);
+        assert_eq!(saved["exportFraming"], after_frame["exportFraming"]);
+        assert_eq!(
+            serde_json::from_slice::<Value>(&fs::read(&copy).unwrap()).unwrap(),
+            original
+        );
+        update_export_framing(&primary, |_| {
+            Ok(json!({"instagram":{"version":1,"frame":{"x":0.3}}}))
+        })
+        .unwrap();
+        let saved: Value = serde_json::from_slice(&fs::read(&primary).unwrap()).unwrap();
+        assert_eq!(saved["adjustments"], old_editor_snapshot["adjustments"]);
+        assert_eq!(saved["rating"], original["rating"]);
+        assert_eq!(saved["unknown"], original["unknown"]);
+    }
+
+    #[test]
+    fn framing_refuses_to_replace_unreadable_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let sidecar = dir.path().join("photo.jpg.rrdata");
+        fs::write(&sidecar, b"{ broken sidecar").unwrap();
+        assert!(update_export_framing(&sidecar, |_| Ok(json!({"instagram":null}))).is_err());
+        assert_eq!(fs::read(sidecar).unwrap(), b"{ broken sidecar");
     }
 }

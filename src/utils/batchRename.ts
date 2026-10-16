@@ -38,7 +38,7 @@ export interface UndoInfo {
   fileCount: number;
 }
 
-const UNIQUE_TOKENS = ['{sequence}', '{original_filename}', '{member}'];
+const UNIQUE_TOKENS = ['{sequence}', '{original_filename}', '{original_filename_number}', '{member}'];
 
 // Several images need something that tells them apart.
 export function finalizeRenameTemplate(template: string, isSingleFile: boolean): string {

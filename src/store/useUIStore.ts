@@ -11,6 +11,7 @@ import {
   Invokes,
 } from '../components/ui/AppProperties';
 import { useEditorStore } from './useEditorStore';
+import { clampDockHeight, DEFAULT_DOCK_HEIGHT } from '../utils/dockHeight';
 
 export type SwitcherPlacement = 'bottom' | 'right' | 'left' | 'top';
 export type LightsOutMode = 'off' | 'dim' | 'black';
@@ -172,7 +173,7 @@ export function reconcileWorkspace(
       bottom: 'top',
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
-    bottomDockHeight: 240,
+    bottomDockHeight: DEFAULT_DOCK_HEIGHT,
   };
 
   if (!savedWorkspace || !savedWorkspace.panelLayout) {
@@ -225,7 +226,7 @@ export function reconcileWorkspace(
 
   (['leftTop', 'leftBottom', 'rightTop', 'rightBottom', 'bottom'] as PanelRegion[]).forEach((region) => {
     const currentActive = savedWorkspace.activePanels?.[region];
-    if (region === 'bottom' && currentActive == null) {
+    if (region === 'bottom') {
       sanitizedActive.bottom = null;
     } else if (currentActive && sanitizedLayout[region].includes(currentActive)) {
       sanitizedActive[region] = currentActive;
@@ -246,9 +247,16 @@ export function reconcileWorkspace(
       ...(savedWorkspace.panelSwitcherPlacement || {}),
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
-    bottomDockHeight: Math.max(80, Math.min(800, savedWorkspace.bottomDockHeight || 240)),
+    bottomDockHeight: clampDockHeight(savedWorkspace.bottomDockHeight ?? DEFAULT_DOCK_HEIGHT),
   };
 }
+
+export const isPanelVisible = (state: UIState, panel: Panel) =>
+  (Object.keys(state.activePanels) as PanelRegion[]).some(
+    (region) =>
+      state.activePanels[region] === panel &&
+      state.uiVisibility[region.startsWith('left') ? 'leftPanel' : 'rightPanel'],
+  );
 
 export interface UIState {
   activeView: string;
@@ -258,6 +266,7 @@ export interface UIState {
   isLayoutReady: boolean;
   uiVisibility: UiVisibility;
   isLibraryExportPanelVisible: boolean;
+  instagramExportRequest: number | null;
   isSettingsOpen: boolean;
   lightsOutMode: LightsOutMode;
 
@@ -321,6 +330,8 @@ export interface UIState {
   setPanel: (panel: Panel | null) => void;
   customEscapeHandler: (() => void) | null;
   setCustomEscapeHandler: (handler: (() => void) | null) => void;
+  imageSelectHandler: ((path: string, openInEditor?: boolean) => void) | null;
+  setImageSelectHandler: (handler: ((path: string, openInEditor?: boolean) => void) | null) => void;
   searchFocusRequest: number;
   requestSearchFocus: () => void;
   cycleLightsOut: (direction?: 1 | -1) => void;
@@ -336,6 +347,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   isLayoutReady: false,
   uiVisibility: { filmstrip: true, leftPanel: true, rightPanel: true, quickFilter: false },
   isLibraryExportPanelVisible: false,
+  instagramExportRequest: null,
   isSettingsOpen: false,
   lightsOutMode: 'off',
 
@@ -632,6 +644,8 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   customEscapeHandler: null,
   setCustomEscapeHandler: (handler) => set({ customEscapeHandler: handler }),
+  imageSelectHandler: null,
+  setImageSelectHandler: (handler) => set({ imageSelectHandler: handler }),
   searchFocusRequest: 0,
   requestSearchFocus: () => set((state) => ({ searchFocusRequest: state.searchFocusRequest + 1 })),
   cycleLightsOut: (direction = 1) =>

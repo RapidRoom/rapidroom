@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { ArrowRight, Undo2 } from 'lucide-react';
-import { RENAME_VARIABLES } from '../ui/ExportImportProperties';
+import { RENAME_VARIABLES, isUniqueFilenameTemplate } from '../ui/ExportImportProperties';
 import { Invokes } from '../ui/AppProperties';
 import Text from '../ui/Text';
 import { TextColors, TextVariants } from '../../types/typography';
@@ -211,6 +211,11 @@ export default function RenameFileModal({ filesToRename, isOpen, onClose, onSave
                   </button>
                 ))}
               </div>
+            )}
+            {!isSingleFile && !isUniqueFilenameTemplate(nameTemplate) && (
+              <Text variant={TextVariants.small} className="mt-2">
+                {t('modals.renameFile.notUniqueWarning')}
+              </Text>
             )}
           </div>
 
