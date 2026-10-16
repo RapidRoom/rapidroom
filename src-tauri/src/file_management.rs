@@ -4087,18 +4087,25 @@ fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String
 pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
     let path = get_presets_path(&app_handle)?;
     let marker = path.with_file_name(".rapidroom-styles-v1");
+    let replacement_marker = path.with_file_name(".rapidroom-styles-replacement-v1");
     let mut presets = if path.exists() {
         let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
     } else {
         crate::starter_presets::library()?
     };
-    if !marker.exists() {
-        crate::starter_presets::include_styles(&mut presets)?;
-        // Persist the migration before marking it complete. Later user deletions
-        // must survive reload, including removal of the entire Styles folder.
+    if !marker.exists() || !replacement_marker.exists() {
+        if !replacement_marker.exists() {
+            crate::starter_presets::retire_untouched_stock(&mut presets)?;
+        }
+        if !marker.exists() {
+            crate::starter_presets::include_styles(&mut presets)?;
+        }
+        // Persist before either marker; an existing Styles marker also protects
+        // a user's deletion when retiring the old stock pack on upgrade.
         let content = serde_json::to_string_pretty(&presets).map_err(|e| e.to_string())?;
         write_file_atomically(&path, content).map_err(|e| e.to_string())?;
+        write_file_atomically(&replacement_marker, "1\n").map_err(|e| e.to_string())?;
         write_file_atomically(&marker, "1\n").map_err(|e| e.to_string())?;
     }
     Ok(presets)

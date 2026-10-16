@@ -5,6 +5,8 @@ from PIL import ImageChops
 
 def run_styles_checks(smoke, wait_for, baseline):
     import json
+    from pathlib import Path
+    from copy import deepcopy
     from smoke import request
     def search(query):
         smoke.execute('''const e=document.querySelector('input[aria-label="Search presets or groups"]');
@@ -16,6 +18,8 @@ def run_styles_checks(smoke, wait_for, baseline):
           window.__TAURI_INTERNALS__.invoke(arguments[0],arguments[1]).then(v=>done({ok:true,value:v})).catch(e=>done({ok:false,error:String(e)}));''','args':[command,args or {}]})['value']
         if not value['ok']:raise RuntimeError(value)
         return value['value']
+    pack = json.loads((Path(__file__).resolve().parents[3] / 'src-tauri/resources/styles/styles-v1.json').read_text())
+    expected_count = len(pack['presets'][0]['folder']['children'])
     search('copper warmth')
     wait_for(lambda:smoke.execute("return document.body.innerText.includes('Teal & Orange') && !document.body.innerText.includes('Neon Night');"),'style description search')
     smoke.capture('styles-description-search')
@@ -28,11 +32,12 @@ def run_styles_checks(smoke, wait_for, baseline):
     time.sleep(.8)
     saved=ipc('load_presets')
     styles=next(i['folder'] for i in saved if i.get('folder',{}).get('id')=='rapidroom-styles:v1')
-    assert len(styles['children'])==17
+    assert len(saved)==1 and saved[0].get('folder',{}).get('id')=='rapidroom-styles:v1'
+    assert len(styles['children'])==expected_count
     teal=next(p for p in styles['children'] if p['id']=='rapidroom-style:teal-orange')
     assert teal['favorite'] and teal['description'].startswith('Cyan city shadows')
-    assert len({p['id'] for p in styles['children']})==17
-    smoke.step('native save/load retains17 unique Styles, favorite and description',{'count':17,'favorite':teal['favorite']})
+    assert len({p['id'] for p in styles['children']})==expected_count
+    smoke.step('native save/load retains unique Styles, favorite and description',{'count':expected_count,'favorite':teal['favorite']})
     smoke.execute('const r='+row+';r.click();return true;')
     wait_for(lambda:smoke.slider('Amount')['value']==100,'style Amount100')
     applied=smoke.stable_preview('styles-teal-100')
@@ -169,12 +174,62 @@ def run_styles_checks(smoke, wait_for, baseline):
     ipc('save_presets',{'presets':existing});marker.unlink()
     migrated=ipc('load_presets')
     group=next(i['folder'] for i in migrated if i.get('folder',{}).get('id')=='rapidroom-styles:v1')
-    assert len(group['children'])==16 and all(p['id']!=teal['id'] for p in group['children'])
+    assert len(group['children'])==expected_count-1 and all(p['id']!=teal['id'] for p in group['children'])
     assert migrated[1:]==existing and marker.exists()
     assert json.loads(presetfile.read_text())==migrated
     assert ipc('load_presets')==migrated
     ipc('save_presets',{'presets':[]});assert ipc('load_presets')==[]
     smoke.step('native one-time migration persists before marker; moved/favourite/user order retained; empty saved library stays empty')
+    # Import the actual bundled legacy XMP files through the real native
+    # converter, then reconstruct their pre-upgrade stock IDs and groups.
+    stock_root = Path(__file__).resolve().parents[3] / 'src-tauri/resources/starter-presets'
+    originals = []
+    for relative in ['Color/Cool.xmp', 'Color/Warm.xmp', 'Color/Matte.xmp',
+                     'Color/Muted.xmp', 'Color/Punch.xmp', 'Curve/Linear.xmp']:
+        ipc('save_presets', {'presets': []})
+        imported = ipc('handle_import_legacy_presets_from_file', {'filePath': str(stock_root / relative)})
+        converted = [p for item in imported for p in
+                     (item['folder']['children'] if 'folder' in item else [item['preset']])]
+        assert len(converted) == 1
+        preset = converted[0]
+        preset['id'] = 'rapidroom-starter:' + relative
+        originals.append(preset)
+    untouched, favourite, edited, renamed, moved, linear = deepcopy(originals)
+    favourite['favorite'] = True
+    edited['adjustments']['contrast'] = 13
+    renamed['name'] = 'My muted colour'
+    custom = dict(deepcopy(untouched), id='user:cool')
+    imported_copy = dict(deepcopy(linear), id='imported:linear')
+    old_library = [
+        {'preset': custom},
+        {'folder': {'id': 'rapidroom-starter:Color', 'name': 'Color',
+                    'children': [untouched, favourite, edited, renamed]}},
+        {'folder': {'id': 'my-moved', 'name': 'My group', 'children': [moved, imported_copy]}},
+        {'folder': {'id': 'rapidroom-starter:Curve', 'name': 'Curve', 'children': [linear]}},
+    ]
+    expected = deepcopy(old_library)
+    expected[1]['folder']['children'].pop(0)
+    expected.pop(3)
+    replacement_marker = presetfile.with_name('.rapidroom-styles-replacement-v1')
+    ipc('save_presets', {'presets': old_library})
+    replacement_marker.unlink()
+    # Keep the earlier Styles marker: a previously deleted pack stays deleted.
+    migrated = ipc('load_presets')
+    assert migrated == expected
+    assert marker.exists() and replacement_marker.exists()
+    assert json.loads(presetfile.read_text()) == expected
+    assert ipc('load_presets') == expected
+    smoke.step('native stock replacement preserves favourites, edits, names, moved/imported presets, order and prior Styles deletion')
+    ipc('save_presets', {'presets': old_library})
+    marker.unlink()
+    replacement_marker.unlink()
+    first_upgrade = ipc('load_presets')
+    assert len(first_upgrade[0]['folder']['children']) == expected_count
+    assert first_upgrade[1:] == expected
+    assert ipc('load_presets') == first_upgrade
+    ipc('save_presets', {'presets': []})
+    assert ipc('load_presets') == []
+    smoke.step('native first upgrade replaces untouched stock with Styles exactly once; deleting all presets persists')
     ipc('save_presets',{'presets':saved})
     search('')
     smoke.execute("document.querySelector('[data-tab-id=\"layout-tab-adjustments\"]').click();return true;")

@@ -634,9 +634,9 @@
               "grainRoughness": 43,
               "hsl": {
                 "reds": {
-                  "hue": -5,
-                  "saturation": 25,
-                  "luminance": 8
+                  "hue": -1,
+                  "saturation": 19,
+                  "luminance": 11
                 },
                 "oranges": {
                   "hue": -12,
@@ -2664,7 +2664,7 @@
               "highlights": -32,
               "shadows": 22,
               "blacks": -4,
-              "whites": 5,
+              "whites": 2,
               "saturation": 0,
               "vibrance": 12,
               "clarity": 2,
@@ -2754,15 +2754,15 @@
                   },
                   {
                     "x": 80,
-                    "y": 91
+                    "y": 89
                   },
                   {
                     "x": 128,
-                    "y": 148
+                    "y": 144
                   },
                   {
                     "x": 205,
-                    "y": 222
+                    "y": 219
                   },
                   {
                     "x": 255,
@@ -2848,15 +2848,15 @@
                   },
                   {
                     "x": 80,
-                    "y": 91
+                    "y": 89
                   },
                   {
                     "x": 128,
-                    "y": 148
+                    "y": 144
                   },
                   {
                     "x": 205,
-                    "y": 222
+                    "y": 219
                   },
                   {
                     "x": 255,
@@ -3612,7 +3612,7 @@
                 },
                 "reds": {
                   "hue": 5,
-                  "saturation": 16,
+                  "saturation": 12,
                   "luminance": 6
                 },
                 "yellows": {
@@ -4089,7 +4089,7 @@
           {
             "id": "rapidroom-style:forest-gothic",
             "name": "Dark Forest",
-            "description": "Warm amber light and rich bark against cool, dark woodland. Best with forest paths and stone cottages; move the soft beam to follow the light.",
+            "description": "Warm amber light against cool, dark green woodland. Best with green forests; move the soft upper-left beam in Masks to follow the light.",
             "presetType": "style",
             "includeMasks": true,
             "includeCropTransform": false,
@@ -4503,8 +4503,8 @@
                       "opacity": 100,
                       "mode": "additive",
                       "parameters": {
-                        "centerX": 0.28,
-                        "centerY": 0.29,
+                        "centerX": 0.23,
+                        "centerY": 0.19,
                         "radiusX": 0.54,
                         "radiusY": 0.15,
                         "rotation": 40,
