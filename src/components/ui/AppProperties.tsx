@@ -86,6 +86,7 @@ export enum Invokes {
   IsTetheringSupported = 'is_tethering_supported',
   IsRaw9Available = 'is_raw9_available',
   ListImagesInDir = 'list_images_in_dir',
+  CountUnshownVideos = 'count_unshown_videos',
   ListImagesRecursive = 'list_images_recursive',
   LoadImage = 'load_image',
   LoadMetadata = 'load_metadata',

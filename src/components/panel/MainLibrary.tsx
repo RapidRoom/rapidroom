@@ -48,6 +48,7 @@ import LibraryGrid from './library/LibraryGrid';
 import { SearchInput, ViewOptionsDropdown } from './library/LibraryHeader';
 import { RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
 import { isPathInCardRoot } from '../../utils/cardMode';
+import HiddenVideoNotice from '../ui/HiddenVideoNotice';
 
 export interface ColumnWidths {
   thumbnail: number;
@@ -611,6 +612,12 @@ export default function MainLibrary(props: MainLibraryProps) {
               </div>
             </div>
           )}
+          <HiddenVideoNotice
+            path={isCardFolder ? props.cardBrowseRoot : props.currentFolderPath}
+            recursive={isCardFolder || props.libraryViewMode === LibraryViewMode.Recursive}
+            refreshing={props.isLoading}
+            card={isCardFolder}
+          />
         </div>
         <div className="flex items-center gap-4 shrink-0">
           {props.importState.status === Status.Importing && (

@@ -104,6 +104,7 @@ mod terminal_pty;
 mod test_support;
 mod tree_denoise;
 mod two_phase_rename;
+mod video_notice;
 mod white_balance;
 mod window_customizer;
 mod xmp;
@@ -2635,6 +2636,7 @@ pub fn run() {
             save_temp_file,
             get_image_dimensions,
             frontend_ready,
+            video_notice::count_unshown_videos,
             cancel_thumbnail_generation,
             update_wgpu_transform,
             sample_display_area,
