@@ -321,6 +321,18 @@ The normal edit/Undo/Compact/export/clean-exit smoke follows. No model requests,
 React store fixtures or private photos are used. Physical input and other
 platforms remain untested.
 
+### Full photo XMP round trip (#168)
+
+Build with `build.py --mcp-clients`, then run `smoke.py --xmp-round-trip` against that engine. The isolated fixture checks the real export panel, named-loss preview, public XMP import action, authenticated MCP export, stale revision refusal, SHA-256 payload integrity, unchanged editor revisions on export, full native restoration and exact restored preview pixels. Client security checks use the local HTTP protocols; this scenario sends no model requests.
+
+The simulated Lightroom edit renames XML prefixes and changes Camera Raw Exposure2012. It is deliberately a **synthetic rewrite**, not a Lightroom Classic acceptance test. Before merging, a human must export a representative edited photo, have Lightroom Classic read and rewrite its XMP, import it back into RapidRoom, and confirm payload survival, changed Lightroom fields, untouched native-only settings, mask names/order and external LUT availability. Save the original sidecar first.
+
+Photo payload format 1 uses `urn:rapidroom:edit:1.0`, zlib/base64 JSON and SHA-256 integrity. The decompressed full edit is limited to 12 MiB, embedded raster masks to 6 MiB total, and the XML document to 16 MiB. Unsupported versions, duplicate photo properties, bad checksums and malformed XML are refused without modifying the destination. Foreign and nested profile properties are retained; only owned photo-level properties are replaced. TIFF/EXIF geometry remains available to the Lightroom projection parser after namespace canonicalization.
+
+Reconciliation compares the current Camera Raw projection to the projection written with the original native edit. Unchanged fields retain exact native values; changed or newly added fields win, and removed projected fields reset to registered defaults. Native-only fields remain. Lightroom corrections match only by stable identity, derived from CorrectionSyncID when available. A matching name never establishes correspondence with a native-only mask. Corrections without a stable identity cannot safely delete or replace native masks; a changed correction may be added alongside the preserved native mask. Components also require explicit identity; gradient components derive it from MaskSyncID. Type, position and name never establish correspondence. Unidentified or grouped brush components are conservatively retained; a changed unidentified component may be added alongside them. Native masks are stored in the payload, not exported as Lightroom masks. External LUT paths are retained but their files are not embedded. Adobe and RapidRoom rendering operators are different, so this is not a pixel-parity claim.
+
+The implementation adapts AutoShade’s MIT payload/reconciliation design to RapidRoom’s edit schema. The pinned source, notice and limitations are recorded in CREDITS.md and `rapidroom/LICENSES/autoshade-MIT.txt`.
+
 ### Assistant untrusted text (#165)
 
 Build with `build.py --mcp-clients`, then run `smoke.py --untrusted-text`. The isolated native fixture exercises a hostile folder and filename through authenticated MCP, verifies the data-only envelope and exact operational paths, projects an assistant mask name before storage, refuses an out-of-range local mask exposure, and restores the original draft and exact native pixels. It sends no model requests. Unit fixtures separately cover EXIF, IPTC, XMP descriptions, presets, sidecars, errors, UTF-8/control/bidi handling, credential patterns and shared-budget exhaustion. Remote-model resistance is **not** claimed by these deterministic tests.

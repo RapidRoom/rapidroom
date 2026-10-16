@@ -352,6 +352,8 @@ class Smoke:
                 return False
 
         wait_for(frontend_ready, "real frontend", 90)
+        # The root mounts before settings finish loading the welcome actions.
+        # Wait read-only for the actual control; execute its click only once.
         wait_for(lambda: self.execute("return [...document.querySelectorAll('button')].some("
                                       "e=>e.innerText.trim()==='Continue Session' && !e.disabled);"),
                  "Continue Session control", 90)
@@ -399,6 +401,9 @@ class Smoke:
         if (self.case / "presets-test.json").exists():
             from presets import run_preset_checks
             run_preset_checks(self, wait_for, baseline)
+        if (self.case / "xmp-round-trip-test.json").exists():
+            from xmp_roundtrip import run_xmp_checks
+            run_xmp_checks(self.case, self, wait_for, baseline)
         if (self.case / "lightroom-ai-masks-test.json").exists():
             from lightroom_ai_masks import run_ai_mask_checks
             run_ai_mask_checks(self, wait_for)
@@ -624,6 +629,8 @@ def launch(args):
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
     if args.presets:
         save(case / "presets-test.json", {"issue": 169})
+    if args.xmp_round_trip:
+        save(case / "xmp-round-trip-test.json", {"issue": 168, "real_model_requests": False})
     if args.lightroom_ai_masks:
         fixture=args.lightroom_ai_masks.resolve()
         data=fixture.read_bytes()
@@ -639,7 +646,7 @@ def launch(args):
     if args.crop_noop:
         save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
-        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop and not args.lightroom_ai_masks and not args.xmp_photo_policy:
+        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop and not args.lightroom_ai_masks and not args.xmp_photo_policy and not args.xmp_round_trip:
             save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
@@ -747,6 +754,7 @@ def main():
     parser.add_argument("--mcp-revisions", action="store_true", help="Real clients read latest state across a GUI edit and receive strict stale-write details")
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
     parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
+    parser.add_argument("--xmp-round-trip", action="store_true", help="Public GUI XMP export/import and authenticated MCP loss/write checks; no model requests")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
@@ -767,7 +775,7 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop or args.lightroom_ai_masks or args.xmp_photo_policy:
+    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop or args.lightroom_ai_masks or args.xmp_photo_policy or args.xmp_round_trip:
         args.mcp_clients = True
     if args.mcp_skill and (not args.skill_source or not args.skill_source.is_dir()):
         parser.error("--mcp-skill requires --skill-source matching the pinned app commit")

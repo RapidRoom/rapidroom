@@ -31,6 +31,7 @@ import {
 } from '../../ui/ExportImportProperties';
 import { Invokes, SelectedImage, AppSettings, Panel } from '../../ui/AppProperties';
 import ExportPresetsList from '../../ui/ExportPresetsList';
+import XmpSidecarExport from './XmpSidecarExport';
 import { useExportSettings } from '../../../hooks/useExportSettings';
 import { useOsPlatform } from '../../../hooks/useOsPlatform';
 import Text from '../../ui/Text';
@@ -776,6 +777,7 @@ export default function ExportPanel({
         <Text variant={TextVariants.title}>{t('export.title')}</Text>
       </div>
       <div className="grow overflow-y-auto p-3 space-y-8">
+        <XmpSidecarExport disabled={isExporting} />
         {numImages > 0 ? (
           <>
             <div className={isExporting ? 'opacity-50 pointer-events-none' : ''}>

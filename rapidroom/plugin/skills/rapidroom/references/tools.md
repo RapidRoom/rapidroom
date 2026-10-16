@@ -27,6 +27,10 @@ From the in-app MCP server (issue #5). Every editing tool works on the image ope
 | `calculate_guided_perspective`      | Perspective transform and crop for guide lines (normalized 0–1 points). Doesn't change the edit; apply with `update_adjustments` and `guidedPerspective`.                                                          |
 | `export_images`                     | `imagePaths`, `outputDirectory`, `outputFormat` (`jpg`, `png`, `tiff`, `webp`, `jxl`, `avif`), `exportSettings` (quality, resize, metadata, GPS, filename template, watermark). Waits until the files are written. |
 
+## Full-edit photo XMP export
+
+`export_xmp_sidecar(imagePath, filePath, write, expectedRevision)` reviews the active draft by default (`write: false`), returning named Lightroom projection losses without writing a file or changing the editor. Show these losses and the destination to the user. Only a user-approved export calls `write: true`, which requires the current revision and refuses Card mode destinations. The payload keeps native-only settings and masks; external LUT files are not embedded and Adobe rendering is not guaranteed to match. Actual Lightroom Classic payload preservation requires human acceptance.
+
 ## History, context and preview options
 
 - `history_list(imagePath)` reads the same undo stack as the GUI. Entries include the label, actor, changed keys, timestamp, active/undone flags and current index. Assistant changes carry an `AI:` label and a brief toast. User entries without recorded metadata have a null timestamp.
