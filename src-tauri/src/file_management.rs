@@ -1624,24 +1624,48 @@ pub fn write_file_atomically(
         .lock()
         .map_err(|_| std::io::Error::other("Sidecar write lock poisoned"))?;
     let mut bytes = contents.as_ref().to_vec();
-    if path
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("rrdata"))
-        && let Ok(existing) = fs::read(path)
+    if let Ok(existing) = fs::read(path)
         && let Ok(current) = serde_json::from_slice::<Value>(&existing)
-        && let Some(framing) = current.get("exportFraming")
         && let Ok(mut incoming) = serde_json::from_slice::<Value>(&bytes)
         && let Some(object) = incoming.as_object_mut()
     {
-        // Edit/EXIF/rating writers can hold an older metadata snapshot. Framing
-        // belongs to this destination and is updated only by its own transaction.
-        object.insert("exportFraming".into(), framing.clone());
-        bytes = serde_json::to_vec_pretty(&incoming).map_err(std::io::Error::other)?;
+        // Dedicated metadata transactions own these destination-bound fields.
+        // Ordinary edit/EXIF/rating writers may have loaded an older snapshot.
+        let mut preserved = false;
+        for key in ["appliedPreset", "exportFraming"] {
+            if let Some(value) = current.get(key) {
+                object.insert(key.into(), value.clone());
+                preserved = true;
+            }
+        }
+        if preserved {
+            bytes = serde_json::to_vec_pretty(&incoming).map_err(std::io::Error::other)?;
+        }
     }
     write_file_atomically_with_backend(path, &bytes, &mut TempfileAtomicWriteBackend)
 }
 
 static SIDECAR_WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), String> {
+    let _guard = SIDECAR_WRITE_LOCK
+        .lock()
+        .map_err(|_| "Sidecar write lock poisoned")?;
+    let mut metadata = match fs::read(path) {
+        Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            serde_json::to_value(ImageMetadata::default()).map_err(|e| e.to_string())?
+        }
+        Err(error) => return Err(error.to_string()),
+    };
+    metadata
+        .as_object_mut()
+        .ok_or("Invalid photo metadata")?
+        .insert("appliedPreset".into(), record);
+    let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
+    write_file_atomically_with_backend(path, &bytes, &mut TempfileAtomicWriteBackend)
+        .map_err(|e| e.to_string())
+}
 
 pub(crate) fn update_export_framing(
     path: &Path,
