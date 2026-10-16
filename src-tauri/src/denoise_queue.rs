@@ -944,9 +944,9 @@ mod tests {
         let job = DenoiseJob::testing();
         let mut calls = 0;
         for (n, path) in paths.iter().enumerate() {
-            let (out, skipped) = run_item(path, &ident(), &job, |_| {
+            let (out, skipped) = run_item(path, &ident(), &job, |item_identity| {
                 calls += 1;
-                output()
+                output(item_identity)
             })
             .unwrap();
             assert_eq!(skipped, n < 2);
@@ -1069,9 +1069,9 @@ mod tests {
     fn corrupt_sidecar_and_changing_source_do_not_publish_or_erase_edits() {
         let (dir, path) = fixture();
         let (_, sidecar) = parse_virtual_path(&path);
-        let error = run_item(&path, &ident(), &DenoiseJob::testing(), |_| {
+        let error = run_item(&path, &ident(), &DenoiseJob::testing(), |item_identity| {
             fs::write(&path, b"changed").unwrap();
-            output()
+            output(item_identity)
         })
         .unwrap_err();
         assert!(error.contains("Source changed"));
