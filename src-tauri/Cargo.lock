@@ -40,6 +40,7 @@ dependencies = [
  "jxl-oxide",
  "kamadak-exif",
  "libc",
+ "libloading 0.8.9",
  "little_exif",
  "log",
  "md5",

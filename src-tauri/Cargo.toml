@@ -10,13 +10,15 @@ name = "rapidraw_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
-default = []
+default = ["native-openvino"]
 tethering = ["dep:gphoto2"]
 mcp = ["dep:ab_glyph", "dep:rmcp", "dep:http", "dep:bytes", "dep:http-body", "dep:http-body-util", "dep:rapidroom-mcp-client"]
 native-ui-test = ["dep:tauri-plugin-wdio-webdriver"]
 terminal = ["dep:portable-pty"]
+native-openvino = ["dep:libloading"]
 
 [dependencies]
+libloading = { version = "=0.8.9", optional = true }
 # Kept at "2.11" (not "2.12") so the Android CI job can pin the tauri stack back to
 # 2.11.5 with `cargo update --precise`; Cargo.lock keeps every other platform on
 # 2.12.1. See "Pin tauri stack to 2.11 (Android)" in .github/workflows/build.yml.

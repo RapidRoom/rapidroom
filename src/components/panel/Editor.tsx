@@ -2402,7 +2402,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         isFullScreen
           ? 'rounded-none p-0 gap-0'
           : clsx(
-              'rounded-lg p-2 gap-2',
+              'rounded-none p-0 gap-0',
               appSettings?.useWgpuRenderer !== false ? 'bg-transparent' : isLightsOut ? 'bg-black' : 'bg-bg-secondary',
             ),
       )}
@@ -2412,7 +2412,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         className={clsx(
           'lights-out-chrome shrink-0 relative z-10',
           !isInstantTransition && 'transition-all duration-300 ease-in-out',
-          isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100',
+          isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100 p-2',
           toolbarOverflowVisible ? 'overflow-visible' : 'overflow-hidden',
         )}
       >
@@ -2453,7 +2453,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         <div
           className={clsx(
             'lights-out-content flex-1 basis-0 min-w-0 relative overflow-hidden touch-none',
-            isFullScreen ? 'rounded-none' : 'rounded-lg',
+            'rounded-none',
             appSettings?.useWgpuRenderer !== false &&
               !isFullScreen &&
               clsx('ring-[9999px]', isLightsOut ? 'ring-black' : 'ring-bg-secondary'),
