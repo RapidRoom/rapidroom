@@ -44,7 +44,7 @@ def run_filter_chip_checks(smoke, wait_for):
         smoke.execute("document.querySelectorAll('button[aria-label^=\"Remove filter \"]')[arguments[0]].click();return true;", [index])
 
     def fixtures():
-        return smoke.execute("return [...document.querySelectorAll('[data-image-path]')].map(e=>e.dataset.imagePath.split('/').pop()).filter(p=>p.startsWith('z-query-')).sort();")
+        return smoke.execute("return [...document.images].map(e=>e.alt).filter(p=>p.startsWith('z-query-')).sort();")
 
     def capture(name):
         request(smoke.url + '/execute/async', {'script': 'const done=arguments[arguments.length-1];requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(()=>done(true),100)));', 'args': []})
