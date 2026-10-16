@@ -64,3 +64,6 @@ def run_preset_checks(smoke, wait_for, baseline):
     smoke.step('preset Amount0 restores before-preset pixels')
     smoke.execute("""document.querySelector('[data-tab-id="layout-tab-adjustments"]').click();return true;""")
     wait_for(lambda: smoke.execute("return document.body.innerText.includes('Exposure');"), 'return to Develop controls')
+
+    from styles import run_styles_checks
+    run_styles_checks(smoke, wait_for, baseline)

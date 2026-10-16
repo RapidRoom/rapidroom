@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { sameAdjustmentValue } from '../../utils/editHistory';
 import { presetUnavailableReason } from '../../utils/presetBrowser';
-import { mixAdjustments } from '../../utils/presetAmount';
+import { mixPresetAdjustments } from '../../utils/presetAmount';
 import type { UserPreset } from '../../hooks/usePresets';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
@@ -204,9 +204,15 @@ export default function CommandPalette() {
           section: translate('editor.presets.title'),
           available: canEdit && !reason,
           unavailableReason: reason ?? undefined,
-          preview: (base: Adjustments) => ({ ...base, ...mixAdjustments(preset.adjustments, 100, base) }),
+          preview: (base: Adjustments) => ({
+            ...base,
+            ...mixPresetAdjustments(preset, 100, base, editor.selectedImage),
+          }),
           execute: () =>
-            commit({ ...editor.adjustments, ...mixAdjustments(preset.adjustments, 100, editor.adjustments) }),
+            commit({
+              ...editor.adjustments,
+              ...mixPresetAdjustments(preset, 100, editor.adjustments, editor.selectedImage),
+            }),
         };
       }),
     ];

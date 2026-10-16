@@ -56,7 +56,7 @@ import { OPTION_SEPARATOR, Preset, type Folder } from '../../ui/AppProperties';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useUIStore } from '../../../store/useUIStore';
 import { debouncedSetHistory, useEditorActions } from '../../../hooks/useEditorActions';
-import { mixAdjustments } from '../../../utils/presetAmount';
+import { mixPresetAdjustments } from '../../../utils/presetAmount';
 import { presetUnavailableReason, filterPresetLibrary } from '../../../utils/presetBrowser';
 import { clearPresetHoverPreview, showPresetHoverPreview } from '../../../utils/presetHoverPreview';
 
@@ -476,12 +476,12 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
         activeView === 'editor' &&
         selectedImage?.isReady
       ) {
-        showPresetHoverPreview(mixAdjustments(preset.adjustments, 100, useEditorStore.getState().adjustments));
+        showPresetHoverPreview(mixPresetAdjustments(preset, 100, useEditorStore.getState().adjustments, selectedImage));
       } else {
         clearPresetHoverPreview();
       }
     },
-    [activePresetId, activeView, selectedImage?.isReady, selectedImage?.exif?.Model],
+    [activePresetId, activeView, selectedImage],
   );
 
   useEffect(() => clearPresetHoverPreview, []);
@@ -592,7 +592,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
 
     debouncedSetHistory.flush();
     presetBase.current = useEditorStore.getState().adjustments;
-    const next = { ...presetBase.current, ...mixAdjustments(preset.adjustments, 100, presetBase.current) };
+    const next = { ...presetBase.current, ...mixPresetAdjustments(preset, 100, presetBase.current, selectedImage) };
     lastPresetEdit.current = next;
     setAdjustments(() => next);
     debouncedSetHistory.flush();
@@ -603,12 +603,12 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
       setPresetIntensity(intensity);
       const base = presetBase.current;
       if (!base || useEditorStore.getState().adjustments !== lastPresetEdit.current) return;
-      const mixed = mixAdjustments(preset.adjustments, intensity, base);
+      const mixed = mixPresetAdjustments(preset, intensity, base, selectedImage);
       const next = { ...base, ...mixed };
       lastPresetEdit.current = next;
       setAdjustments(() => next);
     },
-    [setAdjustments],
+    [setAdjustments, selectedImage],
   );
 
   const handleSaveConfiguredPreset = async (

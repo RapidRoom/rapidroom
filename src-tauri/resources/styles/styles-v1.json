@@ -917,13 +917,13 @@
             "includeMasks": false,
             "includeCropTransform": false,
             "adjustments": {
-              "contrast": 19,
-              "highlights": -47,
-              "shadows": 43,
+              "contrast": 22,
+              "highlights": -44,
+              "shadows": 47,
               "blacks": -5,
-              "whites": -7,
+              "whites": -11,
               "saturation": 3,
-              "vibrance": 23,
+              "vibrance": 29,
               "clarity": 15,
               "dehaze": 5,
               "vignetteAmount": -9,
@@ -936,13 +936,13 @@
               "hsl": {
                 "reds": {
                   "hue": 4,
-                  "saturation": 26,
-                  "luminance": 7
+                  "saturation": 30,
+                  "luminance": 10
                 },
                 "oranges": {
-                  "hue": -9,
-                  "saturation": 32,
-                  "luminance": 9
+                  "hue": -11,
+                  "saturation": 39,
+                  "luminance": 13
                 },
                 "yellows": {
                   "hue": -32,
@@ -955,14 +955,14 @@
                   "luminance": -5
                 },
                 "aquas": {
-                  "hue": -3,
-                  "saturation": 26,
-                  "luminance": 14
+                  "hue": 12,
+                  "saturation": 25,
+                  "luminance": 15
                 },
                 "blues": {
-                  "hue": -27,
+                  "hue": -11,
                   "saturation": 28,
-                  "luminance": 5
+                  "luminance": 7
                 },
                 "purples": {
                   "hue": 0,
@@ -1011,11 +1011,11 @@
                   },
                   {
                     "x": 64,
-                    "y": 73
+                    "y": 78
                   },
                   {
                     "x": 128,
-                    "y": 148
+                    "y": 155
                   },
                   {
                     "x": 205,
@@ -1033,7 +1033,7 @@
                   },
                   {
                     "x": 48,
-                    "y": 41
+                    "y": 37
                   },
                   {
                     "x": 128,
@@ -1055,11 +1055,11 @@
                   },
                   {
                     "x": 48,
-                    "y": 51
+                    "y": 49
                   },
                   {
                     "x": 128,
-                    "y": 133
+                    "y": 129
                   },
                   {
                     "x": 211,
@@ -1077,15 +1077,15 @@
                   },
                   {
                     "x": 48,
-                    "y": 61
+                    "y": 64
                   },
                   {
                     "x": 128,
-                    "y": 137
+                    "y": 141
                   },
                   {
                     "x": 211,
-                    "y": 205
+                    "y": 202
                   },
                   {
                     "x": 255,
@@ -1105,11 +1105,11 @@
                   },
                   {
                     "x": 64,
-                    "y": 73
+                    "y": 78
                   },
                   {
                     "x": 128,
-                    "y": 148
+                    "y": 155
                   },
                   {
                     "x": 205,
@@ -1127,7 +1127,7 @@
                   },
                   {
                     "x": 48,
-                    "y": 41
+                    "y": 37
                   },
                   {
                     "x": 128,
@@ -1149,11 +1149,11 @@
                   },
                   {
                     "x": 48,
-                    "y": 51
+                    "y": 49
                   },
                   {
                     "x": 128,
-                    "y": 133
+                    "y": 129
                   },
                   {
                     "x": 211,
@@ -1171,15 +1171,15 @@
                   },
                   {
                     "x": 48,
-                    "y": 61
+                    "y": 64
                   },
                   {
                     "x": 128,
-                    "y": 137
+                    "y": 141
                   },
                   {
                     "x": 211,
-                    "y": 205
+                    "y": 202
                   },
                   {
                     "x": 255,
@@ -1195,608 +1195,6 @@
                 "greenHue": 0,
                 "greenSaturation": 0,
                 "blueHue": 0,
-                "blueSaturation": 0
-              },
-              "activeTools": {
-                "basic": true,
-                "curves": true,
-                "colorPresence": true,
-                "colorGrading": true,
-                "colorMixer": true,
-                "colorCalibration": true,
-                "presence": true,
-                "vignette": true,
-                "grain": true
-              }
-            }
-          },
-          {
-            "id": "rapidroom-style:moody",
-            "name": "Deep Evergreen",
-            "description": "Forest-green shadows, quiet colour and luminous pale highlights. Best with overcast streets and woodland.",
-            "presetType": "style",
-            "includeMasks": false,
-            "includeCropTransform": false,
-            "adjustments": {
-              "contrast": 19,
-              "highlights": -34,
-              "shadows": 30,
-              "blacks": -5,
-              "whites": -3,
-              "saturation": -17,
-              "vibrance": 8,
-              "clarity": 13,
-              "dehaze": 11,
-              "vignetteAmount": -9,
-              "vignetteMidpoint": 46,
-              "vignetteRoundness": 0,
-              "vignetteFeather": 82,
-              "grainAmount": 0,
-              "grainSize": 22,
-              "grainRoughness": 43,
-              "hsl": {
-                "reds": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "oranges": {
-                  "hue": -3,
-                  "saturation": 5,
-                  "luminance": 17
-                },
-                "yellows": {
-                  "hue": 13,
-                  "saturation": -36,
-                  "luminance": -8
-                },
-                "greens": {
-                  "hue": 25,
-                  "saturation": -35,
-                  "luminance": -12
-                },
-                "aquas": {
-                  "hue": 9,
-                  "saturation": -27,
-                  "luminance": -6
-                },
-                "blues": {
-                  "hue": -7,
-                  "saturation": -34,
-                  "luminance": -8
-                },
-                "purples": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "magentas": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                }
-              },
-              "colorGrading": {
-                "shadows": {
-                  "hue": 177,
-                  "saturation": 17,
-                  "luminance": 0
-                },
-                "midtones": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "highlights": {
-                  "hue": 49,
-                  "saturation": 5,
-                  "luminance": 0
-                },
-                "global": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "balance": 0,
-                "blending": 63
-              },
-              "curves": {
-                "luma": [
-                  {
-                    "x": 0,
-                    "y": 2
-                  },
-                  {
-                    "x": 30,
-                    "y": 23
-                  },
-                  {
-                    "x": 74,
-                    "y": 70
-                  },
-                  {
-                    "x": 140,
-                    "y": 141
-                  },
-                  {
-                    "x": 209,
-                    "y": 218
-                  },
-                  {
-                    "x": 255,
-                    "y": 247
-                  }
-                ],
-                "red": [
-                  {
-                    "x": 0,
-                    "y": 0
-                  },
-                  {
-                    "x": 48,
-                    "y": 40
-                  },
-                  {
-                    "x": 128,
-                    "y": 119
-                  },
-                  {
-                    "x": 211,
-                    "y": 214
-                  },
-                  {
-                    "x": 255,
-                    "y": 252
-                  }
-                ],
-                "green": [
-                  {
-                    "x": 0,
-                    "y": 2
-                  },
-                  {
-                    "x": 48,
-                    "y": 53
-                  },
-                  {
-                    "x": 128,
-                    "y": 132
-                  },
-                  {
-                    "x": 211,
-                    "y": 216
-                  },
-                  {
-                    "x": 255,
-                    "y": 252
-                  }
-                ],
-                "blue": [
-                  {
-                    "x": 0,
-                    "y": 3
-                  },
-                  {
-                    "x": 48,
-                    "y": 53
-                  },
-                  {
-                    "x": 128,
-                    "y": 130
-                  },
-                  {
-                    "x": 211,
-                    "y": 203
-                  },
-                  {
-                    "x": 255,
-                    "y": 241
-                  }
-                ]
-              },
-              "pointCurves": {
-                "luma": [
-                  {
-                    "x": 0,
-                    "y": 2
-                  },
-                  {
-                    "x": 30,
-                    "y": 23
-                  },
-                  {
-                    "x": 74,
-                    "y": 70
-                  },
-                  {
-                    "x": 140,
-                    "y": 141
-                  },
-                  {
-                    "x": 209,
-                    "y": 218
-                  },
-                  {
-                    "x": 255,
-                    "y": 247
-                  }
-                ],
-                "red": [
-                  {
-                    "x": 0,
-                    "y": 0
-                  },
-                  {
-                    "x": 48,
-                    "y": 40
-                  },
-                  {
-                    "x": 128,
-                    "y": 119
-                  },
-                  {
-                    "x": 211,
-                    "y": 214
-                  },
-                  {
-                    "x": 255,
-                    "y": 252
-                  }
-                ],
-                "green": [
-                  {
-                    "x": 0,
-                    "y": 2
-                  },
-                  {
-                    "x": 48,
-                    "y": 53
-                  },
-                  {
-                    "x": 128,
-                    "y": 132
-                  },
-                  {
-                    "x": 211,
-                    "y": 216
-                  },
-                  {
-                    "x": 255,
-                    "y": 252
-                  }
-                ],
-                "blue": [
-                  {
-                    "x": 0,
-                    "y": 3
-                  },
-                  {
-                    "x": 48,
-                    "y": 53
-                  },
-                  {
-                    "x": 128,
-                    "y": 130
-                  },
-                  {
-                    "x": 211,
-                    "y": 203
-                  },
-                  {
-                    "x": 255,
-                    "y": 241
-                  }
-                ]
-              },
-              "curveMode": "point",
-              "colorCalibration": {
-                "shadowsTint": 0,
-                "redHue": 0,
-                "redSaturation": 0,
-                "greenHue": 0,
-                "greenSaturation": 0,
-                "blueHue": 0,
-                "blueSaturation": 0
-              },
-              "activeTools": {
-                "basic": true,
-                "curves": true,
-                "colorPresence": true,
-                "colorGrading": true,
-                "colorMixer": true,
-                "colorCalibration": true,
-                "presence": true,
-                "vignette": true,
-                "grain": true
-              }
-            }
-          },
-          {
-            "id": "rapidroom-style:warm-film",
-            "name": "Sunlit Negative",
-            "description": "Honeyed light, soft blue shadows and warm everyday colour. Best with people and daylight streets.",
-            "presetType": "style",
-            "includeMasks": false,
-            "includeCropTransform": false,
-            "adjustments": {
-              "contrast": 3,
-              "highlights": -34,
-              "shadows": 29,
-              "blacks": -5,
-              "whites": -3,
-              "saturation": -3,
-              "vibrance": 15,
-              "clarity": -3,
-              "dehaze": -1,
-              "vignetteAmount": -9,
-              "vignetteMidpoint": 46,
-              "vignetteRoundness": 0,
-              "vignetteFeather": 82,
-              "grainAmount": 13,
-              "grainSize": 22,
-              "grainRoughness": 43,
-              "hsl": {
-                "reds": {
-                  "hue": 6,
-                  "saturation": 4,
-                  "luminance": 8
-                },
-                "oranges": {
-                  "hue": -4,
-                  "saturation": -3,
-                  "luminance": 17
-                },
-                "yellows": {
-                  "hue": -27,
-                  "saturation": -15,
-                  "luminance": 10
-                },
-                "greens": {
-                  "hue": -22,
-                  "saturation": -39,
-                  "luminance": 4
-                },
-                "aquas": {
-                  "hue": -8,
-                  "saturation": -20,
-                  "luminance": 8
-                },
-                "blues": {
-                  "hue": -19,
-                  "saturation": -19,
-                  "luminance": 7
-                },
-                "purples": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "magentas": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                }
-              },
-              "colorGrading": {
-                "shadows": {
-                  "hue": 211,
-                  "saturation": 11,
-                  "luminance": 0
-                },
-                "midtones": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "highlights": {
-                  "hue": 41,
-                  "saturation": 8,
-                  "luminance": 0
-                },
-                "global": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "balance": 0,
-                "blending": 63
-              },
-              "curves": {
-                "luma": [
-                  {
-                    "x": 0,
-                    "y": 7
-                  },
-                  {
-                    "x": 28,
-                    "y": 31
-                  },
-                  {
-                    "x": 68,
-                    "y": 80
-                  },
-                  {
-                    "x": 132,
-                    "y": 151
-                  },
-                  {
-                    "x": 207,
-                    "y": 221
-                  },
-                  {
-                    "x": 255,
-                    "y": 246
-                  }
-                ],
-                "red": [
-                  {
-                    "x": 0,
-                    "y": 2
-                  },
-                  {
-                    "x": 48,
-                    "y": 51
-                  },
-                  {
-                    "x": 128,
-                    "y": 139
-                  },
-                  {
-                    "x": 211,
-                    "y": 222
-                  },
-                  {
-                    "x": 255,
-                    "y": 254
-                  }
-                ],
-                "green": [
-                  {
-                    "x": 0,
-                    "y": 3
-                  },
-                  {
-                    "x": 48,
-                    "y": 49
-                  },
-                  {
-                    "x": 128,
-                    "y": 131
-                  },
-                  {
-                    "x": 211,
-                    "y": 212
-                  },
-                  {
-                    "x": 255,
-                    "y": 249
-                  }
-                ],
-                "blue": [
-                  {
-                    "x": 0,
-                    "y": 8
-                  },
-                  {
-                    "x": 48,
-                    "y": 55
-                  },
-                  {
-                    "x": 128,
-                    "y": 126
-                  },
-                  {
-                    "x": 211,
-                    "y": 195
-                  },
-                  {
-                    "x": 255,
-                    "y": 235
-                  }
-                ]
-              },
-              "pointCurves": {
-                "luma": [
-                  {
-                    "x": 0,
-                    "y": 7
-                  },
-                  {
-                    "x": 28,
-                    "y": 31
-                  },
-                  {
-                    "x": 68,
-                    "y": 80
-                  },
-                  {
-                    "x": 132,
-                    "y": 151
-                  },
-                  {
-                    "x": 207,
-                    "y": 221
-                  },
-                  {
-                    "x": 255,
-                    "y": 246
-                  }
-                ],
-                "red": [
-                  {
-                    "x": 0,
-                    "y": 2
-                  },
-                  {
-                    "x": 48,
-                    "y": 51
-                  },
-                  {
-                    "x": 128,
-                    "y": 139
-                  },
-                  {
-                    "x": 211,
-                    "y": 222
-                  },
-                  {
-                    "x": 255,
-                    "y": 254
-                  }
-                ],
-                "green": [
-                  {
-                    "x": 0,
-                    "y": 3
-                  },
-                  {
-                    "x": 48,
-                    "y": 49
-                  },
-                  {
-                    "x": 128,
-                    "y": 131
-                  },
-                  {
-                    "x": 211,
-                    "y": 212
-                  },
-                  {
-                    "x": 255,
-                    "y": 249
-                  }
-                ],
-                "blue": [
-                  {
-                    "x": 0,
-                    "y": 8
-                  },
-                  {
-                    "x": 48,
-                    "y": 55
-                  },
-                  {
-                    "x": 128,
-                    "y": 126
-                  },
-                  {
-                    "x": 211,
-                    "y": 195
-                  },
-                  {
-                    "x": 255,
-                    "y": 235
-                  }
-                ]
-              },
-              "curveMode": "point",
-              "colorCalibration": {
-                "shadowsTint": 0,
-                "redHue": 9,
-                "redSaturation": 0,
-                "greenHue": 0,
-                "greenSaturation": 0,
-                "blueHue": -19,
                 "blueSaturation": 0
               },
               "activeTools": {
@@ -2051,310 +1449,9 @@
             }
           },
           {
-            "id": "rapidroom-style:faded-matte",
-            "name": "Faded Postcard",
-            "description": "Cream highlights, dusty blues and soft warm blacks. Best with everyday streets and quiet travel scenes.",
-            "presetType": "style",
-            "includeMasks": false,
-            "includeCropTransform": false,
-            "adjustments": {
-              "contrast": -2,
-              "highlights": -23,
-              "shadows": 18,
-              "blacks": 4,
-              "whites": -7,
-              "saturation": -13,
-              "vibrance": 9,
-              "clarity": -5,
-              "dehaze": -2,
-              "vignetteAmount": -9,
-              "vignetteMidpoint": 46,
-              "vignetteRoundness": 0,
-              "vignetteFeather": 82,
-              "grainAmount": 18,
-              "grainSize": 22,
-              "grainRoughness": 43,
-              "hsl": {
-                "reds": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "oranges": {
-                  "hue": -7,
-                  "saturation": -6,
-                  "luminance": 14
-                },
-                "yellows": {
-                  "hue": -31,
-                  "saturation": -26,
-                  "luminance": 4
-                },
-                "greens": {
-                  "hue": -33,
-                  "saturation": -43,
-                  "luminance": 1
-                },
-                "aquas": {
-                  "hue": -13,
-                  "saturation": -28,
-                  "luminance": 7
-                },
-                "blues": {
-                  "hue": -17,
-                  "saturation": -31,
-                  "luminance": 8
-                },
-                "purples": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "magentas": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                }
-              },
-              "colorGrading": {
-                "shadows": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "midtones": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "highlights": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "global": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
-                },
-                "balance": 0,
-                "blending": 63
-              },
-              "curves": {
-                "luma": [
-                  {
-                    "x": 0,
-                    "y": 17
-                  },
-                  {
-                    "x": 30,
-                    "y": 39
-                  },
-                  {
-                    "x": 72,
-                    "y": 84
-                  },
-                  {
-                    "x": 132,
-                    "y": 148
-                  },
-                  {
-                    "x": 207,
-                    "y": 215
-                  },
-                  {
-                    "x": 255,
-                    "y": 239
-                  }
-                ],
-                "red": [
-                  {
-                    "x": 0,
-                    "y": 5
-                  },
-                  {
-                    "x": 48,
-                    "y": 53
-                  },
-                  {
-                    "x": 128,
-                    "y": 137
-                  },
-                  {
-                    "x": 211,
-                    "y": 219
-                  },
-                  {
-                    "x": 255,
-                    "y": 251
-                  }
-                ],
-                "green": [
-                  {
-                    "x": 0,
-                    "y": 3
-                  },
-                  {
-                    "x": 48,
-                    "y": 50
-                  },
-                  {
-                    "x": 128,
-                    "y": 131
-                  },
-                  {
-                    "x": 211,
-                    "y": 211
-                  },
-                  {
-                    "x": 255,
-                    "y": 246
-                  }
-                ],
-                "blue": [
-                  {
-                    "x": 0,
-                    "y": 6
-                  },
-                  {
-                    "x": 48,
-                    "y": 54
-                  },
-                  {
-                    "x": 128,
-                    "y": 127
-                  },
-                  {
-                    "x": 211,
-                    "y": 199
-                  },
-                  {
-                    "x": 255,
-                    "y": 234
-                  }
-                ]
-              },
-              "pointCurves": {
-                "luma": [
-                  {
-                    "x": 0,
-                    "y": 17
-                  },
-                  {
-                    "x": 30,
-                    "y": 39
-                  },
-                  {
-                    "x": 72,
-                    "y": 84
-                  },
-                  {
-                    "x": 132,
-                    "y": 148
-                  },
-                  {
-                    "x": 207,
-                    "y": 215
-                  },
-                  {
-                    "x": 255,
-                    "y": 239
-                  }
-                ],
-                "red": [
-                  {
-                    "x": 0,
-                    "y": 5
-                  },
-                  {
-                    "x": 48,
-                    "y": 53
-                  },
-                  {
-                    "x": 128,
-                    "y": 137
-                  },
-                  {
-                    "x": 211,
-                    "y": 219
-                  },
-                  {
-                    "x": 255,
-                    "y": 251
-                  }
-                ],
-                "green": [
-                  {
-                    "x": 0,
-                    "y": 3
-                  },
-                  {
-                    "x": 48,
-                    "y": 50
-                  },
-                  {
-                    "x": 128,
-                    "y": 131
-                  },
-                  {
-                    "x": 211,
-                    "y": 211
-                  },
-                  {
-                    "x": 255,
-                    "y": 246
-                  }
-                ],
-                "blue": [
-                  {
-                    "x": 0,
-                    "y": 6
-                  },
-                  {
-                    "x": 48,
-                    "y": 54
-                  },
-                  {
-                    "x": 128,
-                    "y": 127
-                  },
-                  {
-                    "x": 211,
-                    "y": 199
-                  },
-                  {
-                    "x": 255,
-                    "y": 234
-                  }
-                ]
-              },
-              "curveMode": "point",
-              "colorCalibration": {
-                "shadowsTint": 0,
-                "redHue": 0,
-                "redSaturation": 0,
-                "greenHue": 0,
-                "greenSaturation": 0,
-                "blueHue": 0,
-                "blueSaturation": 0
-              },
-              "activeTools": {
-                "basic": true,
-                "curves": true,
-                "colorPresence": true,
-                "colorGrading": true,
-                "colorMixer": true,
-                "colorCalibration": true,
-                "presence": true,
-                "vignette": true,
-                "grain": true
-              }
-            }
-          },
-          {
             "id": "rapidroom-style:muted-earth",
             "name": "Copper & Olive",
-            "description": "Copper foliage, olive greens and restrained blue skies. Best with autumn landscapes and stone streets.",
+            "description": "Copper autumn colour with living olive greens. Best with trees, gardens, stone and warm daylight.",
             "presetType": "style",
             "includeMasks": false,
             "includeCropTransform": false,
@@ -2387,14 +1484,14 @@
                   "luminance": 12
                 },
                 "yellows": {
-                  "hue": -34,
-                  "saturation": -21,
-                  "luminance": 5
+                  "hue": -21,
+                  "saturation": -9,
+                  "luminance": 7
                 },
                 "greens": {
-                  "hue": -43,
-                  "saturation": -41,
-                  "luminance": -10
+                  "hue": -18,
+                  "saturation": -12,
+                  "luminance": -4
                 },
                 "aquas": {
                   "hue": -11,
@@ -2523,15 +1620,15 @@
                   },
                   {
                     "x": 128,
-                    "y": 115
+                    "y": 121
                   },
                   {
                     "x": 211,
-                    "y": 192
+                    "y": 198
                   },
                   {
                     "x": 255,
-                    "y": 238
+                    "y": 242
                   }
                 ]
               },
@@ -2617,15 +1714,15 @@
                   },
                   {
                     "x": 128,
-                    "y": 115
+                    "y": 121
                   },
                   {
                     "x": 211,
-                    "y": 192
+                    "y": 198
                   },
                   {
                     "x": 255,
-                    "y": 238
+                    "y": 242
                   }
                 ]
               },
@@ -2653,71 +1750,2179 @@
             }
           },
           {
-            "id": "rapidroom-style:bw-silver",
-            "name": "Silver Street",
-            "description": "Luminous monochrome, firm blacks and textured highlights. Best with side light, faces and graphic streets.",
+            "id": "rapidroom-style:aqua-vista",
+            "name": "Aqua Vista",
+            "description": "Luminous turquoise water and clear aqua skies with golden foliage. Best with sunlit water, coastlines and blue-sky landscapes.",
             "presetType": "style",
             "includeMasks": false,
             "includeCropTransform": false,
             "adjustments": {
-              "contrast": 27,
-              "highlights": -37,
-              "shadows": 33,
-              "blacks": -8,
-              "whites": 3,
-              "saturation": -100,
-              "vibrance": 0,
-              "clarity": 17,
-              "dehaze": 5,
-              "vignetteAmount": -9,
+              "contrast": 28,
+              "highlights": -14,
+              "shadows": 25,
+              "blacks": -4,
+              "whites": 4,
+              "saturation": 0,
+              "vibrance": 16,
+              "clarity": 7,
+              "dehaze": 7,
+              "vignetteAmount": 0,
               "vignetteMidpoint": 46,
               "vignetteRoundness": 0,
               "vignetteFeather": 82,
-              "grainAmount": 17,
+              "grainAmount": 0,
               "grainSize": 22,
               "grainRoughness": 43,
               "hsl": {
                 "reds": {
                   "hue": 0,
-                  "saturation": 0,
-                  "luminance": 11
+                  "saturation": 5,
+                  "luminance": 2
                 },
                 "oranges": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 23
+                  "hue": -2,
+                  "saturation": 6,
+                  "luminance": 7
                 },
                 "yellows": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 12
+                  "hue": -19,
+                  "saturation": -7,
+                  "luminance": 11
                 },
                 "greens": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": -13
+                  "hue": -48,
+                  "saturation": -27,
+                  "luminance": 9
                 },
                 "aquas": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
+                  "hue": -11,
+                  "saturation": 26,
+                  "luminance": 43
                 },
                 "blues": {
-                  "hue": 0,
-                  "saturation": 0,
-                  "luminance": -23
+                  "hue": -23,
+                  "saturation": 19,
+                  "luminance": 34
                 },
                 "purples": {
                   "hue": 0,
-                  "saturation": 0,
-                  "luminance": 0
+                  "saturation": -8,
+                  "luminance": 9
                 },
                 "magentas": {
                   "hue": 0,
                   "saturation": 0,
+                  "luminance": 4
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 190,
+                  "saturation": 7,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 46,
+                  "saturation": 10,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 0,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 28,
+                    "y": 23
+                  },
+                  {
+                    "x": 72,
+                    "y": 82
+                  },
+                  {
+                    "x": 128,
+                    "y": 145
+                  },
+                  {
+                    "x": 205,
+                    "y": 221
+                  },
+                  {
+                    "x": 255,
+                    "y": 254
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 44
+                  },
+                  {
+                    "x": 128,
+                    "y": 126
+                  },
+                  {
+                    "x": 211,
+                    "y": 215
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 51
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 211,
+                    "y": 218
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 48,
+                    "y": 55
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 211,
+                    "y": 211
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 28,
+                    "y": 23
+                  },
+                  {
+                    "x": 72,
+                    "y": 82
+                  },
+                  {
+                    "x": 128,
+                    "y": 145
+                  },
+                  {
+                    "x": 205,
+                    "y": 221
+                  },
+                  {
+                    "x": 255,
+                    "y": 254
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 44
+                  },
+                  {
+                    "x": 128,
+                    "y": 126
+                  },
+                  {
+                    "x": 211,
+                    "y": 215
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 51
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 211,
+                    "y": 218
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 48,
+                    "y": 55
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 211,
+                    "y": 211
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": 0,
+                "redSaturation": 0,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "blueHue": -13,
+                "blueSaturation": 5
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:cotton-sky",
+            "name": "Cotton Sky",
+            "description": "Pink-lit clouds, baby-blue shadows and luminous pastel colour. Best with dusk skies, soft daylight and pale streets.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": -14,
+              "highlights": -22,
+              "shadows": 39,
+              "blacks": 9,
+              "whites": 5,
+              "saturation": -3,
+              "vibrance": 18,
+              "clarity": -9,
+              "dehaze": -4,
+              "vignetteAmount": 0,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 0,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": -12,
+                  "saturation": 8,
+                  "luminance": 18
+                },
+                "oranges": {
+                  "hue": -4,
+                  "saturation": -10,
+                  "luminance": 23
+                },
+                "yellows": {
+                  "hue": -28,
+                  "saturation": -31,
+                  "luminance": 18
+                },
+                "greens": {
+                  "hue": -21,
+                  "saturation": -27,
+                  "luminance": 13
+                },
+                "aquas": {
+                  "hue": -19,
+                  "saturation": 17,
+                  "luminance": 26
+                },
+                "blues": {
+                  "hue": -28,
+                  "saturation": 6,
+                  "luminance": 39
+                },
+                "purples": {
+                  "hue": -17,
+                  "saturation": 29,
+                  "luminance": 23
+                },
+                "magentas": {
+                  "hue": -9,
+                  "saturation": 24,
+                  "luminance": 19
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 198,
+                  "saturation": 22,
+                  "luminance": 1
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 326,
+                  "saturation": 30,
+                  "luminance": 1
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 13,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 5
+                  },
+                  {
+                    "x": 30,
+                    "y": 44
+                  },
+                  {
+                    "x": 72,
+                    "y": 104
+                  },
+                  {
+                    "x": 128,
+                    "y": 166
+                  },
+                  {
+                    "x": 207,
+                    "y": 232
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 2
+                  },
+                  {
+                    "x": 48,
+                    "y": 46
+                  },
+                  {
+                    "x": 128,
+                    "y": 139
+                  },
+                  {
+                    "x": 211,
+                    "y": 225
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 48,
+                    "y": 52
+                  },
+                  {
+                    "x": 128,
+                    "y": 125
+                  },
+                  {
+                    "x": 211,
+                    "y": 207
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 7
+                  },
+                  {
+                    "x": 48,
+                    "y": 60
+                  },
+                  {
+                    "x": 128,
+                    "y": 142
+                  },
+                  {
+                    "x": 211,
+                    "y": 224
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 5
+                  },
+                  {
+                    "x": 30,
+                    "y": 44
+                  },
+                  {
+                    "x": 72,
+                    "y": 104
+                  },
+                  {
+                    "x": 128,
+                    "y": 166
+                  },
+                  {
+                    "x": 207,
+                    "y": 232
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 2
+                  },
+                  {
+                    "x": 48,
+                    "y": 46
+                  },
+                  {
+                    "x": 128,
+                    "y": 139
+                  },
+                  {
+                    "x": 211,
+                    "y": 225
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 48,
+                    "y": 52
+                  },
+                  {
+                    "x": 128,
+                    "y": 125
+                  },
+                  {
+                    "x": 211,
+                    "y": 207
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 7
+                  },
+                  {
+                    "x": 48,
+                    "y": 60
+                  },
+                  {
+                    "x": 128,
+                    "y": 142
+                  },
+                  {
+                    "x": 211,
+                    "y": 224
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": 0,
+                "redSaturation": 0,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "blueHue": 0,
+                "blueSaturation": 0
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:neon-outrun",
+            "name": "Neon Outrun",
+            "description": "Hot pink signs, electric cyan and violet city shadows. A synthetic night palette for neon districts and wet reflections.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 31,
+              "highlights": -31,
+              "shadows": 34,
+              "blacks": -14,
+              "whites": -8,
+              "saturation": 5,
+              "vibrance": 22,
+              "clarity": 12,
+              "dehaze": 7,
+              "vignetteAmount": -9,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 0,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": -41,
+                  "saturation": 39,
+                  "luminance": 9
+                },
+                "oranges": {
+                  "hue": -61,
+                  "saturation": 3,
+                  "luminance": 3
+                },
+                "yellows": {
+                  "hue": -67,
+                  "saturation": -57,
+                  "luminance": -7
+                },
+                "greens": {
+                  "hue": -31,
+                  "saturation": -91,
+                  "luminance": -5
+                },
+                "aquas": {
+                  "hue": -9,
+                  "saturation": 47,
+                  "luminance": 17
+                },
+                "blues": {
+                  "hue": -39,
+                  "saturation": 43,
+                  "luminance": 13
+                },
+                "purples": {
+                  "hue": 13,
+                  "saturation": 42,
+                  "luminance": 14
+                },
+                "magentas": {
+                  "hue": 6,
+                  "saturation": 49,
+                  "luminance": 11
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 212,
+                  "saturation": 37,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 320,
+                  "saturation": 39,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": -6,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 26,
+                    "y": 17
+                  },
+                  {
+                    "x": 68,
+                    "y": 72
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 205,
+                    "y": 223
+                  },
+                  {
+                    "x": 255,
+                    "y": 251
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 37
+                  },
+                  {
+                    "x": 128,
+                    "y": 135
+                  },
+                  {
+                    "x": 211,
+                    "y": 238
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 41
+                  },
+                  {
+                    "x": 128,
+                    "y": 115
+                  },
+                  {
+                    "x": 211,
+                    "y": 198
+                  },
+                  {
+                    "x": 255,
+                    "y": 245
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 5
+                  },
+                  {
+                    "x": 48,
+                    "y": 63
+                  },
+                  {
+                    "x": 128,
+                    "y": 155
+                  },
+                  {
+                    "x": 211,
+                    "y": 241
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 26,
+                    "y": 17
+                  },
+                  {
+                    "x": 68,
+                    "y": 72
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 205,
+                    "y": 223
+                  },
+                  {
+                    "x": 255,
+                    "y": 251
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 37
+                  },
+                  {
+                    "x": 128,
+                    "y": 135
+                  },
+                  {
+                    "x": 211,
+                    "y": 238
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 41
+                  },
+                  {
+                    "x": 128,
+                    "y": 115
+                  },
+                  {
+                    "x": 211,
+                    "y": 198
+                  },
+                  {
+                    "x": 255,
+                    "y": 245
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 5
+                  },
+                  {
+                    "x": 48,
+                    "y": 63
+                  },
+                  {
+                    "x": 128,
+                    "y": 155
+                  },
+                  {
+                    "x": 211,
+                    "y": 241
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": -15,
+                "redSaturation": 0,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "blueHue": -21,
+                "blueSaturation": 13
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:ivory-light",
+            "name": "Ivory Light",
+            "description": "Bright cream walls, warm timber and clean soft colour. Best with architecture, interiors and people in gentle daylight.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": -13,
+              "highlights": -45,
+              "shadows": 41,
+              "blacks": 7,
+              "whites": 7,
+              "saturation": 0,
+              "vibrance": 7,
+              "clarity": -6,
+              "dehaze": 0,
+              "vignetteAmount": 0,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 0,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": 0,
+                  "saturation": -5,
+                  "luminance": 13
+                },
+                "oranges": {
+                  "hue": 7,
+                  "saturation": -8,
+                  "luminance": 20
+                },
+                "yellows": {
+                  "hue": -9,
+                  "saturation": -47,
+                  "luminance": 21
+                },
+                "greens": {
+                  "hue": -11,
+                  "saturation": -68,
+                  "luminance": 14
+                },
+                "aquas": {
+                  "hue": -4,
+                  "saturation": -57,
+                  "luminance": 28
+                },
+                "blues": {
+                  "hue": -7,
+                  "saturation": -59,
+                  "luminance": 27
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": -37,
+                  "luminance": 9
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": -27,
+                  "luminance": 11
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 41,
+                  "saturation": 4,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 43,
+                  "saturation": 9,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 0,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 2
+                  },
+                  {
+                    "x": 32,
+                    "y": 55
+                  },
+                  {
+                    "x": 80,
+                    "y": 118
+                  },
+                  {
+                    "x": 128,
+                    "y": 167
+                  },
+                  {
+                    "x": 205,
+                    "y": 230
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 54
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 211,
+                    "y": 215
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 49
+                  },
+                  {
+                    "x": 128,
+                    "y": 129
+                  },
+                  {
+                    "x": 211,
+                    "y": 212
+                  },
+                  {
+                    "x": 255,
+                    "y": 254
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 46
+                  },
+                  {
+                    "x": 128,
+                    "y": 122
+                  },
+                  {
+                    "x": 211,
+                    "y": 204
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 2
+                  },
+                  {
+                    "x": 32,
+                    "y": 55
+                  },
+                  {
+                    "x": 80,
+                    "y": 118
+                  },
+                  {
+                    "x": 128,
+                    "y": 167
+                  },
+                  {
+                    "x": 205,
+                    "y": 230
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 54
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 211,
+                    "y": 215
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 49
+                  },
+                  {
+                    "x": 128,
+                    "y": 129
+                  },
+                  {
+                    "x": 211,
+                    "y": 212
+                  },
+                  {
+                    "x": 255,
+                    "y": 254
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 46
+                  },
+                  {
+                    "x": 128,
+                    "y": 122
+                  },
+                  {
+                    "x": 211,
+                    "y": 204
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": 0,
+                "redSaturation": 0,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "blueHue": 0,
+                "blueSaturation": 0
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:kyoto-amber",
+            "name": "Kyoto Amber",
+            "description": "Rich amber timber and warm stone against smoky slate shadows. Best with old streets, temples and dusk architecture.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 27,
+              "highlights": -26,
+              "shadows": -4,
+              "blacks": -15,
+              "whites": -5,
+              "saturation": -4,
+              "vibrance": 9,
+              "clarity": 11,
+              "dehaze": 6,
+              "vignetteAmount": -7,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 0,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": 13,
+                  "saturation": -9,
+                  "luminance": 3
+                },
+                "oranges": {
+                  "hue": -7,
+                  "saturation": 23,
+                  "luminance": 13
+                },
+                "yellows": {
+                  "hue": -31,
+                  "saturation": -29,
+                  "luminance": -9
+                },
+                "greens": {
+                  "hue": -23,
+                  "saturation": -83,
+                  "luminance": -8
+                },
+                "aquas": {
+                  "hue": 0,
+                  "saturation": -73,
+                  "luminance": -14
+                },
+                "blues": {
+                  "hue": 0,
+                  "saturation": -78,
+                  "luminance": -16
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": -86,
+                  "luminance": -6
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": -88,
+                  "luminance": -5
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 219,
+                  "saturation": 5,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 39,
+                  "saturation": 19,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 0,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 32,
+                    "y": 19
+                  },
+                  {
+                    "x": 80,
+                    "y": 74
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 205,
+                    "y": 221
+                  },
+                  {
+                    "x": 255,
+                    "y": 247
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 47
+                  },
+                  {
+                    "x": 128,
+                    "y": 134
+                  },
+                  {
+                    "x": 211,
+                    "y": 222
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 47
+                  },
+                  {
+                    "x": 128,
+                    "y": 128
+                  },
+                  {
+                    "x": 211,
+                    "y": 213
+                  },
+                  {
+                    "x": 255,
+                    "y": 252
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 2
+                  },
+                  {
+                    "x": 48,
+                    "y": 48
+                  },
+                  {
+                    "x": 128,
+                    "y": 119
+                  },
+                  {
+                    "x": 211,
+                    "y": 197
+                  },
+                  {
+                    "x": 255,
+                    "y": 241
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 32,
+                    "y": 19
+                  },
+                  {
+                    "x": 80,
+                    "y": 74
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 205,
+                    "y": 221
+                  },
+                  {
+                    "x": 255,
+                    "y": 247
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 47
+                  },
+                  {
+                    "x": 128,
+                    "y": 134
+                  },
+                  {
+                    "x": 211,
+                    "y": 222
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 47
+                  },
+                  {
+                    "x": 128,
+                    "y": 128
+                  },
+                  {
+                    "x": 211,
+                    "y": 213
+                  },
+                  {
+                    "x": 255,
+                    "y": 252
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 2
+                  },
+                  {
+                    "x": 48,
+                    "y": 48
+                  },
+                  {
+                    "x": 128,
+                    "y": 119
+                  },
+                  {
+                    "x": 211,
+                    "y": 197
+                  },
+                  {
+                    "x": 255,
+                    "y": 241
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": 0,
+                "redSaturation": 4,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "blueHue": 0,
+                "blueSaturation": 0
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:emerald-grove",
+            "name": "Emerald Grove",
+            "description": "Lush emerald leaves and moss with rich warm bark. Best with woodland, shaded gardens and forest streams.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 21,
+              "highlights": -38,
+              "shadows": 17,
+              "blacks": -8,
+              "whites": -3,
+              "saturation": -2,
+              "vibrance": 12,
+              "clarity": 9,
+              "dehaze": 2,
+              "vignetteAmount": -6,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 0,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": 9,
+                  "saturation": 11,
+                  "luminance": -5
+                },
+                "oranges": {
+                  "hue": -6,
+                  "saturation": 24,
+                  "luminance": -7
+                },
+                "yellows": {
+                  "hue": 64,
+                  "saturation": -34,
+                  "luminance": -17
+                },
+                "greens": {
+                  "hue": 38,
+                  "saturation": 13,
+                  "luminance": -27
+                },
+                "aquas": {
+                  "hue": 4,
+                  "saturation": -29,
+                  "luminance": 12
+                },
+                "blues": {
+                  "hue": -4,
+                  "saturation": -39,
+                  "luminance": 13
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": -23,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": -21,
                   "luminance": 0
                 }
               },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 218,
+                  "saturation": 13,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 137,
+                  "saturation": 7,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 0,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 32,
+                    "y": 27
+                  },
+                  {
+                    "x": 80,
+                    "y": 78
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 207,
+                    "y": 222
+                  },
+                  {
+                    "x": 255,
+                    "y": 248
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 44
+                  },
+                  {
+                    "x": 128,
+                    "y": 128
+                  },
+                  {
+                    "x": 211,
+                    "y": 215
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 49
+                  },
+                  {
+                    "x": 128,
+                    "y": 130
+                  },
+                  {
+                    "x": 211,
+                    "y": 212
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 48,
+                    "y": 55
+                  },
+                  {
+                    "x": 128,
+                    "y": 130
+                  },
+                  {
+                    "x": 211,
+                    "y": 208
+                  },
+                  {
+                    "x": 255,
+                    "y": 246
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 32,
+                    "y": 27
+                  },
+                  {
+                    "x": 80,
+                    "y": 78
+                  },
+                  {
+                    "x": 128,
+                    "y": 132
+                  },
+                  {
+                    "x": 207,
+                    "y": 222
+                  },
+                  {
+                    "x": 255,
+                    "y": 248
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 44
+                  },
+                  {
+                    "x": 128,
+                    "y": 128
+                  },
+                  {
+                    "x": 211,
+                    "y": 215
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 49
+                  },
+                  {
+                    "x": 128,
+                    "y": 130
+                  },
+                  {
+                    "x": 211,
+                    "y": 212
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 48,
+                    "y": 55
+                  },
+                  {
+                    "x": 128,
+                    "y": 130
+                  },
+                  {
+                    "x": 211,
+                    "y": 208
+                  },
+                  {
+                    "x": 255,
+                    "y": 246
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": 0,
+                "redSaturation": 0,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "blueHue": 0,
+                "blueSaturation": 0
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:autumn-vermilion",
+            "name": "Autumn Vermilion",
+            "description": "Glowing red maples, copper leaves and deep emerald moss. Best with autumn temples, gardens and illuminated foliage.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 26,
+              "highlights": -33,
+              "shadows": 19,
+              "blacks": -10,
+              "whites": -3,
+              "saturation": 0,
+              "vibrance": 17,
+              "clarity": 8,
+              "dehaze": 4,
+              "vignetteAmount": -6,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 4,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": 9,
+                  "saturation": 27,
+                  "luminance": 8
+                },
+                "oranges": {
+                  "hue": -9,
+                  "saturation": 25,
+                  "luminance": 5
+                },
+                "yellows": {
+                  "hue": -47,
+                  "saturation": -16,
+                  "luminance": -11
+                },
+                "greens": {
+                  "hue": 22,
+                  "saturation": 9,
+                  "luminance": -24
+                },
+                "aquas": {
+                  "hue": 0,
+                  "saturation": -39,
+                  "luminance": -7
+                },
+                "blues": {
+                  "hue": -3,
+                  "saturation": -47,
+                  "luminance": -9
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": -21,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": -17,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 211,
+                  "saturation": 7,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 37,
+                  "saturation": 14,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 8,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 32,
+                    "y": 21
+                  },
+                  {
+                    "x": 80,
+                    "y": 79
+                  },
+                  {
+                    "x": 128,
+                    "y": 139
+                  },
+                  {
+                    "x": 207,
+                    "y": 224
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 47
+                  },
+                  {
+                    "x": 128,
+                    "y": 135
+                  },
+                  {
+                    "x": 211,
+                    "y": 222
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 48
+                  },
+                  {
+                    "x": 128,
+                    "y": 129
+                  },
+                  {
+                    "x": 211,
+                    "y": 214
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 48,
+                    "y": 52
+                  },
+                  {
+                    "x": 128,
+                    "y": 125
+                  },
+                  {
+                    "x": 211,
+                    "y": 202
+                  },
+                  {
+                    "x": 255,
+                    "y": 246
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 32,
+                    "y": 21
+                  },
+                  {
+                    "x": 80,
+                    "y": 79
+                  },
+                  {
+                    "x": 128,
+                    "y": 139
+                  },
+                  {
+                    "x": 207,
+                    "y": 224
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 47
+                  },
+                  {
+                    "x": 128,
+                    "y": 135
+                  },
+                  {
+                    "x": 211,
+                    "y": 222
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 48
+                  },
+                  {
+                    "x": 128,
+                    "y": 129
+                  },
+                  {
+                    "x": 211,
+                    "y": 214
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 48,
+                    "y": 52
+                  },
+                  {
+                    "x": 128,
+                    "y": 125
+                  },
+                  {
+                    "x": 211,
+                    "y": 202
+                  },
+                  {
+                    "x": 255,
+                    "y": 246
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": 0,
+                "redSaturation": 0,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "blueHue": 0,
+                "blueSaturation": 0
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:petal-leaf",
+            "name": "Petal & Leaf",
+            "description": "Luminous roses and clean petal colour against cool, quiet foliage. Best with flower portraits and colourful gardens.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 11,
+              "highlights": -39,
+              "shadows": 26,
+              "blacks": -4,
+              "whites": 0,
+              "saturation": 0,
+              "vibrance": 18,
+              "clarity": -2,
+              "dehaze": 0,
+              "vignetteAmount": -3,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 0,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": 5,
+                  "saturation": 9,
+                  "luminance": -3
+                },
+                "oranges": {
+                  "hue": 1,
+                  "saturation": 14,
+                  "luminance": 7
+                },
+                "yellows": {
+                  "hue": -12,
+                  "saturation": 18,
+                  "luminance": 8
+                },
+                "greens": {
+                  "hue": 28,
+                  "saturation": -26,
+                  "luminance": -26
+                },
+                "aquas": {
+                  "hue": 4,
+                  "saturation": -16,
+                  "luminance": 0
+                },
+                "blues": {
+                  "hue": 0,
+                  "saturation": -21,
+                  "luminance": 1
+                },
+                "purples": {
+                  "hue": -9,
+                  "saturation": 13,
+                  "luminance": 7
+                },
+                "magentas": {
+                  "hue": 9,
+                  "saturation": 17,
+                  "luminance": 9
+                }
+              },
+              "structure": 19,
               "colorGrading": {
                 "shadows": {
                   "hue": 0,
@@ -2749,24 +3954,24 @@
                     "y": 0
                   },
                   {
-                    "x": 28,
-                    "y": 17
+                    "x": 32,
+                    "y": 28
                   },
                   {
-                    "x": 68,
-                    "y": 66
+                    "x": 80,
+                    "y": 82
                   },
                   {
-                    "x": 132,
-                    "y": 153
+                    "x": 128,
+                    "y": 139
                   },
                   {
-                    "x": 207,
-                    "y": 230
+                    "x": 209,
+                    "y": 218
                   },
                   {
                     "x": 255,
-                    "y": 252
+                    "y": 253
                   }
                 ],
                 "red": [
@@ -2807,24 +4012,986 @@
                     "y": 0
                   },
                   {
-                    "x": 28,
-                    "y": 17
+                    "x": 32,
+                    "y": 28
                   },
                   {
-                    "x": 68,
-                    "y": 66
+                    "x": 80,
+                    "y": 82
                   },
                   {
-                    "x": 132,
-                    "y": 153
+                    "x": 128,
+                    "y": 139
+                  },
+                  {
+                    "x": 209,
+                    "y": 218
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": 0,
+                "redSaturation": 0,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "blueHue": 0,
+                "blueSaturation": 0
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:forest-gothic",
+            "name": "Forest Gothic",
+            "description": "Charcoal woodland, olive leaves and a warm diagonal glow. Move the light-beam mask to follow the light.",
+            "presetType": "style",
+            "includeMasks": true,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 31,
+              "highlights": -38,
+              "shadows": 8,
+              "blacks": -14,
+              "whites": -10,
+              "saturation": -9,
+              "vibrance": 6,
+              "clarity": 13,
+              "dehaze": 5,
+              "vignetteAmount": -8,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 0,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": 9,
+                  "saturation": -6,
+                  "luminance": -7
+                },
+                "oranges": {
+                  "hue": -8,
+                  "saturation": 17,
+                  "luminance": -12
+                },
+                "yellows": {
+                  "hue": -34,
+                  "saturation": -51,
+                  "luminance": -21
+                },
+                "greens": {
+                  "hue": -33,
+                  "saturation": -62,
+                  "luminance": -31
+                },
+                "aquas": {
+                  "hue": -5,
+                  "saturation": -42,
+                  "luminance": -10
+                },
+                "blues": {
+                  "hue": 0,
+                  "saturation": -46,
+                  "luminance": -11
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": -35,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": -39,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 211,
+                  "saturation": 23,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 0,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 8
+                  },
+                  {
+                    "x": 32,
+                    "y": 23
+                  },
+                  {
+                    "x": 80,
+                    "y": 73
+                  },
+                  {
+                    "x": 128,
+                    "y": 126
                   },
                   {
                     "x": 207,
-                    "y": 230
+                    "y": 221
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 42
+                  },
+                  {
+                    "x": 128,
+                    "y": 124
+                  },
+                  {
+                    "x": 211,
+                    "y": 215
+                  },
+                  {
+                    "x": 255,
+                    "y": 254
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 49
+                  },
+                  {
+                    "x": 128,
+                    "y": 127
+                  },
+                  {
+                    "x": 211,
+                    "y": 214
                   },
                   {
                     "x": 255,
                     "y": 252
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 5
+                  },
+                  {
+                    "x": 48,
+                    "y": 56
+                  },
+                  {
+                    "x": 128,
+                    "y": 131
+                  },
+                  {
+                    "x": 211,
+                    "y": 207
+                  },
+                  {
+                    "x": 255,
+                    "y": 246
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 8
+                  },
+                  {
+                    "x": 32,
+                    "y": 23
+                  },
+                  {
+                    "x": 80,
+                    "y": 73
+                  },
+                  {
+                    "x": 128,
+                    "y": 126
+                  },
+                  {
+                    "x": 207,
+                    "y": 221
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 48,
+                    "y": 42
+                  },
+                  {
+                    "x": 128,
+                    "y": 124
+                  },
+                  {
+                    "x": 211,
+                    "y": 215
+                  },
+                  {
+                    "x": 255,
+                    "y": 254
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 49
+                  },
+                  {
+                    "x": 128,
+                    "y": 127
+                  },
+                  {
+                    "x": 211,
+                    "y": 214
+                  },
+                  {
+                    "x": 255,
+                    "y": 252
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 5
+                  },
+                  {
+                    "x": 48,
+                    "y": 56
+                  },
+                  {
+                    "x": 128,
+                    "y": 131
+                  },
+                  {
+                    "x": 211,
+                    "y": 207
+                  },
+                  {
+                    "x": 255,
+                    "y": 246
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": 0,
+                "redSaturation": 0,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "blueHue": 0,
+                "blueSaturation": 0
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              },
+              "masks": [
+                {
+                  "id": "rapidroom-style:forest-gothic:beam",
+                  "name": "Warm diagonal light beam",
+                  "relativeToImage": true,
+                  "visible": true,
+                  "invert": false,
+                  "opacity": 86,
+                  "adjustments": {
+                    "exposure": 1.25,
+                    "temperature": 21,
+                    "tint": 3,
+                    "clarity": -27,
+                    "dehaze": -31,
+                    "glowAmount": 13,
+                    "highlights": -10,
+                    "curves": {
+                      "luma": [
+                        {
+                          "x": 0,
+                          "y": 0
+                        },
+                        {
+                          "x": 255,
+                          "y": 255
+                        }
+                      ],
+                      "red": [
+                        {
+                          "x": 0,
+                          "y": 0
+                        },
+                        {
+                          "x": 255,
+                          "y": 255
+                        }
+                      ],
+                      "green": [
+                        {
+                          "x": 0,
+                          "y": 0
+                        },
+                        {
+                          "x": 255,
+                          "y": 255
+                        }
+                      ],
+                      "blue": [
+                        {
+                          "x": 0,
+                          "y": 0
+                        },
+                        {
+                          "x": 255,
+                          "y": 255
+                        }
+                      ]
+                    },
+                    "curveMode": "point",
+                    "activeTools": {
+                      "basic": true,
+                      "whiteBalance": true,
+                      "presence": true,
+                      "creative": true
+                    },
+                    "pointCurves": {
+                      "luma": [
+                        {
+                          "x": 0,
+                          "y": 0
+                        },
+                        {
+                          "x": 255,
+                          "y": 255
+                        }
+                      ],
+                      "red": [
+                        {
+                          "x": 0,
+                          "y": 0
+                        },
+                        {
+                          "x": 255,
+                          "y": 255
+                        }
+                      ],
+                      "green": [
+                        {
+                          "x": 0,
+                          "y": 0
+                        },
+                        {
+                          "x": 255,
+                          "y": 255
+                        }
+                      ],
+                      "blue": [
+                        {
+                          "x": 0,
+                          "y": 0
+                        },
+                        {
+                          "x": 255,
+                          "y": 255
+                        }
+                      ]
+                    }
+                  },
+                  "subMasks": [
+                    {
+                      "id": "rapidroom-style:forest-gothic:radial",
+                      "name": "Movable warm beam",
+                      "type": "radial",
+                      "visible": true,
+                      "invert": false,
+                      "opacity": 100,
+                      "mode": "additive",
+                      "parameters": {
+                        "centerX": 0.28,
+                        "centerY": 0.29,
+                        "radiusX": 0.54,
+                        "radiusY": 0.15,
+                        "rotation": 40,
+                        "feather": 0.93
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "id": "rapidroom-style:mahogany-room",
+            "name": "Mahogany Room",
+            "description": "Rich mahogany, amber lamps and aged-paper cream with firm dark shadows. Best with bookshops, libraries and warm interiors.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 25,
+              "highlights": -29,
+              "shadows": 11,
+              "blacks": -11,
+              "whites": -7,
+              "saturation": 0,
+              "vibrance": 12,
+              "clarity": -5,
+              "dehaze": 3,
+              "vignetteAmount": -8,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 5,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": -7,
+                  "saturation": 19,
+                  "luminance": -7
+                },
+                "oranges": {
+                  "hue": -9,
+                  "saturation": 27,
+                  "luminance": 9
+                },
+                "yellows": {
+                  "hue": -26,
+                  "saturation": -19,
+                  "luminance": -7
+                },
+                "greens": {
+                  "hue": -23,
+                  "saturation": -47,
+                  "luminance": -14
+                },
+                "aquas": {
+                  "hue": 0,
+                  "saturation": -77,
+                  "luminance": -18
+                },
+                "blues": {
+                  "hue": 0,
+                  "saturation": -86,
+                  "luminance": -19
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": -73,
+                  "luminance": -7
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": -71,
+                  "luminance": -5
+                }
+              },
+              "structure": 18,
+              "colorGrading": {
+                "shadows": {
+                  "hue": 33,
+                  "saturation": 9,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 46,
+                  "saturation": 12,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 0,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 32,
+                    "y": 23
+                  },
+                  {
+                    "x": 80,
+                    "y": 78
+                  },
+                  {
+                    "x": 128,
+                    "y": 136
+                  },
+                  {
+                    "x": 207,
+                    "y": 224
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 49
+                  },
+                  {
+                    "x": 128,
+                    "y": 139
+                  },
+                  {
+                    "x": 211,
+                    "y": 228
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 48
+                  },
+                  {
+                    "x": 128,
+                    "y": 130
+                  },
+                  {
+                    "x": 211,
+                    "y": 216
+                  },
+                  {
+                    "x": 255,
+                    "y": 252
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 48,
+                    "y": 43
+                  },
+                  {
+                    "x": 128,
+                    "y": 116
+                  },
+                  {
+                    "x": 211,
+                    "y": 193
+                  },
+                  {
+                    "x": 255,
+                    "y": 239
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 32,
+                    "y": 23
+                  },
+                  {
+                    "x": 80,
+                    "y": 78
+                  },
+                  {
+                    "x": 128,
+                    "y": 136
+                  },
+                  {
+                    "x": 207,
+                    "y": 224
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 49
+                  },
+                  {
+                    "x": 128,
+                    "y": 139
+                  },
+                  {
+                    "x": 211,
+                    "y": 228
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 48,
+                    "y": 48
+                  },
+                  {
+                    "x": 128,
+                    "y": 130
+                  },
+                  {
+                    "x": 211,
+                    "y": 216
+                  },
+                  {
+                    "x": 255,
+                    "y": 252
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 48,
+                    "y": 43
+                  },
+                  {
+                    "x": 128,
+                    "y": 116
+                  },
+                  {
+                    "x": 211,
+                    "y": 193
+                  },
+                  {
+                    "x": 255,
+                    "y": 239
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": 0,
+                "redSaturation": 0,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "blueHue": 0,
+                "blueSaturation": 0
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:bright-table",
+            "name": "Bright Table",
+            "description": "Fresh ingredients, clean crockery and bright soft light. Best with food, cafe tables and market produce.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": -6,
+              "highlights": -38,
+              "shadows": 39,
+              "blacks": 4,
+              "whites": 6,
+              "saturation": 0,
+              "vibrance": 18,
+              "clarity": -5,
+              "dehaze": 0,
+              "vignetteAmount": -5,
+              "vignetteMidpoint": 65,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 89,
+              "grainAmount": 0,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": 4,
+                  "saturation": 19,
+                  "luminance": 5
+                },
+                "oranges": {
+                  "hue": 0,
+                  "saturation": 15,
+                  "luminance": 12
+                },
+                "yellows": {
+                  "hue": 7,
+                  "saturation": 16,
+                  "luminance": 12
+                },
+                "greens": {
+                  "hue": 17,
+                  "saturation": 25,
+                  "luminance": 10
+                },
+                "aquas": {
+                  "hue": 0,
+                  "saturation": -29,
+                  "luminance": 17
+                },
+                "blues": {
+                  "hue": 0,
+                  "saturation": -37,
+                  "luminance": 20
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": 7,
+                  "luminance": 4
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": 13,
+                  "luminance": 8
+                }
+              },
+              "structure": 24,
+              "colorGrading": {
+                "shadows": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 0,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 32,
+                    "y": 43
+                  },
+                  {
+                    "x": 80,
+                    "y": 101
+                  },
+                  {
+                    "x": 128,
+                    "y": 152
+                  },
+                  {
+                    "x": 209,
+                    "y": 228
+                  },
+                  {
+                    "x": 255,
+                    "y": 254
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 32,
+                    "y": 43
+                  },
+                  {
+                    "x": 80,
+                    "y": 101
+                  },
+                  {
+                    "x": 128,
+                    "y": 152
+                  },
+                  {
+                    "x": 209,
+                    "y": 228
+                  },
+                  {
+                    "x": 255,
+                    "y": 254
                   }
                 ],
                 "red": [

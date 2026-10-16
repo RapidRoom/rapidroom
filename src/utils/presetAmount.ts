@@ -1,4 +1,5 @@
 import type { Adjustments } from './adjustments';
+import type { Preset } from '../components/ui/AppProperties';
 import schema from '../../rapidroom/adjustment-schema.json';
 
 const parameters: Record<
@@ -125,4 +126,60 @@ export function mixAdjustments(
     return target;
   };
   return blend(preset, before, '') as Partial<Adjustments>;
+}
+
+// Style masks are additions to the existing edit. Templates use unit image
+// coordinates; the saved edit always receives ordinary editable pixel geometry.
+export function mixPresetAdjustments(
+  preset: Pick<Preset, 'adjustments' | 'presetType'>,
+  amount: number,
+  before: Adjustments,
+  imageSize: { width: number; height: number } | null,
+): Partial<Adjustments> {
+  const mixed = mixAdjustments(preset.adjustments, amount, before);
+  if (mixed === before || preset.presetType !== 'style' || !preset.adjustments.masks?.length) return mixed;
+  const fraction = Math.max(0, Math.min(200, Number.isFinite(amount) ? amount : 100)) / 100;
+  const ids = new Set((before.masks ?? []).flatMap((mask) => [mask.id, ...mask.subMasks.map((subMask) => subMask.id)]));
+  const uniqueId = (baseId: string) => {
+    let id = baseId;
+    for (let suffix = 1; ids.has(id); suffix++) id = `${baseId}:${suffix}`;
+    ids.add(id);
+    return id;
+  };
+  const masks = preset.adjustments.masks.flatMap((template, index) => {
+    if (
+      template.relativeToImage &&
+      (!imageSize ||
+        !Number.isFinite(imageSize.width) ||
+        !Number.isFinite(imageSize.height) ||
+        imageSize.width <= 0 ||
+        imageSize.height <= 0)
+    )
+      return [];
+    const { relativeToImage, ...mask } = template;
+    const baseId = typeof mask.id === 'string' ? mask.id : `style-mask-${index}`;
+    const id = uniqueId(baseId);
+    return [
+      {
+        ...mask,
+        id,
+        opacity: Math.min(100, Math.max(0, (template.opacity ?? 100) * fraction)),
+        subMasks: template.subMasks.map((subMask, subIndex) => {
+          const id = uniqueId(subMask.id ?? `${baseId}:component-${subIndex}`);
+          if (!relativeToImage || !imageSize || !['radial', 'linear'].includes(subMask.type)) return { ...subMask, id };
+          const parameters = { ...subMask.parameters };
+          for (const key of ['centerX', 'radiusX', 'startX', 'endX'] as const) {
+            const value = parameters[key];
+            if (typeof value === 'number') parameters[key] = value * imageSize.width;
+          }
+          for (const key of ['centerY', 'radiusY', 'startY', 'endY'] as const) {
+            const value = parameters[key];
+            if (typeof value === 'number') parameters[key] = value * imageSize.height;
+          }
+          return { ...subMask, id, parameters };
+        }),
+      },
+    ];
+  });
+  return { ...mixed, masks: [...(before.masks ?? []), ...masks] };
 }
