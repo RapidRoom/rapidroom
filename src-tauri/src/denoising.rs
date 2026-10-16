@@ -658,6 +658,7 @@ fn uses_default_raw_tone(is_raw: bool, method: &str) -> bool {
 }
 
 fn nind_raw_view(
+    path: &str,
     image: &DynamicImage,
     settings: &crate::app_settings::AppSettings,
     app_handle: &AppHandle,
@@ -687,9 +688,10 @@ fn nind_raw_view(
     // the save path. NIND receives the same encoded, default-developed look
     // that the original photo displays; its TIFF needs no second tone curve.
     let mut adjustments = crate::image_processing::get_all_adjustments_from_json(
-        &serde_json::json!({}),
+        &crate::image_processing::default_adjustments(),
         true,
-        crate::image_processing::resolve_tonemapper_override(settings, true),
+        crate::as_shot::as_shot(path),
+        crate::image_processing::resolve_render_options(settings, true),
     );
     adjustments.global.show_clipping = 0;
     let mut hash = std::collections::hash_map::DefaultHasher::new();
@@ -753,7 +755,7 @@ fn denoise_image(
 
     let rgb_img_for_denoiser = if method == "ai" {
         let encoded = if is_raw {
-            nind_raw_view(&dynamic_img, &original_settings, app_handle, job)?
+            nind_raw_view(path_str, &dynamic_img, &original_settings, app_handle, job)?
         } else {
             dynamic_img
         };

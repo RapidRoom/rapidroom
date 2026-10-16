@@ -399,6 +399,9 @@ class Smoke:
         if (self.case / "presets-test.json").exists():
             from presets import run_preset_checks
             run_preset_checks(self, wait_for, baseline)
+        if (self.case / "lightroom-ai-masks-test.json").exists():
+            from lightroom_ai_masks import run_ai_mask_checks
+            run_ai_mask_checks(self, wait_for)
         if (self.case / "crs-interop-test.json").exists():
             from crs_interop import run_crs_checks
             run_crs_checks(self, wait_for)
@@ -621,6 +624,12 @@ def launch(args):
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
     if args.presets:
         save(case / "presets-test.json", {"issue": 169})
+    if args.lightroom_ai_masks:
+        fixture=args.lightroom_ai_masks.resolve()
+        data=fixture.read_bytes()
+        if data[:4]!=b"ACR\0" or len(data)>16*1024*1024: raise RuntimeError("Expected a bounded synthetic ACR fixture")
+        shutil.copy2(fixture,case / "input/smoke.acr")
+        save(case / "lightroom-ai-masks-test.json", {"digest":data[20:36].hex().upper(),"real_model_requests":False})
     if args.xmp_photo_policy:
         save(case / "xmp-photo-policy-test.json", {"issue": 218, "real_model_requests": False})
     if args.crs_interop:
@@ -630,7 +639,7 @@ def launch(args):
     if args.crop_noop:
         save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
-        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop:
+        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop and not args.lightroom_ai_masks and not args.xmp_photo_policy:
             save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
@@ -742,6 +751,7 @@ def main():
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
     parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
+    parser.add_argument("--lightroom-ai-masks", type=Path, help="Import an authored synthetic ACR fixture and verify named refusals without model requests")
     parser.add_argument("--xmp-photo-policy", action="store_true", help="Synthetic photo AlreadyApplied, pending draft/history and reusable preset checks")
     parser.add_argument("--crs-interop", action="store_true", help="Check public CRS import and XML safety without model requests")
     parser.add_argument("--mask-drop", action="store_true", help="Check mask creation drop insertion on a sub-mask row")
@@ -757,7 +767,7 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop or args.xmp_photo_policy:
+    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop or args.lightroom_ai_masks or args.xmp_photo_policy:
         args.mcp_clients = True
     if args.mcp_skill and (not args.skill_source or not args.skill_source.is_dir()):
         parser.error("--mcp-skill requires --skill-source matching the pinned app commit")

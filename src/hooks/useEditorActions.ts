@@ -13,7 +13,10 @@ import {
   COPYABLE_ADJUSTMENT_KEYS,
   PasteMode,
   LensAdjustment,
+  getActiveTools,
+  mergeActiveTools,
   normalizeLoadedAdjustments,
+  setToolActive,
 } from '../utils/adjustments';
 import { calculateCenteredCrop } from '../utils/cropUtils';
 import { Invokes } from '../components/ui/AppProperties';
@@ -115,7 +118,9 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
   if (importSavePause) throw new Error('An XMP import is already in progress');
   const buffered = new Map<string, XmpEditorDraft>();
   const captured = new Map<string, XmpEditorDraft>();
-  if (queuedEditorDraft) captured.set(queuedEditorDraft.path, queuedEditorDraft);
+  // Active snapshots supply import data; only pending edits need resuming.
+  const queuedBeforePause = queuedEditorDraft;
+  if (queuedBeforePause) captured.set(queuedBeforePause.path, queuedBeforePause);
   const before = captureEditorDraft();
   if (before) captured.set(before.path, before);
   // Pause new requests synchronously, before waiting for existing writes. Never
@@ -128,8 +133,8 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
     finished = true;
     const current = captureEditorDraft();
     const writes = new Map<string, XmpEditorDraft>();
-    for (const [path, draft] of captured) {
-      if (!consumedPaths.includes(path)) writes.set(path, current?.path === path ? current : draft);
+    if (queuedBeforePause && !consumedPaths.includes(queuedBeforePause.path)) {
+      writes.set(queuedBeforePause.path, current?.path === queuedBeforePause.path ? current : queuedBeforePause);
     }
     for (const [path, draft] of buffered) {
       if (consumedPaths.includes(path) && draft.adjustments === captured.get(path)?.adjustments) continue;
@@ -215,11 +220,13 @@ export function useEditorActions() {
     const selectedImage = useEditorStore.getState().selectedImage;
     if (!selectedImage?.isReady) return;
     try {
-      const autoAdjustments: Adjustments = await invoke(Invokes.CalculateAutoAdjustments);
+      const autoAdjustments: Adjustments = await invoke(Invokes.CalculateAutoAdjustments, {
+        jsAdjustments: useEditorStore.getState().adjustments,
+      });
       setAdjustments((prev: Adjustments) => ({
         ...prev,
         ...autoAdjustments,
-        sectionVisibility: { ...prev.sectionVisibility, ...autoAdjustments.sectionVisibility },
+        activeTools: mergeActiveTools(prev, autoAdjustments),
       }));
     } catch (err) {
       toast.error(`Failed to apply auto adjustments: ${err}`);
@@ -232,7 +239,8 @@ export function useEditorActions() {
 
       if (isShowing) {
         const override: Adjustments = { ...INITIAL_ADJUSTMENTS };
-        const geometryKeys: Array<keyof Adjustments> = [
+        const preservedKeys: Array<keyof Adjustments> = [
+          'baselineExposure',
           'crop',
           'rotation',
           'flipHorizontal',
@@ -258,7 +266,7 @@ export function useEditorActions() {
           'lensVignetteEnabled',
         ];
 
-        geometryKeys.forEach((key) => {
+        preservedKeys.forEach((key) => {
           override[key] = state.adjustments[key];
         });
 
@@ -285,10 +293,7 @@ export function useEditorActions() {
           lutSize: result.size,
           lutIntensity: 100,
           lutIsSceneReferred: isBuiltIn,
-          sectionVisibility: {
-            ...(prev.sectionVisibility || INITIAL_ADJUSTMENTS.sectionVisibility),
-            effects: true,
-          },
+          activeTools: setToolActive(getActiveTools(prev), 'lut', true),
         }));
       } catch (err) {
         toast.error(`Failed to load LUT: ${err}`);
