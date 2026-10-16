@@ -280,6 +280,12 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     section: 'panels',
   },
   {
+    action: 'export_instagram',
+    description: 'settings.keybinds.actions.export_instagram',
+    defaultCombo: ['ctrl', 'alt', 'KeyI'],
+    section: 'panels',
+  },
+  {
     action: 'toggle_export',
     description: 'settings.keybinds.actions.toggle_export',
     defaultCombo: ['KeyE'],

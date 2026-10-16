@@ -70,6 +70,15 @@ fn instagram_crop_recipe(
     let mut preset = instagram_recipe(id, label, id, rw, rh);
     preset.instagram_ratio = Some(ratio);
     preset.enable_pad = Some(false);
+    preset.filename_template = format!(
+        "{{original_filename}}_{}",
+        match ratio {
+            crate::export_framing::InstagramRatio::Portrait => "ig45",
+            crate::export_framing::InstagramRatio::Grid => "ig34",
+            crate::export_framing::InstagramRatio::Stories => "ig916",
+            crate::export_framing::InstagramRatio::Landscape => "ig191",
+        }
+    );
     preset
 }
 
@@ -96,6 +105,13 @@ pub fn builtin_export_recipes() -> Vec<ExportPreset> {
             "Instagram Stories crop 9:16 (1080×1920)",
             9.0,
             16.0,
+        ),
+        instagram_crop_recipe(
+            InstagramRatio::Landscape,
+            "instagram-crop-landscape",
+            "Instagram Landscape crop 1.91:1 (1080×565)",
+            1080.0,
+            565.0,
         ),
         instagram_recipe(
             "instagram-portrait",
@@ -321,6 +337,7 @@ mod tests {
             assert_recipe_size("recipe-instagram-crop-4x5", (1080, 1350), border);
             assert_recipe_size("recipe-instagram-crop-3x4", (1080, 1440), border);
             assert_recipe_size("recipe-instagram-crop-9x16", (1080, 1920), border);
+            assert_recipe_size("recipe-instagram-crop-landscape", (1080, 565), border);
             assert_recipe_size("recipe-instagram-portrait", (1080, 1350), border);
             assert_recipe_size("recipe-instagram-square", (1080, 1080), border);
             assert_recipe_size("recipe-instagram-landscape", (1080, 566), border);

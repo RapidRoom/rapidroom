@@ -4573,6 +4573,55 @@ pub fn clear_thumbnail_cache(app_handle: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn instagram_export_folder(
+    folder: Option<String>,
+    create: bool,
+    app_handle: AppHandle,
+) -> Result<String, String> {
+    let path = if let Some(folder) = folder.filter(|s| !s.trim().is_empty()) {
+        PathBuf::from(folder)
+    } else {
+        app_handle
+            .path()
+            .picture_dir()
+            .map_err(|e| e.to_string())?
+            .join("Instagram")
+            .join(chrono::Local::now().format("%Y-%m-%d").to_string())
+    };
+    if !path.is_absolute() {
+        return Err("Export folder must be an absolute path".into());
+    }
+    if create {
+        ensure_card_writable(&path)?;
+        fs::create_dir_all(&path).map_err(|e| format!("Could not create export folder: {e}"))?;
+    }
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn open_export_folder(path: String) -> Result<(), String> {
+    let path = Path::new(&path);
+    if !path.is_dir() {
+        return Err("Export folder no longer exists".into());
+    }
+    #[cfg(target_os = "linux")]
+    let mut command = Command::new("xdg-open");
+    #[cfg(target_os = "macos")]
+    let mut command = Command::new("open");
+    #[cfg(target_os = "windows")]
+    let mut command = Command::new("explorer");
+    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+    {
+        command.arg(path).spawn().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        Err("Opening an export folder is unavailable on this platform".into())
+    }
+}
+
+#[tauri::command]
 pub fn show_in_finder(path: String) -> Result<(), String> {
     let (source_path, _) = parse_virtual_path(&path);
 

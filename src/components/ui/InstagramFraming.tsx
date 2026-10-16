@@ -3,9 +3,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { debouncedSave, waitForPendingEditorSaves } from '../../hooks/useEditorActions';
 import { useEditorStore } from '../../store/useEditorStore';
+import InstagramFrameStrip from './InstagramFrameStrip';
 import type { InstagramFrame, InstagramRatio } from './ExportImportProperties';
 
-interface Preview {
+export interface InstagramPreview {
   jpeg: string;
   width: number;
   height: number;
@@ -24,8 +25,9 @@ interface Props {
 export default function InstagramFraming({ paths, ratio, active, disabled, onFrame, onBusy }: Props) {
   const { t } = useTranslation();
   const [index, setIndex] = useState(0);
-  const path = paths[Math.min(index, Math.max(0, paths.length - 1))];
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const selectedIndex = Math.min(index, Math.max(0, paths.length - 1));
+  const path = paths[selectedIndex];
+  const [preview, setPreview] = useState<InstagramPreview | null>(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   const [busy, setBusy] = useState(true);
@@ -55,7 +57,7 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
       try {
         debouncedSave.flush();
         await waitForPendingEditorSaves();
-        const result = await invoke<Preview>('get_instagram_framing_preview', { path, ratio });
+        const result = await invoke<InstagramPreview>('get_instagram_framing_preview', { path, ratio });
         if (!current()) return;
         frameRef.current = result.framing;
         setPreview(result);
@@ -117,20 +119,35 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
       <p className="text-xs text-text-secondary">{t('export.instagram.description')}</p>
       {paths.length > 1 && (
         <div className="flex items-center justify-between gap-2">
-          <button type="button" disabled={disabled || busy || index <= 0} onClick={() => setIndex(index - 1)}>
+          <button
+            type="button"
+            disabled={disabled || busy || selectedIndex <= 0}
+            onClick={() => setIndex(selectedIndex - 1)}
+          >
             {t('export.instagram.previous')}
           </button>
           <span className="text-xs">
-            {Math.min(index + 1, paths.length)} / {paths.length}
+            {Math.min(selectedIndex + 1, paths.length)} / {paths.length}
           </span>
           <button
             type="button"
-            disabled={disabled || busy || index >= paths.length - 1}
-            onClick={() => setIndex(index + 1)}
+            disabled={disabled || busy || selectedIndex >= paths.length - 1}
+            onClick={() => setIndex(selectedIndex + 1)}
           >
             {t('export.instagram.next')}
           </button>
         </div>
+      )}
+      {paths.length > 1 && (
+        <InstagramFrameStrip
+          paths={paths}
+          index={selectedIndex}
+          ratio={ratio}
+          preview={preview}
+          active={active}
+          disabled={disabled || busy || !!drag.current}
+          onSelect={setIndex}
+        />
       )}
       <p className="text-xs break-all">{path?.split(/[\\/]/).pop()}</p>
       {preview && (
@@ -163,6 +180,7 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
               event.preventDefault();
               event.currentTarget.setPointerCapture(event.pointerId);
               drag.current = { x: event.clientX, y: event.clientY, frame: frameRef.current };
+              setBusy(true);
               callbacks.current.onBusy(true);
             }}
             onPointerMove={(event) => {

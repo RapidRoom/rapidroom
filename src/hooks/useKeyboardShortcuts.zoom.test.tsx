@@ -176,3 +176,61 @@ it('advances rapid editor arrows from the pending photo while the displayed phot
     callbacks.handleImageSelect.mockReset();
   }
 });
+
+it('opens Instagram through the rebindable action while respecting text and modal focus', async () => {
+  const key = () =>
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'i',
+        code: 'KeyI',
+        ctrlKey: true,
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  const input = document.createElement('input');
+  node.append(input);
+  input.focus();
+  await act(async () => {
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).toBeNull();
+  input.blur();
+  await act(async () => {
+    useUIStore.setState({ confirmModalState: { ...ui.confirmModalState, isOpen: true } });
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).toBeNull();
+  await act(async () => {
+    useUIStore.setState({ confirmModalState: { ...ui.confirmModalState, isOpen: false } });
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).not.toBeNull();
+  await act(async () => {
+    useUIStore.setState({ instagramExportRequest: null });
+    useSettingsStore.setState({
+      appSettings: {
+        ...(settings.appSettings ?? { lastRootPath: null, theme: Theme.Dark }),
+        keybinds: { export_instagram: ['ctrl', 'shift', 'KeyJ'] },
+      },
+    });
+  });
+  await act(async () => {
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).toBeNull();
+  await act(async () => {
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'J',
+        code: 'KeyJ',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+  expect(useUIStore.getState().instagramExportRequest).not.toBeNull();
+});

@@ -13,6 +13,8 @@ pub enum InstagramRatio {
     Grid,
     #[serde(rename = "9:16")]
     Stories,
+    #[serde(rename = "1.91:1")]
+    Landscape,
 }
 
 impl InstagramRatio {
@@ -21,6 +23,7 @@ impl InstagramRatio {
             Self::Portrait => (1080, 1350),
             Self::Grid => (1080, 1440),
             Self::Stories => (1080, 1920),
+            Self::Landscape => (1080, 565),
         }
     }
 }
@@ -179,14 +182,19 @@ pub struct FramingPreview {
 pub async fn get_instagram_framing_preview(
     path: String,
     ratio: InstagramRatio,
+    max_size: Option<u32>,
     app_handle: tauri::AppHandle,
 ) -> Result<FramingPreview, String> {
     let (source, sidecar) = crate::file_management::parse_virtual_path(&path);
     let metadata = crate::exif_processing::load_sidecar_with_camera_crop(&sidecar, &source);
     let signature = geometry_signature(&metadata.adjustments);
-    let bytes =
-        crate::generate_preview_bytes_for_path(path, metadata.adjustments, 1280, app_handle)
-            .await?;
+    let bytes = crate::generate_preview_bytes_for_path(
+        path,
+        metadata.adjustments,
+        max_size.unwrap_or(1280).clamp(160, 1280),
+        app_handle,
+    )
+    .await?;
     let image = image::load_from_memory(&bytes).map_err(|e| e.to_string())?;
     let (width, height) = image.dimensions();
     let saved = metadata

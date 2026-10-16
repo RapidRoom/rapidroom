@@ -2728,6 +2728,8 @@ pub fn run() {
             file_management::generate_export_filename,
             file_management::duplicate_file,
             file_management::show_in_finder,
+            file_management::instagram_export_folder,
+            file_management::open_export_folder,
             terminal::open_terminal_here,
             terminal::is_terminal_supported,
             #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
