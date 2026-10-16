@@ -9,14 +9,18 @@ import { toast } from 'react-toastify';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { DenoiseQueueSummary, refreshDenoiseMarks, useDenoiseQueueStore } from '../../store/useDenoiseQueueStore';
 
-export function DenoiseBadge({ path }: { path: string }) {
+export function DenoiseBadge({ path, inline = false }: { path: string; inline?: boolean }) {
   const { t } = useTranslation();
   const status = useLibraryStore((s) => s.denoiseStatuses[path]);
   if (!status?.marked && !status?.denoised) return null;
   const Icon = status.denoised ? Check : Grip;
   return (
     <span
-      className="absolute top-1 left-1 z-10 rounded bg-black/70 text-white p-1"
+      className={
+        inline
+          ? 'inline-flex shrink-0 rounded bg-black/50 text-white p-1'
+          : 'absolute top-1 left-1 z-10 rounded bg-black/70 text-white p-1'
+      }
       title={t(status.denoised ? 'denoiseQueue.done' : 'denoiseQueue.marked')}
     >
       <Icon size={12} />

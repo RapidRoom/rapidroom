@@ -1,3 +1,4 @@
+import { DenoiseBadge } from '../DenoiseQueue';
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
@@ -823,6 +824,7 @@ function CullingPreview({
           </div>
         )}
 
+        <DenoiseBadge path={image.path} inline />
         {hasAnyOverlay && (
           <div className="rounded-full h-5 px-1.5 flex items-center justify-center gap-0 shadow-md bg-surface/30 pointer-events-auto shrink-0 ml-1">
             {showEditIcon && (

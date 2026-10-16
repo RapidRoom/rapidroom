@@ -711,6 +711,7 @@ const ListItemComponent = ({
         <Text variant={TextVariants.small} className="truncate" weight={TextWeights.medium} color={TextColors.primary}>
           {baseName}
         </Text>
+        <DenoiseBadge path={path} inline />
         {isVirtualCopy && (
           <Text
             as="div"
