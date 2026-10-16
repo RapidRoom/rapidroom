@@ -913,7 +913,8 @@
       "lightroomXmp": "Export Lightroom XMP…",
       "newXmp": "Save new XMP preset (Ctrl+Shift+N)",
       "xmpSaved": "XMP preset saved",
-      "xmpExportLimited": "Saved XMP. These settings are preserved for RapidRoom only: {{keys}}. Lightroom rendering may differ."
+      "xmpExportLimited": "Saved XMP. These settings are preserved for RapidRoom only: {{keys}}. Lightroom rendering may differ.",
+      "applied": "Applied preset"
     },
     "referenceView": {
       "active": "Active",

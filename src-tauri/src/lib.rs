@@ -80,6 +80,7 @@ mod output_sharpening;
 mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
+mod preset_application;
 mod preset_converter;
 mod preset_xmp;
 mod raw_processing;
@@ -2716,6 +2717,8 @@ pub fn run() {
             file_management::import_matching_xmp_sidecars_in_folder,
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
+            preset_application::load_applied_preset,
+            preset_application::save_applied_preset,
             file_management::load_presets,
             file_management::save_presets,
             file_management::get_or_create_internal_library_root,
