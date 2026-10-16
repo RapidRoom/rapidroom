@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useTranslation } from 'react-i18next';
@@ -10,9 +10,17 @@ interface Props {
   proof?: boolean;
   disabled?: boolean;
   renderError?: string | null;
+  selectionGeneration?: number;
 }
 
-export default function PrintProfileControl({ value, onChange, proof = false, disabled = false, renderError }: Props) {
+export default function PrintProfileControl({
+  value,
+  onChange,
+  proof = false,
+  disabled = false,
+  renderError,
+  selectionGeneration = 0,
+}: Props) {
   const { t } = useTranslation();
   const [chosen, setChosen] = useState<PrintProfileOptions>(value ?? DEFAULT_PRINT_PROFILE);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +28,13 @@ export default function PrintProfileControl({ value, onChange, proof = false, di
   const [busy, setBusy] = useState(false);
   const request = useRef(0);
   const options = value ?? chosen;
+  useLayoutEffect(() => {
+    request.current += 1;
+    setBusy(false);
+    return () => {
+      request.current += 1;
+    };
+  }, [value, selectionGeneration]);
 
   async function validate(next: PrintProfileOptions, enable: boolean) {
     const id = ++request.current;

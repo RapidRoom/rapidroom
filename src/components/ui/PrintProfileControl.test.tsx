@@ -14,6 +14,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 let root: Root;
 let host: HTMLDivElement;
 const changed = vi.fn();
+let resetSelection: () => void;
 afterEach(async () => {
   if (root) await act(async () => root.unmount());
   host?.remove();
@@ -26,6 +27,11 @@ async function mount(initial: PrintProfileOptions | null = null, proof = false) 
   root = createRoot(host);
   function Harness() {
     const [value, onChange] = useState(initial);
+    const [generation, setGeneration] = useState(0);
+    resetSelection = () => {
+      onChange(null);
+      setGeneration((n) => n + 1);
+    };
     return createElement(PrintProfileControl, {
       value,
       onChange: (next) => {
@@ -33,6 +39,7 @@ async function mount(initial: PrintProfileOptions | null = null, proof = false) 
         onChange(next);
       },
       proof,
+      selectionGeneration: generation,
     });
   }
   await act(async () => root.render(createElement(Harness)));
@@ -91,5 +98,37 @@ describe('local ICC profile controls', () => {
     await act(async () => reject('Cannot open the chosen ICC profile'));
     expect(toggle.checked).toBe(false);
     expect(host.querySelector('[role="alert"]')!.textContent).toContain('Cannot open');
+  });
+  it('keeps a recipe reset off when active-profile validation completes late', async () => {
+    let resolve!: () => void;
+    vi.mocked(invoke).mockReturnValueOnce(
+      new Promise<void>((done) => {
+        resolve = done;
+      }),
+    );
+    const toggle = await mount({ profilePath: '/first.icc', intent: 'relative', blackPointCompensation: true });
+    await choose('/second.icc');
+    await act(async () => resetSelection());
+    expect(toggle.checked).toBe(false);
+    await act(async () => resolve());
+    expect(toggle.checked).toBe(false);
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it('cancels pending enable even when recipe reset leaves the parent value null', async () => {
+    vi.mocked(invoke).mockResolvedValueOnce(undefined);
+    const toggle = await mount();
+    await choose('/first.icc');
+    let resolve!: () => void;
+    vi.mocked(invoke).mockReturnValueOnce(
+      new Promise<void>((done) => {
+        resolve = done;
+      }),
+    );
+    await act(async () => toggle.click());
+    await act(async () => resetSelection());
+    await act(async () => resolve());
+    expect(toggle.checked).toBe(false);
+    expect(changed).not.toHaveBeenCalled();
   });
 });

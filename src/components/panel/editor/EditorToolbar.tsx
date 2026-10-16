@@ -1,3 +1,5 @@
+import type { PrintProfileOptions } from '../../../utils/printProfile';
+import { globalImageCache } from '../../../utils/ImageLRUCache';
 import PrintProfileControl from '../../ui/PrintProfileControl';
 import { useOsPlatform } from '../../../hooks/useOsPlatform';
 import { memo, useState, useEffect, useRef, useMemo } from 'react';
@@ -64,6 +66,26 @@ const EditorToolbar = memo(
     const osPlatform = useOsPlatform();
     const softProof = useEditorStore((state) => state.softProof);
     const softProofError = useEditorStore((state) => state.softProofError);
+    const changeSoftProof = (value: PrintProfileOptions | null) => {
+      const state = useEditorStore.getState();
+      if (value === state.softProof) return;
+      const oldUrls = [
+        ...new Set([state.finalPreviewUrl, state.interactivePatch?.url, state.uncroppedAdjustedPreviewUrl]),
+      ].filter((url): url is string => !!url?.startsWith('blob:') && !globalImageCache.isProtected(url));
+      state.setEditor({
+        softProof: value,
+        softProofError: null,
+        interactivePatch: null,
+        finalPreviewUrl: null,
+        uncroppedAdjustedPreviewUrl: null,
+      });
+      window.setTimeout(() => {
+        const current = useEditorStore.getState();
+        const active = [current.finalPreviewUrl, current.interactivePatch?.url, current.uncroppedAdjustedPreviewUrl];
+        for (const url of oldUrls)
+          if (!active.includes(url) && !globalImageCache.isProtected(url)) URL.revokeObjectURL(url);
+      }, 500);
+    };
     const isAnyLoading = isLoading;
     const [isLoaderVisible, setIsLoaderVisible] = useState(false);
     const [isLoaderMounted, setIsLoaderMounted] = useState(false);
@@ -719,20 +741,7 @@ const EditorToolbar = memo(
               </summary>
               <div className="absolute right-0 top-full mt-2 w-72 rounded-lg bg-card p-3 shadow-xl border border-surface">
                 <p className="mb-2 text-sm font-semibold">{t('printProof.title')}</p>
-                <PrintProfileControl
-                  value={softProof}
-                  proof
-                  renderError={softProofError}
-                  onChange={(value) =>
-                    useEditorStore.getState().setEditor({
-                      softProof: value,
-                      softProofError: null,
-                      interactivePatch: null,
-                      finalPreviewUrl: null,
-                      uncroppedAdjustedPreviewUrl: null,
-                    })
-                  }
-                />
+                <PrintProfileControl value={softProof} proof renderError={softProofError} onChange={changeSoftProof} />
               </div>
             </details>
           )}

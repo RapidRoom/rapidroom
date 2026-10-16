@@ -45,8 +45,7 @@ def preview_src(smoke):
 
 def run_proof_checks(smoke, wait_for, baseline):
     metadata = smoke.case / 'input/smoke.ARW.rrdata'
-    wait_for(metadata.exists, 'photo sidecar initialized')
-    before = json.loads(metadata.read_text())
+    before = metadata.read_bytes() if metadata.exists() else None
     undo_disabled = smoke.execute("return document.querySelector('button[data-tooltip^=\"Undo (\"]')?.disabled;")
     if not undo_disabled:
         raise RuntimeError('Proof scenario requires initial empty Undo history')
@@ -78,12 +77,12 @@ def run_proof_checks(smoke, wait_for, baseline):
     restored = smoke.stable_preview('proof-disabled')
     if ImageChops.difference(smoke.crop(baseline), smoke.crop(restored)).getbbox() is not None:
         raise RuntimeError('Disabling proof did not restore exact preview pixels')
-    after = json.loads(metadata.read_text())
+    after = metadata.read_bytes() if metadata.exists() else None
     if before != after:
         raise RuntimeError('Proof changed photo sidecar')
     if not smoke.execute("return document.querySelector('button[data-tooltip^=\"Undo (\"]')?.disabled;"):
         raise RuntimeError('Proof entered edit history')
-    smoke.step('proof off exactly restores pixels without sidecar or Undo change', {'sidecar_sha256':hashlib.sha256(metadata.read_bytes()).hexdigest()})
+    smoke.step('proof off exactly restores pixels without sidecar or Undo change', {'sidecar_sha256':hashlib.sha256(after).hexdigest() if after is not None else None,'sidecar_presence_unchanged':True})
 
 
 def prepare_export(smoke, wait_for):

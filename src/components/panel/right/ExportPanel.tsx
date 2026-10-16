@@ -289,6 +289,7 @@ export default function ExportPanel({
   );
 
   const [printProfile, setPrintProfile] = useState<PrintProfileOptions | null>(null);
+  const [profileSelectionGeneration, setProfileSelectionGeneration] = useState(0);
   const {
     fileFormat,
     setFileFormat,
@@ -371,6 +372,7 @@ export default function ExportPanel({
   const rememberRecipe = useCallback(
     (preset: ExportPreset) => {
       setPrintProfile(null);
+      setProfileSelectionGeneration((value) => value + 1);
       useUIStore.getState().setUI({ instagramExportRequest: null });
       handleApplyPreset(preset);
       if (!appSettings) return;
@@ -906,7 +908,12 @@ export default function ExportPanel({
             )}
 
             <Section title={t('printProof.exportTitle')}>
-              <PrintProfileControl value={printProfile} onChange={setPrintProfile} disabled={isExporting} />
+              <PrintProfileControl
+                value={printProfile}
+                onChange={setPrintProfile}
+                disabled={isExporting}
+                selectionGeneration={profileSelectionGeneration}
+              />
             </Section>
 
             <fieldset disabled={!!instagramRatio} className={instagramRatio ? 'opacity-50 pointer-events-none' : ''}>
