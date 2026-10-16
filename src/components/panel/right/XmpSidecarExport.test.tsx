@@ -22,6 +22,7 @@ let calls: Array<Record<string, unknown>>;
 
 beforeEach(() => {
   calls = [];
+  mockCommand('get_export_recipes', () => []);
   useUIStore.setState({ activeView: 'editor' });
   dialog.save.mockReset().mockResolvedValue('/owned/test.xmp');
   mockCommand('export_xmp_round_trip', (args = {}) => {
@@ -201,7 +202,8 @@ it('keeps photo sidecar export available when raster padding is invalid', async 
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(ratio, '0');
     ratio!.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  expect(container.querySelector('input[aria-label="Aspect ratio width"]')).toBeNull();
+  expect(container.querySelector<HTMLInputElement>('input[aria-label="Aspect ratio width"]')?.value).toBe('0');
+  expect(container.querySelector('button.h-11')?.hasAttribute('disabled')).toBe(true);
   await click('Review sidecar next to photo');
   expect(container.textContent).toContain('Write XMP sidecar');
   expect(calls[0].write).toBe(false);
