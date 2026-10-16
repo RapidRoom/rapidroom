@@ -82,10 +82,9 @@ pub fn geometry_signature(adjustments: &Value) -> String {
     ) {
         geometry.insert(key.to_owned(), adjustments[key].clone());
     }
-    format!(
-        "{:x}",
-        Sha256::digest(Value::Object(geometry).to_string().as_bytes())
-    )
+    hex::encode(Sha256::digest(
+        Value::Object(geometry).to_string().as_bytes(),
+    ))
 }
 
 fn source_adjustments(metadata: &Value, source: &std::path::Path) -> Value {
