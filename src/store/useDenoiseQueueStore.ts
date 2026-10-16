@@ -1,3 +1,4 @@
+import { advanceWhenSaved } from '../hooks/useLibraryActions';
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { useLibraryStore } from './useLibraryStore';
@@ -17,7 +18,6 @@ export interface DenoiseQueueSummary {
   outputs: string[];
 }
 interface QueueState {
-  statuses: Record<string, DenoiseMarkStatus>;
   setupOpen: boolean;
   starting: boolean;
   jobId: number | null;
@@ -26,7 +26,6 @@ interface QueueState {
   summary: DenoiseQueueSummary | null;
 }
 export const useDenoiseQueueStore = create<QueueState>(() => ({
-  statuses: {},
   setupOpen: false,
   starting: false,
   jobId: null,
@@ -35,20 +34,17 @@ export const useDenoiseQueueStore = create<QueueState>(() => ({
   summary: null,
 }));
 
+let statusGeneration = 0;
+const latestStatusRequest = new Map<string, number>();
+
 export async function refreshDenoiseMarks(paths: string[]) {
+  const generation = ++statusGeneration;
+  for (const path of paths) latestStatusRequest.set(path, generation);
   const statuses = await invoke<Record<string, DenoiseMarkStatus>>('denoise_mark_status', { paths });
-  useDenoiseQueueStore.setState((s) => ({ statuses: { ...s.statuses, ...statuses } }));
-  useLibraryStore.getState().setLibrary((s) => ({
-    imageList: s.imageList.map((image) =>
-      statuses[image.path]
-        ? {
-            ...image,
-            denoise_marked: statuses[image.path].marked,
-            denoised: statuses[image.path].denoised,
-          }
-        : image,
-    ),
-  }));
+  const latest = Object.fromEntries(
+    Object.entries(statuses).filter(([path]) => latestStatusRequest.get(path) === generation),
+  );
+  useLibraryStore.getState().setLibrary((state) => ({ denoiseStatuses: { ...state.denoiseStatuses, ...latest } }));
 }
 
 let markWrites: Promise<void> = Promise.resolve();
@@ -62,8 +58,10 @@ export function setDenoiseMark(marked?: boolean, paths?: string[]) {
     try {
       const statuses = await invoke<Record<string, DenoiseMarkStatus>>('denoise_mark_status', { paths: targets });
       const next = marked ?? !targets.every((path) => statuses[path]?.marked);
+      const { onSaved } = advanceWhenSaved(targets);
       await invoke('set_denoise_mark', { paths: targets, marked: next });
       await refreshDenoiseMarks(targets);
+      onSaved?.();
     } catch (error) {
       toast.error(String(error));
     }

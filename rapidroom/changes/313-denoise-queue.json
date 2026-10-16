@@ -10,5 +10,5 @@
   "upstream_prs": [],
   "rendering_change": false,
   "highlight": "Mark photos with Q, then denoise the marked folder overnight from the app or CLI. Completed results are verified and skipped.",
-  "notes": "Dedicated persistent mark, thumbnail badge and library filters. One shared sequential worker with cancellation, source/settings/model/runtime identities, content hashes, no-clobber outputs and crash recovery. Best/Fast produce sensor DNG; other methods retain TIFF/PNG. Sharpen is optional. Existing one-shot processing and default renders are unchanged."
+  "notes": "Dedicated persistent mark, thumbnail badge and library filters. One shared sequential worker with cancellation, source/settings/model/runtime identities, content hashes, no-clobber outputs and crash recovery. Best/Fast produce sensor DNG; other methods retain TIFF/PNG. Sharpen is optional. Fast/Best preserve editable RAW adjustments; rendered methods refuse edited RAWs and continue with the rest, while unedited RAW-to-TIFF uses neutral non-RAW metadata. Edit baking is deferred to #324. Existing one-shot processing and default renders are unchanged."
 }

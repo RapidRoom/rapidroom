@@ -1,5 +1,5 @@
 import { useSettingsStore } from '../../store/useSettingsStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +11,7 @@ import { DenoiseQueueSummary, refreshDenoiseMarks, useDenoiseQueueStore } from '
 
 export function DenoiseBadge({ path }: { path: string }) {
   const { t } = useTranslation();
-  const status = useDenoiseQueueStore((s) => s.statuses[path]);
+  const status = useLibraryStore((s) => s.denoiseStatuses[path]);
   if (!status?.marked && !status?.denoised) return null;
   const Icon = status.denoised ? Check : Grip;
   return (
@@ -28,7 +28,7 @@ export default function DenoiseQueue() {
   const { t } = useTranslation();
   const queue = useDenoiseQueueStore();
   const folder = useLibraryStore((s) => s.currentFolderPath);
-  const pathsKey = useLibraryStore((s) => JSON.stringify(s.imageList.map((i) => i.path)));
+  const imageList = useLibraryStore((s) => s.imageList);
   const aiFree = useSettingsStore((s) => s.appSettings?.aiProvider === 'ai-free');
   const [method, setMethod] = useState(aiFree ? 'bm3d' : 'best');
   useEffect(() => {
@@ -37,9 +37,22 @@ export default function DenoiseQueue() {
   const [sharpen, setSharpen] = useState(false);
   const [strength, setStrength] = useState(50);
   const [recursive, setRecursive] = useState(false);
+  const lastStatusPaths = useRef<string | null>(null);
   useEffect(() => {
-    void refreshDenoiseMarks(JSON.parse(pathsKey) as string[]).catch(console.error);
-  }, [pathsKey]);
+    // Backend refreshes may replace the list without changing its paths. One status map
+    // drives badges and filters; debounce metadata bursts, without mutating imageList.
+    const paths = imageList.map((image) => image.path);
+    const key = JSON.stringify(paths);
+    if (lastStatusPaths.current !== key) {
+      lastStatusPaths.current = key;
+      void refreshDenoiseMarks(paths).catch(console.error);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void refreshDenoiseMarks(paths).catch(console.error);
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [imageList]);
   useEffect(() => {
     const subscriptions = [
       listen<{ jobId: number; current: number; total: number; path: string; summary: DenoiseQueueSummary }>(

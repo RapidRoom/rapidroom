@@ -2337,7 +2337,7 @@
     "sharpen": "Sharpen (optional)",
     "strength": "Strength / quality",
     "recursive": "Include subfolders",
-    "hint": "Runs in the background, one photo at a time. Valid completed results are skipped. Install AI models in the Denoise dialog before starting.",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
     "close": "Close",
     "start": "Start queue",
     "cancel": "Cancel",

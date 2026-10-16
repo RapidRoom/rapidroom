@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
-import { useDenoiseQueueStore, setDenoiseMark } from './useDenoiseQueueStore';
+import { setDenoiseMark, refreshDenoiseMarks } from './useDenoiseQueueStore';
 import { useLibraryStore } from './useLibraryStore';
 import { useEditorStore } from './useEditorStore';
 import { RawStatus, type ImageFile } from '../components/ui/AppProperties';
@@ -27,10 +27,25 @@ beforeEach(() => {
   vi.mocked(invoke).mockReset();
   useLibraryStore.setState({ multiSelectedPaths: ['/a.ARW', '/b.ARW'], imageList: [photo('/a.ARW'), photo('/b.ARW')] });
   useEditorStore.setState({ selectedImage: null });
-  useDenoiseQueueStore.setState({ statuses: {} });
+  useLibraryStore.setState({ denoiseStatuses: {} });
 });
 
 describe('denoise culling marks', () => {
+  it('does not let an older folder-status response undo a newer mark refresh', async () => {
+    let finishOlder: ((value: Record<string, { marked: boolean; denoised: boolean }>) => void) | undefined;
+    vi.mocked(invoke).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishOlder = resolve;
+      }),
+    );
+    const older = refreshDenoiseMarks(['/a.ARW']);
+    vi.mocked(invoke).mockResolvedValueOnce({ '/a.ARW': { marked: true, denoised: false } });
+    await refreshDenoiseMarks(['/a.ARW']);
+    finishOlder?.({ '/a.ARW': { marked: false, denoised: false } });
+    await older;
+    expect(useLibraryStore.getState().denoiseStatuses['/a.ARW'].marked).toBe(true);
+  });
+
   it('serializes rapid repeated shortcut toggles against durable state', async () => {
     let marked = false;
     vi.mocked(invoke).mockImplementation(async (command, payload) => {
@@ -47,7 +62,7 @@ describe('denoise culling marks', () => {
         .mock.calls.filter(([command]) => command === 'set_denoise_mark')
         .map(([, args]) => (args as { marked: boolean }).marked),
     ).toEqual([true, false]);
-    expect(useDenoiseQueueStore.getState().statuses['/a.ARW'].marked).toBe(false);
+    expect(useLibraryStore.getState().denoiseStatuses['/a.ARW'].marked).toBe(false);
   });
 
   it('filters marked photos and denoised photos without changing colour/flag semantics', () => {
@@ -60,6 +75,7 @@ describe('denoise culling marks', () => {
       computeSortedLibrary(
         {
           imageList: images,
+          denoiseStatuses: { '/a.ARW': { marked: true, denoised: false }, '/b.ARW': { marked: false, denoised: true } },
           imageRatings: {},
           filterCriteria: { colors: [], rating: 0, rawStatus: RawStatus.All, denoiseStatus },
           searchCriteria: { tags: [], text: '', mode: 'AND' },

@@ -6,7 +6,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-const PIPELINE: &str = "rapidroom-denoise-queue-v1";
+const PIPELINE: &str = "rapidroom-denoise-queue-v2";
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Options {
@@ -41,10 +41,10 @@ impl Options {
         }
         Ok(DenoiseOptions {
             method: method.into(),
-            intensity: if self.method == "bm3d" {
-                self.strength / 100.
+            intensity: if matches!(self.method.as_str(), "best" | "fast") {
+                1.0
             } else {
-                self.strength
+                self.strength / 100.0
             },
             sharpen: self.sharpen,
         })
@@ -113,8 +113,12 @@ fn strict_json(path: &Path) -> Result<Value, String> {
     }
     let value: Value = serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?)
         .map_err(|e| format!("Invalid sidecar {}: {e}", path.display()))?;
-    if !value.is_object() {
-        return Err(format!("Invalid sidecar object: {}", path.display()));
+    if !value.is_object() || (!value["adjustments"].is_null() && !value["adjustments"].is_object())
+    {
+        return Err(format!(
+            "Invalid sidecar object or adjustments: {}",
+            path.display()
+        ));
     }
     // Validate edit schema too; never replace unreadable edits with defaults.
     serde_json::from_value::<crate::image_processing::ImageMetadata>(value.clone())
@@ -299,6 +303,7 @@ fn edits(mut metadata: Value) -> Value {
 fn edit_hash(metadata: &Value) -> String {
     let mut value = metadata.clone();
     value.as_object_mut().unwrap().remove("exif");
+    value.as_object_mut().unwrap().remove("denoise");
     hash_value(&value)
 }
 fn safe_output(sidecar: &Path, name: &str) -> Result<PathBuf, String> {
@@ -319,13 +324,57 @@ fn receipt_valid(receipt: &Receipt, sidecar: &Path) -> bool {
         .is_ok_and(|h| h == receipt.output_hash)
 }
 
+fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> Result<(), String> {
+    if !is_raw_file(source) || matches!(ident["method"].as_str(), Some("best" | "fast")) {
+        return Ok(());
+    }
+    let adjustments = &metadata["adjustments"];
+    let override_mode = (ident["settings"]["toneOverride"] == true).then(|| {
+        if ident["settings"]["rawTone"].as_str().unwrap_or("agx") == "agx" {
+            1
+        } else {
+            0
+        }
+    });
+    let cropped = adjustments.get("crop").is_some_and(|c| !c.is_null());
+    if cropped
+        || !adjustments["whiteBalance"].is_null()
+        || crate::image_processing::is_image_edited(adjustments, true, override_mode)
+    {
+        return Err("Edited photo: use Fast or Best, or reset edits first. Rendered-method RAW edit baking is not supported yet.".into());
+    }
+    if ident["settings"]["toneOverride"] == true && ident["settings"]["nonRawTone"] == "agx" {
+        return Err("Rendered-image AgX override would tone-map this TIFF again; use Fast or Best, or select Basic for rendered images in Processing settings.".into());
+    }
+    Ok(())
+}
+
 fn save_result_edits(
     source: &Path,
+    source_image: &Path,
     output: &Path,
+    ident: &Value,
     previous: Option<&Receipt>,
 ) -> Result<String, String> {
-    let mut source_edits = edits(strict_json(source)?);
+    let original = strict_json(source)?;
+    ensure_rendered_eligible(&original, source_image, ident)?;
+    let mut source_edits = edits(original);
+    if source_edits.get("exif").is_none_or(Value::is_null)
+        && let Some(exif) = crate::exif_processing::read_rrexif_sidecar(source_image)
+    {
+        source_edits["exif"] = json!(exif);
+    }
+    if is_raw_file(source_image) && !matches!(ident["method"].as_str(), Some("best" | "fast")) {
+        // These pixels already contain default RAW development/tone and camera WB.
+        // Only unedited RAW is eligible; never replay its RAW defaults on encoded TIFF.
+        source_edits["adjustments"] = json!({"toneMapper":"basic","baselineExposure":false});
+        if let Some(exif) = source_edits.get_mut("exif").and_then(Value::as_object_mut) {
+            exif.insert("Orientation".into(), "1".into());
+        }
+    }
     let (_, dest) = parse_virtual_path(&output.to_string_lossy());
+    let _guard = lock_path(&dest).map_err(|e| e.to_string())?;
+    // The destination ownership check and write are one transaction with ordinary saves.
     if dest.exists() {
         let existing = strict_json(&dest)?;
         if source_edits.get("exif").is_none_or(Value::is_null)
@@ -338,8 +387,11 @@ fn save_result_edits(
         {
             return Err("Denoised output has independent edits; keeping them. Resolve those edits before synchronizing.".into());
         }
+        if let Some(queue) = existing.get("denoise") {
+            source_edits["denoise"] = queue.clone();
+        }
     }
-    crate::file_management::write_file_atomically(
+    crate::file_management::write_file_atomically_unmerged(
         &dest,
         serde_json::to_vec_pretty(&source_edits).map_err(|e| e.to_string())?,
     )
@@ -500,10 +552,12 @@ pub async fn run(
     app: AppHandle,
 ) -> Result<Summary, String> {
     let state = app.state::<AppState>();
-    let job = state
-        .denoise_jobs
-        .start(job_id, Some(event_sink(&app)))
-        .ok_or(DENOISE_CANCELLED)?;
+    let Some(job) = state.denoise_jobs.start(job_id, Some(event_sink(&app))) else {
+        return Ok(Summary {
+            cancelled: true,
+            ..Default::default()
+        });
+    };
     let outcome = async {
         let internal = options.internal()?;
         crate::file_management::ensure_card_writable_for_paths(&paths)?;
@@ -611,7 +665,13 @@ pub async fn run(
     }
     .await;
     state.denoise_jobs.finish(job_id);
-    outcome
+    match outcome {
+        Err(error) if error == DENOISE_CANCELLED => Ok(Summary {
+            cancelled: true,
+            ..Default::default()
+        }),
+        other => other,
+    }
 }
 
 fn run_item(
@@ -641,7 +701,9 @@ fn run_item(
     claim
         .try_lock()
         .map_err(|_| "Source is already being denoised by another queue".to_string())?;
-    let q = queue(&strict_json(&sidecar)?)?;
+    let metadata = strict_json(&sidecar)?;
+    ensure_rendered_eligible(&metadata, &source, ident)?;
+    let q = queue(&metadata)?;
     if q["marked"] != true {
         return Err("Photo is no longer marked for denoise".into());
     }
@@ -656,7 +718,7 @@ fn run_item(
         .find(|r| r.key == key);
     if let Some(mut receipt) = previous.clone().filter(|r| receipt_valid(r, &sidecar)) {
         let output = safe_output(&sidecar, &receipt.output)?;
-        receipt.edits_hash = save_result_edits(&sidecar, &output, Some(&receipt))?;
+        receipt.edits_hash = save_result_edits(&sidecar, &source, &output, ident, Some(&receipt))?;
         record(&sidecar, &receipt)?;
         return Ok((output.to_string_lossy().into_owned(), true));
     }
@@ -691,7 +753,7 @@ fn run_item(
                 "Existing denoise output failed provenance/hash validation; keeping it".into(),
             );
         }
-        receipt.edits_hash = save_result_edits(&sidecar, &output, Some(&receipt))?;
+        receipt.edits_hash = save_result_edits(&sidecar, &source, &output, ident, Some(&receipt))?;
         record(&sidecar, &receipt)?;
         return Ok((output.to_string_lossy().into_owned(), true));
     }
@@ -709,10 +771,11 @@ fn run_item(
     publish(image, &output, raw, job, |hash| {
         let edits_hash = save_result_edits(
             &sidecar,
+            &source,
             &output,
+            ident,
             previous.as_ref().or(staged_receipt.as_ref()),
         )?;
-        crate::exif_processing::write_rrexif_sidecar(&source.to_string_lossy(), &output)?;
         let receipt = Receipt {
             key,
             source_hash,
@@ -1000,8 +1063,139 @@ mod tests {
                 .contains("_Denoised_")
         }));
         fs::write(&sidecar, b"broken json").unwrap();
+        assert!(set_denoise_mark(vec![path.clone()], false).is_err());
+        assert_eq!(fs::read(&sidecar).unwrap(), b"broken json");
+        let malformed = json!({"version":1,"rating":4,"adjustments":["invalid"]}).to_string();
+        fs::write(&sidecar, &malformed).unwrap();
         assert!(set_denoise_mark(vec![path], false).is_err());
-        assert_eq!(fs::read(sidecar).unwrap(), b"broken json");
+        assert_eq!(fs::read_to_string(sidecar).unwrap(), malformed);
+    }
+
+    #[test]
+    fn queue_strength_uses_the_existing_unit_interval_contract() {
+        for method in ["nind", "bm3d"] {
+            let options = Options {
+                method: method.into(),
+                strength: 50.,
+                sharpen: false,
+            };
+            assert_eq!(options.internal().unwrap().intensity, 0.5);
+        }
+        assert_eq!(Options::default().internal().unwrap().intensity, 1.0);
+    }
+
+    #[test]
+    fn rendered_raw_refuses_agx_wb_offsets_and_crops_while_sensor_dng_retains_them() {
+        let source = Path::new("photo.ARW");
+        let mut metadata =
+            serde_json::to_value(crate::image_processing::ImageMetadata::default()).unwrap();
+        for adjustment in [
+            json!({"toneMapper":"agx"}),
+            json!({"whiteBalance":{"temperature":4300,"tint":12}}),
+            json!({"temperature":10,"tint":-5}),
+            json!({"crop":{"unit":"%","x":0,"y":0,"width":80,"height":80}}),
+        ] {
+            metadata["adjustments"] = adjustment;
+            assert!(
+                ensure_rendered_eligible(&metadata, source, &ident())
+                    .unwrap_err()
+                    .contains("Edited photo")
+            );
+            assert!(ensure_rendered_eligible(&metadata, source, &json!({"method":"fast"})).is_ok());
+        }
+        metadata["adjustments"] = crate::image_processing::default_adjustments();
+        assert!(ensure_rendered_eligible(&metadata, source, &ident()).is_ok());
+        assert!(
+            ensure_rendered_eligible(
+                &metadata,
+                source,
+                &json!({"method":"nind","settings":{"toneOverride":true,"nonRawTone":"agx"}})
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn unedited_raw_projects_only_neutral_nonraw_defaults_onto_tiff() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        fs::write(&raw, b"fixture").unwrap();
+        let (_, sidecar) = parse_virtual_path(&raw.to_string_lossy());
+        set_denoise_mark(vec![raw.to_string_lossy().into_owned()], true).unwrap();
+        mutate(&sidecar, |v| {
+            v["adjustments"] = crate::image_processing::default_adjustments();
+            v["exif"] = json!({"Orientation":"8"});
+            Ok(())
+        })
+        .unwrap();
+        let output = dir.path().join("photo.tiff");
+        save_result_edits(&sidecar, &raw, &output, &ident(), None).unwrap();
+        let (_, dest) = parse_virtual_path(&output.to_string_lossy());
+        let metadata = strict_json(&dest).unwrap();
+        assert_eq!(
+            metadata["adjustments"],
+            json!({"toneMapper":"basic","baselineExposure":false})
+        );
+        assert_eq!(metadata["exif"]["Orientation"], "1");
+        let all = crate::image_processing::get_all_adjustments_from_json(
+            &metadata["adjustments"],
+            false,
+            crate::as_shot::AsShot::reference(),
+            crate::image_processing::RenderOptions::default(),
+        );
+        assert_eq!(all.global.tonemapper_mode, 0);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn waiting_output_sync_checks_user_edits_after_acquiring_the_destination_lock() {
+        use std::os::unix::fs::MetadataExt;
+        let (_dir, path) = fixture();
+        let (_, sidecar) = parse_virtual_path(&path);
+        let ident = ident();
+        let (out, _) = run_item(&path, &ident, &DenoiseJob::testing(), output).unwrap();
+        let (_, dest) = parse_virtual_path(&out);
+        let receipt: Receipt = serde_json::from_value(
+            queue(&strict_json(&sidecar).unwrap()).unwrap()["completed"][0].clone(),
+        )
+        .unwrap();
+        mutate(&sidecar, |v| {
+            v["adjustments"]["exposure"] = 1.25.into();
+            Ok(())
+        })
+        .unwrap();
+        let guard = lock_path(&dest).unwrap();
+        let inode = guard.metadata().unwrap().ino();
+        let source = PathBuf::from(path);
+        let output = PathBuf::from(out);
+        let worker = std::thread::spawn(move || {
+            save_result_edits(&sidecar, &source, &output, &ident, Some(&receipt))
+        });
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let mut blocked = false;
+        while std::time::Instant::now() < deadline {
+            let locks = fs::read_to_string("/proc/locks").unwrap();
+            if locks
+                .lines()
+                .any(|line| line.contains("->") && line.contains(&format!(":{inode} ")))
+            {
+                blocked = true;
+                break;
+            }
+            std::thread::yield_now();
+        }
+        let mut user = strict_json(&dest).unwrap();
+        user["adjustments"]["exposure"] = 3.into();
+        crate::file_management::write_file_atomically_unmerged(
+            &dest,
+            serde_json::to_vec(&user).unwrap(),
+        )
+        .unwrap();
+        drop(guard);
+        let outcome = worker.join().unwrap();
+        assert!(blocked, "queue did not block on the held destination lock");
+        assert!(outcome.unwrap_err().contains("independent edits"));
+        assert_eq!(strict_json(&dest).unwrap()["adjustments"]["exposure"], 3);
     }
 
     #[test]
