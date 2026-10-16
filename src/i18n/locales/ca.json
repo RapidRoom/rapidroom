@@ -65,7 +65,8 @@
       "vibrance": "Intensitat",
       "wbPickerTooltip": "Comptagotes de balanç de blancs",
       "wbPickerWgpuDisabled": "Comptagotes BB: Desactiva WGPU a Configuració.",
-      "whiteBalance": "Balanç de blancs"
+      "whiteBalance": "Balanç de blancs",
+      "kelvinModeTooltip": "Mostra la temperatura en Kelvin"
     },
     "curves": {
       "channelTitle": "Canal {{channel}}",
@@ -123,6 +124,11 @@
       "bokehShape": "Forma del bokeh",
       "creative": "Creatiu",
       "feather": "Esvaïment",
+      "fog": "Boira",
+      "fogDensity": "Densitat",
+      "fogHeight": "Boira baixa",
+      "fogStart": "Inici",
+      "fogVariation": "Variació",
       "glow": "Resplendor",
       "grain": "Gra",
       "halation": "Halació",
@@ -131,9 +137,33 @@
       "lightFlares": "Esclats de llum",
       "lut": "LUT",
       "midpoint": "Punt mitjà",
+      "relight": "Reil·luminar",
+      "relightAddLight": "Afegeix llum",
+      "relightAmbient": "Ambient",
+      "relightAngle": "Angle",
+      "relightColor": "Color de la llum",
+      "relightCone": "Con",
+      "relightDepth": "Profunditat",
+      "relightElevation": "Elevació",
+      "relightFalloff": "Atenuació",
+      "relightHint": "Afegeix o selecciona una llum i fes clic o arrossega a la imatge per col·locar-la.",
+      "relightIntensity": "Intensitat",
+      "relightLight": "Llum {{index}}",
+      "relightRemoveLight": "Elimina la llum",
+      "relightShadows": "Ombres",
+      "relightShadowSoftness": "Suavitat de les ombres",
+      "relightShine": "Brillantor",
+      "relightSoftness": "Suavitat",
+      "relightType": "Tipus de llum",
+      "relightTypes": {
+        "directional": "Direccional",
+        "point": "Puntual",
+        "spot": "Focus"
+      },
       "roughness": "Rugositat",
       "roundness": "Rodonesa",
       "size": "Mida",
+      "spatial": "Espacial",
       "vignette": "Vinyetatge"
     }
   },
@@ -306,6 +336,7 @@
       "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
+        "maskBrushTable": "Taules de pinzell no importades",
         "aiDenoise": "AI Denoise",
         "aiMasks": "AI masks (subject, sky, people, objects)",
         "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
@@ -361,7 +392,9 @@
       },
       "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
       "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
-      "concurrentEditsPreserved": "Newer editor changes made during import were preserved."
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved.",
+      "brushTableGroup": "Grup de pinzell \"{{name}}\": {{reason}}",
+      "unchangedForImage": "S’han mantingut les edicions existents; no s’ha importat cap ajust compatible."
     },
     "toasts": {
       "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
@@ -474,6 +507,7 @@
       "editSettingsTitle": "Configuració d'edició",
       "editsTitle": "Edicions",
       "generatingDepthMap": "S'està calculant el mapa de profunditat d'IA...",
+      "generatingNormalMap": "Calculant el mapa de normals IA...",
       "generativeEditTitle": "Edició generativa",
       "inpaintingTitle": "Inpainting",
       "liquify": {
@@ -1107,7 +1141,8 @@
         "threeOnly": "Només 3",
         "twoAndUp": "2 i superior",
         "twoOnly": "Només 2",
-        "unrated": "Només sense puntuació"
+        "unrated": "Només sense puntuació",
+        "andDownSuffix": "i inferior"
       },
       "raw": {
         "all": "Tots els tipus",
@@ -1197,7 +1232,12 @@
         "sortDescending": "Ordenació descendent",
         "thumbnailFit": "Ajust de la miniatura",
         "thumbnailSize": "Mida de la miniatura",
-        "title": "Opcions de visualització"
+        "title": "Opcions de visualització",
+        "ratingOperator": {
+          "eq": "Exactament aquesta puntuació",
+          "gte": "Aquesta puntuació o superior",
+          "lte": "Aquesta puntuació o inferior"
+        }
       }
     },
     "import": {
@@ -1522,6 +1562,7 @@
       "deleteWarning": "Els fitxers es mouran a la paperera del sistema.",
       "fileNaming": "Nomenclatura de fitxers",
       "folderOrganization": "Organització de carpetes",
+      "notUniqueWarning": "Sense {original_filename}, {original_filename_number} o {sequence}, diversos fitxers poden rebre el mateix nom. Aquests fitxers no s'importen.",
       "organizeByDate": "Organitzar en subcarpetes per data",
       "sourceFiles": "Fitxers d'origen",
       "startImport": "Iniciar importació",
@@ -1648,6 +1689,7 @@
       "groupSelection": "Tota la selecció és un grup",
       "groups": "Grups per a {group} i {member}",
       "newName": "Nou nom",
+      "notUniqueWarning": "Sense {original_filename}, {original_filename_number} o {sequence}, diversos fitxers poden rebre el mateix nom. Aleshores no es canvia el nom de cap fitxer.",
       "preview": "Previsualització",
       "renamed_many": "{{count}} fitxers reanomenats",
       "renamed_one": "{{count}} fitxer reanomenat",
@@ -1883,7 +1925,9 @@
         "zoom_in": "Apropar",
         "zoom_in_step": "Apropar (per passos)",
         "zoom_out": "Allunyar",
-        "zoom_out_step": "Allunyar (per passos)"
+        "zoom_out_step": "Allunyar (per passos)",
+        "toggle_pick": "Commuta la marca de seleccionada",
+        "toggle_reject": "Commuta la marca de rebutjada"
       },
       "sections": {
         "editing": "Edició",
@@ -1927,6 +1971,11 @@
             "upgradeBtn": "Actualitzar al lloc web",
             "upgradeDesc": "Per utilitzar les funcions de la IA al núvol, us cal una subscripció al núvol."
           },
+          "statuses": {
+            "connecting": "Connectant…",
+            "retry": "Tornar a intentar la connexió",
+            "unsupported": "L'inici de sessió al núvol actualment només està disponible a l'escriptori."
+          },
           "title": "Servei al núvol"
         },
         "connector": {
@@ -1949,9 +1998,17 @@
           "feature3": "Substitució generativa simple per CPU",
           "title": "IA integrada (CPU)"
         },
+        "aiFree": {
+          "description": "Desactiva totes les funcions d'IA. Tots els controls relacionats amb la IA s'oculten de la interfície perquè RapidRAW funcioni com un editor RAW purament tradicional.",
+          "feature1": "Sense màscares d'IA, desenfocament de lent ni edicions generatives a la interfície",
+          "feature2": "Les edicions d'IA existents es continuen mostrant amb normalitat",
+          "feature3": "Una interfície més neta i enfocada",
+          "title": "Sense IA"
+        },
         "description": "L'IA de RapidRAW està dissenyada per ser flexible. Trieu el vostre flux de treball ideal, des d'eines locals ràpides fins a un autoallotjament potent.",
         "providers": {
           "aiConnector": "AI Connector",
+          "aiFree": "Sense IA",
           "cloud": "Núvol",
           "cpu": "CPU"
         },
@@ -1996,6 +2053,10 @@
         "appleRaw9Desc": "Revela els fitxers RAW amb el descodificador RAW 9 de Core Image d'Apple, que realitza el procés de demosaic i reducció de soroll en un sol pas al Neural Engine. Requereix macOS 27 o posterior i una càmera compatible; els fitxers no compatibles utilitzen automàticament el descodificador integrat. Més lent que el descodificador per defecte. Les miniatures no es veuen afectades.",
         "applyPreprocessing": "Aplicar preprocessament als No-RAW",
         "applyPreprocessingDesc": "Si està activat, la reducció del soroll de color base i la pre-nitidesa esmentades abans també s'aplicaran als formats estàndard.",
+        "baselineExposure": "Exposició base",
+        "baselineExposureAmount": "Quantitat base",
+        "baselineExposureAmountDesc": "Exposició afegida als fitxers RAW. darktable utilitza +0,7 EV.",
+        "baselineExposureDesc": "Aclareix tots els fitxers RAW en una quantitat fixa, com el valor per defecte de darktable en mode referit a l'escena, més l'etiqueta DNG BaselineExposure si n'hi ha. Les imatges editades abans que existís aquesta opció no es veuen afectades.",
         "colorNr": "Reducció de soroll de color base",
         "colorNrDesc": "Aplica un filtre bilateral creuat d'hora a la canonada per eliminar el soroll de croma. Valor més alt = Més reducció.",
         "defaultNonRawTonemapper": "Mapejador de tons predeterminat No-RAW",
@@ -2003,8 +2064,12 @@
         "defaultRawTonemapper": "Mapejador de tons predeterminat RAW",
         "defaultRawTonemapperDesc": "El mapejador de tons a aplicar a les imatges RAW.",
         "enableAppleRaw9": "Utilitza Apple RAW 9 per als fitxers RAW",
+        "enableBaselineExposure": "Aplica l'exposició base als fitxers RAW",
+        "enableHighlightPreservation": "Compensa els modes de preservació de llums de la càmera",
         "enablePreprocessingNonRaws": "Activar per a No-RAW",
         "enableTonemapperOverride": "Activar la sobreescriptura del mapejador de tons",
+        "highlightPreservation": "Compensació de la preservació de llums",
+        "highlightPreservationDesc": "Restaura l'exposició que la càmera ha reservat en els modes de preservació de les llums, llegida del fitxer RAW (Fujifilm DR200/DR400, Prioritat de to de les llums i Optimitzador automàtic de la il·luminació de Canon, D-Lighting actiu de Nikon, gradació d'Olympus, expansió de rang dinàmic de Pentax). Les imatges editades abans que existís aquesta opció no es veuen afectades.",
         "highlightRecovery": "Recuperació de llums altes RAW",
         "highlightRecoveryDesc": "Controla la quantitat de detalls que es recuperen de les llums altes retallades als fitxers RAW. Valors més alts recuperen més detalls però poden introduir artefactes de color porpra.",
         "linearOptions": {

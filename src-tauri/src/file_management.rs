@@ -30,6 +30,8 @@ use crate::PendingMetadata;
 #[cfg(target_os = "android")]
 use crate::android_integration::*;
 use crate::app_settings::*;
+use crate::as_shot::as_shot;
+use crate::baseline_exposure::BaselineOptions;
 use crate::batch_rename::{RenameOptions, RenameOutcome, RenamePreview, UndoInfo, plan_rename};
 use crate::exif_processing;
 use crate::formats::{is_raw_file, is_supported_image_file};
@@ -38,8 +40,9 @@ use crate::image_loader;
 use crate::image_processing::GpuContext;
 use crate::image_processing::{
     Crop, ImageFlag, ImageMetadata, apply_coarse_rotation, apply_cpu_default_raw_processing,
-    apply_crop, apply_flip, apply_geometry_warp, apply_rotation, auto_results_to_json,
-    get_all_adjustments_from_json, perform_auto_analysis,
+    apply_crop, apply_exposure, apply_flip, apply_geometry_warp, apply_rotation,
+    auto_results_to_json, default_adjustments, effective_baseline_exposure,
+    get_all_adjustments_from_json, perform_auto_analysis, resolve_render_options,
 };
 
 use crate::lrtemplate;
@@ -543,6 +546,8 @@ struct ImportedXmpSidecar {
     draft_preserved: bool,
     settings_report: crate::lightroom_report::Report,
     unchanged: bool,
+    brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
+    mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 const NO_SUPPORTED_XMP_CONTENT_ERROR: &str =
@@ -571,6 +576,8 @@ pub struct XmpNotTransferred {
     pub path: String,
     pub items: Vec<&'static str>,
     pub settings_report: crate::lightroom_report::Report,
+    pub brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
+    pub mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -584,6 +591,8 @@ pub struct XmpImageImportResult {
     pub draft_preserved: bool,
     pub settings_report: crate::lightroom_report::Report,
     pub unchanged: bool,
+    pub brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
+    pub mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
 }
 
 #[derive(Deserialize)]
@@ -1922,7 +1931,9 @@ pub fn generate_thumbnail_data(
             let warped_image =
                 apply_geometry_warp(Cow::Borrowed(&composite_image), &meta.adjustments);
 
-            let blurred_image = crate::lens_blur::apply_lens_blur(warped_image, &meta.adjustments);
+            let relit_image = crate::relight::apply_relight(warped_image, &meta.adjustments);
+            let fogged_image = crate::fog::apply_fog(relit_image, &meta.adjustments);
+            let blurred_image = crate::lens_blur::apply_lens_blur(fogged_image, &meta.adjustments);
 
             let orientation_steps =
                 meta.adjustments["orientationSteps"].as_u64().unwrap_or(0) as u8;
@@ -2030,11 +2041,12 @@ pub fn generate_thumbnail_data(
             })
             .collect();
 
-        let gpu_is_raw = is_raw;
-        let tm_override =
-            crate::image_processing::resolve_tonemapper_override(&settings, gpu_is_raw);
-        let gpu_adjustments =
-            get_all_adjustments_from_json(&meta.adjustments, gpu_is_raw, tm_override);
+        let gpu_adjustments = get_all_adjustments_from_json(
+            &meta.adjustments,
+            is_raw,
+            as_shot(&source_path_str),
+            resolve_render_options(&settings, is_raw),
+        );
         let lut_path = meta.adjustments["lutPath"].as_str();
         let lut = lut_path.and_then(|p| {
             let mut cache = state.lut_cache.lock().unwrap();
@@ -2101,8 +2113,12 @@ pub fn generate_thumbnail_data(
     };
 
     if adjustments.is_null() {
-        let tm_override = crate::image_processing::resolve_tonemapper_override(&settings, is_raw);
-        let use_agx = tm_override == Some(1);
+        let render = resolve_render_options(&settings, is_raw);
+        final_image = apply_exposure(
+            final_image,
+            effective_baseline_exposure(&adjustments, as_shot(&source_path_str), render.baseline),
+        );
+        let use_agx = render.tonemapper_override == Some(1);
 
         if use_agx {
             if !is_raw {
@@ -2582,7 +2598,10 @@ pub fn resolve_lens_params_in_adjustments(
                         )
                     };
 
-                    if let Some(params) = resolved {
+                    if let Some(mut params) = resolved {
+                        if let Some(saved) = map.get("lensDistortionParams") {
+                            params.preserve_saved_tca(saved);
+                        }
                         map.insert(
                             "lensDistortionParams".to_string(),
                             serde_json::to_value(params).unwrap(),
@@ -3201,8 +3220,11 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
     ensure_card_writable(&source_path)?;
     let xmp_content = crate::xmp::read(xmp_path)
         .map_err(|error| format!("Failed to read XMP file: {}", error))?;
-    let converted_preset =
-        preset_converter::convert_xmp_sidecar_to_preset_for_image(&xmp_content, &source_path)?;
+    let (converted_preset, mask_summary) =
+        preset_converter::convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+            &xmp_content,
+            &source_path,
+        )?;
     let already_applied = preset_converter::adobe_camera_raw_already_applied(&xmp_content)?;
 
     let has_supported_adjustments = converted_preset
@@ -3214,12 +3236,17 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         || !extract_xmp_tags(&xmp_content).is_empty();
     let settings_report = crate::lightroom_report::settings_report(&xmp_content, &converted_preset);
     let unchanged = !has_supported_adjustments && !has_supported_metadata;
-    let not_transferred =
-        preset_converter::lightroom_settings_not_transferred(&xmp_content, &converted_preset);
+    let not_transferred = preset_converter::lightroom_settings_not_transferred_with_mask_summary(
+        &xmp_content,
+        &converted_preset,
+        &mask_summary,
+    );
     if unchanged
         && !already_applied
         && settings_report.settings.is_empty()
         && not_transferred.is_empty()
+        && mask_summary.brush_table_refusals.is_empty()
+        && mask_summary.failures.is_empty()
     {
         return Err(NO_SUPPORTED_XMP_CONTENT_ERROR.to_string());
     }
@@ -3229,6 +3256,8 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
             sidecar_path,
             metadata,
             not_transferred,
+            brush_table_refusals: mask_summary.brush_table_refusals,
+            mask_failures: mask_summary.failures,
             adjustments_applied: false,
             metadata_applied: false,
             already_applied,
@@ -3266,6 +3295,8 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         sidecar_path,
         metadata,
         not_transferred,
+        brush_table_refusals: mask_summary.brush_table_refusals,
+        mask_failures: mask_summary.failures,
         adjustments_applied: has_supported_adjustments,
         metadata_applied: has_supported_metadata,
         already_applied,
@@ -3318,6 +3349,8 @@ pub fn import_xmp_adjustments_for_image(
     hydrate_imported_xmp_exif(&path, &mut imported, lens_db.as_deref())?;
     let sidecar_path = imported.sidecar_path.clone();
     let not_transferred = imported.not_transferred;
+    let brush_table_refusals = imported.brush_table_refusals;
+    let mask_failures = imported.mask_failures;
     let adjustments_applied = imported.adjustments_applied;
     let already_applied = imported.already_applied;
     let settings_report = imported.settings_report;
@@ -3337,6 +3370,8 @@ pub fn import_xmp_adjustments_for_image(
     Ok(XmpImageImportResult {
         metadata: imported.metadata,
         not_transferred,
+        brush_table_refusals,
+        mask_failures,
         adjustments_applied,
         already_applied,
         draft_preserved,
@@ -3436,10 +3471,13 @@ pub async fn import_matching_xmp_sidecars_in_folder(
                     }
                     if !imported.not_transferred.is_empty()
                         || !imported.settings_report.settings.is_empty()
+                        || !imported.mask_failures.is_empty()
                     {
                         result.not_transferred.push(XmpNotTransferred {
                             path: path_string.clone(),
                             items: imported.not_transferred,
+                            brush_table_refusals: imported.brush_table_refusals,
+                            mask_failures: imported.mask_failures,
                             settings_report: imported.settings_report,
                         });
                     }
@@ -3554,7 +3592,7 @@ pub async fn apply_adjustments_to_paths(
 
             let mut new_adjustments = existing_metadata.adjustments;
             if new_adjustments.is_null() {
-                new_adjustments = serde_json::json!({});
+                new_adjustments = default_adjustments();
             }
 
             if let (Some(new_map), Some(pasted_map)) =
@@ -3595,47 +3633,7 @@ pub async fn apply_adjustments_to_paths(
             }
         });
 
-        let state = app_handle.state::<AppState>();
-        let thumb_cache_dir = match resolve_thumbnail_cache_dir(&app_handle) {
-            Ok(dir) => dir,
-            Err(e) => {
-                log::warn!("Unable to initialize thumbnail cache directory: {}", e);
-                for path in &paths {
-                    emit_thumbnail_cache_setup_error(&app_handle, path, &e);
-                }
-                for _ in 0..paths.len() {
-                    increment_thumbnail_progress(&state, &app_handle);
-                }
-                return;
-            }
-        };
-
-        let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
-
-        paths.par_iter().for_each(|path_str| {
-            let result = generate_single_thumbnail_and_cache(
-                path_str,
-                &thumb_cache_dir,
-                gpu_context.as_ref(),
-                None,
-                true,
-                &app_handle,
-                &settings,
-            );
-
-            if let Some((small_path, medium_path, rating, is_edited)) = result {
-                emit_thumbnail_generated(
-                    &app_handle,
-                    path_str,
-                    &small_path,
-                    &medium_path,
-                    rating,
-                    is_edited,
-                );
-            }
-
-            increment_thumbnail_progress(&state, &app_handle);
-        });
+        regenerate_thumbnails(&paths, &app_handle, &settings);
     });
 
     Ok(())
@@ -3660,7 +3658,7 @@ pub async fn reset_adjustments_for_paths(
 
             let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
-            existing_metadata.adjustments = serde_json::json!({});
+            existing_metadata.adjustments = default_adjustments();
 
             if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
                 let _ = write_file_atomically(&sidecar_path, json_string);
@@ -3677,50 +3675,54 @@ pub async fn reset_adjustments_for_paths(
             }
         });
 
-        let state = app_handle.state::<AppState>();
-        let thumb_cache_dir = match resolve_thumbnail_cache_dir(&app_handle) {
-            Ok(dir) => dir,
-            Err(e) => {
-                log::warn!("Unable to initialize thumbnail cache directory: {}", e);
-                for path in &paths {
-                    emit_thumbnail_cache_setup_error(&app_handle, path, &e);
-                }
-                for _ in 0..paths.len() {
-                    increment_thumbnail_progress(&state, &app_handle);
-                }
-                return;
-            }
-        };
-
-        let gpu_context = gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
-
-        paths.par_iter().for_each(|path_str| {
-            let result = generate_single_thumbnail_and_cache(
-                path_str,
-                &thumb_cache_dir,
-                gpu_context.as_ref(),
-                None,
-                true,
-                &app_handle,
-                &settings,
-            );
-
-            if let Some((small_path, medium_path, rating, is_edited)) = result {
-                emit_thumbnail_generated(
-                    &app_handle,
-                    path_str,
-                    &small_path,
-                    &medium_path,
-                    rating,
-                    is_edited,
-                );
-            }
-
-            increment_thumbnail_progress(&state, &app_handle);
-        });
+        regenerate_thumbnails(&paths, &app_handle, &settings);
     });
 
     Ok(())
+}
+
+fn regenerate_thumbnails(paths: &[String], app_handle: &AppHandle, settings: &AppSettings) {
+    let state = app_handle.state::<AppState>();
+    let thumb_cache_dir = match resolve_thumbnail_cache_dir(app_handle) {
+        Ok(dir) => dir,
+        Err(e) => {
+            log::warn!("Unable to initialize thumbnail cache directory: {}", e);
+            for path in paths {
+                emit_thumbnail_cache_setup_error(app_handle, path, &e);
+            }
+            for _ in 0..paths.len() {
+                increment_thumbnail_progress(&state, app_handle);
+            }
+            return;
+        }
+    };
+
+    let gpu_context = gpu_processing::get_or_init_gpu_context(&state, app_handle).ok();
+
+    paths.par_iter().for_each(|path_str| {
+        let result = generate_single_thumbnail_and_cache(
+            path_str,
+            &thumb_cache_dir,
+            gpu_context.as_ref(),
+            None,
+            true,
+            app_handle,
+            settings,
+        );
+
+        if let Some((small_path, medium_path, rating, is_edited)) = result {
+            emit_thumbnail_generated(
+                app_handle,
+                path_str,
+                &small_path,
+                &medium_path,
+                rating,
+                is_edited,
+            );
+        }
+
+        increment_thumbnail_progress(&state, app_handle);
+    });
 }
 
 #[tauri::command]
@@ -3729,36 +3731,25 @@ pub async fn apply_auto_lens_correction_to_paths(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     ensure_card_writable_for_paths(&paths)?;
-    let state = app_handle.state::<crate::AppState>();
-    add_to_thumbnail_queue(&state, paths.len(), &app_handle);
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
+    let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
+    let lens_db = app_handle
+        .state::<AppState>()
+        .lens_db
+        .lock()
+        .unwrap()
+        .clone();
 
+    let sidecar_paths = paths.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let settings = crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default();
-        let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
-        let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
-
-        let state = app_handle.state::<crate::AppState>();
-        let thumb_cache_dir = match resolve_thumbnail_cache_dir(&app_handle) {
-            Ok(dir) => dir,
-            Err(e) => {
-                log::warn!("Unable to initialize thumbnail cache directory: {}", e);
-                for _ in 0..paths.len() {
-                    increment_thumbnail_progress(&state, &app_handle);
-                }
-                return;
-            }
-        };
-
-        let gpu_context = crate::gpu_processing::get_or_init_gpu_context(&state, &app_handle).ok();
-        let lens_db = state.lens_db.lock().unwrap().clone();
-
-        paths.par_iter().for_each(|path| {
+        sidecar_paths.par_iter().for_each(|path| {
             let (source_path, sidecar_path) = parse_virtual_path(path);
             let mut existing_metadata =
                 crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
 
             if existing_metadata.adjustments.is_null() {
-                existing_metadata.adjustments = serde_json::json!({});
+                existing_metadata.adjustments = default_adjustments();
             }
 
             if let Some(obj) = existing_metadata.adjustments.as_object_mut() {
@@ -3787,30 +3778,14 @@ pub async fn apply_auto_lens_correction_to_paths(
                     create_xmp_if_missing,
                 );
             }
-
-            let result = generate_single_thumbnail_and_cache(
-                path,
-                &thumb_cache_dir,
-                gpu_context.as_ref(),
-                None,
-                true,
-                &app_handle,
-                &settings,
-            );
-
-            if let Some((small_path, medium_path, rating, is_edited)) = result {
-                emit_thumbnail_generated(
-                    &app_handle,
-                    path,
-                    &small_path,
-                    &medium_path,
-                    rating,
-                    is_edited,
-                );
-            }
-
-            increment_thumbnail_progress(&state, &app_handle);
         });
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    add_to_thumbnail_queue(&app_handle.state::<AppState>(), paths.len(), &app_handle);
+    tauri::async_runtime::spawn_blocking(move || {
+        regenerate_thumbnails(&paths, &app_handle, &settings)
     });
 
     Ok(())
@@ -3863,32 +3838,38 @@ pub async fn apply_auto_adjustments_to_paths(
                     )
                     .map_err(|e| e.to_string())?;
 
-                    let auto_results = perform_auto_analysis(&image);
-                    let auto_adjustments_json = auto_results_to_json(&auto_results);
-
                     let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
                     if existing_metadata.adjustments.is_null() {
-                        existing_metadata.adjustments = serde_json::json!({});
+                        existing_metadata.adjustments = default_adjustments();
                     }
+
+                    let auto_results = perform_auto_analysis(
+                        &image,
+                        effective_baseline_exposure(
+                            &existing_metadata.adjustments,
+                            as_shot(&source_path_str),
+                            BaselineOptions::from_settings(&settings),
+                        ),
+                    );
+                    let auto_adjustments_json = auto_results_to_json(&auto_results);
+
+                    let mut active_tools =
+                        crate::image_processing::active_tools(&existing_metadata.adjustments);
 
                     if let (Some(existing_map), Some(auto_map)) = (
                         existing_metadata.adjustments.as_object_mut(),
                         auto_adjustments_json.as_object(),
                     ) {
                         for (k, v) in auto_map {
-                            if k == "sectionVisibility" {
-                                if let Some(existing_vis_val) = existing_map.get_mut(k) {
-                                    if let (Some(existing_vis), Some(auto_vis)) =
-                                        (existing_vis_val.as_object_mut(), v.as_object())
-                                    {
-                                        for (vis_k, vis_v) in auto_vis {
-                                            existing_vis.insert(vis_k.clone(), vis_v.clone());
-                                        }
-                                    }
-                                } else {
-                                    existing_map.insert(k.clone(), v.clone());
+                            if k == "activeTools" {
+                                if let Some(auto_tools) = v.as_object() {
+                                    active_tools.extend(auto_tools.clone());
                                 }
+                                existing_map.insert(
+                                    k.clone(),
+                                    serde_json::Value::Object(std::mem::take(&mut active_tools)),
+                                );
                             } else {
                                 existing_map.insert(k.clone(), v.clone());
                             }
@@ -5201,6 +5182,36 @@ pub fn extract_xmp_rating(content: &str) -> Option<i8> {
 
 const XMP_REJECTED_RATING: i8 = -1;
 
+pub fn xmp_rating(metadata: &ImageMetadata) -> String {
+    if metadata.flag == Some(ImageFlag::Reject) {
+        XMP_REJECTED_RATING.to_string()
+    } else {
+        metadata.rating.to_string()
+    }
+}
+
+pub fn xmp_label(tags: &[String]) -> Option<String> {
+    tags.iter()
+        .rev()
+        .find_map(|t| t.strip_prefix(COLOR_TAG_PREFIX))
+        .map(|color| {
+            let mut c = color.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        })
+}
+
+pub fn xmp_subject_bag<S: AsRef<str>>(items: &[S]) -> String {
+    let mut bag = String::from("<dc:subject>\n    <rdf:Bag>\n");
+    for item in items {
+        bag.push_str(&format!("     <rdf:li>{}</rdf:li>\n", item.as_ref()));
+    }
+    bag.push_str("    </rdf:Bag>\n   </dc:subject>");
+    bag
+}
+
 pub fn extract_xmp_label(content: &str) -> Option<String> {
     crate::xmp::metadata(content).label
 }
@@ -5303,10 +5314,11 @@ pub fn sync_metadata_from_xmp(
             && rating != 0
         {
             metadata.rating = rating;
+            if !metadata.adjustments.is_object() {
+                metadata.adjustments = default_adjustments();
+            }
             if let Some(obj) = metadata.adjustments.as_object_mut() {
                 obj.insert("rating".to_string(), serde_json::json!(rating));
-            } else {
-                metadata.adjustments = serde_json::json!({"rating": rating});
             }
             changed = true;
         }
@@ -6711,6 +6723,49 @@ mod lightroom_xmp_import_tests {
     use super::card_mode_test_support::{CardMode, folders, path_str, snapshot};
     use super::*;
 
+    #[test]
+    fn refused_table_only_import_reports_groups_without_replacing_edits() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("sample.ARW");
+        let xmp = raw.with_extension("xmp");
+        let (_, sidecar) = parse_virtual_path(raw.to_str().unwrap());
+        let existing = ImageMetadata {
+            adjustments: serde_json::json!({"exposure":1.25}),
+            ..Default::default()
+        };
+        let original = serde_json::to_vec_pretty(&existing).unwrap();
+        fs::write(&sidecar, &original).unwrap();
+        let source = r#"<rdf:Description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+          xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:tiff="http://ns.adobe.com/tiff/1.0/"
+          tiff:ImageWidth="6000" tiff:ImageLength="4000">
+          <crs:MaskGroupBasedCorrections><rdf:Seq><rdf:li rdf:parseType="Resource">
+          <crs:CorrectionMasks><rdf:Seq><rdf:li rdf:parseType="Resource"
+            crs:What="Mask/Aggregate" crs:MaskName="Brush group"
+            crs:MaskBrushTable="00000000000000000000000000000000" crs:MaskBrushUncompressedBytes="185" />
+          </rdf:Seq></crs:CorrectionMasks></rdf:li></rdf:Seq></crs:MaskGroupBasedCorrections>
+          </rdf:Description>"#;
+        fs::write(&xmp, source).unwrap();
+        let imported =
+            import_xmp_adjustments_to_sidecar(raw.to_str().unwrap(), &xmp, None).unwrap();
+        assert!(imported.unchanged);
+        assert_eq!(imported.metadata.adjustments, existing.adjustments);
+        assert_eq!(fs::read(&sidecar).unwrap(), original);
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), source);
+        let report = serde_json::to_value(XmpNotTransferred {
+            path: raw.to_string_lossy().to_string(),
+            items: imported.not_transferred,
+            brush_table_refusals: imported.brush_table_refusals,
+            mask_failures: imported.mask_failures,
+            settings_report: imported.settings_report,
+        })
+        .unwrap();
+        assert_eq!(
+            report["items"],
+            serde_json::json!(["masks", "maskBrushTable"])
+        );
+        assert_eq!(report["brushTableRefusals"][0]["name"], "Brush group");
+    }
+
     fn lightroom_xmp(attributes: &str) -> String {
         format!(
             r#"<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
@@ -7360,6 +7415,40 @@ mod lens_params_tests {
         });
         let resolved = resolve(&db, Some(old.clone()));
         assert_eq!(resolved, old);
+    }
+
+    #[test]
+    fn polynomial_tca_saved_marker_survives_the_real_sidecar_resolver() {
+        let db: LensDatabase = quick_xml::de::from_str(include_str!(
+            "../../rapidroom/validation/lensfun-tca/fixture.xml"
+        ))
+        .unwrap();
+        let base = serde_json::json!({"lensCorrectionMode":"manual","lensMaker":"RapidRoom test fixture","lensModel":"Polynomial TCA reference (synthetic)"});
+        let exif = Some(HashMap::from([(
+            "FocalLength".to_string(),
+            "35 mm".to_string(),
+        )]));
+        let mut fresh = base.clone();
+        resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db));
+        assert!(fresh["lensDistortionParams"]["tca_poly3"].is_object());
+        let snapshot = fresh.clone();
+        resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db));
+        assert_eq!(fresh, snapshot);
+        let mut unresolved = base.clone();
+        unresolved["lensDistortionParams"] = serde_json::Value::Null;
+        resolve_lens_params_in_adjustments(&mut unresolved, &exif, Some(&db));
+        assert_eq!(unresolved, snapshot);
+        for radius in [false, true] {
+            let mut old = base.clone();
+            old["lensDistortionParams"] = serde_json::json!({"tca_vr":1.003,"tca_vb":0.998});
+            if radius {
+                old["lensDistortionParams"]["radius_scale"] = serde_json::json!(1.8);
+            }
+            resolve_lens_params_in_adjustments(&mut old, &exif, Some(&db));
+            assert!(old["lensDistortionParams"].get("tca_poly3").is_none());
+            assert_eq!(old["lensDistortionParams"]["tca_vr"], 1.003);
+            assert_eq!(old["lensDistortionParams"]["tca_vb"], 0.998);
+        }
     }
 
     #[test]

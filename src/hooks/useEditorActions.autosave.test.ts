@@ -27,6 +27,41 @@ afterEach(async () => {
 });
 
 describe('waiting for editor writes before XMP import', () => {
+  it('does not save a clean photo selected while an older write drains', async () => {
+    vi.useFakeTimers();
+    const write = pendingWrite();
+    let saves = 0;
+    mockCommand(Invokes.SaveMetadataAndUpdateThumbnail, () => (++saves === 1 ? write.promise : undefined));
+    const image = (path: string) => ({
+      path,
+      exif: {},
+      width: 100,
+      height: 100,
+      isRaw: true,
+      isReady: true,
+      thumbnailUrl: '',
+    });
+    const first = { ...INITIAL_ADJUSTMENTS, exposure: 1 };
+    const clean = { ...INITIAL_ADJUSTMENTS, exposure: 2 };
+    useEditorStore.setState({ selectedImage: image('/photos/a.NEF'), adjustments: first });
+    debouncedSave('/photos/a.NEF', first);
+    debouncedSave.flush();
+    const preparing = prepareEditorDraftForXmpImport('/photos/a.NEF');
+    useEditorStore.setState({ selectedImage: image('/photos/b.NEF'), adjustments: clean });
+    write.resolve();
+    const pause = await preparing;
+    expect(pause.draft).toEqual({ path: '/photos/a.NEF', adjustments: first });
+    pause.finish([]);
+    vi.advanceTimersByTime(1000);
+    await waitForPendingEditorSaves();
+    expect(
+      invoke.mock.calls
+        .filter(([name]) => name === Invokes.SaveMetadataAndUpdateThumbnail)
+        .map(([, args]) => args?.path),
+    ).toEqual(['/photos/a.NEF']);
+    expect(useEditorStore.getState().adjustments).toBe(clean);
+  });
+
   it('waits for the latest started draft write', async () => {
     vi.useFakeTimers();
     const write = pendingWrite();

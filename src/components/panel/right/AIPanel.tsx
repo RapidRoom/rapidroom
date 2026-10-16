@@ -454,6 +454,7 @@ export default function AIPanel() {
   } = useAiMasking();
 
   const { cloudUsage, isSignedIn, isPro, aiProvider } = useCloudUsage();
+  const isAiFree = aiProvider === 'ai-free';
 
   const isGenerativeAvailable =
     (aiProvider === 'cloud' && isSignedIn && isPro) || (aiProvider === 'ai-connector' && isAIConnectorConnected);
@@ -765,8 +766,9 @@ export default function AIPanel() {
         ...buildMenu(AI_DIRECT_PATCH_TYPES, SubMaskMode.Additive),
         { type: OPTION_SEPARATOR },
         ...buildMenu(AI_TOUCH_UP_TYPES, SubMaskMode.Additive),
-        { type: OPTION_SEPARATOR },
-        ...buildMenu(AI_GENERATIVE_CREATION_TYPES, SubMaskMode.Additive),
+        ...(isAiFree
+          ? []
+          : [{ type: OPTION_SEPARATOR }, ...buildMenu(AI_GENERATIVE_CREATION_TYPES, SubMaskMode.Additive)]),
       ];
     } else {
       options = buildMenu(AI_SUB_MASK_COMPONENT_TYPES, SubMaskMode.Additive);
@@ -996,8 +998,7 @@ export default function AIPanel() {
       ...manualSubMenu,
       { type: OPTION_SEPARATOR },
       ...touchUpSubMenu,
-      { type: OPTION_SEPARATOR },
-      ...genSubMenu,
+      ...(isAiFree ? [] : [{ type: OPTION_SEPARATOR }, ...genSubMenu]),
     ];
 
     showContextMenu(e.clientX, e.clientY, [
@@ -1192,15 +1193,17 @@ export default function AIPanel() {
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 p-3">
-          <div className="mb-4 shrink-0">
-            <ConnectionStatus
-              aiProvider={aiProvider}
-              isAIConnectorConnected={isAIConnectorConnected}
-              isSignedIn={!!isSignedIn}
-              isPro={!!isPro}
-              cloudUsage={cloudUsage}
-            />
-          </div>
+          {!isAiFree && (
+            <div className="mb-4 shrink-0">
+              <ConnectionStatus
+                aiProvider={aiProvider}
+                isAIConnectorConnected={isAIConnectorConnected}
+                isSignedIn={!!isSignedIn}
+                isPro={!!isPro}
+                cloudUsage={cloudUsage}
+              />
+            </div>
+          )}
 
           {!selectedImage ? (
             <div className="flex items-center justify-center flex-1">
@@ -1254,19 +1257,23 @@ export default function AIPanel() {
                       ))}
                     </div>
 
-                    <Text variant={TextVariants.heading} className="mb-2">
-                      {t('editor.ai.generativeEditTitle')}
-                    </Text>
-                    <div className="grid grid-cols-3 gap-2" onClick={(e) => e.stopPropagation()}>
-                      {AI_GENERATIVE_CREATION_TYPES.map((maskType: MaskType) => (
-                        <DraggableGridItem
-                          key={maskType.type}
-                          maskType={maskType}
-                          isGenerating={hasAnyActiveAiTask}
-                          onClick={() => handleAddAiPatchContainer(maskType.type)}
-                        />
-                      ))}
-                    </div>
+                    {!isAiFree && (
+                      <>
+                        <Text variant={TextVariants.heading} className="mb-2">
+                          {t('editor.ai.generativeEditTitle')}
+                        </Text>
+                        <div className="grid grid-cols-3 gap-2" onClick={(e) => e.stopPropagation()}>
+                          {AI_GENERATIVE_CREATION_TYPES.map((maskType: MaskType) => (
+                            <DraggableGridItem
+                              key={maskType.type}
+                              maskType={maskType}
+                              isGenerating={hasAnyActiveAiTask}
+                              onClick={() => handleAddAiPatchContainer(maskType.type)}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </motion.div>
                 ) : (
                   <AiListRoot
@@ -2137,7 +2144,7 @@ function SettingsPanel({
             <Text variant={TextVariants.small}>
               {isQuickErasePatch
                 ? t('editor.ai.settings.quickEraseDesc')
-                : useFastInpaint
+                : useFastInpaint || isCloud
                   ? t('editor.ai.settings.fastInpaintDesc')
                   : t('editor.ai.settings.generativeDesc')}
             </Text>

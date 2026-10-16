@@ -4,11 +4,11 @@ import { toast } from 'react-toastify';
 import { useEditorStore } from '../store/useEditorStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { useEditorActions } from './useEditorActions';
+import { useCloudAuth } from '../context/CloudAuthContext';
 import { useCloudStore } from '../store/useCloudStore';
 import { Adjustments, AiPatch, MaskContainer, Coord } from '../utils/adjustments';
 import { SubMask } from '../components/panel/right/Masks';
 import { Invokes } from '../components/ui/AppProperties';
-import { useCloudAuth } from '../context/CloudAuthContext';
 
 const getRejectionMessage = (error: unknown): string => {
   const message = typeof error === 'object' && error !== null && 'message' in error ? error.message : undefined;
@@ -179,7 +179,7 @@ export function useAiMasking() {
         }));
         setEditor({ activeAiPatchContainerId: null, activeAiSubMaskId: null });
         if (!useFastInpaint) {
-          useCloudStore.getState().fetchUsage(getToken);
+          useCloudStore.getState().fetchUsage();
         }
       } catch (err: unknown) {
         if (!String(err).includes('cancelled')) {
@@ -224,6 +224,7 @@ export function useAiMasking() {
           path: selectedImage.path,
           rotation: adjustments.rotation,
           startPoint: [startPoint.x, startPoint.y],
+          skipRefinement: true,
           taskId: patchId,
         });
 
@@ -334,6 +335,9 @@ export function useAiMasking() {
 
     try {
       const transformAdjustments = getTransformAdjustments(adjustments);
+      const isInpaintMask = !!adjustments.aiPatches?.some((p: AiPatch) =>
+        p.subMasks.some((sm: SubMask) => sm.id === subMaskId),
+      );
       const newParameters = await invoke<Record<string, unknown>>(Invokes.GenerateAiSubjectMask, {
         jsAdjustments: transformAdjustments,
         endPoint: [endPoint.x, endPoint.y],
@@ -343,6 +347,7 @@ export function useAiMasking() {
         path: selectedImage.path,
         rotation: adjustments.rotation,
         startPoint: [startPoint.x, startPoint.y],
+        skipRefinement: isInpaintMask,
         taskId: subMaskId,
       });
 
