@@ -324,11 +324,23 @@ fn receipt_valid(receipt: &Receipt, sidecar: &Path) -> bool {
         .is_ok_and(|h| h == receipt.output_hash)
 }
 
+fn source_baseline_eligible(adjustments: &Value) -> bool {
+    adjustments.is_null() || adjustments["baselineExposure"].as_bool().unwrap_or(false)
+}
+
 fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> Result<(), String> {
     if !is_raw_file(source) || matches!(ident["method"].as_str(), Some("best" | "fast")) {
         return Ok(());
     }
     let adjustments = &metadata["adjustments"];
+    if ident["method"] == "nind"
+        && let Some(expected) = ident["sourceBaselineEligible"].as_bool()
+        && expected != source_baseline_eligible(adjustments)
+    {
+        return Err(
+            "Source baseline setting changed during denoise; run the marked queue again.".into(),
+        );
+    }
     let override_mode = (ident["settings"]["toneOverride"] == true).then(|| {
         if ident["settings"]["rawTone"].as_str().unwrap_or("agx") == "agx" {
             1
@@ -614,7 +626,7 @@ pub async fn run(
                     "denoise-queue-progress",
                     json!({"current":index+1,"total":paths.len(),"path":path,"summary":summary}),
                 );
-                let result = run_item(path, &ident, &job, || {
+                let result = run_item(path, &ident, &job, |item_identity| {
                     denoise_image_with_settings(
                         &parse_virtual_path(path).0.to_string_lossy(),
                         &internal,
@@ -622,6 +634,7 @@ pub async fn run(
                         models.clone(),
                         &job,
                         frozen_settings.clone(),
+                        item_identity["sourceBaselineEligible"].as_bool(),
                     )
                     .map(|(image, _, raw)| {
                         raw.map_or_else(|| DenoisedOutput::Image(image), DenoisedOutput::Raw)
@@ -678,7 +691,7 @@ fn run_item(
     path: &str,
     ident: &Value,
     job: &DenoiseJob,
-    denoise: impl FnOnce() -> Result<DenoisedOutput, String>,
+    denoise: impl FnOnce(&Value) -> Result<DenoisedOutput, String>,
 ) -> Result<(String, bool), String> {
     let (source, sidecar) = parse_virtual_path(path);
     if source.is_symlink() {
@@ -702,6 +715,12 @@ fn run_item(
         .try_lock()
         .map_err(|_| "Source is already being denoised by another queue".to_string())?;
     let metadata = strict_json(&sidecar)?;
+    let mut item_identity = ident.clone();
+    if is_raw_file(&source) && ident["method"] == "nind" {
+        item_identity["sourceBaselineEligible"] =
+            source_baseline_eligible(&metadata["adjustments"]).into();
+    }
+    let ident = &item_identity;
     ensure_rendered_eligible(&metadata, &source, ident)?;
     let q = queue(&metadata)?;
     if q["marked"] != true {
@@ -762,7 +781,7 @@ fn run_item(
         .and_then(|bytes| serde_json::from_slice::<Receipt>(&bytes).ok())
         .filter(|r| r.key == key);
     job.check()?;
-    let image = denoise()?;
+    let image = denoise(ident)?;
     job.check()?;
     if hash_file(&source)? != source_hash {
         return Err("Source changed during denoise; result discarded".into());
@@ -893,7 +912,7 @@ mod tests {
         .unwrap();
         (dir, path)
     }
-    fn output() -> Result<DenoisedOutput, String> {
+    fn output(_: &Value) -> Result<DenoisedOutput, String> {
         Ok(DenoisedOutput::Image(DynamicImage::new_rgb8(8, 6)))
     }
     fn ident() -> Value {
@@ -925,7 +944,7 @@ mod tests {
         let job = DenoiseJob::testing();
         let mut calls = 0;
         for (n, path) in paths.iter().enumerate() {
-            let (out, skipped) = run_item(path, &ident(), &job, || {
+            let (out, skipped) = run_item(path, &ident(), &job, |_| {
                 calls += 1;
                 output()
             })
@@ -962,7 +981,7 @@ mod tests {
         })
         .unwrap();
         assert!(
-            run_item(&path, &ident(), &DenoiseJob::testing(), || panic!(
+            run_item(&path, &ident(), &DenoiseJob::testing(), |_| panic!(
                 "must skip"
             ))
             .unwrap()
@@ -996,7 +1015,7 @@ mod tests {
             Ok(())
         })
         .unwrap();
-        let (recovered, skipped) = run_item(&path, &ident(), &DenoiseJob::testing(), || {
+        let (recovered, skipped) = run_item(&path, &ident(), &DenoiseJob::testing(), |_| {
             panic!("must recover")
         })
         .unwrap();
@@ -1040,7 +1059,7 @@ mod tests {
         let claim = File::open(source.with_file_name(name)).unwrap();
         claim.lock().unwrap();
         assert!(
-            run_item(&path, &ident(), &job, || panic!("must not run"))
+            run_item(&path, &ident(), &job, |_| panic!("must not run"))
                 .unwrap_err()
                 .contains("another queue")
         );
@@ -1050,7 +1069,7 @@ mod tests {
     fn corrupt_sidecar_and_changing_source_do_not_publish_or_erase_edits() {
         let (dir, path) = fixture();
         let (_, sidecar) = parse_virtual_path(&path);
-        let error = run_item(&path, &ident(), &DenoiseJob::testing(), || {
+        let error = run_item(&path, &ident(), &DenoiseJob::testing(), |_| {
             fs::write(&path, b"changed").unwrap();
             output()
         })
@@ -1069,6 +1088,62 @@ mod tests {
         fs::write(&sidecar, &malformed).unwrap();
         assert!(set_denoise_mark(vec![path], false).is_err());
         assert_eq!(fs::read_to_string(sidecar).unwrap(), malformed);
+    }
+
+    #[test]
+    fn nind_queue_baseline_matches_source_defaults_with_actual_exposure_and_highlight_options() {
+        let mut settings = crate::app_settings::AppSettings::default();
+        settings.enable_baseline_exposure = true;
+        settings.baseline_exposure = 1.;
+        let shot = crate::as_shot::AsShot {
+            white_balance: crate::white_balance::WhiteBalance::reference(),
+            exposure: crate::baseline_exposure::RawExposure {
+                scene_referred: true,
+                dng_baseline: 0.58,
+                highlight_preservation: 2.,
+            },
+        };
+        for compensate in [false, true] {
+            settings.compensate_highlight_preservation = compensate;
+            let render = crate::image_processing::resolve_render_options(&settings, true);
+            for source in [
+                Value::Null,
+                json!({}),
+                json!({"baselineExposure":false,"exposure":0}),
+                json!({"baselineExposure":true}),
+            ] {
+                let prepared = nind_raw_defaults(Some(source_baseline_eligible(&source)));
+                let expected = crate::image_processing::get_all_adjustments_from_json(
+                    &source, true, shot, render,
+                );
+                let actual = crate::image_processing::get_all_adjustments_from_json(
+                    &prepared, true, shot, render,
+                );
+                assert_eq!(bytemuck::bytes_of(&actual), bytemuck::bytes_of(&expected));
+            }
+            let legacy = crate::image_processing::get_all_adjustments_from_json(
+                &json!({}),
+                true,
+                shot,
+                render,
+            );
+            let fresh = crate::image_processing::get_all_adjustments_from_json(
+                &nind_raw_defaults(None),
+                true,
+                shot,
+                render,
+            );
+            assert!((fresh.global.exposure - legacy.global.exposure).abs() > 0.5);
+        }
+        let mut metadata =
+            serde_json::to_value(crate::image_processing::ImageMetadata::default()).unwrap();
+        metadata["adjustments"] = json!({"baselineExposure":false});
+        let identity = json!({"method":"nind","sourceBaselineEligible":true});
+        assert!(
+            ensure_rendered_eligible(&metadata, Path::new("photo.ARW"), &identity)
+                .unwrap_err()
+                .contains("Source baseline setting changed")
+        );
     }
 
     #[test]
