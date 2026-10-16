@@ -261,7 +261,8 @@
       "stitchPanorama": "Stitch Panorama",
       "tagging": "Tagging",
       "undo": "Undo",
-      "unflagged": "Unflagged"
+      "unflagged": "Unflagged",
+      "exportInstagram": "Export for Instagram"
     },
     "folders": {
       "changeIcon": "Change Icon",

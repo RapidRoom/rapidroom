@@ -9,5 +9,5 @@
   "upstream_issues": ["RapidRoom/rapidroom#316"],
   "upstream_prs": [],
   "rendering_change": true,
-  "notes": "Instagram crop recipes export 4:5, 3:4 or 9:16 sRGB JPEGs at 1080 px wide. Per-photo framing is remembered separately from the main crop and edit history. Existing padded recipes and ordinary export defaults retain their behaviour."
+  "notes": "Instagram crop recipes export 4:5, 3:4 or 9:16 sRGB JPEGs at 1080 px wide. Per-photo framing is remembered separately from the main crop and edit history. Existing padded recipes and ordinary export defaults retain their behaviour. The selected recipe survives panel remounts and restart; Export for Instagram opens the last Instagram recipe directly (4:5 initially)."
 }
