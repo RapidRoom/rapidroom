@@ -1,3 +1,5 @@
+#[path = "denoise_queue.rs"]
+pub mod queue;
 use crate::app_settings::load_settings;
 use crate::app_state::AppState;
 use crate::file_management::parse_virtual_path;
@@ -723,6 +725,24 @@ fn denoise_image(
     ai_session: DenoiseModels,
     job: &DenoiseJob,
 ) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
+    denoise_image_with_settings(
+        path_str,
+        options,
+        app_handle,
+        ai_session,
+        job,
+        load_settings(app_handle.clone()).unwrap_or_default(),
+    )
+}
+
+fn denoise_image_with_settings(
+    path_str: &str,
+    options: &DenoiseOptions,
+    app_handle: &AppHandle,
+    ai_session: DenoiseModels,
+    job: &DenoiseJob,
+    settings: crate::app_settings::AppSettings,
+) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
     let method = options.method.as_str();
     let intensity = options.intensity;
     let path = Path::new(path_str);
@@ -731,8 +751,6 @@ fn denoise_image(
     }
 
     let is_raw = is_raw_file(path_str);
-    let settings = load_settings(app_handle.clone()).unwrap_or_default();
-
     job.progress("Loading image...");
 
     let file_bytes = fs::read(path).map_err(|e| e.to_string())?;

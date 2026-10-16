@@ -75,6 +75,8 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
   const isGroupingActive = groupingMode !== 'off';
 
   const matchesFilter = (image: ImageFile): boolean => {
+    if (filterCriteria.denoiseStatus === 'marked' && !image.denoise_marked) return false;
+    if (filterCriteria.denoiseStatus === 'done' && !image.denoised) return false;
     if (filterCriteria.rating !== 0) {
       const rating = imageRatings[image.path] || 0;
       if (filterCriteria.rating === -1 && rating !== 0) return false;

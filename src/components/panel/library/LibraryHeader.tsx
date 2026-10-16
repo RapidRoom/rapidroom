@@ -545,6 +545,7 @@ export function ViewOptionsDropdown({
     (filterCriteria.rawStatus && filterCriteria.rawStatus !== RawStatus.All) ||
     (filterCriteria.editedStatus && filterCriteria.editedStatus !== EditedStatus.All) ||
     (filterCriteria.flagStatus && filterCriteria.flagStatus !== FlagStatus.All) ||
+    (filterCriteria.denoiseStatus && filterCriteria.denoiseStatus !== 'all') ||
     (filterCriteria.colors && filterCriteria.colors.length > 0);
 
   const [lastClickedColor, setLastClickedColor] = useState<string | null>(null);
@@ -721,6 +722,25 @@ export function ViewOptionsDropdown({
             </div>
           </div>
 
+          <div className="px-3">
+            <label>
+              {t('denoiseQueue.filter')}
+              <select
+                className="bg-bg-secondary rounded p-1 w-full"
+                value={filterCriteria.denoiseStatus ?? 'all'}
+                onChange={(e) =>
+                  setFilterCriteria((prev: FilterCriteria) => ({
+                    ...prev,
+                    denoiseStatus: e.target.value as FilterCriteria['denoiseStatus'],
+                  }))
+                }
+              >
+                <option value="all">{t('denoiseQueue.all')}</option>
+                <option value="marked">{t('denoiseQueue.marked')}</option>
+                <option value="done">{t('denoiseQueue.done')}</option>
+              </select>
+            </label>
+          </div>
           <div>
             <Text as="div" variant={TextVariants.small} weight={TextWeights.semibold} className="px-3 py-1 uppercase">
               {t('library.header.viewOptions.filterByEdited', 'Filter by Edit Status')}

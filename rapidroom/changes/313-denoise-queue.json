@@ -1,0 +1,14 @@
+{
+  "id": "resumable-denoise-queue",
+  "title": "Mark photos while culling and denoise them in a resumable background or CLI queue",
+  "category": "feature",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "highlight": "Mark photos with Q, then denoise the marked folder overnight from the app or CLI. Completed results are verified and skipped.",
+  "notes": "Dedicated persistent mark, thumbnail badge and library filters. One shared sequential worker with cancellation, source/settings/model/runtime identities, content hashes, no-clobber outputs and crash recovery. Best/Fast produce sensor DNG; other methods retain TIFF/PNG. Sharpen is optional. Existing one-shot processing and default renders are unchanged."
+}

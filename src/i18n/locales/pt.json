@@ -1961,7 +1961,8 @@
         "zoom_out": "Menos zoom",
         "zoom_out_step": "Menos zoom (por etapas)",
         "toggle_pick": "Alternar marca de Escolhida",
-        "toggle_reject": "Alternar marca de Rejeitado"
+        "toggle_reject": "Alternar marca de Rejeitado",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "Edição",
@@ -2356,5 +2357,34 @@
         "vectorscope": "Vetorscópio"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs in the background, one photo at a time. Valid completed results are skipped. Install AI models in the Denoise dialog before starting.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
   }
 }

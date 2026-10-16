@@ -401,6 +401,7 @@ export interface FilterCriteria {
   rawStatus: RawStatus;
   editedStatus?: EditedStatus;
   flagStatus?: FlagStatus;
+  denoiseStatus?: 'all' | 'marked' | 'done';
 }
 
 export interface Folder {
@@ -411,6 +412,8 @@ export interface Folder {
 }
 
 export interface ImageFile {
+  denoise_marked?: boolean;
+  denoised?: boolean;
   is_edited: boolean;
   modified: number;
   path: string;

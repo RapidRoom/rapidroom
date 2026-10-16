@@ -1,3 +1,4 @@
+import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { ExifOverlay, ImageFile, ImageFlag, LibraryViewMode, Panel } from '../components/ui/AppProperties';
@@ -590,6 +591,13 @@ export const useKeyboardShortcuts = ({
           rateAndAdvance(5);
         },
       },
+      toggle_denoise_mark: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          void setDenoiseMark();
+        },
+      },
       flag_pick: {
         shouldFire: () => true,
         execute: (e: KeyboardEvent) => {
@@ -787,6 +795,7 @@ export const useKeyboardShortcuts = ({
       const state = getStoreState();
 
       const isModalOpen =
+        useDenoiseQueueStore.getState().setupOpen ||
         state.ui.isCreateFolderModalOpen ||
         state.ui.isRenameFolderModalOpen ||
         state.ui.isRenameFileModalOpen ||

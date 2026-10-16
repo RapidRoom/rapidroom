@@ -1609,6 +1609,37 @@ pub fn write_file_atomically(
     path: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
 ) -> std::io::Result<()> {
+    let path = path.as_ref();
+    if path.extension().and_then(|e| e.to_str()) == Some("rrdata") {
+        if is_card_read_only_path(path) {
+            return Err(card_read_only_io_error());
+        }
+        let _guard = crate::denoising::queue::lock_path(path)?;
+        // Only queue-bearing sidecars need a merge. Keep the atomic writer's byte-preserving
+        // contract for other files, including older/non-JSON sidecars.
+        if let Ok(current) = fs::read(path)
+            && let Ok(current) = serde_json::from_slice::<Value>(&current)
+            && let Some(queue) = current.get("denoise")
+        {
+            let mut incoming: Value =
+                serde_json::from_slice(contents.as_ref()).map_err(std::io::Error::other)?;
+            let object = incoming
+                .as_object_mut()
+                .ok_or_else(|| std::io::Error::other("Sidecar must be a JSON object"))?;
+            object.insert("denoise".into(), queue.clone());
+            return write_file_atomically_unmerged(
+                path,
+                serde_json::to_vec_pretty(&incoming).map_err(std::io::Error::other)?,
+            );
+        }
+    }
+    write_file_atomically_unmerged(path, contents)
+}
+
+pub(crate) fn write_file_atomically_unmerged(
+    path: impl AsRef<Path>,
+    contents: impl AsRef<[u8]>,
+) -> std::io::Result<()> {
     write_file_atomically_with_backend(
         path.as_ref(),
         contents.as_ref(),
