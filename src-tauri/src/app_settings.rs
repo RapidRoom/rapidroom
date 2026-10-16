@@ -25,10 +25,14 @@ pub struct FilterCriteria {
     pub edited_status: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub flag_status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub denoise_status: Option<String>,
     #[serde(default)]
     pub colors: Vec<String>,
     #[serde(default)]
     pub rating_exact: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rating_operator: Option<String>,
 }
 
 impl Default for FilterCriteria {
@@ -38,8 +42,10 @@ impl Default for FilterCriteria {
             raw_status: "all".to_string(),
             edited_status: Some("all".to_string()),
             flag_status: None,
+            denoise_status: None,
             colors: Vec::new(),
             rating_exact: false,
+            rating_operator: None,
         }
     }
 }
@@ -92,6 +98,27 @@ pub enum PasteMode {
     Replace,
 }
 
+pub(crate) const SPATIAL_EFFECT_ADJUSTMENTS: &[&str] = &[
+    "relightEnabled",
+    "relightNormalMap",
+    "relightLights",
+    "relightAmbient",
+    "relightSoftness",
+    "relightShine",
+    "relightShadows",
+    "relightShadowSoftness",
+    "fogEnabled",
+    "fogDepthMap",
+    "fogAmount",
+    "fogStart",
+    "fogDensity",
+    "fogHeight",
+    "fogVariation",
+    "fogGlow",
+    "fogTemperature",
+    "fogTint",
+];
+
 pub fn all_available_adjustments() -> HashSet<String> {
     [
         "exposure",
@@ -108,6 +135,7 @@ pub fn all_available_adjustments() -> HashSet<String> {
         "toneMapper",
         "temperature",
         "tint",
+        "whiteBalance",
         "saturation",
         "vibrance",
         "hsl",
@@ -167,6 +195,7 @@ pub fn all_available_adjustments() -> HashSet<String> {
         "guidedPerspective",
     ]
     .iter()
+    .chain(SPATIAL_EFFECT_ADJUSTMENTS)
     .map(|s| s.to_string())
     .collect()
 }
@@ -202,7 +231,8 @@ pub fn default_included_adjustments() -> HashSet<String> {
         "guidedPerspective",
     ];
 
-    for item in off_by_default.iter() {
+    // Spatial maps and placed lights belong to the source image, just like masks.
+    for item in off_by_default.iter().chain(SPATIAL_EFFECT_ADJUSTMENTS) {
         defaults.remove(*item);
     }
 
@@ -235,6 +265,8 @@ impl Default for CopyPasteSettings {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportPreset {
+    #[serde(default)]
+    pub instagram_ratio: Option<crate::export_framing::InstagramRatio>,
     #[serde(default)]
     pub dpi: Option<u16>,
     pub id: String,
@@ -293,6 +325,7 @@ pub struct ExportPreset {
 pub fn default_export_presets() -> Vec<ExportPreset> {
     vec![
         ExportPreset {
+            instagram_ratio: None,
             dpi: None,
             id: "default-hq".to_string(),
             name: "High Quality".to_string(),
@@ -330,6 +363,7 @@ pub fn default_export_presets() -> Vec<ExportPreset> {
             output_sharpening: None,
         },
         ExportPreset {
+            instagram_ratio: None,
             dpi: None,
             id: "default-fast".to_string(),
             name: "Fast (Web)".to_string(),
@@ -456,6 +490,14 @@ pub fn default_linear_raw_mode() -> String {
     "auto".to_string()
 }
 
+pub fn default_baseline_exposure() -> f32 {
+    0.7
+}
+
+pub fn default_compensate_highlight_preservation() -> bool {
+    true
+}
+
 pub fn default_tagging_shortcuts_option() -> Option<Vec<String>> {
     Some(vec![
         "portrait".to_string(),
@@ -535,6 +577,10 @@ pub struct AppSettings {
     #[serde(default = "default_export_presets")]
     pub export_presets: Vec<ExportPreset>,
     #[serde(default)]
+    pub last_selected_export_preset_id: Option<String>,
+    #[serde(default)]
+    pub last_instagram_export_preset_id: Option<String>,
+    #[serde(default)]
     pub my_lenses: Option<Vec<MyLens>>,
     #[serde(default)]
     pub enable_folder_image_counts: Option<bool>,
@@ -558,6 +604,8 @@ pub struct AppSettings {
     pub editor_neutral_grey_bg: Option<bool>,
     #[serde(default)]
     pub canvas_input_mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub white_balance_mode: Option<String>,
     #[serde(default)]
     pub zoom_speed_multiplier: Option<f32>,
     #[serde(default)]
@@ -568,6 +616,12 @@ pub struct AppSettings {
     pub thumbnail_worker_threads: Option<u32>,
     #[serde(default)]
     pub image_cache_size: Option<u32>,
+    #[serde(default)]
+    pub enable_baseline_exposure: bool,
+    #[serde(default = "default_baseline_exposure")]
+    pub baseline_exposure: f32,
+    #[serde(default = "default_compensate_highlight_preservation")]
+    pub compensate_highlight_preservation: bool,
     #[serde(default)]
     pub tonemapper_override_enabled: Option<bool>,
     #[serde(default)]
@@ -671,6 +725,8 @@ impl Default for AppSettings {
             linux_gpu_optimization_migrated_v1: Some(true),
             library_view_mode: Some("flat".to_string()),
             export_presets: default_export_presets(),
+            last_selected_export_preset_id: None,
+            last_instagram_export_preset_id: None,
             my_lenses: Some(Vec::new()),
             #[cfg(target_os = "android")]
             high_res_zoom_multiplier: Some(0.75),
@@ -690,6 +746,7 @@ impl Default for AppSettings {
             use_wgpu_renderer: Some(true),
             editor_neutral_grey_bg: Some(false),
             canvas_input_mode: Some("mouse".to_string()),
+            white_balance_mode: None,
             zoom_speed_multiplier: Some(1.0),
             zoom_photo_to_pixel_click: Some(false),
             keybinds: HashMap::new(),
@@ -701,6 +758,9 @@ impl Default for AppSettings {
             image_cache_size: Some(2),
             #[cfg(not(target_os = "android"))]
             image_cache_size: Some(5),
+            enable_baseline_exposure: false,
+            baseline_exposure: default_baseline_exposure(),
+            compensate_highlight_preservation: default_compensate_highlight_preservation(),
             tonemapper_override_enabled: Some(false),
             default_raw_tonemapper: Some("agx".to_string()),
             default_non_raw_tonemapper: Some("basic".to_string()),

@@ -7,7 +7,7 @@ import { mockCommand } from '../test/tauriMock';
 import { useHslMixerPicker } from './useHslMixerPicker';
 import { useEditorStore } from '../store/useEditorStore';
 import { Invokes, SelectedImage } from '../components/ui/AppProperties';
-import { Adjustments, INITIAL_ADJUSTMENTS } from '../utils/adjustments';
+import { Adjustments, getActiveTools, INITIAL_ADJUSTMENTS, setToolActive } from '../utils/adjustments';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -167,7 +167,7 @@ describe('useHslMixerPicker', () => {
       useEditorStore.setState((state) => ({
         adjustments: {
           ...state.adjustments,
-          sectionVisibility: { ...state.adjustments.sectionVisibility, [section]: false },
+          activeTools: setToolActive(getActiveTools(state.adjustments), section, false),
         },
       }));
     });

@@ -271,6 +271,11 @@ pub fn settings_report(content: &str, preset: &Preset) -> Report {
         matches!(p,
         PhotoProperty::Scalar(s) if s.eq_ignore_ascii_case("true") || s == "1")
     });
+    let already_applied = preset.include_crop_transform == Some(true)
+        && properties.get("AlreadyApplied").is_some_and(|property| {
+            matches!(property, PhotoProperty::Scalar(value)
+                if value.eq_ignore_ascii_case("true") || value == "1")
+        });
     let mut report = Report::default();
     for (field, property) in fields {
         if bookkeeping(field)
@@ -297,7 +302,9 @@ pub fn settings_report(content: &str, preset: &Preset) -> Report {
             "Clarity" => Some("Clarity2012"),
             _ => None,
         };
-        let (outcome, reason) = if newer.is_some_and(|key| properties.contains_key(key)) {
+        let (outcome, reason) = if already_applied {
+            (Outcome::Ignored, "alreadyApplied")
+        } else if newer.is_some_and(|key| properties.contains_key(key)) {
             (Outcome::Ignored, "superseded")
         } else if (field.starts_with("GrayMixer") && !monochrome)
             || (monochrome
@@ -549,5 +556,19 @@ mod tests {
         );
         let sidecar = convert_xmp_sidecar_to_preset(xmp).unwrap();
         assert_eq!(settings_report(xmp, &sidecar).mapped, 5);
+    }
+    #[test]
+    fn already_applied_photo_reports_intentional_suppression_but_presets_still_map() {
+        let xmp = r#"<root crs:AlreadyApplied="True" crs:Exposure2012="1.25"/>"#;
+        let photo = convert_xmp_sidecar_to_preset(xmp).unwrap();
+        let r = settings_report(xmp, &photo);
+        assert_eq!(r.settings.len(), 1);
+        assert_eq!(r.settings[0].reason, "alreadyApplied");
+        assert_eq!(r.settings[0].outcome, Outcome::Ignored);
+        let preset = convert_xmp_to_preset(xmp).unwrap();
+        assert_ne!(
+            settings_report(xmp, &preset).settings[0].reason,
+            "alreadyApplied"
+        );
     }
 }

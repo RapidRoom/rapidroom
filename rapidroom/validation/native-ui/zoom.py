@@ -66,6 +66,23 @@ def run_zoom_checks(smoke, wait_for):
         smoke.step(f'native {direction} wheel adjacent stop {expected} percent', {
             'before': before, 'after': result, 'native_event': event, 'anchor_error_css_px': error})
 
+    def rating():
+        return smoke.execute("""const buttons = [...document.querySelectorAll('button[data-tooltip]')]
+          .filter(e => e.getClientRects().length && e.querySelector('svg.lucide-star'));
+          if (buttons.length !== 5) throw Error('Expected five visible rating buttons');
+          return buttons.filter(e => e.querySelector('svg').classList.contains('fill-accent')).length;""")
+
+    original_rating = rating()
+    smoke.key('Digit0', 'à')
+    wait_for(lambda: rating() == 0, 'clear native rating before French row checks')
+    for digit, key in [(1, '&'), (2, 'é'), (3, '"'), (4, "'"), (5, '('), (0, 'à')]:
+        smoke.key('Digit' + str(digit), key)
+        wait_for(lambda: rating() == digit, 'French physical rating ' + str(digit))
+        smoke.step('French unmodified Digit' + str(digit) + ' sets native rating', {'rating': digit})
+    if original_rating:
+        smoke.key('Digit' + str(original_rating), ['', '&', 'é', '"', "'", '('][original_rating])
+        wait_for(lambda: rating() == original_rating, 'original native rating restored')
+
     percent(100)
     at(100)
     native_notch('u', 150)
@@ -125,3 +142,21 @@ def run_zoom_checks(smoke, wait_for):
       .find(e=>e.textContent.trim()==='Zoom');if(!e)throw Error('Zoom reset missing');e.click();return true;""")
     time.sleep(0.5)
     smoke.step('zoom restored to fit', read())
+
+    # Switch real photos through the public filmstrip while RAW loading/fit
+    # geometry is changing. One Ctrl+1 must remain 100%, without a retry.
+    for cycle, filename in enumerate(['zoom-33mp.ARW', 'smoke.ARW'] * 3):
+        smoke.execute("""const e=[...document.images].find(e=>e.alt===arguments[0]);
+          if(!e)throw Error('Mixed-resolution thumbnail missing');e.click();return true;""", [filename])
+        smoke.key('Digit1', '1', ctrl=True)
+        dimensions = '7008 × 4672' if filename == 'zoom-33mp.ARW' else '4608 × 3072'
+        wait_for(lambda: smoke.execute("return document.body.innerText.includes(arguments[0]);", [dimensions]),
+                 'selected RAW dimensions')
+        time.sleep(2.5)
+        result = read()
+        if result['percent'] != 100:
+            raise RuntimeError('First immediate Ctrl+1 did not settle at100%: ' + str(result))
+        smoke.step('mixed-resolution first100 ' + str(cycle), {'file':filename, **result})
+        smoke.key('Digit0', '0', ctrl=True)
+        time.sleep(0.3)
+    smoke.step('mixed-resolution zoom restored to fit', read())

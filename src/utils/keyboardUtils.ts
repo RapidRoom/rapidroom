@@ -21,6 +21,12 @@ export const KEYBIND_SECTIONS: KeybindSection[] = [
 
 export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
   {
+    action: 'toggle_denoise_mark',
+    description: 'settings.keybinds.actions.toggle_denoise_mark',
+    defaultCombo: ['KeyQ'],
+    section: 'rating',
+  },
+  {
     action: 'open_image',
     description: 'settings.keybinds.actions.open_image',
     defaultCombo: ['Enter'],
@@ -163,6 +169,18 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     action: 'flag_reject',
     description: 'settings.keybinds.actions.flag_reject',
     defaultCombo: ['KeyX'],
+    section: 'rating',
+  },
+  {
+    action: 'toggle_pick',
+    description: 'settings.keybinds.actions.toggle_pick',
+    defaultCombo: ['alt', 'shift', 'KeyP'],
+    section: 'rating',
+  },
+  {
+    action: 'toggle_reject',
+    description: 'settings.keybinds.actions.toggle_reject',
+    defaultCombo: ['alt', 'shift', 'KeyX'],
     section: 'rating',
   },
   {
@@ -424,7 +442,11 @@ export function normalizeCombo(event: KeyboardEvent, osPlatform?: string): strin
     code = 'Equal';
   } else if (code === 'NumpadSubtract') {
     code = 'Minus';
-  } else if (!code.startsWith('Numpad') && punctuationCodes[event.key]) {
+  } else if (
+    !code.startsWith('Numpad') &&
+    !(/^Digit[0-9]$/.test(code) && !event.ctrlKey && !event.metaKey && !event.altKey) &&
+    punctuationCodes[event.key]
+  ) {
     code = punctuationCodes[event.key];
   }
   if (isValidShortcutKey(code)) {

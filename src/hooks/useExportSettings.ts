@@ -3,6 +3,7 @@ import {
   BorderBasis,
   DEFAULT_FILENAME_TEMPLATE,
   ExportPreset,
+  InstagramRatio,
   OutputSharpening,
   sanitizeFilenameTemplate,
   DEFAULT_EXPORT_DPI,
@@ -12,6 +13,7 @@ import {
 } from '../components/ui/ExportImportProperties';
 
 export function useExportSettings() {
+  const [instagramRatio, setInstagramRatio] = useState<InstagramRatio | null>(null);
   const [fileFormat, setFileFormat] = useState('jpeg');
   const [jpegQuality, setJpegQuality] = useState(90);
   const [tiffBitDepth, setTiffBitDepth] = useState<TiffBitDepth>(16);
@@ -46,6 +48,7 @@ export function useExportSettings() {
   const [outputSharpening, setOutputSharpening] = useState<OutputSharpening | null>(null);
 
   const handleApplyPreset = useCallback((preset: ExportPreset) => {
+    setInstagramRatio(preset.instagramRatio ?? null);
     setFileFormat(preset.fileFormat);
     setJpegQuality(preset.jpegQuality);
     setTiffBitDepth(preset.tiffBitDepth ?? 16);
@@ -87,6 +90,7 @@ export function useExportSettings() {
 
   const currentSettingsObject = useMemo(
     () => ({
+      instagramRatio,
       fileFormat,
       jpegQuality,
       tiffBitDepth,
@@ -121,6 +125,7 @@ export function useExportSettings() {
       outputSharpening,
     }),
     [
+      instagramRatio,
       fileFormat,
       jpegQuality,
       tiffBitDepth,
@@ -157,6 +162,8 @@ export function useExportSettings() {
   );
 
   return {
+    instagramRatio,
+    setInstagramRatio,
     fileFormat,
     setFileFormat,
     jpegQuality,
