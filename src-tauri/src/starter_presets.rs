@@ -1,7 +1,7 @@
 use crate::file_management::{PresetFolder, PresetItem};
 use std::collections::BTreeMap;
 
-pub fn library() -> Result<Vec<PresetItem>, String> {
+fn starter_library() -> Result<Vec<PresetItem>, String> {
     let mut groups: BTreeMap<&str, Vec<crate::file_management::Preset>> = BTreeMap::new();
     {
         let xmp = include_str!("../resources/starter-presets/BandW/Green Filter.xmp");
@@ -163,6 +163,45 @@ pub fn library() -> Result<Vec<PresetItem>, String> {
         .collect())
 }
 
+/// Add the built-in pack for existing libraries without replacing saved edits,
+/// favourites, order or renamed/moved presets. Stable IDs prevent duplicates.
+pub fn include_styles(library: &mut Vec<PresetItem>) -> Result<(), String> {
+    if library.iter().any(
+        |item| matches!(item, PresetItem::Folder(folder) if folder.id == "rapidroom-styles:v1"),
+    ) {
+        return Ok(());
+    }
+    let ids: std::collections::HashSet<String> = library
+        .iter()
+        .flat_map(|item| match item {
+            PresetItem::Folder(folder) => folder
+                .children
+                .iter()
+                .map(|p| p.id.clone())
+                .collect::<Vec<_>>(),
+            PresetItem::Preset(preset) => vec![preset.id.clone()],
+        })
+        .collect();
+    let pack: crate::file_management::PresetFile =
+        serde_json::from_str(include_str!("../resources/styles/styles-v1.json"))
+            .map_err(|error| error.to_string())?;
+    for item in pack.presets {
+        if let PresetItem::Folder(mut folder) = item {
+            folder.children.retain(|preset| !ids.contains(&preset.id));
+            if !folder.children.is_empty() {
+                library.insert(0, PresetItem::Folder(folder));
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn library() -> Result<Vec<PresetItem>, String> {
+    let mut library = starter_library()?;
+    include_styles(&mut library)?;
+    Ok(library)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,9 +215,9 @@ mod tests {
                 PresetItem::Preset(preset) => vec![preset],
             })
             .collect();
-        assert_eq!(presets.len(), 24);
+        assert_eq!(presets.len(), 35);
         let ids: std::collections::HashSet<_> = presets.iter().map(|p| &p.id).collect();
-        assert_eq!(ids.len(), 24);
+        assert_eq!(ids.len(), 35);
         for preset in presets {
             assert!(preset.unavailable_reason.is_none(), "{}", preset.name);
             assert!(

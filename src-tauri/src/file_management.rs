@@ -334,6 +334,8 @@ pub fn start_metadata_workers(app_handle: tauri::AppHandle) {
 pub struct Preset {
     pub id: String,
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub adjustments: Value,
     #[serde(rename = "includeMasks", skip_serializing_if = "Option::is_none")]
     pub include_masks: Option<bool>,
@@ -4088,7 +4090,9 @@ pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
         return crate::starter_presets::library();
     }
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
+    let mut presets = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    crate::starter_presets::include_styles(&mut presets)?;
+    Ok(presets)
 }
 
 #[tauri::command]
@@ -4416,6 +4420,7 @@ pub fn save_community_preset(
     let new_preset = Preset {
         id: Uuid::new_v4().to_string(),
         name,
+        description: None,
         adjustments,
         include_masks,
         include_crop_transform,

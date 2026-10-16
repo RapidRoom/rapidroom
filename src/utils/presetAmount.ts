@@ -58,6 +58,22 @@ export const presetCurveY = (points: Point[], x: number): number => {
   return points[points.length - 1].y;
 };
 
+// A neutral wheel's hue is invisible: preserve the coloured wheel while its
+// saturation fades. Two coloured wheels travel along the shortest hue arc.
+const blendGradingHue = (
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+  fraction: number,
+): unknown => {
+  const to = target.hue;
+  const from = source.hue;
+  if (typeof to !== 'number' || !Number.isFinite(to)) return from;
+  if (typeof from !== 'number' || !Number.isFinite(from) || !source.saturation) return to;
+  if (!target.saturation) return from;
+  const delta = ((to - from + 540) % 360) - 180;
+  return (((from + delta * fraction) % 360) + 360) % 360;
+};
+
 export function mixAdjustments(
   preset: Partial<Adjustments>,
   amount: number,
@@ -98,7 +114,11 @@ export function mixAdjustments(
       return Object.fromEntries(
         Object.entries({ ...sourceObject, ...targetObject }).map(([key, value]) => [
           key,
-          key in targetObject ? blend(value, sourceObject[key], path ? `${path}.${key}` : key) : value,
+          key in targetObject
+            ? key === 'hue' && /^colorGrading\.(shadows|midtones|highlights|global)$/.test(path)
+              ? blendGradingHue(targetObject, sourceObject, fraction)
+              : blend(value, sourceObject[key], path ? `${path}.${key}` : key)
+            : value,
         ]),
       );
     }

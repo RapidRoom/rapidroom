@@ -1,0 +1,13 @@
+{
+  "id": "built-in-styles",
+  "title": "Original multi-control Styles with Amount, descriptions and search",
+  "category": "feature",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original native preset recipes and integration)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Adds eleven original looks combining tone curves, HSL, colour grading, vignette and grain. The Styles group is available in fresh and existing preset libraries with stable IDs, preserving favourites and moved presets. Descriptions are retained and searchable. Amount keeps a neutral grading wheel's intended hue while fading saturation and follows the shortest hue arc between coloured wheels. No default render changes; applied styles and grading Amount behavior change intentionally. Taste review and final validation pending."
+}

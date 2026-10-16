@@ -442,6 +442,7 @@ export enum Orientation {
 }
 
 export interface Preset {
+  description?: string;
   adjustments: Partial<Adjustments>;
   folder?: Folder;
   id: string;

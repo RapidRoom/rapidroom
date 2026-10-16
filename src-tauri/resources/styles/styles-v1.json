@@ -1,0 +1,2391 @@
+{
+  "creator": "RapidRoom — original Styles v1",
+  "presets": [
+    {
+      "folder": {
+        "id": "rapidroom-styles:v1",
+        "name": "Styles",
+        "children": [
+          {
+            "id": "rapidroom-style:teal-orange",
+            "name": "Cinema — Teal & Orange",
+            "description": "Cool teal shadows, warm light and a firm cinematic contrast.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 18,
+              "highlights": -32,
+              "shadows": 12,
+              "blacks": -12,
+              "whites": -5,
+              "saturation": -8,
+              "vibrance": 12,
+              "clarity": 4,
+              "dehaze": 3,
+              "vignetteAmount": -18,
+              "grainAmount": 7,
+              "hsl": {
+                "reds": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "oranges": {
+                  "hue": -3,
+                  "saturation": 8,
+                  "luminance": 8
+                },
+                "yellows": {
+                  "hue": -14,
+                  "saturation": -22,
+                  "luminance": 0
+                },
+                "greens": {
+                  "hue": -22,
+                  "saturation": -36,
+                  "luminance": -5
+                },
+                "aquas": {
+                  "hue": -8,
+                  "saturation": 10,
+                  "luminance": -4
+                },
+                "blues": {
+                  "hue": -15,
+                  "saturation": -12,
+                  "luminance": -8
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 194,
+                  "saturation": 27,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 32,
+                  "saturation": 3,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 39,
+                  "saturation": 7,
+                  "luminance": 0
+                },
+                "balance": -12,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 36,
+                    "y": 27
+                  },
+                  {
+                    "x": 96,
+                    "y": 92
+                  },
+                  {
+                    "x": 180,
+                    "y": 190
+                  },
+                  {
+                    "x": 230,
+                    "y": 235
+                  },
+                  {
+                    "x": 255,
+                    "y": 250
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 24,
+              "grainRoughness": 48,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 36,
+                    "y": 27
+                  },
+                  {
+                    "x": 96,
+                    "y": 92
+                  },
+                  {
+                    "x": 180,
+                    "y": 190
+                  },
+                  {
+                    "x": 230,
+                    "y": 235
+                  },
+                  {
+                    "x": 255,
+                    "y": 250
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:black-gold",
+            "name": "Black & Gold",
+            "description": "Golden city lights against restrained colour and deep blacks.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 18,
+              "highlights": -38,
+              "shadows": 18,
+              "blacks": -10,
+              "whites": -8,
+              "saturation": -35,
+              "vibrance": 4,
+              "clarity": 7,
+              "dehaze": 4,
+              "vignetteAmount": -16,
+              "grainAmount": 6,
+              "hsl": {
+                "reds": {
+                  "hue": -4,
+                  "saturation": -20,
+                  "luminance": -4
+                },
+                "oranges": {
+                  "hue": 0,
+                  "saturation": 18,
+                  "luminance": 9
+                },
+                "yellows": {
+                  "hue": -12,
+                  "saturation": 8,
+                  "luminance": 10
+                },
+                "greens": {
+                  "hue": 0,
+                  "saturation": -72,
+                  "luminance": -18
+                },
+                "aquas": {
+                  "hue": 0,
+                  "saturation": -60,
+                  "luminance": -12
+                },
+                "blues": {
+                  "hue": 0,
+                  "saturation": -70,
+                  "luminance": -17
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": -60,
+                  "luminance": -12
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": -65,
+                  "luminance": -10
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 35,
+                  "saturation": 4,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 40,
+                  "saturation": 14,
+                  "luminance": 1
+                },
+                "highlights": {
+                  "hue": 44,
+                  "saturation": 24,
+                  "luminance": 0
+                },
+                "balance": 18,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 32,
+                    "y": 25
+                  },
+                  {
+                    "x": 96,
+                    "y": 91
+                  },
+                  {
+                    "x": 180,
+                    "y": 190
+                  },
+                  {
+                    "x": 230,
+                    "y": 236
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 24,
+              "grainRoughness": 48,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 32,
+                    "y": 25
+                  },
+                  {
+                    "x": 96,
+                    "y": 91
+                  },
+                  {
+                    "x": 180,
+                    "y": 190
+                  },
+                  {
+                    "x": 230,
+                    "y": 236
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:neon-night",
+            "name": "Neon — After Hours",
+            "description": "Cyan and magenta accents with protected signs and lifted street detail.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 15,
+              "highlights": -44,
+              "shadows": 22,
+              "blacks": -8,
+              "whites": -12,
+              "saturation": 5,
+              "vibrance": 16,
+              "clarity": 3,
+              "dehaze": 3,
+              "vignetteAmount": -16,
+              "grainAmount": 5,
+              "hsl": {
+                "reds": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "oranges": {
+                  "hue": -2,
+                  "saturation": -10,
+                  "luminance": 4
+                },
+                "yellows": {
+                  "hue": -15,
+                  "saturation": -18,
+                  "luminance": 0
+                },
+                "greens": {
+                  "hue": 5,
+                  "saturation": -28,
+                  "luminance": -8
+                },
+                "aquas": {
+                  "hue": -10,
+                  "saturation": 18,
+                  "luminance": 6
+                },
+                "blues": {
+                  "hue": -16,
+                  "saturation": 14,
+                  "luminance": 0
+                },
+                "purples": {
+                  "hue": 12,
+                  "saturation": 6,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 6,
+                  "saturation": 12,
+                  "luminance": 3
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 217,
+                  "saturation": 18,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 283,
+                  "saturation": 3,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 307,
+                  "saturation": 7,
+                  "luminance": 0
+                },
+                "balance": -4,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 36,
+                    "y": 31
+                  },
+                  {
+                    "x": 96,
+                    "y": 95
+                  },
+                  {
+                    "x": 180,
+                    "y": 190
+                  },
+                  {
+                    "x": 232,
+                    "y": 232
+                  },
+                  {
+                    "x": 255,
+                    "y": 247
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 24,
+              "grainRoughness": 48,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 36,
+                    "y": 31
+                  },
+                  {
+                    "x": 96,
+                    "y": 95
+                  },
+                  {
+                    "x": 180,
+                    "y": 190
+                  },
+                  {
+                    "x": 232,
+                    "y": 232
+                  },
+                  {
+                    "x": 255,
+                    "y": 247
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:moody",
+            "name": "Moody — Blue Hour",
+            "description": "Dense cool shadows, quiet greens and soft highlights.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 16,
+              "highlights": -30,
+              "shadows": 6,
+              "blacks": -18,
+              "whites": -12,
+              "saturation": -22,
+              "vibrance": 4,
+              "clarity": 5,
+              "dehaze": 5,
+              "vignetteAmount": -23,
+              "grainAmount": 9,
+              "hsl": {
+                "reds": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "oranges": {
+                  "hue": 0,
+                  "saturation": -5,
+                  "luminance": 6
+                },
+                "yellows": {
+                  "hue": -10,
+                  "saturation": -24,
+                  "luminance": -4
+                },
+                "greens": {
+                  "hue": -12,
+                  "saturation": -35,
+                  "luminance": -14
+                },
+                "aquas": {
+                  "hue": 5,
+                  "saturation": -18,
+                  "luminance": -6
+                },
+                "blues": {
+                  "hue": 4,
+                  "saturation": -20,
+                  "luminance": -10
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 220,
+                  "saturation": 15,
+                  "luminance": -1
+                },
+                "midtones": {
+                  "hue": 207,
+                  "saturation": 2,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 43,
+                  "saturation": 3,
+                  "luminance": 0
+                },
+                "balance": -15,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 40,
+                    "y": 28
+                  },
+                  {
+                    "x": 110,
+                    "y": 98
+                  },
+                  {
+                    "x": 190,
+                    "y": 184
+                  },
+                  {
+                    "x": 255,
+                    "y": 246
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 24,
+              "grainRoughness": 48,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 40,
+                    "y": 28
+                  },
+                  {
+                    "x": 110,
+                    "y": 98
+                  },
+                  {
+                    "x": 190,
+                    "y": 184
+                  },
+                  {
+                    "x": 255,
+                    "y": 246
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:bright-airy",
+            "name": "Bright & Airy",
+            "description": "Open shadows, gentle contrast and clean softly warm colour.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "brightness": 0.28,
+              "contrast": -16,
+              "highlights": -23,
+              "shadows": 30,
+              "blacks": 10,
+              "whites": 8,
+              "saturation": -8,
+              "vibrance": 10,
+              "clarity": -4,
+              "dehaze": -2,
+              "vignetteAmount": -5,
+              "grainAmount": 3,
+              "hsl": {
+                "reds": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "oranges": {
+                  "hue": 0,
+                  "saturation": -8,
+                  "luminance": 10
+                },
+                "yellows": {
+                  "hue": -5,
+                  "saturation": -16,
+                  "luminance": 8
+                },
+                "greens": {
+                  "hue": 0,
+                  "saturation": -20,
+                  "luminance": 10
+                },
+                "aquas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "blues": {
+                  "hue": 0,
+                  "saturation": -12,
+                  "luminance": 10
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 193,
+                  "saturation": 5,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 38,
+                  "saturation": 2,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 45,
+                  "saturation": 4,
+                  "luminance": 0
+                },
+                "balance": 12,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 7
+                  },
+                  {
+                    "x": 40,
+                    "y": 48
+                  },
+                  {
+                    "x": 110,
+                    "y": 123
+                  },
+                  {
+                    "x": 190,
+                    "y": 201
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 24,
+              "grainRoughness": 48,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 7
+                  },
+                  {
+                    "x": 40,
+                    "y": 48
+                  },
+                  {
+                    "x": 110,
+                    "y": 123
+                  },
+                  {
+                    "x": 190,
+                    "y": 201
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:warm-film",
+            "name": "Film — Warm Portrait",
+            "description": "Warm midtones, gentle skin-colour contrast and fine grain.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": -7,
+              "highlights": -29,
+              "shadows": 20,
+              "blacks": 5,
+              "whites": -6,
+              "saturation": -6,
+              "vibrance": 13,
+              "clarity": -5,
+              "dehaze": 0,
+              "vignetteAmount": -10,
+              "grainAmount": 12,
+              "hsl": {
+                "reds": {
+                  "hue": 3,
+                  "saturation": -5,
+                  "luminance": 4
+                },
+                "oranges": {
+                  "hue": -2,
+                  "saturation": -8,
+                  "luminance": 10
+                },
+                "yellows": {
+                  "hue": -10,
+                  "saturation": -18,
+                  "luminance": 4
+                },
+                "greens": {
+                  "hue": 12,
+                  "saturation": -20,
+                  "luminance": -2
+                },
+                "aquas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "blues": {
+                  "hue": -5,
+                  "saturation": -13,
+                  "luminance": 2
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 177,
+                  "saturation": 7,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 32,
+                  "saturation": 3,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 42,
+                  "saturation": 5,
+                  "luminance": 0
+                },
+                "balance": 8,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 9
+                  },
+                  {
+                    "x": 36,
+                    "y": 35
+                  },
+                  {
+                    "x": 100,
+                    "y": 105
+                  },
+                  {
+                    "x": 184,
+                    "y": 190
+                  },
+                  {
+                    "x": 232,
+                    "y": 230
+                  },
+                  {
+                    "x": 255,
+                    "y": 248
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 23,
+              "grainRoughness": 42,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 9
+                  },
+                  {
+                    "x": 36,
+                    "y": 35
+                  },
+                  {
+                    "x": 100,
+                    "y": 105
+                  },
+                  {
+                    "x": 184,
+                    "y": 190
+                  },
+                  {
+                    "x": 232,
+                    "y": 230
+                  },
+                  {
+                    "x": 255,
+                    "y": 248
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:cool-slide",
+            "name": "Film — Cool Slide",
+            "description": "Cool clear blues, defined colour and crisp tonal separation.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 20,
+              "highlights": -28,
+              "shadows": 10,
+              "blacks": -9,
+              "whites": 5,
+              "saturation": 4,
+              "vibrance": 10,
+              "clarity": 5,
+              "dehaze": 4,
+              "vignetteAmount": -11,
+              "grainAmount": 8,
+              "hsl": {
+                "reds": {
+                  "hue": 2,
+                  "saturation": 6,
+                  "luminance": 2
+                },
+                "oranges": {
+                  "hue": 1,
+                  "saturation": -5,
+                  "luminance": 5
+                },
+                "yellows": {
+                  "hue": 5,
+                  "saturation": -10,
+                  "luminance": -2
+                },
+                "greens": {
+                  "hue": 10,
+                  "saturation": 7,
+                  "luminance": -8
+                },
+                "aquas": {
+                  "hue": 4,
+                  "saturation": 8,
+                  "luminance": 0
+                },
+                "blues": {
+                  "hue": -6,
+                  "saturation": 10,
+                  "luminance": -6
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 226,
+                  "saturation": 10,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 210,
+                  "saturation": 2,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 205,
+                  "saturation": 4,
+                  "luminance": 0
+                },
+                "balance": 5,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 34,
+                    "y": 25
+                  },
+                  {
+                    "x": 98,
+                    "y": 91
+                  },
+                  {
+                    "x": 180,
+                    "y": 190
+                  },
+                  {
+                    "x": 230,
+                    "y": 238
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 21,
+              "grainRoughness": 38,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 34,
+                    "y": 25
+                  },
+                  {
+                    "x": 98,
+                    "y": 91
+                  },
+                  {
+                    "x": 180,
+                    "y": 190
+                  },
+                  {
+                    "x": 230,
+                    "y": 238
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:faded-matte",
+            "name": "Film — Faded Matte",
+            "description": "Raised blacks, muted colour and a soft analogue-style finish.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": -11,
+              "highlights": -22,
+              "shadows": 10,
+              "blacks": 6,
+              "whites": -12,
+              "saturation": -18,
+              "vibrance": 6,
+              "clarity": -5,
+              "dehaze": -2,
+              "vignetteAmount": -14,
+              "grainAmount": 15,
+              "hsl": {
+                "reds": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "oranges": {
+                  "hue": -2,
+                  "saturation": -7,
+                  "luminance": 5
+                },
+                "yellows": {
+                  "hue": -14,
+                  "saturation": -26,
+                  "luminance": 0
+                },
+                "greens": {
+                  "hue": -8,
+                  "saturation": -30,
+                  "luminance": 2
+                },
+                "aquas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "blues": {
+                  "hue": 6,
+                  "saturation": -22,
+                  "luminance": 1
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 192,
+                  "saturation": 10,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 30,
+                  "saturation": 3,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 47,
+                  "saturation": 6,
+                  "luminance": 0
+                },
+                "balance": 0,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 18
+                  },
+                  {
+                    "x": 32,
+                    "y": 38
+                  },
+                  {
+                    "x": 100,
+                    "y": 104
+                  },
+                  {
+                    "x": 184,
+                    "y": 185
+                  },
+                  {
+                    "x": 230,
+                    "y": 224
+                  },
+                  {
+                    "x": 255,
+                    "y": 242
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 27,
+              "grainRoughness": 58,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 18
+                  },
+                  {
+                    "x": 32,
+                    "y": 38
+                  },
+                  {
+                    "x": 100,
+                    "y": 104
+                  },
+                  {
+                    "x": 184,
+                    "y": 185
+                  },
+                  {
+                    "x": 230,
+                    "y": 224
+                  },
+                  {
+                    "x": 255,
+                    "y": 242
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:muted-earth",
+            "name": "Muted Earth",
+            "description": "Olive greens, warm earth tones and quiet skies.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 12,
+              "highlights": -25,
+              "shadows": 15,
+              "blacks": -7,
+              "whites": -8,
+              "saturation": -16,
+              "vibrance": 7,
+              "clarity": 4,
+              "dehaze": 2,
+              "vignetteAmount": -16,
+              "grainAmount": 9,
+              "hsl": {
+                "reds": {
+                  "hue": 2,
+                  "saturation": -8,
+                  "luminance": 2
+                },
+                "oranges": {
+                  "hue": -4,
+                  "saturation": 8,
+                  "luminance": 6
+                },
+                "yellows": {
+                  "hue": -18,
+                  "saturation": -24,
+                  "luminance": -3
+                },
+                "greens": {
+                  "hue": -28,
+                  "saturation": -35,
+                  "luminance": -6
+                },
+                "aquas": {
+                  "hue": -8,
+                  "saturation": -30,
+                  "luminance": -5
+                },
+                "blues": {
+                  "hue": -4,
+                  "saturation": -35,
+                  "luminance": -4
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 67,
+                  "saturation": 10,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 36,
+                  "saturation": 3,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 44,
+                  "saturation": 4,
+                  "luminance": 0
+                },
+                "balance": -5,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 5
+                  },
+                  {
+                    "x": 40,
+                    "y": 33
+                  },
+                  {
+                    "x": 105,
+                    "y": 102
+                  },
+                  {
+                    "x": 190,
+                    "y": 195
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 24,
+              "grainRoughness": 48,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 5
+                  },
+                  {
+                    "x": 40,
+                    "y": 33
+                  },
+                  {
+                    "x": 105,
+                    "y": 102
+                  },
+                  {
+                    "x": 190,
+                    "y": 195
+                  },
+                  {
+                    "x": 255,
+                    "y": 249
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:bw-silver",
+            "name": "B&W — Silver Contrast",
+            "description": "Crisp monochrome, bright midtones and rich black detail.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 28,
+              "highlights": -32,
+              "shadows": 17,
+              "blacks": -15,
+              "whites": 8,
+              "saturation": -100,
+              "vibrance": 0,
+              "clarity": 9,
+              "dehaze": 4,
+              "vignetteAmount": -20,
+              "grainAmount": 15,
+              "hsl": {
+                "reds": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 8
+                },
+                "oranges": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 14
+                },
+                "yellows": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 8
+                },
+                "greens": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": -9
+                },
+                "aquas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "blues": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": -14
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 1
+                },
+                "highlights": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 0,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 32,
+                    "y": 18
+                  },
+                  {
+                    "x": 96,
+                    "y": 92
+                  },
+                  {
+                    "x": 180,
+                    "y": 195
+                  },
+                  {
+                    "x": 230,
+                    "y": 240
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 25,
+              "grainRoughness": 52,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 32,
+                    "y": 18
+                  },
+                  {
+                    "x": 96,
+                    "y": 92
+                  },
+                  {
+                    "x": 180,
+                    "y": 195
+                  },
+                  {
+                    "x": 230,
+                    "y": 240
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:bw-soft",
+            "name": "B&W — Soft Graphite",
+            "description": "Gentle monochrome with lifted blacks and a fine soft grain.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": -10,
+              "highlights": -30,
+              "shadows": 25,
+              "blacks": 8,
+              "whites": -8,
+              "saturation": -100,
+              "vibrance": 0,
+              "clarity": -4,
+              "dehaze": 0,
+              "vignetteAmount": -12,
+              "grainAmount": 12,
+              "hsl": {
+                "reds": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 5
+                },
+                "oranges": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 12
+                },
+                "yellows": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 6
+                },
+                "greens": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 2
+                },
+                "aquas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "blues": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": -5
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 1
+                },
+                "highlights": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 0,
+                "blending": 55,
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                }
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 12
+                  },
+                  {
+                    "x": 36,
+                    "y": 39
+                  },
+                  {
+                    "x": 104,
+                    "y": 112
+                  },
+                  {
+                    "x": 190,
+                    "y": 195
+                  },
+                  {
+                    "x": 255,
+                    "y": 247
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "grainSize": 23,
+              "grainRoughness": 44,
+              "vignetteMidpoint": 48,
+              "vignetteFeather": 72,
+              "vignetteRoundness": 5,
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 12
+                  },
+                  {
+                    "x": 36,
+                    "y": 39
+                  },
+                  {
+                    "x": 104,
+                    "y": 112
+                  },
+                  {
+                    "x": 190,
+                    "y": 195
+                  },
+                  {
+                    "x": 255,
+                    "y": 247
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

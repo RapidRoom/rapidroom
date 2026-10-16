@@ -171,9 +171,12 @@ function PresetItemDisplay({
   return (
     <div className="group flex flex-col px-2.5 py-1.5 rounded-md bg-surface hover:bg-surface-hover transition-colors cursor-grabbing">
       <div className="flex items-center gap-2">
-        <Text color={TextColors.primary} className="grow min-w-0 truncate">
-          {preset.name}
-        </Text>
+        <div className="grow min-w-0" data-tooltip={preset.description}>
+          <Text color={TextColors.primary} className="truncate">
+            {preset.name}
+          </Text>
+          {preset.description && <p className="text-xs text-text-secondary truncate">{preset.description}</p>}
+        </div>
         {(isTool || supportsMasks || supportsGeometry) && (
           <div className="flex items-center gap-1.5 shrink-0 text-text-secondary" data-tooltip={tooltipContent}>
             {isTool && <Wrench size={12} aria-label={t('editor.presets.types.tool')} />}
