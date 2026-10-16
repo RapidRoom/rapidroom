@@ -427,6 +427,7 @@ impl RenderedRecipe {
             lut: self.lut.clone(),
             job_hash: hash.finish(),
             output_precision: crate::image_processing::RenderOutputPrecision::SixteenBit,
+            require_gpu_render: true,
         };
         let view = crate::export_processing::process_source_view(
             &base,
@@ -1618,6 +1619,93 @@ mod tests {
             .contains("independent edits")
         );
         assert_eq!(fs::read(target).unwrap(), independent);
+    }
+
+    #[test]
+    fn baked_gpu_limit_uses_effective_crop_and_keeps_failed_photos_unpublished() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = DynamicImage::new_rgb8(64, 48);
+        // Synthetic RAW placeholders exercise real transforms, sidecars and publication,
+        // without claiming to execute GPU rendering or model inference.
+        let cases = [
+            ("oversize", json!({"exposure":0.5}), None),
+            (
+                "boundary",
+                json!({"crop":{"x":4,"y":3,"width":32,"height":32}}),
+                Some((32, 32)),
+            ),
+            (
+                "height",
+                json!({"crop":{"x":4,"y":3,"width":32,"height":33}}),
+                None,
+            ),
+            (
+                "later",
+                json!({"crop":{"x":4,"y":3,"width":16,"height":16}}),
+                Some((16, 16)),
+            ),
+        ];
+        let mut successes = 0;
+        let mut failures = 0;
+        for (name, adjustments, expected) in cases {
+            let raw = dir.path().join(format!("{name}.ARW"));
+            fs::write(&raw, b"queue protocol source").unwrap();
+            let path = raw.to_string_lossy().into_owned();
+            set_denoise_mark(vec![path.clone()], true).unwrap();
+            let (_, sidecar) = parse_virtual_path(&path);
+            mutate(&sidecar, |v| {
+                v["adjustments"] = adjustments.clone();
+                Ok(())
+            })
+            .unwrap();
+            let result = run_item(&path, &ident(), &DenoiseJob::testing(), |identity| {
+                let recipe = RenderedRecipe::load(&path, identity)?.unwrap();
+                let (view, _) = crate::export_processing::prepare_source_view(
+                    &base,
+                    &recipe.snapshot.adjustments,
+                    Some(32),
+                )?;
+                Ok(DenoisedOutput::Image(view.into_owned()))
+            });
+            let metadata = strict_json(&sidecar).unwrap();
+            assert_eq!(metadata["adjustments"], adjustments);
+            if let Some(dimensions) = expected {
+                let (output, skipped) = result.unwrap();
+                assert!(!skipped);
+                assert_eq!(image::image_dimensions(&output).unwrap(), dimensions);
+                assert_eq!(
+                    queue(&metadata).unwrap()["completed"]
+                        .as_array()
+                        .unwrap()
+                        .len(),
+                    1
+                );
+                successes += 1;
+            } else {
+                let error = result.unwrap_err();
+                assert!(error.contains("exceeds GPU image limit 32"), "{error}");
+                assert!(
+                    queue(&metadata).unwrap()["completed"]
+                        .as_array()
+                        .unwrap()
+                        .is_empty()
+                );
+                assert!(queue(&metadata).unwrap()["marked"].as_bool().unwrap());
+                assert!(!fs::read_dir(dir.path()).unwrap().any(|p| {
+                    p.unwrap()
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with(&format!("{name}.ARW_Denoised_"))
+                }));
+                failures += 1;
+            }
+        }
+        assert_eq!((successes, failures), (2, 2));
+        // Ordinary export retains its previous oversized fallback behavior.
+        let (ordinary, _) =
+            crate::export_processing::prepare_source_view(&base, &json!({"exposure":0.5}), None)
+                .unwrap();
+        assert_eq!(ordinary.dimensions(), (64, 48));
     }
 
     #[test]

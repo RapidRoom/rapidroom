@@ -1053,6 +1053,7 @@ fn process_image_for_export_pipeline(
             .and_then(|path| get_or_load_lut(state, path).ok()),
         job_hash: calculate_full_job_hash(path, js_adjustments),
         output_precision,
+        require_gpu_render: false,
     };
     process_source_view(
         base_image,
@@ -1071,6 +1072,26 @@ pub(crate) struct SourceViewOptions {
     pub lut: Option<Arc<crate::lut_processing::Lut>>,
     pub job_hash: u64,
     pub output_precision: RenderOutputPrecision,
+    pub require_gpu_render: bool,
+}
+
+// Denoise publishes a neutral TIFF, so it cannot accept the GPU renderer's
+// oversized-image fallback: that fallback has not baked the source adjustments.
+pub(crate) fn prepare_source_view<'a>(
+    base_image: &'a DynamicImage,
+    js_adjustments: &Value,
+    required_gpu_limit: Option<u32>,
+) -> Result<(Cow<'a, DynamicImage>, (f32, f32)), String> {
+    let (image, offset) = apply_all_transformations(Cow::Borrowed(base_image), js_adjustments);
+    let (width, height) = image.dimensions();
+    if let Some(limit) = required_gpu_limit
+        && (width > limit || height > limit)
+    {
+        return Err(format!(
+            "Rendered RAW denoise view {width}x{height} exceeds GPU image limit {limit}; source edits cannot be baked. Crop smaller or use Fast/Best sensor denoise."
+        ));
+    }
+    Ok((image, offset))
 }
 
 /// The normal source renderer, before export-only framing, sizing and decoration.
@@ -1083,8 +1104,13 @@ pub(crate) fn process_source_view(
     debug_tag: &str,
     options: &SourceViewOptions,
 ) -> Result<DynamicImage, String> {
-    let (transformed_image, unscaled_crop_offset) =
-        apply_all_transformations(Cow::Borrowed(base_image), js_adjustments);
+    let (transformed_image, unscaled_crop_offset) = prepare_source_view(
+        base_image,
+        js_adjustments,
+        options
+            .require_gpu_render
+            .then_some(context.limits.max_texture_dimension_2d),
+    )?;
     let (img_w, img_h) = transformed_image.dimensions();
 
     let mask_definitions: Vec<MaskDefinition> =
