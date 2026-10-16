@@ -1,3 +1,4 @@
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { getDpr, transformFromPercent } from '../utils/zoom';
 import { useCallback, type SyntheticEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -331,14 +332,22 @@ export function useEditorActions() {
       pathsToReset.forEach((p) => globalImageCache.delete(p));
       debouncedSetHistory.cancel();
 
+      const before = useEditorStore.getState().adjustments;
       invoke(Invokes.ResetAdjustmentsForPaths, { paths: pathsToReset })
-        .then(() => {
-          if (libraryActivePath && pathsToReset.includes(libraryActivePath))
-            setLibrary({ libraryActiveAdjustments: { ...INITIAL_ADJUSTMENTS } });
+        .then(async () => {
+          if (libraryActivePath && pathsToReset.includes(libraryActivePath)) {
+            const reset = await createResetAdjustmentsWithLensDefaults({
+              path: libraryActivePath,
+              width: 0,
+              height: 0,
+            });
+            if (useLibraryStore.getState().libraryActivePath === libraryActivePath)
+              setLibrary({ libraryActiveAdjustments: reset });
+          }
           if (selectedImage && pathsToReset.includes(selectedImage.path)) {
-            const aspect =
-              selectedImage.width && selectedImage.height ? selectedImage.width / selectedImage.height : null;
-            const resetData = { ...INITIAL_ADJUSTMENTS, aspectRatio: aspect, aiPatches: [] };
+            const resetData = await createResetAdjustmentsWithLensDefaults(selectedImage);
+            const current = useEditorStore.getState();
+            if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before) return;
             resetHistory(resetData);
             setEditor({ adjustments: resetData });
           }

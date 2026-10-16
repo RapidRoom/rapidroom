@@ -1909,6 +1909,9 @@
       },
       "nativeDpi": "Renderen op native DPI",
       "preprocessing": {
+        "autoLensCorrection": "Automatische lenscorrectie voor nieuwe RAW’s",
+        "autoLensCorrectionDesc": "Past beschikbare lenscorrecties toe bij het eerste openen of herstellen van een RAW-foto. Opgeslagen bewerkingen behouden hun instellingen.",
+        "enableAutoLensCorrection": "Automatische lenscorrectie standaard gebruiken",
         "appleRaw9": "Apple RAW 9-engine",
         "appleRaw9Desc": "RAW-bestanden ontwikkelen met Apple's Core Image RAW 9-decoder, die demosaïcering en ruisonderdrukking in één stap uitvoert op de Neural Engine. Vereist macOS 27 of hoger en een ondersteunde camera; niet-ondersteunde bestanden gebruiken automatisch de ingebouwde decoder. Langzamer dan de standaarddecoder. Miniaturen worden niet beïnvloed.",
         "applyPreprocessing": "Voorverwerking toepassen op niet-RAW-bestanden",

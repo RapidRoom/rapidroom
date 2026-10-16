@@ -2291,6 +2291,20 @@ export default function SettingsPanel({
                       {t('settings.processing.preprocessing.title')}
                     </Text>
                     <div className="space-y-8">
+                      <SettingItem
+                        label={t('settings.processing.preprocessing.autoLensCorrection')}
+                        description={t('settings.processing.preprocessing.autoLensCorrectionDesc')}
+                      >
+                        <Switch
+                          checked={appSettings?.autoLensCorrectionOnNewRaws ?? true}
+                          id="auto-lens-correction-new-raws"
+                          label={t('settings.processing.preprocessing.enableAutoLensCorrection')}
+                          onChange={(checked) =>
+                            onSettingsChange({ ...appSettings, autoLensCorrectionOnNewRaws: checked })
+                          }
+                        />
+                      </SettingItem>
+
                       {/* turn off highlights clipping setting for now - needs clean cleanup across other files.
                       <SettingItem
                         label={t('settings.processing.preprocessing.highlightRecovery')}

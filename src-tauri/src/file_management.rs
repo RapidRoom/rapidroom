@@ -3739,12 +3739,25 @@ pub async fn reset_adjustments_for_paths(
         let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
         let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
 
+        let lens_db = app_handle
+            .state::<AppState>()
+            .lens_db
+            .lock()
+            .unwrap()
+            .clone();
         paths.par_iter().for_each(|path| {
-            let (_, sidecar_path) = parse_virtual_path(path);
+            let (source_path, sidecar_path) = parse_virtual_path(path);
 
             let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
             existing_metadata.adjustments = default_adjustments();
+            apply_default_raw_lens_policy(
+                &mut existing_metadata,
+                &source_path,
+                &sidecar_path,
+                &settings,
+                lens_db.as_deref(),
+            );
 
             if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
                 let _ = write_file_atomically(&sidecar_path, json_string);
@@ -4128,9 +4141,64 @@ pub fn set_flag_for_paths(
     })
 }
 
+fn apply_default_raw_lens_policy(
+    metadata: &mut ImageMetadata,
+    source_path: &Path,
+    sidecar_path: &Path,
+    settings: &AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) {
+    if !crate::formats::is_raw_file(source_path)
+        || !settings.auto_lens_correction_on_new_raws.unwrap_or(true)
+    {
+        return;
+    }
+    if metadata.exif.is_none() {
+        metadata.exif =
+            crate::exif_processing::load_sidecar_with_exif(sidecar_path, source_path).exif;
+    }
+    if !metadata.adjustments.is_object() {
+        metadata.adjustments = serde_json::json!({});
+    }
+    metadata.adjustments["lensCorrectionMode"] = serde_json::json!("auto");
+    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+}
+
+#[tauri::command]
+pub async fn get_default_raw_lens_adjustments(
+    path: String,
+    app_handle: AppHandle,
+) -> Result<Value, String> {
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    let lens_db = app_handle
+        .state::<AppState>()
+        .lens_db
+        .lock()
+        .unwrap()
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let (source_path, sidecar_path) = parse_virtual_path(&path);
+        let mut metadata = ImageMetadata::default();
+        apply_default_raw_lens_policy(
+            &mut metadata,
+            &source_path,
+            &sidecar_path,
+            &settings,
+            lens_db.as_deref(),
+        );
+        if metadata.adjustments.is_null() {
+            serde_json::json!({})
+        } else {
+            metadata.adjustments
+        }
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadata, String> {
-    let settings = load_settings(app_handle).unwrap_or_default();
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
     let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
 
     let (source_path, sidecar_path) = parse_virtual_path(&path);
@@ -4147,6 +4215,19 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
         crate::raw_processing::apply_camera_crop_default_from_path(
             &mut metadata.adjustments,
             &source_path,
+        );
+        let lens_db = app_handle
+            .state::<AppState>()
+            .lens_db
+            .lock()
+            .unwrap()
+            .clone();
+        apply_default_raw_lens_policy(
+            &mut metadata,
+            &source_path,
+            &sidecar_path,
+            &settings,
+            lens_db.as_deref(),
         );
     }
 

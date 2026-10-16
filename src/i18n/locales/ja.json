@@ -2039,6 +2039,9 @@
       },
       "nativeDpi": "本来の解像度でレンダリング",
       "preprocessing": {
+        "autoLensCorrection": "新しいRAWの自動レンズ補正",
+        "autoLensCorrectionDesc": "RAW写真を初めて開くときやリセットするときに、利用可能なレンズ補正を適用します。保存済みの編集設定は変更されません。",
+        "enableAutoLensCorrection": "レンズ補正の初期設定を自動にする",
         "appleRaw9": "Apple RAW 9 エンジン",
         "appleRaw9Desc": "AppleのCore Image RAW 9デコーダを使用してRAWファイルを現像します。これはNeural Engine上でデモザイク処理とノイズ低減を1ステップで行います。macOS 27以降および対応カメラが必要です。未対応のファイルは自動的に内蔵デコーダを使用します。デフォルトのデコーダより低速です。サムネイルには影響しません。",
         "applyPreprocessing": "RAW以外の画像にも事前処理を適用",

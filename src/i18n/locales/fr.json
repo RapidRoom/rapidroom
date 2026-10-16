@@ -2083,6 +2083,9 @@
       },
       "nativeDpi": "Rendre à la DPI native",
       "preprocessing": {
+        "autoLensCorrection": "Correction automatique de l’objectif pour les nouveaux RAW",
+        "autoLensCorrectionDesc": "Applique les corrections disponibles à la première ouverture ou à la réinitialisation d’une photo RAW. Les retouches enregistrées conservent leurs réglages.",
+        "enableAutoLensCorrection": "Utiliser la correction automatique de l’objectif par défaut",
         "appleRaw9": "Moteur Apple RAW 9",
         "appleRaw9Desc": "Développe les fichiers RAW avec le décodeur RAW 9 de Core Image d'Apple, qui effectue le dématriçage et la réduction de bruit en une seule étape sur le Neural Engine. Nécessite macOS 27 ou ultérieur et un appareil photo pris en charge ; les fichiers non pris en charge utilisent automatiquement le décodeur intégré. Plus lent que le décodeur par défaut. Les miniatures ne sont pas affectées.",
         "applyPreprocessing": "Appliquer le prétraitement aux Non-RAW",

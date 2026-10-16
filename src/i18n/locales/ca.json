@@ -2050,6 +2050,9 @@
       },
       "nativeDpi": "Renderitzar a la DPI nativa",
       "preprocessing": {
+        "autoLensCorrection": "Correcció automàtica de l’objectiu per a RAW nous",
+        "autoLensCorrectionDesc": "Aplica les correccions disponibles en obrir per primer cop o restablir una foto RAW. Les edicions desades conserven la configuració.",
+        "enableAutoLensCorrection": "Utilitza la correcció automàtica de l’objectiu per defecte",
         "appleRaw9": "Motor Apple RAW 9",
         "appleRaw9Desc": "Revela els fitxers RAW amb el descodificador RAW 9 de Core Image d'Apple, que realitza el procés de demosaic i reducció de soroll en un sol pas al Neural Engine. Requereix macOS 27 o posterior i una càmera compatible; els fitxers no compatibles utilitzen automàticament el descodificador integrat. Més lent que el descodificador per defecte. Les miniatures no es veuen afectades.",
         "applyPreprocessing": "Aplicar preprocessament als No-RAW",

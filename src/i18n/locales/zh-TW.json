@@ -2039,6 +2039,9 @@
       },
       "nativeDpi": "以原生 DPI 渲染",
       "preprocessing": {
+        "autoLensCorrection": "新 RAW 的自動鏡頭校正",
+        "autoLensCorrectionDesc": "首次開啟或重設 RAW 照片時套用可用的鏡頭校正。已儲存的編輯設定保持不變。",
+        "enableAutoLensCorrection": "預設使用自動鏡頭校正",
         "appleRaw9": "Apple RAW 9 引擎",
         "appleRaw9Desc": "使用 Apple 的 Core Image RAW 9 解碼器沖洗 RAW 檔案。它在神經網路引擎 (Neural Engine) 上一步完成去馬賽克與降噪。需要 macOS 27 或更高版本以及支援的相機；不支援的檔案將自動使用內建解碼器。比預設解碼器慢。縮圖不受影響。",
         "applyPreprocessing": "對非 RAW 影像應用預處理",

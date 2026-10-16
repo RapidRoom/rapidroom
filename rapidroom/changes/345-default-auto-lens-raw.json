@@ -1,0 +1,13 @@
+{
+  "id": "default-auto-lens-raw",
+  "title": "Use Auto lens correction for fresh and reset RAWs",
+  "category": "feature",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "A default-on Settings preference resolves available local lens profiles for fresh and reset RAWs. Existing saved recipes and shared preset/copy defaults remain unchanged. Missing profiles remain uncorrected; Sony camera-data application is delivered separately."
+}
