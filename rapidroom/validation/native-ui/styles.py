@@ -185,7 +185,8 @@ def run_styles_checks(smoke, wait_for, baseline):
     stock_root = Path(__file__).resolve().parents[3] / 'src-tauri/resources/starter-presets'
     originals = []
     for relative in ['Color/Cool.xmp', 'Color/Warm.xmp', 'Color/Matte.xmp',
-                     'Color/Muted.xmp', 'Color/Punch.xmp', 'Curve/Linear.xmp']:
+                     'Color/Muted.xmp', 'Color/Punch.xmp', 'Curve/Linear.xmp',
+                     'Vignetting/Light.xmp']:
         ipc('save_presets', {'presets': []})
         imported = ipc('handle_import_legacy_presets_from_file', {'filePath': str(stock_root / relative)})
         converted = [p for item in imported for p in
@@ -194,7 +195,7 @@ def run_styles_checks(smoke, wait_for, baseline):
         preset = converted[0]
         preset['id'] = 'rapidroom-starter:' + relative
         originals.append(preset)
-    untouched, favourite, edited, renamed, moved, linear = deepcopy(originals)
+    untouched, favourite, edited, renamed, moved, linear, renamed_group = deepcopy(originals)
     favourite['favorite'] = True
     edited['adjustments']['contrast'] = 13
     renamed['name'] = 'My muted colour'
@@ -206,6 +207,8 @@ def run_styles_checks(smoke, wait_for, baseline):
                     'children': [untouched, favourite, edited, renamed]}},
         {'folder': {'id': 'my-moved', 'name': 'My group', 'children': [moved, imported_copy]}},
         {'folder': {'id': 'rapidroom-starter:Curve', 'name': 'Curve', 'children': [linear]}},
+        {'folder': {'id': 'rapidroom-starter:Vignetting', 'name': 'My renamed stock group',
+                    'children': [renamed_group]}},
     ]
     expected = deepcopy(old_library)
     expected[1]['folder']['children'].pop(0)
