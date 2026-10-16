@@ -1,4 +1,8 @@
 {
+  "fileTransfers": {
+    "copy": "{{completed}} copied ({{renamed}} renamed), {{skipped}} identical skipped, {{failed}} failed",
+    "import": "{{completed}} imported ({{renamed}} renamed), {{skipped}} identical skipped, {{failed}} failed"
+  },
   "adjustments": {
     "basic": {
       "blacks": "Blacks",
@@ -1608,7 +1612,7 @@
       "deleteWarning": "Files will be moved to the system trash.",
       "fileNaming": "File Naming",
       "folderOrganization": "Folder Organization",
-      "notUniqueWarning": "Without {original_filename}, {original_filename_number} or {sequence}, files may get the same name. Those files are not imported.",
+      "notUniqueWarning": "Without {original_filename}, {original_filename_number} or {sequence}, files may get the same name. Conflicting names receive a unique numeric suffix.",
       "organizeByDate": "Organize into subfolders by date",
       "sourceFiles": "Source Files",
       "startImport": "Start Import",

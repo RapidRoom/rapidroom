@@ -1,3 +1,4 @@
+import { copyFilesWithSummary } from '../utils/fileTransfers';
 import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -1457,7 +1458,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               label: copyPastedLabel,
               onClick: async () => {
                 try {
-                  await invoke(Invokes.CopyFiles, { sourcePaths: copiedFilePaths, destinationFolder: targetPath });
+                  await copyFilesWithSummary(copiedFilePaths, targetPath);
                   if (targetPath === currentFolderPath) props.handleLibraryRefresh();
                 } catch (err) {
                   toast.error(t('contextMenus.toasts.failedCopy', { err }));
@@ -1859,10 +1860,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
                 label: copyPastedLabel,
                 onClick: async () => {
                   try {
-                    await invoke(Invokes.CopyFiles, {
-                      sourcePaths: copiedFilePaths,
-                      destinationFolder: currentFolderPath,
-                    });
+                    await copyFilesWithSummary(copiedFilePaths, currentFolderPath);
                     props.handleLibraryRefresh();
                   } catch (err) {
                     toast.error(t('contextMenus.toasts.failedCopy', { err }));

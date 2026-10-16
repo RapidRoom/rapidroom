@@ -364,6 +364,9 @@ class Smoke:
                                       "e.complete && e.naturalWidth>100);"), "real library thumbnail")
         self.capture("library")
         self.step("library thumbnail", self.snapshot("library")["images"])
+        if (self.case / "file-transfers-test.json").exists():
+            from file_transfers import run_transfer_checks
+            run_transfer_checks(self, wait_for)
         if (self.case / "dock-layout-test.json").exists():
             from dock_layout import run_layout_checks
             run_layout_checks(self.case, self)
@@ -585,6 +588,9 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.file_transfers:
+        from file_transfers import prepare_transfers
+        prepare_transfers(case)
     if args.zoom:
         zoom_raw = args.raw_dir.resolve() / "sony-a7c2-33mp-compressed.ARW"
         zoom_expected = next(f["sha256"] for f in corpus["files"] if f["file"] == zoom_raw.name)
@@ -686,6 +692,9 @@ def launch(args):
         with args.lock.open("a") as lock:
             print("Waiting for native UI lock", flush=True)
             fcntl.flock(lock, fcntl.LOCK_EX)
+            subprocess.run(["df", "-h", "/home"], check=True)
+            if shutil.disk_usage(case).free < 25 * 1024**3:
+                raise RuntimeError("Native UI disk guard: less than 25 GiB free")
             (case / "engine").mkdir()
             engine = args.engine.resolve()
             source_hash = sha(engine)
@@ -734,6 +743,7 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--file-transfers", action="store_true", help="Check native collision-safe copies/imports, paired sidecars and visible summaries")
     parser.add_argument("--dock-layout", action="store_true", help="Check stepped dock resize overlap and compact terminal controls (implies --terminal)")
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
