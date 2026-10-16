@@ -1858,7 +1858,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             submenu: [
               {
                 label: copyPastedLabel,
+                disabled: !currentFolderPath,
                 onClick: async () => {
+                  if (!currentFolderPath) return;
                   try {
                     await copyFilesWithSummary(copiedFilePaths, currentFolderPath);
                     props.handleLibraryRefresh();
