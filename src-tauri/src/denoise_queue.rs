@@ -404,6 +404,14 @@ impl RenderedRecipe {
         use sha2::Digest;
         use std::hash::{Hash, Hasher};
         job.check()?;
+        let invalid = match image {
+            image::DynamicImage::ImageRgb32F(rgb) => rgb.as_raw().iter().any(|v| !v.is_finite()),
+            image::DynamicImage::ImageRgba32F(rgba) => rgba.as_raw().iter().any(|v| !v.is_finite()),
+            _ => false,
+        };
+        if invalid {
+            return Err("Rendered RAW denoise requires finite source RGB samples".into());
+        }
         let state = app.state::<AppState>();
         let context = crate::image_processing::get_or_init_gpu_context(&state, app)?;
         let base =
