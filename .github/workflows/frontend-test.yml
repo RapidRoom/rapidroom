@@ -24,3 +24,6 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Public MCP reproduction guards
+        run: node --test rapidroom/validation/mcp-gap-repro/contract.test.mjs

@@ -220,3 +220,13 @@ The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/hi
   [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba)
   (MIT), adapted by Yojen with Codex/kano. The complete notice remains in
   `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.
+
+## Public MCP reproduction package
+
+The reproduction package is original RapidRoom work by yojen7 with Codex. It
+imports the native evidence harness and PNG helpers from the separately checked
+out [sheldonxxxx/RapidRAW@4494beb9](https://github.com/sheldonxxxx/RapidRAW/commit/4494beb9bae0ee57f420a8292c4f4f6e1dba4bd2),
+retaining their AGPL-3.0 licence and original authorship. No fork implementation
+is vendored into RapidRoom's application. The genuine fixture is CC0 from
+raw.pixls.us; generated pixels and real captures are labelled separately in
+the [fixture manifest](rapidroom/validation/mcp-gap-repro/fixtures.json).
