@@ -34,7 +34,22 @@ function canonical(value: unknown): unknown {
 export function hashPresetAdjustments(adjustments: Adjustments): Promise<string> {
   let pending = hashes.get(adjustments);
   if (!pending) {
-    const bytes = new TextEncoder().encode(JSON.stringify(canonical(normalizeLoadedAdjustments(adjustments))));
+    const controls = { ...normalizeLoadedAdjustments(adjustments) } as Adjustments;
+    // Autosave derives EXIF profile names in Auto mode and regenerates selected
+    // profile coefficients. Hash user controls, not those per-photo cache values.
+    if (controls.lensCorrectionMode === 'auto') {
+      controls.lensMaker = null;
+      controls.lensModel = null;
+      controls.lensDistortionParams = null;
+    } else if (
+      typeof controls.lensMaker === 'string' &&
+      controls.lensMaker.trim() &&
+      typeof controls.lensModel === 'string' &&
+      controls.lensModel.trim()
+    ) {
+      controls.lensDistortionParams = null;
+    }
+    const bytes = new TextEncoder().encode(JSON.stringify(canonical(controls)));
     pending = crypto.subtle
       .digest('SHA-256', bytes)
       .then(

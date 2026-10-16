@@ -224,3 +224,58 @@ it('hashes normalized values independently of key order and detects a real edit'
   expect(await hashPresetAdjustments(a)).toBe(await hashPresetAdjustments(b));
   expect(await hashPresetAdjustments(a)).not.toBe(await hashPresetAdjustments({ ...b, exposure: 3 }));
 });
+
+it('retains a marker across automatic lens resolution while detecting actual lens controls and inline edits', async () => {
+  const coefficients = {
+    k1: 0.01,
+    k2: -0.02,
+    k3: 0.03,
+    model: 1,
+    radius_scale: 1,
+    tca_vr: 1.0001,
+    tca_vb: 0.9999,
+    vig_k1: -0.1,
+    vig_k2: 0,
+    vig_k3: 0,
+  };
+  const auto = {
+    ...INITIAL_ADJUSTMENTS,
+    exposure: 2,
+    lensCorrectionMode: 'auto' as const,
+    lensMaker: null,
+    lensModel: null,
+    lensDistortionParams: null,
+  };
+  const savedAuto = {
+    ...auto,
+    lensMaker: 'Fixture maker',
+    lensModel: 'Detected profile',
+    lensDistortionParams: coefficients,
+  };
+  expect(await hashPresetAdjustments(auto)).toBe(await hashPresetAdjustments(savedAuto));
+  const manual = {
+    ...auto,
+    lensCorrectionMode: 'manual' as const,
+    lensMaker: 'Fixture maker',
+    lensModel: 'Selected profile',
+  };
+  const savedManual = { ...manual, lensDistortionParams: coefficients };
+  expect(await hashPresetAdjustments(manual)).toBe(await hashPresetAdjustments(savedManual));
+  for (const change of [
+    { lensModel: 'Another profile' },
+    { lensMaker: 'Another maker' },
+    { lensCorrectionMode: 'auto' },
+    { lensDistortionAmount: 50 },
+    { lensTcaEnabled: false },
+    { lensVignetteAmount: 0 },
+    { exposure: 3 },
+  ]) {
+    expect(await hashPresetAdjustments(savedManual)).not.toBe(
+      await hashPresetAdjustments({ ...savedManual, ...change } as typeof savedManual),
+    );
+  }
+  const inline = { ...INITIAL_ADJUSTMENTS, lensDistortionParams: coefficients };
+  expect(await hashPresetAdjustments(inline)).not.toBe(
+    await hashPresetAdjustments({ ...inline, lensDistortionParams: { ...coefficients, k1: 0.5 } }),
+  );
+});
