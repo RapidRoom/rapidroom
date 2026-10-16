@@ -8265,11 +8265,13 @@ mod lens_policy_version_tests {
             let bytes = crate::exif_processing::rating_samples::sony_arw(true, Some("4"), None);
             std::fs::write(&raw, &bytes).unwrap();
             if saved {
-                std::fs::write(
-                    &sidecar,
-                    r#"{"version":1,"adjustments":{"lensCorrectionMode":"manual","contrast":20}}"#,
-                )
-                .unwrap();
+                let saved_recipe = crate::exif_processing::ImageMetadata {
+                    adjustments: serde_json::json!({"lensCorrectionMode":"manual","contrast":20}),
+                    ..Default::default()
+                };
+                std::fs::write(&sidecar, serde_json::to_vec(&saved_recipe).unwrap()).unwrap();
+                let restored = crate::exif_processing::load_sidecar(&sidecar);
+                assert_eq!(restored.adjustments, saved_recipe.adjustments);
             }
             let lens = if explicit_lens {
                 r#"crs:LensProfileEnable="1""#
