@@ -1813,71 +1813,72 @@
             }
           },
           {
-            "id": "rapidroom-style:cool-slide",
-            "name": "Cobalt Chrome",
-            "description": "Crisp cobalt skies, vivid reds and clear whites. Best with travel scenes, architecture and blue hour.",
+            "id": "rapidroom-style:vivid-atlas",
+            "name": "Vivid Atlas",
+            "description": "Deep blue skies, textured clouds and bright warm colour. Best with daylight travel, rooftops and people.",
             "presetType": "style",
             "includeMasks": false,
             "includeCropTransform": false,
             "adjustments": {
               "contrast": 22,
-              "highlights": -34,
-              "shadows": 26,
-              "blacks": -5,
-              "whites": -3,
-              "saturation": 3,
-              "vibrance": 18,
-              "clarity": 11,
-              "dehaze": 5,
+              "highlights": -27,
+              "shadows": 30,
+              "blacks": -4,
+              "whites": 2,
+              "saturation": 0,
+              "vibrance": 23,
+              "clarity": 14,
+              "dehaze": 13,
               "vignetteAmount": -9,
               "vignetteMidpoint": 46,
               "vignetteRoundness": 0,
               "vignetteFeather": 82,
-              "grainAmount": 5,
+              "grainAmount": 0,
               "grainSize": 22,
               "grainRoughness": 43,
               "hsl": {
                 "reds": {
-                  "hue": 1,
-                  "saturation": 24,
-                  "luminance": 7
+                  "hue": 0,
+                  "saturation": 17,
+                  "luminance": -4
                 },
                 "oranges": {
-                  "hue": 2,
-                  "saturation": 5,
-                  "luminance": 12
+                  "hue": 0,
+                  "saturation": 3,
+                  "luminance": 7
                 },
                 "yellows": {
-                  "hue": -13,
-                  "saturation": -14,
-                  "luminance": 2
-                },
-                "greens": {
-                  "hue": 12,
-                  "saturation": -18,
+                  "hue": -3,
+                  "saturation": 23,
                   "luminance": -9
                 },
+                "greens": {
+                  "hue": 2,
+                  "saturation": 27,
+                  "luminance": -12
+                },
                 "aquas": {
-                  "hue": 18,
-                  "saturation": 13,
-                  "luminance": 8
+                  "hue": 5,
+                  "saturation": 17,
+                  "luminance": -8
                 },
                 "blues": {
-                  "hue": 11,
-                  "saturation": 23,
-                  "luminance": -4
+                  "hue": -4,
+                  "saturation": 34,
+                  "luminance": -24
                 },
                 "purples": {
                   "hue": 0,
-                  "saturation": 0,
+                  "saturation": 18,
                   "luminance": 0
                 },
                 "magentas": {
                   "hue": 0,
-                  "saturation": 0,
+                  "saturation": 18,
                   "luminance": 0
                 }
               },
+              "structure": 10,
               "colorGrading": {
                 "shadows": {
                   "hue": 0,
@@ -1890,8 +1891,8 @@
                   "luminance": 0
                 },
                 "highlights": {
-                  "hue": 212,
-                  "saturation": 4,
+                  "hue": 0,
+                  "saturation": 0,
                   "luminance": 0
                 },
                 "global": {
@@ -1906,45 +1907,37 @@
                 "luma": [
                   {
                     "x": 0,
-                    "y": 0
+                    "y": 2
                   },
                   {
-                    "x": 28,
-                    "y": 22
+                    "x": 32,
+                    "y": 27
                   },
                   {
-                    "x": 68,
-                    "y": 70
+                    "x": 96,
+                    "y": 95
                   },
                   {
-                    "x": 132,
-                    "y": 150
+                    "x": 128,
+                    "y": 128
                   },
                   {
-                    "x": 208,
-                    "y": 229
+                    "x": 192,
+                    "y": 207
+                  },
+                  {
+                    "x": 232,
+                    "y": 242
                   },
                   {
                     "x": 255,
-                    "y": 254
+                    "y": 253
                   }
                 ],
                 "red": [
                   {
                     "x": 0,
                     "y": 0
-                  },
-                  {
-                    "x": 48,
-                    "y": 42
-                  },
-                  {
-                    "x": 128,
-                    "y": 125
-                  },
-                  {
-                    "x": 211,
-                    "y": 218
                   },
                   {
                     "x": 255,
@@ -1957,18 +1950,6 @@
                     "y": 0
                   },
                   {
-                    "x": 48,
-                    "y": 47
-                  },
-                  {
-                    "x": 128,
-                    "y": 129
-                  },
-                  {
-                    "x": 211,
-                    "y": 217
-                  },
-                  {
                     "x": 255,
                     "y": 255
                   }
@@ -1976,19 +1957,7 @@
                 "blue": [
                   {
                     "x": 0,
-                    "y": 1
-                  },
-                  {
-                    "x": 48,
-                    "y": 55
-                  },
-                  {
-                    "x": 128,
-                    "y": 139
-                  },
-                  {
-                    "x": 211,
-                    "y": 223
+                    "y": 0
                   },
                   {
                     "x": 255,
@@ -2000,45 +1969,37 @@
                 "luma": [
                   {
                     "x": 0,
-                    "y": 0
+                    "y": 2
                   },
                   {
-                    "x": 28,
-                    "y": 22
+                    "x": 32,
+                    "y": 27
                   },
                   {
-                    "x": 68,
-                    "y": 70
+                    "x": 96,
+                    "y": 95
                   },
                   {
-                    "x": 132,
-                    "y": 150
+                    "x": 128,
+                    "y": 128
                   },
                   {
-                    "x": 208,
-                    "y": 229
+                    "x": 192,
+                    "y": 207
+                  },
+                  {
+                    "x": 232,
+                    "y": 242
                   },
                   {
                     "x": 255,
-                    "y": 254
+                    "y": 253
                   }
                 ],
                 "red": [
                   {
                     "x": 0,
                     "y": 0
-                  },
-                  {
-                    "x": 48,
-                    "y": 42
-                  },
-                  {
-                    "x": 128,
-                    "y": 125
-                  },
-                  {
-                    "x": 211,
-                    "y": 218
                   },
                   {
                     "x": 255,
@@ -2051,18 +2012,6 @@
                     "y": 0
                   },
                   {
-                    "x": 48,
-                    "y": 47
-                  },
-                  {
-                    "x": 128,
-                    "y": 129
-                  },
-                  {
-                    "x": 211,
-                    "y": 217
-                  },
-                  {
                     "x": 255,
                     "y": 255
                   }
@@ -2070,19 +2019,7 @@
                 "blue": [
                   {
                     "x": 0,
-                    "y": 1
-                  },
-                  {
-                    "x": 48,
-                    "y": 55
-                  },
-                  {
-                    "x": 128,
-                    "y": 139
-                  },
-                  {
-                    "x": 211,
-                    "y": 223
+                    "y": 0
                   },
                   {
                     "x": 255,
