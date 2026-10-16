@@ -55,6 +55,7 @@ export const useKeyboardShortcuts = ({
     toggleShowOriginal,
     handleAutoAdjustments,
     setAdjustments,
+    handleCropOrientationToggle,
   } = useEditorActions();
   const { handleRate, handleSetFlag, handleToggleFlag, handleSetColorLabel } = useLibraryActions();
 
@@ -140,6 +141,13 @@ export const useKeyboardShortcuts = ({
         s.library.setLibrary({ libraryActivePath: nextImage.path, multiSelectedPaths: [nextImage.path] });
         handleImageSelect(nextImage.path, false);
       }
+    };
+
+    const getPreviewIndex = (s: StoreState) => {
+      const requestedIndex = sortedListRef.current.findIndex((img) => img.path === s.library.libraryActivePath);
+      return requestedIndex >= 0
+        ? requestedIndex
+        : sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage?.path);
     };
 
     const actions: Record<string, ShortcutAction> = {
@@ -241,7 +249,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage!.path);
+          const currentIndex = getPreviewIndex(s);
           if (currentIndex === -1) return;
           const nextIndex = currentIndex - 1 < 0 ? sortedListRef.current.length - 1 : currentIndex - 1;
           handleImageSelect(sortedListRef.current[nextIndex].path, true);
@@ -251,7 +259,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage!.path);
+          const currentIndex = getPreviewIndex(s);
           if (currentIndex === -1) return;
           const nextIndex = currentIndex + 1 >= sortedListRef.current.length ? 0 : currentIndex + 1;
           handleImageSelect(sortedListRef.current[nextIndex].path, true);
@@ -711,6 +719,35 @@ export const useKeyboardShortcuts = ({
 
     const builtinShortcuts: BuiltinShortcut[] = [
       {
+        match: (e: KeyboardEvent, s: StoreState) =>
+          s.ui.activeView === 'editor' &&
+          s.ui.activePanel === Panel.Crop &&
+          !!s.editor.selectedImage?.isReady &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey &&
+          ['Enter', 'NumpadEnter', 'KeyX'].includes(e.code),
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          if (e.repeat) return;
+          // The slider drag owns its preview crop until it commits on release.
+          if (s.editor.isRotationActive || s.editor.liveRotation !== null) return;
+          if (e.code === 'KeyX') {
+            handleCropOrientationToggle();
+            return;
+          }
+          debouncedSetHistory.flush();
+          s.editor.setEditor({
+            isStraightenActive: false,
+            isGuidedPerspectiveActive: false,
+            liveRotation: null,
+            isRotationActive: false,
+          });
+          s.ui.setPanel(Panel.Adjustments);
+          handleZoomChange(0, true);
+        },
+      },
+      {
         match: (e: KeyboardEvent) => e.code === 'Escape',
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
@@ -784,6 +821,7 @@ export const useKeyboardShortcuts = ({
     ];
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
       const state = getStoreState();
 
       const isModalOpen =
@@ -810,7 +848,9 @@ export const useKeyboardShortcuts = ({
       }
 
       const isInputFocused =
-        document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable);
       if (isInputFocused) return;
 
       for (const builtin of builtinShortcuts) {
@@ -846,6 +886,7 @@ export const useKeyboardShortcuts = ({
     handleImageSelect,
     handlePasteFiles,
     handleZoomChange,
+    handleCropOrientationToggle,
     handleRotate,
     handleCopyAdjustments,
     handleCopyImagePaths,

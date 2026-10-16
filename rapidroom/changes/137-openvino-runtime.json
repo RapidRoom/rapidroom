@@ -1,0 +1,17 @@
+{
+  "id": "optional-openvino-cpu-runtime",
+  "title": "Use a verified OpenVINO CPU runtime by default in Linux trip builds",
+  "category": "performance",
+  "landed": "2026-10-12",
+  "authors": [
+    "yojen7"
+  ],
+  "source": "rapidroom (original runtime validation/session integration; pinned Microsoft/Intel runtime binaries supplied locally)",
+  "commits": [
+    "https://github.com/openvinotoolkit/openvino/commit/82bbf0292c5bd490bc25a383e63d6461d3ee05c5"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Linux x86_64 builds enable native-openvino by default and select a pre-staged, checksum-pinned CPU-only ORT 1.24.1/OpenVINO 2025.4.1 payload with full notices/relative aliases (126.935 MiB). Missing, invalid or unloadable payloads automatically retain bundled stock ORT CPU; core/API validation precedes irreversible ORT selection. Best/Fast/DeepSharpen explicitly register OpenVINO CPU, with model initialization fallback to CPU on the selected core. Actual provider, binary-bundle fingerprint and core build information enter cache identities. Original float16 weights/inputs and Sharpen remain unchanged. Unsupported platforms and no-default-feature builds retain the existing runtime. The trip build must stage/verify the local payload before packaging; no provider/model downloads, telemetry, GPU/NPU enablement, installation or official runtime distribution is added automatically."
+}
