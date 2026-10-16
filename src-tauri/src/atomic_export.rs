@@ -33,18 +33,25 @@ fn write_with(
         .unwrap_or(Path::new("."));
     let mut builder = tempfile::Builder::new();
     builder.prefix(".rapidroom-export-").suffix(".tmp");
-    // Match ordinary file creation, including the user's umask. Existing regular
-    // exports keep their permissions; replacing a symlink replaces the link.
+    // Creation must never expose a private replacement through a readable temp.
+    // The umask may make creation more restrictive; restore the target's final
+    // permissions before any bytes are written. New files keep normal umask rules.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        builder.permissions(fs::Permissions::from_mode(0o666));
+        builder.permissions(
+            existing
+                .as_ref()
+                .filter(|m| m.is_file())
+                .map(|m| m.permissions())
+                .unwrap_or_else(|| fs::Permissions::from_mode(0o666)),
+        );
     }
     let mut temp = builder.tempfile_in(parent)?;
-    encode(temp.as_file_mut())?;
     if let Some(existing) = existing.filter(|m| m.is_file()) {
         fs::set_permissions(temp.path(), existing.permissions())?;
     }
+    encode(temp.as_file_mut())?;
     temp.as_file_mut().sync_all()?;
     if overwrite {
         temp.persist(path).map_err(|error| error.error)?;
@@ -210,5 +217,79 @@ mod tests {
             assert_eq!(staged.len(), 1);
             assert_eq!(fs::metadata(staged[0].path()).unwrap().len(), 65536);
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[ignore]
+    fn permission_writer_child() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory =
+            std::env::var_os("RAPIDROOM_EXPORT_PERMISSION_DIR").expect("subprocess-only directory");
+        let directory = Path::new(&directory);
+        // This subprocess runs only this harness entry point. The parent's
+        // other tests and application threads never see a changed umask.
+        unsafe {
+            libc::umask(0o022);
+        }
+        let existing = directory.join("private.jpeg");
+        fs::write(&existing, b"old private export").unwrap();
+        fs::set_permissions(&existing, fs::Permissions::from_mode(0o600)).unwrap();
+        write_with(&existing, true, |file| {
+            assert_eq!(
+                file.metadata()?.permissions().mode() & 0o777,
+                0o600,
+                "Private replacement staging must be private before the first byte"
+            );
+            assert_eq!(fs::read(&existing)?, b"old private export");
+            file.write_all(b"new private export")
+        })
+        .unwrap();
+        assert_eq!(
+            fs::metadata(&existing).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert_eq!(fs::read(&existing).unwrap(), b"new private export");
+        let new_export = directory.join("new.jpeg");
+        write_with(&new_export, false, |file| {
+            assert_eq!(file.metadata()?.permissions().mode() & 0o777, 0o644);
+            file.write_all(b"normal new export")
+        })
+        .unwrap();
+        assert_eq!(
+            fs::metadata(&new_export).unwrap().permissions().mode() & 0o777,
+            0o644
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn private_replacement_permissions_hold_inside_writer_under_a_permissive_umask() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "atomic_export::tests::permission_writer_child",
+                "--ignored",
+                "--nocapture",
+            ])
+            .env("RAPIDROOM_EXPORT_PERMISSION_DIR", dir.path())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            fs::read(dir.path().join("private.jpeg")).unwrap(),
+            b"new private export"
+        );
+        assert_eq!(
+            fs::read(dir.path().join("new.jpeg")).unwrap(),
+            b"normal new export"
+        );
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 2);
     }
 }
