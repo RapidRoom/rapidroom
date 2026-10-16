@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { debouncedSave, waitForPendingEditorSaves } from '../../hooks/useEditorActions';
@@ -32,13 +32,21 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
   const imageRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<InstagramFrame | null>(null);
   const drag = useRef<{ x: number; y: number; frame: InstagramFrame } | null>(null);
+  const generation = useRef(0);
+  const saveOperation = useRef(0);
   const callbacks = useRef({ onFrame, onBusy });
   callbacks.current = { onFrame, onBusy };
   const selectedAdjustments = useEditorStore((s) => (s.selectedImage?.path === path ? s.adjustments : null));
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!active || !path) return;
+  useLayoutEffect(() => {
+    const currentGeneration = ++generation.current;
+    const current = () => generation.current === currentGeneration;
+    frameRef.current = null;
+    drag.current = null;
+    if (!active || !path)
+      return () => {
+        ++generation.current;
+      };
     setPreview(null);
     setError('');
     setBusy(true);
@@ -48,20 +56,22 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
         debouncedSave.flush();
         await waitForPendingEditorSaves();
         const result = await invoke<Preview>('get_instagram_framing_preview', { path, ratio });
-        if (cancelled) return;
+        if (!current()) return;
         frameRef.current = result.framing;
         setPreview(result);
         callbacks.current.onFrame(path, result.framing);
         setBusy(false);
         callbacks.current.onBusy(false);
       } catch (failure) {
-        if (!cancelled) setError(String(failure));
+        if (current()) setError(String(failure));
       }
     };
     const timer = setTimeout(() => void load(), 300);
     return () => {
       clearTimeout(timer);
-      cancelled = true;
+      ++generation.current;
+      frameRef.current = null;
+      drag.current = null;
     };
   }, [path, ratio, active, selectedAdjustments, retry]);
 
@@ -82,6 +92,9 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
   };
 
   const persist = async () => {
+    const currentGeneration = generation.current;
+    const operation = ++saveOperation.current;
+    const current = () => generation.current === currentGeneration && saveOperation.current === operation;
     const framing = frameRef.current;
     if (!framing) return;
     setBusy(true);
@@ -91,10 +104,11 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
       debouncedSave.flush();
       await waitForPendingEditorSaves();
       await invoke('save_instagram_framing', { path, framing });
+      if (!current()) return;
       setBusy(false);
       callbacks.current.onBusy(false);
     } catch (failure) {
-      setError(String(failure));
+      if (current()) setError(String(failure));
     }
   };
 

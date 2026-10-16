@@ -65,26 +65,36 @@ pub struct InstagramExport {
 }
 
 pub fn geometry_signature(adjustments: &Value) -> String {
-    let mut geometry = serde_json::Map::new();
-    for key in [
-        "crop",
-        "orientationSteps",
-        "rotation",
-        "flipHorizontal",
-        "flipVertical",
-    ]
-    .into_iter()
-    .chain(
-        crate::cache_utils::GEOMETRY_KEYS
-            .iter()
-            .copied()
-            .filter(|key| !key.contains("Vignette") && !key.contains("Tca")),
-    ) {
-        geometry.insert(key.to_owned(), adjustments[key].clone());
+    // Use the renderer's effective values, so sparse/library metadata and the
+    // editor's explicit defaults describe the same geometry.
+    let params = crate::image_processing::get_geometry_params_from_json(adjustments);
+    let mut warp = serde_json::to_value(params).expect("Geometry parameters serialize");
+    if let Some(object) = warp.as_object_mut() {
+        object.retain(|key, _| {
+            !key.contains("vignette")
+                && !key.starts_with("vig_")
+                && !key.starts_with("tca_")
+                && !key.starts_with("lens_tca_")
+        });
+        if object
+            .get("guided_perspective_enabled")
+            .and_then(Value::as_bool)
+            != Some(true)
+        {
+            object.insert("guided_lines".into(), json!([]));
+        }
     }
-    hex::encode(Sha256::digest(
-        Value::Object(geometry).to_string().as_bytes(),
-    ))
+    let crop =
+        serde_json::from_value::<crate::image_processing::Crop>(adjustments["crop"].clone()).ok();
+    let geometry = json!({
+        "warp":warp,
+        "crop":crop,
+        "orientationSteps":(adjustments["orientationSteps"].as_u64().unwrap_or(0) as u8) % 4,
+        "rotation":adjustments["rotation"].as_f64().unwrap_or(0.0) as f32,
+        "flipHorizontal":adjustments["flipHorizontal"].as_bool().unwrap_or(false),
+        "flipVertical":adjustments["flipVertical"].as_bool().unwrap_or(false),
+    });
+    hex::encode(Sha256::digest(geometry.to_string().as_bytes()))
 }
 
 fn source_adjustments(metadata: &Value, source: &std::path::Path) -> Value {
@@ -216,4 +226,50 @@ pub fn save_instagram_framing(path: String, framing: InstagramFraming) -> Result
         export_framing.insert("instagram".into(), json!(framing));
         Ok(Value::Object(export_framing))
     })
+}
+
+#[cfg(test)]
+mod framing_geometry_regression {
+    use super::*;
+
+    #[test]
+    fn first_editor_colour_save_retains_a_sparse_sidecars_export_framing() {
+        let sparse = json!({});
+        let mut editor = json!({"crop":null,"orientationSteps":0,"rotation":0,"flipHorizontal":false,"flipVertical":false,
+            "transformDistortion":0,"transformVertical":0,"transformHorizontal":0,"transformRotate":0,"transformAspect":0,"transformScale":100,"transformXOffset":0,"transformYOffset":0,
+            "lensDistortionAmount":100,"lensDistortionEnabled":true,"lensDistortionParams":null,"lensVignetteAmount":75,"lensTcaAmount":50,
+            "lensMaker":null,"lensModel":null,"guidedPerspective":{"enabled":false,"lines":[],"autoCrop":true},"exposure":1.25,"contrast":20});
+        assert_eq!(
+            geometry_signature(&Value::Null),
+            geometry_signature(&sparse)
+        );
+        assert_eq!(geometry_signature(&sparse), geometry_signature(&editor));
+        let remembered = InstagramFraming {
+            version: 1,
+            ratio: InstagramRatio::Portrait,
+            geometry_signature: geometry_signature(&sparse),
+            frame: NormalizedFrame {
+                x: 0.1,
+                y: 0.0,
+                width: 0.8 / 1.5,
+                height: 1.0,
+            },
+        };
+        assert!(usable_frame(
+            &remembered,
+            &geometry_signature(&editor),
+            InstagramRatio::Portrait,
+            1200,
+            800
+        ));
+        editor["crop"] = json!({"x":10,"y":20,"width":900,"height":600});
+        assert_ne!(geometry_signature(&sparse), geometry_signature(&editor));
+        assert!(!usable_frame(
+            &remembered,
+            &geometry_signature(&editor),
+            InstagramRatio::Portrait,
+            1200,
+            800
+        ));
+    }
 }
