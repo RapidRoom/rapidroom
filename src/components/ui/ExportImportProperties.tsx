@@ -87,7 +87,16 @@ export function sanitizeFilenameTemplate(template: string | null | undefined): s
 export const DEFAULT_EXPORT_DPI = 300;
 export const MAX_EXPORT_DPI = 65535;
 
+export type InstagramRatio = '4:5' | '3:4' | '9:16';
+export interface InstagramFrame {
+  version: 1;
+  ratio: InstagramRatio;
+  geometrySignature: string;
+  frame: { x: number; y: number; width: number; height: number };
+}
+
 export interface ExportSettings {
+  instagram?: { ratio: InstagramRatio; framesByPath: Record<string, InstagramFrame> } | null;
   overwriteExisting?: boolean;
   filenameTemplate: string | null;
   jpegQuality: number;
@@ -176,6 +185,7 @@ export enum Status {
 }
 
 export interface ExportPreset {
+  instagramRatio?: InstagramRatio | null;
   id: string;
   name: string;
   fileFormat: string;

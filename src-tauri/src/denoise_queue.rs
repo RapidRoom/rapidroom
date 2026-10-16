@@ -6,7 +6,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-const PIPELINE: &str = "rapidroom-denoise-queue-v2";
+const PIPELINE: &str = "rapidroom-denoise-queue-v3";
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Options {
@@ -126,32 +126,12 @@ fn strict_json(path: &Path) -> Result<Value, String> {
     Ok(value)
 }
 
-pub(crate) fn lock_path(path: &Path) -> std::io::Result<File> {
-    let target = if path.is_symlink() {
-        fs::canonicalize(path)?
-    } else {
-        path.to_path_buf()
-    };
-    let name = target
-        .file_name()
-        .ok_or_else(|| std::io::Error::other("Missing filename"))?
-        .to_string_lossy();
-    let file = OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .read(true)
-        .write(true)
-        .open(target.with_file_name(format!(".{name}.rapidroom-lock")))?;
-    file.lock()?;
-    Ok(file)
-}
-
 fn mutate(
     path: &Path,
     change: impl FnOnce(&mut Value) -> Result<(), String>,
 ) -> Result<(), String> {
     crate::file_management::ensure_card_writable_for_paths(&[path.to_string_lossy().as_ref()])?;
-    let _guard = lock_path(path).map_err(|e| e.to_string())?;
+    let _guard = crate::file_management::lock_sidecar(path).map_err(|e| e.to_string())?;
     let mut value = strict_json(path)?;
     change(&mut value)?;
     crate::file_management::write_file_atomically_unmerged(
@@ -303,7 +283,9 @@ fn edits(mut metadata: Value) -> Value {
 fn edit_hash(metadata: &Value) -> String {
     let mut value = metadata.clone();
     value.as_object_mut().unwrap().remove("exif");
-    value.as_object_mut().unwrap().remove("denoise");
+    for key in crate::file_management::SIDECAR_OWNED_FIELDS {
+        value.as_object_mut().unwrap().remove(key);
+    }
     hash_value(&value)
 }
 fn safe_output(sidecar: &Path, name: &str) -> Result<PathBuf, String> {
@@ -385,7 +367,7 @@ fn save_result_edits(
         }
     }
     let (_, dest) = parse_virtual_path(&output.to_string_lossy());
-    let _guard = lock_path(&dest).map_err(|e| e.to_string())?;
+    let _guard = crate::file_management::lock_sidecar(&dest).map_err(|e| e.to_string())?;
     // The destination ownership check and write are one transaction with ordinary saves.
     if dest.exists() {
         let existing = strict_json(&dest)?;
@@ -399,9 +381,10 @@ fn save_result_edits(
         {
             return Err("Denoised output has independent edits; keeping them. Resolve those edits before synchronizing.".into());
         }
-        if let Some(queue) = existing.get("denoise") {
-            source_edits["denoise"] = queue.clone();
-        }
+        crate::file_management::preserve_sidecar_owned_fields(
+            &existing,
+            source_edits.as_object_mut().unwrap(),
+        );
     }
     crate::file_management::write_file_atomically_unmerged(
         &dest,
@@ -1091,6 +1074,108 @@ mod tests {
     }
 
     #[test]
+    fn queue_preset_framing_and_stale_saves_share_one_destination_transaction() {
+        let (_dir, path) = fixture();
+        let (_, sidecar) = parse_virtual_path(&path);
+        let (out, _) = run_item(&path, &ident(), &DenoiseJob::testing(), output).unwrap();
+        let (_, destination) = parse_virtual_path(&out);
+        let stale = strict_json(&sidecar).unwrap();
+        let start = std::sync::Barrier::new(4);
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                start.wait();
+                for revision in 0..12 {
+                    crate::file_management::update_applied_preset(
+                        &sidecar,
+                        json!({"id":"source", "revision":revision}),
+                    )
+                    .unwrap();
+                }
+            });
+            scope.spawn(|| {
+                start.wait();
+                for revision in 0..12 {
+                    crate::file_management::update_export_framing(&sidecar, |_| {
+                        Ok(json!({"instagram":{"revision":revision}}))
+                    })
+                    .unwrap();
+                }
+            });
+            scope.spawn(|| {
+                start.wait();
+                for revision in 0..12 {
+                    set_denoise_mark(vec![path.clone()], revision % 2 == 1).unwrap();
+                }
+            });
+            start.wait();
+            for _ in 0..12 {
+                crate::file_management::write_file_atomically(
+                    &sidecar,
+                    serde_json::to_vec(&stale).unwrap(),
+                )
+                .unwrap();
+            }
+        });
+        let saved = strict_json(&sidecar).unwrap();
+        assert_eq!(saved["appliedPreset"]["revision"], 11);
+        assert_eq!(saved["exportFraming"]["instagram"]["revision"], 11);
+        assert_eq!(saved["denoise"]["marked"], true);
+        assert_eq!(saved["denoise"]["completed"].as_array().unwrap().len(), 1);
+        assert_eq!(saved["adjustments"], stale["adjustments"]);
+
+        // A derived photo's framing/preset belong to that destination. Queue
+        // resynchronization may update source edits but cannot undo those choices.
+        crate::file_management::update_applied_preset(&destination, Value::Null).unwrap();
+        crate::file_management::update_export_framing(&destination, |_| Ok(Value::Null)).unwrap();
+        set_denoise_mark(vec![out.clone()], true).unwrap();
+        mutate(&sidecar, |v| {
+            v["adjustments"]["exposure"] = 1.25.into();
+            Ok(())
+        })
+        .unwrap();
+        assert!(
+            run_item(&path, &ident(), &DenoiseJob::testing(), |_| panic!(
+                "already denoised"
+            ))
+            .unwrap()
+            .1
+        );
+        let target = strict_json(&destination).unwrap();
+        assert_eq!(target["adjustments"]["exposure"], 1.25);
+        assert_eq!(target.get("appliedPreset"), Some(&Value::Null));
+        assert_eq!(target.get("exportFraming"), Some(&Value::Null));
+        assert_eq!(target["denoise"]["marked"], true);
+        assert!(
+            target["denoise"]["completed"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        crate::file_management::write_file_atomically(
+            &destination,
+            serde_json::to_vec(&saved).unwrap(),
+        )
+        .unwrap();
+        let target = strict_json(&destination).unwrap();
+        assert_eq!(target.get("appliedPreset"), Some(&Value::Null));
+        assert_eq!(target.get("exportFraming"), Some(&Value::Null));
+        assert!(
+            target["denoise"]["completed"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+
+        let ordinary = destination.with_file_name("legacy.RRDATA");
+        let bytes = b"{ \"adjustments\": null, \"rating\": 2 }\n";
+        crate::file_management::write_file_atomically(&ordinary, bytes).unwrap();
+        assert_eq!(fs::read(&ordinary).unwrap(), bytes);
+        crate::file_management::write_file_atomically(&ordinary, b"older non-JSON sidecar")
+            .unwrap();
+        assert_eq!(fs::read(ordinary).unwrap(), b"older non-JSON sidecar");
+    }
+
+    #[test]
     fn legacy_save_and_batch_do_not_inherit_the_source_queue_ownership() {
         let (_dir, path) = fixture();
         let identity = ident();
@@ -1291,7 +1376,7 @@ mod tests {
             Ok(())
         })
         .unwrap();
-        let guard = lock_path(&dest).unwrap();
+        let guard = crate::file_management::lock_sidecar_as_external_writer(&dest).unwrap();
         let inode = guard.metadata().unwrap().ino();
         let source = PathBuf::from(path);
         let output = PathBuf::from(out);

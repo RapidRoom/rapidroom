@@ -1,3 +1,4 @@
+import { copyFilesWithSummary } from '../utils/fileTransfers';
 import { createElement, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -454,7 +455,7 @@ export function useFileOperations(
 
       try {
         if (mode === 'copy') {
-          await invoke(Invokes.CopyFiles, { sourcePaths: copiedFilePaths, destinationFolder: currentFolderPath });
+          await copyFilesWithSummary(copiedFilePaths, currentFolderPath);
         } else {
           await invoke(Invokes.MoveFiles, { sourcePaths: copiedFilePaths, destinationFolder: currentFolderPath });
           setProcess({ copiedFilePaths: [] });

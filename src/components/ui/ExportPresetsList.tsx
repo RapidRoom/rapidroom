@@ -25,10 +25,14 @@ export default function ExportPresetsList({
   const { t } = useTranslation();
   const [isCreating, setIsCreating] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
-  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+  const [selectedPresetId, setSelectedPresetId] = useState(appSettings?.lastSelectedExportPresetId ?? '');
   const [isSaved, setIsSaved] = useState(false);
   const [recipes, setRecipes] = useState<ExportPreset[]>([]);
   const presets = appSettings?.exportPresets || [];
+
+  useEffect(() => {
+    setSelectedPresetId(appSettings?.lastSelectedExportPresetId ?? '');
+  }, [appSettings?.lastSelectedExportPresetId]);
 
   useEffect(() => {
     invoke<ExportPreset[]>(Invokes.GetExportRecipes)

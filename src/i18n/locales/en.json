@@ -1,4 +1,8 @@
 {
+  "fileTransfers": {
+    "copy": "{{completed}} copied ({{renamed}} renamed), {{skipped}} identical skipped, {{failed}} failed",
+    "import": "{{completed}} imported ({{renamed}} renamed), {{skipped}} identical skipped, {{failed}} failed"
+  },
   "adjustments": {
     "basic": {
       "blacks": "Blacks",
@@ -261,7 +265,8 @@
       "stitchPanorama": "Stitch Panorama",
       "tagging": "Tagging",
       "undo": "Undo",
-      "unflagged": "Unflagged"
+      "unflagged": "Unflagged",
+      "exportInstagram": "Export for Instagram"
     },
     "folders": {
       "changeIcon": "Change Icon",
@@ -677,6 +682,18 @@
         "sq": {
           "desc": "Square - Instagram, profile pictures",
           "name": "1:1"
+        },
+        "instagramPortrait": {
+          "name": "Instagram 4:5",
+          "desc": "Instagram portrait 4:5"
+        },
+        "instagramGrid": {
+          "name": "Instagram 3:4",
+          "desc": "Instagram profile grid 3:4"
+        },
+        "instagramStories": {
+          "name": "Instagram 9:16",
+          "desc": "Instagram Stories 9:16"
         }
       },
       "resetTooltip": "Reset Crop & Transform",
@@ -913,7 +930,8 @@
       "lightroomXmp": "Export Lightroom XMP…",
       "newXmp": "Save new XMP preset (Ctrl+Shift+N)",
       "xmpSaved": "XMP preset saved",
-      "xmpExportLimited": "Saved XMP. These settings are preserved for RapidRoom only: {{keys}}. Lightroom rendering may differ."
+      "xmpExportLimited": "Saved XMP. These settings are preserved for RapidRoom only: {{keys}}. Lightroom rendering may differ.",
+      "applied": "Applied preset"
     },
     "referenceView": {
       "active": "Active",
@@ -1101,6 +1119,17 @@
       "label": "Replace existing exports",
       "title": "Replace existing exports?",
       "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
+    },
+    "instagram": {
+      "title": "Instagram framing",
+      "description": "Drag the frame or use arrow keys. Each photo remembers its framing; your edit and Undo history stay unchanged. Export: 1080 px wide sRGB JPEG, screen sharpening, GPS removed.",
+      "previous": "Previous",
+      "next": "Next",
+      "preview": "Finished photo for Instagram framing",
+      "drag": "Move Instagram frame with drag or arrow keys",
+      "loading": "Preparing or saving framing…",
+      "disable": "Use ordinary export settings",
+      "retry": "Reload framing"
     }
   },
   "library": {
@@ -1246,6 +1275,8 @@
         "searchOrQuery": "Search or add query",
         "tooltipAdvancedQueries": "Advanced Queries: iso:>800, f:<=2.8, s:1/200, mm:50, camera:sony",
         "tooltipClearSearch": "Clear search",
+        "editFilter": "Edit filter {{filter}}",
+        "removeFilter": "Remove filter {{filter}}",
         "tooltipSearchFilter": "Search or Filter"
       },
       "title": "Library",
@@ -1608,7 +1639,7 @@
       "deleteWarning": "Files will be moved to the system trash.",
       "fileNaming": "File Naming",
       "folderOrganization": "Folder Organization",
-      "notUniqueWarning": "Without {original_filename}, {original_filename_number} or {sequence}, files may get the same name. Those files are not imported.",
+      "notUniqueWarning": "Without {original_filename}, {original_filename_number} or {sequence}, files may get the same name. Conflicting names receive a unique numeric suffix.",
       "organizeByDate": "Organize into subfolders by date",
       "sourceFiles": "Source Files",
       "startImport": "Start Import",

@@ -273,6 +273,8 @@ export interface AppSettings {
   processingBackend?: string;
   linuxGpuOptimization?: boolean;
   exportPresets?: ExportPreset[];
+  lastSelectedExportPresetId?: string | null;
+  lastInstagramExportPresetId?: string | null;
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
   adjustmentLayout?: AdjustmentLayout;

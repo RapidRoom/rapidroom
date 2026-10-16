@@ -1,4 +1,5 @@
 import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
+import { copyFilesWithSummary } from '../utils/fileTransfers';
 import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -669,6 +670,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           icon: FileInput,
           onClick: () => setPanel(Panel.Export),
         },
+        {
+          label: t('contextMenus.editor.exportInstagram'),
+          icon: FileInput,
+          onClick: () => {
+            setUI({ instagramExportRequest: Date.now() });
+            setPanel(Panel.Export);
+          },
+        },
         { type: OPTION_SEPARATOR },
         { label: t('contextMenus.editor.undo'), icon: Undo, onClick: undo, disabled: !canUndo },
         { label: t('contextMenus.editor.redo'), icon: Redo, onClick: redo, disabled: !canRedo },
@@ -991,6 +1000,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         setPanel(Panel.Export);
       };
 
+      const onInstagramExportClick = () => {
+        setUI({ instagramExportRequest: Date.now() });
+        onExportClick();
+      };
+
       const handleRemoveFromAlbum = async () => {
         if (!activeAlbumId) return;
         const newTree = JSON.parse(JSON.stringify(albumTree));
@@ -1051,9 +1065,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
                 onClick: () => props.handleImageSelect(finalSelection[0]),
               },
               { icon: FileInput, label: exportLabel, onClick: onExportClick },
+              { icon: FileInput, label: t('contextMenus.editor.exportInstagram'), onClick: onInstagramExportClick },
               { type: OPTION_SEPARATOR },
             ]
-          : [{ icon: FileInput, label: exportLabel, onClick: onExportClick }, { type: OPTION_SEPARATOR }]),
+          : [
+              { icon: FileInput, label: exportLabel, onClick: onExportClick },
+              { icon: FileInput, label: t('contextMenus.editor.exportInstagram'), onClick: onInstagramExportClick },
+              { type: OPTION_SEPARATOR },
+            ]),
         {
           disabled: !isSingleSelection,
           icon: Copy,
@@ -1470,7 +1489,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               label: copyPastedLabel,
               onClick: async () => {
                 try {
-                  await invoke(Invokes.CopyFiles, { sourcePaths: copiedFilePaths, destinationFolder: targetPath });
+                  await copyFilesWithSummary(copiedFilePaths, targetPath);
                   if (targetPath === currentFolderPath) props.handleLibraryRefresh();
                 } catch (err) {
                   toast.error(t('contextMenus.toasts.failedCopy', { err }));
@@ -1870,12 +1889,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             submenu: [
               {
                 label: copyPastedLabel,
+                disabled: !currentFolderPath,
                 onClick: async () => {
+                  if (!currentFolderPath) return;
                   try {
-                    await invoke(Invokes.CopyFiles, {
-                      sourcePaths: copiedFilePaths,
-                      destinationFolder: currentFolderPath,
-                    });
+                    await copyFilesWithSummary(copiedFilePaths, currentFolderPath);
                     props.handleLibraryRefresh();
                   } catch (err) {
                     toast.error(t('contextMenus.toasts.failedCopy', { err }));

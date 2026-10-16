@@ -82,6 +82,12 @@ pub struct ImageMetadata {
     pub flag: Option<ImageFlag>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub flag_is_explicit: bool,
+    #[serde(
+        default,
+        rename = "exportFraming",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub export_framing: Option<Value>,
     pub adjustments: Value,
     #[serde(default)]
     pub tags: Option<Vec<String>>,
@@ -98,6 +104,7 @@ impl Default for ImageMetadata {
             rating_is_explicit: false,
             flag: None,
             flag_is_explicit: false,
+            export_framing: None,
             adjustments: Value::Null,
             tags: None,
             exif: None,
