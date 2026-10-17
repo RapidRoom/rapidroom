@@ -17,15 +17,18 @@ import { DockHeaderContext } from './DockHeaderContext';
 export default function TerminalPanel() {
   const { t } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
+  const intro = useRef<HTMLDivElement>(null);
   const dockHeader = useContext(DockHeaderContext);
   const [showPreferences, setShowPreferences] = useState(false);
   const settings = useSettingsStore((state) => state.appSettings?.terminalSettings);
   const preferences = normalizeTerminalSettings(settings);
-  const { tabs, activeTab, errors, hydrate, addTab, selectTab } = useTerminalStore(
+  const { tabs, activeTab, errors, introTabs, dismissIntro, hydrate, addTab, selectTab } = useTerminalStore(
     useShallow((state) => ({
       tabs: state.tabs,
       activeTab: state.activeTab,
       errors: state.errors,
+      introTabs: state.introTabs,
+      dismissIntro: state.dismissIntro,
       hydrate: state.hydrate,
       addTab: state.addTab,
       selectTab: state.selectTab,
@@ -47,11 +50,13 @@ export default function TerminalPanel() {
     );
   const path = useLibraryStore((state) => state.currentFolderPath ?? state.rootPaths[0]);
   const active = tabs.find((tab) => tab.id === activeTab);
+  const showIntro = !!active && !!introTabs[active.id];
 
   useEffect(hydrate, [hydrate]);
   useEffect(() => {
-    if (active && host.current) return mountTerminal(active, host.current);
-  }, [active?.id, preferences.fontSize, preferences.fontFamily]);
+    if (showIntro) intro.current?.focus();
+    else if (active && host.current) return mountTerminal(active, host.current);
+  }, [active?.id, showIntro, preferences.fontSize, preferences.fontFamily]);
 
   const add = () => {
     if (!path) return;
@@ -80,14 +85,14 @@ export default function TerminalPanel() {
               role="tab"
               aria-selected={tab.id === activeTab}
               title={tab.path}
-              className={`max-w-56 truncate px-1 h-6 text-xs rounded ${tab.id === activeTab ? 'bg-surface' : ''}`}
+              className={`max-w-56 truncate px-1 h-7 text-xs rounded ${tab.id === activeTab ? 'bg-surface' : ''}`}
               onClick={() => selectTab(tab.id)}
             >
               {tab.title}
             </button>
             <button
               aria-label={t('terminal.closeTab', { title: tab.title })}
-              className="p-1 opacity-0 group-hover/tab:opacity-100 focus:opacity-100"
+              className="min-h-7 min-w-7 p-1 opacity-0 group-hover/tab:opacity-100 focus:opacity-100"
               onClick={() => {
                 void closeTerminal(tab.id).catch((error) => toast.error(String(error)));
               }}
@@ -101,7 +106,7 @@ export default function TerminalPanel() {
         aria-label={t('terminal.newTab')}
         disabled={!path || tabs.length >= 16}
         onClick={add}
-        className="p-1 shrink-0 disabled:opacity-40"
+        className="h-7 w-7 p-1 shrink-0 disabled:opacity-40"
       >
         <Plus size={16} />
       </button>
@@ -110,7 +115,7 @@ export default function TerminalPanel() {
         aria-label={t('terminal.preferences')}
         aria-expanded={showPreferences}
         onClick={() => setShowPreferences((value) => !value)}
-        className="p-1"
+        className="h-7 w-7 p-1"
       >
         <Settings size={16} />
       </button>
@@ -118,7 +123,7 @@ export default function TerminalPanel() {
         <button
           aria-label={t('terminal.collapsePanel')}
           data-terminal-collapse
-          className="p-1 shrink-0"
+          className="h-7 w-7 p-1 shrink-0"
           onClick={collapse}
         >
           <ChevronDown size={16} />
@@ -194,7 +199,36 @@ export default function TerminalPanel() {
           {errors[active.id]}
         </p>
       )}
-      {active ? (
+      {active && showIntro ? (
+        <div
+          ref={intro}
+          data-terminal-intro
+          tabIndex={0}
+          role="region"
+          aria-label={t('terminal.introTitle')}
+          className="flex-1 min-h-0 overflow-y-auto p-3 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent"
+          onKeyDown={(event) => {
+            if (
+              event.ctrlKey ||
+              event.metaKey ||
+              event.altKey ||
+              ['Tab', 'Shift', 'Control', 'Meta', 'Alt'].includes(event.key)
+            )
+              return;
+            event.preventDefault();
+            event.stopPropagation();
+            dismissIntro(active.id);
+          }}
+        >
+          <p className="font-medium">{t('terminal.introTitle')}</p>
+          <p className="mt-1 text-text-secondary">{t('terminal.introConnection')}</p>
+          <p className="mt-1 text-text-secondary">{t('terminal.introShell')}</p>
+          <p className="mt-1 text-text-secondary">{t('terminal.introFont')}</p>
+          <button className="mt-2 min-h-7 rounded bg-surface px-2" onClick={() => dismissIntro(active.id)}>
+            {t('terminal.plainShell')}
+          </button>
+        </div>
+      ) : active ? (
         <div ref={host} data-terminal-screen className="flex-1 min-h-0 p-1 bg-[#181818]" />
       ) : (
         <div className="flex-1 flex items-center justify-center p-3">

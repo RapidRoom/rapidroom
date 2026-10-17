@@ -6,6 +6,8 @@ import '@xterm/xterm/css/xterm.css';
 import { Invokes, type TerminalTab } from '../components/ui/AppProperties';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useTerminalStore } from '../store/useTerminalStore';
+import { useUIStore } from '../store/useUIStore';
+import { resolveKeybindMap, normalizeCombo } from './keyboardUtils';
 import { localTerminalDirectory, normalizeTerminalSettings } from './terminalSettings';
 
 type TerminalEvent = { event: 'output'; sequence: number; data: number[] } | { event: 'exit'; code: number | null };
@@ -50,6 +52,18 @@ function createRuntime(tab: TerminalTab): Runtime {
         }
       },
     },
+  });
+  // Reserve the rebindable dock shortcut before xterm forwards it to the PTY.
+  terminal.attachCustomKeyEventHandler((event) => {
+    const settings = useSettingsStore.getState();
+    const action = resolveKeybindMap(settings.appSettings?.keybinds, settings.osPlatform).get(
+      normalizeCombo(event, settings.osPlatform).join('+'),
+    );
+    if (action !== 'toggle_dock_height') return true;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.type === 'keydown' && !event.repeat) useUIStore.getState().toggleDockHeight();
+    return false;
   });
   // Never let shell output read or replace the desktop clipboard through OSC 52.
   terminal.parser.registerOscHandler(52, () => true);

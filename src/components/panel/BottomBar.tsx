@@ -79,7 +79,7 @@ const StarRating = ({ rating, onRate, disabled }: StarRatingProps) => {
         const starValue = index + 1;
         return (
           <button
-            className="disabled:cursor-not-allowed"
+            className="min-h-7 min-w-7 flex items-center justify-center disabled:cursor-not-allowed"
             disabled={disabled}
             key={starValue}
             onClick={() => !disabled && onRate(starValue)}
@@ -259,7 +259,7 @@ export default function BottomBar({
   const ratingOp = RATING_OPERATORS[filterCriteria.ratingOperator ?? (filterCriteria.ratingExact ? 'eq' : 'gte')];
 
   const allColors = [...COLOR_LABELS, { name: 'none', color: '#9ca3af' }];
-  const currentHeight = filmstripHeight ?? 120;
+  const currentHeight = Math.max(48, (filmstripHeight ?? 120) - 8);
   const isCollapsed = !isFilmstripVisible;
   const effectiveHeight = isFilmstripVisible ? currentHeight : 0;
   const shouldAnimate = !isInstantTransition && (!isResizing || isCollapsed);
@@ -368,7 +368,7 @@ export default function BottomBar({
         >
           <div
             className={clsx(
-              'w-full p-2 duration-300 ease-in-out',
+              'w-full px-2 py-1 duration-300 ease-in-out',
               shouldAnimate ? 'transition-all' : 'transition-opacity',
               isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto',
             )}
@@ -393,7 +393,7 @@ export default function BottomBar({
 
       <div
         className={clsx(
-          'shrink-0 h-12 flex items-center justify-between px-3',
+          'shrink-0 h-10 flex items-center justify-between px-3',
           !isLibraryView && 'border-t transition-colors duration-300',
           !isLibraryView && showFilmstrip && isFilmstripVisible ? 'border-surface' : 'border-transparent',
         )}

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { ExifOverlay, ImageFile, ImageFlag, LibraryViewMode, Panel } from '../components/ui/AppProperties';
 import { ToolType } from '../components/panel/right/Masks';
-import { KEYBIND_DEFINITIONS, getDefaultCombo, normalizeCombo } from '../utils/keyboardUtils';
+import { resolveKeybindMap, normalizeCombo } from '../utils/keyboardUtils';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -98,17 +98,8 @@ export const useKeyboardShortcuts = ({
       match(event: KeyboardEvent, state: StoreState): boolean;
       execute(event: KeyboardEvent, state: StoreState): void;
     }
-    const comboMap = new Map<string, string>();
     const { appSettings, osPlatform } = useSettingsStore.getState();
-    const keybinds = appSettings?.keybinds;
-
-    for (const def of KEYBIND_DEFINITIONS) {
-      const userCombo = keybinds?.[def.action];
-      const effective = userCombo && userCombo.length > 0 ? userCombo : getDefaultCombo(def, osPlatform);
-      if (effective) {
-        comboMap.set(effective.join('+'), def.action);
-      }
-    }
+    const comboMap = resolveKeybindMap(appSettings?.keybinds, osPlatform);
 
     const getImagePathsForCopy = (s: StoreState): Array<string> => {
       if (s.editor.selectedImage) {
@@ -516,6 +507,13 @@ export const useKeyboardShortcuts = ({
             uiVisibility: { ...state.uiVisibility, rightPanel: isOpening },
             rightPanelWidth: isOpening && state.rightPanelWidth < 250 ? 350 : state.rightPanelWidth,
           }));
+        },
+      },
+      toggle_dock_height: {
+        shouldFire: (s: StoreState) => s.ui.panelLayout.bottom.length > 0,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.ui.toggleDockHeight();
         },
       },
       toggle_bottom_panel: {
