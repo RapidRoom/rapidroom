@@ -251,6 +251,13 @@ pub fn truncate_large_exif(value: &str) -> String {
 }
 
 pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
+    let _lock = crate::file_management::SIDECAR_METADATA_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    load_sidecar_unlocked(sidecar_path)
+}
+
+pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
     if !sidecar_path.exists() {
         return ImageMetadata::default();
     }
@@ -2226,8 +2233,9 @@ fn load_primary_metadata(image_path: &Path) -> ImageMetadata {
 
 fn save_primary_metadata(image_path: &Path, metadata: &ImageMetadata) -> std::io::Result<()> {
     let primary = get_primary_sidecar_path(image_path);
-    let json = serde_json::to_string_pretty(metadata).map_err(std::io::Error::other)?;
-    crate::file_management::write_file_atomically(&primary, json)
+    crate::file_management::update_sidecar(&primary, |current| current.exif = metadata.exif.clone())
+        .map(|_| ())
+        .map_err(std::io::Error::other)
 }
 
 pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>> {

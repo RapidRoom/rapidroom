@@ -595,6 +595,9 @@ fn apply_import(
     }
     let mut result = DevelopImportResult::default();
     for mut photo in photos {
+        let _metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
+            .lock()
+            .map_err(|e| e.to_string())?;
         let (source, _) = parse_virtual_path(&photo.preview.path);
         let unchanged = sidecar_bytes(&photo.sidecar)
             .is_ok_and(|bytes| bytes == photo.sidecar_bytes)
@@ -626,6 +629,11 @@ fn apply_import(
         if !changed {
             result.preserved += 1;
             continue;
+        }
+        if photo.preview.virtual_copy
+            && let Some(document) = photo.document.as_object_mut()
+        {
+            document.remove("stack");
         }
         let bytes = serde_json::to_vec_pretty(&photo.document).map_err(|e| e.to_string())?;
         match write_file_atomically(&photo.sidecar, bytes) {

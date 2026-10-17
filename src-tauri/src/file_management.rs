@@ -9,7 +9,9 @@ use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::{Arc, LazyLock, Mutex, RwLock};
+
+pub(crate) static SIDECAR_METADATA_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 use std::thread;
 
 use anyhow::Result;
@@ -211,6 +213,7 @@ struct ImageFileMetadata {
     rating: u8,
     flag: Option<ImageFlag>,
     is_raw: bool,
+    stack: Option<crate::photo_stacks::StackMember>,
 }
 
 fn resolve_image_metadata(
@@ -219,7 +222,10 @@ fn resolve_image_metadata(
     enable_xmp_sync: bool,
     settings: &AppSettings,
 ) -> ImageFileMetadata {
-    let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
+    let _metadata_lock = SIDECAR_METADATA_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut metadata = crate::exif_processing::load_sidecar_unlocked(sidecar_path);
 
     if enable_xmp_sync
         && sync_metadata_from_xmp(image_path, sidecar_path, &mut metadata)
@@ -228,6 +234,7 @@ fn resolve_image_metadata(
         let _ = write_file_atomically(sidecar_path, json);
     }
 
+    drop(_metadata_lock);
     let is_raw = crate::formats::is_raw_file(image_path);
     let tm_override = crate::image_processing::resolve_tonemapper_override(settings, is_raw);
     let is_edited =
@@ -237,6 +244,7 @@ fn resolve_image_metadata(
         rating: crate::exif_processing::resolve_rating(image_path, &metadata),
         tags: metadata.tags,
         flag: metadata.flag,
+        stack: metadata.stack.clone(),
         is_raw,
     }
 }
@@ -248,10 +256,11 @@ fn emit_image_metadata_loaded(
     flag: Option<ImageFlag>,
     is_edited: bool,
     tags: &Option<Vec<String>>,
+    stack: &Option<crate::photo_stacks::StackMember>,
 ) {
     let _ = app_handle.emit(
         "image-metadata-loaded",
-        serde_json::json!({ "path": path, "rating": rating, "flag": flag, "is_edited": is_edited, "tags": tags }),
+        serde_json::json!({ "path": path, "rating": rating, "flag": flag, "is_edited": is_edited, "tags": tags, "stack": if path.contains("?vc=") { None } else { stack.as_ref() } }),
     );
 }
 
@@ -318,6 +327,7 @@ pub fn start_metadata_workers(app_handle: tauri::AppHandle) {
                     metadata.flag,
                     metadata.is_edited,
                     &metadata.tags,
+                    &metadata.stack,
                 );
 
                 manager_clone
@@ -443,6 +453,8 @@ pub struct ImageFile {
     is_cloud_placeholder: bool,
     is_raw: bool,
     group_id: Option<String>,
+    #[serde(default)]
+    stack: Option<crate::photo_stacks::StackMember>,
 }
 
 fn make_group_key(source_path: &Path) -> String {
@@ -696,7 +708,7 @@ pub async fn update_exif_fields(
             let primary_path = crate::exif_processing::get_primary_sidecar_path(original_path);
             let temp_metadata = crate::exif_processing::load_sidecar(&primary_path);
 
-            let mut exif_data = temp_metadata.exif.unwrap_or_else(|| {
+            let exif_data = temp_metadata.exif.unwrap_or_else(|| {
                 if let Some(existing) = crate::exif_processing::read_rrexif_sidecar(original_path) {
                     existing
                 } else if let Ok(mmap) = read_file_mapped(original_path) {
@@ -708,20 +720,18 @@ pub async fn update_exif_fields(
                 }
             });
 
-            for (k, v) in &updates {
-                let trimmed = v.trim();
-                if trimmed.is_empty() {
-                    exif_data.remove(k);
-                } else {
-                    exif_data.insert(k.clone(), trimmed.to_string());
+            if let Err(error) = update_sidecar(&primary_path, |current| {
+                let exif = current.exif.get_or_insert_with(|| exif_data.clone());
+                for (k, v) in &updates {
+                    let trimmed = v.trim();
+                    if trimmed.is_empty() {
+                        exif.remove(k);
+                    } else {
+                        exif.insert(k.clone(), trimmed.to_string());
+                    }
                 }
-            }
-
-            let mut final_metadata = crate::exif_processing::load_sidecar(&primary_path);
-
-            final_metadata.exif = Some(exif_data);
-            if let Ok(json) = serde_json::to_string_pretty(&final_metadata) {
-                let _ = write_file_atomically(&primary_path, json);
+            }) {
+                log::error!("Failed to save EXIF edits: {error}");
             }
         });
         Ok(())
@@ -879,6 +889,7 @@ pub fn list_images_in_dir(path: String, app_handle: AppHandle) -> Result<Vec<Ima
                         tags: None,
                         rating: 0,
                         flag: None,
+                        stack: None,
                         is_raw: crate::formats::is_raw_file(&path_buf),
                     }
                 } else {
@@ -896,6 +907,11 @@ pub fn list_images_in_dir(path: String, app_handle: AppHandle) -> Result<Vec<Ima
                     group_id: None,
                     rating: metadata.rating,
                     flag: metadata.flag,
+                    stack: if is_virtual_copy {
+                        None
+                    } else {
+                        metadata.stack.clone()
+                    },
                     is_cloud_placeholder,
                 });
             }
@@ -1014,6 +1030,7 @@ pub fn list_images_recursive(
                         tags: None,
                         rating: 0,
                         flag: None,
+                        stack: None,
                         is_raw: crate::formats::is_raw_file(&path_buf),
                     }
                 } else {
@@ -1031,6 +1048,11 @@ pub fn list_images_recursive(
                     group_id: None,
                     rating: metadata.rating,
                     flag: metadata.flag,
+                    stack: if is_virtual_copy {
+                        None
+                    } else {
+                        metadata.stack.clone()
+                    },
                     is_cloud_placeholder,
                 });
             }
@@ -1287,6 +1309,7 @@ pub fn get_album_images(
                     tags: None,
                     rating: 0,
                     flag: None,
+                    stack: None,
                     is_raw: crate::formats::is_raw_file(&source_path),
                 }
             } else {
@@ -1304,6 +1327,11 @@ pub fn get_album_images(
                 group_id: None,
                 rating: metadata.rating,
                 flag: metadata.flag,
+                stack: if is_virtual_copy {
+                    None
+                } else {
+                    metadata.stack.clone()
+                },
                 is_cloud_placeholder,
             })
         })
@@ -3104,10 +3132,12 @@ pub fn save_metadata_and_update_thumbnail(
         );
     }
 
-    metadata.adjustments = final_adjustments;
-
-    let json_string = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
-    write_file_atomically(&sidecar_path, json_string).map_err(|e| e.to_string())?;
+    metadata = update_sidecar(&sidecar_path, |current| {
+        current.adjustments = final_adjustments.clone();
+        if current.exif.is_none() {
+            current.exif = metadata.exif.clone();
+        }
+    })?;
 
     if let Ok(settings) = load_settings(app_handle.clone())
         && settings.enable_xmp_sync.unwrap_or(false)
@@ -4075,11 +4105,12 @@ pub async fn apply_auto_adjustments_to_paths(
     Ok(())
 }
 
-fn update_sidecar(
+pub(crate) fn update_sidecar(
     sidecar_path: &Path,
     update: impl Fn(&mut ImageMetadata),
 ) -> Result<ImageMetadata, String> {
-    let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
+    let _lock = SIDECAR_METADATA_LOCK.lock().map_err(|e| e.to_string())?;
+    let mut metadata = crate::exif_processing::load_sidecar_unlocked(sidecar_path);
     update(&mut metadata);
     let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
     write_file_atomically(sidecar_path, json_string).map_err(|error| {
@@ -4175,8 +4206,14 @@ fn store_user_rating(sidecar_path: &Path, rating: u8) -> ImageMetadata {
 pub fn set_rating_for_paths(
     paths: Vec<String>,
     rating: u8,
+    apply_to_stack: Option<bool>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    let paths = if apply_to_stack.unwrap_or(false) {
+        crate::photo_stacks::metadata_paths(&paths)?
+    } else {
+        paths
+    };
     update_metadata_for_paths(&paths, &app_handle, |metadata| {
         apply_user_rating(metadata, rating)
     })
@@ -4186,8 +4223,14 @@ pub fn set_rating_for_paths(
 pub fn set_flag_for_paths(
     paths: Vec<String>,
     flag: Option<ImageFlag>,
+    apply_to_stack: Option<bool>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    let paths = if apply_to_stack.unwrap_or(false) {
+        crate::photo_stacks::metadata_paths(&paths)?
+    } else {
+        paths
+    };
     update_metadata_for_paths(&paths, &app_handle, |metadata| {
         apply_user_flag(metadata, flag)
     })
@@ -5574,15 +5617,19 @@ fn create_virtual_copy_on_disk(source_virtual_path: &str) -> Result<String, Stri
     let new_virtual_path = format!("{}?vc={}", source_path.to_string_lossy(), new_copy_id);
     let (_, new_sidecar_path) = parse_virtual_path(&new_virtual_path);
 
-    if source_sidecar_path.exists() {
-        fs::copy(&source_sidecar_path, &new_sidecar_path)
-            .map_err(|e| format!("Failed to copy sidecar file: {}", e))?;
+    let _metadata_lock = SIDECAR_METADATA_LOCK.lock().map_err(|e| e.to_string())?;
+    let mut value = if source_sidecar_path.exists() {
+        let bytes = fs::read(&source_sidecar_path).map_err(|e| e.to_string())?;
+        serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?
     } else {
-        let default_metadata = ImageMetadata::default();
-        let json_string =
-            serde_json::to_string_pretty(&default_metadata).map_err(|e| e.to_string())?;
-        write_file_atomically(&new_sidecar_path, json_string).map_err(|e| e.to_string())?;
-    }
+        serde_json::to_value(ImageMetadata::default()).map_err(|e| e.to_string())?
+    };
+    value
+        .as_object_mut()
+        .ok_or("Virtual-copy sidecar must be an object")?
+        .remove("stack");
+    let json_string = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
+    write_file_atomically(&new_sidecar_path, json_string).map_err(|e| e.to_string())?;
 
     Ok(new_virtual_path)
 }
@@ -8624,6 +8671,95 @@ mod lens_policy_version_tests {
                 "Version normalization changed numeric/control payload: {}",
                 case["name"]
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod photo_stack_virtual_copy_tests {
+    use super::card_mode_test_support::{CardMode, folders};
+    use super::*;
+
+    #[test]
+    fn creating_virtual_copy_clears_stack_but_preserves_other_metadata() {
+        let _mode = CardMode::off();
+        let f = folders();
+        let a = f.library.join("one.jpg");
+        let b = f.library.join("two.jpg");
+        fs::write(&a, b"fixture").unwrap();
+        fs::write(&b, b"fixture").unwrap();
+        let paths: Vec<String> = [&a, &b]
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect();
+        crate::photo_stacks::edit_photo_stack(
+            paths.clone(),
+            crate::photo_stacks::StackAction::Stack,
+        )
+        .unwrap();
+        let (_, source_sidecar) = parse_virtual_path(&paths[0]);
+        let mut value: Value =
+            serde_json::from_str(&fs::read_to_string(&source_sidecar).unwrap()).unwrap();
+        value["adjustments"] = serde_json::json!({"exposure":1.25});
+        value["futureField"] = serde_json::json!({"preserved":true});
+        fs::write(&source_sidecar, serde_json::to_vec(&value).unwrap()).unwrap();
+        let copy = create_virtual_copy_on_disk(&paths[0]).unwrap();
+        let (_, copied_sidecar) = parse_virtual_path(&copy);
+        let copied: Value =
+            serde_json::from_str(&fs::read_to_string(&copied_sidecar).unwrap()).unwrap();
+        assert!(copied.get("stack").is_none());
+        assert_eq!(copied["adjustments"], value["adjustments"]);
+        assert_eq!(copied["futureField"], value["futureField"]);
+        assert!(
+            crate::exif_processing::load_sidecar(&source_sidecar)
+                .stack
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn whole_stack_metadata_keeps_virtual_paths_in_single_and_mixed_selections() {
+        let _mode = CardMode::off();
+        let f = folders();
+        let a = f.library.join("one.jpg");
+        let b = f.library.join("two.jpg");
+        fs::write(&a, b"fixture").unwrap();
+        fs::write(&b, b"fixture").unwrap();
+        let paths: Vec<String> = [&a, &b]
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect();
+        crate::photo_stacks::edit_photo_stack(
+            paths.clone(),
+            crate::photo_stacks::StackAction::Stack,
+        )
+        .unwrap();
+        let copy = create_virtual_copy_on_disk(&paths[0]).unwrap();
+        let only_copy = crate::photo_stacks::metadata_paths(std::slice::from_ref(&copy)).unwrap();
+        assert_eq!(only_copy, vec![copy.clone()]);
+        update_metadata(&only_copy, None, |meta| apply_user_rating(meta, 3)).unwrap();
+        update_metadata(&only_copy, None, |meta| {
+            apply_user_flag(meta, Some(ImageFlag::Pick))
+        })
+        .unwrap();
+        let (_, sidecar) = parse_virtual_path(&copy);
+        let saved = crate::exif_processing::load_sidecar(&sidecar);
+        assert_eq!(saved.rating, 3);
+        assert_eq!(saved.flag, Some(ImageFlag::Pick));
+        let mixed = crate::photo_stacks::metadata_paths(&[copy.clone(), paths[0].clone()]).unwrap();
+        assert_eq!(mixed.len(), 3);
+        assert!(mixed.contains(&copy));
+        assert!(mixed.contains(&paths[1]));
+        update_metadata(&mixed, None, |meta| apply_user_rating(meta, 4)).unwrap();
+        update_metadata(&mixed, None, |meta| {
+            apply_user_flag(meta, Some(ImageFlag::Reject))
+        })
+        .unwrap();
+        for path in mixed {
+            let (_, sidecar) = parse_virtual_path(&path);
+            let meta = crate::exif_processing::load_sidecar(&sidecar);
+            assert_eq!(meta.rating, 4);
+            assert_eq!(meta.flag, Some(ImageFlag::Reject));
         }
     }
 }

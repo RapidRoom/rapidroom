@@ -11,6 +11,7 @@ import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { debouncedSetHistory, useEditorActions } from './useEditorActions';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
+import { editStack } from '../utils/photoStacks';
 import { useLibraryActions } from './useLibraryActions';
 import { registerAppActions, executeAppAction } from '../utils/appActions';
 import { fitPercent as getFitPercent, getDpr, percentFromTransform, stepZoomIn, stepZoomOut } from '../utils/zoom';
@@ -744,6 +745,14 @@ export const useKeyboardShortcuts = ({
 
     const builtinShortcuts: BuiltinShortcut[] = [
       {
+        match: (e: KeyboardEvent, s: ReturnType<typeof getStoreState>) =>
+          (e.ctrlKey || e.metaKey) && !e.altKey && e.code === 'KeyG' && s.ui.activeView === 'library',
+        execute: (e: KeyboardEvent, s: ReturnType<typeof getStoreState>) => {
+          e.preventDefault();
+          void editStack(s.library.multiSelectedPaths, e.shiftKey ? 'unstack' : 'stack');
+        },
+      },
+      {
         match: (e: KeyboardEvent, s: StoreState) =>
           s.ui.activeView === 'editor' &&
           s.ui.activePanel === Panel.Crop &&
@@ -863,7 +872,7 @@ export const useKeyboardShortcuts = ({
         state.ui.denoiseModalState.isOpen ||
         state.ui.negativeModalState.isOpen;
 
-      if (isModalOpen) return;
+      if (isModalOpen || state.library.stackPreviewOpen) return;
 
       if (state.ui.isSettingsOpen) {
         if (event.code === 'Escape') {

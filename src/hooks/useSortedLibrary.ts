@@ -10,6 +10,7 @@ import {
   GroupingMode,
 } from '../components/ui/AppProperties';
 import { buildImageGroups, GroupBadgeInfo, GroupId } from '../utils/imageGrouping';
+import { collapseStacks } from '../utils/photoStacks';
 import { matchesFlagStatus } from '../utils/imageFlags';
 
 export const ADVANCED_QUERY_REGEX =
@@ -62,7 +63,11 @@ interface SearchCriteria {
 type LibrarySortState = Pick<
   ReturnType<typeof useLibraryStore.getState>,
   'imageList' | 'imageRatings' | 'filterCriteria' | 'sortCriteria'
-> & { searchCriteria: SearchCriteria; denoiseStatuses?: Record<string, { marked: boolean; denoised: boolean }> };
+> & {
+  searchCriteria: SearchCriteria;
+  denoiseStatuses?: Record<string, { marked: boolean; denoised: boolean }>;
+  expandedStacks?: Set<string>;
+};
 
 type SettingsSortState = {
   appSettings: { grouping?: GroupingMode; groupEditedFiles?: boolean } | null;
@@ -297,7 +302,7 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
     : null;
 
   return {
-    displayList: list,
+    displayList: collapseStacks(list, libraryState.expandedStacks ?? new Set()),
     badges,
     matchingPhotoCount: imageList.filter((image) => matchesFilter(image) && matchesSearch(image)).length,
   };
@@ -308,6 +313,7 @@ export function computeSortedLibrary(libraryState: LibrarySortState, settingsSta
 }
 
 export function useSortedLibrary() {
+  const expandedStacks = useLibraryStore((state) => state.expandedStacks);
   const imageList = useLibraryStore((state) => state.imageList);
   const imageRatings = useLibraryStore((state) => state.imageRatings);
   const denoiseStatuses = useLibraryStore((state) => state.denoiseStatuses);
@@ -319,10 +325,19 @@ export function useSortedLibrary() {
 
   const result = useMemo(() => {
     return computeGroupedLibrary(
-      { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria, denoiseStatuses },
+      { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria, denoiseStatuses, expandedStacks },
       { appSettings },
     );
-  }, [imageList, sortCriteria, imageRatings, filterCriteria, searchCriteria, appSettings, denoiseStatuses]);
+  }, [
+    expandedStacks,
+    imageList,
+    sortCriteria,
+    imageRatings,
+    filterCriteria,
+    searchCriteria,
+    appSettings,
+    denoiseStatuses,
+  ]);
 
   return result;
 }

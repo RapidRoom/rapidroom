@@ -91,6 +91,7 @@ mod output_sharpening;
 mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
+mod photo_stacks;
 mod preset_application;
 mod preset_converter;
 mod preset_xmp;
@@ -2849,6 +2850,9 @@ pub fn run() {
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,
             file_management::set_flag_for_paths,
+            photo_stacks::edit_photo_stack,
+            photo_stacks::preview_photo_stacks,
+            photo_stacks::apply_photo_stacks,
             file_management::import_files,
             file_management::create_virtual_copy,
             file_management::get_albums,

@@ -8,6 +8,7 @@ import type {
   CullingSuggestions,
   ImageFile,
   ImageFlag,
+  StackMember,
   HistogramData,
   Progress,
   WaveformData,
@@ -57,6 +58,7 @@ interface TauriEventPayloads {
     path: string;
     rating: number;
     tags: string[] | null;
+    stack?: StackMember | null;
   };
   'import-complete': TransferSummary;
   'import-error': string;
@@ -221,12 +223,12 @@ export function useTauriListeners({
       }),
       listen('image-metadata-loaded', (event) => {
         if (!isEffectActive) return;
-        const { path, rating, flag, is_edited, tags } = event.payload;
+        const { path, rating, flag, is_edited, tags, stack } = event.payload;
 
         useLibraryStore.getState().setLibrary((state) => ({
           imageRatings: { ...state.imageRatings, [path]: rating },
           imageList: state.imageList.map((img) =>
-            img.path === path ? { ...img, flag, is_edited, tags: tags ?? img.tags } : img,
+            img.path === path ? { ...img, flag, is_edited, stack, tags: tags ?? img.tags } : img,
           ),
         }));
       }),
