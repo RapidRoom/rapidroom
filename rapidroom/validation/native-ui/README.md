@@ -308,7 +308,7 @@ The zoom-only test injector (`native_wheel.c`) is compiled into the owned case
 and preloaded into the isolated app. It receives only scroll direction and
 viewport coordinates through an owned file, then calls the WebView GTK event
 handler. It is never bundled in the app. Physical devices remain untested.
-`--presets` checks Ctrl+Shift+N preset creation, grouped/name search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. It also exercises built-in Styles description search, favourites, native export, Amount30/60/0, deletion through the folder menu followed by repeated native reloads, and one-time migration of a pre-existing library without losing moved presets or saved order. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.
+`--presets` checks Ctrl+Shift+N preset creation, grouped/name search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. It also exercises built-in Styles description search, favourites, native export, Amount30/60/0, twenty flat top-level Styles, deletion through the preset menu followed by repeated native reloads, and marker-only migration of a pre-existing library without losing user folders, moved presets or saved order. Empty or missing saved libraries with the migration marker do not resurrect deleted Styles. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.
 
 ## Optional command palette scenario
 

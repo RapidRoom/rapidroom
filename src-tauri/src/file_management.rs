@@ -4177,8 +4177,10 @@ pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
     let mut presets = if path.exists() {
         let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
         serde_json::from_str(&content).map_err(|e| e.to_string())?
-    } else {
+    } else if !marker.exists() {
         crate::starter_presets::library()?
+    } else {
+        Vec::new()
     };
     if !marker.exists() || !replacement_marker.exists() {
         if !replacement_marker.exists() {

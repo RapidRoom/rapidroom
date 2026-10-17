@@ -19,7 +19,8 @@ def run_styles_checks(smoke, wait_for, baseline):
         if not value['ok']:raise RuntimeError(value)
         return value['value']
     pack = json.loads((Path(__file__).resolve().parents[3] / 'src-tauri/resources/styles/styles-v1.json').read_text())
-    expected_count = len(pack['presets'][0]['folder']['children'])
+    expected_count = len(pack['presets'])
+    assert expected_count == 20 and all('preset' in item for item in pack['presets'])
     search('copper warmth')
     wait_for(lambda:smoke.execute("return document.body.innerText.includes('Teal & Orange') && !document.body.innerText.includes('Neon Night');"),'style description search')
     smoke.capture('styles-description-search')
@@ -31,12 +32,11 @@ def run_styles_checks(smoke, wait_for, baseline):
     wait_for(lambda:presetfile.exists(),'native preset persistence')
     time.sleep(.8)
     saved=ipc('load_presets')
-    styles=next(i['folder'] for i in saved if i.get('folder',{}).get('id')=='rapidroom-styles:v1')
-    assert len(saved)==1 and saved[0].get('folder',{}).get('id')=='rapidroom-styles:v1'
-    assert len(styles['children'])==expected_count
-    teal=next(p for p in styles['children'] if p['id']=='rapidroom-style:teal-orange')
+    assert len(saved)==expected_count and all('preset' in item for item in saved)
+    styles=[item['preset'] for item in saved]
+    teal=next(p for p in styles if p['id']=='rapidroom-style:teal-orange')
     assert teal['favorite'] and teal['description'].startswith('Cyan city shadows')
-    assert len({p['id'] for p in styles['children']})==expected_count
+    assert len({p['id'] for p in styles})==expected_count
     smoke.step('native save/load retains unique Styles, favorite and description',{'count':expected_count,'favorite':teal['favorite']})
     smoke.execute('const r='+row+';r.click();return true;')
     wait_for(lambda:smoke.slider('Amount')['value']==100,'style Amount100')
@@ -57,7 +57,7 @@ def run_styles_checks(smoke, wait_for, baseline):
     def edit():
         return ipc('load_metadata',{'path':str(photo)})['adjustments']
     original=edit()
-    gothic=next(p for p in styles['children'] if p['id']=='rapidroom-style:forest-gothic')
+    gothic=next(p for p in styles if p['id']=='rapidroom-style:forest-gothic')
     search(gothic['name'])
     beamrow="[...document.querySelectorAll('[data-tooltip]')].find(e=>e.dataset.tooltip===arguments[0])?.closest('[role=button]')"
     def apply_beam():
@@ -151,35 +151,40 @@ def run_styles_checks(smoke, wait_for, baseline):
             break
     else:raise RuntimeError('Beam style Undo did not restore baseline')
     smoke.step('native shared Undo restores pre-style pixels after beam and Amount edits')
-    # Exercise the actual folder delete action, then the native loader repeatedly.
-    search('Styles')
-    smoke.execute("""const r=[...document.querySelectorAll('[role=button]')].find(e=>[...e.children].some(c=>c.textContent.trim()==='Styles'));
-      if(!r)throw Error('Styles folder row missing');r.scrollIntoView({block:'center'});
-      const b=r.getBoundingClientRect();r.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:b.x+30,clientY:b.y+15}));return true;""")
-    wait_for(lambda:smoke.execute("return [...document.querySelectorAll('button,[role=menuitem]')].some(e=>/Delete Folder/i.test(e.textContent));"),'folder context delete')
+    # Delete a real top-level preset through the public menu; the marker alone
+    # protects that deletion even though no built-in folder exists.
+    search('copper warmth')
+    smoke.execute('const r='+row+";if(!r)throw Error('Teal row missing');r.scrollIntoView({block:'center'});const b=r.getBoundingClientRect();r.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:b.x+30,clientY:b.y+15}));return true;")
+    wait_for(lambda:smoke.execute("return [...document.querySelectorAll('button,[role=menuitem]')].some(e=>/Delete Preset/i.test(e.textContent));"),'preset context delete')
     smoke.capture('styles-delete-menu')
-    smoke.execute("""const e=[...document.querySelectorAll('button,[role=menuitem]')].find(e=>/Delete Folder/i.test(e.textContent));e.click();return true;""")
+    smoke.execute("const e=[...document.querySelectorAll('button,[role=menuitem]')].find(e=>/Delete Preset/i.test(e.textContent));e.click();return true;")
     def removed_on_disk():
         if not presetfile.exists():return False
-        return not any(i.get('folder',{}).get('id')=='rapidroom-styles:v1' for i in json.loads(presetfile.read_text()))
+        items=json.loads(presetfile.read_text())
+        return len(items)==expected_count-1 and all(i.get('preset',{}).get('id')!=teal['id'] for i in items)
     wait_for(removed_on_disk,'UI deletion saved to native preset library')
     marker=presetfile.with_name('.rapidroom-styles-v1');assert marker.exists()
     for _ in range(3):
-        deleted=ipc('load_presets');assert not any(i.get('folder',{}).get('id')=='rapidroom-styles:v1' for i in deleted)
-    smoke.step('public UI deletes Styles; saved deletion survives three real native reloads')
-    # An existing pre-migration library must receive the pack without changing
-    # a user preset, favourite, moved style, or saved order.
-    existing=[{'preset':dict(teal,name='Moved custom teal',favorite=True)},
+        deleted=ipc('load_presets');assert len(deleted)==expected_count-1 and all(i.get('preset',{}).get('id')!=teal['id'] for i in deleted)
+    smoke.step('public UI deletes a flat Style; saved deletion survives three real native reloads')
+    # A user-created folder, even with the former reserved ID/name, must not
+    # suppress missing built-ins or lose its moved/favourited recipe.
+    existing=[{'preset':dict(teal,id='user:teal',name='My imported teal')},
+              {'folder':{'id':'rapidroom-styles:v1','name':'Styles','children':[dict(teal,name='Moved custom teal',favorite=True)]}},
               {'folder':{'id':'user-folder','name':'User group','children':[]}}]
     ipc('save_presets',{'presets':existing});marker.unlink()
     migrated=ipc('load_presets')
-    group=next(i['folder'] for i in migrated if i.get('folder',{}).get('id')=='rapidroom-styles:v1')
-    assert len(group['children'])==expected_count-1 and all(p['id']!=teal['id'] for p in group['children'])
-    assert migrated[1:]==existing and marker.exists()
+    additions=migrated[:expected_count-1]
+    assert all('preset' in item and item['preset']['id']!=teal['id'] for item in additions)
+    assert len({i['preset']['id'] for i in additions})==expected_count-1
+    assert migrated[expected_count-1:]==existing and marker.exists()
     assert json.loads(presetfile.read_text())==migrated
     assert ipc('load_presets')==migrated
+    user_folders=[existing[-1]]
+    ipc('save_presets',{'presets':user_folders});assert ipc('load_presets')==user_folders
     ipc('save_presets',{'presets':[]});assert ipc('load_presets')==[]
-    smoke.step('native one-time migration persists before marker; moved/favourite/user order retained; empty saved library stays empty')
+    presetfile.unlink();assert ipc('load_presets')==[]
+    smoke.step('native marker-only flat seeding preserves user folders, moved/favourite/imported presets and order; empty/missing saved library does not resurrect Styles')
     # Import the actual bundled legacy XMP files through the real native
     # converter, then reconstruct their pre-upgrade stock IDs and groups.
     stock_root = Path(__file__).resolve().parents[3] / 'src-tauri/resources/starter-presets'
@@ -227,8 +232,9 @@ def run_styles_checks(smoke, wait_for, baseline):
     marker.unlink()
     replacement_marker.unlink()
     first_upgrade = ipc('load_presets')
-    assert len(first_upgrade[0]['folder']['children']) == expected_count
-    assert first_upgrade[1:] == expected
+    assert len(first_upgrade[:expected_count]) == expected_count
+    assert all('preset' in item for item in first_upgrade[:expected_count])
+    assert first_upgrade[expected_count:] == expected
     assert ipc('load_presets') == first_upgrade
     ipc('save_presets', {'presets': []})
     assert ipc('load_presets') == []
