@@ -409,7 +409,7 @@ function App() {
     return () => setImageSelectHandler(null);
   }, [handleImageSelect]);
 
-  const { displayList: sortedImageList, badges: groupBadgeInfo } = useSortedLibrary();
+  const { displayList: sortedImageList, badges: groupBadgeInfo, matchingPhotoCount } = useSortedLibrary();
 
   const handleLibraryRefresh = useCallback(async () => {
     if (currentFolderPath) {
@@ -434,6 +434,16 @@ function App() {
       }
     }
   }, [currentFolderPath, handleSelectSubfolder, handleSelectAlbum]);
+
+  const savedLibraryViewMode = appSettings ? (appSettings.libraryViewMode ?? defaultLibraryViewMode) : null;
+  const previousLibraryViewMode = useRef(savedLibraryViewMode);
+  useEffect(() => {
+    const previous = previousLibraryViewMode.current;
+    previousLibraryViewMode.current = savedLibraryViewMode;
+    if (previous !== null && savedLibraryViewMode !== null && previous !== savedLibraryViewMode) {
+      void handleLibraryRefresh().catch((error) => console.error('Failed to reload library display mode:', error));
+    }
+  }, [savedLibraryViewMode, handleLibraryRefresh]);
 
   const {
     executeDelete,
@@ -1011,6 +1021,7 @@ function App() {
                   )}
                 >
                   <LibraryView
+                    matchingPhotoCount={matchingPhotoCount}
                     sortedImageList={sortedImageList}
                     groupBadgeInfo={groupBadgeInfo}
                     thumbnailSize={thumbnailSize}
