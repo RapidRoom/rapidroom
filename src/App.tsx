@@ -447,6 +447,7 @@ function App() {
   }, [savedLibraryViewMode, handleLibraryRefresh]);
 
   const {
+    requestDeletePaths,
     executeDelete,
     handleDeleteSelected,
     handleDeleteRejected,
@@ -506,7 +507,7 @@ function App() {
   });
 
   useAndroidBackHandler();
-  useMcpBridge(handleImageSelect);
+  useMcpBridge(handleImageSelect, { requestDeletePaths, refreshImageList: handleLibraryRefresh });
 
   useKeyboardShortcuts({
     sortedImageList,

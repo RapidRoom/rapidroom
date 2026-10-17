@@ -1,6 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import debounce from 'lodash.debounce';
+import {
+  usePresetCatalog,
+  setCatalogPresets,
+  saveCatalogPresets,
+  loadPresetCatalog,
+  flushCatalogWrites,
+} from '../store/usePresetCatalog';
 import { Adjustments, COPYABLE_ADJUSTMENT_KEYS, ADJUSTMENT_GROUPS, INITIAL_ADJUSTMENTS } from '../utils/adjustments';
 import { Folder, Invokes, Preset } from '../components/ui/AppProperties';
 
@@ -40,34 +46,15 @@ function arrayMove<T>(array: T[], from: number, to: number): T[] {
 }
 
 export function usePresets(currentAdjustments: Adjustments) {
-  const [presets, setPresets] = useState<Array<UserPreset>>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const loadPresets = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const loadedPresets: Array<UserPreset> = await invoke(Invokes.LoadPresets);
-      setPresets(loadedPresets);
-    } catch (error) {
-      console.error('Failed to load presets:', error);
-      setPresets([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const savePresetsToBackend = useCallback(
-    debounce((presetsToSave: Array<UserPreset>) => {
-      invoke(Invokes.SavePresets, { presets: presetsToSave }).catch((err) =>
-        console.error('Failed to save presets:', err),
-      );
-    }, 500),
-    [],
-  );
+  const { presets, isLoading } = usePresetCatalog();
+  const setPresets = setCatalogPresets;
+  const setIsLoading = (value: boolean) => usePresetCatalog.setState({ isLoading: value });
+  const loadPresets = useCallback(() => loadPresetCatalog(true), []);
+  const savePresetsToBackend = saveCatalogPresets;
 
   useEffect(() => {
-    loadPresets();
-  }, [loadPresets]);
+    void loadPresetCatalog().catch((error) => console.error('Failed to load presets:', error));
+  }, []);
 
   const addPreset = (
     name: string,
@@ -97,6 +84,11 @@ export function usePresets(currentAdjustments: Adjustments) {
           presetAdjustments[key] = currentValue;
         }
       }
+    }
+
+    if (presetAdjustments.exposure !== undefined) {
+      presetAdjustments.baselineExposure = currentAdjustments.baselineExposure;
+      presetAdjustments.cameraExposureCompensation = currentAdjustments.cameraExposureCompensation;
     }
 
     const newPresetData: Preset = {
@@ -253,6 +245,13 @@ export function usePresets(currentAdjustments: Adjustments) {
       }
     }
 
+    // Configuring metadata or type must retain explicit flags and legacy omissions.
+    for (const key of ['baselineExposure', 'cameraExposureCompensation'] as const) {
+      const value = existingPreset.adjustments[key];
+      if (value === undefined) delete newAdjustments[key];
+      else newAdjustments[key] = value;
+    }
+
     if (!includeMasks) {
       for (const k of MASK_KEYS) delete newAdjustments[k];
     }
@@ -352,6 +351,11 @@ export function usePresets(currentAdjustments: Adjustments) {
           presetAdjustments[key] = currentValue;
         }
       }
+    }
+
+    if (presetAdjustments.exposure !== undefined) {
+      presetAdjustments.baselineExposure = currentAdjustments.baselineExposure;
+      presetAdjustments.cameraExposureCompensation = currentAdjustments.cameraExposureCompensation;
     }
 
     let updatedPreset: Preset | null = null;
@@ -599,6 +603,7 @@ export function usePresets(currentAdjustments: Adjustments) {
     async (filePath: string) => {
       setIsLoading(true);
       try {
+        await flushCatalogWrites();
         const updatedPresetList: UserPreset[] = await invoke(Invokes.HandleImportPresetsFromFile, { filePath });
         setPresets(updatedPresetList);
       } catch (error) {
@@ -615,6 +620,7 @@ export function usePresets(currentAdjustments: Adjustments) {
     async (filePath: string) => {
       setIsLoading(true);
       try {
+        await flushCatalogWrites();
         const updatedPresetList: Array<UserPreset> = await invoke(Invokes.HandleImportLegacyPresetsFromFile, {
           filePath,
         });
@@ -633,6 +639,7 @@ export function usePresets(currentAdjustments: Adjustments) {
     async (filePaths: Array<string>): Promise<PresetImportResult> => {
       setIsLoading(true);
       try {
+        await flushCatalogWrites();
         const result: PresetImportResult = await invoke(Invokes.HandleImportPresetsFromFiles, { filePaths });
         setPresets(result.presets);
         return result;

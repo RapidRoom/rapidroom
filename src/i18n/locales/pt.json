@@ -2116,7 +2116,7 @@
         "baselineExposure": "Exposição base",
         "baselineExposureAmount": "Valor base",
         "baselineExposureAmountDesc": "Exposição adicionada aos arquivos RAW. O darktable usa +0,7 EV.",
-        "baselineExposureDesc": "Clareia todos os arquivos RAW em um valor fixo, como o padrão do darktable no modo referido à cena, mais a etiqueta DNG BaselineExposure quando presente. Imagens editadas antes desta opção existir não são afetadas.",
+        "baselineExposureDesc": "Aplica um aumento fixo de exposição às edições anteriores que usam a exposição base. Edições RAW novas ou redefinidas usam a compensação de exposição da câmera ou DNG em vez desse aumento fixo.",
         "colorNr": "Redução Base de Ruído de Cor",
         "colorNrDesc": "Aplica um filtro bilateral cruzado no início do pipeline para remover o ruído de croma. Valor mais alto = Redução mais forte.",
         "defaultNonRawTonemapper": "Mapeador de Tons Padrão Não-RAW",

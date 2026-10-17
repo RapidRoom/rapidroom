@@ -267,6 +267,8 @@ pub(super) fn tool_definitions() -> Vec<Value> {
                 adjustments::referenced_definitions(&tool["inputSchema"], &all);
         }
     }
+    definitions.extend(super::presets::definitions());
+    definitions.extend(super::library::definitions());
     definitions
 }
 
@@ -275,6 +277,11 @@ pub(super) async fn call_tool(
     name: &str,
     mut arguments: Value,
 ) -> Result<Value, (i64, String)> {
+    let exact_preset_name = if name == "apply_preset" {
+        arguments.get("name").cloned()
+    } else {
+        None
+    };
     if let Some(current) = ui::active_session(app_handle) {
         app_handle
             .state::<crate::AppState>()
@@ -291,7 +298,17 @@ pub(super) async fn call_tool(
     } else {
         crate::assistant_text::project_input(&mut arguments);
     }
+    if let Some(exact) = exact_preset_name {
+        arguments["name"] = exact;
+    }
     let result = match name {
+        "adopt_virtual_copy"
+        | "create_virtual_copy"
+        | "set_image_metadata"
+        | "assess_edits"
+        | "open_reference_view"
+        | "request_delete_image" => super::library::call(app_handle, name, &arguments).await,
+        "list_presets" | "apply_preset" => super::presets::call(app_handle, name, &arguments).await,
         "list_images" => list_images(app_handle, &arguments),
         "open_image" | "select_image" => select_image(app_handle, &arguments).await,
         "get_image_state" => get_image_state(app_handle, &arguments),
@@ -599,6 +616,12 @@ pub(super) fn original_adjustments() -> Result<Value, String> {
     ))
 }
 
+pub(super) fn original_adjustments_for(current: &Value) -> Result<Value, String> {
+    let mut original = original_adjustments()?;
+    crate::image_processing::copy_exposure_policy(current, &mut original);
+    Ok(original)
+}
+
 pub(super) fn history_index(arguments: &Value) -> Result<Option<u64>, String> {
     arguments
         .get("historyIndex")
@@ -660,11 +683,11 @@ async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value,
         .as_ref()
         .map_or(&current["adjustments"], |snapshot| &snapshot["adjustments"]);
     let adjustments = if original {
-        original_adjustments()?
+        original_adjustments_for(&current["adjustments"])?
     } else if let Some(adjustments) = arguments.get("adjustments") {
         adjustments::validate_adjustments(adjustments)?;
         let base = if mode == "replace" {
-            original_adjustments()?
+            original_adjustments_for(base)?
         } else {
             base.clone()
         };
@@ -698,7 +721,7 @@ async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value,
     let (result, labels) = if comparison {
         let neutral = crate::generate_preview_bytes_for_path(
             path.clone(),
-            original_adjustments()?,
+            original_adjustments_for(&current["adjustments"])?,
             render_dimension,
             app_handle.clone(),
         )
@@ -1165,7 +1188,7 @@ fn bounded_f64(
     Ok(value as f32)
 }
 
-async fn check_expected_revision(
+pub(super) async fn check_expected_revision(
     app_handle: &AppHandle,
     path: &str,
     expected: Option<&Value>,

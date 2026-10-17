@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { invoke } from '@tauri-apps/api/core';
 import { sameAdjustmentValue } from '../../utils/editHistory';
 import { presetUnavailableReason } from '../../utils/presetBrowser';
 import { mixPresetAdjustments } from '../../utils/presetAmount';
-import { rememberAppliedPreset } from '../../utils/appliedPreset';
-import type { UserPreset } from '../../hooks/usePresets';
+import { preparePresetApplication, commitPresetApplication } from '../../utils/presetApplication';
+import { loadPresetCatalog, usePresetCatalog } from '../../store/usePresetCatalog';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
@@ -21,7 +20,7 @@ import {
   type PaletteParameter,
 } from '../../utils/commandPalette';
 import type { Adjustments } from '../../utils/adjustments';
-import { Invokes, type Preset } from './AppProperties';
+import type { Preset } from './AppProperties';
 import { calculateCenteredCrop, forceCropInBounds, getOrientedDimensions } from '../../utils/cropUtils';
 
 interface Entry {
@@ -49,7 +48,11 @@ export default function CommandPalette() {
   const [selected, setSelected] = useState(0);
   const [parameter, setParameter] = useState<PaletteParameter | null>(null);
   const [value, setValue] = useState(0);
-  const [presets, setPresets] = useState<Preset[]>([]);
+  const catalog = usePresetCatalog((state) => state.presets);
+  const presets = useMemo(
+    () => catalog.flatMap((item) => (item.preset ? [item.preset] : (item.folder?.children ?? []))),
+    [catalog],
+  );
   const input = useRef<HTMLInputElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const returnQuery = useRef('');
@@ -129,18 +132,7 @@ export default function CommandPalette() {
   useEffect(() => () => revert(), [revert]);
 
   useEffect(() => {
-    if (!open) return;
-    let current = true;
-    invoke<UserPreset[]>(Invokes.LoadPresets)
-      .then((items) => {
-        if (current) setPresets(items.flatMap((item) => (item.preset ? [item.preset] : (item.folder?.children ?? []))));
-      })
-      .catch(() => {
-        if (current) setPresets([]);
-      });
-    return () => {
-      current = false;
-    };
+    if (open) void loadPresetCatalog().catch((error) => console.error('Failed to load presets:', error));
   }, [open]);
 
   const commit = useCallback(
@@ -151,13 +143,19 @@ export default function CommandPalette() {
         close();
         return;
       }
+      const plan = preset ? preparePresetApplication(preset, 100) : null;
+      if (plan) next = plan.application.result;
       revert();
-      if (!sameAdjustmentValue(next, state.adjustments)) {
+      if (plan) {
+        commitPresetApplication(plan, (adjustments) => {
+          setAdjustments(() => adjustments);
+          debouncedSetHistory.flush();
+        });
+      } else if (!sameAdjustmentValue(next, state.adjustments)) {
         state.setEditor({ showOriginal: false, previewOverride: null });
         setAdjustments(next);
         debouncedSetHistory.flush();
       }
-      if (preset) void rememberAppliedPreset(original.path, preset, 100, next);
       setOpen(false);
       setParameter(null);
       setQuery('');

@@ -2067,7 +2067,7 @@
         "baselineExposure": "ベース露出",
         "baselineExposureAmount": "ベース量",
         "baselineExposureAmountDesc": "RAWファイルに加える露出量です。darktableは+0.7 EVを使用します。",
-        "baselineExposureDesc": "すべてのRAWファイルを一定量明るくします（darktableのシーンリファード既定値と同様）。DNGのBaselineExposureタグがある場合はその値も加えます。このオプションの追加前に編集した画像には影響しません。",
+        "baselineExposureDesc": "ベース露出を使用する既存の編集に、一定の明るさ補正を加えます。新規またはリセットしたRAW編集では、この固定補正の代わりにカメラやDNGの露出補正を使用します。",
         "colorNr": "カラーノイズ低減 (基本)",
         "colorNrDesc": "パイプラインの初期段階でクロスバイラテラルフィルタを適用し、カラーノイズを除去します。値が大きいほど効果が強まります。",
         "defaultNonRawTonemapper": "標準トーンマッパー (RAW以外)",

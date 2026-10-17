@@ -245,6 +245,7 @@ export interface Adjustments {
   aiPatches: Array<AiPatch>;
   aspectRatio: number | null;
   baselineExposure: boolean;
+  cameraExposureCompensation: boolean;
   blacks: number;
   brightness: number;
   centré: number;
@@ -657,6 +658,7 @@ export const INITIAL_ADJUSTMENTS: Adjustments = {
   aiPatches: [],
   aspectRatio: null,
   baselineExposure: true,
+  cameraExposureCompensation: true,
   blacks: 0,
   brightness: 0,
   centré: 0,
@@ -912,6 +914,7 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
       autoCrop: loadedAdjustments.guidedPerspective?.autoCrop ?? true,
     },
     baselineExposure: loadedAdjustments.baselineExposure ?? false,
+    cameraExposureCompensation: loadedAdjustments.cameraExposureCompensation ?? false,
     lutIsSceneReferred: loadedAdjustments.lutIsSceneReferred ?? false,
     flareAmount: loadedAdjustments.flareAmount ?? INITIAL_ADJUSTMENTS.flareAmount,
     glowAmount: loadedAdjustments.glowAmount ?? INITIAL_ADJUSTMENTS.glowAmount,
@@ -988,7 +991,7 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
   basic: [
     {
       label: 'modals.copyPaste.groups.exposureToneMapper',
-      keys: [BasicAdjustment.Exposure, 'toneMapper'],
+      keys: [BasicAdjustment.Exposure, 'toneMapper', 'baselineExposure', 'cameraExposureCompensation'],
     },
     {
       label: 'modals.copyPaste.groups.tone',
@@ -1119,6 +1122,8 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     BasicAdjustment.Whites,
     BasicAdjustment.Blacks,
     BasicAdjustment.Exposure,
+    'baselineExposure',
+    'cameraExposureCompensation',
     'toneMapper',
   ],
   curves: ['curves', 'pointCurves', 'parametricCurve', 'curveMode'],
