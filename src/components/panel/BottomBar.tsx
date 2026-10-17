@@ -522,6 +522,7 @@ export default function BottomBar({
                     return (
                       <button
                         key={`qf-star-${starValue}`}
+                        aria-pressed={isFilled}
                         data-tooltip={`${starValue} ${t(ratingOp.suffixKey)}`}
                         onClick={() =>
                           setFilterCriteria((prev) => ({
@@ -568,6 +569,8 @@ export default function BottomBar({
                           isPickedActive && FLAG_FILL_CLASSES[ImageFlag.Pick],
                         )}
                         onClick={() => handleToggleFlagFilter(FlagStatus.Picked)}
+                        aria-pressed={isPickedActive}
+                        aria-label={t('library.filters.flag.picked')}
                         data-tooltip={t('library.filters.flag.picked')}
                       >
                         <PickIcon
@@ -591,6 +594,8 @@ export default function BottomBar({
                           isRejectActive && FLAG_FILL_CLASSES[ImageFlag.Reject],
                         )}
                         onClick={() => handleToggleFlagFilter(FlagStatus.Rejected)}
+                        aria-pressed={isRejectActive}
+                        aria-label={t('library.filters.flag.rejected')}
                         data-tooltip={t('library.filters.flag.rejected')}
                       >
                         <RejectIcon

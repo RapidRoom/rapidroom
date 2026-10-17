@@ -8,7 +8,7 @@ export const FLAG_ICONS = {
 
 // Solid fills for a flag that is set: green for Pick, red for Reject, always with a white icon.
 export const FLAG_FILL_CLASSES = {
-  [ImageFlag.Pick]: 'bg-green-600',
+  [ImageFlag.Pick]: 'bg-green-700',
   [ImageFlag.Reject]: 'bg-red-600',
 };
 

@@ -39,6 +39,8 @@ export default function FlagToggles({
             )}
             disabled={disabled}
             onClick={() => onToggle(option)}
+            aria-pressed={isActive}
+            aria-label={t(FLAG_TOOLTIP_KEYS[option])}
             data-tooltip={t(FLAG_TOOLTIP_KEYS[option])}
           >
             <Icon
