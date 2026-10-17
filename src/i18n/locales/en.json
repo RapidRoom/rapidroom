@@ -1896,7 +1896,8 @@
     "categories": {
       "general": "General",
       "processing": "Processing",
-      "shortcuts": "Controls"
+      "shortcuts": "Controls",
+      "view": "View"
     },
     "controls": {
       "keyboardTitle": "Keyboard Controls",
@@ -2329,6 +2330,13 @@
     "title": "Settings",
     "tooltips": {
       "goHome": "Go to Home"
+    },
+    "view": {
+      "shootingInfo": "Show shooting info in editor and culling",
+      "shootingInfoDesc": "Lens, focal length, aperture, shutter speed and ISO above each photo. Long lens names shorten first.",
+      "always": "Always",
+      "onHover": "On hover",
+      "off": "Off"
     }
   },
   "terminal": {
