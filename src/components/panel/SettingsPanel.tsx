@@ -1305,8 +1305,8 @@ export default function SettingsPanel({
                       </div>
 
                       <SettingItem
-                        label={t('settings.general.folderImageCounts')}
-                        description={t('settings.general.folderImageCountsDesc')}
+                        label={t('library.photoCounts.albumCountsLabel')}
+                        description={t('library.photoCounts.albumCountsDesc')}
                       >
                         <Switch
                           checked={appSettings?.enableFolderImageCounts ?? false}

@@ -334,6 +334,8 @@ pub fn start_metadata_workers(app_handle: tauri::AppHandle) {
 pub struct Preset {
     pub id: String,
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub adjustments: Value,
     #[serde(rename = "includeMasks", skip_serializing_if = "Option::is_none")]
     pub include_masks: Option<bool>,
@@ -1403,14 +1405,9 @@ fn scan_dir_lazy(
                 )?
             } else {
                 let count = if show_image_counts {
-                    WalkDir::new(&current_path)
-                        .into_iter()
-                        .filter_map(Result::ok)
-                        .filter(|e| {
-                            e.file_type().is_file()
-                                && crate::formats::is_supported_image_file(e.path())
-                        })
-                        .count()
+                    crate::folder_counts::count_photos(&current_path, false)
+                        .map(|result| result.count)
+                        .unwrap_or(0)
                 } else {
                     0
                 };
@@ -1423,15 +1420,12 @@ fn scan_dir_lazy(
                 has_subdirs(&current_path)
             };
 
-            let grand_children_sum: usize = grand_children.iter().map(|c| c.image_count).sum();
-            let total_child_count = sub_dir_own_images + grand_children_sum;
-
             children_folders.push(FolderNode {
                 name: name_str.into_owned(),
                 path: path_str,
                 children: grand_children,
                 is_dir: true,
-                image_count: total_child_count,
+                image_count: sub_dir_own_images,
                 has_subdirs: has_any_subdirs,
                 modified,
                 created,
@@ -1482,7 +1476,6 @@ fn get_folder_tree_sync(
     let (children, own_count) = scan_dir_lazy(root_path, &expanded_set, show_image_counts, true)
         .map_err(|e| e.to_string())?;
 
-    let children_sum: usize = children.iter().map(|c| c.image_count).sum();
     let has_subdirs = children.iter().any(|c| c.is_dir);
 
     let name = match root_path.file_name() {
@@ -1502,7 +1495,7 @@ fn get_folder_tree_sync(
         path: path.clone(),
         children,
         is_dir: true,
-        image_count: own_count + children_sum,
+        image_count: own_count,
         has_subdirs,
         modified,
         created,
@@ -4170,11 +4163,31 @@ fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String
 #[tauri::command]
 pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
     let path = get_presets_path(&app_handle)?;
-    if !path.exists() {
-        return crate::starter_presets::library();
+    let marker = path.with_file_name(".rapidroom-styles-v1");
+    let replacement_marker = path.with_file_name(".rapidroom-styles-replacement-v1");
+    let mut presets = if path.exists() {
+        let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    } else if !marker.exists() {
+        crate::starter_presets::library()?
+    } else {
+        Vec::new()
+    };
+    if !marker.exists() || !replacement_marker.exists() {
+        if !replacement_marker.exists() {
+            crate::starter_presets::retire_untouched_stock(&mut presets)?;
+        }
+        if !marker.exists() {
+            crate::starter_presets::include_styles(&mut presets)?;
+        }
+        // Persist before either marker; an existing Styles marker also protects
+        // a user's deletion when retiring the old stock pack on upgrade.
+        let content = serde_json::to_string_pretty(&presets).map_err(|e| e.to_string())?;
+        write_file_atomically(&path, content).map_err(|e| e.to_string())?;
+        write_file_atomically(&replacement_marker, "1\n").map_err(|e| e.to_string())?;
+        write_file_atomically(&marker, "1\n").map_err(|e| e.to_string())?;
     }
-    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
+    Ok(presets)
 }
 
 #[tauri::command]
@@ -4502,6 +4515,7 @@ pub fn save_community_preset(
     let new_preset = Preset {
         id: Uuid::new_v4().to_string(),
         name,
+        description: None,
         adjustments,
         include_masks,
         include_crop_transform,
@@ -4610,6 +4624,55 @@ pub fn clear_thumbnail_cache(app_handle: AppHandle) -> Result<(), String> {
         .map_err(|e| format!("Failed to recreate thumbnail cache directory: {}", e))?;
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn instagram_export_folder(
+    folder: Option<String>,
+    create: bool,
+    app_handle: AppHandle,
+) -> Result<String, String> {
+    let path = if let Some(folder) = folder.filter(|s| !s.trim().is_empty()) {
+        PathBuf::from(folder)
+    } else {
+        app_handle
+            .path()
+            .picture_dir()
+            .map_err(|e| e.to_string())?
+            .join("Instagram")
+            .join(chrono::Local::now().format("%Y-%m-%d").to_string())
+    };
+    if !path.is_absolute() {
+        return Err("Export folder must be an absolute path".into());
+    }
+    if create {
+        ensure_card_writable(&path)?;
+        fs::create_dir_all(&path).map_err(|e| format!("Could not create export folder: {e}"))?;
+    }
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn open_export_folder(path: String) -> Result<(), String> {
+    let path = Path::new(&path);
+    if !path.is_dir() {
+        return Err("Export folder no longer exists".into());
+    }
+    #[cfg(target_os = "linux")]
+    let mut command = Command::new("xdg-open");
+    #[cfg(target_os = "macos")]
+    let mut command = Command::new("open");
+    #[cfg(target_os = "windows")]
+    let mut command = Command::new("explorer");
+    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+    {
+        command.arg(path).spawn().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        Err("Opening an export folder is unavailable on this platform".into())
+    }
 }
 
 #[tauri::command]

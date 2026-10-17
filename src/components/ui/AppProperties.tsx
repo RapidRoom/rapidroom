@@ -87,6 +87,7 @@ export enum Invokes {
   IsTetheringSupported = 'is_tethering_supported',
   IsRaw9Available = 'is_raw9_available',
   ListImagesInDir = 'list_images_in_dir',
+  CountUnshownVideos = 'count_unshown_videos',
   ListImagesRecursive = 'list_images_recursive',
   LoadImage = 'load_image',
   LoadMetadata = 'load_metadata',
@@ -276,6 +277,8 @@ export interface AppSettings {
   exportPresets?: ExportPreset[];
   lastSelectedExportPresetId?: string | null;
   lastInstagramExportPresetId?: string | null;
+  instagramExportFolder?: string | null;
+  showInstagramGuide?: boolean;
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
   adjustmentLayout?: AdjustmentLayout;
@@ -447,6 +450,7 @@ export enum Orientation {
 }
 
 export interface Preset {
+  description?: string;
   adjustments: Partial<Adjustments>;
   folder?: Folder;
   id: string;

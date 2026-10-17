@@ -581,6 +581,10 @@ pub struct AppSettings {
     #[serde(default)]
     pub last_instagram_export_preset_id: Option<String>,
     #[serde(default)]
+    pub instagram_export_folder: Option<String>,
+    #[serde(default)]
+    pub show_instagram_guide: bool,
+    #[serde(default)]
     pub my_lenses: Option<Vec<MyLens>>,
     #[serde(default)]
     pub enable_folder_image_counts: Option<bool>,
@@ -729,6 +733,8 @@ impl Default for AppSettings {
             export_presets: default_export_presets(),
             last_selected_export_preset_id: None,
             last_instagram_export_preset_id: None,
+            instagram_export_folder: None,
+            show_instagram_guide: false,
             my_lenses: Some(Vec::new()),
             #[cfg(target_os = "android")]
             high_res_zoom_multiplier: Some(0.75),
