@@ -391,7 +391,13 @@ pub fn read_as_shot(file_bytes: &[u8]) -> Option<AsShot> {
             .then(|| as_shot_white_balance_from_raw(&raw_image, file_bytes))
             .flatten()
             .unwrap_or_else(WhiteBalance::reference),
-        exposure: crate::baseline_exposure::read(decoder.as_ref(), file_bytes, is_monochrome),
+        exposure: crate::baseline_exposure::read(
+            decoder.as_ref(),
+            file_bytes,
+            is_monochrome,
+            &raw_image.make,
+            &raw_image.model,
+        ),
     })
 }
 

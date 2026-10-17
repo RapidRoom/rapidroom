@@ -17,7 +17,6 @@ import { usePresets } from './usePresets';
 const editorInitial = useEditorStore.getState();
 const libraryInitial = useLibraryStore.getState();
 const settingsInitial = useSettingsStore.getState();
-const futureCameraDefault = INITIAL_ADJUSTMENTS.cameraExposureCompensation;
 const auto = {
   lensCorrectionMode: 'auto',
   cameraLensCorrectionVersion: 1,
@@ -58,9 +57,6 @@ beforeEach(() => {
   useEditorStore.setState(editorInitial, true);
   useLibraryStore.setState(libraryInitial, true);
   useSettingsStore.setState(settingsInitial, true);
-  // Approved #334 composition seam: its unchanged synchronous Reset factory
-  // gets both true defaults from INITIAL. This fixture does not claim a merged engine.
-  INITIAL_ADJUSTMENTS.cameraExposureCompensation = true;
   useSettingsStore.setState({ appSettings: { theme: Theme.Dark, lastRootPath: null } });
   saved = [];
   applied = [];
@@ -82,8 +78,6 @@ afterEach(async () => {
   root = undefined;
   debouncedSetHistory.cancel();
   debouncedSave.cancel();
-  if (futureCameraDefault === undefined) delete INITIAL_ADJUSTMENTS.cameraExposureCompensation;
-  else INITIAL_ADJUSTMENTS.cameraExposureCompensation = futureCameraDefault;
   useEditorStore.setState(editorInitial, true);
   useLibraryStore.setState(libraryInitial, true);
   useSettingsStore.setState(settingsInitial, true);

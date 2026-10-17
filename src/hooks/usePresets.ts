@@ -127,6 +127,11 @@ export function usePresets(currentAdjustments: Adjustments) {
     if (!capture?.isCurrent()) return null;
     const presetAdjustments = capture.adjustments;
 
+    if (presetAdjustments.exposure !== undefined) {
+      presetAdjustments.baselineExposure = currentAdjustments.baselineExposure;
+      presetAdjustments.cameraExposureCompensation = currentAdjustments.cameraExposureCompensation;
+    }
+
     const newPresetData: Preset = {
       adjustments: presetAdjustments,
       id: crypto.randomUUID(),
@@ -283,6 +288,13 @@ export function usePresets(currentAdjustments: Adjustments) {
       }
     }
 
+    // Configuring metadata or type must retain explicit flags and legacy omissions.
+    for (const key of ['baselineExposure', 'cameraExposureCompensation'] as const) {
+      const value = existingPreset.adjustments[key];
+      if (value === undefined) delete newAdjustments[key];
+      else newAdjustments[key] = value;
+    }
+
     if (!includeMasks) {
       for (const k of MASK_KEYS) delete newAdjustments[k];
     }
@@ -376,6 +388,11 @@ export function usePresets(currentAdjustments: Adjustments) {
     const capture = await captureCurrent(includeMasks, includeCropTransform, presetType === 'tool');
     if (!capture?.isCurrent()) return null;
     const presetAdjustments = capture.adjustments;
+
+    if (presetAdjustments.exposure !== undefined) {
+      presetAdjustments.baselineExposure = currentAdjustments.baselineExposure;
+      presetAdjustments.cameraExposureCompensation = currentAdjustments.cameraExposureCompensation;
+    }
 
     let updatedPreset: Preset | null = null;
     const updatedPresets = presets.map((item: UserPreset) => {

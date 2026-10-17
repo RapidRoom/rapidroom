@@ -47,6 +47,7 @@ impl Options {
                 self.strength / 100.0
             },
             sharpen: self.sharpen,
+            exposure_policies: HashMap::new(),
         })
     }
 }
@@ -321,6 +322,14 @@ fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> R
     {
         return Err(
             "Source baseline setting changed during denoise; run the marked queue again.".into(),
+        );
+    }
+    if ident["method"] == "nind"
+        && let Some(expected) = ident.get("sourceExposurePolicy")
+        && expected != &nind_raw_defaults(adjustments)
+    {
+        return Err(
+            "Source exposure policy changed during denoise; run the marked queue again.".into(),
         );
     }
     let override_mode = (ident["settings"]["toneOverride"] == true).then(|| {
@@ -611,13 +620,13 @@ pub async fn run(
                 );
                 let result = run_item(path, &ident, &job, |item_identity| {
                     denoise_image_with_settings(
-                        &parse_virtual_path(path).0.to_string_lossy(),
+                        path,
                         &internal,
                         &app,
                         models.clone(),
                         &job,
                         frozen_settings.clone(),
-                        item_identity["sourceBaselineEligible"].as_bool(),
+                        item_identity.get("sourceExposurePolicy").cloned(),
                     )
                     .map(|(image, _, raw)| {
                         raw.map_or_else(|| DenoisedOutput::Image(image), DenoisedOutput::Raw)
@@ -702,6 +711,7 @@ fn run_item(
     if is_raw_file(&source) && ident["method"] == "nind" {
         item_identity["sourceBaselineEligible"] =
             source_baseline_eligible(&metadata["adjustments"]).into();
+        item_identity["sourceExposurePolicy"] = nind_raw_defaults(&metadata["adjustments"]);
     }
     let ident = &item_identity;
     ensure_rendered_eligible(&metadata, &source, ident)?;
@@ -1238,6 +1248,7 @@ mod tests {
                 scene_referred: true,
                 dng_baseline: 0.58,
                 highlight_preservation: 2.,
+                camera_baseline: Some(0.35),
             },
         };
         for compensate in [false, true] {
@@ -1248,8 +1259,10 @@ mod tests {
                 json!({}),
                 json!({"baselineExposure":false,"exposure":0}),
                 json!({"baselineExposure":true}),
+                json!({"baselineExposure":true,"cameraExposureCompensation":true}),
+                json!({"baselineExposure":true,"cameraExposureCompensation":false}),
             ] {
-                let prepared = nind_raw_defaults(Some(source_baseline_eligible(&source)));
+                let prepared = nind_raw_defaults(&source);
                 let expected = crate::image_processing::get_all_adjustments_from_json(
                     &source, true, shot, render,
                 );
@@ -1265,12 +1278,15 @@ mod tests {
                 render,
             );
             let fresh = crate::image_processing::get_all_adjustments_from_json(
-                &nind_raw_defaults(None),
+                &nind_raw_defaults(&Value::Null),
                 true,
                 shot,
                 render,
             );
-            assert!((fresh.global.exposure - legacy.global.exposure).abs() > 0.5);
+            let expected_camera_ev = 0.35 + if compensate { 2.0 } else { 0.0 };
+            assert!(
+                (fresh.global.exposure - legacy.global.exposure - expected_camera_ev).abs() < 1e-6
+            );
         }
         let mut metadata =
             serde_json::to_value(crate::image_processing::ImageMetadata::default()).unwrap();
@@ -1281,6 +1297,61 @@ mod tests {
                 .unwrap_err()
                 .contains("Source baseline setting changed")
         );
+    }
+
+    #[test]
+    fn nind_queue_keys_and_publication_follow_the_selected_copy_camera_policy() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        fs::write(&raw, b"unchanged RAW fixture").unwrap();
+        let selected = format!("{}?vc=selected", raw.display());
+        let (_, sidecar) = parse_virtual_path(&selected);
+        set_denoise_mark(vec![selected.clone()], true).unwrap();
+        let identity = json!({"method":"nind","pipeline":PIPELINE});
+        let mut outputs = Vec::new();
+        for camera in [false, true] {
+            mutate(&sidecar, |metadata| {
+                metadata["adjustments"] = json!({
+                    "baselineExposure":true,"cameraExposureCompensation":camera
+                });
+                Ok(())
+            })
+            .unwrap();
+            let (path, skipped) =
+                run_item(&selected, &identity, &DenoiseJob::testing(), |frozen| {
+                    assert_eq!(
+                        frozen["sourceExposurePolicy"]["cameraExposureCompensation"],
+                        camera
+                    );
+                    output(frozen)
+                })
+                .unwrap();
+            assert!(!skipped);
+            assert!(
+                run_item(&selected, &identity, &DenoiseJob::testing(), |_| panic!(
+                    "must reuse identical policy"
+                ))
+                .unwrap()
+                .1
+            );
+            outputs.push(path);
+        }
+        assert_ne!(outputs[0], outputs[1]);
+        assert_eq!(fs::read(&raw).unwrap(), b"unchanged RAW fixture");
+        let error = run_item(
+            &selected,
+            &json!({"method":"nind","pipeline":"new-attempt"}),
+            &DenoiseJob::testing(),
+            |frozen| {
+                mutate(&sidecar, |metadata| {
+                    metadata["adjustments"]["cameraExposureCompensation"] = false.into();
+                    Ok(())
+                })?;
+                output(frozen)
+            },
+        )
+        .unwrap_err();
+        assert!(error.contains("Source exposure policy changed"));
     }
 
     #[test]

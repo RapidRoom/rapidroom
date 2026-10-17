@@ -78,6 +78,8 @@ export const useKeyboardShortcuts = ({
     }
   }, []);
 
+  const keybindSettings = useSettingsStore((state) => state.appSettings?.keybinds);
+  const shortcutPlatform = useSettingsStore((state) => state.osPlatform);
   useEffect(() => {
     const getStoreState = () => ({
       editor: useEditorStore.getState(),
@@ -488,6 +490,14 @@ export const useKeyboardShortcuts = ({
           });
         },
       },
+      export_instagram: {
+        shouldFire: (s: StoreState) => !!s.editor.selectedImage || s.library.multiSelectedPaths.length > 0,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.ui.setUI({ instagramExportRequest: Date.now() });
+          s.ui.setPanel(Panel.Export);
+        },
+      },
       toggle_export: {
         shouldFire: () => true,
         execute: (e: KeyboardEvent, s: StoreState) => {
@@ -895,6 +905,8 @@ export const useKeyboardShortcuts = ({
       unregisterActions();
     };
   }, [
+    keybindSettings,
+    shortcutPlatform,
     handleAutoAdjustments,
     setAdjustments,
     handleBackToLibrary,

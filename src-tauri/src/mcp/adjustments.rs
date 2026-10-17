@@ -44,6 +44,72 @@ pub(super) fn changed_keys(before: &Value, after: &Value) -> Vec<String> {
         .collect()
 }
 
+// A read projection only: array values (notably curves) remain atomic. Never
+// feed this back as a full replacement without restoring omitted defaults.
+pub(super) fn non_default_adjustments(value: &Value) -> Result<Value, String> {
+    fn difference(value: &Value, defaults: &Value) -> Option<Value> {
+        if value == defaults {
+            return None;
+        }
+        if let (Some(values), Some(defaults)) = (value.as_object(), defaults.as_object()) {
+            let fields = values
+                .iter()
+                .filter_map(|(key, value)| {
+                    let changed = defaults
+                        .get(key)
+                        .map_or_else(|| Some(value.clone()), |default| difference(value, default));
+                    changed.map(|value| (key.clone(), value))
+                })
+                .collect::<Map<_, _>>();
+            return (!fields.is_empty()).then_some(Value::Object(fields));
+        }
+        Some(value.clone())
+    }
+    let defaults = super::tools::original_adjustments()?;
+    let mut result = difference(value, &defaults).unwrap_or_else(|| json!({}));
+    if let Some(masks) = value["masks"].as_array().filter(|masks| !masks.is_empty()) {
+        let mut local = Map::new();
+        for key in super::masks::LOCAL_ADJUSTMENTS {
+            if let Some(value) = defaults.get(*key) {
+                local.insert((*key).to_string(), value.clone());
+            }
+        }
+        // Local detail defaults differ from the global raw preprocessing defaults.
+        for key in ["colorNoiseReduction", "lumaNoiseReduction", "sharpness"] {
+            local.insert(key.into(), json!(0));
+        }
+        local.insert("sharpnessThreshold".into(), json!(15));
+        let mask_defaults =
+            json!({"visible":true,"invert":false,"opacity":100,"subMasks":[],"adjustments":local});
+        let component_defaults =
+            json!({"visible":true,"invert":false,"opacity":100,"mode":"additive"});
+        result["masks"] = Value::Array(
+            masks
+                .iter()
+                .map(|mask| {
+                    let mut sparse = difference(mask, &mask_defaults).unwrap_or_else(|| json!({}));
+                    if let Some(components) = mask["subMasks"]
+                        .as_array()
+                        .filter(|items| !items.is_empty())
+                    {
+                        sparse["subMasks"] = Value::Array(
+                            components
+                                .iter()
+                                .map(|component| {
+                                    difference(component, &component_defaults)
+                                        .unwrap_or_else(|| json!({}))
+                                })
+                                .collect(),
+                        );
+                    }
+                    sparse
+                })
+                .collect(),
+        );
+    }
+    Ok(result)
+}
+
 pub(super) fn compact_schema() -> (Value, Value) {
     let mut schema = adjustments_schema();
     let controls = &mut schema["properties"];
@@ -92,12 +158,51 @@ pub(super) fn compact_schema() -> (Value, Value) {
         local["properties"][key] = controls[key].clone();
     }
     definitions["maskAdjustments"] = local;
-    definitions["subMask"] = mask["properties"]["subMasks"]["items"].clone();
+    definitions["subMask"] = super::masks::compact_components(
+        &mask["properties"]["subMasks"]["items"],
+        &mut definitions,
+    );
     mask["properties"]["adjustments"] = reference("maskAdjustments");
     mask["properties"]["subMasks"]["items"] = reference("subMask");
     definitions["mask"] = mask;
     controls["masks"]["items"] = reference("mask");
     (schema, definitions)
+}
+
+pub(super) fn referenced_definitions(schema: &Value, definitions: &Value) -> Value {
+    fn references(value: &Value, names: &mut Vec<String>) {
+        match value {
+            Value::Object(fields) => {
+                if let Some(name) = fields
+                    .get("$ref")
+                    .and_then(Value::as_str)
+                    .and_then(|reference| reference.strip_prefix("#/$defs/"))
+                {
+                    names.push(name.to_string());
+                }
+                for (key, value) in fields {
+                    if key != "$defs" {
+                        references(value, names);
+                    }
+                }
+            }
+            Value::Array(values) => values.iter().for_each(|value| references(value, names)),
+            _ => {}
+        }
+    }
+    let mut pending = Vec::new();
+    references(schema, &mut pending);
+    let mut kept = Map::new();
+    while let Some(name) = pending.pop() {
+        if !kept.contains_key(&name) {
+            let definition = definitions
+                .get(&name)
+                .expect("static schema reference target");
+            references(definition, &mut pending);
+            kept.insert(name, definition.clone());
+        }
+    }
+    Value::Object(kept)
 }
 
 pub(super) fn adjustments_schema() -> Value {
@@ -288,6 +393,7 @@ pub(super) fn adjustments_schema() -> Value {
     );
     for key in [
         "baselineExposure",
+        "cameraExposureCompensation",
         "lensBlurEnabled",
         "lensDistortionEnabled",
         "lensTcaEnabled",
@@ -566,6 +672,7 @@ fn adjustment_keys() -> Vec<String> {
             [
                 "baselineExposure",
                 "cameraLensCorrectionVersion",
+                "cameraExposureCompensation",
                 "aiPatches",
                 "sectionVisibility",
                 "activeTools",
@@ -630,7 +737,11 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "guidedPerspective" => validate_guided_perspective(value)?,
                 "whiteBalance" => validate_white_balance(value)?,
                 "relightLights" => validate_relight_lights(value)?,
-                "baselineExposure" | "fogEnabled" | "relightEnabled" | "relightShadows" => {
+                "baselineExposure"
+                | "cameraExposureCompensation"
+                | "fogEnabled"
+                | "relightEnabled"
+                | "relightShadows" => {
                     if !value.is_boolean() {
                         return Err(format!("adjustment {key} must be a boolean"));
                     }
@@ -1133,6 +1244,33 @@ pub(super) fn merge_adjustments(current: Value, changes: Value) -> Result<Value,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sparse_native_mask_snapshot_keeps_geometry_and_nondefault_nested_edits() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../rapidroom/validation/mcp-session-359/gui-radial-before.json"
+        ))
+        .unwrap();
+        let mut current = super::super::tools::original_adjustments().unwrap();
+        let mut mask = fixture["mask"].clone();
+        mask["adjustments"]["exposure"] = json!(0.5);
+        mask["adjustments"]["colorGrading"]["midtones"]["saturation"] = json!(17);
+        current["masks"] = json!([mask.clone()]);
+        let before = current.clone();
+        let sparse = non_default_adjustments(&current).unwrap();
+        assert_eq!(current, before);
+        assert_eq!(sparse["masks"][0]["id"], mask["id"]);
+        assert_eq!(
+            sparse["masks"][0]["subMasks"][0]["parameters"],
+            mask["subMasks"][0]["parameters"]
+        );
+        assert_eq!(
+            sparse["masks"][0]["adjustments"],
+            json!({"exposure":0.5,"colorGrading":{"midtones":{"saturation":17}}})
+        );
+        assert!(sparse["masks"][0].get("opacity").is_none());
+        assert!(sparse.get("exposure").is_none());
+    }
 
     #[test]
     fn spatial_effect_schema_and_validator_match_editor_defaults_and_ranges() {

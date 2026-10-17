@@ -69,6 +69,32 @@ describe('useEditorActions.handlePasteAdjustments', () => {
     await unmount();
   });
 
+  it('freezes omitted legacy exposure policies when replacing exposure on a fresh target', async () => {
+    useSettingsStore.setState({
+      appSettings: {
+        lastRootPath: null,
+        theme: Theme.Dark,
+        copyPasteSettings: {
+          mode: PasteMode.Replace,
+          includedAdjustments: ['exposure'],
+          knownAdjustments: [],
+          autoSync: false,
+        },
+      },
+    });
+    const applied = mockPaste();
+    useEditorStore.setState({ copiedAdjustments: { exposure: 1 } });
+    const { actions, unmount } = await mountEditorActions();
+    actions.handlePasteAdjustments(['/photos/a.raw']);
+    expect(applied).toEqual([
+      {
+        paths: ['/photos/a.raw'],
+        adjustments: { exposure: 1, baselineExposure: false, cameraExposureCompensation: false },
+      },
+    ]);
+    await unmount();
+  });
+
   it('still respects the saved copyPasteSettings', async () => {
     useSettingsStore.setState({
       appSettings: {

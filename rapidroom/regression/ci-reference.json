@@ -1,9 +1,9 @@
 {
   "_comment": "Per-image pixel hashes for the CI regression check (.github/workflows/regression.yml), recorded on a GitHub Actions runner with Mesa lavapipe. pixel_sha256 is the SHA-256 of the decoded 16-bit RGB pixels (little-endian), so TIFF container changes don't matter. Updating this file is a rendering decision that needs a maintainer's sign-off (see GOVERNANCE).",
   "kind": "rapidraw-ci-reference",
-  "created": "2026-10-14T23:20:23-10:00",
-  "recorded_by": "Yojen, relaying Josh: \"Approve 179\" (2026-10-14); pixels measured by GitHub Actions",
-  "source": "https://github.com/RapidRoom/rapidroom/actions/runs/38628597429 at 52366ea01153efac49ffcf0abef673e6ee4d4f6b (approved179 source; 18/18 repeatability)",
+  "created": "2026-10-16T22:12:59+00:00",
+  "recorded_by": "GitHub Actions (workflow_dispatch, record)",
+  "source": "https://github.com/RapidRoom/rapidroom/actions/runs/38968264930 at dd4ec5f59c9b9cde7b935a90c7da560170f47672",
   "environment": {
     "kernel": "6.17.0-1022-azure",
     "cpu_count": 4,
@@ -20,7 +20,7 @@
       "mesa-vulkan-drivers 25.2.8-0ubuntu0.24.04.4"
     ]
   },
-  "engine_sha256": "d75a48c3d7c8558b246ca4607388f09b31e0e602d9aa1ae2047020964dc1f319",
+  "engine_sha256": "1124ef483d2a69c5d852ce5f447c08e39ae14c03cca8d402b04293b70fe3c2d1",
   "corpus_sha256": "09d42ceaf831e7b7cebbb85d3a6f6deabe8d37814dc19968e004b3caf522b724",
   "adjustment_sets": {
     "busy-agx-lut-effects": "7017a74e8bcee5c10f84e254b926c7fa19140985041bc96db8bd5c6a27e4df01",
@@ -132,7 +132,7 @@
       "id": "google-pixel7pro-dng",
       "width": 3866,
       "height": 2908,
-      "pixel_sha256": "7c9394910e09edd102541a08b54b735c5e590a797657738c915c733772ed905f"
+      "pixel_sha256": "7dd2efc7618e111a80f93d7cf56131b7be17e8ba4072374c4173dd8d5e46615a"
     },
     {
       "set": "neutral",
@@ -146,7 +146,7 @@
       "id": "sony-a7c2-15mp-compressed",
       "width": 4608,
       "height": 3072,
-      "pixel_sha256": "d6e3d8a218059bd359b5374e8ffe1439a446cd4eb313f8b68888334430d0991c"
+      "pixel_sha256": "df9ed533521e1fae922eb2a7274c586a71671d7e6009e3d5e9e29f6aefb5c8f6"
     },
     {
       "set": "neutral",

@@ -70,6 +70,26 @@ function renderChanges() {
 }
 
 describe('MCP editor bridge review', () => {
+  it('reads an earlier snapshot without undoing or flushing a pending GUI history edit', async () => {
+    const old = { ...INITIAL_ADJUSTMENTS, exposure: 0.5 };
+    const current = { ...INITIAL_ADJUSTMENTS, exposure: 1.5 };
+    useEditorStore.setState({ selectedImage: image, adjustments: current, history: [old, current], historyIndex: 1 });
+    await mount();
+    const pushHistory = vi.fn();
+    useEditorStore.setState({ pushHistory });
+    debouncedSetHistory(current);
+    const before = useEditorStore.getState();
+    await act(async () => emit('mcp-command', { requestId: 'snapshot', kind: 'history-state', path, historyIndex: 0 }));
+    expect(responses[0]).toMatchObject({ error: null, response: { historyIndex: 0, adjustments: old } });
+    const after = useEditorStore.getState();
+    expect(after.adjustments).toBe(before.adjustments);
+    expect(after.history).toBe(before.history);
+    expect(after.historyIndex).toBe(1);
+    expect(after.previewRenderVersion).toBe(before.previewRenderVersion);
+    expect(pushHistory).not.toHaveBeenCalled();
+    debouncedSetHistory.flush();
+    expect(pushHistory).toHaveBeenCalledWith(current);
+  });
   it('delivers commands during navigation callback changes and uses the latest selector', async () => {
     useEditorStore.setState({ selectedImage: image });
     const first = vi.fn(async () => undefined);

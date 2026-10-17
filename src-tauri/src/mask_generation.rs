@@ -1664,6 +1664,94 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    #[test]
+    fn directed_linear_boundaries_cover_the_expected_half_plane_and_feather() {
+        let parameters = |start_x, start_y, end_x, end_y, range| {
+            json!({
+                "startX":start_x,"startY":start_y,"endX":end_x,"endY":end_y,"range":range
+            })
+        };
+        let horizontal = generate_linear_bitmap(
+            &parameters(16.0, 48.0, 112.0, 48.0, 8.0),
+            128,
+            96,
+            1.0,
+            (0.0, 0.0),
+        );
+        for (y, expected) in [(0, 255), (40, 255), (48, 127), (56, 0), (95, 0)] {
+            assert_eq!(horizontal.get_pixel(64, y)[0], expected);
+        }
+        let vertical = generate_linear_bitmap(
+            &parameters(64.0, 16.0, 64.0, 80.0, 8.0),
+            128,
+            96,
+            1.0,
+            (0.0, 0.0),
+        );
+        assert_eq!(vertical.get_pixel(0, 48)[0], 0);
+        assert_eq!(vertical.get_pixel(64, 48)[0], 127);
+        assert_eq!(vertical.get_pixel(72, 48)[0], 255);
+        let diagonal = generate_linear_bitmap(
+            &parameters(16.0, 16.0, 80.0, 80.0, 8.0),
+            128,
+            96,
+            1.0,
+            (0.0, 0.0),
+        );
+        assert_eq!(diagonal.get_pixel(80, 16)[0], 255);
+        assert_eq!(diagonal.get_pixel(16, 80)[0], 0);
+        assert_eq!(diagonal.get_pixel(48, 48)[0], 127);
+        let near_horizontal = generate_linear_bitmap(
+            &parameters(16.0, 48.0, 112.0, 48.001, 8.0),
+            128,
+            96,
+            1.0,
+            (0.0, 0.0),
+        );
+        let reversed = generate_linear_bitmap(
+            &parameters(112.0, 48.0, 16.0, 48.0, 8.0),
+            128,
+            96,
+            1.0,
+            (0.0, 0.0),
+        );
+        for ((plain, near), reversed) in horizontal
+            .as_raw()
+            .iter()
+            .zip(near_horizontal.as_raw())
+            .zip(reversed.as_raw())
+        {
+            assert!(plain.abs_diff(*near) <= 1);
+            assert!((i16::from(*plain) + i16::from(*reversed) - 255).abs() <= 1);
+        }
+        let reduced = generate_linear_bitmap(
+            &parameters(16.0, 48.0, 112.0, 48.0, 8.0),
+            64,
+            48,
+            0.5,
+            (0.0, 0.0),
+        );
+        for (x, y, pixel) in reduced.enumerate_pixels() {
+            assert_eq!(*pixel, *horizontal.get_pixel(x * 2, y * 2));
+        }
+        let near_edge = generate_linear_bitmap(
+            &parameters(16.0, 94.0, 112.0, 94.0, 10.0),
+            128,
+            96,
+            1.0,
+            (0.0, 0.0),
+        );
+        assert!(near_edge.as_raw().iter().all(|value| *value > 0));
+        let empty = generate_linear_bitmap(
+            &parameters(64.0, 48.0, 64.0, 48.0, 8.0),
+            128,
+            96,
+            1.0,
+            (0.0, 0.0),
+        );
+        assert!(empty.as_raw().iter().all(|value| *value == 0));
+    }
+
     fn sub_mask(id: &str, mode: Value) -> Value {
         json!({
             "id": id,

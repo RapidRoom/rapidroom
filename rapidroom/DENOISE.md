@@ -16,6 +16,9 @@ The author publishes the weights in [RawForge's onnx_v1.0.0 release](https://git
 
 The assets match those used in the maintainer's local blind reviews. Those private photographs and crops are never bundled or uploaded. Downloading models sends an ordinary request to GitHub and its release CDN; no image bytes, paths, metadata or ratings leave the machine.
 
+Before disconnected use, follow [local model preparation](OFFLINE-MODELS.md) to
+check or fill a cache from verified local files and rehearse a fresh offline launch.
+
 ## Implementation contract
 
 Use RapidRoom's existing ONNX Runtime, CPU execution (up to four threads per session) and float16 model inputs. Condition on the original ISO divided by 6400 (capped at 65535 before division). Bayer normalization/colour conversion and Malvar interpolation precede inference; no tone curve, editor exposure or white-balance adjustment is baked into model inputs. The optional sharpen stage consumes the first model's output. Map the result back to the original CFA before the normal RAW development path, preserving source metadata, crop and orientation.

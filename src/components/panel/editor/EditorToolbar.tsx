@@ -1,10 +1,10 @@
 import { memo, useState, useEffect, useRef, useMemo } from 'react';
-import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Columns2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Columns2, Frame } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { SelectedImage, GroupingMode } from '../../ui/AppProperties';
-import { IconAperture, IconCalendar, IconClock, IconFocalLength, IconIso, IconShutter } from './ExifIcons';
+import ShootingInfo from '../../ui/ShootingInfo';
 import Text from '../../ui/Text';
 import AppliedPresetBadge from '../../ui/AppliedPresetBadge';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
@@ -29,8 +29,6 @@ interface EditorToolbarProps {
   onUndo(): void;
   selectedImage: SelectedImage;
   showOriginal: boolean;
-  showDateView: boolean;
-  onToggleDateView(): void;
   adjustmentsHistory: Adjustments[];
   adjustmentsHistoryIndex: number;
   goToAdjustmentsHistoryIndex(index: number): void;
@@ -52,8 +50,6 @@ const EditorToolbar = memo(
     onUndo,
     selectedImage,
     showOriginal,
-    showDateView,
-    onToggleDateView,
     adjustmentsHistory,
     adjustmentsHistoryIndex,
     goToAdjustmentsHistoryIndex,
@@ -66,7 +62,6 @@ const EditorToolbar = memo(
     const hideTimeoutRef = useRef<number | null>(null);
     const prevIsLoadingRef = useRef(isLoading);
     const [isVcHovered, setIsVcHovered] = useState(false);
-    const [isInfoHovered, setIsInfoHovered] = useState(false);
     const [isHistoryVisible, setIsHistoryVisible] = useState(false);
     const historyContainerRef = useRef<HTMLDivElement>(null);
     const historyButtonRef = useRef<HTMLDivElement>(null);
@@ -75,6 +70,8 @@ const EditorToolbar = memo(
     const [displayedResolution, setDisplayedResolution] = useState('');
 
     const imageList = useLibraryStore((s) => s.imageList);
+    const appSettings = useSettingsStore((s) => s.appSettings);
+    const handleSettingsChange = useSettingsStore((s) => s.handleSettingsChange);
     const groupingMode: GroupingMode = useSettingsStore((s) => s.appSettings?.grouping) ?? 'off';
 
     const variantOptions = useMemo(() => {
@@ -86,50 +83,14 @@ const EditorToolbar = memo(
       return variants.map((v) => ({ path: v.path, label: getVariantLabel(v.path) }));
     }, [groupingMode, selectedImage.path, imageList, onImageSelect]);
 
-    const { baseName, isVirtualCopy, vcId, exifData, hasExif } = useMemo(() => {
-      const path = selectedImage.path;
-      const parts = path.split('?vc=');
-      const fullFileName = parts[0].split(/[\\/]/).pop() || '';
-
-      const exif = selectedImage.exif || {};
-
-      let fNum = exif.FNumber;
-      if (fNum) {
-        const fStr = String(fNum);
-        fNum = fStr.toLowerCase().startsWith('f') ? fStr : `f/${fStr}`;
-      }
-
-      let captureDate = null;
-      let captureTime = null;
-
-      if (exif.DateTimeOriginal) {
-        const dateTimeParts = exif.DateTimeOriginal.split(' ');
-        captureDate = dateTimeParts[0]?.replace(/:/g, '-') || null;
-        if (dateTimeParts[1]) {
-          const timeParts = dateTimeParts[1].split(':');
-          captureTime = `${timeParts[0]}:${timeParts[1]}`;
-        }
-      }
-
-      const data = {
-        iso: exif.PhotographicSensitivity || exif.ISO,
-        fNumber: fNum,
-        shutter: exif.ExposureTime,
-        focal: exif.FocalLengthIn35mmFilm,
-        captureDate: captureDate,
-        captureTime: captureTime,
-      };
-
-      const hasData = !!(data.iso || data.fNumber || data.shutter || data.focal || data.captureDate);
-
+    const { baseName, isVirtualCopy, vcId } = useMemo(() => {
+      const parts = selectedImage.path.split('?vc=');
       return {
-        baseName: fullFileName,
+        baseName: parts[0].split(/[\\/]/).pop() || '',
         isVirtualCopy: parts.length > 1,
         vcId: parts.length > 1 ? parts[1] : null,
-        exifData: data,
-        hasExif: hasData,
       };
-    }, [selectedImage.path, selectedImage.exif]);
+    }, [selectedImage.path]);
 
     useEffect(() => {
       if (showResolution) {
@@ -366,10 +327,8 @@ const EditorToolbar = memo(
       e.currentTarget.blur();
     };
 
-    const isExpanded = isInfoHovered && (hasExif || isLoading);
-
     return (
-      <div className="relative shrink-0 flex items-center justify-between px-3 h-12 gap-3 z-40">
+      <div className="group/shooting-info relative shrink-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center px-3 min-h-12 py-1 gap-x-3 z-40">
         <div className="flex items-center gap-2 shrink-0 z-40">
           <button
             className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors shrink-0"
@@ -397,23 +356,8 @@ const EditorToolbar = memo(
           </div>
         </div>
 
-        <div className="flex-1 flex justify-center min-w-0 relative h-full">
-          <div
-            className={clsx(
-              'bg-surface flex flex-col items-center overflow-hidden transition-all duration-200 ease-out pt-2',
-              isExpanded
-                ? 'h-18 px-8 rounded-2xl absolute min-w-85 whitespace-nowrap shadow-2xl shadow-black/50'
-                : 'h-9 px-4 rounded-[18px] absolute min-w-0 w-auto max-w-full shadow-none',
-            )}
-            onMouseEnter={() => setIsInfoHovered(true)}
-            onMouseLeave={() => setIsInfoHovered(false)}
-            style={{
-              top: '6px',
-              transform: 'translateX(-50%)',
-              left: '50%',
-              zIndex: isExpanded ? 50 : 0,
-            }}
-          >
+        <div className="flex-1 flex justify-center min-w-0 relative">
+          <div className="bg-surface flex flex-col items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-4 py-1.5">
             <div className="flex items-center justify-center max-w-full h-5 shrink-0">
               <Text
                 as="span"
@@ -502,91 +446,6 @@ const EditorToolbar = memo(
                 }}
               >
                 {isLoaderMounted && <Loader2 size={12} className="text-text-secondary animate-spin" />}
-              </div>
-            </div>
-
-            <div
-              className={clsx(
-                'relative mt-2 w-full grow justify-center border-t border-text-secondary/10 pt-2 transition-opacity duration-200',
-                isExpanded ? 'opacity-100 delay-75' : 'opacity-0 hidden',
-                hasExif && 'cursor-pointer',
-              )}
-              onClick={() => hasExif && onToggleDateView()}
-            >
-              <div
-                className={clsx(
-                  'absolute inset-0 flex items-center justify-center gap-6 transition-opacity duration-200',
-                  showDateView ? 'opacity-0 pointer-events-none' : 'opacity-100',
-                )}
-              >
-                {exifData.shutter && (
-                  <div className="flex items-center gap-1.5" data-tooltip={t('editor.toolbar.tooltips.shutterSpeed')}>
-                    <Text as="span">
-                      <IconShutter />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {exifData.shutter}
-                    </Text>
-                  </div>
-                )}
-                {exifData.fNumber && (
-                  <div className="flex items-center gap-1.5" data-tooltip={t('editor.toolbar.tooltips.aperture')}>
-                    <Text as="span">
-                      <IconAperture />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {exifData.fNumber}
-                    </Text>
-                  </div>
-                )}
-                {exifData.iso && (
-                  <div className="flex items-center gap-1.5" data-tooltip={t('editor.toolbar.tooltips.iso')}>
-                    <Text as="span">
-                      <IconIso />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {exifData.iso}
-                    </Text>
-                  </div>
-                )}
-                {exifData.focal && (
-                  <div className="flex items-center gap-1.5" data-tooltip={t('editor.toolbar.tooltips.focalLength')}>
-                    <Text as="span">
-                      <IconFocalLength />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {String(exifData.focal).endsWith('mm') ? exifData.focal : `${exifData.focal}mm`}
-                    </Text>
-                  </div>
-                )}
-              </div>
-
-              <div
-                className={clsx(
-                  'absolute inset-0 flex items-center justify-center gap-6 transition-opacity duration-200',
-                  showDateView ? 'opacity-100' : 'opacity-0 pointer-events-none',
-                )}
-              >
-                {exifData.captureDate && (
-                  <div className="flex items-center gap-2">
-                    <Text as="span">
-                      <IconCalendar />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {exifData.captureDate}
-                    </Text>
-                  </div>
-                )}
-                {exifData.captureTime && (
-                  <div className="flex items-center gap-2">
-                    <Text as="span">
-                      <IconClock />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {exifData.captureTime}
-                    </Text>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -695,6 +554,25 @@ const EditorToolbar = memo(
           >
             {showOriginal ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>
+          <button
+            type="button"
+            aria-label={t('export.instagram.guide')}
+            aria-pressed={appSettings?.showInstagramGuide ?? false}
+            data-instagram-guide-toggle
+            data-tooltip={t('export.instagram.guide')}
+            className={clsx(
+              'p-2 rounded-full transition-colors',
+              appSettings?.showInstagramGuide
+                ? 'bg-accent text-button-text'
+                : 'bg-surface hover:bg-card-active text-text-primary',
+            )}
+            onClick={() =>
+              appSettings &&
+              void handleSettingsChange({ ...appSettings, showInstagramGuide: !appSettings.showInstagramGuide })
+            }
+          >
+            <Frame size={20} />
+          </button>
           {onToggleReferenceView && (
             <button
               className={clsx(
@@ -723,6 +601,7 @@ const EditorToolbar = memo(
             </div>
           </button>
         </div>
+        <ShootingInfo exif={selectedImage.exif} className="col-span-3 pb-1" />
       </div>
     );
   },

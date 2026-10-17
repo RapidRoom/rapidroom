@@ -67,6 +67,35 @@ class StageTests(unittest.TestCase):
         self.assertFalse((self.root / 'out').exists())
         self.assertEqual((self.source / 'runtime.so').read_bytes(), self.payload)
 
+    def test_finished_payload_rejects_flattened_missing_and_absolute_aliases(self):
+        out = self.root / 'out'
+        STAGE.stage(self.source, out, self.manifest)
+        alias = out / 'runtime.so.1'
+        alias.unlink()
+        with self.assertRaises(ValueError):
+            STAGE.verify_staged(out, self.manifest)
+        alias.write_bytes(self.payload)  # Tauri's observed DEB resource copy.
+        with self.assertRaises(ValueError):
+            STAGE.verify_staged(out, self.manifest)
+        alias.unlink(); alias.symlink_to(out / 'runtime.so')
+        with self.assertRaises(ValueError):
+            STAGE.verify_staged(out, self.manifest)
+        alias.unlink(); alias.symlink_to('runtime.so')
+        STAGE.verify_staged(out, self.manifest)
+
+    def test_finished_payload_rejects_missing_notice_and_manifest_substitution(self):
+        out = self.root / 'out'
+        STAGE.stage(self.source, out, self.manifest)
+        (out / 'runtime-manifest.json').write_text('{}')
+        with self.assertRaises(ValueError):
+            STAGE.verify_staged(out, self.manifest)
+        changed = copy.deepcopy(self.manifest)
+        changed['notices'] = [{'file': 'required-license.txt', 'bytes': 1, 'sha256': '0'*64}]
+        import json
+        (out / 'runtime-manifest.json').write_text(json.dumps(changed))
+        with self.assertRaises(ValueError):
+            STAGE.verify_staged(out, changed)
+
 
 if __name__ == '__main__':
     unittest.main()
