@@ -159,3 +159,53 @@ it('Ctrl+Alt+I exports a current 3:4 crop with zero preview or estimation reques
   expect(mocks.invoke.mock.calls.filter(([name]) => name === Invokes.ExportImages)).toHaveLength(2);
   expect(mocks.invoke.mock.calls.filter(([name]) => name === Invokes.EstimateExportSizes)).toEqual([]);
 });
+
+it('binds the clicked photo and its adjustments while asynchronous folder resolution permits a photo switch', async () => {
+  let resolveFolder!: (folder: string) => void;
+  const pending = new Promise<string>((resolve) => {
+    resolveFolder = resolve;
+  });
+  mocks.invoke.mockImplementation((name: string, args: { create?: boolean }) =>
+    name === Invokes.GetExportRecipes
+      ? Promise.resolve([recipe])
+      : name === 'instagram_export_folder'
+        ? args.create
+          ? pending
+          : Promise.resolve('/Pictures/Instagram/day')
+        : Promise.resolve(0),
+  );
+  await act(async () => root.render(<Harness />));
+  const clickedAdjustments = {
+    ...useEditorStore.getState().adjustments,
+    exposure: 0.7,
+    crop: { unit: 'px' as const, x: 100, y: 200, width: 1800, height: 2400 },
+  };
+  await act(async () => useEditorStore.setState({ adjustments: clickedAdjustments }));
+  await act(async () =>
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'i',
+        code: 'KeyI',
+        ctrlKey: true,
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  await act(async () =>
+    [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('export.status.exportSingle'))!.click(),
+  );
+  expect(mocks.invoke.mock.calls.filter(([name]) => name === Invokes.ExportImages)).toEqual([]);
+  await act(async () =>
+    useEditorStore.setState({
+      selectedImage: { ...photo, path: '/other.ARW' },
+      adjustments: { ...clickedAdjustments, exposure: 2 },
+    }),
+  );
+  await act(async () => resolveFolder('/Pictures/Instagram/day'));
+  expect(mocks.invoke).toHaveBeenCalledWith(
+    Invokes.ExportImages,
+    expect.objectContaining({ currentEditPath: photo.path, currentEditAdjustments: clickedAdjustments }),
+  );
+});

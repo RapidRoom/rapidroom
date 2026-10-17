@@ -743,6 +743,11 @@ export default function ExportPanel({
     if (numImages === 0 || submittingExport.current || isExporting || instagramExportRequest !== null || !isDpiValid)
       return;
 
+    const currentEditor = useEditorStore.getState();
+    const currentEditPath = selectedImage?.path || null;
+    const currentEditAdjustments =
+      currentEditor.selectedImage?.path === currentEditPath ? currentEditor.adjustments : null;
+
     const exportSettings: ExportSettings = {
       instagram: instagramRatio ? { ratio: instagramRatio, framesByPath: instagramFrames } : null,
       filenameTemplate,
@@ -869,8 +874,8 @@ export default function ExportPanel({
           baseOriginFolders: rootPaths,
           exportSettings,
           outputFormat: selectedFormat.extensions[0],
-          currentEditPath: selectedImage?.path || null,
-          currentEditAdjustments: useEditorStore.getState().adjustments || null,
+          currentEditPath,
+          currentEditAdjustments,
         });
       }
     } catch (error) {
