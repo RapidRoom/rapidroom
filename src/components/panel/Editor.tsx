@@ -2409,7 +2409,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         className={clsx(
           'lights-out-chrome shrink-0 relative z-10',
           !isInstantTransition && 'transition-all duration-300 ease-in-out',
-          isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100 p-2',
+          isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100 px-2 py-1',
           toolbarOverflowVisible ? 'overflow-visible' : 'overflow-hidden',
         )}
       >

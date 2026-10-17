@@ -1,6 +1,12 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockCommand } from '../test/tauriMock';
-import { loadPresetCatalog, setCatalogPresets, usePresetCatalog } from '../store/usePresetCatalog';
+import {
+  flushCatalogWrites,
+  loadPresetCatalog,
+  saveCatalogPresets,
+  setCatalogPresets,
+  usePresetCatalog,
+} from '../store/usePresetCatalog';
 import { useEditorStore } from '../store/useEditorStore';
 import { listMcpPresets, resolveMcpPreset } from './mcpPresets';
 
@@ -29,6 +35,25 @@ describe('live preset catalog discovery and exact selectors', () => {
     expect(match.preset.id).toBe('../legacy/sk-secret');
     setCatalogPresets([]);
     await expect(resolveMcpPreset({ presetId: page.presets[0].id })).rejects.toThrow('not found');
+  });
+
+  it('reads presets from disk after one failed save, then stops reporting that failure', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      mockCommand('save_presets', () => {
+        throw new Error('disk full');
+      });
+      mockCommand('load_presets', () => [{ preset: { id: 'disk', name: 'From disk', adjustments: {} } }]);
+      saveCatalogPresets([]);
+      await expect(flushCatalogWrites()).rejects.toThrow('disk full');
+      await loadPresetCatalog(true);
+      expect(usePresetCatalog.getState().presets).toEqual([
+        { preset: { id: 'disk', name: 'From disk', adjustments: {} } },
+      ]);
+      await expect(flushCatalogWrites()).resolves.toBeUndefined();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it('preserves pending GUI changes when initialization finishes late', async () => {

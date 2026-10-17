@@ -67,7 +67,7 @@ describe('reconcileWorkspace', () => {
     const workspace = reconcileWorkspace(saved, false, true);
     expect(workspace.activePanels.bottom).toBeNull();
     expect(workspace.panelLayout.bottom).toEqual([Panel.Terminal, Panel.Metadata]);
-    expect(workspace.bottomDockHeight).toBe(400);
+    expect(workspace.bottomDockHeight).toBe(840);
     expect(saved.activePanels?.bottom).toBe(Panel.Terminal);
     expect(saved.bottomDockHeight).toBe(99999);
   });

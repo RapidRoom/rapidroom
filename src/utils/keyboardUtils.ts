@@ -304,6 +304,12 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     section: 'panels',
   },
   {
+    action: 'toggle_dock_height',
+    description: 'settings.keybinds.actions.toggle_dock_height',
+    defaultCombo: ['ctrl', 'shift', 'KeyJ'],
+    section: 'panels',
+  },
+  {
     action: 'toggle_bottom_panel',
     description: 'settings.keybinds.actions.toggle_bottom_panel',
     defaultCombo: ['ctrl', 'KeyJ'],
@@ -414,6 +420,23 @@ const symMap: Record<string, string> = {
 
 export function getDefaultCombo(def: KeybindDefinition, osPlatform?: string): string[] {
   return (osPlatform === 'macos' && def.macDefaultCombo) || def.defaultCombo;
+}
+
+// User bindings take priority over defaults introduced by a later version.
+export function resolveKeybindMap(
+  keybinds: Record<string, string[]> | undefined,
+  osPlatform?: string,
+): Map<string, string> {
+  const result = new Map<string, string>();
+  for (const customized of [false, true]) {
+    for (const definition of KEYBIND_DEFINITIONS) {
+      const custom = keybinds?.[definition.action];
+      if (!!custom?.length !== customized) continue;
+      const combo = customized ? custom! : getDefaultCombo(definition, osPlatform);
+      result.set(combo.join('+'), definition.action);
+    }
+  }
+  return result;
 }
 
 // Canonical identifiers keep stored shortcuts compatible while the symbol

@@ -1,0 +1,13 @@
+{
+  "id": "ai-dock-tall",
+  "title": "Expand and restore the AI dock",
+  "category": "feature",
+  "landed": "2026-10-17",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Double-click the resize handle or use a rebindable shortcut. Expanded height is transient; the normal height is preserved and the editor retains space."
+}

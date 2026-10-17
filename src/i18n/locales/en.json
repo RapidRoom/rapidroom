@@ -2088,7 +2088,8 @@
         "zoom_out": "Zoom out",
         "zoom_out_step": "Zoom out (by step)",
         "toggle_denoise_mark": "Toggle denoise mark",
-        "export_instagram": "Export for Instagram"
+        "export_instagram": "Export for Instagram",
+        "toggle_dock_height": "Expand or restore AI panel"
       },
       "sections": {
         "editing": "Editing",
@@ -2374,7 +2375,13 @@
     "enableAndStart": "Enable and start",
     "resizeLeftDock": "Resize left panel",
     "resizeRightDock": "Resize right panel",
-    "collapsePanel": "Collapse terminal panel"
+    "collapsePanel": "Collapse terminal panel",
+    "introTitle": "Start an AI assistant",
+    "introConnection": "Click Claude Code or Codex above to connect the assistant to the open photo. Enable Settings → Let AI assistants control RapidRoom when prompted.",
+    "introShell": "Typing claude or codex in a plain shell starts without RapidRoom tools. Press any key for a plain shell.",
+    "introFont": "Change the panel font size in Terminal preferences (gear).",
+    "plainShell": "Plain shell",
+    "toggleDockHeightHint": "Double-click to expand or restore the panel"
   },
   "tethering": {
     "aperture": "Aperture",
