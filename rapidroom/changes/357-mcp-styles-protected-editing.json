@@ -1,0 +1,13 @@
+{
+  "id": "mcp-styles-protected-editing",
+  "title": "Native Styles and protected alternative edits for assistants",
+  "category": "feature",
+  "landed": "2026-10-17",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "AI-assisted implementation: discover and apply the live preset catalog with shared GUI Amount baselines and persistent indicators; snapshot unsaved edits in virtual copies, set ratings/labels/flags, assess existing edit depth, open read-only side-by-side Reference View request user-confirmed deletion and adopt the AI copy recipe onto the original as one labelled undoable step before copy-only deletion. New preset masks use the ordinary loaded-mask defaults before commit, keeping copy/reopen revisions and applied indicators stable. Exact JSON floating-point roundtrips prevent unchanged extrapolated Style curves from being rejected as stale. Assessment counts transform and manual lens edits while exempting crop/aspect and derived caches. No compare wipe, preset creation/import, personal profile setup or automatic publication. Finalize never deletes the original RAW: keep both, discard only the AI copy, or adopt its recipe and confirm copy-only deletion."
+}
