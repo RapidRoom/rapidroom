@@ -534,6 +534,36 @@ pub fn downscale_f32_image(image: &DynamicImage, nwidth: u32, nheight: u32) -> D
 }
 
 #[inline(always)]
+// Metadata-v1 clamps its source sample coordinates, including the final row
+// and column. Keep that rule local to camera correction without manual transforms.
+fn interpolate_camera_pixel(
+    raw: &[f32],
+    width: usize,
+    height: usize,
+    x: f32,
+    y: f32,
+    pixel: &mut [f32],
+) {
+    if width == 0 || height == 0 || !x.is_finite() || !y.is_finite() {
+        return;
+    }
+    let x = x.clamp(0.0, (width - 1) as f32);
+    let y = y.clamp(0.0, (height - 1) as f32);
+    let x0 = x.floor() as usize;
+    let y0 = y.floor() as usize;
+    let x1 = (x0 + 1).min(width - 1);
+    let y1 = (y0 + 1).min(height - 1);
+    let fx = x - x0 as f32;
+    let fy = y - y0 as f32;
+    for (channel, value) in pixel.iter_mut().enumerate().take(3) {
+        let top = raw[(y0 * width + x0) * 3 + channel] * (1.0 - fx)
+            + raw[(y0 * width + x1) * 3 + channel] * fx;
+        let bottom = raw[(y1 * width + x0) * 3 + channel] * (1.0 - fx)
+            + raw[(y1 * width + x1) * 3 + channel] * fx;
+        *value = top * (1.0 - fy) + bottom * fy;
+    }
+}
+
 fn interpolate_pixel(
     src_raw: &[f32],
     src_width: usize,
@@ -904,7 +934,8 @@ fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32
                         .0;
                 1.0 + f64::from(params.lens_distortion_amount) * (factor - 1.0)
             })
-            .fold(1.0, f64::max);
+            .fold(0.0, f64::max)
+            .max(f64::EPSILON);
     }
     let cx = (width / 2.0) as f64;
     let cy = (height / 2.0) as f64;
@@ -1027,6 +1058,7 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
     let lens = LensDistortion::new(&params);
 
     let has_lens_correction = lens.enabled;
+    let clamp_camera_edges = lens.camera.is_some() && is_manual_geometry_identity(&params);
 
     let auto_crop_scale = if has_lens_correction || k_distortion.abs() > 1e-5 {
         compute_lens_auto_crop_scale(&params, width as f32, height as f32) as f32
@@ -1145,6 +1177,15 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
 
                     if has_tca {
                         interpolate_pixel_with_tca(&tca_ctx, src_x, src_y, vr, vb, pixel);
+                    } else if clamp_camera_edges {
+                        interpolate_camera_pixel(
+                            src_raw,
+                            width_usize,
+                            height_usize,
+                            src_x,
+                            src_y,
+                            pixel,
+                        );
                     } else {
                         interpolate_pixel(src_raw, width_usize, height_usize, src_x, src_y, pixel);
                     }
@@ -1637,8 +1678,20 @@ pub fn apply_flip<'a>(
     Cow::Owned(img)
 }
 
+fn is_manual_geometry_identity(params: &GeometryParams) -> bool {
+    !(params.guided_perspective_enabled && params.guided_lines.len() >= 2)
+        && params.distortion == 0.0
+        && params.vertical == 0.0
+        && params.horizontal == 0.0
+        && params.rotate == 0.0
+        && params.aspect == 0.0
+        && params.scale == 100.0
+        && params.x_offset == 0.0
+        && params.y_offset == 0.0
+}
+
 pub fn is_geometry_identity(params: &GeometryParams) -> bool {
-    if params.guided_perspective_enabled && params.guided_lines.len() >= 2 {
+    if !is_manual_geometry_identity(params) {
         return false;
     }
 
@@ -1685,17 +1738,7 @@ pub fn is_geometry_identity(params: &GeometryParams) -> bool {
                 && params.vig_k3.abs() < 1e-6
         };
 
-    params.distortion == 0.0
-        && params.vertical == 0.0
-        && params.horizontal == 0.0
-        && params.rotate == 0.0
-        && params.aspect == 0.0
-        && params.scale == 100.0
-        && params.x_offset == 0.0
-        && params.y_offset == 0.0
-        && dist_identity
-        && tca_identity
-        && vig_identity
+    dist_identity && tca_identity && vig_identity
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -4290,6 +4290,20 @@ pub(crate) fn load_sidecar_with_raw_defaults(
 ) -> ImageMetadata {
     let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
     apply_fresh_raw_defaults(&mut metadata, source_path, sidecar_path, settings, lens_db);
+    if metadata.adjustments["lensCorrectionMode"].as_str() == Some("auto")
+        && metadata.adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)
+    {
+        if metadata.exif.is_none() {
+            metadata.exif =
+                crate::exif_processing::load_sidecar_with_exif(sidecar_path, source_path).exif;
+        }
+        resolve_lens_params_in_adjustments(
+            &mut metadata.adjustments,
+            &metadata.exif,
+            lens_db,
+            source_path,
+        );
+    }
     metadata
 }
 
@@ -4302,50 +4316,16 @@ pub async fn get_lens_correction_resolution(
     if !adjustments.is_object() {
         return Err("Lens correction resolution requires an adjustment object".into());
     }
-    let db = app_handle
-        .state::<AppState>()
-        .lens_db
-        .lock()
-        .unwrap()
-        .clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let (source_path, sidecar_path) = parse_virtual_path(&path);
-        let metadata = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
+        let state = app_handle.state::<AppState>();
         let mut available = adjustments.clone();
         available["lensCorrectionMode"] = serde_json::json!("auto");
         available["cameraLensCorrectionVersion"] = serde_json::json!(1);
-        resolve_lens_params_in_adjustments(
-            &mut available,
-            &metadata.exif,
-            db.as_deref(),
-            &source_path,
+        crate::camera_lens::resolve_snapshot(&mut available, &path, &state);
+        let resolution = crate::camera_lens::resolution_report(
+            &adjustments,
+            available["lensDistortionParams"]["resolution"].clone(),
         );
-        let mut resolution = available["lensDistortionParams"]["resolution"].clone();
-        let version = adjustments["cameraLensCorrectionVersion"]
-            .as_u64()
-            .unwrap_or(0);
-        let mode = adjustments["lensCorrectionMode"]
-            .as_str()
-            .unwrap_or("manual");
-        resolution["recipe_version"] = serde_json::json!(version);
-        resolution["mode"] = serde_json::json!(mode);
-        if version != 1 || mode != "auto" {
-            let saved_payload = adjustments["lensDistortionParams"].is_object();
-            for component in ["distortion", "tca", "vignetting"] {
-                let status = &mut resolution["components"][component];
-                // Saved payloads are opaque; coefficients do not establish
-                // the source of a legacy component.
-                status["applied_source"] = if saved_payload
-                    && status["enabled"].as_bool() == Some(true)
-                    && status["amount"].as_f64().is_some_and(|amount| amount > 0.0)
-                {
-                    serde_json::json!("legacy")
-                } else {
-                    Value::Null
-                };
-                status["payload"] = Value::Null;
-            }
-        }
         Ok(resolution)
     })
     .await

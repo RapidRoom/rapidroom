@@ -1972,6 +1972,7 @@ pub(crate) async fn export_images_impl(
                         &source_path,
                     );
                 }
+                crate::camera_lens::resolve_snapshot(&mut js_adjustments, &source_path_str, &state);
                 hydrate_adjustments(&state, &mut js_adjustments);
                 let is_raw = is_raw_file(&source_path_str);
                 let original_path = std::path::Path::new(&source_path_str);
@@ -2646,6 +2647,7 @@ pub async fn estimate_export_sizes(
             .clone()
             .ok_or("No original image loaded")?;
         let mut adjustments_clone = current_edit_adjustments.clone().unwrap();
+        crate::camera_lens::resolve_snapshot(&mut adjustments_clone, &loaded_image.path, &state);
         hydrate_adjustments(&state, &mut adjustments_clone);
 
         let new_transform_hash = calculate_transform_hash(&adjustments_clone);

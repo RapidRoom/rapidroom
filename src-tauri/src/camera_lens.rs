@@ -76,6 +76,89 @@ fn source_data(path: &Path, exif: &HashMap<String, String>) -> Option<SonyCamera
     data
 }
 
+fn is_camera_recipe(adjustments: &Value) -> bool {
+    adjustments["lensCorrectionMode"].as_str() == Some("auto")
+        && adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)
+}
+
+pub fn resolved_snapshot<'a>(
+    adjustments: &'a Value,
+    path: &str,
+    state: &crate::AppState,
+) -> std::borrow::Cow<'a, Value> {
+    if !is_camera_recipe(adjustments) {
+        return std::borrow::Cow::Borrowed(adjustments);
+    }
+    let mut snapshot = adjustments.clone();
+    resolve_snapshot(&mut snapshot, path, state);
+    std::borrow::Cow::Owned(snapshot)
+}
+
+/// Resolve the immutable render snapshot against its explicit physical source.
+/// Global overrides and unsaved preview drafts must not borrow another photo's
+/// copied camera payload or rely on an eventual autosave to repair it.
+pub fn resolve_snapshot(adjustments: &mut Value, path: &str, state: &crate::AppState) {
+    if !is_camera_recipe(adjustments) {
+        return;
+    }
+    let (source, sidecar) = crate::file_management::parse_virtual_path(path);
+    let mut metadata = crate::exif_processing::load_sidecar_with_exif(&sidecar, &source);
+    if metadata
+        .exif
+        .as_ref()
+        .is_none_or(|exif| !exif.contains_key("Make"))
+    {
+        metadata.exif = crate::file_management::read_file_mapped(&source)
+            .ok()
+            .map(|bytes| {
+                crate::exif_processing::read_exif_data_from_bytes(&source.to_string_lossy(), &bytes)
+            });
+    }
+    let db = state.lens_db.lock().unwrap().clone();
+    crate::file_management::resolve_lens_params_in_adjustments(
+        adjustments,
+        &metadata.exif,
+        db.as_deref(),
+        &source,
+    );
+}
+
+pub fn resolution_report(adjustments: &Value, mut resolution: Value) -> Value {
+    let version = adjustments["cameraLensCorrectionVersion"]
+        .as_u64()
+        .unwrap_or(0);
+    let mode = adjustments["lensCorrectionMode"]
+        .as_str()
+        .unwrap_or("manual");
+    resolution["recipe_version"] = json!(version);
+    resolution["mode"] = json!(mode);
+    for (component, enabled_key, amount_key) in [
+        (
+            "distortion",
+            "lensDistortionEnabled",
+            "lensDistortionAmount",
+        ),
+        ("tca", "lensTcaEnabled", "lensTcaAmount"),
+        ("vignetting", "lensVignetteEnabled", "lensVignetteAmount"),
+    ] {
+        let status = &mut resolution["components"][component];
+        let enabled = adjustments[enabled_key].as_bool().unwrap_or(true);
+        let amount = adjustments[amount_key].as_f64().unwrap_or(100.0);
+        status["enabled"] = json!(enabled);
+        status["amount"] = json!(amount);
+        status["applied_source"] = if !enabled || amount <= 0.0 {
+            Value::Null
+        } else if version == 1 && mode == "auto" {
+            status["available_source"].clone()
+        } else if adjustments["lensDistortionParams"].is_object() {
+            json!("legacy")
+        } else {
+            Value::Null
+        };
+    }
+    resolution
+}
+
 pub fn resolve_in_adjustments(
     map: &mut Map<String, Value>,
     path: &Path,
@@ -118,25 +201,13 @@ pub fn resolve_in_adjustments(
         params["camera_data"] = serde_json::to_value(&selected).expect("finite signed tables");
     }
     let mut components = Map::new();
-    for (i, (component, enabled_key, amount_key, fields)) in [
+    for (i, (component, fields)) in [
         (
             "distortion",
-            "lensDistortionEnabled",
-            "lensDistortionAmount",
             &["k1", "k2", "k3", "model", "radius_scale"][..],
         ),
-        (
-            "tca",
-            "lensTcaEnabled",
-            "lensTcaAmount",
-            &["tca_vr", "tca_vb", "tca_poly3"][..],
-        ),
-        (
-            "vignetting",
-            "lensVignetteEnabled",
-            "lensVignetteAmount",
-            &["vig_k1", "vig_k2", "vig_k3"][..],
-        ),
+        ("tca", &["tca_vr", "tca_vb", "tca_poly3"][..]),
+        ("vignetting", &["vig_k1", "vig_k2", "vig_k3"][..]),
     ]
     .into_iter()
     .enumerate()
@@ -148,11 +219,6 @@ pub fn resolve_in_adjustments(
         } else {
             None
         };
-        let enabled = map
-            .get(enabled_key)
-            .and_then(Value::as_bool)
-            .unwrap_or(true);
-        let amount = map.get(amount_key).and_then(Value::as_f64).unwrap_or(100.0);
         let payload = if camera_components[i] {
             json!({"model":"sony_arw_md_v1","samples":params["camera_data"][component],
                 "radius":"half_diagonal","centre":"width/2,height/2"})
@@ -168,9 +234,7 @@ pub fn resolve_in_adjustments(
         };
         components.insert(
             component.to_string(),
-            json!({"available_source":source,
-            "applied_source":if enabled && amount > 0.0 {source} else {None},
-            "enabled":enabled,"amount":amount,"payload":payload}),
+            json!({"available_source":source,"payload":payload}),
         );
     }
     // The actual renderer payload and its source travel together through all
@@ -324,10 +388,30 @@ mod tests {
             1024
         );
         assert_eq!(
-            first["lensDistortionParams"]["resolution"]["components"]["distortion"]["applied_source"],
+            first["lensDistortionParams"]["resolution"]["components"]["distortion"]["available_source"],
             "camera_data"
         );
-        assert!(first["lensDistortionParams"]["resolution"]["components"]["vignetting"]["applied_source"].is_null());
+        assert!(first["lensDistortionParams"]["resolution"]["components"]["vignetting"]["available_source"].is_null());
+        let mut draft = first.clone();
+        draft["lensDistortionAmount"] = json!(25);
+        let signature = crate::export_framing::geometry_signature(&draft);
+        let canonical = draft["lensDistortionParams"]["resolution"].clone();
+        let report = resolution_report(&draft, canonical.clone());
+        assert_eq!(
+            report["components"]["distortion"]["amount"].as_f64(),
+            Some(25.0)
+        );
+        assert_eq!(
+            report["components"]["distortion"]["applied_source"],
+            "camera_data"
+        );
+        crate::file_management::resolve_lens_params_in_adjustments(&mut draft, &exif, None, &path);
+        assert_eq!(crate::export_framing::geometry_signature(&draft), signature);
+        draft["lensDistortionEnabled"] = json!(false);
+        assert!(
+            resolution_report(&draft, canonical)["components"]["distortion"]["applied_source"]
+                .is_null()
+        );
         let mut replacement = raw([512; SONY_KNOTS]);
         replacement.push(0); // Changed source length also invalidates coarse filesystem timestamps.
         std::fs::write(&path, replacement).unwrap();
@@ -393,6 +477,27 @@ mod tests {
             crate::image_processing::inverse_transform_point(12.0, 6.0, 16.0, 12.0, &adjustments);
         assert!((source_point.0 - 11.747_368_421_052_63).abs() < 1e-9);
         assert!((source_point.1 - 6.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn md_v1_uniform_scale_normalizes_both_signs_and_preserves_border_pixels() {
+        let image = DynamicImage::ImageRgb32F(ImageBuffer::from_fn(16, 12, |x, y| {
+            Rgb([x as f32 / 16.0, y as f32 / 12.0, 0.25])
+        }));
+        for value in [-1024, 1024] {
+            // A constant factor is exactly cancelled by md-v1 autoscale,
+            // including scales below one. The complete image stays unchanged.
+            let adjustments = json!({"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1,
+                "lensDistortionParams":{"camera_data":{"distortion":vec![value; SONY_KNOTS]}}});
+            let corrected = apply_geometry_warp(&image, &adjustments).to_rgb32f();
+            assert!(
+                corrected
+                    .as_raw()
+                    .iter()
+                    .zip(image.to_rgb32f().as_raw())
+                    .all(|(actual, expected)| (actual - expected).abs() < 1e-6)
+            );
+        }
     }
 
     #[test]
