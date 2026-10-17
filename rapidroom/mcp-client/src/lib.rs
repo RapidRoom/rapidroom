@@ -260,7 +260,7 @@ mod tests {
             ..fixture()
         };
         let expected = 183.00000000000006_f64;
-        let request = serde_json::json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"curveY":expected}});
+        let request = serde_json::json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_preview","curveY":expected}});
         let result = forward(&endpoint, &request, "2026-07-28").unwrap().unwrap();
         assert_eq!(
             result["result"]["curveY"].as_f64().unwrap().to_bits(),
