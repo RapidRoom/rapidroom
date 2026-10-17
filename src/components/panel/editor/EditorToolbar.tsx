@@ -328,7 +328,7 @@ const EditorToolbar = memo(
     };
 
     return (
-      <div className="relative shrink-0 flex items-center justify-between px-3 min-h-12 py-1 gap-3 z-40">
+      <div className="group/shooting-info relative shrink-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center px-3 min-h-12 py-1 gap-x-3 z-40">
         <div className="flex items-center gap-2 shrink-0 z-40">
           <button
             className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors shrink-0"
@@ -357,7 +357,7 @@ const EditorToolbar = memo(
         </div>
 
         <div className="flex-1 flex justify-center min-w-0 relative">
-          <div className="group/shooting-info bg-surface flex flex-col items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-4 py-1.5">
+          <div className="bg-surface flex flex-col items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-4 py-1.5">
             <div className="flex items-center justify-center max-w-full h-5 shrink-0">
               <Text
                 as="span"
@@ -448,8 +448,6 @@ const EditorToolbar = memo(
                 {isLoaderMounted && <Loader2 size={12} className="text-text-secondary animate-spin" />}
               </div>
             </div>
-
-            <ShootingInfo exif={selectedImage.exif} className="mt-0.5" />
           </div>
         </div>
 
@@ -603,6 +601,7 @@ const EditorToolbar = memo(
             </div>
           </button>
         </div>
+        <ShootingInfo exif={selectedImage.exif} className="col-span-3 pb-1" />
       </div>
     );
   },
