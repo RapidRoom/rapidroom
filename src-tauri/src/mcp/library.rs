@@ -96,8 +96,12 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
         .ok_or("Tool arguments must be an object")?;
     if name == "set_image_metadata" {
         if let Some(expected) = arguments.get("expectedRevision")
-            && !expected.as_str().is_some_and(|s| !s.is_empty() && s.len() <= 128)
-        { return Err("expectedRevision must be a nonempty string of at most 128 bytes".into()); }
+            && !expected
+                .as_str()
+                .is_some_and(|s| !s.is_empty() && s.len() <= 128)
+        {
+            return Err("expectedRevision must be a nonempty string of at most 128 bytes".into());
+        }
         if object
             .keys()
             .any(|k| !matches!(k.as_str(), "imagePaths" | "expectedRevision" | "changes"))

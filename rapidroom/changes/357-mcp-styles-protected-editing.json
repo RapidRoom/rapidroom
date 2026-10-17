@@ -3,9 +3,7 @@
   "title": "Native Styles and protected alternative edits for assistants",
   "category": "feature",
   "landed": "2026-10-17",
-  "authors": [
-    "yojen7"
-  ],
+  "authors": ["yojen7"],
   "source": "rapidroom",
   "commits": [],
   "upstream_issues": [],

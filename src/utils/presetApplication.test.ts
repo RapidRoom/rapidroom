@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '../store/useEditorStore';
 import { INITIAL_ADJUSTMENTS } from './adjustments';
 import { commitPresetApplication, preparePresetApplication, usePresetApplication } from './presetApplication';
 import { mockCommand } from '../test/tauriMock';
+import stylePack from '../../src-tauri/resources/styles/styles-v1.json';
 import type { Preset } from '../components/ui/AppProperties';
 
 const image = { path: '/photo.raw', isReady: true, width: 6000, height: 4000, exif: {}, isRaw: true, thumbnailUrl: '' };
@@ -38,6 +39,38 @@ describe('shared GUI/MCP preset Amount baseline', () => {
     expect(useEditorStore.getState().adjustments.exposure).toBe(3);
     expect(useEditorStore.getState().adjustments.crop).toEqual(base.crop);
     expect(usePresetApplication.getState().application?.base).toBe(base);
+  });
+
+  it('tracks a zero/no-op Amount without artificial GUI/MCP history', () => {
+    const before = useEditorStore.getState();
+    const commit = vi.fn();
+    commitPresetApplication(preparePresetApplication(preset, 0), commit);
+    expect(commit).not.toHaveBeenCalled();
+    expect(useEditorStore.getState().adjustments).toBe(before.adjustments);
+    expect(useEditorStore.getState().history).toBe(before.history);
+    expect(usePresetApplication.getState().application).toMatchObject({ amount: 0, result: before.adjustments });
+    apply(50);
+    expect(useEditorStore.getState().adjustments.exposure).toBe(1.5);
+  });
+
+  it('reapplies an actual additive masked Style without duplicating masks or changing prior mask geometry', () => {
+    const forest = stylePack.presets.find((entry) => entry.preset.id === 'rapidroom-style:forest-gothic')!
+      .preset as unknown as Preset;
+    const prior = structuredClone(forest.adjustments.masks![0]);
+    prior.id = 'prior-user-mask';
+    useEditorStore.setState({ adjustments: { ...useEditorStore.getState().adjustments, masks: [prior] } });
+    const run = (amount: number) =>
+      commitPresetApplication(preparePresetApplication(forest, amount), (adjustments) =>
+        useEditorStore.setState({ adjustments }),
+      );
+    run(100);
+    const full = structuredClone(useEditorStore.getState().adjustments);
+    run(50);
+    expect(useEditorStore.getState().adjustments.masks).toHaveLength(2);
+    expect(useEditorStore.getState().adjustments.masks[0]).toEqual(prior);
+    expect(useEditorStore.getState().adjustments.masks[1].opacity).toBe(full.masks[1].opacity / 2);
+    run(100);
+    expect(useEditorStore.getState().adjustments).toEqual(full);
   });
 
   it('invalidates without a mounted panel on a user edit, image switch, undo and reset', () => {

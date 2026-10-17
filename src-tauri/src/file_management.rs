@@ -6382,7 +6382,10 @@ mod card_mode_tests {
         {
             let _mode = CardMode::on(&f.card);
             let before = snapshot(&f.card);
-            assert_read_only(create_virtual_copy_from_draft(&path_str(&f.dcim.join("IMG_0001.jpg")), serde_json::json!({"exposure":1.25})));
+            assert_read_only(create_virtual_copy_from_draft(
+                &path_str(&f.dcim.join("IMG_0001.jpg")),
+                serde_json::json!({"exposure":1.25}),
+            ));
             assert_eq!(snapshot(&f.card), before);
         }
         let _mode = CardMode::off();
@@ -6390,11 +6393,16 @@ mod card_mode_tests {
         let (_, source_sidecar) = parse_virtual_path(&photo);
         let raw_before = fs::read(&photo).unwrap();
         let metadata = serde_json::json!({"version":1,"rating":4,"tags":["keep"],"adjustments":{"exposure":0.2},"futureField":{"retained":true}});
-        fs::write(&source_sidecar, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
+        fs::write(
+            &source_sidecar,
+            serde_json::to_vec_pretty(&metadata).unwrap(),
+        )
+        .unwrap();
         let source_before = fs::read(&source_sidecar).unwrap();
         let draft = serde_json::json!({"exposure":1.25,"masks":[]});
         let copy = create_virtual_copy_from_draft(&photo, draft.clone()).unwrap();
-        let copied: Value = serde_json::from_slice(&fs::read(parse_virtual_path(&copy).1).unwrap()).unwrap();
+        let copied: Value =
+            serde_json::from_slice(&fs::read(parse_virtual_path(&copy).1).unwrap()).unwrap();
         assert_eq!(copied["adjustments"], draft);
         assert_eq!(copied["rating"], 4);
         assert_eq!(copied["futureField"]["retained"], true);

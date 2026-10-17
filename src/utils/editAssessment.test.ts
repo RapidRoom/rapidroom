@@ -26,7 +26,7 @@ describe('edit protection assessment', () => {
         {
           ...reset,
           pointCurves: {
-            ...reset.pointCurves,
+            ...reset.pointCurves!,
             luma: [
               { x: 0, y: 0 },
               { x: 255, y: 220 },

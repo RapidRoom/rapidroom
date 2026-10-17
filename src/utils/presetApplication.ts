@@ -5,6 +5,7 @@ import type { Adjustments } from './adjustments';
 import { mixPresetAdjustments } from './presetAmount';
 import { presetUnavailableReason } from './presetBrowser';
 import { rememberAppliedPreset } from './appliedPreset';
+import { sameAdjustmentValue } from './editHistory';
 
 interface Application {
   path: string;
@@ -46,10 +47,11 @@ export function preparePresetApplication(preset: Preset, amount: number) {
   if (same && previous.definition !== definition)
     throw new Error('Preset definition changed; select another preset or edit before reapplying');
   const base = same ? previous.base : editor.adjustments;
-  const result =
+  let result =
     same && previous.amount === amount
       ? previous.result
       : { ...base, ...mixPresetAdjustments(preset, amount, base, image) };
+  if (sameAdjustmentValue(result, editor.adjustments)) result = editor.adjustments;
   const application: Application = { path: image.path, preset, definition, amount, base, result };
   return {
     application,
@@ -74,7 +76,7 @@ export function commitPresetApplication(
     throw new Error('Active image or edit changed before preset application; read the current revision and retry');
   usePresetApplication.setState({ application: plan.application });
   try {
-    apply(plan.application.result);
+    if (plan.application.result !== plan.current) apply(plan.application.result);
   } catch (error) {
     usePresetApplication.setState({ application: null });
     throw error;
