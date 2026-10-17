@@ -212,6 +212,64 @@ mod tests {
         }
     }
     #[test]
+    fn forwards_captured_browser_curve_coordinates_without_numeric_drift() {
+        use std::net::TcpListener;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut headers = Vec::new();
+            while !headers.ends_with(b"\r\n\r\n") {
+                let mut byte = [0];
+                stream.read_exact(&mut byte).unwrap();
+                headers.push(byte[0]);
+                assert!(headers.len() < 32768);
+            }
+            let headers = String::from_utf8(headers).unwrap();
+            let size: usize = headers
+                .lines()
+                .find_map(|line| {
+                    line.to_ascii_lowercase()
+                        .strip_prefix("content-length:")
+                        .map(|size| size.trim().parse().unwrap())
+                })
+                .unwrap();
+            let mut body = vec![0; size];
+            stream.read_exact(&mut body).unwrap();
+            let request: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let expected = 183.00000000000006_f64;
+            assert_eq!(
+                request["params"]["curveY"].as_f64().unwrap().to_bits(),
+                expected.to_bits()
+            );
+            // Actual browser-generated coordinate from the Amount200 failure.
+            let response = br#"{"jsonrpc":"2.0","id":1,"result":{"curveY":183.00000000000006}}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                response.len()
+            )
+            .unwrap();
+            stream.write_all(response).unwrap();
+        });
+        let endpoint = Endpoint {
+            url: format!("http://127.0.0.1:{port}/mcp"),
+            ..fixture()
+        };
+        let expected = 183.00000000000006_f64;
+        let request = serde_json::json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"curveY":expected}});
+        let result = forward(&endpoint, &request, "2026-07-28").unwrap().unwrap();
+        assert_eq!(
+            result["result"]["curveY"].as_f64().unwrap().to_bits(),
+            expected.to_bits()
+        );
+        server.join().unwrap();
+    }
+
+    #[test]
     fn refuses_missing_wrong_and_partial_bearers() {
         let token = fixture().token;
         let verifier = BearerVerifier::new(&token);
