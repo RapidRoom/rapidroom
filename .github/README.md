@@ -14,7 +14,6 @@ The summary below is a historical snapshot. Current change records are in [rapid
 
 <!-- rapidroom-changes:start -->
 
-- Mark photos with Q, then denoise the marked folder overnight from the app or CLI. Completed results are verified and skipped.
 - **Bring your Lightroom collections along:** import collection sets and collections from a catalog
 - **Rename photos, not just files.** RAW+JPEG pairs and all their sidecars move together, bursts number in shooting order, and you see every new name before anything changes, with undo.
 - **Reference View like Lightroom.** Pin one photo next to the one you are editing, then match the look while you move through the filmstrip.
@@ -40,7 +39,7 @@ The summary below is a historical snapshot. Current change records are in [rapid
 - **Keyboard-friendly.** You can always see where keyboard focus is when you Tab through the app.
 - **Reliable batch exports.** Large exports no longer slip another photo into some images, and colour and luminance masks now apply correctly when exporting.
 
-139 improvements on top of RapidRAW so far, including fixes for 15 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+94 improvements on top of RapidRAW so far, including fixes for 15 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Lightroom import calibration
