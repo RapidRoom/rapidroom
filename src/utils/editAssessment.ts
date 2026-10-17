@@ -21,6 +21,8 @@ export function assessEdit(adjustments: Adjustments, image: { width: number; hei
   // These are render caches, not evidence that a user edited a photograph.
   const derived = new Set(['curves', 'lensDistortionParams']);
   if (adjustments.lensCorrectionMode === 'auto') {
+    // Auto is the fresh-RAW default (#345), not evidence of an edit.
+    derived.add('lensCorrectionMode');
     derived.add('lensMaker');
     derived.add('lensModel');
   }

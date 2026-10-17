@@ -1,6 +1,7 @@
 import type { Adjustments } from './adjustments';
 import type { Preset } from '../components/ui/AppProperties';
 import schema from '../../rapidroom/adjustment-schema.json';
+import { normalizeLensPolicyVersion } from './lensPolicyVersion';
 
 const parameters: Record<
   string,
@@ -129,7 +130,7 @@ export function mixAdjustments(
   if (preset.exposure !== undefined && preset.cameraExposureCompensation === undefined) {
     mixed.cameraExposureCompensation = false;
   }
-  return mixed;
+  return normalizeLensPolicyVersion(mixed, preset, before, fraction * 100);
 }
 
 // Style masks are additions to the existing edit. Templates use unit image

@@ -1564,12 +1564,14 @@ pub fn is_geometry_identity(params: &GeometryParams) -> bool {
     }
 
     let dist_identity = !params.lens_distortion_enabled
+        || params.lens_distortion_amount == 0.0
         || ((params.lens_distortion_amount - 1.0).abs() < 1e-4
             && params.lens_dist_k1.abs() < 1e-6
             && params.lens_dist_k2.abs() < 1e-6
             && params.lens_dist_k3.abs() < 1e-6);
 
     let tca_identity = !params.lens_tca_enabled
+        || params.lens_tca_amount == 0.0
         || if let Some(p) = &params.tca_poly3 {
             params.lens_tca_amount == 0.0
                 || (params.tca_vr == 1.0
@@ -1585,6 +1587,7 @@ pub fn is_geometry_identity(params: &GeometryParams) -> bool {
         };
 
     let vig_identity = !params.lens_vignette_enabled
+        || params.lens_vignette_amount == 0.0
         || ((params.lens_vignette_amount - 1.0).abs() < 1e-4
             && params.vig_k1.abs() < 1e-6
             && params.vig_k2.abs() < 1e-6
@@ -4115,6 +4118,34 @@ mod white_balance_sample_tests {
 #[cfg(test)]
 mod lens_tests {
     use super::*;
+
+    #[test]
+    fn zero_strength_lensfun_controls_preserve_every_source_pixel_like_disabled_controls() {
+        let image = DynamicImage::ImageRgb32F(image::ImageBuffer::from_fn(17, 13, |x, y| {
+            image::Rgb([x as f32 / 17.0, y as f32 / 13.0, 0.25])
+        }));
+        let base = serde_json::json!({"lensDistortionParams":{
+            "k1":0.03,"k2":-0.02,"k3":0.005,"model":1,"radius_scale":1.5,
+            "tca_vr":1.0002,"tca_vb":0.9998,"vig_k1":0.1,"vig_k2":-0.02,"vig_k3":0.005}});
+        for component in ["lensDistortion", "lensTca", "lensVignette", "all"] {
+            let mut disabled = base.clone();
+            for key in ["lensDistortion", "lensTca", "lensVignette"] {
+                disabled[format!("{key}Enabled")] = serde_json::json!(false);
+            }
+            let mut zero = disabled.clone();
+            for key in ["lensDistortion", "lensTca", "lensVignette"] {
+                if component == "all" || component == key {
+                    zero[format!("{key}Enabled")] = serde_json::json!(true);
+                    zero[format!("{key}Amount")] = serde_json::json!(0);
+                }
+            }
+            assert_eq!(
+                apply_geometry_warp(&image, &zero).to_rgb32f(),
+                apply_geometry_warp(&image, &disabled).to_rgb32f(),
+                "Zero-strength {component} must preserve the last row and column too"
+            );
+        }
+    }
 
     fn base_params() -> GeometryParams {
         GeometryParams {

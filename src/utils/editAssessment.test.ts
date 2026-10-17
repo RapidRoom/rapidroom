@@ -114,3 +114,21 @@ it('counts an explicitly selected manual lens profile rather than discarding it 
   expect(result.changedSettingCount).toBe(2);
   expect(result.recommendVirtualCopy).toBe(true);
 });
+
+it('does not treat the fresh-RAW Auto lens default as an edit', () => {
+  const image = { width: 6000, height: 4000 };
+  const reset = createResetAdjustmentsForImage(image);
+  const result = assessEdit(
+    {
+      ...reset,
+      lensCorrectionMode: 'auto',
+      cameraLensCorrectionVersion: 1,
+      lensMaker: 'Sony',
+      lensModel: 'FE 24-70mm F2.8 GM',
+    },
+    image,
+    1,
+  );
+  expect(result.changedSettingCount).toBe(0);
+  expect(result.recommendVirtualCopy).toBe(false);
+});

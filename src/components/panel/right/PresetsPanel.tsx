@@ -618,7 +618,8 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
     if (configureModalState.preset) {
       configurePreset(configureModalState.preset.id, name, includeMasks, includeCropTransform, presetType);
     } else {
-      const preset = addPreset(name, null, includeMasks, includeCropTransform, presetType);
+      const preset = await addPreset(name, null, includeMasks, includeCropTransform, presetType);
+      if (!preset) return;
       if (exportNewXmp.current) {
         exportNewXmp.current = false;
         await handleExportXmp(preset);

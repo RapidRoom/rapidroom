@@ -91,6 +91,8 @@ export enum Invokes {
   ListImagesRecursive = 'list_images_recursive',
   LoadImage = 'load_image',
   LoadMetadata = 'load_metadata',
+  GetDefaultRawLensAdjustments = 'get_default_raw_lens_adjustments',
+  GetLensCorrectionResolution = 'get_lens_correction_resolution',
   LoadPresets = 'load_presets',
   LoadSettings = 'load_settings',
   PreviewRenameFiles = 'preview_rename_files',
@@ -299,6 +301,7 @@ export interface AppSettings {
   zoomPhotoToPixelClick?: boolean;
   keybinds?: { [action: string]: string[] };
   enableBaselineExposure?: boolean;
+  autoLensCorrectionOnNewRaws?: boolean;
   baselineExposure?: number;
   compensateHighlightPreservation?: boolean;
   tonemapperOverrideEnabled?: boolean;

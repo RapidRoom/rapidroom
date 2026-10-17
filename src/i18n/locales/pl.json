@@ -1656,6 +1656,13 @@
       "title": "Ustawienia importu"
     },
     "lensCorrection": {
+      "sourceApplied": "Zastosowano: {{source}}",
+      "sourceAvailable": "Dostępne: {{source}}",
+      "sourceCameraData": "Dane aparatu",
+      "sourceExistingRecipe": "zapisane ustawienia",
+      "sourceNoData": "Brak danych korekcji",
+      "sourceUnavailable": "Źródła korekcji są niedostępne",
+      "sourceChecking": "Sprawdzanie źródeł korekcji…",
       "amount": "Ilość",
       "apply": "Zastosuj",
       "autoDetectLens": "Automatyczne wykrywanie obiektywu",
@@ -2154,6 +2161,9 @@
       },
       "nativeDpi": "Renderuj w natywnym DPI",
       "preprocessing": {
+        "autoLensCorrection": "Automatyczna korekcja obiektywu dla nowych RAW",
+        "autoLensCorrectionDesc": "Stosuje dostępne korekcje przy pierwszym otwarciu lub resetowaniu zdjęcia RAW. Zapisane edycje zachowują ustawienia.",
+        "enableAutoLensCorrection": "Domyślnie używaj automatycznej korekcji obiektywu",
         "appleRaw9": "Silnik Apple RAW 9",
         "appleRaw9Desc": "Wywołuj pliki RAW za pomocą dekodera RAW 9 w Core Image od Apple, który przeprowadza demozaikowanie i odszumianie w jednym kroku w silniku Neural Engine. Wymaga systemu macOS 27 lub nowszego oraz obsługiwanego aparatu; nieobsługiwane pliki automatycznie korzystają z wbudowanego dekodera. Wolniejszy niż domyślny dekoder. Nie wpływa na miniatury.",
         "applyPreprocessing": "Zastosuj wstępne przetwarzanie do formatów innych niż RAW",

@@ -1584,6 +1584,13 @@
       "title": "Importeinstellungen"
     },
     "lensCorrection": {
+      "sourceApplied": "Angewendet: {{source}}",
+      "sourceAvailable": "Verfügbar: {{source}}",
+      "sourceCameraData": "Kameradaten",
+      "sourceExistingRecipe": "gespeicherte Bearbeitung",
+      "sourceNoData": "Keine Korrekturdaten",
+      "sourceUnavailable": "Korrekturquellen nicht verfügbar",
+      "sourceChecking": "Korrekturquellen werden geprüft…",
       "amount": "Betrag",
       "apply": "Anwenden",
       "autoDetectLens": "Objektiv autom. erkennen",
@@ -2064,6 +2071,9 @@
       },
       "nativeDpi": "In nativer DPI rendern",
       "preprocessing": {
+        "autoLensCorrection": "Automatische Objektivkorrektur für neue RAWs",
+        "autoLensCorrectionDesc": "Verfügbare Objektivkorrekturen beim ersten Öffnen oder Zurücksetzen eines RAW-Fotos anwenden. Gespeicherte Bearbeitungen behalten ihre Einstellungen.",
+        "enableAutoLensCorrection": "Automatische Objektivkorrektur standardmäßig verwenden",
         "appleRaw9": "Apple RAW 9 Engine",
         "appleRaw9Desc": "Entwickelt RAW-Dateien mit Apples Core-Image-Decoder RAW 9, der Demosaicing und Entrauschen in einem Schritt auf der Neural Engine ausführt. Erfordert macOS 27 oder neuer und eine unterstützte Kamera; nicht unterstützte Dateien verwenden automatisch den integrierten Decoder. Langsamer als der Standard-Decoder. Vorschaubilder sind nicht betroffen.",
         "applyPreprocessing": "Vorverarbeitung auf Nicht-RAWs anwenden",

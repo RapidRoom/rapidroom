@@ -1620,6 +1620,13 @@
       "title": "Configurações de Importação"
     },
     "lensCorrection": {
+      "sourceApplied": "Aplicado: {{source}}",
+      "sourceAvailable": "Disponível: {{source}}",
+      "sourceCameraData": "Dados da câmara",
+      "sourceExistingRecipe": "edição guardada",
+      "sourceNoData": "Sem dados de correção",
+      "sourceUnavailable": "Fontes de correção indisponíveis",
+      "sourceChecking": "A verificar as fontes de correção…",
       "amount": "Quantidade",
       "apply": "Aplicar",
       "autoDetectLens": "Detectar Lente Automaticamente",
@@ -2109,6 +2116,9 @@
       },
       "nativeDpi": "Renderizar em DPI nativo",
       "preprocessing": {
+        "autoLensCorrection": "Correção automática da objetiva para novos RAW",
+        "autoLensCorrectionDesc": "Aplica as correções disponíveis ao abrir pela primeira vez ou repor uma fotografia RAW. As edições guardadas mantêm as definições.",
+        "enableAutoLensCorrection": "Utilizar a correção automática da objetiva por predefinição",
         "appleRaw9": "Motor Apple RAW 9",
         "appleRaw9Desc": "Revela ficheiros RAW com o descodificador RAW 9 do Core Image da Apple, que faz o demosaicing e reduz o ruído num só passo no Neural Engine. Requer o macOS 27 ou posterior e uma câmara suportada; ficheiros não suportados usam automaticamente o descodificador integrado. Mais lento que o descodificador padrão. As miniaturas não são afetadas.",
         "applyPreprocessing": "Aplicar Pré-processamento em Não-RAWs",

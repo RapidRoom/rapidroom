@@ -35,6 +35,7 @@ beforeEach(() => {
   mockCommand('save_metadata_and_update_thumbnail', () => undefined);
   mockCommand('mcp_status', () => ({}));
   mockCommand('clear_editor_session', () => undefined);
+  mockCommand('get_default_raw_lens_adjustments', () => ({}));
   mockCommand('sync_editor_state', () => ({
     imagePath: useEditorStore.getState().selectedImage?.path,
     adjustments: useEditorStore.getState().adjustments,
@@ -231,6 +232,10 @@ describe('MCP editor bridge review', () => {
   });
 
   it('resets as one undoable step without a direct sidecar reset command', async () => {
+    mockCommand('get_default_raw_lens_adjustments', () => ({
+      lensCorrectionMode: 'auto',
+      cameraLensCorrectionVersion: 1,
+    }));
     const edited: Adjustments = {
       ...INITIAL_ADJUSTMENTS,
       contrast: 30,
@@ -241,11 +246,49 @@ describe('MCP editor bridge review', () => {
     renderChanges();
     await command('reset-adjustments');
     expect(responses).toHaveLength(1);
-    expect(useEditorStore.getState().adjustments).toMatchObject({ contrast: 0, crop: null, aspectRatio: 1.5 });
+    expect(useEditorStore.getState().adjustments).toMatchObject({
+      contrast: 0,
+      crop: null,
+      aspectRatio: 1.5,
+      lensCorrectionMode: 'auto',
+      cameraLensCorrectionVersion: 1,
+    });
     expect(useEditorStore.getState().history).toHaveLength(2);
     await act(async () => useEditorStore.getState().undo());
     expect(useEditorStore.getState().adjustments).toEqual(edited);
     expect(invoke.mock.calls.some(([name]) => name === 'reset_adjustments_for_paths')).toBe(false);
+  });
+
+  it.each(['selection', 'draft', 'error'])('does not overwrite an editor after a Reset lookup %s', async (reason) => {
+    const edited = { ...INITIAL_ADJUSTMENTS, contrast: 30 };
+    useEditorStore.setState({ selectedImage: image, adjustments: edited, history: [edited], historyIndex: 0 });
+    let release!: (value: unknown) => void;
+    let reject!: (error: Error) => void;
+    mockCommand(
+      'get_default_raw_lens_adjustments',
+      () =>
+        new Promise((resolve, fail) => {
+          release = resolve;
+          reject = fail;
+        }),
+    );
+    await mount();
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = emit('mcp-command', { requestId: 'request', kind: 'reset-adjustments', path });
+    });
+    const newer = { ...edited, contrast: 45 };
+    await act(async () => {
+      if (reason === 'selection') useEditorStore.setState({ selectedImage: { ...image, path: '/photos/b.raw' } });
+      if (reason === 'draft') useEditorStore.setState({ adjustments: newer });
+      if (reason === 'error') reject(new Error('Lens lookup failed'));
+      else release({ lensCorrectionMode: 'auto', cameraLensCorrectionVersion: 1 });
+      await pending;
+    });
+    expect(responses).toHaveLength(1);
+    expect(responses[0].error).toMatch(reason === 'error' ? /Lens lookup failed/ : /Active edit changed/);
+    expect(useEditorStore.getState().adjustments).toBe(reason === 'draft' ? newer : edited);
+    expect(useEditorStore.getState().history).toEqual([edited]);
   });
 
   it('lists AI entries without changing history and undoes/redoes through the shared stack', async () => {

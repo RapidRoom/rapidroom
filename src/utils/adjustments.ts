@@ -303,6 +303,7 @@ export interface Adjustments {
   fogTemperature: number;
   fogTint: number;
   lensCorrectionMode: 'auto' | 'manual';
+  cameraLensCorrectionVersion?: 0 | 1;
   lensDistortionAmount: number;
   lensVignetteAmount: number;
   lensTcaAmount: number;

@@ -1,3 +1,4 @@
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { adoptVirtualCopy } from '../utils/adoptVirtualCopy';
 import { assessEdit } from '../utils/editAssessment';
 import { getReferenceLabel } from '../utils/referenceView';
@@ -7,7 +8,6 @@ import { usePresetCatalog } from '../store/usePresetCatalog';
 import { preparePresetApplication, commitPresetApplication } from '../utils/presetApplication';
 import { clearPresetHoverPreview } from '../utils/presetHoverPreview';
 import { hashPresetAdjustments, useAppliedPresetStore, loadAppliedPreset } from '../utils/appliedPreset';
-import { createResetAdjustmentsForImage } from '../utils/adjustments';
 import { toast } from 'react-toastify';
 import { isPathInCardRoot } from '../utils/cardMode';
 import { describeHistoryChange, sameAdjustmentValue } from '../utils/editHistory';
@@ -574,8 +574,12 @@ export function useMcpBridge(
           if (command.kind === 'reset-adjustments') {
             // Same result as the library's reset, but as an undoable step;
             // autosave writes it to the sidecar like any other edit.
-            const image = useEditorStore.getState().selectedImage;
-            nextAdjustments = createResetAdjustmentsForImage(image);
+            const before = useEditorStore.getState();
+            nextAdjustments = await createResetAdjustmentsWithLensDefaults(before.selectedImage);
+            const current = useEditorStore.getState();
+            if (current.selectedImage?.path !== command.path || current.adjustments !== before.adjustments) {
+              throw new Error('Active edit changed while preparing Reset');
+            }
           } else if (command.adjustments) {
             nextAdjustments = normalizeMcpAdjustments(command.adjustments);
           } else {

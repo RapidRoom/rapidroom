@@ -1678,6 +1678,13 @@
       "photosOnly": "Imports photos only. Videos are not copied or removed."
     },
     "lensCorrection": {
+      "sourceApplied": "Applied: {{source}}",
+      "sourceAvailable": "Available: {{source}}",
+      "sourceCameraData": "Camera data",
+      "sourceExistingRecipe": "existing recipe",
+      "sourceNoData": "No correction data",
+      "sourceUnavailable": "Correction sources unavailable",
+      "sourceChecking": "Checking correction sources…",
       "amount": "Amount",
       "apply": "Apply",
       "autoDetectLens": "Auto-detect Lens",
@@ -2206,6 +2213,9 @@
       },
       "nativeDpi": "Render at native DPI",
       "preprocessing": {
+        "autoLensCorrection": "Auto lens correction for new RAWs",
+        "autoLensCorrectionDesc": "Apply available lens corrections when first opening or resetting a RAW photo. Saved edits keep their settings.",
+        "enableAutoLensCorrection": "Use Auto lens correction by default",
         "appleRaw9": "Apple RAW 9 Engine",
         "appleRaw9Desc": "Develop RAW files with Apple's Core Image RAW 9 decoder, which demosaics and denoises in one step on the Neural Engine. Requires macOS 27 or later and a supported camera; unsupported files automatically use the built-in decoder. Slower than the default decoder. Thumbnails are not affected.",
         "applyPreprocessing": "Apply Preprocessing to Non-RAWs",

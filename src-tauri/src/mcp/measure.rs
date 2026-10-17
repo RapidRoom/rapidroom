@@ -244,12 +244,23 @@ fn geometry(value: &Value) -> Value {
         "lensTcaAmount",
         "lensTcaEnabled",
     ];
-    Value::Object(
-        fields
-            .into_iter()
-            .map(|key| (key.to_string(), value[key].clone()))
-            .collect(),
-    )
+    let mut geometry: serde_json::Map<String, Value> = fields
+        .into_iter()
+        .map(|key| (key.to_string(), value[key].clone()))
+        .collect();
+    let mode = value["lensCorrectionMode"].as_str().unwrap_or("manual");
+    geometry.insert("lensCorrectionMode".into(), json!(mode));
+    geometry.insert(
+        "cameraLensCorrectionVersion".into(),
+        json!(
+            if mode == "auto" && value["cameraLensCorrectionVersion"].as_u64() == Some(1) {
+                1
+            } else {
+                0
+            }
+        ),
+    );
+    Value::Object(geometry)
 }
 
 fn same_geometry_value(left: &Value, right: &Value) -> bool {
@@ -671,6 +682,19 @@ mod tests {
         assert!(same_geometry_value(
             &geometry(&current),
             &geometry(&alternative)
+        ));
+        let mut camera = current.clone();
+        camera["lensCorrectionMode"] = json!("auto");
+        camera["cameraLensCorrectionVersion"] = json!(1);
+        let original = stage_adjustments(&json!({"stage":"original"}), &camera).unwrap();
+        assert!(same_geometry_value(
+            &geometry(&camera),
+            &geometry(&original)
+        ));
+        camera["cameraLensCorrectionVersion"] = json!(0);
+        assert!(!same_geometry_value(
+            &geometry(&camera),
+            &geometry(&original)
         ));
         for path in [
             "/not-a-photo?vc=../../secret",

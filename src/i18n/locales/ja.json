@@ -1580,6 +1580,13 @@
       "title": "インポート設定"
     },
     "lensCorrection": {
+      "sourceApplied": "適用中: {{source}}",
+      "sourceAvailable": "利用可能: {{source}}",
+      "sourceCameraData": "カメラのデータ",
+      "sourceExistingRecipe": "保存済みの編集設定",
+      "sourceNoData": "補正データなし",
+      "sourceUnavailable": "補正元を取得できません",
+      "sourceChecking": "補正元を確認中…",
       "amount": "適用量",
       "apply": "適用",
       "autoDetectLens": "レンズを自動検出",
@@ -2060,6 +2067,9 @@
       },
       "nativeDpi": "本来の解像度でレンダリング",
       "preprocessing": {
+        "autoLensCorrection": "新しいRAWの自動レンズ補正",
+        "autoLensCorrectionDesc": "RAW写真を初めて開くときやリセットするときに、利用可能なレンズ補正を適用します。保存済みの編集設定は変更されません。",
+        "enableAutoLensCorrection": "レンズ補正の初期設定を自動にする",
         "appleRaw9": "Apple RAW 9 エンジン",
         "appleRaw9Desc": "AppleのCore Image RAW 9デコーダを使用してRAWファイルを現像します。これはNeural Engine上でデモザイク処理とノイズ低減を1ステップで行います。macOS 27以降および対応カメラが必要です。未対応のファイルは自動的に内蔵デコーダを使用します。デフォルトのデコーダより低速です。サムネイルには影響しません。",
         "applyPreprocessing": "RAW以外の画像にも事前処理を適用",

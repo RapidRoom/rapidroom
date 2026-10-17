@@ -10,7 +10,7 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { debouncedSetHistory, useEditorActions } from './useEditorActions';
-import { createResetAdjustmentsForImage } from '../utils/adjustments';
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { useLibraryActions } from './useLibraryActions';
 import { registerAppActions, executeAppAction } from '../utils/appActions';
 import { fitPercent as getFitPercent, getDpr, percentFromTransform, stepZoomIn, stepZoomOut } from '../utils/zoom';
@@ -147,10 +147,19 @@ export const useKeyboardShortcuts = ({
     const actions: Record<string, ShortcutAction> = {
       reset_adjustments: {
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
-        execute: (_event: unknown, s: StoreState) => {
-          debouncedSetHistory.flush();
-          setAdjustments(createResetAdjustmentsForImage(s.editor.selectedImage));
-          debouncedSetHistory.flush();
+        execute: async (_event: unknown, s: StoreState) => {
+          const image = s.editor.selectedImage;
+          const before = s.editor.adjustments;
+          try {
+            const reset = await createResetAdjustmentsWithLensDefaults(image);
+            const current = useEditorStore.getState();
+            if (current.selectedImage?.path !== image?.path || current.adjustments !== before) return;
+            debouncedSetHistory.flush();
+            setAdjustments(() => reset);
+            debouncedSetHistory.flush();
+          } catch (error) {
+            toast.error(`Failed to reset adjustments: ${error}`);
+          }
         },
       },
       auto_adjustments: {
