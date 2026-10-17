@@ -41,7 +41,15 @@ function mockPaste() {
   mockCommand(Invokes.ApplyAdjustmentsToPaths, (args) => {
     applied.push(args);
   });
-  useEditorStore.setState({ copiedAdjustments: { ...INITIAL_ADJUSTMENTS, exposure: 1, contrast: 20 } });
+  useEditorStore.setState({
+    copiedAdjustments: {
+      ...INITIAL_ADJUSTMENTS,
+      exposure: 1,
+      contrast: 20,
+      baselineExposure: false,
+      cameraExposureCompensation: false,
+    },
+  });
   return applied;
 }
 
@@ -79,7 +87,12 @@ describe('useEditorActions.handlePasteAdjustments', () => {
 
     actions.handlePasteAdjustments(['/photos/a.raw']);
 
-    expect(applied).toEqual([{ paths: ['/photos/a.raw'], adjustments: { exposure: 1 } }]);
+    expect(applied).toEqual([
+      {
+        paths: ['/photos/a.raw'],
+        adjustments: { exposure: 1, baselineExposure: false, cameraExposureCompensation: false },
+      },
+    ]);
     await unmount();
   });
 });
