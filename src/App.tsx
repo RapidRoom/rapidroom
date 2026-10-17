@@ -435,6 +435,16 @@ function App() {
     }
   }, [currentFolderPath, handleSelectSubfolder, handleSelectAlbum]);
 
+  const savedLibraryViewMode = appSettings ? (appSettings.libraryViewMode ?? defaultLibraryViewMode) : null;
+  const previousLibraryViewMode = useRef(savedLibraryViewMode);
+  useEffect(() => {
+    const previous = previousLibraryViewMode.current;
+    previousLibraryViewMode.current = savedLibraryViewMode;
+    if (previous !== null && savedLibraryViewMode !== null && previous !== savedLibraryViewMode) {
+      void handleLibraryRefresh().catch((error) => console.error('Failed to reload library display mode:', error));
+    }
+  }, [savedLibraryViewMode, handleLibraryRefresh]);
+
   const {
     executeDelete,
     handleDeleteSelected,
