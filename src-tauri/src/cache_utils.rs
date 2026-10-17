@@ -26,6 +26,19 @@ pub const GEOMETRY_KEYS: &[&str] = &[
     "guidedPerspective",
 ];
 
+fn hash_camera_policy(adjustments: &serde_json::Value, hasher: &mut DefaultHasher) {
+    // Preserve all legacy cache identities. New camera recipes bind the actual
+    // selected source/payload even if their numeric polynomial fields coincide.
+    if adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1) {
+        "camera_lens_recipe_v1".hash(hasher);
+        adjustments["lensCorrectionMode"]
+            .as_str()
+            .unwrap_or("manual")
+            .hash(hasher);
+        adjustments["lensDistortionParams"].to_string().hash(hasher);
+    }
+}
+
 fn hash_ai_patches(adjustments: &serde_json::Value, hasher: &mut DefaultHasher) {
     if let Some(patches_val) = adjustments.get("aiPatches")
         && let Some(patches_arr) = patches_val.as_array()
@@ -114,6 +127,7 @@ pub fn calculate_patch_hash(adjustments: &serde_json::Value) -> u64 {
     uses_generated_masks.hash(&mut hasher);
 
     if uses_generated_masks {
+        hash_camera_policy(adjustments, &mut hasher);
         hash_orientation(adjustments, &mut hasher);
 
         for key in GEOMETRY_KEYS {
@@ -138,6 +152,8 @@ pub fn calculate_geometry_hash(adjustments: &serde_json::Value) -> u64 {
             val.to_string().hash(&mut hasher);
         }
     }
+
+    hash_camera_policy(adjustments, &mut hasher);
 
     hasher.finish()
 }
@@ -217,6 +233,8 @@ pub fn calculate_effects_hash(adjustments: &serde_json::Value) -> u64 {
         hash_orientation(adjustments, &mut hasher);
     }
 
+    hash_camera_policy(adjustments, &mut hasher);
+
     hasher.finish()
 }
 
@@ -252,6 +270,8 @@ pub fn calculate_visual_hash(path: &str, adjustments: &serde_json::Value) -> u64
             }
         }
     }
+
+    hash_camera_policy(adjustments, &mut hasher);
 
     hasher.finish()
 }
@@ -294,6 +314,8 @@ pub fn calculate_transform_hash(adjustments: &serde_json::Value) -> u64 {
     }
 
     hash_ai_patches(adjustments, &mut hasher);
+
+    hash_camera_policy(adjustments, &mut hasher);
 
     hasher.finish()
 }
