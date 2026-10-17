@@ -16,6 +16,7 @@ import { getImageFlag } from '../../utils/imageFlags';
 
 interface LibraryViewProps {
   sortedImageList: ImageFile[];
+  matchingPhotoCount: number;
   groupBadgeInfo: Map<GroupId, GroupBadgeInfo> | null;
   thumbnailSize: ThumbnailSize;
   thumbnailAspectRatio: ThumbnailAspectRatio;
@@ -45,6 +46,7 @@ interface LibraryViewProps {
 
 export default function LibraryView({
   sortedImageList,
+  matchingPhotoCount,
   groupBadgeInfo,
   thumbnailSize,
   thumbnailAspectRatio,
@@ -142,6 +144,7 @@ export default function LibraryView({
             currentFolderPath={currentFolderPath}
             groupBadgeInfo={groupBadgeInfo}
             imageList={sortedImageList}
+            matchingPhotoCount={matchingPhotoCount}
             imageRatings={imageRatings}
             importState={importState}
             indexingProgress={indexingProgress}

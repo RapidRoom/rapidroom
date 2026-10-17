@@ -58,3 +58,5 @@ The terminal supplies `RAPIDROOM_UNTRUSTED_CONTEXT`, a labelled data-only JSON o
 | A question the docs don't answer: read the source           | [source.md](references/source.md)             |
 | A defect or missing feature: draft an issue                 | [report-issue.md](references/report-issue.md) |
 | Setting up RapidRoom, the plugin, Codex, a launcher         | [starting.md](references/starting.md)         |
+
+Before an alternative edit, assess the current recipe and automatically protect substantial user work in a virtual copy when these tools are installed. Use native catalog Styles and Amount instead of translating XMP by hand. See [workflow.md](references/workflow.md#protect-existing-work-before-proposing-changes) and [tools.md](references/tools.md#styles-and-protected-editing). Deletion always requires the user’s GUI confirmation; keep both versions by default.

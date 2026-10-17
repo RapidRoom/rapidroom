@@ -113,6 +113,7 @@ impl Default for ImageMetadata {
 }
 
 const BASELINE_EXPOSURE_KEY: &str = "baselineExposure";
+const CAMERA_EXPOSURE_COMPENSATION_KEY: &str = "cameraExposureCompensation";
 
 pub fn mark_baseline_exposure(adjustments: &mut Value) {
     if let Some(object) = adjustments.as_object_mut() {
@@ -123,7 +124,16 @@ pub fn mark_baseline_exposure(adjustments: &mut Value) {
 pub fn default_adjustments() -> Value {
     let mut adjustments = json!({});
     mark_baseline_exposure(&mut adjustments);
+    adjustments[CAMERA_EXPOSURE_COMPENSATION_KEY] = Value::Bool(true);
     adjustments
+}
+
+pub fn copy_exposure_policy(source: &Value, target: &mut Value) {
+    for key in [BASELINE_EXPOSURE_KEY, CAMERA_EXPOSURE_COMPENSATION_KEY] {
+        target[key] = Value::Bool(
+            source.is_null() || source.get(key).and_then(Value::as_bool).unwrap_or(false),
+        );
+    }
 }
 
 fn uses_baseline_exposure(adjustments: &Value) -> bool {
@@ -140,7 +150,18 @@ pub fn effective_baseline_exposure(
     options: BaselineOptions,
 ) -> f32 {
     if uses_baseline_exposure(adjustments) {
-        as_shot.exposure.compensation(options)
+        let camera_compensation = adjustments.is_null()
+            || adjustments
+                .get(CAMERA_EXPOSURE_COMPENSATION_KEY)
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+        if camera_compensation {
+            as_shot
+                .exposure
+                .camera_compensation(options.compensate_highlight_preservation)
+        } else {
+            as_shot.exposure.compensation(options)
+        }
     } else {
         0.0
     }
@@ -159,6 +180,7 @@ mod baseline_eligibility_tests {
                 scene_referred: true,
                 dng_baseline: 0.25,
                 highlight_preservation: 0.66,
+                camera_baseline: None,
             },
         };
         let render = RenderOptions {
@@ -1703,13 +1725,15 @@ pub fn is_geometry_identity(params: &GeometryParams) -> bool {
         {
             params.lens_distortion_amount == 0.0 || table.iter().all(|sample| *sample == 0)
         } else {
-            (params.lens_distortion_amount - 1.0).abs() < 1e-4
-                && params.lens_dist_k1.abs() < 1e-6
-                && params.lens_dist_k2.abs() < 1e-6
-                && params.lens_dist_k3.abs() < 1e-6
+            params.lens_distortion_amount == 0.0
+                || ((params.lens_distortion_amount - 1.0).abs() < 1e-4
+                    && params.lens_dist_k1.abs() < 1e-6
+                    && params.lens_dist_k2.abs() < 1e-6
+                    && params.lens_dist_k3.abs() < 1e-6)
         };
 
     let tca_identity = !params.lens_tca_enabled
+        || params.lens_tca_amount == 0.0
         || if let Some(p) = &params.tca_poly3 {
             params.lens_tca_amount == 0.0
                 || (params.tca_vr == 1.0
@@ -1732,10 +1756,11 @@ pub fn is_geometry_identity(params: &GeometryParams) -> bool {
         {
             params.lens_vignette_amount == 0.0 || table.iter().all(|sample| *sample == 0)
         } else {
-            (params.lens_vignette_amount - 1.0).abs() < 1e-4
-                && params.vig_k1.abs() < 1e-6
-                && params.vig_k2.abs() < 1e-6
-                && params.vig_k3.abs() < 1e-6
+            params.lens_vignette_amount == 0.0
+                || ((params.lens_vignette_amount - 1.0).abs() < 1e-4
+                    && params.vig_k1.abs() < 1e-6
+                    && params.vig_k2.abs() < 1e-6
+                    && params.vig_k3.abs() < 1e-6)
         };
 
     dist_identity && tca_identity && vig_identity
@@ -4253,6 +4278,34 @@ mod white_balance_sample_tests {
 #[cfg(test)]
 mod lens_tests {
     use super::*;
+
+    #[test]
+    fn zero_strength_lensfun_controls_preserve_every_source_pixel_like_disabled_controls() {
+        let image = DynamicImage::ImageRgb32F(image::ImageBuffer::from_fn(17, 13, |x, y| {
+            image::Rgb([x as f32 / 17.0, y as f32 / 13.0, 0.25])
+        }));
+        let base = serde_json::json!({"lensDistortionParams":{
+            "k1":0.03,"k2":-0.02,"k3":0.005,"model":1,"radius_scale":1.5,
+            "tca_vr":1.0002,"tca_vb":0.9998,"vig_k1":0.1,"vig_k2":-0.02,"vig_k3":0.005}});
+        for component in ["lensDistortion", "lensTca", "lensVignette", "all"] {
+            let mut disabled = base.clone();
+            for key in ["lensDistortion", "lensTca", "lensVignette"] {
+                disabled[format!("{key}Enabled")] = serde_json::json!(false);
+            }
+            let mut zero = disabled.clone();
+            for key in ["lensDistortion", "lensTca", "lensVignette"] {
+                if component == "all" || component == key {
+                    zero[format!("{key}Enabled")] = serde_json::json!(true);
+                    zero[format!("{key}Amount")] = serde_json::json!(0);
+                }
+            }
+            assert_eq!(
+                apply_geometry_warp(&image, &zero).to_rgb32f(),
+                apply_geometry_warp(&image, &disabled).to_rgb32f(),
+                "Zero-strength {component} must preserve the last row and column too"
+            );
+        }
+    }
 
     fn base_params() -> GeometryParams {
         GeometryParams {

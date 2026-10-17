@@ -7,11 +7,37 @@ mod server;
 mod tools;
 mod ui;
 
+mod library;
+mod presets;
+
 pub use http::{cleanup_endpoint, initialize_runtime, set_enabled, start_server};
 
 use crate::AppState;
 use serde_json::Value;
 use tauri::State;
+
+#[tauri::command]
+pub fn validate_mcp_adjustments(adjustments: Value) -> Result<(), String> {
+    adjustments::validate_adjustments(&adjustments)
+}
+
+#[tauri::command]
+pub fn create_mcp_virtual_copy(path: String, adjustments: Value) -> Result<String, String> {
+    library::validate_paths(std::slice::from_ref(&path))?;
+    adjustments::validate_adjustments(&adjustments)?;
+    crate::file_management::create_virtual_copy_from_draft(&path, adjustments)
+}
+
+#[tauri::command]
+pub fn set_mcp_image_metadata(
+    paths: Vec<String>,
+    changes: Value,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    library::validate_metadata(&changes)?;
+    library::validate_paths(&paths)?;
+    crate::file_management::set_assistant_metadata(&paths, &changes, &app)
+}
 
 #[tauri::command]
 pub fn ui_response(

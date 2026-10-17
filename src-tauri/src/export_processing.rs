@@ -2280,7 +2280,20 @@ pub(crate) async fn export_images_impl(
                         "batch-export-progress",
                         serde_json::json!({ "current": total_paths, "total": total_paths, "path": "" }),
                     );
-                    let _ = app_handle.emit("export-complete", ());
+                    let instagram_output_folder =
+                        export_settings.instagram.as_ref().and_then(|_| {
+                            if export_settings.destination_type.as_deref() == Some("originalFolder")
+                            {
+                                None
+                            } else if is_explicit_file_path {
+                                output_folder_path.parent()
+                            } else {
+                                Some(output_folder_path)
+                            }
+                        });
+                    let _ = app_handle.emit("export-complete", serde_json::json!({
+                        "instagramOutputFolder": instagram_output_folder.map(|p| p.to_string_lossy())
+                    }));
                 }
             },
         );

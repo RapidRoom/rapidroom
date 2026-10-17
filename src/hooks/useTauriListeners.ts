@@ -1,3 +1,4 @@
+import { showInstagramExportComplete } from '../utils/instagramExportToast';
 import { showTransferSummary, type TransferSummary } from '../utils/fileTransfers';
 import { useEffect, useRef } from 'react';
 import { listen as tauriListen, type Event, type UnlistenFn } from '@tauri-apps/api/event';
@@ -42,7 +43,7 @@ interface TauriEventPayloads {
   'external-edit-session': ExternalEditSession;
   'export-cancelled': null;
   'export-cancelling': null;
-  'export-complete': null;
+  'export-complete': { instagramOutputFolder?: string | null } | null;
   'export-error': string;
   'focus-stack-complete': { base64: string; depthMap: string };
   'focus-stack-error': string;
@@ -254,9 +255,10 @@ export function useTauriListeners({
       listen('batch-export-progress', (event) => {
         if (isEffectActive) useProcessStore.getState().setExportState({ progress: event.payload });
       }),
-      listen('export-complete', () => {
+      listen('export-complete', (event) => {
         if (isEffectActive) {
           useProcessStore.getState().setExportState({ status: Status.Success });
+          if (event.payload?.instagramOutputFolder) showInstagramExportComplete(event.payload.instagramOutputFolder);
           refreshAfterExport();
         }
       }),
