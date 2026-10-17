@@ -34,7 +34,12 @@ export function loadPresetCatalog(refresh = false): Promise<void> {
   const snapshot = usePresetCatalog.getState().presets;
   usePresetCatalog.setState({ isLoading: true });
   loading = (async () => {
-    await flushCatalogWrites();
+    // A failed save is reported by its own caller; it must not block reading the disk.
+    try {
+      await flushCatalogWrites();
+    } catch {
+      // already logged by saveCatalogPresets
+    }
     const presets = await invoke<UserPreset[]>('load_presets');
     // A slow disk read must never overwrite a rename/delete made in the panel.
     if (usePresetCatalog.getState().presets === snapshot) setCatalogPresets(presets);

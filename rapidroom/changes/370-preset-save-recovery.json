@@ -1,0 +1,13 @@
+{
+  "id": "370-preset-save-recovery",
+  "title": "Recover the preset catalog after a failed save",
+  "category": "fix",
+  "landed": "2026-10-17",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "AI-assisted implementation: a failed save_presets no longer blocks later preset refreshes and imports from reading the catalog from disk. Explicit flushCatalogWrites callers still see the failure."
+}
