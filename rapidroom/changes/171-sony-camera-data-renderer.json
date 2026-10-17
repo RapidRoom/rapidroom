@@ -9,5 +9,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": true,
-  "notes": "Explicit Auto camera recipe version 1 prefers valid Sony ARW distortion tables, with Lensfun fallback and renderer-owned per-component source and payload identity. Existing saved recipes retain legacy behavior. Camera vignetting and TCA remain disabled pending independent same-shot residual validation; mathematical support alone is not a shipping claim."
+  "notes": "Explicit Auto camera recipe version 1 prefers valid Sony ARW distortion tables, with Lensfun fallback and renderer-owned per-component source and payload identity. Manual and unversioned saved recipes retain legacy behavior; version-1 Auto recipes resolve against their physical source. Camera vignetting and TCA remain disabled pending independent same-shot residual validation; mathematical support alone is not a shipping claim."
 }
