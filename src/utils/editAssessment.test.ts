@@ -54,3 +54,51 @@ describe('edit protection assessment', () => {
     expect(assessEdit(adjusted, image, 2).reasons).toContain('more-than-six-settings');
   });
 });
+
+it('protects seven nondefault perspective/transform controls rather than calling them only a crop', () => {
+  const image = { width: 6000, height: 4000 };
+  const reset = createResetAdjustmentsForImage(image);
+  const edited = {
+    ...reset,
+    transformVertical: 12,
+    transformHorizontal: -8,
+    transformRotate: 2,
+    transformAspect: 6,
+    transformScale: 110,
+    transformXOffset: 3,
+    transformYOffset: -4,
+  };
+  const result = assessEdit(edited, image, 1);
+
+  expect(result.changedKeys).toEqual(
+    expect.arrayContaining([
+      'transformVertical',
+      'transformHorizontal',
+      'transformRotate',
+      'transformAspect',
+      'transformScale',
+      'transformXOffset',
+      'transformYOffset',
+    ]),
+  );
+  expect(result.changedSettingCount).toBeGreaterThanOrEqual(7);
+  expect(result.recommendVirtualCopy).toBe(true);
+  expect(result.reasons).toContain('more-than-six-settings');
+});
+it('keeps plain crop/aspect plus a few Basic sliders in place', () => {
+  const image = { width: 6000, height: 4000 };
+  const reset = createResetAdjustmentsForImage(image);
+  const result = assessEdit(
+    {
+      ...reset,
+      crop: { x: 500, y: 0, width: 3000, height: 4000, unit: 'px' },
+      aspectRatio: 0.75,
+      exposure: 0.6,
+      shadows: 15,
+    },
+    image,
+    20,
+  );
+  expect(result.changedSettingCount).toBe(2);
+  expect(result.recommendVirtualCopy).toBe(false);
+});
