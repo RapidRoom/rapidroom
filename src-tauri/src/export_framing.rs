@@ -71,6 +71,18 @@ pub fn geometry_signature(adjustments: &Value) -> String {
     let params = crate::image_processing::get_geometry_params_from_json(adjustments);
     let mut warp = serde_json::to_value(params).expect("Geometry parameters serialize");
     if let Some(object) = warp.as_object_mut() {
+        // Instagram framing depends on distortion, not brightness or TCA.
+        // Keep canonical distortion provenance while excluding those components.
+        if let Some(data) = object.get_mut("camera_data").and_then(Value::as_object_mut) {
+            data.retain(|key, _| key == "distortion");
+        }
+        if let Some(components) = object
+            .get_mut("lens_resolution")
+            .and_then(|resolution| resolution.get_mut("components"))
+            .and_then(Value::as_object_mut)
+        {
+            components.retain(|key, _| key == "distortion");
+        }
         object.retain(|key, _| {
             !key.contains("vignette")
                 && !key.starts_with("vig_")

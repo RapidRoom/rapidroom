@@ -234,3 +234,5 @@ retaining their AGPL-3.0 licence and original authorship. No fork implementation
 is vendored into RapidRoom's application. The genuine fixture is CC0 from
 raw.pixls.us; generated pixels and real captures are labelled separately in
 the [fixture manifest](rapidroom/validation/mcp-gap-repro/fixtures.json).
+
+Sony ARW radial metadata correction formulae and knot conventions: independently reimplemented in Rust by yojen7 with Codex from darktable's `src/iop/lens.cc` (`_init_coeffs_md_v1`) and `src/common/exif.cc`. Copyright (C) 2019–2026 darktable developers, GPL-3.0-or-later. See `rapidroom/validation/camera-data/README.md` for pinned reference sources and validation limits.

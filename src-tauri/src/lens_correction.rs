@@ -165,6 +165,8 @@ pub struct TcaPolynomial {
 
 #[derive(Serialize, Clone)]
 pub struct LensDistortionParams {
+    #[serde(skip)]
+    pub components: [bool; 3],
     k1: f64,
     k2: f64,
     k3: f64,
@@ -593,6 +595,11 @@ impl Lens {
         };
 
         Some(LensDistortionParams {
+            components: [
+                !distortions.is_empty(),
+                !tcas.is_empty(),
+                !vignettings.is_empty(),
+            ],
             k1,
             k2,
             k3,
@@ -1343,6 +1350,7 @@ pub fn resolve_lens_params(
         merged.k3 = p.k3;
         merged.model = p.model;
         merged.radius_scale = p.radius_scale;
+        merged.components[0] = p.components[0];
     }
 
     if let Some(source) = group.iter().find(|l| l.has_tca_data())
@@ -1351,6 +1359,7 @@ pub fn resolve_lens_params(
         merged.tca_vr = p.tca_vr;
         merged.tca_vb = p.tca_vb;
         merged.tca_poly3 = p.tca_poly3;
+        merged.components[1] = p.components[1];
     }
 
     if let Some(source) = group.iter().find(|l| l.has_vignetting_data())
@@ -1359,6 +1368,7 @@ pub fn resolve_lens_params(
         merged.vig_k1 = p.vig_k1;
         merged.vig_k2 = p.vig_k2;
         merged.vig_k3 = p.vig_k3;
+        merged.components[2] = p.components[2];
     }
 
     Some(merged)

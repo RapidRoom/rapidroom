@@ -39,6 +39,7 @@ mod baseline_exposure;
 mod batch_rename;
 mod bench;
 mod cache_utils;
+mod camera_lens;
 mod camera_tethering;
 mod culling;
 mod culling_preview;
@@ -1050,7 +1051,13 @@ async fn generate_uncropped_preview(
 
         let params = crate::image_processing::get_geometry_params_from_json(&adjustments_clone);
         let mut adjusted_params = params;
-        adjusted_params.lens_vignette_amount *= if is_raw { 0.4 } else { 0.8 };
+        if adjusted_params
+            .camera_data
+            .as_ref()
+            .is_none_or(|data| data.vignetting.is_none())
+        {
+            adjusted_params.lens_vignette_amount *= if is_raw { 0.4 } else { 0.8 };
+        }
 
         let warped_image = warp_image_geometry(&pre_geometry_base, adjusted_params);
         let orientation_steps = adjustments_clone["orientationSteps"].as_u64().unwrap_or(0) as u8;
@@ -2798,6 +2805,7 @@ pub fn run() {
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
             file_management::get_default_raw_lens_adjustments,
+            file_management::get_lens_correction_resolution,
             preset_application::load_applied_preset,
             preset_application::save_applied_preset,
             export_framing::get_instagram_framing_preview,

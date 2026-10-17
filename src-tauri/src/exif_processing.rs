@@ -2264,7 +2264,7 @@ pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>>
 /// The values are intentionally preserved as metadata only. Their physical
 /// units and interpolation are not documented by Sony, so rendering must not
 /// infer a correction from this raw table.
-fn sony_correction_metadata(file_bytes: &[u8]) -> HashMap<&'static str, Vec<i16>> {
+pub(crate) fn sony_correction_metadata(file_bytes: &[u8]) -> HashMap<&'static str, Vec<i16>> {
     const MAX_IFDS: usize = 32;
     const SUB_IFDS: u16 = 0x014a;
     const VIGNETTING: u16 = 0x7032;
