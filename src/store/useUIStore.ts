@@ -13,6 +13,8 @@ import {
 import { useEditorStore } from './useEditorStore';
 import { clampDockHeight, DEFAULT_DOCK_HEIGHT } from '../utils/dockHeight';
 
+const DOCK_LOAD_VIEWPORT = 1000;
+
 export type SwitcherPlacement = 'bottom' | 'right' | 'left' | 'top';
 export type LightsOutMode = 'off' | 'dim' | 'black';
 
@@ -247,11 +249,11 @@ export function reconcileWorkspace(
       ...(savedWorkspace.panelSwitcherPlacement || {}),
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
-    // The live window bound is applied when the dock renders; the saved normal height must not be clamped to the (possibly not yet laid out) window here.
+    // Clamp against a fixed reference viewport, not window.innerHeight, which can be unsettled at load; BottomDock applies the live bounds when it renders.
     bottomDockHeight: clampDockHeight(
       savedWorkspace.bottomDockHeight ?? DEFAULT_DOCK_HEIGHT,
-      Number.POSITIVE_INFINITY,
-      Number.POSITIVE_INFINITY,
+      DOCK_LOAD_VIEWPORT,
+      DOCK_LOAD_VIEWPORT,
     ),
   };
 }
