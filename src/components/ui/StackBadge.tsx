@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { isStackedPhoto, stackKey, toggleStack } from '../../utils/photoStacks';
 
-export default function StackBadge({ path }: { path: string }) {
+export default function StackBadge({ path, hasPrecedingBadge = true }: { path: string; hasPrecedingBadge?: boolean }) {
   const { t } = useTranslation();
   const images = useLibraryStore((s) => s.imageList);
   const expanded = useLibraryStore((s) => s.expandedStacks);
@@ -13,7 +13,7 @@ export default function StackBadge({ path }: { path: string }) {
   return (
     <button
       type="button"
-      className="ml-1.5 rounded bg-black/70 px-1 text-xs text-white pointer-events-auto"
+      className={`${hasPrecedingBadge ? 'ml-1.5 ' : ''}rounded bg-black/70 px-1 text-xs text-white pointer-events-auto`}
       aria-label={t('stacks.badge', { count })}
       aria-expanded={expanded.has(key)}
       onPointerDown={(e) => e.stopPropagation()}

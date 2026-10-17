@@ -305,8 +305,8 @@ const ThumbnailComponent = ({
             <StarIcon size={12} className="text-white fill-white" />
           </div>
 
-          <StackBadge path={path} />
-          <FlagBadges flag={flag} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating} />
+          <StackBadge path={path} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating} />
+          <FlagBadges flag={flag} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating || !!stack} />
 
           <div
             className={clsx(

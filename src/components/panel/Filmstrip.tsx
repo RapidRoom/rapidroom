@@ -287,8 +287,11 @@ const FilmstripThumbnail = memo(
               <Star size={12} className="text-white fill-white" />
             </div>
 
-            <StackBadge path={path} />
-            <FlagBadges flag={flag} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating} />
+            <StackBadge path={path} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating} />
+            <FlagBadges
+              flag={flag}
+              hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating || !!imageFile.stack}
+            />
           </div>
         </div>
 
