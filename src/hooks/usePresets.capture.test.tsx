@@ -10,6 +10,7 @@ import { mixAdjustments } from '../utils/presetAmount';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { usePresetCatalog } from '../store/usePresetCatalog';
 import { debouncedSave, debouncedSetHistory, useEditorActions } from './useEditorActions';
 import { usePresets } from './usePresets';
 
@@ -58,6 +59,7 @@ beforeEach(() => {
   useLibraryStore.setState(libraryInitial, true);
   useSettingsStore.setState(settingsInitial, true);
   useSettingsStore.setState({ appSettings: { theme: Theme.Dark, lastRootPath: null } });
+  usePresetCatalog.setState({ presets: [], isLoading: true, loaded: false });
   saved = [];
   applied = [];
   mockCommand(Invokes.LoadPresets, () => []);

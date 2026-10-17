@@ -25,7 +25,7 @@ libloading = { version = "=0.8.9", optional = true }
 tauri = { version = "2.11", features = [ "macos-private-api", "rustls-tls", "protocol-asset" ] }
 tauri-plugin-dialog = "2.7.2"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
 image = "0.25.10"
 tiff = "0.11.3"
 base64 = "0.23"

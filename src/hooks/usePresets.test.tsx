@@ -7,10 +7,14 @@ import { mockCommand } from '../test/tauriMock';
 import { Invokes, type Preset } from '../components/ui/AppProperties';
 import { INITIAL_ADJUSTMENTS, normalizeLoadedAdjustments } from '../utils/adjustments';
 import { mixAdjustments } from '../utils/presetAmount';
+import { usePresetCatalog } from '../store/usePresetCatalog';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: ReturnType<typeof createRoot> | undefined;
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => {
+  vi.useFakeTimers();
+  usePresetCatalog.setState({ presets: [], isLoading: true, loaded: false });
+});
 afterEach(async () => {
   await act(async () => {
     await vi.runOnlyPendingTimersAsync();
