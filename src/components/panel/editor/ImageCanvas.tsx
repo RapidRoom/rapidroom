@@ -1,3 +1,4 @@
+import { centeredInstagramFrame, lastInstagramRatio } from '../../../utils/instagramFraming';
 import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -3547,6 +3548,41 @@ const ImageCanvas = memo(
                 )}
               </svg>
 
+              {appSettings?.showInstagramGuide &&
+                !showOriginal &&
+                !isCropping &&
+                imageRenderSize.width > 0 &&
+                (() => {
+                  const ratio = lastInstagramRatio(appSettings);
+                  const frame = centeredInstagramFrame(imageRenderSize.width, imageRenderSize.height, ratio);
+                  return (
+                    <svg
+                      data-instagram-guide={ratio}
+                      aria-label={t('export.instagram.guide')}
+                      className="absolute pointer-events-none z-10"
+                      viewBox="0 0 1 1"
+                      preserveAspectRatio="none"
+                      style={{
+                        left: imageRenderSize.offsetX,
+                        top: imageRenderSize.offsetY,
+                        width: imageRenderSize.width,
+                        height: imageRenderSize.height,
+                      }}
+                    >
+                      <rect
+                        x={frame.x}
+                        y={frame.y}
+                        width={frame.width}
+                        height={frame.height}
+                        fill="none"
+                        stroke="white"
+                        strokeWidth="1.5"
+                        strokeDasharray="6 4"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </svg>
+                  );
+                })()}
               {displayedMaskUrl && (
                 <img
                   alt="Mask Overlay"

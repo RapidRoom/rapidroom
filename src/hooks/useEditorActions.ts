@@ -18,7 +18,7 @@ import {
   normalizeLoadedAdjustments,
   setToolActive,
 } from '../utils/adjustments';
-import { calculateCenteredCrop } from '../utils/cropUtils';
+import { calculateCenteredCrop, getOrientedDimensions } from '../utils/cropUtils';
 import { Invokes } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
@@ -502,6 +502,38 @@ export function useEditorActions() {
     [setAdjustments],
   );
 
+  const handleCropOrientationToggle = useCallback(() => {
+    const { selectedImage } = useEditorStore.getState();
+    if (!selectedImage?.width || !selectedImage.height) return;
+    setAdjustments((prev) => {
+      if (!prev.aspectRatio || !Number.isFinite(prev.aspectRatio) || prev.aspectRatio <= 0 || prev.aspectRatio === 1) {
+        return prev;
+      }
+      const aspectRatio = 1 / prev.aspectRatio;
+      const steps = prev.orientationSteps || 0;
+      const { width, height } = getOrientedDimensions(selectedImage.width, selectedImage.height, steps);
+      const crop = prev.crop;
+      const center = crop
+        ? {
+            x: (crop.x + crop.width / 2) * (crop.unit === '%' ? width / 100 : 1),
+            y: (crop.y + crop.height / 2) * (crop.unit === '%' ? height / 100 : 1),
+          }
+        : undefined;
+      return {
+        ...prev,
+        aspectRatio,
+        crop: calculateCenteredCrop(
+          selectedImage.width,
+          selectedImage.height,
+          steps,
+          aspectRatio,
+          prev.rotation || 0,
+          center,
+        ),
+      };
+    });
+  }, [setAdjustments]);
+
   const handleZoomChange = useCallback((zoomValue: number, fitToWindow: boolean = false) => {
     const { selectedImage, baseRenderSize, setEditor } = useEditorStore.getState();
     if (!selectedImage) return;
@@ -526,6 +558,7 @@ export function useEditorActions() {
     handleCopyAdjustments,
     handlePasteAdjustments,
     handleZoomChange,
+    handleCropOrientationToggle,
     toggleShowOriginal,
   };
 }

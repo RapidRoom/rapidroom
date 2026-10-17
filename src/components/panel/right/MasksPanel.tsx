@@ -572,14 +572,17 @@ export default function MasksPanel() {
       if (!subMask.parameters) subMask.parameters = {};
       subMask.parameters.isInitialDraw = true;
       if (type === Mask.Linear || type === Mask.Radial) {
-        subMask.parameters.startX = -10000;
-        subMask.parameters.startY = -10000;
-        subMask.parameters.endX = -10000;
-        subMask.parameters.endY = -10000;
-        subMask.parameters.centerX = -10000;
-        subMask.parameters.centerY = -10000;
-        subMask.parameters.radiusX = 0;
-        subMask.parameters.radiusY = 0;
+        if (type === Mask.Linear) {
+          subMask.parameters.startX = -10000;
+          subMask.parameters.startY = -10000;
+          subMask.parameters.endX = -10000;
+          subMask.parameters.endY = -10000;
+        } else {
+          subMask.parameters.centerX = -10000;
+          subMask.parameters.centerY = -10000;
+          subMask.parameters.radiusX = 0;
+          subMask.parameters.radiusY = 0;
+        }
       } else {
         subMask.parameters.targetX = -10000;
         subMask.parameters.targetY = -10000;

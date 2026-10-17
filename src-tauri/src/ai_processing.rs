@@ -49,8 +49,9 @@ const CLIP_TOKENIZER_FILENAME: &str = "clip_tokenizer.json";
 const CLIP_MODEL_SHA256: &str = "57879bb1c23cdeb350d23569dd251ed4b740a96d747c529e94a2bb8040ac5d00";
 
 const DENOISE_URL: &str = "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/nind_denoise_utnet_684.onnx?download=true";
-const DENOISE_FILENAME: &str = "nind_denoise_utnet_684.onnx";
-const DENOISE_SHA256: &str = "ee3586279d514df557ff3f7dec6df37fafc51ba5d3a3435b2cc9ac2d9017e7fe";
+pub(crate) const DENOISE_FILENAME: &str = "nind_denoise_utnet_684.onnx";
+pub(crate) const DENOISE_SHA256: &str =
+    "ee3586279d514df557ff3f7dec6df37fafc51ba5d3a3435b2cc9ac2d9017e7fe";
 
 const LAMA_URL: &str =
     "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/lama_fp16.onnx?download=true";
@@ -97,7 +98,7 @@ pub struct CachedDepthMap {
 
 #[derive(Default)]
 pub struct AiState {
-    pub tree_models: std::collections::HashMap<&'static str, Arc<Mutex<Session>>>,
+    pub tree_models: std::collections::HashMap<&'static str, crate::tree_denoise::ModelSession>,
     pub models: Option<Arc<AiModels>>,
     pub denoise_model: Option<Arc<Mutex<Session>>>,
     pub clip_models: Option<Arc<ClipModels>>,
@@ -371,7 +372,7 @@ async fn download_model(url: &str, dest: &Path) -> Result<()> {
     persist_downloaded_asset(dest, &bytes)
 }
 
-fn verify_sha256(path: &Path, expected_hash: &str) -> Result<bool> {
+pub(crate) fn verify_sha256(path: &Path, expected_hash: &str) -> Result<bool> {
     if !path.exists() {
         return Ok(false);
     }
@@ -576,6 +577,23 @@ pub async fn get_or_init_denoise_model(
     ai_state_mutex: &Mutex<Option<AiState>>,
     ai_init_lock: &TokioMutex<()>,
 ) -> Result<Arc<Mutex<Session>>> {
+    denoise_model(app_handle, ai_state_mutex, ai_init_lock, true).await
+}
+
+pub(crate) async fn cached_denoise_model(
+    app_handle: &tauri::AppHandle,
+    ai_state_mutex: &Mutex<Option<AiState>>,
+    ai_init_lock: &TokioMutex<()>,
+) -> Result<Arc<Mutex<Session>>> {
+    denoise_model(app_handle, ai_state_mutex, ai_init_lock, false).await
+}
+
+async fn denoise_model(
+    app_handle: &tauri::AppHandle,
+    ai_state_mutex: &Mutex<Option<AiState>>,
+    ai_init_lock: &TokioMutex<()>,
+    allow_download: bool,
+) -> Result<Arc<Mutex<Session>>> {
     if let Some(denoise_model) = ai_state_mutex
         .lock()
         .unwrap()
@@ -597,16 +615,22 @@ pub async fn get_or_init_denoise_model(
     }
 
     let models_dir = get_models_dir(app_handle)?;
-    download_and_verify_model(
-        app_handle,
-        &models_dir,
-        DENOISE_FILENAME,
-        DENOISE_URL,
-        DENOISE_SHA256,
-        "NIND Denoise Model",
-    )
-    .await?;
-
+    if !allow_download {
+        anyhow::ensure!(
+            verify_sha256(&models_dir.join(DENOISE_FILENAME), DENOISE_SHA256)?,
+            "Required NIND model is missing or invalid"
+        );
+    } else {
+        download_and_verify_model(
+            app_handle,
+            &models_dir,
+            DENOISE_FILENAME,
+            DENOISE_URL,
+            DENOISE_SHA256,
+            "NIND Denoise Model",
+        )
+        .await?;
+    }
     let _ = ort::init().with_name("AI-Denoise").commit();
     let model_path = models_dir.join(DENOISE_FILENAME);
     let session = Session::builder()?.commit_from_file(model_path)?;
@@ -1868,6 +1892,171 @@ pub struct AiDepthMaskParameters {
     pub flip_vertical: Option<bool>,
     #[serde(default)]
     pub orientation_steps: Option<u8>,
+}
+
+#[cfg(test)]
+mod runtime_compatibility_tests {
+    use super::*;
+    use image::{ImageBuffer, Luma, Rgb};
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+    use std::path::PathBuf;
+
+    fn checksum(path: &std::path::Path) -> String {
+        let mut file = std::fs::File::open(path).unwrap();
+        let mut digest = Sha256::new();
+        let mut chunk = [0; 65536];
+        loop {
+            let count = file.read(&mut chunk).unwrap();
+            if count == 0 {
+                break;
+            }
+            digest.update(&chunk[..count]);
+        }
+        hex::encode(digest.finalize())
+    }
+
+    #[test]
+    #[ignore = "Local original-checkpoint AI feature compatibility; set RAPIDROOM_AI_COMPAT_MODELS/OUT and ORT_DYLIB_PATH, under flock"]
+    fn real_other_ai_features_on_selected_runtime() {
+        let root = PathBuf::from(std::env::var("RAPIDROOM_AI_COMPAT_MODELS").unwrap());
+        let out = PathBuf::from(std::env::var("RAPIDROOM_AI_COMPAT_OUT").unwrap());
+        std::fs::create_dir_all(&out).unwrap();
+        let session = |file: &str, hash: &str| {
+            let path = root.join(file);
+            assert_eq!(
+                checksum(&path),
+                hash,
+                "original checkpoint required: {file}"
+            );
+            Mutex::new(
+                Session::builder()
+                    .unwrap()
+                    .with_intra_threads(4)
+                    .unwrap()
+                    .with_execution_providers([
+                        ort::execution_providers::CPUExecutionProvider::default()
+                            .build()
+                            .error_on_failure(),
+                    ])
+                    .unwrap()
+                    .commit_from_file(path)
+                    .unwrap(),
+            )
+        };
+        let image = DynamicImage::ImageRgb8(ImageBuffer::from_fn(320, 240, |x, y| {
+            let checker = if (x / 16 + y / 16) % 2 == 0 { 25 } else { 0 };
+            if (110..210).contains(&x) && (80..200).contains(&y) {
+                Rgb([190, 45 + checker, 40])
+            } else if y < 100 {
+                Rgb([60, 100, 160 + checker])
+            } else {
+                Rgb([60 + checker, 95 + checker, 50])
+            }
+        }));
+        image.save(out.join("input.png")).unwrap();
+        let mut rows = Vec::new();
+        {
+            let started = std::time::Instant::now();
+            let encoder = session(ENCODER_FILENAME, ENCODER_SHA256);
+            let embeddings = generate_image_embeddings(&image, &encoder).unwrap();
+            assert!(embeddings.embeddings.iter().all(|v| v.is_finite()));
+            drop(encoder);
+            let decoder = session(DECODER_FILENAME, DECODER_SHA256);
+            let mask = run_sam_decoder(
+                &decoder,
+                &embeddings,
+                (150., 120.),
+                (150., 120.),
+                Some(&image),
+            )
+            .unwrap();
+            assert_eq!(mask.dimensions(), image.dimensions());
+            mask.save(out.join("sam.png")).unwrap();
+            rows.push(serde_json::json!({"feature":"SAM encoder/point decoder","seconds":started.elapsed().as_secs_f64(),"shape":mask.dimensions()}));
+        }
+        for (name, file, hash, run) in [
+            (
+                "sky",
+                SKYSEG_FILENAME,
+                SKYSEG_SHA256,
+                run_sky_seg_model as fn(&DynamicImage, &Mutex<Session>) -> Result<GrayImage>,
+            ),
+            ("subject", U2NETP_FILENAME, U2NETP_SHA256, run_u2netp_model),
+            (
+                "depth",
+                DEPTH_FILENAME,
+                DEPTH_SHA256,
+                run_depth_anything_model,
+            ),
+        ] {
+            let started = std::time::Instant::now();
+            let model = session(file, hash);
+            let mask = run(&image, &model).unwrap();
+            // Depth returns its unpadded inference-size map; the command rescales it.
+            let expected = if name == "depth" {
+                (518, 389)
+            } else {
+                image.dimensions()
+            };
+            assert_eq!(mask.dimensions(), expected);
+            mask.save(out.join(format!("{name}.png"))).unwrap();
+            rows.push(serde_json::json!({"feature":name,"seconds":started.elapsed().as_secs_f64(),"shape":mask.dimensions()}));
+        }
+        {
+            let started = std::time::Instant::now();
+            let model = session(LAMA_FILENAME, LAMA_SHA256);
+            let mask = GrayImage::from_fn(320, 240, |x, y| {
+                Luma([if (140..170).contains(&x) && (110..140).contains(&y) {
+                    255
+                } else {
+                    0
+                }])
+            });
+            let filled = run_lama_inpainting(&image, &mask, &model).unwrap();
+            assert_eq!(filled.dimensions(), image.dimensions());
+            filled.save(out.join("remove.png")).unwrap();
+            rows.push(serde_json::json!({"feature":"LaMa remove","seconds":started.elapsed().as_secs_f64(),"shape":filled.dimensions()}));
+        }
+        {
+            let started = std::time::Instant::now();
+            let model = session(DENOISE_FILENAME, DENOISE_SHA256);
+            let result =
+                run_ai_denoise(&image.to_rgb32f(), 0.5, &model, &DenoiseJob::testing()).unwrap();
+            assert_eq!(result.dimensions(), image.dimensions());
+            assert!(result.to_rgb32f().as_raw().iter().all(|v| v.is_finite()));
+            result.to_rgb8().save(out.join("legacy-nind.png")).unwrap();
+            rows.push(serde_json::json!({"feature":"legacy NIND","seconds":started.elapsed().as_secs_f64(),"shape":result.dimensions()}));
+        }
+        {
+            let started = std::time::Instant::now();
+            let model = session(CLIP_MODEL_FILENAME, CLIP_MODEL_SHA256);
+            let tokenizer =
+                tokenizers::Tokenizer::from_file(root.join(CLIP_TOKENIZER_FILENAME)).unwrap();
+            let tags = crate::tagging::generate_tags_with_clip(
+                &image,
+                &model,
+                &tokenizer,
+                Some(vec![
+                    "a red object".into(),
+                    "a landscape".into(),
+                    "a cat".into(),
+                    "a building".into(),
+                ]),
+                3,
+            )
+            .unwrap();
+            assert!(!tags.is_empty());
+            rows.push(serde_json::json!({"feature":"CLIP tags","seconds":started.elapsed().as_secs_f64(),"tags":tags}));
+        }
+        let report = serde_json::json!({"runtime":ort::info(),"fixtures":"deterministic RGB only; no camera-quality claim","rows":rows});
+        std::fs::write(
+            out.join("features.json"),
+            serde_json::to_vec_pretty(&report).unwrap(),
+        )
+        .unwrap();
+        println!("{report}");
+    }
 }
 
 #[cfg(test)]

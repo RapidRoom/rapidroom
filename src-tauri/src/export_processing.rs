@@ -130,6 +130,8 @@ pub struct PadOptions {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportSettings {
+    #[serde(default)]
+    pub instagram: Option<crate::export_framing::InstagramExport>,
     #[serde(default, deserialize_with = "deserialize_export_dpi")]
     pub dpi: Option<u16>,
     pub jpeg_quality: u8,
@@ -158,6 +160,20 @@ pub struct ExportSettings {
     pub output_sharpening: Option<OutputSharpening>,
     #[serde(default)]
     pub overwrite_existing: bool,
+}
+
+fn configure_instagram_output(settings: &mut ExportSettings) {
+    settings.jpeg_quality = 90;
+    settings.strip_gps = true;
+    settings.resize = None;
+    settings.pad = None;
+    settings.border = None;
+    settings.watermark = None;
+    settings.export_masks = false;
+    settings.output_sharpening = Some(crate::output_sharpening::OutputSharpening {
+        target: crate::output_sharpening::SharpenTarget::Screen,
+        amount: crate::output_sharpening::SharpenAmount::Low,
+    });
 }
 
 fn deserialize_export_dpi<'de, D: serde::Deserializer<'de>>(
@@ -585,6 +601,9 @@ pub(crate) fn compute_export_output_size(
     src_h: u32,
     settings: &ExportSettings,
 ) -> (u32, u32) {
+    if let Some(instagram) = &settings.instagram {
+        return instagram.ratio.dimensions();
+    }
     match compute_export_geometry(src_w, src_h, settings) {
         Some(geometry) => (geometry.canvas_w, geometry.canvas_h),
         None => resize_target(src_w, src_h, settings.resize.as_ref()),
@@ -1174,6 +1193,7 @@ pub fn mime_type_for_extension(extension: &str) -> &'static str {
 #[allow(clippy::too_many_arguments)]
 fn process_image_for_export(
     path: &str,
+    framing: Option<&crate::export_framing::InstagramFraming>,
     base_image: &DynamicImage,
     js_adjustments: &Value,
     export_settings: &ExportSettings,
@@ -1195,6 +1215,18 @@ fn process_image_for_export(
         render_output_precision(output_format, export_settings),
     )?;
 
+    let processed_image = if let Some(instagram) = &export_settings.instagram {
+        let cropped = crate::export_framing::apply_instagram_crop(
+            processed_image,
+            framing,
+            instagram.ratio,
+            &crate::export_framing::geometry_signature(js_adjustments),
+        );
+        let (width, height) = instagram.ratio.dimensions();
+        cropped.resize_exact(width, height, imageops::FilterType::Lanczos3)
+    } else {
+        processed_image
+    };
     apply_export_geometry_and_watermark(processed_image, export_settings).map(|(image, _)| image)
 }
 
@@ -1672,13 +1704,7 @@ fn reserve_mask_export_paths(
 }
 
 fn write_export_bytes(path: &Path, bytes: &[u8], overwrite: bool) -> std::io::Result<()> {
-    if overwrite {
-        // Replace only after encoding succeeds; atomic replacement also leaves
-        // any other hard links to the old file untouched.
-        crate::file_management::write_file_atomically(path, bytes)
-    } else {
-        fs::write(path, bytes)
-    }
+    crate::atomic_export::write(path, bytes, overwrite)
 }
 
 fn export_destination_is_source(output: &Path, sources: &[PathBuf]) -> bool {
@@ -1861,7 +1887,7 @@ pub(crate) async fn export_images_impl(
             let progress_counter_clone = Arc::clone(&progress_counter);
             let output_folder_path = output_folder_path.to_path_buf();
             let base_origin_folders = base_origin_folders.clone();
-            let export_settings = export_settings.clone();
+            let mut export_settings = export_settings.clone();
             let output_format = output_format.clone();
             let settings = settings.clone();
             let cancellation_token_clone = Arc::clone(&cancellation_token);
@@ -1878,7 +1904,7 @@ pub(crate) async fn export_images_impl(
 
                 let is_current_edit = match &adjustments_mode {
                     ExportAdjustmentsMode::UseSidecars { active_path, .. } => {
-                        Some(&source_path_str) == active_path.as_ref()
+                        Some(&image_path_str) == active_path.as_ref()
                     }
                     ExportAdjustmentsMode::GlobalOverride(_) => false,
                 };
@@ -1888,6 +1914,24 @@ pub(crate) async fn export_images_impl(
                     &source_path,
                 );
                 let export_xmp = crate::exif_processing::ExportXmp::from_metadata(&sidecar);
+                let framing = export_settings.instagram.as_ref().and_then(|instagram| {
+                    instagram
+                        .frames_by_path
+                        .get(&image_path_str)
+                        .cloned()
+                        .or_else(|| {
+                            sidecar
+                                .export_framing
+                                .as_ref()
+                                .and_then(|v| serde_json::from_value(v["instagram"].clone()).ok())
+                        })
+                });
+                if export_settings.instagram.is_some() {
+                    if !matches!(output_format.to_lowercase().as_str(), "jpg" | "jpeg") {
+                        return Err("Instagram recipes require JPEG output".to_owned());
+                    }
+                    configure_instagram_output(&mut export_settings);
+                }
 
                 let mut js_adjustments = match &adjustments_mode {
                     ExportAdjustmentsMode::UseSidecars {
@@ -2102,8 +2146,16 @@ pub(crate) async fn export_images_impl(
                         .and_then(|extension| extension.to_str())
                         .unwrap_or(output_format.as_str());
 
+                    if export_settings.instagram.is_some()
+                        && !matches!(actual_output_format.to_lowercase().as_str(), "jpg" | "jpeg")
+                    {
+                        return Err(
+                            "Instagram recipes require a .jpg or .jpeg destination".to_owned()
+                        );
+                    }
                     let final_image = process_image_for_export(
                         &source_path_str,
+                        framing.as_ref(),
                         &base_image,
                         &main_export_adjustments,
                         &export_settings,
@@ -2211,7 +2263,20 @@ pub(crate) async fn export_images_impl(
                         "batch-export-progress",
                         serde_json::json!({ "current": total_paths, "total": total_paths, "path": "" }),
                     );
-                    let _ = app_handle.emit("export-complete", ());
+                    let instagram_output_folder =
+                        export_settings.instagram.as_ref().and_then(|_| {
+                            if export_settings.destination_type.as_deref() == Some("originalFolder")
+                            {
+                                None
+                            } else if is_explicit_file_path {
+                                output_folder_path.parent()
+                            } else {
+                                Some(output_folder_path)
+                            }
+                        });
+                    let _ = app_handle.emit("export-complete", serde_json::json!({
+                        "instagramOutputFolder": instagram_output_folder.map(|p| p.to_string_lossy())
+                    }));
                 }
             },
         );
@@ -2285,6 +2350,7 @@ fn headless_export_settings(
         }
         None => (
             ExportSettings {
+                instagram: None,
                 dpi: None,
                 jpeg_quality: 90,
                 tiff_bit_depth: TiffBitDepth::default(),
@@ -2509,8 +2575,49 @@ pub async fn estimate_export_sizes(
     let (source_path, sidecar_path) = parse_virtual_path(first_path);
     let source_path_str = source_path.to_string_lossy().to_string();
 
+    if let Some(instagram) = &export_settings.instagram {
+        let metadata =
+            crate::exif_processing::load_sidecar_with_camera_crop(&sidecar_path, &source_path);
+        let adjustments = if Some(first_path) == current_edit_path.as_ref() {
+            current_edit_adjustments.unwrap_or(metadata.adjustments)
+        } else {
+            metadata.adjustments
+        };
+        let signature = crate::export_framing::geometry_signature(&adjustments);
+        let framing = instagram
+            .frames_by_path
+            .get(first_path)
+            .cloned()
+            .or_else(|| {
+                metadata
+                    .export_framing
+                    .and_then(|value| serde_json::from_value(value["instagram"].clone()).ok())
+            });
+        let bytes = crate::generate_preview_bytes_for_path(
+            first_path.clone(),
+            adjustments,
+            1280,
+            app_handle,
+        )
+        .await?;
+        let preview = image::load_from_memory(&bytes).map_err(|e| e.to_string())?;
+        let preview = crate::export_framing::apply_instagram_crop(
+            preview,
+            framing.as_ref(),
+            instagram.ratio,
+            &signature,
+        );
+        let (width, height) = instagram.ratio.dimensions();
+        let preview = preview.resize_exact(width, height, imageops::FilterType::Lanczos3);
+        let mut settings = export_settings.clone();
+        configure_instagram_output(&mut settings);
+        let (preview, _) = apply_export_geometry_and_watermark(preview, &settings)?;
+        return Ok(encode_image_to_bytes(&preview, "jpg", &settings)?
+            .len()
+            .saturating_mul(paths.len()));
+    }
     let context = get_or_init_gpu_context(&state, &app_handle)?;
-    let is_current_edit = Some(&source_path_str) == current_edit_path.as_ref();
+    let is_current_edit = Some(first_path) == current_edit_path.as_ref();
     let is_raw = is_raw_file(&source_path_str);
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
 

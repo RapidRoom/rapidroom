@@ -60,7 +60,7 @@ interface EditorState {
   // Interaction State
   isSliderDragging: boolean;
   zoom: number;
-  zoomRequest: { imagePath: string; percent: number | null } | null;
+  zoomRequest: { imagePath: string; percent: number | null; resetPosition?: boolean } | null;
   displaySize: ImageDimensions;
   previewSize: ImageDimensions;
   baseRenderSize: BaseRenderSize;

@@ -596,6 +596,8 @@ export default function SettingsPanel({
   const [clearMessage, setClearMessage] = useState('');
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [cacheClearMessage, setCacheClearMessage] = useState('');
+  const [cacheUsage, setCacheUsage] = useState<{ bytes: number; files: number } | null>(null);
+  const [cacheUsageError, setCacheUsageError] = useState(false);
   const [isClearingAiTags, setIsClearingAiTags] = useState(false);
   const [aiTagsClearMessage, setAiTagsClearMessage] = useState('');
   const [isClearingTags, setIsClearingTags] = useState(false);
@@ -741,6 +743,24 @@ export default function SettingsPanel({
     });
     setRestartRequired(false);
   }, [appSettings]);
+
+  useEffect(() => {
+    if (activeCategory !== 'processing') return;
+    let cancelled = false;
+    setCacheUsage(null);
+    setCacheUsageError(false);
+    if (isClearingCache) return;
+    invoke<{ bytes: number; files: number }>(Invokes.GetThumbnailCacheUsage)
+      .then((usage) => {
+        if (!cancelled) setCacheUsage(usage);
+      })
+      .catch(() => {
+        if (!cancelled) setCacheUsageError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCategory, isClearingCache]);
 
   useEffect(() => {
     const fetchLogPath = async () => {
@@ -1263,8 +1283,8 @@ export default function SettingsPanel({
                       </div>
 
                       <SettingItem
-                        label={t('settings.general.folderImageCounts')}
-                        description={t('settings.general.folderImageCountsDesc')}
+                        label={t('library.photoCounts.albumCountsLabel')}
+                        description={t('library.photoCounts.albumCountsDesc')}
                       >
                         <Switch
                           checked={appSettings?.enableFolderImageCounts ?? false}
@@ -2549,7 +2569,21 @@ export default function SettingsPanel({
                       <DataActionItem
                         buttonAction={handleClearCache}
                         buttonText={t('settings.data.clearThumbnailButton')}
-                        description={t('settings.data.clearThumbnailDesc')}
+                        description={
+                          <>
+                            {t('settings.data.clearThumbnailDesc')}
+                            <span role="status" className="block mt-2">
+                              {cacheUsageError
+                                ? t('settings.data.cacheUsageError')
+                                : cacheUsage
+                                  ? t('settings.data.cacheUsage', {
+                                      size: `${(cacheUsage.bytes / 1024 ** 2).toLocaleString(undefined, { maximumFractionDigits: 1 })} MiB`,
+                                      files: cacheUsage.files.toLocaleString(),
+                                    })
+                                  : t('settings.data.loading')}
+                            </span>
+                          </>
+                        }
                         icon={<Trash2 size={16} className="mr-2" />}
                         isProcessing={isClearingCache}
                         message={cacheClearMessage}

@@ -54,6 +54,8 @@ Render and look after each meaningful decision. Measure when it resolves a clipp
 - At the end, make one small native `render_region` check for noise, sharpness and mask edges. Use its discovered coordinate schema: existing builds use native integer pixels; builds offering fractions/`regionUnits` also accept normalized selections. Native pixel coordinates are after rendered geometry, unlike original-image mask coordinates. Do not estimate them from an 800 px preview without mapping dimensions.
 - When the user is moving sliders too, use `history_list` actor and changed keys to see what they changed. Fetch the latest state when its revision or changed values are needed for a mutation; preserve their work and keep strict `expectedRevision` guards. Assistant changes keep their normal visible notifications.
 
+For a scored, strength-aware correction with hard round caps and nondecreasing-score retention, see [bounded render review](judge.md). This optional offline helper returns proposals only; render and inspect every candidate through the existing tools, and keep the normal user/revision guards.
+
 ## 6. Save
 
 RapidRoom autosaves every change to the photo's sidecar. Nothing extra to do. If the user wants to keep the edit as a starting point for other photos, that's a preset: presets over MCP are coming (#120); until then the user saves one from the Presets panel, and [taste.md](taste.md) explains what belongs in it.

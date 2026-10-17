@@ -21,6 +21,12 @@ export const KEYBIND_SECTIONS: KeybindSection[] = [
 
 export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
   {
+    action: 'toggle_denoise_mark',
+    description: 'settings.keybinds.actions.toggle_denoise_mark',
+    defaultCombo: ['KeyQ'],
+    section: 'rating',
+  },
+  {
     action: 'open_image',
     description: 'settings.keybinds.actions.open_image',
     defaultCombo: ['Enter'],
@@ -271,6 +277,12 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     action: 'toggle_analytics',
     description: 'settings.keybinds.actions.toggle_analytics',
     defaultCombo: ['KeyA'],
+    section: 'panels',
+  },
+  {
+    action: 'export_instagram',
+    description: 'settings.keybinds.actions.export_instagram',
+    defaultCombo: ['ctrl', 'alt', 'KeyI'],
     section: 'panels',
   },
   {

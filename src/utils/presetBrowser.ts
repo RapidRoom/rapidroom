@@ -21,7 +21,7 @@ export function filterPresetLibrary(
   const needle = query.trim().toLocaleLowerCase();
   const matches = (preset: Preset, group = '') =>
     (!compatibleOnly || !presetUnavailableReason(preset, cameraModel)) &&
-    (!needle || `${group} ${preset.name}`.toLocaleLowerCase().includes(needle));
+    (!needle || `${group} ${preset.name} ${preset.description ?? ''}`.toLocaleLowerCase().includes(needle));
   return items.flatMap((item) => {
     if (item.preset) return matches(item.preset) ? [item] : [];
     if (!item.folder) return [];

@@ -186,7 +186,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const clickAnimationTime = 250;
   const zoomDebounceTimeoutRef = useRef<number | null>(null);
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
-  const savedZoomState = useRef<{ scale: number; positionX: number; positionY: number } | null>(null);
+  const animationZoomTargetRef = useRef<number | null>(null);
+  const clickAnimationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focalPointRef = useRef({ x: 0.5, y: 0.5 });
   const isTransitioningRef = useRef(false);
   const [toolbarOverflowVisible, setToolbarOverflowVisible] = useState(!isFullScreen);
@@ -215,6 +216,31 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     screenImageTop: number;
     physicalImageWidth: number;
   } | null>(null);
+  useLayoutEffect(() => {
+    const cancelPendingZoom = () => {
+      if (animationFrameId.current !== null) cancelAnimationFrame(animationFrameId.current);
+      if (physicsFrameId.current !== null) cancelAnimationFrame(physicsFrameId.current);
+      if (zoomDebounceTimeoutRef.current !== null) clearTimeout(zoomDebounceTimeoutRef.current);
+      if (wheelSnapTimeout.current !== null) clearTimeout(wheelSnapTimeout.current);
+      if (clickAnimationTimeoutRef.current !== null) clearTimeout(clickAnimationTimeoutRef.current);
+      animationFrameId.current = null;
+      animationZoomTargetRef.current = null;
+      physicsFrameId.current = null;
+      zoomDebounceTimeoutRef.current = null;
+      wheelSnapTimeout.current = null;
+      clickAnimationTimeoutRef.current = null;
+      isClickAnimating.current = false;
+      activePointers.current.clear();
+      lastPanPos.current = null;
+      lastPinch.current = null;
+      panVelocityHistory.current = [];
+      isMiddleMousePanning.current = false;
+    };
+    cancelPendingZoom();
+    setIsPanningState(false);
+    return cancelPendingZoom;
+  }, [selectedImage?.path]);
+
   const wgpuSyncRef = useRef<number | null>(null);
   const lastWgpuTransformRef = useRef<string | null>(null);
 
@@ -327,9 +353,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const handleZoomed = useCallback(
     (state: TransformState) => {
+      if (useEditorStore.getState().selectedImage?.path !== selectedImage?.path) return;
       setEditor({ zoom: state.scale });
     },
-    [setEditor],
+    [setEditor, selectedImage?.path],
   );
 
   const handleStraighten = useCallback(
@@ -414,10 +441,9 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const minScaleRef = useRef(transformConfig.minScale);
   const maxScaleRef = useRef(transformConfig.maxScale);
 
-  useEffect(() => {
-    minScaleRef.current = transformConfig.minScale;
-    maxScaleRef.current = transformConfig.maxScale;
-  }, [transformConfig.minScale, transformConfig.maxScale]);
+  // Geometry-bound requests reconcile in a layout effect, before passive effects run.
+  minScaleRef.current = transformConfig.minScale;
+  maxScaleRef.current = transformConfig.maxScale;
 
   const getTransformBounds = useCallback((scale: number) => {
     const container = imageContainerRef.current;
@@ -502,10 +528,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   );
 
   useEffect(() => {
+    if (zoomRequest) return;
     const { positionX, positionY, scale } = transformStateRef.current;
     const bounded = clampToBounds(positionX, positionY, scale);
     if (bounded.scale !== scale) applyTransform(bounded.x, bounded.y, bounded.scale);
-  }, [transformConfig, clampToBounds, applyTransform]);
+  }, [transformConfig, clampToBounds, applyTransform, zoomRequest]);
 
   const animateTransform = useCallback(
     (targetX: number, targetY: number, targetScale: number, duration: number) => {
@@ -531,10 +558,18 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
         if (progress < 1) {
           animationFrameId.current = requestAnimationFrame(step);
+        } else {
+          animationFrameId.current = null;
+          animationZoomTargetRef.current = null;
         }
       };
 
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+        animationZoomTargetRef.current = null;
+      }
+      animationZoomTargetRef.current = boundedTarget.scale;
       animationFrameId.current = requestAnimationFrame(step);
     },
     [applyTransform, clampToBounds],
@@ -543,7 +578,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const startPhysicsLoop = useCallback(
     (initialVx: number, initialVy: number) => {
       if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+        animationZoomTargetRef.current = null;
+      }
 
       let vx = initialVx;
       let vy = initialVy;
@@ -637,6 +676,15 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   useImperativeHandle(
     transformWrapperRef,
     () => ({
+      getZoomIntent: () => {
+        const state = useEditorStore.getState();
+        if (state.zoomRequest && state.zoomRequest.imagePath === state.selectedImage?.path)
+          return state.zoomRequest.percent;
+        const scale = animationZoomTargetRef.current ?? transformStateRef.current.scale;
+        return Math.abs(scale - 1) <= 0.01
+          ? null
+          : percentFromTransform(imageRenderSizeRef.current.scale, scale, getDpr());
+      },
       zoomIn: (factor: number, time?: number) => {
         zoomToCenter(transformStateRef.current.scale * Math.exp(factor), time || 0);
       },
@@ -665,21 +713,19 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     [animateTransform, applyTransform, clampToBounds, zoomToCenter],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!zoomRequest) return;
     if (zoomRequest.imagePath !== selectedImage?.path) {
       setEditor({ zoomRequest: null });
       return;
     }
-    if (zoomRequest.percent !== null) {
-      if (!selectedImage.isReady || !croppedDimensions || imageRenderSize.width <= 0) return;
-      // The layout hook may still hold the previous photo's fitted geometry.
-      const expectedScale = Math.min(
-        imageRenderSize.containerWidth / croppedDimensions.width,
-        imageRenderSize.containerHeight / croppedDimensions.height,
-      );
-      if (Math.abs(imageRenderSize.scale - expectedScale) > 1e-9) return;
-    }
+    if (!selectedImage.isReady || !croppedDimensions || imageRenderSize.width <= 0) return;
+    // Wait for fitted geometry after a photo or crop change, including Fit requests.
+    const expectedScale = Math.min(
+      imageRenderSize.containerWidth / croppedDimensions.width,
+      imageRenderSize.containerHeight / croppedDimensions.height,
+    );
+    if (Math.abs(imageRenderSize.scale - expectedScale) > 1e-9) return;
     const scale =
       zoomRequest.percent === null ? 1 : transformFromPercent(zoomRequest.percent, imageRenderSize.scale, dpr);
     setEditor({
@@ -690,11 +736,35 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         renderScale: imageRenderSize.scale,
       },
     });
-    zoomToCenter(scale, 200);
-  }, [zoomRequest, selectedImage, croppedDimensions, imageRenderSize, dpr, setEditor, zoomToCenter]);
+    if (zoomRequest.resetPosition) {
+      const container = imageContainerRef.current;
+      if (container) {
+        const bounded = clampToBounds(
+          (container.clientWidth * (1 - scale)) / 2,
+          (container.clientHeight * (1 - scale)) / 2,
+          scale,
+        );
+        applyTransform(bounded.x, bounded.y, bounded.scale);
+      }
+    } else {
+      zoomToCenter(scale, 200);
+    }
+  }, [
+    applyTransform,
+    clampToBounds,
+    zoomRequest,
+    selectedImage,
+    croppedDimensions,
+    imageRenderSize,
+    dpr,
+    setEditor,
+    zoomToCenter,
+  ]);
 
   useEffect(() => {
-    if (!transformWrapperRef.current || !targetZoom || targetZoom <= 0) return;
+    if (zoomRequest || !transformWrapperRef.current || !targetZoom || targetZoom <= 0) return;
+    if (animationZoomTargetRef.current !== null && Math.abs(animationZoomTargetRef.current - targetZoom) < 0.001)
+      return;
 
     const currentScale = transformStateRef.current.scale || 1;
     if (Math.abs(currentScale - targetZoom) < 0.001) return;
@@ -705,7 +775,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     } else {
       transformWrapperRef.current.zoomOut(Math.log(currentScale / targetZoom), animationTime);
     }
-  }, [targetZoom, transformWrapperRef]);
+  }, [targetZoom, transformWrapperRef, zoomRequest]);
 
   const activeSubMask = useMemo(() => {
     if (isMasking && activeMaskId) {
@@ -761,7 +831,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     const handleNativeWheel = (e: WheelEvent) => {
       e.preventDefault();
       setEditor({ zoomRequest: null });
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+        animationZoomTargetRef.current = null;
+      }
       if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
 
       if (isCtrlPressedRef.current && selectedImage) {
@@ -914,7 +988,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       cropResizeStartRef.current = isCropHandle ? lastValidCropRef.current : null;
 
       if (e.pointerType === 'mouse' && e.button === 0 && e.shiftKey && !isBrushActive && !isCropping) {
-        if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+        if (animationFrameId.current) {
+          cancelAnimationFrame(animationFrameId.current);
+          animationFrameId.current = null;
+          animationZoomTargetRef.current = null;
+        }
         if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
 
         const rect = e.currentTarget.getBoundingClientRect();
@@ -928,7 +1006,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       }
 
       if (e.pointerType === 'mouse' && e.button === 0 && (e.ctrlKey || e.metaKey) && !isBrushActive) {
-        if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+        if (animationFrameId.current) {
+          cancelAnimationFrame(animationFrameId.current);
+          animationFrameId.current = null;
+          animationZoomTargetRef.current = null;
+        }
         if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
 
         const now = Date.now();
@@ -973,7 +1055,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         isMiddleMousePanning.current = true;
       }
 
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+        animationZoomTargetRef.current = null;
+      }
       if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
 
       panVelocityHistory.current = [];
@@ -1214,20 +1300,14 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
       const currentScale = transformStateRef.current.scale;
 
-      if (isClickAnimating.current || currentScale > 1.01) {
-        if (!isClickAnimating.current && currentScale > 1.01) {
-          savedZoomState.current = {
-            scale: currentScale,
-            positionX: transformStateRef.current.positionX,
-            positionY: transformStateRef.current.positionY,
-          };
-        }
+      if (isClickAnimating.current || Math.abs(currentScale - 1) > 0.01) {
         animateTransform(0, 0, 1, clickAnimationTime);
         isClickAnimating.current = false;
       } else {
         isClickAnimating.current = true;
-        setTimeout(() => {
+        clickAnimationTimeoutRef.current = setTimeout(() => {
           isClickAnimating.current = false;
+          clickAnimationTimeoutRef.current = null;
         }, clickAnimationTime + 50);
 
         const container = imageContainerRef.current;
@@ -1240,15 +1320,9 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        let zoomTarget = Math.min(currentScale * 2, maxScaleRef.current);
-
-        if (appSettings?.zoomPhotoToPixelClick) {
-          const renderScale = imageRenderSizeRef.current.scale || 1;
-          const scaleForPhysical100 = transformFromPercent(1, renderScale, getDpr());
-          zoomTarget = Math.max(1.05, Math.min(scaleForPhysical100, maxScaleRef.current));
-        } else {
-          zoomTarget = savedZoomState.current ? savedZoomState.current.scale : zoomTarget;
-        }
+        const renderScale = imageRenderSizeRef.current.scale || 1;
+        const requestedPercent = appSettings?.zoomPhotoToPixelClick ? 1 : 2;
+        const zoomTarget = Math.min(transformFromPercent(requestedPercent, renderScale, getDpr()), maxScaleRef.current);
         const ratio = zoomTarget / currentScale;
 
         const newPositionX = mouseX - (mouseX - currentPositionX) * ratio;
@@ -2326,7 +2400,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         isFullScreen
           ? 'rounded-none p-0 gap-0'
           : clsx(
-              'rounded-lg p-2 gap-2',
+              'rounded-none p-0 gap-0',
               appSettings?.useWgpuRenderer !== false ? 'bg-transparent' : isLightsOut ? 'bg-black' : 'bg-bg-secondary',
             ),
       )}
@@ -2336,7 +2410,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         className={clsx(
           'lights-out-chrome shrink-0 relative z-10',
           !isInstantTransition && 'transition-all duration-300 ease-in-out',
-          isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100',
+          isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100 p-2',
           toolbarOverflowVisible ? 'overflow-visible' : 'overflow-hidden',
         )}
       >
@@ -2377,7 +2451,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         <div
           className={clsx(
             'lights-out-content flex-1 basis-0 min-w-0 relative overflow-hidden touch-none',
-            isFullScreen ? 'rounded-none' : 'rounded-lg',
+            'rounded-none',
             appSettings?.useWgpuRenderer !== false &&
               !isFullScreen &&
               clsx('ring-[9999px]', isLightsOut ? 'ring-black' : 'ring-bg-secondary'),

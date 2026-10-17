@@ -2,6 +2,7 @@
 """Exercise the real Linux release on a private Weston compositor (issue #134)."""
 
 import argparse
+import base64
 import fcntl
 import hashlib
 import json
@@ -150,6 +151,9 @@ class Smoke:
         return {"label": label, "requested": value, "before": before, "after": after}
 
     def crop(self, path):
+        native=path.with_suffix('.preview.png')
+        if native.exists():
+            with Image.open(native) as image:return image.convert('RGB')
         with Image.open(path) as image:
             return image.convert("RGB").crop(self.roi)
 
@@ -158,6 +162,13 @@ class Smoke:
         for attempt in range(12):
             time.sleep(0.5)
             path = self.capture(name + "-" + str(attempt))
+            if (self.case / "presets-test.json").exists():
+                frame=request(self.url+'/execute/async',{'script':"""const done=arguments[arguments.length-1];
+                  const images=[...document.querySelectorAll('svg image')].filter(e=>{const r=e.getBoundingClientRect();return r.width>500&&r.height>300&&Number(getComputedStyle(e).opacity)>.99});
+                  const image=images.at(-1);if(!image){done({error:'Native preview missing'});return;}
+                  const decoded=new Image();decoded.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=decoded.naturalWidth;canvas.height=decoded.naturalHeight;canvas.getContext('2d').drawImage(decoded,0,0);done({png:canvas.toDataURL('image/png').split(',')[1]})}catch(e){done({error:String(e)})}};decoded.onerror=()=>done({error:'Preview decode failed'});decoded.src=image.getAttribute('href');""",'args':[]})['value']
+                if 'error' in frame:raise RuntimeError(frame)
+                path.with_suffix('.preview.png').write_bytes(base64.b64decode(frame['png']))
             image = self.crop(path)
             if previous is not None and ImageChops.difference(previous, image).getbbox() is None:
                 stats = ImageStat.Stat(image)
@@ -364,6 +375,12 @@ class Smoke:
                                       "e.complete && e.naturalWidth>100);"), "real library thumbnail")
         self.capture("library")
         self.step("library thumbnail", self.snapshot("library")["images"])
+        if (self.case / "file-transfers-test.json").exists():
+            from file_transfers import run_transfer_checks
+            run_transfer_checks(self, wait_for)
+        if (self.case / "filter-chips-test.json").exists():
+            from filter_chips import run_filter_chip_checks
+            run_filter_chip_checks(self, wait_for)
         if (self.case / "dock-layout-test.json").exists():
             from dock_layout import run_layout_checks
             run_layout_checks(self.case, self)
@@ -452,6 +469,9 @@ class Smoke:
         wait_for(lambda: json.loads(settings.read_text()).get("adjustmentDensity") == "compact", "Compact persisted")
         self.stable_preview("compact")
         self.step("Compact enabled and persisted", self.slider("Exposure"))
+        if (self.case / "atomic-exports-test.json").exists():
+            from atomic_exports import observe_atomic_exports
+            observe_atomic_exports(self)
         self.key("KeyE", "e")
         wait_for(lambda: self.execute("return [...document.querySelectorAll('button[aria-haspopup=listbox]')]"
                                       ".some(e=>e.innerText.trim()==='Custom folder');"), "Export panel")
@@ -462,9 +482,10 @@ class Smoke:
           .find(e=>e.innerText.trim()==='Original image folder');
           if(!e)throw Error('Original folder choice missing');e.click();return true;""")
         self.capture("export-ready")
+        existing_jpegs = set((self.case / "input").rglob("*.jpg"))
         self.execute("""const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Export Image');
           if(!e||e.disabled)throw Error('Export Image unavailable');e.click();return true;""")
-        files = wait_for(lambda: list((self.case / "input").rglob("*.jpg")), "JPEG export", 90)
+        files = wait_for(lambda: list(set((self.case / "input").rglob("*.jpg")) - existing_jpegs), "JPEG export", 90)
         wait_for(lambda: self.execute("return document.body.innerText.includes('Export successful!');"),
                  "native export completion")
         if len(files) != 1:
@@ -475,6 +496,9 @@ class Smoke:
                 raise RuntimeError("Incorrect JPEG format or dimensions")
         self.capture("export-done")
         self.step("GUI JPEG export", {"file": str(files[0].relative_to(self.case)), "sha256": sha(files[0])})
+        if (self.case / "atomic-exports-test.json").exists():
+            from atomic_exports import run_atomic_export_checks
+            run_atomic_export_checks(self, wait_for, files[0])
         if (self.case / "mcp-packaging-test.json").exists():
             from mcp_packaging import run_packaging_checks
             run_packaging_checks(self.case, self)
@@ -585,6 +609,15 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.atomic_exports:
+        save(case / "atomic-exports-test.json", {"issue": 326, "io_mocked": False})
+    if args.file_transfers:
+        from file_transfers import prepare_transfers
+        prepare_transfers(case)
+    if args.filter_chips:
+        from filter_chips import prepare_filter_chips
+        prepare_filter_chips(case)
+        save(case / "filter-chips-test.json", {"issue": 312, "owned_synthetic_jpegs": 3})
     if args.zoom:
         zoom_raw = args.raw_dir.resolve() / "sony-a7c2-33mp-compressed.ARW"
         zoom_expected = next(f["sha256"] for f in corpus["files"] if f["file"] == zoom_raw.name)
@@ -686,6 +719,9 @@ def launch(args):
         with args.lock.open("a") as lock:
             print("Waiting for native UI lock", flush=True)
             fcntl.flock(lock, fcntl.LOCK_EX)
+            subprocess.run(["df", "-h", "/home"], check=True)
+            if shutil.disk_usage(case).free < 25 * 1024**3:
+                raise RuntimeError("Native sample stopped: less than 25 GiB free")
             (case / "engine").mkdir()
             engine = args.engine.resolve()
             source_hash = sha(engine)
@@ -734,6 +770,9 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--atomic-exports", action="store_true", help="Check real default/overwrite exports and complete final JPEG visibility")
+    parser.add_argument("--file-transfers", action="store_true", help="Check native collision-safe copies/imports, paired sidecars and visible summaries")
+    parser.add_argument("--filter-chips", action="store_true", help="Native numeric/text chip editing, Escape, Backspace, arrows and independent x-delete")
     parser.add_argument("--dock-layout", action="store_true", help="Check stepped dock resize overlap and compact terminal controls (implies --terminal)")
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
