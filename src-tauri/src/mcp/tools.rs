@@ -302,7 +302,8 @@ pub(super) async fn call_tool(
         arguments["name"] = exact;
     }
     let result = match name {
-        "create_virtual_copy"
+        "adopt_virtual_copy"
+        | "create_virtual_copy"
         | "set_image_metadata"
         | "assess_edits"
         | "open_reference_view"

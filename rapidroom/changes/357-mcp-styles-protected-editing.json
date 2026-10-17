@@ -9,5 +9,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": false,
-  "notes": "AI-assisted implementation: discover and apply the live preset catalog with shared GUI Amount baselines and persistent indicators; snapshot unsaved edits in virtual copies, set ratings/labels/flags, assess existing edit depth, open read-only side-by-side Reference View and request user-confirmed deletion. No compare wipe, preset creation/import, personal profile setup or automatic publication. Deleting an original still removes its virtual copies; keep both by default."
+  "notes": "AI-assisted implementation: discover and apply the live preset catalog with shared GUI Amount baselines and persistent indicators; snapshot unsaved edits in virtual copies, set ratings/labels/flags, assess existing edit depth, open read-only side-by-side Reference View request user-confirmed deletion and adopt the AI copy recipe onto the original as one labelled undoable step before copy-only deletion. No compare wipe, preset creation/import, personal profile setup or automatic publication. Finalize never deletes the original RAW: keep both, discard only the AI copy, or adopt its recipe and confirm copy-only deletion."
 }

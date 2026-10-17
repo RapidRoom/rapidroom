@@ -69,6 +69,7 @@ fn operational(key: &str) -> bool {
         "path"
             | "referencePath"
             | "sourceImagePath"
+            | "sourceCopyPath"
             | "activeImagePath"
             | "imagePath"
             | "imagePaths"
@@ -96,6 +97,7 @@ fn opaque(key: &str, value: &str) -> bool {
     if matches!(
         key,
         "editRevision"
+            | "sourceEditRevision"
             | "renderRevision"
             | "historyRevision"
             | "expectedRevision"
@@ -200,7 +202,7 @@ fn trusted_key(key: &str) -> bool {
     static KEYS: OnceLock<HashSet<String>> = OnceLock::new();
     KEYS.get_or_init(|| {
         let mut keys: HashSet<String> = "aiPatches patchData color mask offsetX offsetY isSrgbEncoded prompt feather grow range tool brushSize points lines flow targetX targetY tolerance minDepth maxDepth minFade maxFade liquifyMode pressure intensity isInitialDraw sourceX sourceY total hasMore modified is_edited is_raw is_virtual_copy is_cloud_placeholder group_id flag tags displayName path imagePath imagePaths filePath filePaths outputDirectory lutPath lensBlurDepthMap editRevision renderRevision historyRevision expectedRevision currentRevision nonDefaultOnly historyLabel id activeMaskId activeMaskContainerId virtualCopy data maskDataBase64 mimeType type actor mode curveMode toneMapper lensBlurShape stage adjustments changes content text name title caption description note notes rationale keywords reference look exif Make Model LensModel FNumber ExposureTime PhotographicSensitivity ISO FocalLength DateTimeOriginal masks subMasks parameters visible opacity invert startX startY endX endY centerX centerY radiusX radiusY name x y width height imageCount maskCount dimensions canUndo canRedo historyIndex entries index active undone changedKeys timestamp sourceCommit sourceDirty appVersion activePanel activePanels cardMode error validationError isSelected renderPending labels variants count offset limit recursive images cameraModel isRaw thumbnailUrl metadata history exposureMean meanRGB medianRGB meanLuminance medianLuminance histogram red green blue luma pixelCount shadowPixels highlightPixels shadowPercent highlightPercent clipping percentileMethod luminancePercentiles clippingDefinition rgbUnits luminanceUnits bins smoothed normalized transport renderStage suggestedWhiteBalance changesKnown currentKeys expectedKeys written report losses field reason preservedInPayload".split_whitespace().map(str::to_owned).collect();
-        keys.extend("referencePath sourceImagePath presetId groupId groupName presets presetType favorite includesMasks includesGeometry availability amountRange minimum maximum default appliedPreset amount assessment baseline changedSettingCount historyLength hasMasks hasCurves hasColorGrading recommendVirtualCopy reasons metadataUpdated refreshPending confirmationPending includesVirtualCopies colorLabel label query".split_whitespace().map(str::to_owned));
+        keys.extend("sourceCopyPath sourceEditRevision adopted copyDeletionConfirmationPending copyDeletionReason originalExpectedRevision deleteCopyAfterAdoption referencePath sourceImagePath presetId groupId groupName presets presetType favorite includesMasks includesGeometry availability amountRange minimum maximum default appliedPreset amount assessment baseline changedSettingCount historyLength hasMasks hasCurves hasColorGrading recommendVirtualCopy reasons metadataUpdated refreshPending confirmationPending includesVirtualCopies colorLabel label query".split_whitespace().map(str::to_owned));
         if let Ok(schema) = serde_json::from_str::<Value>(include_str!("../../rapidroom/adjustment-schema.json"))
             && let Some(parameters) = schema["parameters"].as_object() {
             for key in parameters.keys() { keys.extend(key.split('.').map(str::to_owned)); }

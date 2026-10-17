@@ -1,3 +1,4 @@
+import { adoptVirtualCopy } from '../utils/adoptVirtualCopy';
 import { assessEdit } from '../utils/editAssessment';
 import { getReferenceLabel } from '../utils/referenceView';
 import { afterPendingLibraryMetadataWrites } from '../utils/libraryMetadataWrites';
@@ -23,6 +24,7 @@ import { buildParametricCurves, normalizeLoadedAdjustments, type Adjustments } f
 interface McpCommand {
   requestId: string;
   kind:
+    | 'adopt-virtual-copy'
     | 'create-virtual-copy'
     | 'set-image-metadata'
     | 'assess-edits'
@@ -48,6 +50,9 @@ interface McpCommand {
   imagePaths?: string[];
   changes?: Record<string, unknown>;
   referencePath?: string;
+  sourceEditRevision?: string;
+  originalExpectedRevision?: string;
+  deleteCopyAfterAdoption?: boolean;
 }
 
 interface McpStateResponse {
@@ -131,7 +136,12 @@ async function waitForAdjustmentRender(
 // Applies an MCP edit as one undoable step, after any pending GUI history push,
 // so an older queued snapshot cannot land on top of it. Returns whether a new
 // preview was rendered for it; ongoing user gestures remain a live-test case.
-async function applyEdit(path: string, nextAdjustments: Adjustments, baseAdjustments?: Adjustments): Promise<boolean> {
+async function applyEdit(
+  path: string,
+  nextAdjustments: Adjustments,
+  baseAdjustments?: Adjustments,
+  label?: string,
+): Promise<boolean> {
   debouncedSetHistory.flush();
   const editor = useEditorStore.getState();
   if (
@@ -149,6 +159,7 @@ async function applyEdit(path: string, nextAdjustments: Adjustments, baseAdjustm
   const previousRenderVersion = editor.previewRenderVersion;
   editor.setEditor({ adjustments: nextAdjustments });
   const details = describeHistoryChange(editor.adjustments, nextAdjustments, 'assistant');
+  if (label) details.label = label;
   editor.pushHistory(nextAdjustments, details);
   toast.info(details.label, { autoClose: 2500 });
   return waitForAdjustmentRender(path, previousRenderVersion, nextAdjustments);
@@ -234,6 +245,17 @@ export function useMcpBridge(
             throw new Error('Active image or edit changed; read the current revision and retry');
           return current;
         };
+        if (command.kind === 'adopt-virtual-copy') {
+          const response = await adoptVirtualCopy(command, {
+            open: (path, editor) => selectImageRef.current(path, editor),
+            waitForImage,
+            sync: syncState,
+            apply: applyEdit,
+            requestDeletePaths: workflowRef.current.requestDeletePaths,
+          });
+          await invoke('ui_response', { requestId: command.requestId, response, error: null });
+          return;
+        }
         if (command.kind === 'set-image-metadata') {
           await new Promise<void>((resolve) => afterPendingLibraryMetadataWrites(resolve));
           const paths = command.imagePaths ?? [];
@@ -294,6 +316,7 @@ export function useMcpBridge(
               response: {
                 imagePath,
                 sourceImagePath: command.path,
+                sourceEditRevision: command.sourceEditRevision,
                 virtualCopy: imagePath.split('?vc=').at(-1),
                 label: 'AI edit',
                 isSelected: false,

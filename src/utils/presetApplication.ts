@@ -41,7 +41,7 @@ export function preparePresetApplication(preset: Preset, amount: number) {
   const unavailable = presetUnavailableReason(preset, image.exif?.Model);
   if (unavailable) throw new Error(unavailable);
   const previous = usePresetApplication.getState().application;
-  const definition = JSON.stringify(preset);
+  const definition = JSON.stringify({ adjustments: preset.adjustments, presetType: preset.presetType });
   const same =
     previous?.path === image.path && previous.preset.id === preset.id && previous.result === editor.adjustments;
   if (same && previous.definition !== definition)

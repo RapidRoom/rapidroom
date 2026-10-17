@@ -73,6 +73,18 @@ describe('shared GUI/MCP preset Amount baseline', () => {
     expect(useEditorStore.getState().adjustments).toEqual(full);
   });
 
+  it('keeps the Amount baseline across favorite and display-name changes', () => {
+    const baseline = useEditorStore.getState().adjustments;
+    apply(100);
+    const renamed = { ...preset, favorite: true, name: 'Renamed Style' };
+    commitPresetApplication(preparePresetApplication(renamed, 50), (adjustments) =>
+      useEditorStore.setState({ adjustments }),
+    );
+    expect(useEditorStore.getState().adjustments.exposure).toBe(1.5);
+    expect(usePresetApplication.getState().application?.base).toBe(baseline);
+    expect(usePresetApplication.getState().application?.preset.name).toBe('Renamed Style');
+  });
+
   it('invalidates without a mounted panel on a user edit, image switch, undo and reset', () => {
     for (const change of ['edit', 'switch', 'undo', 'reset']) {
       useEditorStore.setState({ selectedImage: image, historyIndex: 1 });

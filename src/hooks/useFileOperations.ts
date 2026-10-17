@@ -134,7 +134,12 @@ export function useFileOperations(
         !pathsToDelete[0].includes('?vc=') &&
         (assistantRequest || imageList.some((image) => image.path.startsWith(`${pathsToDelete[0]}?vc=`)));
 
-      const modalTitle = selectionHasVirtualCopies ? 'Delete Image and All Virtual Copies?' : 'Confirm Delete';
+      const modalTitle =
+        assistantRequest && isSingle && pathsToDelete[0].includes('?vc=')
+          ? 'Delete Virtual Copy?'
+          : selectionHasVirtualCopies
+            ? 'Delete Image and All Virtual Copies?'
+            : 'Confirm Delete';
       const modalMessage = selectionHasVirtualCopies
         ? 'Are you sure you want to permanently delete this image and all of its virtual copies? This action cannot be undone.'
         : isSingle
@@ -147,7 +152,9 @@ export function useFileOperations(
           confirmText,
           confirmVariant: 'destructive',
           isOpen: true,
-          message: modalMessage,
+          message: assistantRequest
+            ? `${modalMessage} Requested item: ${pathsToDelete.map((path) => path.split(/[\\/]/).at(-1)).join(', ')}`
+            : modalMessage,
           onConfirm: () => executeDelete(pathsToDelete, { includeAssociated: false }),
           title: modalTitle,
         },

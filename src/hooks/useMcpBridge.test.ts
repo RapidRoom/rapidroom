@@ -31,6 +31,8 @@ beforeEach(() => {
   useUIStore.setState({ confirmModalState: { isOpen: false } });
   mockCommand('save_applied_preset', () => undefined);
   mockCommand('validate_mcp_adjustments', () => undefined);
+  mockCommand('load_applied_preset', () => null);
+  mockCommand('save_metadata_and_update_thumbnail', () => undefined);
   mockCommand('mcp_status', () => ({}));
   mockCommand('clear_editor_session', () => undefined);
   mockCommand('sync_editor_state', () => ({
@@ -551,5 +553,106 @@ describe('protected editing workflow', () => {
       response: { confirmationPending: true, includesVirtualCopies: true },
     });
     expect(invoke.mock.calls.some(([name]) => name.startsWith('delete_'))).toBe(false);
+  });
+});
+
+describe('adopt AI version without deleting the original RAW', () => {
+  const copyPath = path + '?vc=a11234';
+  const base = { ...INITIAL_ADJUSTMENTS, exposure: 0.25, contrast: 5 };
+  const edited = { ...INITIAL_ADJUSTMENTS, exposure: 1.5, contrast: 22 };
+  async function adoptionHarness(revision = 'base-revision') {
+    useEditorStore.setState({
+      selectedImage: { ...image, path: copyPath },
+      adjustments: edited,
+      history: [edited],
+      historyDetails: [null],
+      historyIndex: 0,
+    });
+    const requestDeletePaths = vi.fn();
+    const open = vi.fn(async (target: string) => {
+      useEditorStore.getState().resetHistory(base);
+      useEditorStore.setState({ selectedImage: { ...image, path: target } });
+    });
+    mockCommand('sync_editor_state', (args) => ({
+      imagePath: args!.path,
+      adjustments: args!.adjustments,
+      editRevision: args!.adjustments === base ? revision : 'adopted-revision',
+      validationError: null,
+    }));
+    function Harness() {
+      useMcpBridge(open, { requestDeletePaths });
+      return null;
+    }
+    root = createRoot(document.createElement('div'));
+    await act(async () => root!.render(createElement(Harness)));
+    renderChanges();
+    return { open, requestDeletePaths };
+  }
+  async function adopt(deleteCopyAfterAdoption = true) {
+    await act(async () => {
+      await emit('mcp-command', {
+        requestId: 'adopt',
+        kind: 'adopt-virtual-copy',
+        path: copyPath,
+        baseAdjustments: edited,
+        originalExpectedRevision: 'base-revision',
+        deleteCopyAfterAdoption,
+      });
+      await vi.waitFor(() => expect(responses).toHaveLength(1));
+    });
+  }
+  it('adopts one labelled undoable recipe onto original, then requests confirmation only for AI-copy deletion', async () => {
+    const { open, requestDeletePaths } = await adoptionHarness();
+    await adopt();
+    expect(open).toHaveBeenCalledExactlyOnceWith(path, true);
+    expect(useEditorStore.getState().selectedImage?.path).toBe(path);
+    expect(useEditorStore.getState().adjustments).toEqual(edited);
+    expect(useEditorStore.getState().history).toEqual([base, edited]);
+    expect(useEditorStore.getState().historyDetails[1]).toMatchObject({
+      actor: 'assistant',
+      label: 'AI: adopted AI edit',
+    });
+    expect(requestDeletePaths).toHaveBeenCalledExactlyOnceWith([copyPath], true);
+    expect(responses[0]).toMatchObject({
+      error: null,
+      response: { adopted: true, imagePath: path, sourceCopyPath: copyPath, copyDeletionConfirmationPending: true },
+    });
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().adjustments).toEqual(base);
+    expect(invoke.mock.calls.some(([name]) => name.startsWith('delete_'))).toBe(false);
+    expect(
+      invoke.mock.calls
+        .filter(([name]) => name === 'save_metadata_and_update_thumbnail')
+        .every(([, args]) => args?.path === copyPath),
+    ).toBe(true);
+  });
+  it('refuses a changed original and leaves both recipes available without a deletion request', async () => {
+    const { requestDeletePaths } = await adoptionHarness('new-user-revision');
+    await adopt();
+    expect(responses[0].error).toContain('Original edit changed');
+    expect(useEditorStore.getState().adjustments).toEqual(base);
+    expect(useEditorStore.getState().history).toEqual([base]);
+    expect(requestDeletePaths).not.toHaveBeenCalled();
+  });
+  it('rechecks original changes racing revision validation before writing an AI recipe', async () => {
+    const { requestDeletePaths } = await adoptionHarness();
+    mockCommand('sync_editor_state', (args) => {
+      if (args?.path === path) useEditorStore.setState({ adjustments: { ...base, shadows: 16 } });
+      return { imagePath: args?.path, editRevision: 'base-revision' };
+    });
+    await adopt();
+    expect(responses[0].error).toContain('Original changed');
+    expect(useEditorStore.getState().adjustments).toMatchObject({ exposure: 0.25, shadows: 16 });
+    expect(requestDeletePaths).not.toHaveBeenCalled();
+  });
+  it('keeps the AI copy when deletion was not requested', async () => {
+    const { requestDeletePaths } = await adoptionHarness();
+    await adopt(false);
+    expect(responses[0]).toMatchObject({
+      error: null,
+      response: { adopted: true, copyDeletionConfirmationPending: false },
+    });
+    expect(useEditorStore.getState().adjustments).toEqual(edited);
+    expect(requestDeletePaths).not.toHaveBeenCalled();
   });
 });
