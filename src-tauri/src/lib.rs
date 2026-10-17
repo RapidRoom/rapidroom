@@ -1590,7 +1590,7 @@ async fn generate_culling_preview_for_path(
     )
     .await?
     {
-        RenderedPreview::Jpeg(bytes) => Ok(Response::new(bytes)),
+        RenderedPreview::Jpeg { bytes, .. } => Ok(Response::new(bytes)),
         #[cfg(feature = "mcp")]
         RenderedPreview::Pixels(_) => Err("Expected encoded preview".into()),
     }
@@ -1604,7 +1604,10 @@ struct PreviewRenderOptions {
 }
 
 enum RenderedPreview {
-    Jpeg(Vec<u8>),
+    Jpeg {
+        bytes: Vec<u8>,
+        finished_dimensions: (u32, u32),
+    },
     #[cfg(feature = "mcp")]
     Pixels(DynamicImage),
 }
@@ -1615,6 +1618,19 @@ pub async fn generate_preview_bytes_for_path(
     target_resolution: u32,
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<u8>, String> {
+    generate_preview_with_geometry_for_path(path, js_adjustments, target_resolution, app_handle)
+        .await
+        .map(|(bytes, _)| bytes)
+}
+
+// Framing belongs to the finished image, before rounding its thumbnail dimensions.
+// Keep the existing bytes-only API for callers that do not need geometry.
+pub(crate) async fn generate_preview_with_geometry_for_path(
+    path: String,
+    js_adjustments: Value,
+    target_resolution: u32,
+    app_handle: tauri::AppHandle,
+) -> Result<(Vec<u8>, (u32, u32)), String> {
     match render_preview_for_path(
         path,
         js_adjustments,
@@ -1624,7 +1640,10 @@ pub async fn generate_preview_bytes_for_path(
     )
     .await?
     {
-        RenderedPreview::Jpeg(bytes) => Ok(bytes),
+        RenderedPreview::Jpeg {
+            bytes,
+            finished_dimensions,
+        } => Ok((bytes, finished_dimensions)),
         #[cfg(feature = "mcp")]
         RenderedPreview::Pixels(_) => Err("Expected encoded preview".into()),
     }
@@ -1652,7 +1671,7 @@ pub(crate) async fn generate_measurement_pixels_for_path(
     .await?
     {
         RenderedPreview::Pixels(image) => Ok(image),
-        RenderedPreview::Jpeg(_) => Err("Expected uncompressed rendered pixels".into()),
+        RenderedPreview::Jpeg { .. } => Err("Expected uncompressed rendered pixels".into()),
     }
 }
 
@@ -1786,7 +1805,8 @@ async fn render_preview_for_path(
             "generate_preview_for_path",
         )?;
 
-        let (width, height) = final_image.dimensions();
+        let finished_dimensions = final_image.dimensions();
+        let (width, height) = finished_dimensions;
         let final_image = if let Some((x, y, width, height)) = native_region {
             final_image.crop_imm(x, y, width, height)
         } else if target_resolution > 0 && (width > target_resolution || height > target_resolution)
@@ -1811,7 +1831,10 @@ async fn render_preview_for_path(
             .map_err(|e| format!("Failed to encode with mozjpeg-rs: {}", e))?;
 
         culling_preview::ensure_current(&cancel_token)?;
-        Ok(RenderedPreview::Jpeg(bytes))
+        Ok(RenderedPreview::Jpeg {
+            bytes,
+            finished_dimensions,
+        })
     })
     .await
     .map_err(|e| format!("Task execution failed: {}", e))?
@@ -2775,6 +2798,8 @@ pub fn run() {
             file_management::generate_export_filename,
             file_management::duplicate_file,
             file_management::show_in_finder,
+            file_management::instagram_export_folder,
+            file_management::open_export_folder,
             terminal::open_terminal_here,
             terminal::is_terminal_supported,
             #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
