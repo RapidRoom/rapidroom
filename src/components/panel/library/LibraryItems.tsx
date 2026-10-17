@@ -1,8 +1,6 @@
 import { DenoiseBadge } from '../DenoiseQueue';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  Ban,
-  Flag,
   Image as ImageIcon,
   Folder,
   FolderOpen,
@@ -734,22 +732,22 @@ const ListItemComponent = ({
 
       <div style={{ width: getW('rating') }} className="flex items-center px-3 h-full overflow-hidden">
         {isRejected ? (
-          <div className="flex items-center gap-1">
-            <Ban size={12} className="text-text-secondary" />
-            <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate">
+          <div className="flex items-center">
+            <FlagBadges flag={flag} hasPrecedingBadge={false} />
+            <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate ml-1">
               {t('library.items.rejected')}
             </Text>
           </div>
         ) : (
-          <div className="flex items-center gap-1">
-            {flag === ImageFlag.Pick && <Flag size={12} className="text-accent fill-accent" />}
+          <div className="flex items-center">
+            <FlagBadges flag={flag} hasPrecedingBadge={false} />
             {rating > 0 && (
-              <>
+              <div className={clsx('flex items-center gap-1', flag === ImageFlag.Pick && 'ml-1.5')}>
                 <StarIcon size={12} className="text-accent fill-accent" />
                 <Text variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
                   {rating}
                 </Text>
-              </>
+              </div>
             )}
           </div>
         )}

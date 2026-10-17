@@ -15,7 +15,7 @@ import {
   SelectedImage,
   ThumbnailAspectRatio,
 } from '../ui/AppProperties';
-import { FLAG_ICONS } from '../../utils/imageFlags';
+import { FLAG_FILL_CLASSES, FLAG_ICONS } from '../../utils/imageFlags';
 import FlagToggles from '../ui/FlagToggles';
 import Text from '../ui/Text';
 import { useEditorStore } from '../../store/useEditorStore';
@@ -511,12 +511,18 @@ export default function BottomBar({
             >
               <div className="flex items-center gap-3 whitespace-nowrap">
                 {/* 1. Star Rating Filter */}
-                <div className="flex items-center gap-0.5">
+                <div
+                  className={clsx(
+                    'flex items-center gap-0.5 rounded-md px-1 transition-colors duration-150',
+                    filterCriteria.rating > 0 && 'bg-accent/20',
+                  )}
+                >
                   {[1, 2, 3, 4, 5].map((starValue) => {
                     const isFilled = filterCriteria.rating > 0 && starValue <= filterCriteria.rating;
                     return (
                       <button
                         key={`qf-star-${starValue}`}
+                        aria-pressed={isFilled}
                         data-tooltip={`${starValue} ${t(ratingOp.suffixKey)}`}
                         onClick={() =>
                           setFilterCriteria((prev) => ({
@@ -558,15 +564,20 @@ export default function BottomBar({
                     const isPickedActive = filterCriteria.flagStatus === FlagStatus.Picked;
                     return (
                       <button
-                        className="focus:outline-none transition-transform active:scale-95 hover:scale-110"
+                        className={clsx(
+                          'p-1 rounded-md focus:outline-none transition-all duration-150 active:scale-95 hover:scale-110',
+                          isPickedActive && FLAG_FILL_CLASSES[ImageFlag.Pick],
+                        )}
                         onClick={() => handleToggleFlagFilter(FlagStatus.Picked)}
+                        aria-pressed={isPickedActive}
+                        aria-label={t('library.filters.flag.picked')}
                         data-tooltip={t('library.filters.flag.picked')}
                       >
                         <PickIcon
                           size={16}
                           className={clsx(
                             'transition-colors duration-150',
-                            isPickedActive ? 'text-accent fill-accent' : 'text-text-secondary hover:text-accent',
+                            isPickedActive ? 'text-white fill-white' : 'text-text-secondary hover:text-accent',
                           )}
                         />
                       </button>
@@ -578,15 +589,20 @@ export default function BottomBar({
                     const isRejectActive = filterCriteria.flagStatus === FlagStatus.Rejected;
                     return (
                       <button
-                        className="focus:outline-none transition-transform active:scale-95 hover:scale-110"
+                        className={clsx(
+                          'p-1 rounded-md focus:outline-none transition-all duration-150 active:scale-95 hover:scale-110',
+                          isRejectActive && FLAG_FILL_CLASSES[ImageFlag.Reject],
+                        )}
                         onClick={() => handleToggleFlagFilter(FlagStatus.Rejected)}
+                        aria-pressed={isRejectActive}
+                        aria-label={t('library.filters.flag.rejected')}
                         data-tooltip={t('library.filters.flag.rejected')}
                       >
                         <RejectIcon
                           size={16}
                           className={clsx(
                             'transition-colors duration-150',
-                            isRejectActive ? 'text-accent' : 'text-text-secondary hover:text-accent',
+                            isRejectActive ? 'text-white' : 'text-text-secondary hover:text-accent',
                           )}
                         />
                       </button>
