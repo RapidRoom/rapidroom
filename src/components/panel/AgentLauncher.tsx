@@ -32,11 +32,13 @@ export default function AgentLauncher({
         }))
       )
         return;
+      const terminalState = useTerminalStore.getState();
+      if (terminalState.activeTab) terminalState.dismissIntro(terminalState.activeTab);
       if (preferences.startIn === 'external') {
         await invoke(Invokes.LaunchTerminalAgent, { path, agent });
         return;
       }
-      const terminal = useTerminalStore.getState().addTab(path);
+      const terminal = useTerminalStore.getState().addTab(path, false);
       const ui = useUIStore.getState();
       const region =
         (Object.keys(ui.panelLayout) as PanelRegion[]).find((candidate) =>
@@ -60,7 +62,7 @@ export default function AgentLauncher({
           <span className="sr-only">{t('terminal.startIn')}</span>
           <select
             aria-label={t('terminal.startIn')}
-            className="appearance-none bg-surface text-text-primary border border-border-color rounded px-2 py-1 cursor-pointer"
+            className="min-h-7 appearance-none bg-surface text-text-primary border border-border-color rounded px-2 py-1 cursor-pointer"
             value={preferences.startIn}
             onChange={(event) => {
               void saveTerminalSettings({ startIn: event.target.value === 'external' ? 'external' : 'built-in' });
@@ -78,8 +80,8 @@ export default function AgentLauncher({
         disabled={!path}
         className={
           compact
-            ? 'flex items-center gap-1 h-6 px-1 rounded bg-surface disabled:opacity-40'
-            : 'bg-surface rounded px-2 py-1 disabled:opacity-40'
+            ? 'flex items-center gap-1 h-7 px-1 rounded bg-surface disabled:opacity-40'
+            : 'min-h-7 bg-surface rounded px-2 py-1 disabled:opacity-40'
         }
         onClick={() => {
           void start('claude');
@@ -95,8 +97,8 @@ export default function AgentLauncher({
         disabled={!path}
         className={
           compact
-            ? 'flex items-center gap-1 h-6 px-1 rounded bg-surface disabled:opacity-40'
-            : 'bg-surface rounded px-2 py-1 disabled:opacity-40'
+            ? 'flex items-center gap-1 h-7 px-1 rounded bg-surface disabled:opacity-40'
+            : 'min-h-7 bg-surface rounded px-2 py-1 disabled:opacity-40'
         }
         onClick={() => {
           void start('codex');

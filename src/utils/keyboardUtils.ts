@@ -304,6 +304,12 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     section: 'panels',
   },
   {
+    action: 'toggle_dock_height',
+    description: 'settings.keybinds.actions.toggle_dock_height',
+    defaultCombo: ['ctrl', 'shift', 'KeyJ'],
+    section: 'panels',
+  },
+  {
     action: 'toggle_bottom_panel',
     description: 'settings.keybinds.actions.toggle_bottom_panel',
     defaultCombo: ['ctrl', 'KeyJ'],

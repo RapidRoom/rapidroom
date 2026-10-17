@@ -518,6 +518,13 @@ export const useKeyboardShortcuts = ({
           }));
         },
       },
+      toggle_dock_height: {
+        shouldFire: (s: StoreState) => s.ui.panelLayout.bottom.length > 0,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.ui.toggleDockHeight();
+        },
+      },
       toggle_bottom_panel: {
         shouldFire: (s: StoreState) => s.ui.activeView !== 'library',
         execute: (e: KeyboardEvent, s: StoreState) => {

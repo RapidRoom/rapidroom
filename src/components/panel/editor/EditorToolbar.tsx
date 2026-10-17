@@ -328,10 +328,10 @@ const EditorToolbar = memo(
     };
 
     return (
-      <div className="group/shooting-info relative shrink-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center px-3 min-h-12 py-1 gap-x-3 z-40">
+      <div className="group/shooting-info relative shrink-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center px-3 min-h-10 py-1 gap-x-3 z-40">
         <div className="flex items-center gap-2 shrink-0 z-40">
           <button
-            className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors shrink-0"
+            className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors shrink-0"
             onClick={onBackToLibrary}
             onKeyDown={handleButtonKeyDown}
             data-tooltip={t('editor.toolbar.tooltips.backToLibrary')}
@@ -341,23 +341,23 @@ const EditorToolbar = memo(
           </button>
 
           <div className="hidden 2xl:flex items-center gap-2" aria-hidden="true">
-            <div className="p-2 invisible pointer-events-none">
+            <div className="p-1 invisible pointer-events-none">
               <Undo size={20} />
             </div>
-            <div className="p-2 invisible pointer-events-none">
+            <div className="p-1 invisible pointer-events-none">
               <Undo size={20} />
             </div>
-            <div className="p-2 invisible pointer-events-none">
+            <div className="p-1 invisible pointer-events-none">
               <Undo size={20} />
             </div>
-            <div className="p-2 invisible pointer-events-none">
+            <div className="p-1 invisible pointer-events-none">
               <Undo size={20} />
             </div>
           </div>
         </div>
 
         <div className="flex-1 flex justify-center min-w-0 relative">
-          <div className="bg-surface flex flex-col items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-4 py-1.5">
+          <div className="bg-surface flex flex-col items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-4 py-1">
             <div className="flex items-center justify-center max-w-full h-5 shrink-0">
               <Text
                 as="span"
@@ -454,7 +454,7 @@ const EditorToolbar = memo(
         <div className="flex items-center gap-2 shrink-0 z-40">
           <div className="relative flex items-center gap-2" ref={historyButtonRef}>
             <button
-              className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canUndo}
               onClick={onUndo}
               onKeyDown={handleButtonKeyDown}
@@ -468,7 +468,7 @@ const EditorToolbar = memo(
               <Undo size={20} />
             </button>
             <button
-              className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canRedo}
               onClick={onRedo}
               onKeyDown={handleButtonKeyDown}
@@ -541,7 +541,7 @@ const EditorToolbar = memo(
 
           <button
             className={clsx(
-              'p-2 rounded-full transition-colors',
+              'p-1 rounded-full transition-colors',
               showOriginal
                 ? 'bg-accent text-button-text hover:bg-accent/90 hover:text-button-text'
                 : 'bg-surface hover:bg-card-active text-text-primary',
@@ -561,7 +561,7 @@ const EditorToolbar = memo(
             data-instagram-guide-toggle
             data-tooltip={t('export.instagram.guide')}
             className={clsx(
-              'p-2 rounded-full transition-colors',
+              'p-1 rounded-full transition-colors',
               appSettings?.showInstagramGuide
                 ? 'bg-accent text-button-text'
                 : 'bg-surface hover:bg-card-active text-text-primary',
@@ -576,7 +576,7 @@ const EditorToolbar = memo(
           {onToggleReferenceView && (
             <button
               className={clsx(
-                'p-2 rounded-full transition-colors',
+                'p-1 rounded-full transition-colors',
                 isReferenceViewActive
                   ? 'bg-accent text-button-text hover:bg-accent/90 hover:text-button-text'
                   : 'bg-surface hover:bg-card-active text-text-primary',
@@ -591,7 +591,7 @@ const EditorToolbar = memo(
             </button>
           )}
           <button
-            className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
+            className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
             onClick={onToggleFullScreen}
             onKeyDown={handleButtonKeyDown}
             data-tooltip={t('editor.toolbar.tooltips.fullscreen')}

@@ -274,6 +274,8 @@ export interface UIState {
   rightPanelWidth: number;
   bottomPanelHeight: number;
   bottomDockHeight: number;
+  bottomDockExpanded: boolean;
+  toggleDockHeight: () => void;
   terminalSupported: boolean;
   leftTopHeight: number;
   rightTopHeight: number;
@@ -355,6 +357,13 @@ export const useUIStore = create<UIState>((set, get) => ({
   rightPanelWidth: DEFAULT_PANEL_WIDTH,
   bottomPanelHeight: DEFAULT_BOTTOM_PANEL_HEIGHT,
   bottomDockHeight: 240,
+  bottomDockExpanded: false,
+  toggleDockHeight: () => {
+    const state = get();
+    const panel = state.activePanels.bottom ?? state.panelLayout.bottom[0];
+    if (!panel) return;
+    set({ bottomDockExpanded: !state.bottomDockExpanded, activePanels: { ...state.activePanels, bottom: panel } });
+  },
   terminalSupported: false,
   leftTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
   rightTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
@@ -628,6 +637,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     const defaultWorkspace = reconcileWorkspace(undefined, isTetheringSupported, get().terminalSupported);
     set({
       bottomDockHeight: defaultWorkspace.bottomDockHeight,
+      bottomDockExpanded: false,
       leftPanelWidth: defaultWorkspace.leftPanelWidth,
       rightPanelWidth: defaultWorkspace.rightPanelWidth,
       leftTopHeight: defaultWorkspace.leftTopHeight,
