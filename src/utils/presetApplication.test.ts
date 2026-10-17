@@ -94,7 +94,7 @@ describe('shared GUI/MCP preset Amount baseline', () => {
     const reopened = normalizeLoadedAdjustments(JSON.parse(JSON.stringify(draft)));
     expect(reopened.masks).toEqual(draft.masks);
     expect(draft.masks[0].id).toBe('rapidroom-style:forest-gothic:beam');
-    expect(draft.masks[0].subMasks[0].parameters.centerX).toBe(6000 * 0.23);
+    expect(draft.masks[0].subMasks[0].parameters?.centerX).toBe(6000 * 0.23);
     expect(draft.masks[0].adjustments.exposure).toBe(forest.adjustments.masks![0].adjustments.exposure);
     expect(draft.crop).toBe(plan.application.base.crop);
   });
