@@ -867,6 +867,9 @@ export default function ExportPanel({
         setExportState({ status: Status.Exporting, progress: { current: 0, total: numImages }, errorMessage: '' });
         debouncedSave.flush();
         await waitForPendingEditorSaves();
+        const latestEditor = useEditorStore.getState();
+        const exportAdjustments =
+          latestEditor.selectedImage?.path === currentEditPath ? latestEditor.adjustments : currentEditAdjustments;
         await invoke(Invokes.ExportImages, {
           paths: pathsToExport,
           outputFolderOrFile: outputFolderOrFile,
@@ -875,7 +878,7 @@ export default function ExportPanel({
           exportSettings,
           outputFormat: selectedFormat.extensions[0],
           currentEditPath,
-          currentEditAdjustments,
+          currentEditAdjustments: exportAdjustments,
         });
       }
     } catch (error) {

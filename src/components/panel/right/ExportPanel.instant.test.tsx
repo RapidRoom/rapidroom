@@ -57,12 +57,12 @@ const editor = useEditorStore.getState(),
   settings = useSettingsStore.getState();
 let root: Root, host: HTMLDivElement;
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-function Harness() {
+function Harness({ selected = photo }: { selected?: SelectedImage }) {
   useKeyboardShortcuts(callbacks);
   const [preferences, setPreferences] = useState({ exportPresets: [] } as unknown as AppSettings);
   return (
     <ExportPanel
-      selectedImage={photo}
+      selectedImage={selected}
       multiSelectedPaths={[]}
       rootPaths={[]}
       appSettings={preferences}
@@ -197,15 +197,58 @@ it('binds the clicked photo and its adjustments while asynchronous folder resolu
     [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('export.status.exportSingle'))!.click(),
   );
   expect(mocks.invoke.mock.calls.filter(([name]) => name === Invokes.ExportImages)).toEqual([]);
-  await act(async () =>
-    useEditorStore.setState({
-      selectedImage: { ...photo, path: '/other.ARW' },
-      adjustments: { ...clickedAdjustments, exposure: 2 },
-    }),
-  );
+  await act(async () => {
+    const other = { ...photo, path: '/other.ARW' };
+    useEditorStore.setState({ selectedImage: other, adjustments: { ...clickedAdjustments, exposure: 2 } });
+    root.render(<Harness selected={other} />);
+  });
   await act(async () => resolveFolder('/Pictures/Instagram/day'));
   expect(mocks.invoke).toHaveBeenCalledWith(
     Invokes.ExportImages,
     expect.objectContaining({ currentEditPath: photo.path, currentEditAdjustments: clickedAdjustments }),
   );
+});
+
+it('uses same-photo latest edits after pending folder resolution without requesting previews', async () => {
+  let resolveFolder!: (folder: string) => void;
+  const pending = new Promise<string>((resolve) => {
+    resolveFolder = resolve;
+  });
+  mocks.invoke.mockImplementation((name: string, args: { create?: boolean }) =>
+    name === Invokes.GetExportRecipes
+      ? Promise.resolve([recipe])
+      : name === 'instagram_export_folder'
+        ? args.create
+          ? pending
+          : Promise.resolve('/Pictures/Instagram/day')
+        : Promise.resolve(0),
+  );
+  await act(async () => root.render(<Harness />));
+  await act(async () =>
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'i',
+        code: 'KeyI',
+        ctrlKey: true,
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  await act(async () =>
+    [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('export.status.exportSingle'))!.click(),
+  );
+  const latest = { ...useEditorStore.getState().adjustments, exposure: 1.2 };
+  await act(async () => useEditorStore.setState({ adjustments: latest }));
+  await act(async () => resolveFolder('/Pictures/Instagram/day'));
+  expect(mocks.invoke).toHaveBeenCalledWith(
+    Invokes.ExportImages,
+    expect.objectContaining({ currentEditPath: photo.path, currentEditAdjustments: latest }),
+  );
+  expect(
+    mocks.invoke.mock.calls.filter(
+      ([name]) => name === 'get_instagram_framing_preview' || name === Invokes.EstimateExportSizes,
+    ),
+  ).toEqual([]);
 });
