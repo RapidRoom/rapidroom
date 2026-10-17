@@ -70,12 +70,10 @@ export default function BottomDock({ renderPanel }: { renderPanel: (panel: Panel
     const startHeight = renderedHeight;
     const element = event.currentTarget;
     const move = (next: globalThis.PointerEvent) =>
-      useUIStore
-        .getState()
-        .setUI({
-          bottomDockExpanded: false,
-          bottomDockHeight: clampDockHeight(startHeight + start - next.clientY, window.innerHeight, availableHeight),
-        });
+      useUIStore.getState().setUI({
+        bottomDockExpanded: false,
+        bottomDockHeight: clampDockHeight(startHeight + start - next.clientY, window.innerHeight, availableHeight),
+      });
     const end = () => {
       element.removeEventListener('pointermove', move);
       element.removeEventListener('pointerup', end);
