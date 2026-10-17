@@ -368,6 +368,7 @@ export default function ExportPanel({
   const rememberRecipe = useCallback(
     (preset: ExportPreset) => {
       useUIStore.getState().setUI({ instagramExportRequest: null });
+      setShowInstagramFraming(false);
       handleApplyPreset(preset);
       if (!appSettings) return;
       const prior = appSettings.exportPresets?.find((p) => p.id === '__last_used__');
@@ -509,9 +510,10 @@ export default function ExportPanel({
 
   const numImages = pathsToExport.length;
   const [instagramFrames, setInstagramFrames] = useState<Record<string, InstagramFrame>>({});
-  const [instagramBusy, setInstagramBusy] = useState(true);
+  const [showInstagramFraming, setShowInstagramFraming] = useState(false);
   useEffect(() => {
     setInstagramFrames({});
+    setShowInstagramFraming(false);
   }, [instagramRatio]);
   const [instagramFolder, setInstagramFolder] = useState('');
   useEffect(() => {
@@ -627,7 +629,12 @@ export default function ExportPanel({
   );
 
   useEffect(() => {
-    if (!isPanelReallyActive) return;
+    if (!isPanelReallyActive || instagramRatio || instagramExportRequest !== null) {
+      debouncedEstimateSize.cancel();
+      setIsEstimating(false);
+      setEstimatedSize(null);
+      return;
+    }
 
     const exportSettings: ExportSettings = {
       instagram: instagramRatio ? { ratio: instagramRatio, framesByPath: instagramFrames } : null,
@@ -678,6 +685,7 @@ export default function ExportPanel({
     };
   }, [
     isPanelReallyActive,
+    instagramExportRequest,
     instagramRatio,
     instagramFrames,
     pathsToExport,
@@ -732,14 +740,7 @@ export default function ExportPanel({
 
   const submittingExport = useRef(false);
   const handleExport = async () => {
-    if (
-      numImages === 0 ||
-      submittingExport.current ||
-      isExporting ||
-      instagramExportRequest !== null ||
-      !isDpiValid ||
-      (instagramRatio && instagramBusy)
-    )
+    if (numImages === 0 || submittingExport.current || isExporting || instagramExportRequest !== null || !isDpiValid)
       return;
 
     const exportSettings: ExportSettings = {
@@ -869,7 +870,7 @@ export default function ExportPanel({
           exportSettings,
           outputFormat: selectedFormat.extensions[0],
           currentEditPath: selectedImage?.path || null,
-          currentEditAdjustments: adjustmentsRef.current || null,
+          currentEditAdjustments: useEditorStore.getState().adjustments || null,
         });
       }
     } catch (error) {
@@ -897,13 +898,7 @@ export default function ExportPanel({
     }
   };
 
-  const canExport =
-    instagramExportRequest === null &&
-    numImages > 0 &&
-    isPadValid &&
-    isBorderValid &&
-    isDpiValid &&
-    (!instagramRatio || !instagramBusy);
+  const canExport = instagramExportRequest === null && numImages > 0 && isPadValid && isBorderValid && isDpiValid;
   const isLut = fileFormat === FileFormats.Cube;
   const itemLabel = isLut ? t('export.labels.lut') : t('export.labels.image');
   const itemLabelPlural = isLut ? t('export.labels.lut_plural') : t('export.labels.image_plural');
@@ -955,14 +950,24 @@ export default function ExportPanel({
                     </div>
                   </div>
                 )}
-                <InstagramFraming
-                  paths={pathsToExport}
-                  ratio={instagramRatio}
-                  active={isVisible && isPanelReallyActive}
+                <button
+                  type="button"
+                  className="text-xs underline"
+                  aria-expanded={showInstagramFraming}
                   disabled={isExporting}
-                  onFrame={onInstagramFrame}
-                  onBusy={setInstagramBusy}
-                />
+                  onClick={() => setShowInstagramFraming((visible) => !visible)}
+                >
+                  {t('export.instagram.adjustFrame')}
+                </button>
+                {showInstagramFraming && (
+                  <InstagramFraming
+                    paths={pathsToExport}
+                    ratio={instagramRatio}
+                    active={isVisible && isPanelReallyActive}
+                    disabled={isExporting}
+                    onFrame={onInstagramFrame}
+                  />
+                )}
                 <button
                   type="button"
                   className="text-xs underline mt-2"
@@ -1459,19 +1464,21 @@ export default function ExportPanel({
       </div>
 
       <div className="p-3 border-t border-surface shrink-0 space-y-2">
-        <Text as="div" variant={TextVariants.small} color={TextColors.primary} className="text-center">
-          {isEstimating ? (
-            <span className="italic">{t('export.status.estimatingSize')}</span>
-          ) : estimatedSize !== null ? (
-            <span>
-              {numImages > 1
-                ? t('export.status.estimatedTotalSize', { size: formatBytes(estimatedSize, t) }) ||
-                  t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })
-                : t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })}
-              {numImages > 1 && ` (~${formatBytes(estimatedSize / numImages, t)})`}
-            </span>
-          ) : null}
-        </Text>
+        {!instagramRatio && (
+          <Text as="div" variant={TextVariants.small} color={TextColors.primary} className="text-center">
+            {isEstimating ? (
+              <span className="italic">{t('export.status.estimatingSize')}</span>
+            ) : estimatedSize !== null ? (
+              <span>
+                {numImages > 1
+                  ? t('export.status.estimatedTotalSize', { size: formatBytes(estimatedSize, t) }) ||
+                    t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })
+                  : t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })}
+                {numImages > 1 && ` (~${formatBytes(estimatedSize / numImages, t)})`}
+              </span>
+            ) : null}
+          </Text>
+        )}
         <motion.div
           whileTap={!(isCancelling || (status !== Status.Exporting && !canExport)) ? { scale: 0.98 } : undefined}
           transition={{ type: 'spring', stiffness: 400, damping: 17 }}

@@ -19,7 +19,7 @@ interface Props {
   active: boolean;
   disabled: boolean;
   onFrame: (path: string, frame: InstagramFrame) => void;
-  onBusy: (busy: boolean) => void;
+  onBusy?: (busy: boolean) => void;
 }
 
 export default function InstagramFraming({ paths, ratio, active, disabled, onFrame, onBusy }: Props) {
@@ -52,7 +52,7 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
     setPreview(null);
     setError('');
     setBusy(true);
-    callbacks.current.onBusy(true);
+    callbacks.current.onBusy?.(true);
     const load = async () => {
       try {
         debouncedSave.flush();
@@ -63,7 +63,7 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
         setPreview(result);
         callbacks.current.onFrame(path, result.framing);
         setBusy(false);
-        callbacks.current.onBusy(false);
+        callbacks.current.onBusy?.(false);
       } catch (failure) {
         if (current()) setError(String(failure));
       }
@@ -100,7 +100,7 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
     const framing = frameRef.current;
     if (!framing) return;
     setBusy(true);
-    callbacks.current.onBusy(true);
+    callbacks.current.onBusy?.(true);
     setError('');
     try {
       debouncedSave.flush();
@@ -108,7 +108,7 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
       await invoke('save_instagram_framing', { path, framing });
       if (!current()) return;
       setBusy(false);
-      callbacks.current.onBusy(false);
+      callbacks.current.onBusy?.(false);
     } catch (failure) {
       if (current()) setError(String(failure));
     }
@@ -181,7 +181,7 @@ export default function InstagramFraming({ paths, ratio, active, disabled, onFra
               event.currentTarget.setPointerCapture(event.pointerId);
               drag.current = { x: event.clientX, y: event.clientY, frame: frameRef.current };
               setBusy(true);
-              callbacks.current.onBusy(true);
+              callbacks.current.onBusy?.(true);
             }}
             onPointerMove={(event) => {
               const start = drag.current;

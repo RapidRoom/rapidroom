@@ -108,10 +108,21 @@ fn source_adjustments(metadata: &Value, source: &std::path::Path) -> Value {
     adjustments
 }
 
+const FRAME_ASPECT_TOLERANCE: f64 = 0.002;
+
 pub fn centered_frame(width: u32, height: u32, ratio: InstagramRatio) -> NormalizedFrame {
     let (rw, rh) = ratio.dimensions();
     let ratio = rw as f64 / rh as f64;
     let image_ratio = width as f64 / height.max(1) as f64;
+    // A crop already within the existing usable-frame tolerance needs no further crop.
+    if (image_ratio - ratio).abs() < FRAME_ASPECT_TOLERANCE {
+        return NormalizedFrame {
+            x: 0.0,
+            y: 0.0,
+            width: 1.0,
+            height: 1.0,
+        };
+    }
     let (w, h) = if image_ratio > ratio {
         (ratio / image_ratio, 1.0)
     } else {
@@ -140,7 +151,7 @@ fn usable_frame(
         && ((framing.frame.width * width as f64) / (framing.frame.height * height as f64)
             - rw as f64 / rh as f64)
             .abs()
-            < 0.002
+            < FRAME_ASPECT_TOLERANCE
 }
 
 pub fn apply_instagram_crop(
@@ -330,6 +341,22 @@ mod framing_geometry_regression {
                 }
             }
         }
+    }
+
+    #[test]
+    fn matching_finished_crop_keeps_every_pixel_with_existing_tolerance() {
+        let image = DynamicImage::ImageRgb8(image::RgbImage::from_fn(800, 1065, |x, y| {
+            image::Rgb([(x % 251) as u8, (y % 251) as u8, ((x + y) % 251) as u8])
+        }));
+        for finished in [image.clone(), image.rotate90().rotate270()] {
+            let cropped =
+                apply_instagram_crop(finished.clone(), None, InstagramRatio::Grid, "current");
+            assert_eq!(cropped.dimensions(), finished.dimensions());
+            assert_eq!(cropped.to_rgb8().as_raw(), finished.to_rgb8().as_raw());
+        }
+        let outside = DynamicImage::new_rgb8(800, 1060);
+        let cropped = apply_instagram_crop(outside, None, InstagramRatio::Grid, "current");
+        assert_eq!(cropped.dimensions(), (795, 1060));
     }
 
     #[test]

@@ -18,8 +18,8 @@ vi.mock('../../ui/ExportPresetsList', () => ({
   ),
 }));
 vi.mock('../../ui/InstagramFraming', () => ({
-  default: ({ ratio, onBusy }: { ratio: string; onBusy: (value: boolean) => void }) => {
-    useEffect(() => onBusy(false), [onBusy]);
+  default: ({ ratio, onBusy }: { ratio: string; onBusy?: (value: boolean) => void }) => {
+    useEffect(() => onBusy?.(false), [onBusy]);
     return <div data-ratio={ratio} />;
   },
 }));
@@ -106,6 +106,10 @@ it.each(['disable', 'ordinary'] as const)('%s supersedes late direct-entry succe
     document.body.append(host);
     root = createRoot(host);
     await act(async () => root!.render(<Harness />));
+    const adjust = [...host.querySelectorAll('button')].find(
+      (element) => element.textContent === 'export.instagram.adjustFrame',
+    )!;
+    await act(async () => adjust.click());
     expect(host.querySelector('[data-ratio="4:5"]')).toBeTruthy();
     await act(async () => useUIStore.getState().setUI({ instagramExportRequest: 100 }));
     expect(mocks.invoke).toHaveBeenCalledWith(Invokes.GetExportRecipes);
@@ -164,7 +168,7 @@ it('uses first-use 3:4 and exports into the dated Instagram folder without a sav
       />,
     ),
   );
-  expect(host.querySelector('[data-ratio="3:4"]')).toBeTruthy();
+  expect(host.querySelector('[data-ratio="3:4"]')).toBeNull();
   const button = [...host.querySelectorAll('button')].find((el) =>
     el.textContent?.includes('export.status.exportSingle'),
   )!;

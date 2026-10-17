@@ -1137,7 +1137,8 @@
       "complete": "Instagram export complete. Ready to upload in your browser.",
       "guide": "Instagram composition guide",
       "strip": "Photo frames",
-      "selectPhoto": "Frame photo {{index}}: {{name}}"
+      "selectPhoto": "Frame photo {{index}}: {{name}}",
+      "adjustFrame": "Adjust frame"
     }
   },
   "library": {

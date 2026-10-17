@@ -24,6 +24,7 @@ export function lastInstagramRatio(settings: AppSettings | null): InstagramRatio
 export function centeredInstagramFrame(width: number, height: number, ratio: InstagramRatio) {
   const [rw, rh] = INSTAGRAM_DIMENSIONS[ratio];
   const imageRatio = width / Math.max(height, 1);
+  if (Math.abs(imageRatio - rw / rh) < 0.002) return { x: 0, y: 0, width: 1, height: 1 };
   const w = Math.min(1, rw / rh / imageRatio);
   const h = Math.min(1, imageRatio / (rw / rh));
   return { x: (1 - w) / 2, y: (1 - h) / 2, width: w, height: h };
