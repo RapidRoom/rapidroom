@@ -117,41 +117,49 @@ export function useFileOperations(
     [refreshImageList, handleBackToLibrary, sortedImageList, handleImageSelect],
   );
 
-  const handleDeleteSelected = useCallback(() => {
-    const { multiSelectedPaths, imageList } = useLibraryStore.getState();
-    const { setUI } = useUIStore.getState();
+  const requestDeletePaths = useCallback(
+    (paths: string[], assistantRequest = false) => {
+      const { imageList } = useLibraryStore.getState();
+      const { setUI } = useUIStore.getState();
 
-    const pathsToDelete = multiSelectedPaths;
-    if (pathsToDelete.length === 0) {
-      return;
-    }
+      const pathsToDelete = [...paths];
+      if (pathsToDelete.length === 0) {
+        return;
+      }
 
-    const isSingle = pathsToDelete.length === 1;
+      const isSingle = pathsToDelete.length === 1;
 
-    const selectionHasVirtualCopies =
-      isSingle &&
-      !pathsToDelete[0].includes('?vc=') &&
-      imageList.some((image) => image.path.startsWith(`${pathsToDelete[0]}?vc=`));
+      const selectionHasVirtualCopies =
+        isSingle &&
+        !pathsToDelete[0].includes('?vc=') &&
+        (assistantRequest || imageList.some((image) => image.path.startsWith(`${pathsToDelete[0]}?vc=`)));
 
-    const modalTitle = selectionHasVirtualCopies ? 'Delete Image and All Virtual Copies?' : 'Confirm Delete';
-    const modalMessage = selectionHasVirtualCopies
-      ? 'Are you sure you want to permanently delete this image and all of its virtual copies? This action cannot be undone.'
-      : isSingle
-        ? 'Are you sure you want to permanently delete this image? This action cannot be undone. Right-click for more options (e.g., deleting associated files).'
-        : `Are you sure you want to permanently delete these ${pathsToDelete.length} images? This action cannot be undone. Right-click for more options (e.g., deleting associated files).`;
-    const confirmText = selectionHasVirtualCopies ? 'Delete All' : 'Delete Selected Only';
+      const modalTitle = selectionHasVirtualCopies ? 'Delete Image and All Virtual Copies?' : 'Confirm Delete';
+      const modalMessage = selectionHasVirtualCopies
+        ? 'Are you sure you want to permanently delete this image and all of its virtual copies? This action cannot be undone.'
+        : isSingle
+          ? 'Are you sure you want to permanently delete this image? This action cannot be undone. Right-click for more options (e.g., deleting associated files).'
+          : `Are you sure you want to permanently delete these ${pathsToDelete.length} images? This action cannot be undone. Right-click for more options (e.g., deleting associated files).`;
+      const confirmText = selectionHasVirtualCopies ? 'Delete All' : 'Delete Selected Only';
 
-    setUI({
-      confirmModalState: {
-        confirmText,
-        confirmVariant: 'destructive',
-        isOpen: true,
-        message: modalMessage,
-        onConfirm: () => executeDelete(pathsToDelete, { includeAssociated: false }),
-        title: modalTitle,
-      },
-    });
-  }, [executeDelete]);
+      setUI({
+        confirmModalState: {
+          confirmText,
+          confirmVariant: 'destructive',
+          isOpen: true,
+          message: modalMessage,
+          onConfirm: () => executeDelete(pathsToDelete, { includeAssociated: false }),
+          title: modalTitle,
+        },
+      });
+    },
+    [executeDelete],
+  );
+
+  const handleDeleteSelected = useCallback(
+    () => requestDeletePaths(useLibraryStore.getState().multiSelectedPaths),
+    [requestDeletePaths],
+  );
 
   const handleDeleteRejected = useCallback(() => {
     const { imageList } = useLibraryStore.getState();
@@ -471,6 +479,7 @@ export function useFileOperations(
   );
 
   return {
+    requestDeletePaths,
     executeDelete,
     handleDeleteSelected,
     handleDeleteRejected,

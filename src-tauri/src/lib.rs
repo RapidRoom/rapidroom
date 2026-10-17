@@ -2854,6 +2854,12 @@ pub fn run() {
             camera_tethering::tether_autofocus,
             guided_perspective::calculate_guided_perspective,
             #[cfg(feature = "mcp")]
+            mcp::validate_mcp_adjustments,
+            #[cfg(feature = "mcp")]
+            mcp::create_mcp_virtual_copy,
+            #[cfg(feature = "mcp")]
+            mcp::set_mcp_image_metadata,
+            #[cfg(feature = "mcp")]
             mcp::ui_response,
             #[cfg(feature = "mcp")]
             mcp::sync_editor_state,

@@ -7,6 +7,11 @@ import { useEditorStore } from '../store/useEditorStore';
 import { INITIAL_ADJUSTMENTS, type Adjustments } from '../utils/adjustments';
 import { debouncedSetHistory } from './useEditorActions';
 import { useMcpBridge } from './useMcpBridge';
+import { usePresetCatalog, setCatalogPresets } from '../store/usePresetCatalog';
+import { listMcpPresets } from '../utils/mcpPresets';
+import { usePresetApplication } from '../utils/presetApplication';
+import { useLibraryStore } from '../store/useLibraryStore';
+import { useUIStore } from '../store/useUIStore';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const initialState = useEditorStore.getState();
@@ -20,6 +25,12 @@ beforeEach(() => {
   vi.useFakeTimers();
   useEditorStore.setState(initialState, true);
   responses = [];
+  usePresetCatalog.setState({ presets: [], loaded: false, isLoading: true });
+  usePresetApplication.setState({ application: null });
+  useLibraryStore.setState({ cardBrowseRoot: null });
+  useUIStore.setState({ confirmModalState: { isOpen: false } });
+  mockCommand('save_applied_preset', () => undefined);
+  mockCommand('validate_mcp_adjustments', () => undefined);
   mockCommand('mcp_status', () => ({}));
   mockCommand('clear_editor_session', () => undefined);
   mockCommand('sync_editor_state', () => ({
@@ -371,5 +382,174 @@ describe('MCP editor bridge review', () => {
     expect(responses[0]).toMatchObject({ error: null, response: { renderPending: true } });
     expect(useEditorStore.getState().adjustments.contrast).toBe(20);
     expect(useEditorStore.getState().history).toHaveLength(2);
+  });
+});
+
+describe('protected editing workflow', () => {
+  it('applies a discovered Style with the panel closed, shares its Amount baseline and refuses stale edits', async () => {
+    useEditorStore.setState({ selectedImage: image, adjustments: { ...INITIAL_ADJUSTMENTS, exposure: 1 } });
+    setCatalogPresets([
+      { preset: { id: 'style', name: 'Style', presetType: 'style', adjustments: { exposure: 2, contrast: 30 } } },
+    ]);
+    const id = (await listMcpPresets({})).presets[0].id;
+    await mount();
+    renderChanges();
+    const apply = async (amount: number, baseAdjustments = useEditorStore.getState().adjustments) => {
+      const count = responses.length;
+      await act(async () => {
+        await emit('mcp-command', {
+          requestId: 'style',
+          kind: 'apply-preset',
+          path,
+          baseAdjustments,
+          options: { presetId: id, amount },
+        });
+        await vi.waitFor(() => expect(responses).toHaveLength(count + 1));
+      });
+    };
+    await apply(100);
+    expect(responses.at(-1)).toMatchObject({ error: null, response: { appliedPreset: { id, amount: 100 } } });
+    await apply(50);
+    expect(useEditorStore.getState().adjustments.exposure).toBe(1.5);
+    await apply(100);
+    expect(useEditorStore.getState().adjustments.exposure).toBe(2);
+    const before = useEditorStore.getState();
+    await apply(20, INITIAL_ADJUSTMENTS);
+    expect(responses.at(-1)?.error).toContain('changed');
+    expect(useEditorStore.getState().adjustments).toBe(before.adjustments);
+    expect(useEditorStore.getState().history).toBe(before.history);
+    expect(usePresetApplication.getState().application?.amount).toBe(100);
+  });
+
+  it('rejects an edit racing native preflight before setting the marker or committing a Style', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    setCatalogPresets([{ preset: { id: 'style', name: 'Style', adjustments: { exposure: 2 } } }]);
+    await mount();
+    const base = useEditorStore.getState().adjustments;
+    mockCommand('validate_mcp_adjustments', () => useEditorStore.setState({ adjustments: { ...base, contrast: 12 } }));
+    await act(async () => {
+      await emit('mcp-command', {
+        requestId: 'race',
+        kind: 'apply-preset',
+        path,
+        baseAdjustments: base,
+        options: { name: 'Style' },
+      });
+      await vi.waitFor(() => expect(responses).toHaveLength(1));
+    });
+    expect(responses.at(-1)?.error).toContain('changed');
+    expect(useEditorStore.getState().adjustments).toMatchObject({ exposure: 0, contrast: 12 });
+    expect(usePresetApplication.getState().application).toBeNull();
+  });
+
+  it('copies the current unsaved draft, leaving source state/history untouched and reports the real new path', async () => {
+    const draft = { ...INITIAL_ADJUSTMENTS, exposure: 1.7 };
+    useEditorStore.setState({ selectedImage: image, adjustments: draft });
+    mockCommand('create_mcp_virtual_copy', (args) => {
+      expect(args).toEqual({ path, adjustments: draft });
+      return path + '?vc=abc123';
+    });
+    await mount();
+    const before = useEditorStore.getState();
+    await act(async () =>
+      emit('mcp-command', { requestId: 'copy', kind: 'create-virtual-copy', path, baseAdjustments: draft }),
+    );
+    expect(responses.at(-1)).toMatchObject({
+      error: null,
+      response: { imagePath: path + '?vc=abc123', virtualCopy: 'abc123', isSelected: false },
+    });
+    expect(useEditorStore.getState().adjustments).toBe(before.adjustments);
+    expect(useEditorStore.getState().history).toBe(before.history);
+    expect(useEditorStore.getState().selectedImage?.path).toBe(path);
+  });
+
+  it('does not create copies or mutate metadata in Card mode', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    useLibraryStore.setState({ cardBrowseRoot: '/photos' });
+    await mount();
+    await act(async () =>
+      emit('mcp-command', {
+        requestId: 'card',
+        kind: 'create-virtual-copy',
+        path,
+        baseAdjustments: INITIAL_ADJUSTMENTS,
+      }),
+    );
+    expect(responses.at(-1)?.error).toContain('read-only');
+    await act(async () =>
+      emit('mcp-command', {
+        requestId: 'card-metadata',
+        kind: 'set-image-metadata',
+        path,
+        baseAdjustments: INITIAL_ADJUSTMENTS,
+        imagePaths: [path],
+        changes: { rating: 4 },
+      }),
+    );
+    expect(responses.at(-1)?.error).toContain('read-only');
+    expect(
+      invoke.mock.calls.some(([name]) => ['create_mcp_virtual_copy', 'set_mcp_image_metadata'].includes(name)),
+    ).toBe(false);
+  });
+
+  it('assesses substantial edits read-only and opens a separate Reference View', async () => {
+    const draft = {
+      ...INITIAL_ADJUSTMENTS,
+      contrast: 12,
+      colorGrading: { ...INITIAL_ADJUSTMENTS.colorGrading, balance: 20 },
+    };
+    useEditorStore.setState({ selectedImage: image, adjustments: draft });
+    await mount();
+    const before = useEditorStore.getState();
+    await act(async () =>
+      emit('mcp-command', { requestId: 'assess', kind: 'assess-edits', path, baseAdjustments: draft }),
+    );
+    expect(responses.at(-1)).toMatchObject({
+      error: null,
+      response: { assessment: { recommendVirtualCopy: true, hasColorGrading: true } },
+    });
+    await act(async () =>
+      emit('mcp-command', {
+        requestId: 'reference',
+        kind: 'open-reference-view',
+        path,
+        baseAdjustments: draft,
+        referencePath: path + '?vc=base',
+      }),
+    );
+    expect(useEditorStore.getState().referenceView).toMatchObject({
+      mode: 'side-by-side',
+      reference: { path: path + '?vc=base' },
+    });
+    expect(useEditorStore.getState().adjustments).toBe(before.adjustments);
+    expect(useEditorStore.getState().history).toBe(before.history);
+  });
+
+  it('requests the app confirmation callback and never invokes a delete command', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    const requestDeletePaths = vi.fn();
+    function Harness() {
+      useMcpBridge(
+        vi.fn(async () => undefined),
+        { requestDeletePaths },
+      );
+      return null;
+    }
+    root = createRoot(document.createElement('div'));
+    await act(async () => root!.render(createElement(Harness)));
+    await act(async () =>
+      emit('mcp-command', {
+        requestId: 'delete',
+        kind: 'request-delete-image',
+        path,
+        baseAdjustments: INITIAL_ADJUSTMENTS,
+      }),
+    );
+    expect(requestDeletePaths).toHaveBeenCalledExactlyOnceWith([path], true);
+    expect(responses.at(-1)).toMatchObject({
+      error: null,
+      response: { confirmationPending: true, includesVirtualCopies: true },
+    });
+    expect(invoke.mock.calls.some(([name]) => name.startsWith('delete_'))).toBe(false);
   });
 });

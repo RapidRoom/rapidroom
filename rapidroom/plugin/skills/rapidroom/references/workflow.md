@@ -15,6 +15,14 @@ Connect, establish the destination and look, agree the crop, inspect, edit, comp
 - Read what's already there. A photo can arrive with an edit (the user's, a preset, a Lightroom import). Build on it unless the user asks for a fresh start; never reset without asking.
 - Write a two-line brief before changing anything: what the photo is about, what's in the way, and the direction (the user's words come first). See [direction.md](direction.md).
 
+## Protect existing work before proposing changes
+
+When the user asks for ideas or an alternative edit, call `assess_edits` with the current path/revision before the first mutation. If it recommends a virtual copy (masks, curves, grading or substantial settings), automatically call `create_virtual_copy`, tell the user you preserved their version, then open the **returned** copy path and read its current revision. Edit and export that copy. An untouched photo, or only crop plus a few Basic sliders, can be edited in place. The user's explicit instruction to edit the original takes precedence; don't silently reset it. If the installed build lacks assessment/copy tools, explain the missing protection and ask before overwriting existing work.
+
+For a requested Style/look, use `list_presets` and `apply_preset`, preferably by the returned stable ID. Inspect availability, masks and geometry first. Use the native Amount control and verify `get_editor_context.appliedPreset`. Don't manually translate a bundled XMP recipe or invent a missing preset. Compare before and after, preserve a suitable existing crop and adjust this image rather than apply one grade blindly to a series.
+
+To compare with the user's version, open the AI copy as active and use `open_reference_view` with the base as reference. The user sees the existing side-by-side view. `render_compare` remains for the assistant's own inspection under the installed schema; no wipe feature is promised. “Keep both” is the default. For “keep mine,” open the AI copy, refresh its revision, request deletion, and let the user confirm in the GUI. For “keep AI,” offer keeping both; deleting the original also deletes its virtual copies, so never request that deletion if it would remove the chosen AI copy. A pending confirmation is not a completed deletion.
+
 ## 3. Change, one decision at a time
 
 Typical order. Skip what the photo doesn't need.

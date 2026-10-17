@@ -52,13 +52,17 @@ import Button from '../../ui/Button';
 import Text from '../../ui/Text';
 import Slider from '../../ui/Slider';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
-import { Adjustments, ADJUSTMENT_GROUPS } from '../../../utils/adjustments';
+import { ADJUSTMENT_GROUPS } from '../../../utils/adjustments';
 import { OPTION_SEPARATOR, Preset, type Folder } from '../../ui/AppProperties';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useUIStore } from '../../../store/useUIStore';
 import { debouncedSetHistory, useEditorActions } from '../../../hooks/useEditorActions';
 import { mixPresetAdjustments } from '../../../utils/presetAmount';
-import { rememberAppliedPreset } from '../../../utils/appliedPreset';
+import {
+  usePresetApplication,
+  preparePresetApplication,
+  commitPresetApplication,
+} from '../../../utils/presetApplication';
 import { useAppliedPreset } from '../../../hooks/useAppliedPreset';
 import { presetUnavailableReason, filterPresetLibrary } from '../../../utils/presetBrowser';
 import { clearPresetHoverPreview, showPresetHoverPreview } from '../../../utils/presetHoverPreview';
@@ -474,11 +478,10 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
   const [query, setQuery] = useState('');
   const [compatibleOnly, setCompatibleOnly] = useState(false);
   const exportNewXmp = useRef(false);
-  const presetBase = useRef<Adjustments | null>(null);
-  const lastPresetEdit = useRef<Adjustments | null>(null);
+  const application = usePresetApplication((state) => state.application);
 
-  const [activePresetId, setActivePresetId] = useState<string | null>(null);
-  const [presetIntensity, setPresetIntensity] = useState<number>(100);
+  const activePresetId = application?.preset.id ?? null;
+  const presetIntensity = application?.amount ?? 100;
   const [isActivePresetExpanded, setIsActivePresetExpanded] = useState(true);
 
   const activeView = useUIStore((s) => s.activeView);
@@ -582,19 +585,6 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
     });
   };
 
-  useEffect(() => {
-    setActivePresetId(null);
-    presetBase.current = null;
-    lastPresetEdit.current = null;
-  }, [selectedImage?.path, selectedImage?.isReady]);
-
-  useEffect(() => {
-    if (activePresetId && lastPresetEdit.current !== adjustments) {
-      setActivePresetId(null);
-      presetBase.current = null;
-    }
-  }, [adjustments, activePresetId]);
-
   const handleApplyPreset = (preset: Preset) => {
     if (!selectedImage?.isReady || presetUnavailableReason(preset, selectedImage.exif?.Model)) return;
     setHoverPreview(null);
@@ -602,32 +592,19 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
       setIsActivePresetExpanded((expanded) => !expanded);
       return;
     }
-
-    setActivePresetId(preset.id);
-    setIsActivePresetExpanded(true);
-    setPresetIntensity(100);
-
     debouncedSetHistory.flush();
-    presetBase.current = useEditorStore.getState().adjustments;
-    const next = { ...presetBase.current, ...mixPresetAdjustments(preset, 100, presetBase.current, selectedImage) };
-    lastPresetEdit.current = next;
-    setAdjustments(() => next);
-    void rememberAppliedPreset(selectedImage.path, preset, 100, next);
+    const plan = preparePresetApplication(preset, 100);
+    commitPresetApplication(plan, (next) => setAdjustments(() => next));
+    setIsActivePresetExpanded(true);
     debouncedSetHistory.flush();
   };
 
   const handleIntensityChange = useCallback(
     (preset: Preset, intensity: number) => {
-      const image = useEditorStore.getState().selectedImage;
-      if (!image?.isReady || image.path !== selectedImage?.path) return;
-      setPresetIntensity(intensity);
-      const base = presetBase.current;
-      if (!base || useEditorStore.getState().adjustments !== lastPresetEdit.current) return;
-      const mixed = mixPresetAdjustments(preset, intensity, base, selectedImage);
-      const next = { ...base, ...mixed };
-      lastPresetEdit.current = next;
-      setAdjustments(() => next);
-      void rememberAppliedPreset(image.path, preset, intensity, next);
+      const active = usePresetApplication.getState().application;
+      if (!active || active.preset.id !== preset.id || active.path !== selectedImage?.path) return;
+      const plan = preparePresetApplication(preset, intensity);
+      commitPresetApplication(plan, (next) => setAdjustments(() => next));
     },
     [setAdjustments, selectedImage],
   );

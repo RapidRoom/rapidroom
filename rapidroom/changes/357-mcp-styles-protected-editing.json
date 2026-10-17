@@ -1,0 +1,15 @@
+{
+  "id": "mcp-styles-protected-editing",
+  "title": "Native Styles and protected alternative edits for assistants",
+  "category": "feature",
+  "landed": "2026-10-17",
+  "authors": [
+    "yojen7"
+  ],
+  "source": "rapidroom",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "AI-assisted implementation: discover and apply the live preset catalog with shared GUI Amount baselines and persistent indicators; snapshot unsaved edits in virtual copies, set ratings/labels/flags, assess existing edit depth, open read-only side-by-side Reference View and request user-confirmed deletion. No compare wipe, preset creation/import, personal profile setup or automatic publication. Deleting an original still removes its virtual copies; keep both by default."
+}

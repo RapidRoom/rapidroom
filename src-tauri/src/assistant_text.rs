@@ -67,6 +67,8 @@ fn operational(key: &str) -> bool {
     matches!(
         key,
         "path"
+            | "referencePath"
+            | "sourceImagePath"
             | "activeImagePath"
             | "imagePath"
             | "imagePaths"
@@ -93,6 +95,8 @@ fn opaque(key: &str, value: &str) -> bool {
             | "expectedRevision"
             | "currentRevision"
             | "id"
+            | "presetId"
+            | "groupId"
             | "activeMaskId"
             | "activeMaskContainerId"
             | "virtualCopy"
@@ -550,6 +554,20 @@ fn input_names(value: &mut Value, current: &Value, aliases: Option<(&NameEchoes,
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn opaque_catalog_selectors_and_reference_paths_survive_projection() {
+        let id = format!("preset:{}", "a".repeat(64));
+        let group = format!("group:{}", "b".repeat(64));
+        let value = serde_json::json!({"id":id,"presetId":id,"groupId":group,"referencePath":"/photos/secret=filename.raw?vc=abc123","sourceImagePath":"/photos/base.raw","name":"password=hidden"});
+        let shown = project(&value);
+        assert_eq!(shown["id"], value["id"]);
+        assert_eq!(shown["presetId"], value["presetId"]);
+        assert_eq!(shown["groupId"], value["groupId"]);
+        assert_eq!(shown["referencePath"], value["referencePath"]);
+        assert_eq!(shown["sourceImagePath"], value["sourceImagePath"]);
+        assert_ne!(shown["name"], value["name"]);
+    }
+
     #[test]
     fn utf8_controls_bidi_and_credentials_are_projected_with_shared_budget() {
         let mut budget = TextBudget::default();

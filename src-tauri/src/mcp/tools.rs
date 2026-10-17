@@ -267,6 +267,8 @@ pub(super) fn tool_definitions() -> Vec<Value> {
                 adjustments::referenced_definitions(&tool["inputSchema"], &all);
         }
     }
+    definitions.extend(super::presets::definitions());
+    definitions.extend(super::library::definitions());
     definitions
 }
 
@@ -275,6 +277,11 @@ pub(super) async fn call_tool(
     name: &str,
     mut arguments: Value,
 ) -> Result<Value, (i64, String)> {
+    let exact_preset_name = if name == "apply_preset" {
+        arguments.get("name").cloned()
+    } else {
+        None
+    };
     if let Some(current) = ui::active_session(app_handle) {
         app_handle
             .state::<crate::AppState>()
@@ -291,7 +298,16 @@ pub(super) async fn call_tool(
     } else {
         crate::assistant_text::project_input(&mut arguments);
     }
+    if let Some(exact) = exact_preset_name {
+        arguments["name"] = exact;
+    }
     let result = match name {
+        "create_virtual_copy"
+        | "set_image_metadata"
+        | "assess_edits"
+        | "open_reference_view"
+        | "request_delete_image" => super::library::call(app_handle, name, &arguments).await,
+        "list_presets" | "apply_preset" => super::presets::call(app_handle, name, &arguments).await,
         "list_images" => list_images(app_handle, &arguments),
         "open_image" | "select_image" => select_image(app_handle, &arguments).await,
         "get_image_state" => get_image_state(app_handle, &arguments),
@@ -1165,7 +1181,7 @@ fn bounded_f64(
     Ok(value as f32)
 }
 
-async fn check_expected_revision(
+pub(super) async fn check_expected_revision(
     app_handle: &AppHandle,
     path: &str,
     expected: Option<&Value>,

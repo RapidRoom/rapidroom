@@ -5258,6 +5258,85 @@ pub fn create_virtual_copy(
     Ok(new_virtual_path)
 }
 
+/// Snapshot the active draft without flushing it over the source photo's sidecar.
+/// Keep all other sidecar metadata, including fields introduced by newer versions.
+#[cfg(feature = "mcp")]
+pub(crate) fn create_virtual_copy_from_draft(
+    path: &str,
+    adjustments: Value,
+) -> Result<String, String> {
+    use std::io::Write;
+    let (source, sidecar) = parse_virtual_path(path);
+    ensure_card_writable(&source)?;
+    if !source.is_file() {
+        return Err("Virtual copy source is not a file".into());
+    }
+    let mut metadata = match fs::read(&sidecar) {
+        Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            serde_json::to_value(ImageMetadata::default()).map_err(|e| e.to_string())?
+        }
+        Err(error) => return Err(error.to_string()),
+    };
+    let object = metadata
+        .as_object_mut()
+        .ok_or("Invalid source sidecar metadata")?;
+    object.insert("adjustments".into(), adjustments);
+    let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
+    for _ in 0..16 {
+        let id = Uuid::new_v4().to_string()[..6].to_string();
+        let copy = format!("{}?vc={id}", source.to_string_lossy());
+        let (_, target) = parse_virtual_path(&copy);
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&target)
+        {
+            Ok(mut file) => {
+                if let Err(error) = file.write_all(&bytes).and_then(|()| file.sync_all()) {
+                    let _ = fs::remove_file(&target);
+                    return Err(error.to_string());
+                }
+                return Ok(copy);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.to_string()),
+        }
+    }
+    Err("Could not allocate a unique virtual copy ID".into())
+}
+
+#[cfg(feature = "mcp")]
+pub(crate) fn set_assistant_metadata(
+    paths: &[String],
+    changes: &Value,
+    app: &AppHandle,
+) -> Result<(), String> {
+    update_metadata_for_paths(paths, app, |metadata| {
+        if let Some(rating) = changes.get("rating").and_then(Value::as_u64) {
+            apply_user_rating(metadata, rating as u8);
+        }
+        if let Some(flag) = changes.get("flag") {
+            apply_user_flag(
+                metadata,
+                match flag.as_str() {
+                    Some("pick") => Some(ImageFlag::Pick),
+                    Some("reject") => Some(ImageFlag::Reject),
+                    _ => None,
+                },
+            );
+        }
+        if let Some(color) = changes.get("colorLabel") {
+            let mut tags = metadata.tags.take().unwrap_or_default();
+            tags.retain(|tag| !tag.starts_with(COLOR_TAG_PREFIX));
+            if let Some(color) = color.as_str() {
+                tags.push(format!("{COLOR_TAG_PREFIX}{color}"));
+            }
+            metadata.tags = (!tags.is_empty()).then_some(tags);
+        }
+    })
+}
+
 fn create_virtual_copy_on_disk(source_virtual_path: &str) -> Result<String, String> {
     let (source_path, source_sidecar_path) = parse_virtual_path(source_virtual_path);
     ensure_card_writable(&source_path)?;
@@ -6245,6 +6324,38 @@ mod card_mode_tests {
         assert!(Path::new(&duplicate_file_on_disk(&photo).unwrap()).is_file());
         let copy = create_virtual_copy_on_disk(&photo).unwrap();
         assert!(parse_virtual_path(&copy).1.is_file());
+    }
+
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn assistant_copy_snapshots_unsaved_draft_and_preserves_source_and_other_metadata() {
+        let f = folders();
+        {
+            let _mode = CardMode::on(&f.card);
+            let before = snapshot(&f.card);
+            assert_read_only(create_virtual_copy_from_draft(&path_str(&f.dcim.join("IMG_0001.jpg")), serde_json::json!({"exposure":1.25})));
+            assert_eq!(snapshot(&f.card), before);
+        }
+        let _mode = CardMode::off();
+        let photo = path_str(&f.library.join("IMG_0001.jpg"));
+        let (_, source_sidecar) = parse_virtual_path(&photo);
+        let raw_before = fs::read(&photo).unwrap();
+        let metadata = serde_json::json!({"version":1,"rating":4,"tags":["keep"],"adjustments":{"exposure":0.2},"futureField":{"retained":true}});
+        fs::write(&source_sidecar, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
+        let source_before = fs::read(&source_sidecar).unwrap();
+        let draft = serde_json::json!({"exposure":1.25,"masks":[]});
+        let copy = create_virtual_copy_from_draft(&photo, draft.clone()).unwrap();
+        let copied: Value = serde_json::from_slice(&fs::read(parse_virtual_path(&copy).1).unwrap()).unwrap();
+        assert_eq!(copied["adjustments"], draft);
+        assert_eq!(copied["rating"], 4);
+        assert_eq!(copied["futureField"]["retained"], true);
+        assert_eq!(fs::read(&source_sidecar).unwrap(), source_before);
+        assert_eq!(fs::read(&photo).unwrap(), raw_before);
+        assert_ne!(create_virtual_copy_from_draft(&photo, draft).unwrap(), copy);
+        fs::write(&source_sidecar, b"malformed").unwrap();
+        let before = snapshot(&f.library);
+        assert!(create_virtual_copy_from_draft(&photo, serde_json::json!({})).is_err());
+        assert_eq!(snapshot(&f.library), before);
     }
 
     #[test]
