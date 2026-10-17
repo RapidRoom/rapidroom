@@ -1141,7 +1141,8 @@
       "browseFailed": "Failed to browse the card: {{error}}",
       "browseTooltip": "Browse a memory card read-only",
       "editNotSaved": "Card mode is read-only: edits stay in memory and aren't saved to the card. Import the photo to keep them.",
-      "opened": "Card opened read-only. RapidRoom won't change anything on it; import photos to keep your edits."
+      "opened": "Card opened read-only. RapidRoom won't change anything on it; import photos to keep your edits.",
+      "videoNotice": "On this card. Photo import excludes videos."
     },
     "community": {
       "actionSave": "Save",
@@ -1406,6 +1407,8 @@
       "goHome": "Go to Home",
       "importImages": "Import Images"
     },
+    "videosNotShown_one": "{{count}} video not shown",
+    "videosNotShown_other": "{{count}} videos not shown",
     "photoCounts": {
       "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
       "emptyFolder": "No photos directly in this folder.",
@@ -1662,7 +1665,8 @@
       "organizeByDate": "Organize into subfolders by date",
       "sourceFiles": "Source Files",
       "startImport": "Start Import",
-      "title": "Import Settings"
+      "title": "Import Settings",
+      "photosOnly": "Imports photos only. Videos are not copied or removed."
     },
     "lensCorrection": {
       "amount": "Amount",
