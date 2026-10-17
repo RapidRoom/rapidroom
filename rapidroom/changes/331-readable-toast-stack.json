@@ -1,0 +1,13 @@
+{
+  "id": "readable-toast-stack",
+  "title": "Keep stacked notifications and errors readable",
+  "category": "fix",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#331"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Preserve notification layout and spacing, prevent stacked toasts from shrinking, and allow long notification lists to scroll within the window. Errors stay at the front of the stack until explicitly dismissed, while later success messages retain their normal timeout."
+}
