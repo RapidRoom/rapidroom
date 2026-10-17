@@ -1,3 +1,5 @@
+import { showInstagramExportComplete } from '../utils/instagramExportToast';
+import { showTransferSummary, type TransferSummary } from '../utils/fileTransfers';
 import { useEffect, useRef } from 'react';
 import { listen as tauriListen, type Event, type UnlistenFn } from '@tauri-apps/api/event';
 import { convertFileSrc } from '@tauri-apps/api/core';
@@ -6,6 +8,7 @@ import type {
   CullingSuggestions,
   ImageFile,
   ImageFlag,
+  StackMember,
   HistogramData,
   Progress,
   WaveformData,
@@ -41,7 +44,7 @@ interface TauriEventPayloads {
   'external-edit-session': ExternalEditSession;
   'export-cancelled': null;
   'export-cancelling': null;
-  'export-complete': null;
+  'export-complete': { instagramOutputFolder?: string | null } | null;
   'export-error': string;
   'focus-stack-complete': { base64: string; depthMap: string };
   'focus-stack-error': string;
@@ -55,8 +58,9 @@ interface TauriEventPayloads {
     path: string;
     rating: number;
     tags: string[] | null;
+    stack?: StackMember | null;
   };
-  'import-complete': null;
+  'import-complete': TransferSummary;
   'import-error': string;
   'import-progress': { current: number; path: string; total: number };
   'import-start': { total: number };
@@ -253,9 +257,10 @@ export function useTauriListeners({
       listen('batch-export-progress', (event) => {
         if (isEffectActive) useProcessStore.getState().setExportState({ progress: event.payload });
       }),
-      listen('export-complete', () => {
+      listen('export-complete', (event) => {
         if (isEffectActive) {
           useProcessStore.getState().setExportState({ status: Status.Success });
+          if (event.payload?.instagramOutputFolder) showInstagramExportComplete(event.payload.instagramOutputFolder);
           refreshAfterExport();
         }
       }),
@@ -293,9 +298,13 @@ export function useTauriListeners({
             progress: { current: event.payload.current, total: event.payload.total },
           });
       }),
-      listen('import-complete', () => {
+      listen('import-complete', (event) => {
         if (isEffectActive) {
-          useProcessStore.getState().setImportState({ status: Status.Success });
+          useProcessStore.getState().setImportState({
+            status: event.payload.failed ? Status.Error : Status.Success,
+            errorMessage: event.payload.errors.join('\n'),
+          });
+          showTransferSummary(event.payload, 'import');
           refs.current.refreshAllFolderTrees();
           const currentPath = useLibraryStore.getState().currentFolderPath;
           if (currentPath) {

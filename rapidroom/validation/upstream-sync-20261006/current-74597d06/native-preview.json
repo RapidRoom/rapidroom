@@ -1,0 +1,2659 @@
+{
+  "source": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+  "main_control": "f30d0e87cc8e2165c52582a9929a713ee07ac3d7",
+  "passed": true,
+  "cases": [
+    {
+      "case": "candidate-preview-fuji-xh2-40mp-compressed",
+      "engine_sha256": "484cc824f616a171681cd76aa19799c8b5aa57a5b91d912e0f469bbe7c11dcf9",
+      "fixture": "fuji-xh2-40mp-compressed.RAF",
+      "fixture_guard": {
+        "sha256": "caeadb2666f6c5d9bbe32fbe692c2079b6a7e028f8514a13173f360656d08507",
+        "mtime_ns": 1790879658456194233
+      },
+      "steps": [
+        {
+          "name": "library thumbnail",
+          "evidence": [
+            {
+              "width": 320,
+              "height": 480,
+              "complete": true
+            }
+          ]
+        },
+        {
+          "name": "neutral fit view normalized before exact comparisons",
+          "evidence": {
+            "method": "Public Exposure0.2 edit/reset; initial1280 and subsequent fit1024 encode are not pixel-identical contracts"
+          }
+        },
+        {
+          "name": "native preview",
+          "evidence": {
+            "roi": [
+              622,
+              120,
+              1058,
+              774
+            ],
+            "capture": "captures/preview-1/wayland-screenshot-2026-10-13_11-51-48.png"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 0.8,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-0-1/wayland-screenshot-2026-10-13_11-51-50.png",
+            "preview_mean_absolute_difference": [
+              30.879699379962403,
+              31.454857896361137,
+              24.76582007687344
+            ],
+            "histogram_sha256": "4b8772206aa3c4db94ac1fe7ea7edb1f0574238e099c8acfca87e2af6529657f"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -0.6,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-1-1/wayland-screenshot-2026-10-13_11-51-51.png",
+            "preview_mean_absolute_difference": [
+              49.17017366663861,
+              50.11347249109222,
+              39.908007883735934
+            ],
+            "histogram_sha256": "6b1ee71aa2688a3f890867d44a0380241d396fd402849cf4d1208463599708dd"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 1.2,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-2-1/wayland-screenshot-2026-10-13_11-51-53.png",
+            "preview_mean_absolute_difference": [
+              68.3897258928822,
+              69.57669458238644,
+              55.80116362259069
+            ],
+            "histogram_sha256": "ef71d53f994f428b6638d534bf93d7d86559d683aeef99ca404c475083686607"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -1.0,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -1.02,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-3-1/wayland-screenshot-2026-10-13_11-51-55.png",
+            "preview_mean_absolute_difference": [
+              78.18594113851248,
+              79.62693937098449,
+              64.17366663861067
+            ],
+            "histogram_sha256": "5ee553fdf2062f0661759626f88432ae39dae0b4f116cea9ec1bcd654d9a1f04"
+          }
+        },
+        {
+          "name": "repeated reset restores full preview exactly",
+          "evidence": {
+            "capture": "captures/repeat-reset-1/wayland-screenshot-2026-10-13_11-51-57.png"
+          }
+        },
+        {
+          "name": "actual 100 percent native preview capture",
+          "evidence": {
+            "capture": "captures/raf-or-sony-100-percent-2/wayland-screenshot-2026-10-13_11-52-00.png",
+            "decoded_surfaces": [
+              {
+                "decodedHeight": 7728,
+                "decodedWidth": 5152,
+                "height": "100%",
+                "width": "100%",
+                "x": "0",
+                "y": "0"
+              }
+            ],
+            "method": "Real displayed SVG base/fade/patch resources decoded at actual typed 100 percent; no canvas synthesis"
+          }
+        },
+        {
+          "name": "native u wheel adjacent stop 150 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 100,
+              "transform": "translate(-5451.522936px, -3537px) scale(11.816514)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 150,
+              "transform": "translate(-8454.284404px, -5485px) scale(17.724771)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 479,
+              "deltaMode": 0,
+              "deltaY": -103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": 120
+            },
+            "anchor_error_css_px": 1.3773979162579053e-05
+          }
+        },
+        {
+          "name": "native d wheel adjacent stop 100 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 150,
+              "transform": "translate(-8454.284404px, -5485px) scale(17.724771)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 100,
+              "transform": "translate(-5451.522936px, -3537px) scale(11.816514)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 479,
+              "deltaMode": 0,
+              "deltaY": 103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": -120
+            },
+            "anchor_error_css_px": 1.3773979162579053e-05
+          }
+        },
+        {
+          "name": "wheel notch 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 150,
+            "transform": "translate(-8429.284404px, -5469px) scale(17.724771)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "wheel ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 400,
+            "transform": "translate(-23318.091743px, -15129px) scale(47.266055)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch and typed zoom share 400 percent ceiling",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 400,
+            "transform": "translate(-23318.091743px, -15129px) scale(47.266055)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 102,
+            "transform": "translate(-5571.83248px, -3615.057978px) scale(12.055223)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "fine pixel scroll remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 102,
+            "transform": "translate(-5571.83248px, -3615.057978px) scale(12.055223)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard step 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 150,
+            "transform": "translate(-8429.284404px, -5469px) scale(17.724771)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "rapid keyboard steps do not wait for readout",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 300,
+            "transform": "translate(-17362.568807px, -11265px) scale(35.449541)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 400,
+            "transform": "translate(-23318.091743px, -15129px) scale(47.266055)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "slider maximum matches ceiling",
+          "evidence": {
+            "height": 6,
+            "max": 4,
+            "min": 0.01,
+            "step": 0.01,
+            "value": 4,
+            "width": 136
+          }
+        },
+        {
+          "name": "zoom restored to fit",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 8,
+            "transform": "translate(0px) scale(1)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "post-zoom fit preview",
+          "evidence": {
+            "capture": "captures/post-zoom-fit-1/wayland-screenshot-2026-10-13_11-52-14.png"
+          }
+        },
+        {
+          "name": "edits change preview",
+          "evidence": {
+            "edits": [
+              {
+                "label": "Exposure",
+                "requested": 1,
+                "before": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0,
+                  "width": 171
+                },
+                "after": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0.96,
+                  "width": 171
+                }
+              },
+              {
+                "label": "Contrast",
+                "requested": 20,
+                "before": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 0,
+                  "width": 195
+                },
+                "after": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 20,
+                  "width": 195
+                }
+              }
+            ],
+            "mean_absolute_difference": [
+              33.20058286339534,
+              34.42589007659288,
+              24.249032068007743
+            ]
+          }
+        },
+        {
+          "name": "Undo restores preview exactly",
+          "evidence": {
+            "undo_clicks": 1
+          }
+        },
+        {
+          "name": "Compact enabled and persisted",
+          "evidence": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0,
+            "width": 48
+          }
+        },
+        {
+          "name": "GUI JPEG export",
+          "evidence": {
+            "file": "input/smoke_edited.jpg",
+            "sha256": "ab6cab2fee44f24bf418820bf5ec265b0307235abfd51bed6ba67b50d6919666"
+          }
+        },
+        {
+          "name": "clean exit and no frontend/native errors",
+          "evidence": {
+            "exit_code": 0
+          }
+        }
+      ],
+      "guards": {
+        "fixture_unchanged": true,
+        "engine_unchanged": true
+      }
+    },
+    {
+      "case": "candidate-preview-fuji-xt4-26mp-lossless",
+      "engine_sha256": "484cc824f616a171681cd76aa19799c8b5aa57a5b91d912e0f469bbe7c11dcf9",
+      "fixture": "fuji-xt4-26mp-lossless.RAF",
+      "fixture_guard": {
+        "sha256": "07ea642656074834ffe5c661870a612ffa2e80fc1218a05166ee966bbe5f6fae",
+        "mtime_ns": 1790879666717231210
+      },
+      "steps": [
+        {
+          "name": "library thumbnail",
+          "evidence": [
+            {
+              "width": 480,
+              "height": 320,
+              "complete": true
+            }
+          ]
+        },
+        {
+          "name": "neutral fit view normalized before exact comparisons",
+          "evidence": {
+            "method": "Public Exposure0.2 edit/reset; initial1280 and subsequent fit1024 encode are not pixel-identical contracts"
+          }
+        },
+        {
+          "name": "native preview",
+          "evidence": {
+            "roi": [
+              350,
+              120,
+              1330,
+              774
+            ],
+            "capture": "captures/preview-1/wayland-screenshot-2026-10-13_12-01-43.png"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 0.8,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-0-1/wayland-screenshot-2026-10-13_12-01-45.png",
+            "preview_mean_absolute_difference": [
+              29.090771079073832,
+              32.53331148973351,
+              25.04023435062098
+            ],
+            "histogram_sha256": "99a58bc58d24c3ff8e5a92a9513772d477cb4f9284b93c2ecc4ecde71e57222d"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -0.6,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-1-1/wayland-screenshot-2026-10-13_12-01-47.png",
+            "preview_mean_absolute_difference": [
+              45.82025681832366,
+              50.960229045746736,
+              39.222427135992014
+            ],
+            "histogram_sha256": "112ec71d4c87f92d3828c9c96b057afbf604c8f9848b4c06248c628b68ab2dca"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 1.2,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-2-1/wayland-screenshot-2026-10-13_12-01-49.png",
+            "preview_mean_absolute_difference": [
+              64.55691349934469,
+              71.77981183299008,
+              55.51831273793921
+            ],
+            "histogram_sha256": "afdd25e717448dfe1e0e5b5ec22f3a87d7f42eb905007de146851e9b041bb9b2"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -1.0,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -1.02,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-3-1/wayland-screenshot-2026-10-13_12-01-51.png",
+            "preview_mean_absolute_difference": [
+              73.1254056668539,
+              81.39426761530301,
+              62.8901220121076
+            ],
+            "histogram_sha256": "b797c865ceb0a24d2527becb0a5417499b823af02390d0ed1c4f610c1329e9ea"
+          }
+        },
+        {
+          "name": "repeated reset restores full preview exactly",
+          "evidence": {
+            "capture": "captures/repeat-reset-1/wayland-screenshot-2026-10-13_12-01-54.png"
+          }
+        },
+        {
+          "name": "actual 100 percent native preview capture",
+          "evidence": {
+            "capture": "captures/raf-or-sony-100-percent-2/wayland-screenshot-2026-10-13_12-01-57.png",
+            "decoded_surfaces": [
+              {
+                "decodedHeight": 4160,
+                "decodedWidth": 6240,
+                "height": "100%",
+                "width": "100%",
+                "x": "0",
+                "y": "0"
+              }
+            ],
+            "method": "Real displayed SVG base/fade/patch resources decoded at actual typed 100 percent; no canvas synthesis"
+          }
+        },
+        {
+          "name": "native u wheel adjacent stop 150 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 100,
+              "transform": "translate(-2701.87156px, -1753px) scale(6.360856)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 150,
+              "transform": "translate(-4329.807339px, -2809px) scale(9.541284)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 479,
+              "deltaMode": 0,
+              "deltaY": -103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": 120
+            },
+            "anchor_error_css_px": 2.5587816537608887e-05
+          }
+        },
+        {
+          "name": "native d wheel adjacent stop 100 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 150,
+              "transform": "translate(-4329.807339px, -2809px) scale(9.541284)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 100,
+              "transform": "translate(-2701.87156px, -1753px) scale(6.360856)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 479,
+              "deltaMode": 0,
+              "deltaY": 103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": -120
+            },
+            "anchor_error_css_px": 2.5587816537608887e-05
+          }
+        },
+        {
+          "name": "wheel notch 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 150,
+            "transform": "translate(-4304.807339px, -2793px) scale(9.541284)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "wheel ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 400,
+            "transform": "translate(-12319.486239px, -7993px) scale(25.443425)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch and typed zoom share 400 percent ceiling",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 400,
+            "transform": "translate(-12319.486239px, -7993px) scale(25.443425)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 102,
+            "transform": "translate(-2766.634461px, -1795.018787px) scale(6.489354)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "fine pixel scroll remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 102,
+            "transform": "translate(-2766.634461px, -1795.018787px) scale(6.489354)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard step 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 150,
+            "transform": "translate(-4304.807339px, -2793px) scale(9.541284)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "rapid keyboard steps do not wait for readout",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 300,
+            "transform": "translate(-9113.614679px, -5913px) scale(19.082569)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 400,
+            "transform": "translate(-12319.486239px, -7993px) scale(25.443425)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "slider maximum matches ceiling",
+          "evidence": {
+            "height": 6,
+            "max": 4,
+            "min": 0.01,
+            "step": 0.01,
+            "value": 4,
+            "width": 136
+          }
+        },
+        {
+          "name": "zoom restored to fit",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 16,
+            "transform": "translate(0px) scale(1)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "post-zoom fit preview",
+          "evidence": {
+            "capture": "captures/post-zoom-fit-1/wayland-screenshot-2026-10-13_12-02-11.png"
+          }
+        },
+        {
+          "name": "edits change preview",
+          "evidence": {
+            "edits": [
+              {
+                "label": "Exposure",
+                "requested": 1,
+                "before": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0,
+                  "width": 171
+                },
+                "after": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0.96,
+                  "width": 171
+                }
+              },
+              {
+                "label": "Contrast",
+                "requested": 20,
+                "before": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 0,
+                  "width": 195
+                },
+                "after": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 20,
+                  "width": 195
+                }
+              }
+            ],
+            "mean_absolute_difference": [
+              30.279184609623666,
+              35.94355145728016,
+              24.478131436060664
+            ]
+          }
+        },
+        {
+          "name": "Undo restores preview exactly",
+          "evidence": {
+            "undo_clicks": 1
+          }
+        },
+        {
+          "name": "Compact enabled and persisted",
+          "evidence": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0,
+            "width": 48
+          }
+        },
+        {
+          "name": "GUI JPEG export",
+          "evidence": {
+            "file": "input/smoke_edited.jpg",
+            "sha256": "70289d180172c22cc264730ccd2b251dfb76ef8728195827ae89768d15164edf"
+          }
+        },
+        {
+          "name": "clean exit and no frontend/native errors",
+          "evidence": {
+            "exit_code": 0
+          }
+        }
+      ],
+      "guards": {
+        "fixture_unchanged": true,
+        "engine_unchanged": true
+      }
+    },
+    {
+      "case": "candidate-preview-sony-a7c2-15mp-uncompressed",
+      "engine_sha256": "484cc824f616a171681cd76aa19799c8b5aa57a5b91d912e0f469bbe7c11dcf9",
+      "fixture": "sony-a7c2-15mp-uncompressed.ARW",
+      "fixture_guard": {
+        "sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+        "mtime_ns": 1790835857568261641
+      },
+      "steps": [
+        {
+          "name": "library thumbnail",
+          "evidence": [
+            {
+              "width": 480,
+              "height": 321,
+              "complete": true
+            }
+          ]
+        },
+        {
+          "name": "neutral fit view normalized before exact comparisons",
+          "evidence": {
+            "method": "Public Exposure0.2 edit/reset; initial1280 and subsequent fit1024 encode are not pixel-identical contracts"
+          }
+        },
+        {
+          "name": "native preview",
+          "evidence": {
+            "roi": [
+              350,
+              120,
+              1330,
+              774
+            ],
+            "capture": "captures/preview-1/wayland-screenshot-2026-10-13_12-10-44.png"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 0.8,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-0-1/wayland-screenshot-2026-10-13_12-10-46.png",
+            "preview_mean_absolute_difference": [
+              38.75243868189477,
+              41.40412063908132,
+              28.466733757723272
+            ],
+            "histogram_sha256": "206825e7d55b2031d694ef272e8424640aec888f52763c715e91f22352257bc6"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -0.6,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-1-1/wayland-screenshot-2026-10-13_12-10-48.png",
+            "preview_mean_absolute_difference": [
+              61.06279410846908,
+              66.69804343755851,
+              48.66915683704674
+            ],
+            "histogram_sha256": "c0a6d96e4055de687ea4e1878027d228d261f0e59428a3f6ec5d1ddbfe6696c4"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 1.2,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-2-1/wayland-screenshot-2026-10-13_12-10-50.png",
+            "preview_mean_absolute_difference": [
+              85.2550240279598,
+              90.27157211508457,
+              61.906556200461836
+            ],
+            "histogram_sha256": "49cc7f3410ef0d2f72ae1a29adb84eaadb073e0b1a18af12983a543cb8509476"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -1.0,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -1.02,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-3-1/wayland-screenshot-2026-10-13_12-10-52.png",
+            "preview_mean_absolute_difference": [
+              96.94150596018224,
+              103.94415995756101,
+              73.39625694314422
+            ],
+            "histogram_sha256": "51b5977dc7548d3d6bfc994bbfd929b95f1f3f2481467bc72b62249eb872fafb"
+          }
+        },
+        {
+          "name": "repeated reset restores full preview exactly",
+          "evidence": {
+            "capture": "captures/repeat-reset-1/wayland-screenshot-2026-10-13_12-10-54.png"
+          }
+        },
+        {
+          "name": "actual 100 percent native preview capture",
+          "evidence": {
+            "capture": "captures/raf-or-sony-100-percent-1/wayland-screenshot-2026-10-13_12-10-56.png",
+            "decoded_surfaces": [
+              {
+                "decodedHeight": 3072,
+                "decodedWidth": 4608,
+                "height": "100%",
+                "width": "100%",
+                "x": "0",
+                "y": "0"
+              }
+            ],
+            "method": "Real displayed SVG base/fade/patch resources decoded at actual typed 100 percent; no canvas synthesis"
+          }
+        },
+        {
+          "name": "native u wheel adjacent stop 150 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 100,
+              "transform": "translate(-1863.412844px, -1209px) scale(4.697248)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 150,
+              "transform": "translate(-3072.119266px, -1993px) scale(7.045872)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 479,
+              "deltaMode": 0,
+              "deltaY": -103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": 120
+            },
+            "anchor_error_css_px": 1.732508235363639e-05
+          }
+        },
+        {
+          "name": "native d wheel adjacent stop 100 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 150,
+              "transform": "translate(-3072.119266px, -1993px) scale(7.045872)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 654,
+              "percent": 100,
+              "transform": "translate(-1863.412844px, -1209px) scale(4.697248)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 479,
+              "deltaMode": 0,
+              "deltaY": 103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": -120
+            },
+            "anchor_error_css_px": 1.732508235363639e-05
+          }
+        },
+        {
+          "name": "wheel notch 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 150,
+            "transform": "translate(-3047.119266px, -1977px) scale(7.045872)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "wheel ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 400,
+            "transform": "translate(-8965.651376px, -5817px) scale(18.788991)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch and typed zoom share 400 percent ceiling",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 400,
+            "transform": "translate(-8965.651376px, -5817px) scale(18.788991)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 102,
+            "transform": "translate(-1911.237756px, -1240.029258px) scale(4.792138)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "fine pixel scroll remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 102,
+            "transform": "translate(-1911.237756px, -1240.029258px) scale(4.792138)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard step 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 150,
+            "transform": "translate(-3047.119266px, -1977px) scale(7.045872)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "rapid keyboard steps do not wait for readout",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 300,
+            "transform": "translate(-6598.238532px, -4281px) scale(14.091743)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 400,
+            "transform": "translate(-8965.651376px, -5817px) scale(18.788991)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "slider maximum matches ceiling",
+          "evidence": {
+            "height": 6,
+            "max": 4,
+            "min": 0.01,
+            "step": 0.01,
+            "value": 4,
+            "width": 136
+          }
+        },
+        {
+          "name": "zoom restored to fit",
+          "evidence": {
+            "dpr": 1,
+            "height": 654,
+            "percent": 21,
+            "transform": "translate(0px) scale(1)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "post-zoom fit preview",
+          "evidence": {
+            "capture": "captures/post-zoom-fit-1/wayland-screenshot-2026-10-13_12-11-10.png"
+          }
+        },
+        {
+          "name": "edits change preview",
+          "evidence": {
+            "edits": [
+              {
+                "label": "Exposure",
+                "requested": 1,
+                "before": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0,
+                  "width": 171
+                },
+                "after": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0.96,
+                  "width": 171
+                }
+              },
+              {
+                "label": "Contrast",
+                "requested": 20,
+                "before": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 0,
+                  "width": 195
+                },
+                "after": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 20,
+                  "width": 195
+                }
+              }
+            ],
+            "mean_absolute_difference": [
+              46.716065967671476,
+              49.92442582537602,
+              27.629961617674592
+            ]
+          }
+        },
+        {
+          "name": "Undo restores preview exactly",
+          "evidence": {
+            "undo_clicks": 1
+          }
+        },
+        {
+          "name": "Compact enabled and persisted",
+          "evidence": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0,
+            "width": 48
+          }
+        },
+        {
+          "name": "GUI JPEG export",
+          "evidence": {
+            "file": "input/smoke_edited.jpg",
+            "sha256": "c78a1aa990f2cba0f894d0938dc7088e05821ac5cd89fbb6414da7747818d61d"
+          }
+        },
+        {
+          "name": "clean exit and no frontend/native errors",
+          "evidence": {
+            "exit_code": 0
+          }
+        }
+      ],
+      "guards": {
+        "fixture_unchanged": true,
+        "engine_unchanged": true
+      }
+    },
+    {
+      "case": "main-preview-fuji-xh2-40mp-compressed",
+      "engine_sha256": "cbf2b3deb38dd1aa08ee0da3539c50fc6a7bebb622ef67bf02157b3a62b8ad43",
+      "fixture": "fuji-xh2-40mp-compressed.RAF",
+      "fixture_guard": {
+        "sha256": "caeadb2666f6c5d9bbe32fbe692c2079b6a7e028f8514a13173f360656d08507",
+        "mtime_ns": 1790879658456194233
+      },
+      "steps": [
+        {
+          "name": "library thumbnail",
+          "evidence": [
+            {
+              "width": 320,
+              "height": 480,
+              "complete": true
+            }
+          ]
+        },
+        {
+          "name": "neutral fit view normalized before exact comparisons",
+          "evidence": {
+            "method": "Public Exposure0.2 edit/reset; initial1280 and subsequent fit1024 encode are not pixel-identical contracts"
+          }
+        },
+        {
+          "name": "native preview",
+          "evidence": {
+            "roi": [
+              602,
+              120,
+              1078,
+              834
+            ],
+            "capture": "captures/preview-1/wayland-screenshot-2026-10-13_12-20-10.png"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 0.8,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-0-1/wayland-screenshot-2026-10-13_12-20-12.png",
+            "preview_mean_absolute_difference": [
+              30.87557081656192,
+              31.449426829555353,
+              24.760145234564416
+            ],
+            "histogram_sha256": "4b8772206aa3c4db94ac1fe7ea7edb1f0574238e099c8acfca87e2af6529657f"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -0.6,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-1-1/wayland-screenshot-2026-10-13_12-20-14.png",
+            "preview_mean_absolute_difference": [
+              49.169011722335995,
+              50.11185944966222,
+              39.9055975331309
+            ],
+            "histogram_sha256": "6b1ee71aa2688a3f890867d44a0380241d396fd402849cf4d1208463599708dd"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 1.2,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-2-1/wayland-screenshot-2026-10-13_12-20-16.png",
+            "preview_mean_absolute_difference": [
+              68.38694595485254,
+              69.57423263423016,
+              55.79747192994845
+            ],
+            "histogram_sha256": "ef71d53f994f428b6638d534bf93d7d86559d683aeef99ca404c475083686607"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -1.0,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -1.02,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-3-1/wayland-screenshot-2026-10-13_12-20-17.png",
+            "preview_mean_absolute_difference": [
+              78.18070757714851,
+              79.62247546077255,
+              64.16852329166962
+            ],
+            "histogram_sha256": "5ee553fdf2062f0661759626f88432ae39dae0b4f116cea9ec1bcd654d9a1f04"
+          }
+        },
+        {
+          "name": "repeated reset restores full preview exactly",
+          "evidence": {
+            "capture": "captures/repeat-reset-1/wayland-screenshot-2026-10-13_12-20-19.png"
+          }
+        },
+        {
+          "name": "actual 100 percent native preview capture",
+          "evidence": {
+            "capture": "captures/raf-or-sony-100-percent-2/wayland-screenshot-2026-10-13_12-20-23.png",
+            "decoded_surfaces": [
+              {
+                "decodedHeight": 7728,
+                "decodedWidth": 5152,
+                "height": "100%",
+                "width": "100%",
+                "x": "0",
+                "y": "0"
+              }
+            ],
+            "method": "Real displayed SVG base/fade/patch resources decoded at actual typed 100 percent; no canvas synthesis"
+          }
+        },
+        {
+          "name": "native u wheel adjacent stop 150 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 100,
+              "transform": "translate(-4951.058824px, -3507px) scale(10.823529)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 150,
+              "transform": "translate(-7703.588235px, -5456.5px) scale(16.235294)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 512,
+              "deltaMode": 0,
+              "deltaY": -103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": 120
+            },
+            "anchor_error_css_px": 1.4411286201720941e-05
+          }
+        },
+        {
+          "name": "native d wheel adjacent stop 100 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 150,
+              "transform": "translate(-7703.588235px, -5456.5px) scale(16.235294)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 100,
+              "transform": "translate(-4951.058824px, -3507px) scale(10.823529)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 512,
+              "deltaMode": 0,
+              "deltaY": 103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": -120
+            },
+            "anchor_error_css_px": 1.441128625856436e-05
+          }
+        },
+        {
+          "name": "wheel notch 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 150,
+            "transform": "translate(-7678.588235px, -5439px) scale(16.235294)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "wheel ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 400,
+            "transform": "translate(-21316.235294px, -15099px) scale(43.294118)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch and typed zoom share 400 percent ceiling",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 400,
+            "transform": "translate(-21316.235294px, -15099px) scale(43.294118)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 102,
+            "transform": "translate(-5061.258322px, -3585.057978px) scale(11.042179)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "fine pixel scroll remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 102,
+            "transform": "translate(-5061.258322px, -3585.057978px) scale(11.042179)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard step 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 150,
+            "transform": "translate(-7678.588235px, -5439px) scale(16.235294)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "rapid keyboard steps do not wait for readout",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 300,
+            "transform": "translate(-15861.176471px, -11235px) scale(32.470588)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 400,
+            "transform": "translate(-21316.235294px, -15099px) scale(43.294118)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "slider maximum matches ceiling",
+          "evidence": {
+            "height": 6,
+            "max": 4,
+            "min": 0.01,
+            "step": 0.01,
+            "value": 4,
+            "width": 136
+          }
+        },
+        {
+          "name": "zoom restored to fit",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 9,
+            "transform": "translate(0px) scale(1)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "post-zoom fit preview",
+          "evidence": {
+            "capture": "captures/post-zoom-fit-1/wayland-screenshot-2026-10-13_12-20-37.png"
+          }
+        },
+        {
+          "name": "edits change preview",
+          "evidence": {
+            "edits": [
+              {
+                "label": "Exposure",
+                "requested": 1,
+                "before": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0,
+                  "width": 171
+                },
+                "after": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0.96,
+                  "width": 171
+                }
+              },
+              {
+                "label": "Contrast",
+                "requested": 20,
+                "before": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 0,
+                  "width": 195
+                },
+                "after": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 20,
+                  "width": 195
+                }
+              }
+            ],
+            "mean_absolute_difference": [
+              33.195169244168255,
+              34.42138914389285,
+              24.24498034507921
+            ]
+          }
+        },
+        {
+          "name": "Undo restores preview exactly",
+          "evidence": {
+            "undo_clicks": 1
+          }
+        },
+        {
+          "name": "Compact enabled and persisted",
+          "evidence": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0,
+            "width": 48
+          }
+        },
+        {
+          "name": "GUI JPEG export",
+          "evidence": {
+            "file": "input/smoke_edited.jpg",
+            "sha256": "f8b3eec2a58cb13fefa11ba02fa5ae3ce0f5d82ff49d55a33bcbe41173d926bc"
+          }
+        },
+        {
+          "name": "clean exit and no frontend/native errors",
+          "evidence": {
+            "exit_code": 0
+          }
+        }
+      ],
+      "guards": {
+        "fixture_unchanged": true,
+        "engine_unchanged": true
+      }
+    },
+    {
+      "case": "main-preview-fuji-xt4-26mp-lossless",
+      "engine_sha256": "cbf2b3deb38dd1aa08ee0da3539c50fc6a7bebb622ef67bf02157b3a62b8ad43",
+      "fixture": "fuji-xt4-26mp-lossless.RAF",
+      "fixture_guard": {
+        "sha256": "07ea642656074834ffe5c661870a612ffa2e80fc1218a05166ee966bbe5f6fae",
+        "mtime_ns": 1790879666717231210
+      },
+      "steps": [
+        {
+          "name": "library thumbnail",
+          "evidence": [
+            {
+              "width": 480,
+              "height": 320,
+              "complete": true
+            }
+          ]
+        },
+        {
+          "name": "neutral fit view normalized before exact comparisons",
+          "evidence": {
+            "method": "Public Exposure0.2 edit/reset; initial1280 and subsequent fit1024 encode are not pixel-identical contracts"
+          }
+        },
+        {
+          "name": "native preview",
+          "evidence": {
+            "roi": [
+              336,
+              141,
+              1344,
+              813
+            ],
+            "capture": "captures/preview-1/wayland-screenshot-2026-10-13_12-30-44.png"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 0.8,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-0-1/wayland-screenshot-2026-10-13_12-30-46.png",
+            "preview_mean_absolute_difference": [
+              29.09129936696901,
+              32.53746368339002,
+              25.041300547996975
+            ],
+            "histogram_sha256": "99a58bc58d24c3ff8e5a92a9513772d477cb4f9284b93c2ecc4ecde71e57222d"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -0.6,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-1-1/wayland-screenshot-2026-10-13_12-30-48.png",
+            "preview_mean_absolute_difference": [
+              45.82104621362434,
+              50.96544607426304,
+              39.22219712537793
+            ],
+            "histogram_sha256": "112ec71d4c87f92d3828c9c96b057afbf604c8f9848b4c06248c628b68ab2dca"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 1.2,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-2-1/wayland-screenshot-2026-10-13_12-30-50.png",
+            "preview_mean_absolute_difference": [
+              64.5582955404384,
+              71.78618522061602,
+              55.52025758219955
+            ],
+            "histogram_sha256": "afdd25e717448dfe1e0e5b5ec22f3a87d7f42eb905007de146851e9b041bb9b2"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -1.0,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -1.02,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-3-1/wayland-screenshot-2026-10-13_12-30-52.png",
+            "preview_mean_absolute_difference": [
+              73.12874533493954,
+              81.40279696948224,
+              62.89287485827664
+            ],
+            "histogram_sha256": "b797c865ceb0a24d2527becb0a5417499b823af02390d0ed1c4f610c1329e9ea"
+          }
+        },
+        {
+          "name": "repeated reset restores full preview exactly",
+          "evidence": {
+            "capture": "captures/repeat-reset-1/wayland-screenshot-2026-10-13_12-30-54.png"
+          }
+        },
+        {
+          "name": "actual 100 percent native preview capture",
+          "evidence": {
+            "capture": "captures/raf-or-sony-100-percent-2/wayland-screenshot-2026-10-13_12-30-58.png",
+            "decoded_surfaces": [
+              {
+                "decodedHeight": 4160,
+                "decodedWidth": 6240,
+                "height": "100%",
+                "width": "100%",
+                "x": "0",
+                "y": "0"
+              }
+            ],
+            "method": "Real displayed SVG base/fade/patch resources decoded at actual typed 100 percent; no canvas synthesis"
+          }
+        },
+        {
+          "name": "native u wheel adjacent stop 150 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 100,
+              "transform": "translate(-2616px, -1853px) scale(6.190476)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 150,
+              "transform": "translate(-4201px, -2975.5px) scale(9.285714)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 512,
+              "deltaMode": 0,
+              "deltaY": -103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": 120
+            },
+            "anchor_error_css_px": 0.0
+          }
+        },
+        {
+          "name": "native d wheel adjacent stop 100 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 150,
+              "transform": "translate(-4201px, -2975.5px) scale(9.285714)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 100,
+              "transform": "translate(-2616px, -1853px) scale(6.190476)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 512,
+              "deltaMode": 0,
+              "deltaY": 103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": -120
+            },
+            "anchor_error_css_px": 0.0
+          }
+        },
+        {
+          "name": "wheel notch 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 150,
+            "transform": "translate(-4176px, -2958px) scale(9.285714)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "wheel ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 400,
+            "transform": "translate(-11976px, -8483px) scale(24.761905)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch and typed zoom share 400 percent ceiling",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 400,
+            "transform": "translate(-11976px, -8483px) scale(24.761905)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 102,
+            "transform": "translate(-2679.028181px, -1897.644961px) scale(6.315532)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "fine pixel scroll remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 102,
+            "transform": "translate(-2679.028181px, -1897.644961px) scale(6.315532)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard step 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 150,
+            "transform": "translate(-4176px, -2958px) scale(9.285714)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "rapid keyboard steps do not wait for readout",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 300,
+            "transform": "translate(-8856px, -6273px) scale(18.571429)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 400,
+            "transform": "translate(-11976px, -8483px) scale(24.761905)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "slider maximum matches ceiling",
+          "evidence": {
+            "height": 6,
+            "max": 4,
+            "min": 0.01,
+            "step": 0.01,
+            "value": 4,
+            "width": 136
+          }
+        },
+        {
+          "name": "zoom restored to fit",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 16,
+            "transform": "translate(0px) scale(1)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "post-zoom fit preview",
+          "evidence": {
+            "capture": "captures/post-zoom-fit-1/wayland-screenshot-2026-10-13_12-31-12.png"
+          }
+        },
+        {
+          "name": "edits change preview",
+          "evidence": {
+            "edits": [
+              {
+                "label": "Exposure",
+                "requested": 1,
+                "before": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0,
+                  "width": 171
+                },
+                "after": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0.96,
+                  "width": 171
+                }
+              },
+              {
+                "label": "Contrast",
+                "requested": 20,
+                "before": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 0,
+                  "width": 195
+                },
+                "after": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 20,
+                  "width": 195
+                }
+              }
+            ],
+            "mean_absolute_difference": [
+              30.27943859835601,
+              35.9487463388133,
+              24.4792862457483
+            ]
+          }
+        },
+        {
+          "name": "Undo restores preview exactly",
+          "evidence": {
+            "undo_clicks": 1
+          }
+        },
+        {
+          "name": "Compact enabled and persisted",
+          "evidence": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0,
+            "width": 48
+          }
+        },
+        {
+          "name": "GUI JPEG export",
+          "evidence": {
+            "file": "input/smoke_edited.jpg",
+            "sha256": "cd910377a7e9d51ffbd714ab637984c24f8e6c61e9265744ab77888a45401f96"
+          }
+        },
+        {
+          "name": "clean exit and no frontend/native errors",
+          "evidence": {
+            "exit_code": 0
+          }
+        }
+      ],
+      "guards": {
+        "fixture_unchanged": true,
+        "engine_unchanged": true
+      }
+    },
+    {
+      "case": "main-preview-sony-a7c2-15mp-uncompressed",
+      "engine_sha256": "cbf2b3deb38dd1aa08ee0da3539c50fc6a7bebb622ef67bf02157b3a62b8ad43",
+      "fixture": "sony-a7c2-15mp-uncompressed.ARW",
+      "fixture_guard": {
+        "sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+        "mtime_ns": 1790835857568261641
+      },
+      "steps": [
+        {
+          "name": "library thumbnail",
+          "evidence": [
+            {
+              "width": 480,
+              "height": 321,
+              "complete": true
+            }
+          ]
+        },
+        {
+          "name": "neutral fit view normalized before exact comparisons",
+          "evidence": {
+            "method": "Public Exposure0.2 edit/reset; initial1280 and subsequent fit1024 encode are not pixel-identical contracts"
+          }
+        },
+        {
+          "name": "native preview",
+          "evidence": {
+            "roi": [
+              336,
+              141,
+              1344,
+              813
+            ],
+            "capture": "captures/preview-1/wayland-screenshot-2026-10-13_12-32-48.png"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 0.8,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-0-1/wayland-screenshot-2026-10-13_12-32-50.png",
+            "preview_mean_absolute_difference": [
+              38.752496397864704,
+              41.40599607898715,
+              28.471044146825395
+            ],
+            "histogram_sha256": "206825e7d55b2031d694ef272e8424640aec888f52763c715e91f22352257bc6"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -0.6,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 0.79,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-1-1/wayland-screenshot-2026-10-13_12-32-52.png",
+            "preview_mean_absolute_difference": [
+              61.063657407407405,
+              66.70229089899848,
+              48.67578715513984
+            ],
+            "histogram_sha256": "c0a6d96e4055de687ea4e1878027d228d261f0e59428a3f6ec5d1ddbfe6696c4"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": 1.2,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -0.61,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-2-1/wayland-screenshot-2026-10-13_12-32-54.png",
+            "preview_mean_absolute_difference": [
+              85.25718655517763,
+              90.27675175973167,
+              61.91161334325397
+            ],
+            "histogram_sha256": "49cc7f3410ef0d2f72ae1a29adb84eaadb073e0b1a18af12983a543cb8509476"
+          }
+        },
+        {
+          "name": "repeated global edit updates full preview and histogram",
+          "evidence": {
+            "gesture": {
+              "label": "Exposure",
+              "requested": -1.0,
+              "before": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": 1.2,
+                "width": 171
+              },
+              "after": {
+                "height": 28,
+                "max": 5,
+                "min": -5,
+                "step": 0.01,
+                "value": -1.02,
+                "width": 171
+              }
+            },
+            "capture": "captures/repeat-exposure-3-1/wayland-screenshot-2026-10-13_12-32-56.png",
+            "preview_mean_absolute_difference": [
+              96.944637837774,
+              103.95113053902116,
+              73.40470285336357
+            ],
+            "histogram_sha256": "51b5977dc7548d3d6bfc994bbfd929b95f1f3f2481467bc72b62249eb872fafb"
+          }
+        },
+        {
+          "name": "repeated reset restores full preview exactly",
+          "evidence": {
+            "capture": "captures/repeat-reset-1/wayland-screenshot-2026-10-13_12-32-58.png"
+          }
+        },
+        {
+          "name": "actual 100 percent native preview capture",
+          "evidence": {
+            "capture": "captures/raf-or-sony-100-percent-1/wayland-screenshot-2026-10-13_12-33-00.png",
+            "decoded_surfaces": [
+              {
+                "decodedHeight": 3072,
+                "decodedWidth": 4608,
+                "height": "100%",
+                "width": "100%",
+                "x": "0",
+                "y": "0"
+              }
+            ],
+            "method": "Real displayed SVG base/fade/patch resources decoded at actual typed 100 percent; no canvas synthesis"
+          }
+        },
+        {
+          "name": "native u wheel adjacent stop 150 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 100,
+              "transform": "translate(-1800px, -1275px) scale(4.571429)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 150,
+              "transform": "translate(-2977px, -2108.5px) scale(6.857143)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 512,
+              "deltaMode": 0,
+              "deltaY": -103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": 120
+            },
+            "anchor_error_css_px": 3.754752174245368e-05
+          }
+        },
+        {
+          "name": "native d wheel adjacent stop 100 percent",
+          "evidence": {
+            "before": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 150,
+              "transform": "translate(-2977px, -2108.5px) scale(6.857143)",
+              "width": 1008
+            },
+            "after": {
+              "dpr": 1,
+              "height": 714,
+              "percent": 100,
+              "transform": "translate(-1800px, -1275px) scale(4.571429)",
+              "width": 1008
+            },
+            "native_event": {
+              "clientX": 890,
+              "clientY": 512,
+              "deltaMode": 0,
+              "deltaY": 103,
+              "innerHeight": 1050,
+              "trusted": true,
+              "wheelDeltaY": -120
+            },
+            "anchor_error_css_px": 3.754752174245368e-05
+          }
+        },
+        {
+          "name": "wheel notch 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 150,
+            "transform": "translate(-2952px, -2091px) scale(6.857143)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "wheel ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 400,
+            "transform": "translate(-8712px, -6171px) scale(18.285714)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch and typed zoom share 400 percent ceiling",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 400,
+            "transform": "translate(-8712px, -6171px) scale(18.285714)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "pinch remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 102,
+            "transform": "translate(-1846.543887px, -1307.968587px) scale(4.663778)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "fine pixel scroll remains continuous",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 102,
+            "transform": "translate(-1846.543887px, -1307.968587px) scale(4.663778)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard step 100 to 150 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 150,
+            "transform": "translate(-2952px, -2091px) scale(6.857143)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "rapid keyboard steps do not wait for readout",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 300,
+            "transform": "translate(-6408px, -4539px) scale(13.714286)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "keyboard ceiling 400 percent",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 400,
+            "transform": "translate(-8712px, -6171px) scale(18.285714)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "slider maximum matches ceiling",
+          "evidence": {
+            "height": 6,
+            "max": 4,
+            "min": 0.01,
+            "step": 0.01,
+            "value": 4,
+            "width": 136
+          }
+        },
+        {
+          "name": "zoom restored to fit",
+          "evidence": {
+            "dpr": 1,
+            "height": 714,
+            "percent": 22,
+            "transform": "translate(0px) scale(1)",
+            "width": 1008
+          }
+        },
+        {
+          "name": "post-zoom fit preview",
+          "evidence": {
+            "capture": "captures/post-zoom-fit-1/wayland-screenshot-2026-10-13_12-33-14.png"
+          }
+        },
+        {
+          "name": "edits change preview",
+          "evidence": {
+            "edits": [
+              {
+                "label": "Exposure",
+                "requested": 1,
+                "before": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0,
+                  "width": 171
+                },
+                "after": {
+                  "height": 28,
+                  "max": 5,
+                  "min": -5,
+                  "step": 0.01,
+                  "value": 0.96,
+                  "width": 171
+                }
+              },
+              {
+                "label": "Contrast",
+                "requested": 20,
+                "before": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 0,
+                  "width": 195
+                },
+                "after": {
+                  "height": 28,
+                  "max": 100,
+                  "min": -100,
+                  "step": 1,
+                  "value": 20,
+                  "width": 195
+                }
+              }
+            ],
+            "mean_absolute_difference": [
+              46.7183558319161,
+              49.92873677248677,
+              27.635868409863946
+            ]
+          }
+        },
+        {
+          "name": "Undo restores preview exactly",
+          "evidence": {
+            "undo_clicks": 1
+          }
+        },
+        {
+          "name": "Compact enabled and persisted",
+          "evidence": {
+            "height": 24,
+            "max": 5,
+            "min": -5,
+            "step": 0.01,
+            "value": 0,
+            "width": 48
+          }
+        },
+        {
+          "name": "GUI JPEG export",
+          "evidence": {
+            "file": "input/smoke_edited.jpg",
+            "sha256": "c03b401dea6f174ca5c912b4668814ba27147bfd4e7077302ac81ccc6e81a035"
+          }
+        },
+        {
+          "name": "clean exit and no frontend/native errors",
+          "evidence": {
+            "exit_code": 0
+          }
+        }
+      ],
+      "guards": {
+        "fixture_unchanged": true,
+        "engine_unchanged": true
+      }
+    }
+  ],
+  "limitations": [
+    "Linux Weston/WebKit controls, not original Zorin Flatpak or Windows AMD.",
+    "No Canon 5DII CR2 fixture: stale-preview controls use available Sony/Fuji CC0 files.",
+    "Synthetic public editor gestures and actual GTK wheel events; no physical pointer claim."
+  ],
+  "interpretation": "Recorded typed100% native view and actual decoded base/patch dimensions; not a claim of reproduction on the reported Zorin Flatpak/Windows AMD systems."
+}

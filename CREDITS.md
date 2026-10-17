@@ -7,6 +7,16 @@ RapidRoom is built on other people's work. This file lists where every non-upstr
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.
 - **[RapidRAW-DngLab](https://github.com/CyberTimon/RapidRAW-DngLab)**, CyberTimon's fork of [dnglab/rawler](https://github.com/dnglab/dnglab) by Daniel Vogelbacher and contributors (raw decoding).
 
+The v1.6.5 sync retains contributions by Timon Käch, marclaliberte, Ramon Speets, MartinBspheroid, Reda Jamil and Yojen in normal merge history. Rendering, library, translations and curve changes are credited in the upstream commits; the RapidRoom integration was reconciled by Yojen with Codex.
+
+The 2026-10-12 refresh retains baseline exposure and export metadata work by marclaliberte, Italian translations by f-loren and filename-number tokens by apweisskopf in their original upstream commits. RapidRoom conflict reconciliation and regression checks are by Yojen with Codex.
+
+The 2026-10-15 daily refresh retains upstream contributions by Timon Käch, marclaliberte, cl1x, Max (waxm134) and Yojen in normal merge history. Per-tool visibility, capture-time timezone, auto-lens sidecar completion, headless exit codes, mask-drop insertion and layout-aware shortcuts are integrated while preserving RapidRoom additions. Conflict resolution and compatibility work is by yojen7 with Codex.
+
+## Bounded assistant judge policy
+
+The offline nondecreasing-score and bounded-round policy is adapted from skymanbp’s [autoshade@a1f3507808d1a9d61c44593244a5e6ee2c38cae3](https://github.com/skymanbp/autoshade/tree/a1f3507808d1a9d61c44593244a5e6ee2c38cae3), `src/pipeline.rs` and `src/advisor/judge.rs`, MIT copyright 2026 skymanbp. The notice is retained in `rapidroom/plugin/LICENSES/autoshade-MIT.txt`. Yojen adapted the policy with Codex; the closed move catalogue, generated RapidRoom range projection and local CLI are original integration. No remote model client or external dependency is imported.
+
 ## Individual MCP mask editing
 
 The typed mask/crop schemas, single-id edit tools and nested local-default normalization are original work for RapidRoom by yojen7 with Codex. They use RapidRoom’s existing renderer and editor history. No fork implementation or additional AI engine is included.
@@ -19,6 +29,7 @@ The native preprocessing and model contract are adapted from [RawForge](https://
 
 | Change                                                                                                                            | Author                                                                                                                                                                  | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Export print resolution (DPI)                                                                                                     | [Marc Laliberté](https://github.com/lalibertemarc), adapted by yojen7 with Codex                                                                                        | [CyberTimon/RapidRAW@66bbcb9](https://github.com/CyberTimon/RapidRAW/commit/66bbcb95e3faf25120e03c84aa56a64e766e1cd3), AGPL-3.0; preserve RapidRoom TIFF ICC and existing omitted-DPI encoders                                                                                                                                                                                                                                                                                                                                                         |
 | Default-crop fix for non-CFA raws (Sony lossless M/S, Canon mRAW/sRAW)                                                            | [@Kheil-Z](https://github.com/Kheil-Z)                                                                                                                                  | [RapidRAW-DngLab#7](https://github.com/CyberTimon/RapidRAW-DngLab/pull/7), rebased onto `934af4b` at [yojen7/RapidRAW-DngLab@fe08395](https://github.com/yojen7/RapidRAW-DngLab/commit/fe08395)                                                                                                                                                                                                                                                                                                                                                        |
 | Saturating highlight dithering for DxO compressed DNGs                                                                            | [@yojen7](https://github.com/yojen7) with Codex                                                                                                                         | [5a44585](https://github.com/yojen7/RapidRAW-DngLab/commit/5a44585da25c7ff783c83a4bff25281f0cf28159), test fixture [4c96062](https://github.com/yojen7/RapidRAW-DngLab/commit/4c960626978287ab8e4aabe70a6cfa60b4582273)                                                                                                                                                                                                                                                                                                                                |
 | Atomic sidecar writes                                                                                                             | [@sheldonxxxx](https://github.com/sheldonxxxx)                                                                                                                          | [sheldonxxxx/RapidRAW@b54be6f](https://github.com/sheldonxxxx/RapidRAW/commit/b54be6fef1e2533ecaf258143ad61fed6330244c)                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -174,6 +185,7 @@ Terminal dock containment, compact header and stepped native layout checks: orig
   original work by Yojen with Codex/sora. Existing MCP/renderer/font authorship
   and full notices retained; no dependency or network connection added.
 
+- Current upstream sync through `eb3556bc`: CyberTimon, lalibertemarc and fabian-co; original history and licences retained. E-M1X Bayer metadata correction adapts Timon Käch’s [rawler a32bc1ff](https://github.com/CyberTimon/RapidRAW-DngLab/commit/a32bc1ff1f4f3c56d4d3226082f6eb17414f9159) while retaining RapidRoom’s pinned decoder extensions. Sony reduced-RGB white balance guard and picker reconciliation: Yojen with Codex.
 - Physical editor zoom/cropped-orientation math and reactive DPR hook adapted from Sebastian Eggli (SebastianEggli), `SebastianEggli/RapidRAW@4a14440611ed6cb7d064efda139b6ca133511023`, with Claude Opus 5.5 co-authorship. Original AGPL-3.0 licence retained. Shared 400% ceiling, tiny-image exception, regular stops and native tests by Yojen with Codex.
 
 ### RAWmakase starter presets
@@ -184,6 +196,41 @@ Terminal dock containment, compact header and stepped native layout checks: orig
 
 The data-only envelope, bounded UTF-8 text, shared free-text budget and assistant-output projection pattern were studied in [AutoShade by skymanbp](https://github.com/skymanbp/autoshade/tree/cbca12b5a903ff8d71faf25a3966ed3712e839ba/src/advisor), under the [MIT licence](rapidroom/LICENSES/autoshade-MIT.txt). RapidRoom’s MCP, terminal context, secret-pattern redaction and edit-name preservation integration are original adaptations. These deterministic boundaries reduce injection exposure; they do not establish immunity of a remote model to hostile instructions.
 
+### Optional native OpenVINO CPU runtime
+
+The optional Linux CPU runtime is supplied from `onnxruntime-openvino==1.24.1` (ONNX Runtime by Microsoft, MIT; OpenVINO by Intel, Apache-2.0), retaining exact ORT wheel notices and OpenVINO runtime/oneTBB/oneDNN notices from [OpenVINO `82bbf0292c5bd490bc25a383e63d6461d3ee05c5`](https://github.com/openvinotoolkit/openvino/tree/82bbf0292c5bd490bc25a383e63d6461d3ee05c5/licensing). The verification/staging and RapidRoom session/cache integration are original work. Full notices are in `rapidroom/openvino/notices/` and copied with the staged runtime. No model weights are redistributed.
+
+### AI denoise tiling and colour restoration
+
+Tile placement, raised-cosine overlap and whole-image five-level B3-spline colour restoration adapt [open-photo-ai by Vinicius Egidio](https://github.com/vegidio/open-photo-ai/tree/67f1dd10d17efcb191ce1bb099642e32b2918861), AGPL-3.0. Periodic reflect padding adapts [CalibRaw by Duecki](https://github.com/Duecki1/CalibRaw/blob/2466ca6662c3fd1e901377c0450b19f5f96d3e85/crates/calibraw-ai/src/ai_denoise/tiling.rs), GPL-3.0-or-later. Source notices are bundled in `src-tauri/resources/raw-denoise-licenses/`. Model weights, telemetry and scalar per-tile gain matching were not imported.
+
 ### CRS interoperability cross-check
 
 The field and RDF representation audit compares [LightCraft by storytold](https://github.com/storytold/lightcraft/tree/265248c86fa3267709aea45633d0d135331e180c) (MIT OR Apache-2.0; [MIT notice](rapidroom/LICENSES/lightcraft-MIT.txt)) and [Redlamp by pdcgomes](https://github.com/pdcgomes/redlamp/tree/a70c86dc01ab8ee5d831642520b76ed529f556c0) (MPL-2.0). Supplementary semantics were checked in MIT AutoShade and RAWmakase; exact versions and limitations are in the [audit](rapidroom/validation/crs-interop-20261012/README.md). The namespace-aware photo/curve/look reader extends RapidRoom's existing bounded XML parser; this is original work, with no copied MPL source, Adobe assets, SDK-derived tables or external presets.
+
+Polynomial Lensfun TCA correction and synthetic reference fixtures: original RapidRoom implementation by yojen7 with Codex. Mathematical model, normalization and interpolation conventions checked against Lensfun 0.3.4; independent coordinate measurements use its public C API. Lensfun implementation and native-wrapper code are not included. See `rapidroom/validation/lensfun-tca/README.md` for pinned sources and reproduction.
+
+The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/history preservation follow-up (#218) are original RapidRoom work by Yojen with Codex, informed by the licence-first CRS audit above. No reference implementation source is copied.
+
+- **Lightroom Aggregate brushes and radial geometry (#173):** measured XMP rules
+  and signed ellipse decoding by skymanbp in
+  [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba),
+  adapted to RapidRoom masks by Yojen with Codex/kano. AutoShade’s complete MIT
+  notice is retained in `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.
+
+- **Lightroom ACR brush tables and flow semantics (#177):** the shared bounded
+  object-store rules, Brotli decoder, record grammar, authored synthetic
+  fixtures and measured flow law derive from skymanbp’s
+  [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba)
+  (MIT), adapted by Yojen with Codex/kano. The complete notice remains in
+  `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.
+
+## Public MCP reproduction package
+
+The reproduction package is original RapidRoom work by yojen7 with Codex. It
+imports the native evidence harness and PNG helpers from the separately checked
+out [sheldonxxxx/RapidRAW@4494beb9](https://github.com/sheldonxxxx/RapidRAW/commit/4494beb9bae0ee57f420a8292c4f4f6e1dba4bd2),
+retaining their AGPL-3.0 licence and original authorship. No fork implementation
+is vendored into RapidRoom's application. The genuine fixture is CC0 from
+raw.pixls.us; generated pixels and real captures are labelled separately in
+the [fixture manifest](rapidroom/validation/mcp-gap-repro/fixtures.json).

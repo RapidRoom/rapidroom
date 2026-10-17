@@ -1,0 +1,1676 @@
+{
+  "source": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+  "main_control": "f30d0e87cc8e2165c52582a9929a713ee07ac3d7",
+  "cases": {
+    "canon-r6m2-24mp-raw/candidate/legacy/baseline0-highlights0": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "canon-r6m2-24mp-raw/candidate/legacy/baseline0-highlights1": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "canon-r6m2-24mp-raw/candidate/legacy/baseline1-highlights0": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "canon-r6m2-24mp-raw/candidate/legacy/baseline1-highlights1": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "canon-r6m2-24mp-raw/candidate/fresh/baseline0-highlights0": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "canon-r6m2-24mp-raw/candidate/fresh/baseline0-highlights1": {
+      "pixel_sha256": "74bcfdfd838a7c0156b07188513d92f4e14c4ed89155908882cc45769550750f",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        21821.35297875,
+        20628.206043625,
+        19180.21398129167
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "canon-r6m2-24mp-raw/candidate/fresh/baseline1-highlights0": {
+      "pixel_sha256": "0fbf044373e380c84f08b53664b8562ee52a45ee40cf9f2e303e8efeec522893",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        23508.08895475,
+        22214.833480958332,
+        20602.078999916666
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "canon-r6m2-24mp-raw/candidate/fresh/baseline1-highlights1": {
+      "pixel_sha256": "9e9c7f1a842e50432a372dcb139cad6bdf7427d1678563ed07af2e23582b625a",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        27906.918095583333,
+        26339.861839875,
+        24239.51348420833
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "canon-r6m2-24mp-raw/main/legacy/baseline0-highlights0": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "canon-r6m2-24mp-raw/main/legacy/baseline0-highlights1": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "canon-r6m2-24mp-raw/main/legacy/baseline1-highlights0": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "canon-r6m2-24mp-raw/main/legacy/baseline1-highlights1": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "canon-r6m2-24mp-raw/main/fresh/baseline0-highlights0": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "canon-r6m2-24mp-raw/main/fresh/baseline0-highlights1": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "canon-r6m2-24mp-raw/main/fresh/baseline1-highlights0": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "canon-r6m2-24mp-raw/main/fresh/baseline1-highlights1": {
+      "pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "width": 6000,
+      "height": 4000,
+      "mean_rgb": [
+        17889.86938229167,
+        16921.928521083333,
+        15816.055675916667
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zf-24mp-compressed/candidate/legacy/baseline0-highlights0": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zf-24mp-compressed/candidate/legacy/baseline0-highlights1": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zf-24mp-compressed/candidate/legacy/baseline1-highlights0": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zf-24mp-compressed/candidate/legacy/baseline1-highlights1": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zf-24mp-compressed/candidate/fresh/baseline0-highlights0": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zf-24mp-compressed/candidate/fresh/baseline0-highlights1": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zf-24mp-compressed/candidate/fresh/baseline1-highlights0": {
+      "pixel_sha256": "d9eaa4bb88c6cf393f9825679853b0b5e54bd9ae3aac58a28fdb792941e0c859",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        34161.91547903643,
+        34184.692925511255,
+        29474.02884779732
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zf-24mp-compressed/candidate/fresh/baseline1-highlights1": {
+      "pixel_sha256": "d9eaa4bb88c6cf393f9825679853b0b5e54bd9ae3aac58a28fdb792941e0c859",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        34161.91547903643,
+        34184.692925511255,
+        29474.02884779732
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zf-24mp-compressed/main/legacy/baseline0-highlights0": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zf-24mp-compressed/main/legacy/baseline0-highlights1": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zf-24mp-compressed/main/legacy/baseline1-highlights0": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zf-24mp-compressed/main/legacy/baseline1-highlights1": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zf-24mp-compressed/main/fresh/baseline0-highlights0": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zf-24mp-compressed/main/fresh/baseline0-highlights1": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zf-24mp-compressed/main/fresh/baseline1-highlights0": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zf-24mp-compressed/main/fresh/baseline1-highlights1": {
+      "pixel_sha256": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+      "width": 6048,
+      "height": 4032,
+      "mean_rgb": [
+        26509.48038812844,
+        26579.45470552708,
+        23098.49333084169
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zfc-21mp-lossless/candidate/legacy/baseline0-highlights0": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zfc-21mp-lossless/candidate/legacy/baseline0-highlights1": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zfc-21mp-lossless/candidate/legacy/baseline1-highlights0": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zfc-21mp-lossless/candidate/legacy/baseline1-highlights1": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zfc-21mp-lossless/candidate/fresh/baseline0-highlights0": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zfc-21mp-lossless/candidate/fresh/baseline0-highlights1": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zfc-21mp-lossless/candidate/fresh/baseline1-highlights0": {
+      "pixel_sha256": "b94a60e1a82059876224a7abac33ef6211a1f6fa17aca52db99b97b053264252",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        29017.389934139122,
+        28885.123121239674,
+        24119.895274267754
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zfc-21mp-lossless/candidate/fresh/baseline1-highlights1": {
+      "pixel_sha256": "b94a60e1a82059876224a7abac33ef6211a1f6fa17aca52db99b97b053264252",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        29017.389934139122,
+        28885.123121239674,
+        24119.895274267754
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zfc-21mp-lossless/main/legacy/baseline0-highlights0": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zfc-21mp-lossless/main/legacy/baseline0-highlights1": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zfc-21mp-lossless/main/legacy/baseline1-highlights0": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zfc-21mp-lossless/main/legacy/baseline1-highlights1": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zfc-21mp-lossless/main/fresh/baseline0-highlights0": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zfc-21mp-lossless/main/fresh/baseline0-highlights1": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "nikon-zfc-21mp-lossless/main/fresh/baseline1-highlights0": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "nikon-zfc-21mp-lossless/main/fresh/baseline1-highlights1": {
+      "pixel_sha256": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+      "width": 5568,
+      "height": 3712,
+      "mean_rgb": [
+        21939.550764267566,
+        21842.408621347666,
+        18197.07800617135
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xh2-40mp-compressed/candidate/legacy/baseline0-highlights0": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xh2-40mp-compressed/candidate/legacy/baseline0-highlights1": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xh2-40mp-compressed/candidate/legacy/baseline1-highlights0": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xh2-40mp-compressed/candidate/legacy/baseline1-highlights1": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xh2-40mp-compressed/candidate/fresh/baseline0-highlights0": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xh2-40mp-compressed/candidate/fresh/baseline0-highlights1": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xh2-40mp-compressed/candidate/fresh/baseline1-highlights0": {
+      "pixel_sha256": "e4c59059f0516fd9ed2df2a1183f5401bd734263fcb84b91fa2b81400d86673a",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        21869.18169120939,
+        22419.305206278812,
+        18637.694478385045
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xh2-40mp-compressed/candidate/fresh/baseline1-highlights1": {
+      "pixel_sha256": "e4c59059f0516fd9ed2df2a1183f5401bd734263fcb84b91fa2b81400d86673a",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        21869.18169120939,
+        22419.305206278812,
+        18637.694478385045
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xh2-40mp-compressed/main/legacy/baseline0-highlights0": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xh2-40mp-compressed/main/legacy/baseline0-highlights1": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xh2-40mp-compressed/main/legacy/baseline1-highlights0": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xh2-40mp-compressed/main/legacy/baseline1-highlights1": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xh2-40mp-compressed/main/fresh/baseline0-highlights0": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xh2-40mp-compressed/main/fresh/baseline0-highlights1": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xh2-40mp-compressed/main/fresh/baseline1-highlights0": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xh2-40mp-compressed/main/fresh/baseline1-highlights1": {
+      "pixel_sha256": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+      "width": 5152,
+      "height": 7728,
+      "mean_rgb": [
+        16472.617974923607,
+        16915.948007939587,
+        14320.058050683649
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xt4-26mp-lossless/candidate/legacy/baseline0-highlights0": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xt4-26mp-lossless/candidate/legacy/baseline0-highlights1": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xt4-26mp-lossless/candidate/legacy/baseline1-highlights0": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xt4-26mp-lossless/candidate/legacy/baseline1-highlights1": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xt4-26mp-lossless/candidate/fresh/baseline0-highlights0": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xt4-26mp-lossless/candidate/fresh/baseline0-highlights1": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xt4-26mp-lossless/candidate/fresh/baseline1-highlights0": {
+      "pixel_sha256": "99f49f655d6c1d3e2bd4a45b7dca4cf5e318d872b98276700fe2301708892ce2",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        19010.557134800296,
+        21240.712543145957,
+        16095.020675966161
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xt4-26mp-lossless/candidate/fresh/baseline1-highlights1": {
+      "pixel_sha256": "99f49f655d6c1d3e2bd4a45b7dca4cf5e318d872b98276700fe2301708892ce2",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        19010.557134800296,
+        21240.712543145957,
+        16095.020675966161
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xt4-26mp-lossless/main/legacy/baseline0-highlights0": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xt4-26mp-lossless/main/legacy/baseline0-highlights1": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xt4-26mp-lossless/main/legacy/baseline1-highlights0": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xt4-26mp-lossless/main/legacy/baseline1-highlights1": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xt4-26mp-lossless/main/fresh/baseline0-highlights0": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xt4-26mp-lossless/main/fresh/baseline0-highlights1": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": false,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    },
+    "fuji-xt4-26mp-lossless/main/fresh/baseline1-highlights0": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": false
+      }
+    },
+    "fuji-xt4-26mp-lossless/main/fresh/baseline1-highlights1": {
+      "pixel_sha256": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+      "width": 6240,
+      "height": 4160,
+      "mean_rgb": [
+        13961.929650517752,
+        15609.037489868404,
+        11763.664253151195
+      ],
+      "icc": "sRGB",
+      "recipe": {
+        "exposure": 0,
+        "baselineExposure": true
+      },
+      "settings": {
+        "enableBaselineExposure": true,
+        "baselineExposure": 0.7,
+        "compensateHighlightPreservation": true
+      }
+    }
+  },
+  "complete": true,
+  "limitations": [
+    "No confirmed Nikon HE* fixture: these NEFs do not establish the original HE*/Apple Silicon report.",
+    "Linux native checks do not establish Zorin Flatpak or Windows AMD behavior."
+  ],
+  "reference_updated": false,
+  "checks": {
+    "canon-r6m2-24mp-raw/candidate": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+        "0-1": "74bcfdfd838a7c0156b07188513d92f4e14c4ed89155908882cc45769550750f",
+        "1-0": "0fbf044373e380c84f08b53664b8562ee52a45ee40cf9f2e303e8efeec522893",
+        "1-1": "9e9c7f1a842e50432a372dcb139cad6bdf7427d1678563ed07af2e23582b625a"
+      }
+    },
+    "canon-r6m2-24mp-raw/main": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+        "0-1": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+        "1-0": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+        "1-1": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073"
+      }
+    },
+    "nikon-zf-24mp-compressed/candidate": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+        "0-1": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+        "1-0": "d9eaa4bb88c6cf393f9825679853b0b5e54bd9ae3aac58a28fdb792941e0c859",
+        "1-1": "d9eaa4bb88c6cf393f9825679853b0b5e54bd9ae3aac58a28fdb792941e0c859"
+      }
+    },
+    "nikon-zf-24mp-compressed/main": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+        "0-1": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+        "1-0": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+        "1-1": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead"
+      }
+    },
+    "nikon-zfc-21mp-lossless/candidate": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+        "0-1": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+        "1-0": "b94a60e1a82059876224a7abac33ef6211a1f6fa17aca52db99b97b053264252",
+        "1-1": "b94a60e1a82059876224a7abac33ef6211a1f6fa17aca52db99b97b053264252"
+      }
+    },
+    "nikon-zfc-21mp-lossless/main": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+        "0-1": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+        "1-0": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+        "1-1": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8"
+      }
+    },
+    "fuji-xh2-40mp-compressed/candidate": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+        "0-1": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+        "1-0": "e4c59059f0516fd9ed2df2a1183f5401bd734263fcb84b91fa2b81400d86673a",
+        "1-1": "e4c59059f0516fd9ed2df2a1183f5401bd734263fcb84b91fa2b81400d86673a"
+      }
+    },
+    "fuji-xh2-40mp-compressed/main": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+        "0-1": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+        "1-0": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+        "1-1": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940"
+      }
+    },
+    "fuji-xt4-26mp-lossless/candidate": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+        "0-1": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+        "1-0": "99f49f655d6c1d3e2bd4a45b7dca4cf5e318d872b98276700fe2301708892ce2",
+        "1-1": "99f49f655d6c1d3e2bd4a45b7dca4cf5e318d872b98276700fe2301708892ce2"
+      }
+    },
+    "fuji-xt4-26mp-lossless/main": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+        "0-1": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+        "1-0": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+        "1-1": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def"
+      }
+    }
+  },
+  "original_guards_unchanged": true,
+  "finished": "2026-10-13T09:55:12.499659+00:00"
+}

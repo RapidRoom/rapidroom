@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
@@ -5,17 +6,21 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
+use crate::file_management;
 use crate::formats::is_raw_file;
 use crate::image_processing::ImageMetadata;
 use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use exif::{Exif, In, Value};
+use image::ImageDecoder;
 use little_exif::exif_tag::ExifTag;
 use little_exif::filetype::FileExtension;
 use little_exif::ifd::ExifTagGroup;
 use little_exif::metadata::Metadata;
 use little_exif::rational::{iR64, uR64};
+use quick_xml::escape::escape;
 use rawler::decoders::RawMetadata;
+use rawler::exif::ExifGPS;
 use rawler::lens::LensDescription;
 use serde::{Deserialize, Serialize};
 
@@ -337,15 +342,35 @@ fn to_ir64(val: &exif::SRational) -> iR64 {
     }
 }
 
+fn rawler_to_ur64(val: rawler::formats::tiff::Rational) -> uR64 {
+    uR64 {
+        nominator: val.n,
+        denominator: val.d,
+    }
+}
+
+fn rawler_to_ir64(val: rawler::formats::tiff::SRational) -> iR64 {
+    iR64 {
+        nominator: val.n,
+        denominator: val.d,
+    }
+}
+
 fn clean_creation_datetime_str(s: &str) -> &str {
     s.trim().trim_matches('"').trim_matches('\'').trim()
 }
 
-fn fmt_date_str(s: String) -> String {
-    if let Some(dt) = parse_creation_datetime(&s) {
-        return dt.format("%Y-%m-%d %H:%M:%S").to_string();
+const EXIF_DATETIME_FORMAT: &str = "%Y:%m:%d %H:%M:%S";
+
+fn format_creation_datetime(s: &str, format: &str) -> String {
+    if let Some(dt) = parse_creation_datetime(s) {
+        return dt.format(format).to_string();
     }
-    clean_creation_datetime_str(&s).to_string()
+    clean_creation_datetime_str(s).to_string()
+}
+
+fn fmt_date_str(s: String) -> String {
+    format_creation_datetime(&s, "%Y-%m-%d %H:%M:%S")
 }
 
 fn normalize_creation_datetime(s: &str) -> Option<String> {
@@ -470,10 +495,17 @@ pub fn read_exif(file_bytes: &[u8]) -> Option<Exif> {
 }
 
 pub fn read_raw_metadata(file_bytes: &[u8]) -> Option<RawMetadata> {
+    raw_metadata_from_source(&rawler::rawsource::RawSource::new_from_slice(file_bytes))
+}
+
+fn read_raw_metadata_from_path(path_str: &str) -> Option<RawMetadata> {
+    raw_metadata_from_source(&rawler::rawsource::RawSource::new(Path::new(path_str)).ok()?)
+}
+
+fn raw_metadata_from_source(raw_source: &rawler::rawsource::RawSource) -> Option<RawMetadata> {
     let loader = rawler::RawLoader::new();
-    let raw_source = rawler::rawsource::RawSource::new_from_slice(file_bytes);
-    let decoder = loader.get_decoder(&raw_source).ok()?;
-    decoder.raw_metadata(&raw_source, &Default::default()).ok()
+    let decoder = loader.get_decoder(raw_source).ok()?;
+    decoder.raw_metadata(raw_source, &Default::default()).ok()
 }
 
 /// Map an XMP `xmp:Rating` textual value onto a star rating.
@@ -953,6 +985,7 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
         {
             insert_missing_lens_fields(&mut map, &lens);
         }
+        insert_sony_correction_metadata(&mut map, file_bytes);
         return Some(map);
     }
 
@@ -1202,6 +1235,8 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
         insert_missing_lens_fields(&mut map, lens);
     }
 
+    insert_sony_correction_metadata(&mut map, file_bytes);
+
     Some(map)
 }
 
@@ -1367,6 +1402,81 @@ fn apply_sidecar_field_overrides(metadata: &mut Metadata, map: &HashMap<String, 
     }
 }
 
+fn apply_exif_from_rawler(metadata: &mut Metadata, meta: &RawMetadata) {
+    if !meta.make.is_empty() {
+        metadata.set_tag(ExifTag::Make(meta.make.clone()));
+    }
+    if !meta.model.is_empty() {
+        metadata.set_tag(ExifTag::Model(meta.model.clone()));
+    }
+    let exif = &meta.exif;
+    if let Some(artist) = &exif.artist {
+        metadata.set_tag(ExifTag::Artist(artist.clone()));
+    }
+    if let Some(copyright) = &exif.copyright {
+        metadata.set_tag(ExifTag::Copyright(copyright.clone()));
+    }
+    if let Some(dt) = &exif.date_time_original {
+        metadata.set_tag(ExifTag::DateTimeOriginal(dt.clone()));
+    }
+    if let Some(dt) = &exif.create_date {
+        metadata.set_tag(ExifTag::CreateDate(dt.clone()));
+    }
+    if let Some(offset) = &exif.offset_time_original {
+        metadata.set_tag(ExifTag::OffsetTimeOriginal(offset.clone()));
+    }
+    if let Some(offset) = &exif.offset_time_digitized {
+        metadata.set_tag(ExifTag::OffsetTimeDigitized(offset.clone()));
+    }
+    if let Some(sub_sec) = &exif.sub_sec_time_original {
+        metadata.set_tag(ExifTag::SubSecTimeOriginal(sub_sec.clone()));
+    }
+    if let Some(lens_make) = &exif.lens_make {
+        metadata.set_tag(ExifTag::LensMake(lens_make.clone()));
+    }
+    if let Some(lens_model) = &exif.lens_model {
+        metadata.set_tag(ExifTag::LensModel(lens_model.clone()));
+    }
+    if let Some(lens_spec) = exif.lens_spec {
+        metadata.set_tag(ExifTag::LensInfo(lens_spec.map(rawler_to_ur64).to_vec()));
+    }
+    if let Some(f) = exif.fnumber {
+        metadata.set_tag(ExifTag::FNumber(vec![rawler_to_ur64(f)]));
+    }
+    if let Some(a) = exif.aperture_value {
+        metadata.set_tag(ExifTag::ApertureValue(vec![rawler_to_ur64(a)]));
+    }
+    if let Some(t) = exif.exposure_time {
+        metadata.set_tag(ExifTag::ExposureTime(vec![rawler_to_ur64(t)]));
+    }
+    if let Some(s) = exif.shutter_speed_value {
+        metadata.set_tag(ExifTag::ShutterSpeedValue(vec![rawler_to_ir64(s)]));
+    }
+    if let Some(fl) = exif.focal_length {
+        metadata.set_tag(ExifTag::FocalLength(vec![rawler_to_ur64(fl)]));
+    }
+    if let Some(iso) = exif.iso_speed {
+        metadata.set_tag(ExifTag::ISO(vec![iso as u16]));
+    } else if let Some(iso) = exif.iso_speed_ratings {
+        metadata.set_tag(ExifTag::ISO(vec![iso]));
+    }
+    if let Some(ev) = exif.exposure_bias {
+        metadata.set_tag(ExifTag::ExposureCompensation(vec![rawler_to_ir64(ev)]));
+    }
+    if let Some(flash) = exif.flash {
+        metadata.set_tag(ExifTag::Flash(vec![flash]));
+    }
+    if let Some(metering) = exif.metering_mode {
+        metadata.set_tag(ExifTag::MeteringMode(vec![metering]));
+    }
+    if let Some(wb) = exif.white_balance {
+        metadata.set_tag(ExifTag::WhiteBalance(vec![wb]));
+    }
+    if let Some(prog) = exif.exposure_program {
+        metadata.set_tag(ExifTag::ExposureProgram(vec![prog]));
+    }
+}
+
 fn apply_gps_from_kamadak(metadata: &mut Metadata, original_path: &Path) {
     let Ok(file) = std::fs::File::open(original_path) else {
         return;
@@ -1436,82 +1546,88 @@ fn apply_gps_from_kamadak(metadata: &mut Metadata, original_path: &Path) {
     }
 }
 
-fn apply_gps_from_rawler(metadata: &mut Metadata, original_path_str: &str) {
-    let loader = rawler::RawLoader::new();
-    let Ok(raw_source) = rawler::rawsource::RawSource::new(Path::new(original_path_str)) else {
-        return;
-    };
-    let Ok(decoder) = loader.get_decoder(&raw_source) else {
-        return;
-    };
-    let Ok(meta) = decoder.raw_metadata(&raw_source, &Default::default()) else {
-        return;
-    };
-    let Some(gps) = meta.exif.gps else {
-        return;
-    };
+fn apply_gps_from_rawler(metadata: &mut Metadata, gps: ExifGPS) {
     if let Some(lat) = gps.gps_latitude {
-        metadata.set_tag(ExifTag::GPSLatitude(vec![
-            uR64 {
-                nominator: lat[0].n,
-                denominator: lat[0].d,
-            },
-            uR64 {
-                nominator: lat[1].n,
-                denominator: lat[1].d,
-            },
-            uR64 {
-                nominator: lat[2].n,
-                denominator: lat[2].d,
-            },
-        ]));
+        metadata.set_tag(ExifTag::GPSLatitude(lat.map(rawler_to_ur64).to_vec()));
     }
     if let Some(lat_ref) = gps.gps_latitude_ref {
         metadata.set_tag(ExifTag::GPSLatitudeRef(lat_ref));
     }
     if let Some(lon) = gps.gps_longitude {
-        metadata.set_tag(ExifTag::GPSLongitude(vec![
-            uR64 {
-                nominator: lon[0].n,
-                denominator: lon[0].d,
-            },
-            uR64 {
-                nominator: lon[1].n,
-                denominator: lon[1].d,
-            },
-            uR64 {
-                nominator: lon[2].n,
-                denominator: lon[2].d,
-            },
-        ]));
+        metadata.set_tag(ExifTag::GPSLongitude(lon.map(rawler_to_ur64).to_vec()));
     }
     if let Some(lon_ref) = gps.gps_longitude_ref {
         metadata.set_tag(ExifTag::GPSLongitudeRef(lon_ref));
     }
     if let Some(alt) = gps.gps_altitude {
-        metadata.set_tag(ExifTag::GPSAltitude(vec![uR64 {
-            nominator: alt.n,
-            denominator: alt.d,
-        }]));
+        metadata.set_tag(ExifTag::GPSAltitude(vec![rawler_to_ur64(alt)]));
     }
     if let Some(alt_ref) = gps.gps_altitude_ref {
         metadata.set_tag(ExifTag::GPSAltitudeRef(vec![alt_ref]));
     }
 }
 
+#[cfg(test)]
 pub fn write_image_with_metadata(
     image_bytes: &mut Vec<u8>,
     original_path_str: &str,
     output_format: &str,
     keep_metadata: bool,
     strip_gps: bool,
-    tags: Option<&[String]>,
+    xmp: &ExportXmp,
+) -> Result<(), String> {
+    write_image_with_metadata_and_resolution(
+        image_bytes,
+        original_path_str,
+        output_format,
+        keep_metadata,
+        strip_gps,
+        xmp,
+        None,
+    )
+}
+
+pub fn write_image_with_metadata_and_resolution(
+    image_bytes: &mut Vec<u8>,
+    original_path_str: &str,
+    output_format: &str,
+    keep_metadata: bool,
+    strip_gps: bool,
+    xmp: &ExportXmp,
+    dpi: Option<u16>,
 ) -> Result<(), String> {
     // FIXME: temporary solution until I find a way to write metadata to TIFF
     if !keep_metadata || output_format.to_lowercase() == "tiff" {
         return Ok(());
     }
 
+    let file_type = match output_format.to_lowercase().as_str() {
+        "jpg" | "jpeg" => FileExtension::JPEG,
+        "png" => FileExtension::PNG {
+            as_zTXt_chunk: true,
+        },
+        "tiff" => FileExtension::TIFF,
+        "webp" => FileExtension::WEBP,
+        "jxl" => FileExtension::JXL,
+        _ => return Ok(()),
+    };
+
+    if file_type == FileExtension::WEBP {
+        convert_webp_to_extended(image_bytes);
+    }
+    write_exif_metadata(image_bytes, original_path_str, file_type, strip_gps, dpi)?;
+    embed_xmp(image_bytes, original_path_str, file_type, strip_gps, xmp);
+
+    Ok(())
+}
+
+fn write_exif_metadata(
+    image_bytes: &mut Vec<u8>,
+    original_path_str: &str,
+    file_type: FileExtension,
+    strip_gps: bool,
+    dpi: Option<u16>,
+) -> Result<(), String> {
     let original_path = Path::new(original_path_str);
     if !original_path.exists() {
         return Ok(());
@@ -1527,22 +1643,20 @@ pub fn write_image_with_metadata(
         return Ok(());
     }
 
-    let file_type = match output_format.to_lowercase().as_str() {
-        "jpg" | "jpeg" => FileExtension::JPEG,
-        "png" => FileExtension::PNG {
-            as_zTXt_chunk: true,
-        },
-        "tiff" => FileExtension::TIFF,
-        "webp" => FileExtension::WEBP,
-        "jxl" => FileExtension::JXL,
-        _ => return Ok(()),
-    };
-
     let mut metadata = Metadata::new();
 
     let full_exif_copied = !is_raw_file(original_path_str)
         && copy_full_exif_from_source(&mut metadata, original_path, strip_gps);
     let mut source_read_success = full_exif_copied;
+
+    let raw_metadata = if is_raw_file(original_path_str) {
+        read_raw_metadata_from_path(original_path_str)
+    } else {
+        None
+    };
+    if let Some(meta) = &raw_metadata {
+        apply_exif_from_rawler(&mut metadata, meta);
+    }
 
     if !source_read_success && let Some(map) = read_rrexif_sidecar(original_path) {
         source_read_success = true;
@@ -1601,10 +1715,16 @@ pub fn write_image_with_metadata(
             metadata.set_tag(ExifTag::ImageDescription(clean_s(val)));
         }
         if let Some(val) = map.get("DateTimeOriginal") {
-            metadata.set_tag(ExifTag::DateTimeOriginal(clean_s(val)));
+            metadata.set_tag(ExifTag::DateTimeOriginal(format_creation_datetime(
+                val,
+                EXIF_DATETIME_FORMAT,
+            )));
         }
         if let Some(val) = map.get("CreateDate") {
-            metadata.set_tag(ExifTag::CreateDate(clean_s(val)));
+            metadata.set_tag(ExifTag::CreateDate(format_creation_datetime(
+                val,
+                EXIF_DATETIME_FORMAT,
+            )));
         }
         if let Some(val) = map.get("FNumber")
             && let Some(ur) = parse_ur64(val)
@@ -1640,8 +1760,6 @@ pub fn write_image_with_metadata(
         let exifreader = exif::Reader::new();
 
         if let Ok(exif_obj) = exifreader.read_from_container(&mut bufreader) {
-            source_read_success = true;
-
             let get_string_val = |field: &exif::Field| -> String {
                 match &field.value {
                     exif::Value::Ascii(vec) => vec
@@ -1737,84 +1855,11 @@ pub fn write_image_with_metadata(
         }
     }
 
-    if !source_read_success && is_raw_file(original_path_str) {
-        let loader = rawler::RawLoader::new();
-        if let Ok(raw_source) = rawler::rawsource::RawSource::new(Path::new(original_path_str))
-            && let Ok(decoder) = loader.get_decoder(&raw_source)
-            && let Ok(meta) = decoder.raw_metadata(&raw_source, &Default::default())
-        {
-            if !meta.make.is_empty() {
-                metadata.set_tag(ExifTag::Make(meta.make.clone()));
-            }
-            if !meta.model.is_empty() {
-                metadata.set_tag(ExifTag::Model(meta.model.clone()));
-            }
-            let exif = meta.exif;
-            if let Some(artist) = exif.artist {
-                metadata.set_tag(ExifTag::Artist(artist));
-            }
-            if let Some(copyright) = exif.copyright {
-                metadata.set_tag(ExifTag::Copyright(copyright));
-            }
-            if let Some(dt) = exif.date_time_original {
-                metadata.set_tag(ExifTag::DateTimeOriginal(dt));
-            }
-            if let Some(dt) = exif.create_date {
-                metadata.set_tag(ExifTag::CreateDate(dt));
-            }
-            if let Some(lens_make) = exif.lens_make {
-                metadata.set_tag(ExifTag::LensMake(lens_make));
-            }
-            if let Some(lens_model) = exif.lens_model {
-                metadata.set_tag(ExifTag::LensModel(lens_model));
-            }
-            if let Some(f) = exif.fnumber {
-                metadata.set_tag(ExifTag::FNumber(vec![uR64 {
-                    nominator: f.n,
-                    denominator: f.d,
-                }]));
-            }
-            if let Some(t) = exif.exposure_time {
-                metadata.set_tag(ExifTag::ExposureTime(vec![uR64 {
-                    nominator: t.n,
-                    denominator: t.d,
-                }]));
-            }
-            if let Some(fl) = exif.focal_length {
-                metadata.set_tag(ExifTag::FocalLength(vec![uR64 {
-                    nominator: fl.n,
-                    denominator: fl.d,
-                }]));
-            }
-            if let Some(iso) = exif.iso_speed {
-                metadata.set_tag(ExifTag::ISO(vec![iso as u16]));
-            } else if let Some(iso) = exif.iso_speed_ratings {
-                metadata.set_tag(ExifTag::ISO(vec![iso]));
-            }
-            if let Some(ev) = exif.exposure_bias {
-                metadata.set_tag(ExifTag::ExposureCompensation(vec![iR64 {
-                    nominator: ev.n,
-                    denominator: ev.d,
-                }]));
-            }
-            if let Some(flash) = exif.flash {
-                metadata.set_tag(ExifTag::Flash(vec![flash]));
-            }
-            if let Some(metering) = exif.metering_mode {
-                metadata.set_tag(ExifTag::MeteringMode(vec![metering]));
-            }
-            if let Some(wb) = exif.white_balance {
-                metadata.set_tag(ExifTag::WhiteBalance(vec![wb]));
-            }
-            if let Some(prog) = exif.exposure_program {
-                metadata.set_tag(ExifTag::ExposureProgram(vec![prog]));
-            }
-        }
-    }
-
     if !strip_gps {
         if is_raw_file(original_path_str) {
-            apply_gps_from_rawler(&mut metadata, original_path_str);
+            if let Some(gps) = raw_metadata.and_then(|meta| meta.exif.gps) {
+                apply_gps_from_rawler(&mut metadata, gps);
+            }
         } else {
             apply_gps_from_kamadak(&mut metadata, original_path);
         }
@@ -1827,8 +1872,25 @@ pub fn write_image_with_metadata(
     metadata.set_tag(ExifTag::Software("RapidRAW".to_string()));
     metadata.set_tag(ExifTag::Orientation(vec![1u16]));
     metadata.set_tag(ExifTag::ColorSpace(vec![1u16]));
+    metadata.set_tag(ExifTag::ExifVersion(b"0232".to_vec()));
+    metadata.set_tag(ExifTag::FlashpixVersion(b"0100".to_vec()));
+    if matches!(file_type, FileExtension::JPEG) {
+        metadata.set_tag(ExifTag::ComponentsConfiguration(vec![1, 2, 3, 0]));
+    }
 
-    let output_dimensions = if output_format.eq_ignore_ascii_case("jxl") {
+    if matches!(file_type, FileExtension::JPEG | FileExtension::PNG { .. })
+        && let Some(dpi) = dpi
+    {
+        let resolution = vec![uR64 {
+            nominator: dpi.into(),
+            denominator: 1,
+        }];
+        metadata.set_tag(ExifTag::XResolution(resolution.clone()));
+        metadata.set_tag(ExifTag::YResolution(resolution));
+        metadata.set_tag(ExifTag::ResolutionUnit(vec![2u16]));
+    }
+
+    let output_dimensions = if matches!(file_type, FileExtension::JXL) {
         jxl_oxide::JxlImage::builder()
             .read(Cursor::new(image_bytes.as_slice()))
             .ok()
@@ -1849,13 +1911,307 @@ pub fn write_image_with_metadata(
         log::warn!("Failed to write metadata: {}", e);
     }
 
-    if let Some(tags) = tags
-        && !tags.is_empty()
+    Ok(())
+}
+
+pub struct ExportXmp {
+    keywords: Vec<String>,
+    rating: Option<String>,
+    label: Option<String>,
+}
+
+impl ExportXmp {
+    pub fn from_metadata(metadata: &ImageMetadata) -> Self {
+        let tags = metadata.tags.as_deref().unwrap_or_default();
+        let mut keywords = Vec::new();
+        for tag in tags.iter().filter(|t| !t.starts_with(COLOR_TAG_PREFIX)) {
+            push_keyword(
+                &mut keywords,
+                tag.strip_prefix(USER_TAG_PREFIX).unwrap_or(tag),
+            );
+        }
+        Self {
+            keywords,
+            rating: (metadata.rating > 0
+                || metadata.rating_is_explicit
+                || metadata.flag.is_some()
+                || metadata.flag_is_explicit)
+                .then(|| file_management::xmp_rating(metadata)),
+            label: file_management::xmp_label(tags),
+        }
+    }
+}
+
+fn push_keyword(keywords: &mut Vec<String>, keyword: &str) {
+    let keyword = keyword.trim();
+    if !keyword.is_empty() && !keywords.iter().any(|k| k == keyword) {
+        keywords.push(keyword.to_string());
+    }
+}
+
+fn embed_xmp(
+    image_bytes: &mut Vec<u8>,
+    original_path_str: &str,
+    file_type: FileExtension,
+    strip_gps: bool,
+    xmp: &ExportXmp,
+) {
+    let source_xmp = if strip_gps || is_raw_file(original_path_str) {
+        None
+    } else {
+        read_source_xmp(Path::new(original_path_str))
+    };
+    let Some(packet) = build_export_xmp(xmp, source_xmp.as_deref()) else {
+        return;
+    };
+
+    match file_type {
+        FileExtension::JPEG => embed_jpeg_xmp(image_bytes, &packet),
+        FileExtension::PNG { .. } => embed_png_xmp(image_bytes, &packet),
+        FileExtension::WEBP => embed_webp_xmp(image_bytes, &packet),
+        _ => {}
+    }
+}
+
+fn read_source_xmp(path: &Path) -> Option<String> {
+    let mut decoder = image::ImageReader::open(path)
+        .ok()?
+        .with_guessed_format()
+        .ok()?
+        .into_decoder()
+        .ok()?;
+    String::from_utf8(decoder.xmp_metadata().ok()??).ok()
+}
+
+fn build_export_xmp(xmp: &ExportXmp, source_xmp: Option<&str>) -> Option<String> {
+    let mut keywords = xmp.keywords.clone();
+    for tag in source_xmp
+        .map(file_management::extract_xmp_tags)
+        .unwrap_or_default()
     {
-        inject_xmp_keywords(image_bytes, output_format, tags);
+        push_keyword(&mut keywords, &tag);
     }
 
-    Ok(())
+    let description = export_xmp_description(xmp, &keywords);
+    if let Some(merged) = source_xmp.and_then(|source| merge_source_xmp(source, &keywords, xmp)) {
+        return Some(merged);
+    }
+    if description.is_empty() {
+        return None;
+    }
+
+    Some(format!(
+        "<?xpacket begin=\"\u{feff}\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n\
+<x:xmpmeta xmlns:x=\"adobe:ns:meta/\" x:xmptk=\"RapidRAW\">\n \
+<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\
+{} </rdf:RDF>\n\
+</x:xmpmeta>\n\
+<?xpacket end=\"w\"?>",
+        description
+    ))
+}
+
+fn export_xmp_description(xmp: &ExportXmp, keywords: &[String]) -> String {
+    let mut properties = String::new();
+    if let Some(rating) = &xmp.rating {
+        properties.push_str(&format!("   <xmp:Rating>{}</xmp:Rating>\n", rating));
+    }
+    if let Some(label) = &xmp.label {
+        properties.push_str(&format!(
+            "   <xmp:Label>{}</xmp:Label>\n",
+            escape(label.as_str())
+        ));
+    }
+    if !keywords.is_empty() {
+        let escaped: Vec<Cow<str>> = keywords.iter().map(|k| escape(k.as_str())).collect();
+        properties.push_str(&format!(
+            "   {}\n",
+            file_management::xmp_subject_bag(&escaped)
+        ));
+    }
+    if properties.is_empty() {
+        return properties;
+    }
+
+    format!(
+        "  <rdf:Description rdf:about=\"\"\n    xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\"\n    xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n{}  </rdf:Description>\n",
+        properties
+    )
+}
+
+fn merge_source_xmp(source: &str, keywords: &[String], xmp: &ExportXmp) -> Option<String> {
+    crate::xmp::update_export(
+        source,
+        xmp.rating.as_deref().and_then(|rating| rating.parse().ok()),
+        xmp.label.as_deref(),
+        keywords,
+    )
+    .ok()
+}
+
+#[cfg(test)]
+mod export_xmp_merge_tests {
+    use super::*;
+
+    fn source(body: &str) -> String {
+        format!(
+            r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><r:Description r:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:develop="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:orient="http://ns.adobe.com/tiff/1.0/" xmlns:e="http://ns.adobe.com/exif/1.0/">{body}</r:Description></r:RDF></x:xmpmeta>"#
+        )
+    }
+
+    #[test]
+    fn decoded_source_keywords_round_trip_once() {
+        let input = source(
+            "<dc:subject><r:Bag><r:li>Literal &amp;amp; token</r:li><r:li>R&amp;D &lt;東京&gt;</r:li></r:Bag></dc:subject>",
+        );
+        let expected = file_management::extract_xmp_tags(&input);
+        assert_eq!(expected, vec!["Literal &amp; token", "R&D <東京>"]);
+        let output = build_export_xmp(
+            &ExportXmp::from_metadata(&ImageMetadata::default()),
+            Some(&input),
+        )
+        .unwrap();
+        assert_eq!(file_management::extract_xmp_tags(&output), expected);
+    }
+
+    #[test]
+    fn explicit_rating_and_flag_clears_replace_embedded_values() {
+        for (body, metadata) in [
+            (
+                "<xmp:Rating>5</xmp:Rating>",
+                ImageMetadata {
+                    rating_is_explicit: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "<xmp:Rating>-1</xmp:Rating>",
+                ImageMetadata {
+                    flag_is_explicit: true,
+                    ..Default::default()
+                },
+            ),
+        ] {
+            let output =
+                build_export_xmp(&ExportXmp::from_metadata(&metadata), Some(&source(body)))
+                    .unwrap();
+            assert_eq!(crate::xmp::metadata(&output).rating, Some(0));
+        }
+        let output = build_export_xmp(
+            &ExportXmp::from_metadata(&ImageMetadata::default()),
+            Some(&source("<xmp:Rating>5</xmp:Rating>")),
+        )
+        .unwrap();
+        assert_eq!(crate::xmp::metadata(&output).rating, Some(5));
+    }
+
+    #[test]
+    fn rendered_export_removes_aliased_source_edits_and_dimensions() {
+        let input = source(r#"<develop:Exposure2012>2</develop:Exposure2012><develop:Mask><r:Description develop:Exposure2012="3"/></develop:Mask><orient:Orientation>6</orient:Orientation><orient:ImageWidth>999</orient:ImageWidth><e:PixelYDimension>888</e:PixelYDimension><r:Description r:about="nested" orient:Orientation="8"/>"#).replace("r:about=\"\"", "r:about=\"\" develop:Contrast2012=\"42\" orient:ImageLength=\"777\"");
+        let output = build_export_xmp(
+            &ExportXmp::from_metadata(&ImageMetadata::default()),
+            Some(&input),
+        )
+        .unwrap();
+        for stale in [
+            "Exposure2012",
+            "Contrast2012",
+            "<orient:Orientation>",
+            "ImageWidth",
+            "ImageLength",
+            "PixelYDimension",
+        ] {
+            assert!(
+                !output.contains(stale),
+                "stale rendered-image property {stale}"
+            );
+        }
+        assert!(output.contains("r:about=\"nested\" orient:Orientation=\"8\""));
+        crate::xmp::validate(&output).unwrap();
+    }
+
+    #[test]
+    fn export_merge_preserves_unrelated_subjects_and_rebound_prefixes() {
+        let foreign = r#"<r:Description r:about="other" xmlns:orient="http://ns.adobe.com/tiff/1.0/" orient:Orientation="8"><orient:ImageWidth>42</orient:ImageWidth></r:Description>"#;
+        let input = source(r#"<crs:Exposure2012 xmlns:crs="urn:foreign">keep</crs:Exposure2012><tiff:Orientation xmlns:tiff="urn:foreign">keep too</tiff:Orientation>"#).replace("</r:RDF>", &format!("{foreign}</r:RDF>"));
+        let output = build_export_xmp(
+            &ExportXmp::from_metadata(&ImageMetadata::default()),
+            Some(&input),
+        )
+        .unwrap();
+        assert!(output.contains(foreign));
+        assert!(output.contains("urn:foreign\">keep"));
+        assert!(output.contains("urn:foreign\">keep too"));
+        crate::xmp::validate(&output).unwrap();
+    }
+}
+
+fn embed_jpeg_xmp(image_bytes: &mut Vec<u8>, packet: &str) {
+    const XMP_NAMESPACE: &[u8] = b"http://ns.adobe.com/xap/1.0/\0";
+
+    if !image_bytes.starts_with(&[0xFF, 0xD8]) {
+        return;
+    }
+    let Ok(segment_len) = u16::try_from(2 + XMP_NAMESPACE.len() + packet.len()) else {
+        log::warn!("Skipping XMP metadata: packet exceeds JPEG segment size");
+        return;
+    };
+
+    let insert_at = jpeg_xmp_insert_pos(image_bytes);
+
+    let mut segment = Vec::with_capacity(2 + segment_len as usize);
+    segment.extend_from_slice(&[0xFF, 0xE1]);
+    segment.extend_from_slice(&segment_len.to_be_bytes());
+    segment.extend_from_slice(XMP_NAMESPACE);
+    segment.extend_from_slice(packet.as_bytes());
+    image_bytes.splice(insert_at..insert_at, segment);
+}
+
+fn embed_png_xmp(image_bytes: &mut Vec<u8>, packet: &str) {
+    const IHDR_END: usize = 33;
+
+    if image_bytes.len() < IHDR_END || &image_bytes[12..16] != b"IHDR" {
+        return;
+    }
+
+    let mut data = b"XML:com.adobe.xmp\0\0\0\0\0".to_vec();
+    data.extend_from_slice(packet.as_bytes());
+    let mut crc = crc32fast::Hasher::new();
+    crc.update(b"iTXt");
+    crc.update(&data);
+
+    let mut chunk = Vec::with_capacity(data.len() + 12);
+    chunk.extend_from_slice(&(data.len() as u32).to_be_bytes());
+    chunk.extend_from_slice(b"iTXt");
+    chunk.extend_from_slice(&data);
+    chunk.extend_from_slice(&crc.finalize().to_be_bytes());
+    image_bytes.splice(IHDR_END..IHDR_END, chunk);
+}
+
+fn embed_webp_xmp(image_bytes: &mut Vec<u8>, packet: &str) {
+    const VP8X_FLAGS: usize = 20;
+    const XMP_FLAG: u8 = 0x04;
+
+    if image_bytes.len() <= VP8X_FLAGS
+        || &image_bytes[0..4] != b"RIFF"
+        || &image_bytes[12..16] != b"VP8X"
+    {
+        return;
+    }
+
+    image_bytes[VP8X_FLAGS] |= XMP_FLAG;
+    image_bytes.extend_from_slice(b"XMP ");
+    image_bytes.extend_from_slice(&(packet.len() as u32).to_le_bytes());
+    image_bytes.extend_from_slice(packet.as_bytes());
+    if !packet.len().is_multiple_of(2) {
+        image_bytes.push(0);
+    }
+    update_riff_size(image_bytes);
+}
+
+fn update_riff_size(image_bytes: &mut [u8]) {
+    let riff_size = (image_bytes.len() - 8) as u32;
+    image_bytes[4..8].copy_from_slice(&riff_size.to_le_bytes());
 }
 
 pub fn get_primary_sidecar_path(image_path: &Path) -> PathBuf {
@@ -1873,26 +2229,6 @@ pub fn get_rrexif_path(image_path: &Path) -> PathBuf {
 fn load_primary_metadata(image_path: &Path) -> ImageMetadata {
     let primary = get_primary_sidecar_path(image_path);
     load_sidecar(&primary)
-}
-
-pub fn load_tags_from_sidecar(image_path: &Path) -> Option<Vec<String>> {
-    let metadata = load_primary_metadata(image_path);
-    let keywords = export_keywords(&metadata.tags.unwrap_or_default());
-    (!keywords.is_empty()).then_some(keywords)
-}
-
-fn export_keywords(tags: &[String]) -> Vec<String> {
-    let mut keywords: Vec<String> = Vec::new();
-    for tag in tags {
-        if tag.starts_with(COLOR_TAG_PREFIX) {
-            continue;
-        }
-        let keyword = tag.strip_prefix(USER_TAG_PREFIX).unwrap_or(tag).trim();
-        if !keyword.is_empty() && !keywords.iter().any(|k| k == keyword) {
-            keywords.push(keyword.to_string());
-        }
-    }
-    keywords
 }
 
 fn save_primary_metadata(image_path: &Path, metadata: &ImageMetadata) -> std::io::Result<()> {
@@ -1929,6 +2265,148 @@ pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>>
     }
 
     None
+}
+
+/// Reads the Sony correction tables stored in ARW SubIFDs.
+///
+/// The values are intentionally preserved as metadata only. Their physical
+/// units and interpolation are not documented by Sony, so rendering must not
+/// infer a correction from this raw table.
+fn sony_correction_metadata(file_bytes: &[u8]) -> HashMap<&'static str, Vec<i16>> {
+    const MAX_IFDS: usize = 32;
+    const SUB_IFDS: u16 = 0x014a;
+    const VIGNETTING: u16 = 0x7032;
+    const CA: u16 = 0x7035;
+    const DISTORTION: u16 = 0x7037;
+
+    let Some(endian) = file_bytes.get(..2) else {
+        return HashMap::new();
+    };
+    let little = match endian {
+        b"II" => true,
+        b"MM" => false,
+        _ => return HashMap::new(),
+    };
+    let u16_at = |at: usize| -> Option<u16> {
+        let bytes: [u8; 2] = file_bytes.get(at..at.checked_add(2)?)?.try_into().ok()?;
+        Some(if little {
+            u16::from_le_bytes(bytes)
+        } else {
+            u16::from_be_bytes(bytes)
+        })
+    };
+    let u32_at = |at: usize| -> Option<u32> {
+        let bytes: [u8; 4] = file_bytes.get(at..at.checked_add(4)?)?.try_into().ok()?;
+        Some(if little {
+            u32::from_le_bytes(bytes)
+        } else {
+            u32::from_be_bytes(bytes)
+        })
+    };
+    if u16_at(2) != Some(42) {
+        return HashMap::new();
+    }
+    let Some(first_ifd) = u32_at(4).and_then(|offset| usize::try_from(offset).ok()) else {
+        return HashMap::new();
+    };
+
+    let mut result = HashMap::new();
+    let mut pending = vec![first_ifd];
+    // Bound both processed and queued IFDs. An untrusted IFD can name up to
+    // 32 SubIFDs, so limiting only the pop loop would still allow a crafted
+    // file to grow `pending` without bound before those offsets are visited.
+    let mut queued = std::collections::HashSet::from([first_ifd]);
+    let mut seen = std::collections::HashSet::new();
+    while let Some(ifd) = pending.pop() {
+        if !seen.insert(ifd) || seen.len() > MAX_IFDS {
+            continue;
+        }
+        let Some(count) = u16_at(ifd).map(usize::from) else {
+            continue;
+        };
+        let Some(entries_end) = ifd
+            .checked_add(2)
+            .and_then(|n| n.checked_add(count.checked_mul(12)?))
+        else {
+            continue;
+        };
+        if entries_end > file_bytes.len() {
+            continue;
+        }
+        for entry in 0..count {
+            let at = ifd + 2 + entry * 12;
+            let (Some(tag), Some(kind), Some(values)) =
+                (u16_at(at), u16_at(at + 2), u32_at(at + 4))
+            else {
+                continue;
+            };
+            // Sony's correction arrays are signed SHORTs. Refuse any type or
+            // count change instead of accidentally treating offsets as values.
+            let expected = match tag {
+                VIGNETTING | DISTORTION => Some(17),
+                CA => Some(33),
+                _ => None,
+            };
+            if let Some(expected) = expected {
+                if kind != 8 || values != expected {
+                    continue;
+                }
+                let Some(start) = u32_at(at + 8).and_then(|offset| usize::try_from(offset).ok())
+                else {
+                    continue;
+                };
+                let Some(end) = start.checked_add(expected as usize * 2) else {
+                    continue;
+                };
+                if end > file_bytes.len() {
+                    continue;
+                }
+                let values: Option<Vec<i16>> = (0..expected as usize)
+                    .map(|index| u16_at(start + index * 2).map(|n| n as i16))
+                    .collect();
+                let Some(values) = values else { continue };
+                let key = match tag {
+                    VIGNETTING => "SonyVignettingCorrParams",
+                    CA => "SonyChromaticAberrationCorrParams",
+                    DISTORTION => "SonyDistortionCorrParams",
+                    _ => unreachable!(),
+                };
+                result.insert(key, values);
+            } else if tag == SUB_IFDS && (kind == 4 || kind == 13) {
+                let count = values.min(MAX_IFDS as u32) as usize;
+                let start = if count == 1 {
+                    at + 8
+                } else if let Some(offset) = u32_at(at + 8).and_then(|n| usize::try_from(n).ok()) {
+                    offset
+                } else {
+                    continue;
+                };
+                for index in 0..count {
+                    if let Some(offset) =
+                        u32_at(start + index * 4).and_then(|n| usize::try_from(n).ok())
+                        && queued.len() < MAX_IFDS
+                        && queued.insert(offset)
+                    {
+                        pending.push(offset);
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+
+fn insert_sony_correction_metadata(map: &mut HashMap<String, String>, file_bytes: &[u8]) {
+    for (key, values) in sony_correction_metadata(file_bytes) {
+        map.insert(
+            key.to_string(),
+            values
+                .into_iter()
+                .map(|value| value.to_string())
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+    }
 }
 
 pub fn read_exif_data_from_bytes(path: &str, file_bytes: &[u8]) -> HashMap<String, String> {
@@ -2026,83 +2504,6 @@ pub fn write_rrexif_sidecar(source_path_str: &str, target_image_path: &Path) -> 
         .map_err(|e| format!("Failed to write sidecar: {}", e))
 }
 
-/// Builds a minimal XMP packet containing dc:subject keywords and injects
-/// it into the image bytes in the correct location for each container format.
-fn inject_xmp_keywords(image_bytes: &mut Vec<u8>, format: &str, tags: &[String]) {
-    let xmp_packet = build_xmp_keywords_packet(tags);
-    let xmp_bytes = xmp_packet.as_bytes();
-
-    match format.to_lowercase().as_str() {
-        "jpg" | "jpeg" => inject_xmp_jpeg(image_bytes, xmp_bytes),
-        "png" => inject_xmp_png(image_bytes, xmp_bytes),
-        "webp" => inject_xmp_webp(image_bytes, xmp_bytes),
-        _ => {
-            log::debug!("XMP keyword injection not supported for format: {}", format);
-        }
-    }
-}
-
-/// Builds a minimal XMP packet string containing dc:subject keywords.
-fn build_xmp_keywords_packet(tags: &[String]) -> String {
-    let items: String = tags
-        .iter()
-        .map(|t| {
-            let escaped = t
-                .replace('&', "&amp;")
-                .replace('<', "&lt;")
-                .replace('>', "&gt;")
-                .replace('"', "&quot;")
-                .replace('\'', "&apos;");
-            format!("      <rdf:li>{}</rdf:li>\n", escaped)
-        })
-        .collect();
-
-    format!(
-        "<?xpacket begin='\u{FEFF}' id='W5M0MpCehiHzreSzNTczkc9d'?>\n\
-         <x:xmpmeta xmlns:x='adobe:ns:meta/'>\n\
-           <rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>\n\
-             <rdf:Description rdf:about='' xmlns:dc='http://purl.org/dc/elements/1.1/'>\n\
-               <dc:subject>\n\
-                 <rdf:Bag>\n\
-         {}\
-                 </rdf:Bag>\n\
-               </dc:subject>\n\
-             </rdf:Description>\n\
-           </rdf:RDF>\n\
-         </x:xmpmeta>\n\
-         <?xpacket end='w'?>",
-        items
-    )
-}
-
-/// Injects XMP as a JPEG APP1 segment after the SOI marker and any leading
-/// JFIF APP0 / Exif APP1 segments, which readers expect to come first.
-fn inject_xmp_jpeg(image_bytes: &mut Vec<u8>, xmp_bytes: &[u8]) {
-    const NAMESPACE: &[u8] = b"http://ns.adobe.com/xap/1.0/\0";
-    let segment_data_len = 2 + NAMESPACE.len() + xmp_bytes.len();
-    if segment_data_len > 0xFFFF {
-        log::warn!(
-            "XMP keyword packet too large for JPEG APP1 segment ({} bytes); skipping",
-            segment_data_len
-        );
-        return;
-    }
-    let length = segment_data_len as u16;
-
-    let mut segment = Vec::with_capacity(2 + segment_data_len);
-    segment.extend_from_slice(&[0xFF, 0xE1]);
-    segment.extend_from_slice(&length.to_be_bytes());
-    segment.extend_from_slice(NAMESPACE);
-    segment.extend_from_slice(xmp_bytes);
-
-    if image_bytes.len() >= 2 && image_bytes[0] == 0xFF && image_bytes[1] == 0xD8 {
-        let pos = jpeg_xmp_insert_pos(image_bytes);
-        image_bytes.splice(pos..pos, segment);
-    } else {
-        log::warn!("JPEG bytes do not begin with SOI marker; skipping XMP injection");
-    }
-}
-
 fn jpeg_xmp_insert_pos(bytes: &[u8]) -> usize {
     let mut pos = 2usize;
     while pos + 4 <= bytes.len() && bytes[pos] == 0xFF {
@@ -2118,70 +2519,15 @@ fn jpeg_xmp_insert_pos(bytes: &[u8]) -> usize {
     pos
 }
 
-/// Injects XMP as a PNG iTXt chunk before the first IDAT chunk, where all readers look for it.
-fn inject_xmp_png(image_bytes: &mut Vec<u8>, xmp_bytes: &[u8]) {
-    const KEYWORD: &[u8] = b"XML:com.adobe.xmp";
-    let mut chunk_data: Vec<u8> = Vec::new();
-    chunk_data.extend_from_slice(KEYWORD);
-    chunk_data.push(0x00); // null separator
-    chunk_data.push(0x00); // compression flag: none
-    chunk_data.push(0x00); // compression method: none
-    chunk_data.push(0x00); // language tag: empty
-    chunk_data.push(0x00); // translated keyword: empty
-    chunk_data.extend_from_slice(xmp_bytes);
-
-    let length = chunk_data.len() as u32;
-    let chunk_type = b"iTXt";
-
-    let mut crc_input = Vec::with_capacity(4 + chunk_data.len());
-    crc_input.extend_from_slice(chunk_type);
-    crc_input.extend_from_slice(&chunk_data);
-    let crc = crc32_ieee(&crc_input);
-
-    let mut chunk = Vec::with_capacity(12 + chunk_data.len());
-    chunk.extend_from_slice(&length.to_be_bytes());
-    chunk.extend_from_slice(chunk_type);
-    chunk.extend_from_slice(&chunk_data);
-    chunk.extend_from_slice(&crc.to_be_bytes());
-
-    if let Some(idat_pos) = find_png_chunk(image_bytes, b"IDAT") {
-        image_bytes.splice(idat_pos..idat_pos, chunk);
-    } else {
-        log::warn!("Could not find PNG IDAT chunk; skipping XMP injection");
-    }
-}
-
-/// Injects XMP as a WebP XMP  chunk in the RIFF container.
-fn inject_xmp_webp(image_bytes: &mut Vec<u8>, xmp_bytes: &[u8]) {
-    let padded_len = xmp_bytes.len().next_multiple_of(2);
-    let mut chunk: Vec<u8> = Vec::with_capacity(8 + padded_len);
-    chunk.extend_from_slice(b"XMP ");
-    chunk.extend_from_slice(&(xmp_bytes.len() as u32).to_le_bytes());
-    chunk.extend_from_slice(xmp_bytes);
-    if !xmp_bytes.len().is_multiple_of(2) {
-        chunk.push(0x00);
-    }
-
-    if image_bytes.len() >= 30 && &image_bytes[0..4] == b"RIFF" && &image_bytes[8..12] == b"WEBP" {
-        // An XMP chunk is only valid in the extended format, with the VP8X XMP flag set.
-        if &image_bytes[12..16] != b"VP8X" && !convert_webp_to_extended(image_bytes) {
-            log::warn!("Could not convert WebP to the extended format; skipping XMP injection");
-            return;
-        }
-        image_bytes[20] |= 0x04;
-        let current_riff_size =
-            u32::from_le_bytes(image_bytes[4..8].try_into().unwrap_or([0u8; 4]));
-        let new_riff_size = current_riff_size.saturating_add(chunk.len() as u32);
-        image_bytes[4..8].copy_from_slice(&new_riff_size.to_le_bytes());
-        image_bytes.extend_from_slice(&chunk);
-    } else {
-        log::warn!("WebP bytes do not have valid RIFF/WEBP header; skipping XMP injection");
-    }
-}
-
 /// Turns a simple-format WebP (a lone VP8 or VP8L chunk, plus any trailing
 /// chunks) into the extended format by inserting a VP8X header chunk.
 fn convert_webp_to_extended(image_bytes: &mut Vec<u8>) -> bool {
+    if image_bytes.len() < 30 || &image_bytes[0..4] != b"RIFF" || &image_bytes[8..12] != b"WEBP" {
+        return false;
+    }
+    if &image_bytes[12..16] == b"VP8X" {
+        return true;
+    }
     let payload = &image_bytes[20..];
     let (width, height, has_alpha) = match &image_bytes[12..16] {
         b"VP8 " if payload[3..6] == [0x9D, 0x01, 0x2A] => (
@@ -2226,7 +2572,7 @@ fn convert_webp_to_extended(image_bytes: &mut Vec<u8>) -> bool {
     true
 }
 
-/// Finds the byte offset of the first chunk of the given type in PNG bytes.
+#[cfg(test)]
 fn find_png_chunk(bytes: &[u8], wanted: &[u8; 4]) -> Option<usize> {
     let mut pos = 8usize;
     while pos + 8 <= bytes.len() {
@@ -2241,7 +2587,7 @@ fn find_png_chunk(bytes: &[u8], wanted: &[u8; 4]) -> Option<usize> {
 }
 
 /// CRC32 using the IEEE polynomial, as required by PNG.
-fn crc32_ieee(data: &[u8]) -> u32 {
+pub(crate) fn crc32_ieee(data: &[u8]) -> u32 {
     let mut crc: u32 = 0xFFFFFFFF;
     for &byte in data {
         let index = ((crc ^ byte as u32) & 0xFF) as usize;
@@ -2327,7 +2673,10 @@ mod xmp_keyword_tests {
             format,
             true,
             false,
-            Some(&keywords),
+            &ExportXmp::from_metadata(&ImageMetadata {
+                tags: Some(keywords),
+                ..ImageMetadata::default()
+            }),
         )
         .unwrap();
         bytes
@@ -2335,19 +2684,27 @@ mod xmp_keyword_tests {
 
     #[test]
     fn keywords_drop_color_labels_and_user_prefix() {
-        let keywords = export_keywords(&tags(&[
-            "color:red",
-            "user:Beach",
-            "Beach",
-            "sunset",
-            "user: ",
-        ]));
+        let keywords = ExportXmp::from_metadata(&ImageMetadata {
+            tags: Some(tags(&[
+                "color:red",
+                "user:Beach",
+                "Beach",
+                "sunset",
+                "user: ",
+            ])),
+            ..ImageMetadata::default()
+        })
+        .keywords;
         assert_eq!(keywords, tags(&["Beach", "sunset"]));
     }
 
     #[test]
     fn packet_escapes_xml() {
-        let packet = build_xmp_keywords_packet(&tags(&["Tom & Jerry", "<b>"]));
+        let xmp = ExportXmp::from_metadata(&ImageMetadata {
+            tags: Some(tags(&["Tom & Jerry", "<b>"])),
+            ..ImageMetadata::default()
+        });
+        let packet = build_export_xmp(&xmp, None).unwrap();
         assert!(packet.contains("<rdf:li>Tom &amp; Jerry</rdf:li>"));
         assert!(packet.contains("<rdf:li>&lt;b&gt;</rdf:li>"));
     }
@@ -2383,13 +2740,14 @@ mod xmp_keyword_tests {
             .encode(&[200, 80, 40], 1, 1, jxl_encoder::PixelLayout::Rgb8)
             .unwrap();
         let mut without_metadata = jxl_bytes.clone();
+        let xmp = ExportXmp::from_metadata(&ImageMetadata::default());
         write_image_with_metadata(
             &mut without_metadata,
             source.to_str().unwrap(),
             "jxl",
             false,
             false,
-            None,
+            &xmp,
         )
         .unwrap();
         assert_eq!(without_metadata, jxl_bytes);
@@ -2401,7 +2759,7 @@ mod xmp_keyword_tests {
             "jxl",
             true,
             false,
-            None,
+            &xmp,
         )
         .unwrap();
 
@@ -2446,7 +2804,7 @@ mod xmp_keyword_tests {
             "jxl",
             true,
             true,
-            None,
+            &xmp,
         )
         .unwrap();
         let stripped_metadata = Metadata::new_from_vec(&without_gps, FileExtension::JXL).unwrap();
@@ -2477,7 +2835,18 @@ mod xmp_keyword_tests {
     fn webp_export_carries_keywords_with_vp8x_flag() {
         let mut simple = encode("webp");
         assert_eq!(&simple[12..16], b"VP8 ");
-        inject_xmp_keywords(&mut simple, "webp", &tags(&["Beach"]));
+        assert!(convert_webp_to_extended(&mut simple));
+        let xmp = ExportXmp::from_metadata(&ImageMetadata {
+            tags: Some(tags(&["Beach"])),
+            ..ImageMetadata::default()
+        });
+        embed_xmp(
+            &mut simple,
+            "unused-source.webp",
+            FileExtension::WEBP,
+            true,
+            &xmp,
+        );
         assert_eq!(&simple[12..16], b"VP8X");
         assert_eq!(&simple[24..30], &[15, 0, 0, 7, 0, 0]);
 
@@ -2679,7 +3048,9 @@ pub(crate) mod rating_samples {
 #[cfg(test)]
 mod tests {
     use super::rating_samples::*;
-    use super::{XMP_UUID, parse_xmp_rating, read_image_rating, xmp_rating};
+    use super::{
+        XMP_UUID, parse_xmp_rating, read_image_rating, sony_correction_metadata, xmp_rating,
+    };
     use std::io::Cursor;
 
     fn rating(bytes: &[u8]) -> Option<u8> {
@@ -2747,6 +3118,24 @@ mod tests {
         bytes.extend([0x46, 0x47, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
         bytes.extend(0u32.to_le_bytes());
         assert_eq!(rating(&bytes), Some(2));
+    }
+
+    #[test]
+    fn sony_correction_parser_bounds_malformed_subifd_fanout() {
+        let mut bytes = b"II*\0\x08\0\0\0".to_vec();
+        bytes.extend(1u16.to_le_bytes());
+        // IFD0 points at 32 otherwise-empty IFDs. The parser must dedupe and
+        // bound this graph before queueing more offsets from untrusted input.
+        bytes.extend([0x4a, 0x01, 4, 0, 32, 0, 0, 0, 26, 0, 0, 0]);
+        bytes.extend(0u32.to_le_bytes());
+        bytes.resize(26 + 32 * 4, 0);
+        for index in 0..32 {
+            let offset = 154 + index * 2;
+            bytes[26 + index * 4..30 + index * 4].copy_from_slice(&(offset as u32).to_le_bytes());
+        }
+        bytes.resize(218, 0); // each referenced IFD has a zero entry count
+
+        assert!(sony_correction_metadata(&bytes).is_empty());
     }
 
     #[test]

@@ -1,7 +1,7 @@
 ---
 name: rapidroom
 description: Edit raw photos in RapidRoom (the community build of RapidRAW) through its MCP tools while the user watches - grade the open photo, check each step, compare looks, export for Instagram - and teach as you go (tutor mode). Also explains RapidRoom's sliders by reading its source for the running version, and drafts bug reports or feature requests for RapidRoom that are posted only after the user says yes. Use whenever the user talks about RapidRoom or RapidRAW, the photo open in the editor, sliders, masks, looks, presets or exporting.
-license: AGPL-3.0-only. direction.md, taste.md and film-looks.md are adapted from Lightweft and are MIT; see LICENSES/ in the plugin.
+license: AGPL-3.0-only. direction.md, taste.md and film-looks.md are adapted from Lightweft and are MIT; see LICENSES/ in the plugin. The bounded judge policy is adapted from autoshade under MIT; see LICENSES/autoshade-MIT.txt.
 ---
 
 # RapidRoom
@@ -11,7 +11,7 @@ You edit the photo open in RapidRoom through its MCP tools. The user sees every 
 ## Principles
 
 - **The user decides.** Changes are visible and undoable; propose big moves (crop, strong look, reset) first. Never write sidecars or settings files.
-- **Measure, then look.** Check after every step: render, measure, look, adjust.
+- **Frame first, then judge.** Establish the destination and look, agree the crop, and inspect each meaningful step at about 800 px. Use measurements when clipping or a neutral patch matters; finish with one small native detail check.
 - **No guessing.** Use only the keys in [adjustments.md](references/adjustments.md), within the slider ranges there. Use only tools that `tools/list` shows; planned ones are marked [coming](references/tools.md#coming). Never describe a coming tool as if it existed.
 - **Nothing is posted without a yes.** Issues, comments, uploads: show the draft, wait for an explicit yes.
 - **Local and private.** No photos, file names or paths leave the machine unless the user agrees.
@@ -29,15 +29,16 @@ The terminal supplies `RAPIDROOM_UNTRUSTED_CONTEXT`, a labelled data-only JSON o
 ## Start
 
 1. `get_active_image_state`. Nothing open: ask which photo, or `list_images` and `open_image`. No RapidRoom tools at all: see [starting.md](references/starting.md).
-2. Keep the starting `adjustments` and pass the latest `editRevision` as `expectedRevision` on every change. A mismatch means the user changed something: read again and build on it.
-3. Ask, or infer from the request, how the user wants to work: fast, explain as you go, or walk them through it ([tutor.md](references/tutor.md)).
+2. For a full starting snapshot, call `get_active_image_state(nonDefaultOnly: false)`. Keep its `adjustments` and pass the latest `editRevision` as `expectedRevision` on every change. A mismatch means the user changed something: read again and build on it.
+3. Ask for the destination (feed, story, print or screen) and the look when the request does not establish them. Agree the crop before grading, so previews show the final frame. Ask, or infer from the request, how the user wants to work: fast, explain as you go, or walk them through it ([tutor.md](references/tutor.md)).
 
 ## Gotchas
 
 - `exposure` 1.0 is about +1.25 EV. `whites` is a gain on the whole image; move it in small steps.
 - `temperature` + is warmer, `tint` + is magenta, `vignetteAmount` − darkens the edges.
 - The renderer reads `curves`, not `parametricCurve`: write point curves.
-- `update_adjustments` merges nested objects; writing `masks` replaces all masks.
+- `update_adjustments` merges nested objects; writing `masks` replaces all masks. Prefer `upsert_mask` for one mask at a time, preserving siblings and using original-image pixel units.
+- One `render_compare` round per decision is usually enough. Check shadow and midtone subject detail before applying heavy curves; use `history_list` to follow the user’s own edits.
 - `get_histogram_data` is smoothed and normalized: it shows the shape, not pixel counts.
 
 ## References
@@ -45,6 +46,7 @@ The terminal supplies `RAPIDROOM_UNTRUSTED_CONTEXT`, a labelled data-only JSON o
 | When                                                        | Read                                          |
 | ----------------------------------------------------------- | --------------------------------------------- |
 | Which tools exist now, which are coming                     | [tools.md](references/tools.md)               |
+| Bounded scored comparison and closed-move correction        | [judge.md](references/judge.md)               |
 | The editing loop: order of work, checks, compare, export    | [workflow.md](references/workflow.md)         |
 | Every adjustment and mask key: range, default, what + does  | [adjustments.md](references/adjustments.md)   |
 | What the photo should become; checks before delivering      | [direction.md](references/direction.md)       |
@@ -56,3 +58,5 @@ The terminal supplies `RAPIDROOM_UNTRUSTED_CONTEXT`, a labelled data-only JSON o
 | A question the docs don't answer: read the source           | [source.md](references/source.md)             |
 | A defect or missing feature: draft an issue                 | [report-issue.md](references/report-issue.md) |
 | Setting up RapidRoom, the plugin, Codex, a launcher         | [starting.md](references/starting.md)         |
+
+Before an alternative edit, assess the current recipe and automatically protect substantial user work in a virtual copy when these tools are installed. Use native catalog Styles and Amount instead of translating XMP by hand. See [workflow.md](references/workflow.md#protect-existing-work-before-proposing-changes) and [tools.md](references/tools.md#styles-and-protected-editing). Deletion always requires the user’s GUI confirmation; keep both versions by default.

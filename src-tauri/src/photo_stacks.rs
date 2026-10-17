@@ -239,6 +239,43 @@ fn capture_time(exif: &HashMap<String, String>) -> Option<NaiveDateTime> {
     base.checked_add_signed(chrono::Duration::nanoseconds(nanos))
 }
 
+// ExposureBiasValue is a plain number for RAW files and may be a fraction or
+// carry a unit in other sources.
+fn exposure_bias(exif: &HashMap<String, String>) -> Option<f64> {
+    let text = exif.get("ExposureBiasValue")?.trim().trim_matches('"');
+    if let Some((n, d)) = text.split_once('/') {
+        let (n, d) = (n.trim().parse::<f64>().ok()?, d.trim().parse::<f64>().ok()?);
+        return (d != 0.0).then_some(n / d);
+    }
+    let number: String = text
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || matches!(c, '+' | '-' | '.'))
+        .collect();
+    number.parse().ok().filter(|v: &f64| v.is_finite())
+}
+
+// A bracket's cover is its normal exposure: when the members' exposure bias
+// differs, the frame closest to 0 EV leads. Otherwise (bursts) capture order stays.
+fn bracket_cover_first(groups: &mut [Vec<String>], bias: &HashMap<String, f64>) {
+    for group in groups {
+        let values: Option<Vec<f64>> = group.iter().map(|p| bias.get(p).copied()).collect();
+        let Some(values) = values else { continue };
+        let (lo, hi) = values
+            .iter()
+            .fold((f64::MAX, f64::MIN), |(lo, hi), v| (lo.min(*v), hi.max(*v)));
+        if hi - lo < 0.25 {
+            continue;
+        }
+        let mut best = 0;
+        for (i, v) in values.iter().enumerate() {
+            if v.abs() < values[best].abs() - 1e-9 {
+                best = i;
+            }
+        }
+        group[..=best].rotate_right(1);
+    }
+}
+
 fn parent_identity(path: &Path) -> PathBuf {
     let parent = path.parent().unwrap_or_else(|| Path::new(""));
     std::fs::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf())
@@ -284,6 +321,7 @@ pub async fn preview_photo_stacks(
 ) -> Result<Vec<Vec<String>>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut photos = Vec::new();
+        let mut bias = HashMap::new();
         let mut seen = HashSet::new();
         for path in paths {
             let path = source(&path)?;
@@ -306,10 +344,15 @@ pub async fn preview_photo_stacks(
                     .unwrap_or_default()
             });
             if let Some(time) = capture_time(&exif) {
+                if let Some(ev) = exposure_bias(&exif) {
+                    bias.insert(path.to_string_lossy().into_owned(), ev);
+                }
                 photos.push((path, time));
             }
         }
-        time_groups(photos, seconds)
+        let mut groups = time_groups(photos, seconds)?;
+        bracket_cover_first(&mut groups, &bias);
+        Ok(groups)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -376,6 +419,37 @@ mod tests {
         );
         assert!(time_groups(Vec::new(), f64::NAN).is_err());
         assert!(time_groups(Vec::new(), -1.0).is_err());
+    }
+
+    #[test]
+    fn bracket_cover_is_the_normal_exposure_and_bursts_keep_capture_order() {
+        let ev = |pairs: &[(&str, f64)]| -> HashMap<String, f64> {
+            pairs.iter().map(|(p, v)| (p.to_string(), *v)).collect()
+        };
+        let names = |a: &str, b: &str, c: &str| vec![a.to_string(), b.to_string(), c.to_string()];
+        let mut groups = vec![names("dark", "normal", "light")];
+        bracket_cover_first(
+            &mut groups,
+            &ev(&[("dark", -2.0), ("normal", 0.0), ("light", 2.0)]),
+        );
+        assert_eq!(groups[0], names("normal", "dark", "light"));
+        let mut groups = vec![names("normal", "dark", "light")];
+        bracket_cover_first(
+            &mut groups,
+            &ev(&[("dark", -2.0), ("normal", 0.0), ("light", 2.0)]),
+        );
+        assert_eq!(groups[0], names("normal", "dark", "light"));
+        let mut burst = vec![names("a", "b", "c")];
+        bracket_cover_first(&mut burst, &ev(&[("a", 0.0), ("b", 0.0), ("c", 0.0)]));
+        assert_eq!(burst[0], names("a", "b", "c"));
+        let mut unknown = vec![names("a", "b", "c")];
+        bracket_cover_first(&mut unknown, &ev(&[("a", -1.0), ("b", 1.0)]));
+        assert_eq!(unknown[0], names("a", "b", "c"));
+        let one = |v: &str| HashMap::from([("ExposureBiasValue".to_string(), v.to_string())]);
+        assert_eq!(exposure_bias(&one("-0.666")), Some(-0.666));
+        assert_eq!(exposure_bias(&one("+2 EV")), Some(2.0));
+        assert_eq!(exposure_bias(&one("-2/3")), Some(-2.0 / 3.0));
+        assert_eq!(exposure_bias(&HashMap::new()), None);
     }
 
     #[test]

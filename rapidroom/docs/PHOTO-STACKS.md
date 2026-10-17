@@ -17,7 +17,10 @@ regardless of the RAW+JPEG preference.
 including photos hidden by filters. It groups consecutive captures in each
 folder when their gap is at most the chosen number of seconds (default 1),
 using DateTimeOriginal and SubSecTimeOriginal. Existing stacks and photos
-without valid capture dates are skipped. No stack writes happen until Apply.
+without valid capture dates are skipped. When a proposed group's exposure
+bias (ExposureBiasValue) differs between members, as in an exposure bracket, the
+frame closest to 0 EV becomes its cover; bursts keep capture order. No stack
+writes happen until Apply.
 
 Stars and pick/reject flags affect the selected cover by default. Enable
 **Apply stars and flags to whole stacks (this session)** in the stack menu to

@@ -149,3 +149,88 @@ it('preserves global arrow navigation outside Recursive view', async () => {
   expect(useLibraryStore.getState().libraryActivePath).toBe('/photos/FOLDER456/IMAGE3.jpg');
   expect(callbacks.handleImageSelect).toHaveBeenCalledWith('/photos/FOLDER456/IMAGE3.jpg', false);
 });
+
+it('advances rapid editor arrows from the pending photo while the displayed photo is still loading', async () => {
+  const paths = ['/A.ARW', '/B.ARW', '/C.ARW', '/D.ARW'];
+  callbacks.sortedImageList = paths.map((path) => ({ path }) as ImageFile);
+  callbacks.handleImageSelect.mockImplementation((path: string) => {
+    // The real navigation hook publishes this intent before its asynchronous cache check.
+    useLibraryStore.getState().setLibrary({ libraryActivePath: path });
+  });
+  try {
+    await act(async () => {
+      useEditorStore
+        .getState()
+        .setEditor({ selectedImage: { ...useEditorStore.getState().selectedImage!, path: paths[0] } });
+      useLibraryStore.getState().setLibrary({ libraryActivePath: paths[1] });
+      root.render(<Harness />);
+    });
+    await act(async () => {
+      for (const code of ['ArrowRight', 'ArrowRight', 'ArrowLeft']) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code, key: code, bubbles: true }));
+      }
+    });
+    expect(callbacks.handleImageSelect.mock.calls.map(([path]) => path)).toEqual([paths[2], paths[3], paths[2]]);
+    expect(useEditorStore.getState().selectedImage?.path).toBe(paths[0]);
+  } finally {
+    callbacks.handleImageSelect.mockReset();
+  }
+});
+
+it('opens Instagram through the rebindable action while respecting text and modal focus', async () => {
+  const key = () =>
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'i',
+        code: 'KeyI',
+        ctrlKey: true,
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  const input = document.createElement('input');
+  node.append(input);
+  input.focus();
+  await act(async () => {
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).toBeNull();
+  input.blur();
+  await act(async () => {
+    useUIStore.setState({ confirmModalState: { ...ui.confirmModalState, isOpen: true } });
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).toBeNull();
+  await act(async () => {
+    useUIStore.setState({ confirmModalState: { ...ui.confirmModalState, isOpen: false } });
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).not.toBeNull();
+  await act(async () => {
+    useUIStore.setState({ instagramExportRequest: null });
+    useSettingsStore.setState({
+      appSettings: {
+        ...(settings.appSettings ?? { lastRootPath: null, theme: Theme.Dark }),
+        keybinds: { export_instagram: ['ctrl', 'shift', 'KeyJ'] },
+      },
+    });
+  });
+  await act(async () => {
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).toBeNull();
+  await act(async () => {
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'J',
+        code: 'KeyJ',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+  expect(useUIStore.getState().instagramExportRequest).not.toBeNull();
+});

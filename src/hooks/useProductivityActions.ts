@@ -4,6 +4,18 @@ import { stackMergedResult } from '../utils/photoStacks';
 import { useUIStore } from '../store/useUIStore';
 import { Invokes } from '../components/ui/AppProperties';
 import type { DenoiseMethod } from '../components/modals/DenoiseModal';
+import { useEditorStore } from '../store/useEditorStore';
+
+function denoiseExposurePolicies(paths: string[]) {
+  const { selectedImage, adjustments } = useEditorStore.getState();
+  if (!selectedImage || !paths.includes(selectedImage.path)) return undefined;
+  return {
+    [selectedImage.path]: {
+      baselineExposure: adjustments.baselineExposure,
+      cameraExposureCompensation: adjustments.cameraExposureCompensation,
+    },
+  };
+}
 
 function isCurrentDenoiseRun(run: number) {
   const { denoiseRun, denoiseModalState } = useUIStore.getState();
@@ -165,6 +177,7 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
       }));
 
       try {
+        const exposurePolicies = denoiseExposurePolicies(denoiseModalState.targetPaths);
         const jobId = await createDenoiseJob(run);
         if (jobId === null) return;
         await invoke(Invokes.ApplyDenoising, {
@@ -173,6 +186,7 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
           intensity: intensity,
           method: method,
           sharpen,
+          exposurePolicies,
         });
       } catch (err) {
         if (isCurrentDenoiseRun(run))
@@ -194,6 +208,7 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
         denoiseModalState: { ...state.denoiseModalState, isProcessing: true, jobId: null, error: null },
       }));
       try {
+        const exposurePolicies = denoiseExposurePolicies(paths);
         const jobId = await createDenoiseJob(run);
         if (jobId === null) return [];
         const savedPaths: string[] = await invoke(Invokes.BatchDenoiseImages, {
@@ -202,6 +217,7 @@ export function useProductivityActions(refreshImageList: () => Promise<void>) {
           intensity,
           method,
           sharpen,
+          exposurePolicies,
         });
         await refreshImageList();
         return savedPaths;

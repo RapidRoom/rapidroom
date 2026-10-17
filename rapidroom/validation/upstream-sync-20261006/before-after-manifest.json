@@ -1,0 +1,96 @@
+[
+  {
+    "file": "busy-agx-lut-effects-sony-a7c2-15mp-uncompressed.png",
+    "set": "busy-agx-lut-effects",
+    "id": "sony-a7c2-15mp-uncompressed",
+    "reference_pixel_sha256": "4334acbb2868de12ce218a54e13a1a7be25e8ee1345e55ba7c72de0627a93702",
+    "test_pixel_sha256": "0a2c069a8d05ce21f018bf98d0267a6e81e56fbd4659050771ab1b5c98e41970",
+    "preview_sha256": "99abc9261f62db34d6e5502a69f1e79d270957d3529244229e9ea99cb26caabb",
+    "method": "Entire exported image, each side independently fitted to960x960 with identical8-bit conversion and Lanczos downsampling; no exposure/contrast adjustment. Metrics from original16-bit images."
+  },
+  {
+    "file": "busy-agx-lut-effects-om-om1-20mp.png",
+    "set": "busy-agx-lut-effects",
+    "id": "om-om1-20mp",
+    "reference_pixel_sha256": "859099f3521af2fc5a618a7d689d49b54a46830e3f2529f21dae213b2b883ae6",
+    "test_pixel_sha256": "45d7cd174fd2437228b1e4a038858eb09107fe65e79cc5a826468ac942ba1545",
+    "preview_sha256": "32249a33d9a13e287c3dcc4f93fe18918cb258658d710d1cc3c5ff7384a2cabd",
+    "method": "Entire exported image, each side independently fitted to960x960 with identical8-bit conversion and Lanczos downsampling; no exposure/contrast adjustment. Metrics from original16-bit images."
+  },
+  {
+    "file": "busy-agx-lut-effects-apple-iphone12pro-proraw.png",
+    "set": "busy-agx-lut-effects",
+    "id": "apple-iphone12pro-proraw",
+    "reference_pixel_sha256": "ea86c7f6bebfecd7c296ff80c23b65972df7b14205719d3c743c50f109f0b340",
+    "test_pixel_sha256": "0d27519d070707821a9776f7554e4cd29a1764d3a9a77f90071c544d16ca00df",
+    "preview_sha256": "1f2219dbc619d9d27cd5c08dd659f7991012fa2df8757f8fa1efcd4bf1324a1b",
+    "method": "Entire exported image, each side independently fitted to960x960 with identical8-bit conversion and Lanczos downsampling; no exposure/contrast adjustment. Metrics from original16-bit images."
+  },
+  {
+    "file": "busy-tone-color-detail-sony-a7c2-15mp-uncompressed.png",
+    "set": "busy-tone-color-detail",
+    "id": "sony-a7c2-15mp-uncompressed",
+    "reference_pixel_sha256": "211297f0c112e13b1669b4a27b97d95ca68fba92c73aaff1ffca9a9c2fe4c509",
+    "test_pixel_sha256": "0e3ef8f04930d74b253389041b9604b13d60458995a54683ea72d41e94ef3522",
+    "preview_sha256": "413cf7c4c9445bd7a5078656d23bdb82be0fc8cda8e16a594f499364f3ac6043",
+    "method": "Entire exported image, each side independently fitted to960x960 with identical8-bit conversion and Lanczos downsampling; no exposure/contrast adjustment. Metrics from original16-bit images."
+  },
+  {
+    "file": "busy-tone-color-detail-om-om1-20mp.png",
+    "set": "busy-tone-color-detail",
+    "id": "om-om1-20mp",
+    "reference_pixel_sha256": "447d2f63a2586b07fd35ab1fab442608e491a169891e0ef0d51adc8cfd42244b",
+    "test_pixel_sha256": "73c0edeb7b01b19f96ea3524f0b3d2507424c3282027a94f2493ee9f42f74074",
+    "preview_sha256": "1f704c9f51b955f69807049f5b5d6f87f759f91ab0b8ed64dc3e04635a692c2b",
+    "method": "Entire exported image, each side independently fitted to960x960 with identical8-bit conversion and Lanczos downsampling; no exposure/contrast adjustment. Metrics from original16-bit images."
+  },
+  {
+    "file": "busy-tone-color-detail-apple-iphone12pro-proraw.png",
+    "set": "busy-tone-color-detail",
+    "id": "apple-iphone12pro-proraw",
+    "reference_pixel_sha256": "160303f2ea0c7b45746849b4eb98df056211195404619b144d205b5049f53675",
+    "test_pixel_sha256": "3f2e9b644c4633bb6697e6e5715fe89c3f8f84d7889d336f05424cb86046a99c",
+    "preview_sha256": "3ca028bb207346d57a6c152a1cd3d182d9217ff18d4e4e7895476b76670bc8b9",
+    "method": "Entire exported image, each side independently fitted to960x960 with identical8-bit conversion and Lanczos downsampling; no exposure/contrast adjustment. Metrics from original16-bit images."
+  },
+  {
+    "file": "busy-tone-color-detail-canon-r50-24mp-craw.png",
+    "set": "busy-tone-color-detail",
+    "id": "canon-r50-24mp-craw",
+    "selection_reason": "largest per-image mean absolute pixel difference",
+    "reference_pixel_sha256": "d3fbce3ef96621bb62e1fb1b7bb9cc5f4c9d93f1c69f2e3114ea92420d42888b",
+    "test_pixel_sha256": "ff63cdb5e5d6089f11c20968eb82a031deae4f15953762398c37f11c6771635a",
+    "preview_sha256": "71fcd541179c7adf590ada9fa702cbd316005dce4cb27707bd55bb1f26c1f947",
+    "method": "Entire exported image, each side fitted to960x960 with identical8-bit conversion and Lanczos downsampling; no exposure/contrast adjustment. Metrics from original16-bit images."
+  },
+  {
+    "file": "busy-tone-color-detail-sony-a7cr-18mp-lossless-s.png",
+    "set": "busy-tone-color-detail",
+    "id": "sony-a7cr-18mp-lossless-s",
+    "selection_reason": "largest per-image mean dE00",
+    "reference_pixel_sha256": "3fdcc3e73c30b76df4f2b6bc07b89a5fb8646d7a32a1cef248d85b75e9c3ae57",
+    "test_pixel_sha256": "ba1659a728b8e9fa37776abc2b3ae3ce342c0036fb24a3f0918323de92622d60",
+    "preview_sha256": "32c8f95a3f494c0d069cb5259e6af2902fa509f22ea8604b07d30c9f9deb962e",
+    "method": "Entire exported image, each side fitted to960x960 with identical8-bit conversion and Lanczos downsampling; no exposure/contrast adjustment. Metrics from original16-bit images."
+  },
+  {
+    "file": "busy-agx-lut-effects-sony-a7cr-18mp-lossless-s.png",
+    "set": "busy-agx-lut-effects",
+    "id": "sony-a7cr-18mp-lossless-s",
+    "selection_reason": "second largest per-image mean dE00; other recipe for the same camera",
+    "reference_pixel_sha256": "5de284273133cd09b51100355ee74ad0412366172c3a3a02f44aafb16bb49153",
+    "test_pixel_sha256": "e69916b2ecf155bdde60763d6f0d6921f8895112f40a2e1a584cb2f19ccfa74e",
+    "preview_sha256": "e713b99b920e87fc8037d4cea5ccb76d13aa446debe6e8253880760e40752ba8",
+    "method": "Entire exported image, each side fitted to960x960 with identical8-bit conversion and Lanczos downsampling; no exposure/contrast adjustment. Metrics from original16-bit images."
+  },
+  {
+    "file": "busy-tone-color-detail-fuji-xt4-26mp-lossless.png",
+    "set": "busy-tone-color-detail",
+    "id": "fuji-xt4-26mp-lossless",
+    "selection_reason": "largest absolute pixel difference",
+    "reference_pixel_sha256": "a6a02fc281ef68d27ff10aa939d1187a1067451bc59301ff3dad1fcf96bd798c",
+    "test_pixel_sha256": "7ca7844b281c3da5a1e84e302a8a1e767610c77d2301ebcdfdf793bb6337a7c4",
+    "preview_sha256": "77058f24b7af4d6f9cdc9e9c701cf66734ef381dcbbb11fb9ebc667b066572fa",
+    "method": "Entire exported image, each side fitted to960x960 with identical8-bit conversion and Lanczos downsampling; no exposure/contrast adjustment. Metrics from original16-bit images."
+  }
+]
