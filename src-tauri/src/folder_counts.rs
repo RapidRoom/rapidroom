@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant, SystemTime};
-use walkdir::WalkDir;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,37 +29,7 @@ pub fn count_photos(path: &Path, recursive: bool) -> Result<PhotoCount, String> 
     {
         return Ok(result.clone());
     }
-    let start = Instant::now();
-    let mut result = PhotoCount {
-        count: 0,
-        complete: true,
-    };
-    let depth = if recursive { 64 } else { 1 };
-    let entries = WalkDir::new(path)
-        .follow_links(false)
-        .max_open(8)
-        .max_depth(depth)
-        .into_iter()
-        .filter_entry(|e| e.depth() == 0 || !e.file_name().to_string_lossy().starts_with('.'));
-    for (index, entry) in entries.enumerate() {
-        if index >= 20_000 || start.elapsed() >= Duration::from_millis(200) {
-            result.complete = false;
-            break;
-        }
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(_) => {
-                result.complete = false;
-                continue;
-            }
-        };
-        if recursive && entry.depth() == depth && entry.file_type().is_dir() {
-            result.complete = false;
-        }
-        if entry.file_type().is_file() && is_supported_image_file(entry.path()) {
-            result.count += 1;
-        }
-    }
+    let result = scan_photos(path, recursive, 20_000, Duration::from_millis(200))?;
     if !recursive {
         let mut cache = CACHE.lock().unwrap();
         if cache.len() >= 512
@@ -75,6 +44,63 @@ pub fn count_photos(path: &Path, recursive: bool) -> Result<PhotoCount, String> 
             path.to_path_buf(),
             (modified, Instant::now(), result.clone()),
         );
+    }
+    Ok(result)
+}
+
+fn scan_photos(
+    path: &Path,
+    recursive: bool,
+    entry_limit: usize,
+    time_limit: Duration,
+) -> Result<PhotoCount, String> {
+    let start = Instant::now();
+    let mut result = PhotoCount {
+        count: 0,
+        complete: true,
+    };
+    let mut directories = vec![std::fs::read_dir(path).map_err(|_| "Cannot read this folder")?];
+    let mut visited = 0;
+    while !directories.is_empty() {
+        if visited >= entry_limit || start.elapsed() >= time_limit {
+            result.complete = false;
+            break;
+        }
+        let Some(entry) = directories.last_mut().unwrap().next() else {
+            directories.pop();
+            continue;
+        };
+        visited += 1;
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => {
+                result.complete = false;
+                continue;
+            }
+        };
+        // Hidden entries consume the raw-entry budget and are never descended.
+        if entry.file_name().to_string_lossy().starts_with('.') {
+            continue;
+        }
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(_) => {
+                result.complete = false;
+                continue;
+            }
+        };
+        if file_type.is_dir() && recursive {
+            if directories.len() >= 64 {
+                result.complete = false;
+                continue;
+            }
+            match std::fs::read_dir(entry.path()) {
+                Ok(directory) => directories.push(directory),
+                Err(_) => result.complete = false,
+            }
+        } else if file_type.is_file() && is_supported_image_file(entry.path()) {
+            result.count += 1;
+        }
     }
     Ok(result)
 }
@@ -97,6 +123,20 @@ pub async fn count_folder_photos(path: String, recursive: bool) -> Result<PhotoC
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hidden_entries_consume_the_scan_budget_before_filtering() {
+        let dir = tempfile::tempdir().unwrap();
+        for index in 0..12 {
+            std::fs::write(dir.path().join(format!(".hidden-{index}.jpg")), []).unwrap();
+        }
+        let limited = scan_photos(dir.path(), true, 3, Duration::from_secs(5)).unwrap();
+        assert_eq!(limited.count, 0);
+        assert!(!limited.complete);
+        let full = scan_photos(dir.path(), true, 100, Duration::from_secs(5)).unwrap();
+        assert_eq!(full.count, 0);
+        assert!(full.complete);
+    }
 
     #[test]
     fn real_folder_counts_ignore_hidden_video_and_symlink_loops_and_refresh_after_changes() {
