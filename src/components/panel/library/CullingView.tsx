@@ -409,7 +409,6 @@ export function CullingPreview({
 
   const effectiveDragging = isDragging || (syncViewport.isActive && syncViewport.isDragging);
 
-  const SCALE_FACTOR = 4;
   const knownDimensions = initialPreview?.thumbKey === safeThumbKey ? (initialPreview.dimensions ?? null) : null;
   const previewFrame = useImageRenderSize(containerRef, knownDimensions);
   const thumbnailFrameStyle: React.CSSProperties | undefined =
@@ -425,10 +424,11 @@ export function CullingPreview({
 
   const imageTransformStyle: React.CSSProperties = {
     position: 'relative',
-    width: `${SCALE_FACTOR * 100}%`,
-    height: `${SCALE_FACTOR * 100}%`,
+    // Lay out at the displayed size so WebKit preserves source detail at 100%.
+    width: `${zoom * 100}%`,
+    height: `${zoom * 100}%`,
     flexShrink: 0,
-    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / SCALE_FACTOR})`,
+    transform: `translate(${pan.x}px, ${pan.y}px)`,
     transition: effectiveDragging ? 'none' : 'transform 0.1s ease-out',
     transformOrigin: 'center center',
     willChange: 'transform',
