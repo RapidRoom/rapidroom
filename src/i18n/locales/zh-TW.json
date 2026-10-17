@@ -1767,6 +1767,8 @@
       "clearThumbnail": "清除縮圖快取",
       "clearThumbnailButton": "清除",
       "clearThumbnailDesc": "這將刪除所有快取的縮圖。在您瀏覽相簿時，它們會自動重新生成。",
+      "cacheUsage": "縮圖和預覽：{{size}} · 檔案數：{{files}}",
+      "cacheUsageError": "無法讀取快取用量。",
       "loading": "載入中...",
       "logs": "檢視應用日誌",
       "logsButton": "開啟",

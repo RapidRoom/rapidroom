@@ -1778,6 +1778,8 @@
       "clearThumbnail": "Esborrar memòria cau de miniatures",
       "clearThumbnailButton": "Esborrar",
       "clearThumbnailDesc": "Això eliminarà totes les imatges en miniatura de la memòria cau. Es regeneraran automàticament mentre navegueu per la biblioteca.",
+      "cacheUsage": "Miniatures i previsualitzacions: {{size}} · Fitxers: {{files}}",
+      "cacheUsageError": "No s’ha pogut llegir l’ús de la memòria cau.",
       "loading": "S'està carregant...",
       "logs": "Veure els registres de l'aplicació",
       "logsButton": "Obrir",

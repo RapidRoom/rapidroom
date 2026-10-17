@@ -1646,6 +1646,8 @@
       "clearThumbnail": "Miniatuurcache wissen",
       "clearThumbnailButton": "Wissen",
       "clearThumbnailDesc": "Dit verwijdert alle gecachte miniatuurafbeeldingen. Ze worden automatisch opnieuw gegenereerd terwijl u door uw bibliotheek bladert.",
+      "cacheUsage": "Miniaturen en voorbeelden: {{size}} · Bestanden: {{files}}",
+      "cacheUsageError": "Cachegebruik kon niet worden gelezen.",
       "loading": "Laden...",
       "logs": "Toepassingslogboeken bekijken",
       "logsButton": "Openen",

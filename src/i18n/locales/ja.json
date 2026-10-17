@@ -1767,6 +1767,8 @@
       "clearThumbnail": "サムネイルキャッシュを削除",
       "clearThumbnailButton": "削除",
       "clearThumbnailDesc": "キャッシュされたすべてのサムネイル画像を削除します。ライブラリを閲覧する際に自動的に再生成されます。",
+      "cacheUsage": "サムネイルとプレビュー: {{size}} · ファイル数: {{files}}",
+      "cacheUsageError": "キャッシュの使用量を読み取れません。",
       "loading": "読み込み中...",
       "logs": "アプリのログを表示",
       "logsButton": "開く",

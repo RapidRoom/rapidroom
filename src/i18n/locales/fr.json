@@ -1808,6 +1808,8 @@
       "clearThumbnail": "Effacer le cache des miniatures",
       "clearThumbnailButton": "Effacer",
       "clearThumbnailDesc": "Ceci supprimera toutes les images miniatures en cache. Elles seront régénérées automatiquement lors de votre navigation dans la bibliothèque.",
+      "cacheUsage": "Miniatures et aperçus : {{size}} · Fichiers : {{files}}",
+      "cacheUsageError": "Impossible de lire l’utilisation du cache.",
       "loading": "Chargement...",
       "logs": "Afficher les journaux de l'application",
       "logsButton": "Ouvrir",
