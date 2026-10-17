@@ -4282,14 +4282,14 @@ pub(crate) fn apply_fresh_raw_defaults(
     }
 }
 
-pub(crate) fn load_sidecar_with_raw_defaults(
-    sidecar_path: &Path,
+pub(crate) fn apply_raw_defaults_and_resolve_auto_lens(
+    metadata: &mut ImageMetadata,
     source_path: &Path,
+    sidecar_path: &Path,
     settings: &AppSettings,
     lens_db: Option<&crate::lens_correction::LensDatabase>,
-) -> ImageMetadata {
-    let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
-    apply_fresh_raw_defaults(&mut metadata, source_path, sidecar_path, settings, lens_db);
+) {
+    apply_fresh_raw_defaults(metadata, source_path, sidecar_path, settings, lens_db);
     if metadata.adjustments["lensCorrectionMode"].as_str() == Some("auto")
         && metadata.adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)
     {
@@ -4304,6 +4304,22 @@ pub(crate) fn load_sidecar_with_raw_defaults(
             source_path,
         );
     }
+}
+
+pub(crate) fn load_sidecar_with_raw_defaults(
+    sidecar_path: &Path,
+    source_path: &Path,
+    settings: &AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) -> ImageMetadata {
+    let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
+    apply_raw_defaults_and_resolve_auto_lens(
+        &mut metadata,
+        source_path,
+        sidecar_path,
+        settings,
+        lens_db,
+    );
     metadata
 }
 
