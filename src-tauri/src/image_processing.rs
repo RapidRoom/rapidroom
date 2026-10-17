@@ -69,6 +69,8 @@ where
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImageMetadata {
     pub version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub denoise: Option<Value>,
     pub rating: u8,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub rating_is_explicit: bool,
@@ -80,6 +82,12 @@ pub struct ImageMetadata {
     pub flag: Option<ImageFlag>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub flag_is_explicit: bool,
+    #[serde(
+        default,
+        rename = "exportFraming",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub export_framing: Option<Value>,
     pub adjustments: Value,
     #[serde(default)]
     pub tags: Option<Vec<String>>,
@@ -91,10 +99,12 @@ impl Default for ImageMetadata {
     fn default() -> Self {
         ImageMetadata {
             version: 1,
+            denoise: None,
             rating: 0,
             rating_is_explicit: false,
             flag: None,
             flag_is_explicit: false,
+            export_framing: None,
             adjustments: Value::Null,
             tags: None,
             exif: None,

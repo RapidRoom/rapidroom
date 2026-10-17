@@ -1,0 +1,39 @@
+name: Linux runtime packaging
+
+on:
+  pull_request:
+    paths:
+      - 'rapidroom/*openvino.py'
+      - 'rapidroom/build-linux-packages.py'
+      - 'rapidroom/openvino/**'
+      - '.github/workflows/linux-packaging.yml'
+      - '.github/workflows/rapidroom-release-linux.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'rapidroom/*openvino.py'
+      - 'rapidroom/build-linux-packages.py'
+      - 'rapidroom/openvino/**'
+      - '.github/workflows/linux-packaging.yml'
+      - '.github/workflows/rapidroom-release-linux.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: ubuntu-22.04
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regression checks using real filesystem and Debian archives
+        run: |
+          python3 rapidroom/openvino/test_stage.py
+          python3 rapidroom/openvino/test_packages.py
+      - name: Verify pinned release inputs and complete staged runtime
+        run: |
+          python3 rapidroom/fetch-openvino.py --out src-tauri/resources/openvino-cpu/runtime --appimagetool-out "$RUNNER_TEMP/appimagetool.AppImage"
+          python3 rapidroom/stage-openvino.py --source src-tauri/resources/openvino-cpu/runtime --check-staged
+          "$RUNNER_TEMP/appimagetool.AppImage" --appimage-extract-and-run --version

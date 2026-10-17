@@ -1,0 +1,13 @@
+{
+  "id": "bounded-assistant-judge-policy",
+  "title": "Add offline bounded assistant review policy and a closed move catalogue",
+  "category": "feature",
+  "landed": "2026-10-14",
+  "authors": ["skymanbp", "yojen7"],
+  "source": "skymanbp/autoshade (MIT policy adapted for RapidRoom with Codex; original registry and CLI integration)",
+  "commits": ["https://github.com/skymanbp/autoshade/commit/a1f3507808d1a9d61c44593244a5e6ee2c38cae3"],
+  "upstream_issues": ["RapidRoom/rapidroom#166"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "First piece only: score-retention and revision guards, total round caps 1/2/3, fixed move hints, generated schema/rubric/table and skill instructions. No app tool, rendering/model execution, automatic mutation or Lightroom agreement evaluation; those remain open in #166."
+}

@@ -22,11 +22,13 @@ interface McpCommand {
     | 'undo'
     | 'redo'
     | 'history-list'
+    | 'history-state'
     | 'revision-state'
     | 'editor-context';
   path: string;
   adjustments?: Adjustments;
   baseAdjustments?: Adjustments;
+  historyIndex?: number;
 }
 
 interface McpStateResponse {
@@ -214,6 +216,26 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
             error: null,
           });
           return;
+        } else if (command.kind === 'history-state') {
+          const current = useEditorStore.getState();
+          const index = command.historyIndex;
+          if (current.selectedImage?.path !== command.path || !current.selectedImage.isReady) {
+            throw new Error('Active image changed before the history snapshot read');
+          }
+          if (index === undefined || !Number.isSafeInteger(index) || index < 0 || index >= current.history.length) {
+            throw new Error('historyIndex is outside the active editor history');
+          }
+          await invoke('ui_response', {
+            requestId: command.requestId,
+            response: {
+              imagePath: command.path,
+              historyIndex: index,
+              historyLabel: current.historyDetails[index]?.label ?? (index === 0 ? 'Initial State' : 'Adjustment'),
+              adjustments: current.history[index],
+            },
+            error: null,
+          });
+          return;
         } else if (command.kind === 'history-list' || command.kind === 'editor-context') {
           const editor = useEditorStore.getState();
           if (command.path && (editor.selectedImage?.path !== command.path || !editor.selectedImage.isReady)) {
@@ -332,9 +354,22 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
         }
 
         const response = await syncState(command.path);
+        const history = useEditorStore.getState();
         await invoke('ui_response', {
           requestId: command.requestId,
-          response: { ...response, isSelected: true, renderPending },
+          response: {
+            ...response,
+            isSelected: true,
+            renderPending,
+            ...(['undo', 'redo'].includes(command.kind)
+              ? {
+                  historyIndex: history.historyIndex,
+                  historyLabel: history.historyDetails[history.historyIndex]?.label ?? 'Initial State',
+                  canUndo: history.historyIndex > 0,
+                  canRedo: history.historyIndex < history.history.length - 1,
+                }
+              : {}),
+          },
           error: null,
         });
       } catch (error) {

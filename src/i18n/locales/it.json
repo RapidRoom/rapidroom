@@ -1811,6 +1811,8 @@
       "clearThumbnail": "Cancella Cache Miniature",
       "clearThumbnailButton": "Cancella",
       "clearThumbnailDesc": "Questo eliminerà tutte le immagini miniatura memorizzate nella cache. Verranno rigenerate automaticamente sfogliando la libreria.",
+      "cacheUsage": "Miniature e anteprime: {{size}} · File: {{files}}",
+      "cacheUsageError": "Impossibile leggere lo spazio utilizzato dalla cache.",
       "loading": "Caricamento...",
       "logs": "Visualizza Log Applicazione",
       "logsButton": "Apri",
@@ -1963,7 +1965,8 @@
         "zoom_out": "Riduci",
         "zoom_out_step": "Riduci (a step)",
         "toggle_pick": "Attiva/disattiva flag Scelta",
-        "toggle_reject": "Attiva/disattiva flag Rifiutata"
+        "toggle_reject": "Attiva/disattiva flag Rifiutata",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "Modifica",
@@ -2358,5 +2361,34 @@
         "vectorscope": "Vettorscopio"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
   }
 }

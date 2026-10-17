@@ -1,0 +1,13 @@
+{
+  "id": "crop-enter-orientation",
+  "title": "Apply and fit crops with Enter; flip crop ratios with X",
+  "category": "fix",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#315"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Enter finishes the active crop and fits the edited photo to the viewer. X or the visible orientation control flips fixed and custom ratios while retaining the frame centre and maximizing its size within image bounds. Ratio labels follow the selected orientation. Normal edit history and Undo are retained; shortcuts leave text fields and dialogs alone."
+}

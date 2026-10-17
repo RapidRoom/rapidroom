@@ -48,6 +48,7 @@ export enum Invokes {
   ClearAllSidecars = 'clear_all_sidecars',
   ClearAiTags = 'clear_ai_tags',
   ClearAllTags = 'clear_all_tags',
+  GetThumbnailCacheUsage = 'get_thumbnail_cache_usage',
   ClearThumbnailCache = 'clear_thumbnail_cache',
   CopyFiles = 'copy_files',
   CreateDenoiseJob = 'create_denoise_job',
@@ -273,6 +274,8 @@ export interface AppSettings {
   processingBackend?: string;
   linuxGpuOptimization?: boolean;
   exportPresets?: ExportPreset[];
+  lastSelectedExportPresetId?: string | null;
+  lastInstagramExportPresetId?: string | null;
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
   adjustmentLayout?: AdjustmentLayout;
@@ -401,6 +404,7 @@ export interface FilterCriteria {
   rawStatus: RawStatus;
   editedStatus?: EditedStatus;
   flagStatus?: FlagStatus;
+  denoiseStatus?: 'all' | 'marked' | 'done';
 }
 
 export interface Folder {

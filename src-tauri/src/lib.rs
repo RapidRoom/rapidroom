@@ -34,21 +34,25 @@ mod apple_raw;
 mod as_shot;
 #[cfg(any(feature = "mcp", feature = "terminal", test))]
 mod assistant_text;
+mod atomic_export;
 mod baseline_exposure;
 mod batch_rename;
 mod bench;
 mod cache_utils;
 mod camera_tethering;
 mod culling;
+mod culling_preview;
 mod dcp;
 mod denoise_quality;
 mod denoising;
 mod effect_maps;
 mod exif_processing;
+mod export_framing;
 mod export_processing;
 mod export_recipes;
 mod file_management;
 mod file_naming;
+mod file_transfer;
 mod focus_stacking;
 mod fog;
 mod formats;
@@ -76,10 +80,17 @@ mod mcp;
 mod mcp_control;
 mod multi_exposure;
 mod negative_conversion;
+#[cfg(all(
+    feature = "native-openvino",
+    target_os = "linux",
+    target_arch = "x86_64"
+))]
+mod openvino_runtime;
 mod output_sharpening;
 mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
+mod preset_application;
 mod preset_converter;
 mod preset_xmp;
 mod raw_processing;
@@ -1558,6 +1569,38 @@ async fn generate_preview_for_path(
     ))
 }
 
+#[tauri::command]
+async fn generate_culling_preview_for_path(
+    path: String,
+    js_adjustments: Value,
+    generation: usize,
+    app_handle: tauri::AppHandle,
+) -> Result<Response, String> {
+    match render_preview_for_path(
+        path,
+        js_adjustments,
+        0,
+        PreviewRenderOptions {
+            cancel_token: Some(culling_preview::token(generation)),
+            ..PreviewRenderOptions::default()
+        },
+        app_handle,
+    )
+    .await?
+    {
+        RenderedPreview::Jpeg(bytes) => Ok(Response::new(bytes)),
+        #[cfg(feature = "mcp")]
+        RenderedPreview::Pixels(_) => Err("Expected encoded preview".into()),
+    }
+}
+
+#[derive(Default)]
+struct PreviewRenderOptions {
+    native_region: Option<(u32, u32, u32, u32)>,
+    raw_pixels: bool,
+    cancel_token: Option<culling_preview::CancelToken>,
+}
+
 enum RenderedPreview {
     Jpeg(Vec<u8>),
     #[cfg(feature = "mcp")]
@@ -1574,8 +1617,7 @@ pub async fn generate_preview_bytes_for_path(
         path,
         js_adjustments,
         target_resolution,
-        None,
-        false,
+        PreviewRenderOptions::default(),
         app_handle,
     )
     .await?
@@ -1598,8 +1640,11 @@ pub(crate) async fn generate_measurement_pixels_for_path(
         path,
         js_adjustments,
         target_resolution,
-        native_region,
-        true,
+        PreviewRenderOptions {
+            native_region,
+            raw_pixels: true,
+            ..PreviewRenderOptions::default()
+        },
         app_handle,
     )
     .await?
@@ -1613,23 +1658,26 @@ async fn render_preview_for_path(
     path: String,
     js_adjustments: Value,
     target_resolution: u32,
-    native_region: Option<(u32, u32, u32, u32)>,
-    raw_pixels: bool,
+    options: PreviewRenderOptions,
     app_handle: tauri::AppHandle,
 ) -> Result<RenderedPreview, String> {
-    // Culling fires one of these per image and nothing here is cancellable, so
-    // without a permit a burst of navigation stacks up full decodes — each
+    let PreviewRenderOptions {
+        native_region,
+        raw_pixels,
+        cancel_token,
+    } = options;
+    // Keep one full decode in flight, cancelling superseded culling requests
+    // before they acquire the permit. Otherwise navigation stacks up images — each
     // holding the source image plus its f16 RGBA upload buffer (~190 MB for a
     // 24MP frame) before it ever reaches the GPU mutex. Enough of them in
     // flight exhausts system memory.
     let decode_permit = app_handle.state::<AppState>().decode_permit.clone();
-    let decode_permit = decode_permit
-        .acquire_owned()
-        .await
-        .map_err(|e| e.to_string())?;
+    let decode_permit =
+        culling_preview::acquire_decode_permit(decode_permit, &cancel_token).await?;
 
     tokio::task::spawn_blocking(move || {
         let _decode_permit = decode_permit;
+        culling_preview::ensure_current(&cancel_token)?;
         let state = app_handle.state::<AppState>();
         let context = get_or_init_gpu_context(&state, &app_handle)?;
         let (source_path, _) = parse_virtual_path(&path);
@@ -1645,7 +1693,7 @@ async fn render_preview_for_path(
                 &js_adjustments,
                 false,
                 &settings,
-                None,
+                cancel_token.clone(),
             )
             .map_err(|e| e.to_string())?,
             Err(e) => {
@@ -1661,12 +1709,13 @@ async fn render_preview_for_path(
                     &js_adjustments,
                     false,
                     &settings,
-                    None,
+                    cancel_token.clone(),
                 )
                 .map_err(|e| e.to_string())?
             }
         };
 
+        culling_preview::ensure_current(&cancel_token)?;
         drop(load_span);
         let transform_span = perf_trace::span("full.transform");
         let (transformed_image, unscaled_crop_offset) =
@@ -1720,6 +1769,7 @@ async fn render_preview_for_path(
         let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
         let unique_hash = calculate_full_job_hash(&source_path_str, &js_adjustments);
 
+        culling_preview::ensure_current(&cancel_token)?;
         let final_image = process_and_get_dynamic_image(
             &context,
             &state,
@@ -1758,6 +1808,7 @@ async fn render_preview_for_path(
             .encode_rgb(&rgb_pixels, width, height)
             .map_err(|e| format!("Failed to encode with mozjpeg-rs: {}", e))?;
 
+        culling_preview::ensure_current(&cancel_token)?;
         Ok(RenderedPreview::Jpeg(bytes))
     })
     .await
@@ -2010,11 +2061,16 @@ fn frontend_ready(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    #[cfg(unix)]
+    if args.first().map(String::as_str) == Some("denoise") {
+        unsafe {
+            libc::setpriority(libc::PRIO_PROCESS, 0, 10);
+        }
+    }
     let _ = rayon::ThreadPoolBuilder::new()
         .stack_size(8 * 1024 * 1024)
         .build_global();
-
-    let args: Vec<String> = std::env::args().skip(1).collect();
     let launch_req = parse_launch_args(&args);
     if let LaunchRequest::InvalidHeadless(error) = &launch_req {
         eprintln!("Headless export failed: {}", error);
@@ -2024,9 +2080,15 @@ pub fn run() {
         cli_eprintln!("Invalid bench arguments: {}", error);
         std::process::exit(2);
     }
+    if let LaunchRequest::InvalidDenoise(error) = &launch_req {
+        cli_eprintln!("Invalid denoise arguments: {error}");
+        std::process::exit(2);
+    }
     let is_headless = matches!(
         launch_req,
-        LaunchRequest::HeadlessExport(_) | LaunchRequest::HeadlessBench(_)
+        LaunchRequest::HeadlessExport(_)
+            | LaunchRequest::HeadlessBench(_)
+            | LaunchRequest::HeadlessDenoise(_)
     );
 
     let mut builder = tauri::Builder::default();
@@ -2267,7 +2329,11 @@ pub fn run() {
                         #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
                         { "libonnxruntime.so" }
                     };
-                    let ort_library_path = resource_path.join(ort_library_name);
+                    #[cfg(all(feature = "native-openvino", target_os = "linux", target_arch = "x86_64"))]
+                    let accelerated = openvino_runtime::configure(&resource_path);
+                    #[cfg(not(all(feature = "native-openvino", target_os = "linux", target_arch = "x86_64")))]
+                    let accelerated: Option<std::path::PathBuf> = None;
+                    let ort_library_path = accelerated.unwrap_or_else(|| resource_path.join(ort_library_name));
                     std::env::set_var("ORT_DYLIB_PATH", &ort_library_path);
                     cli_println!("Set ORT_DYLIB_PATH to: {}", ort_library_path.display());
                 }
@@ -2291,6 +2357,15 @@ pub fn run() {
             }
 
             match launch_req {
+                LaunchRequest::HeadlessDenoise(session) => {
+                    let handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let code = crate::denoising::queue::headless(session, handle.clone()).await;
+                        set_process_exit_code(code);
+                        handle.exit(code);
+                    });
+                    return Ok(());
+                }
                 LaunchRequest::HeadlessExport(session) => {
                     let app_handle_clone = app_handle.clone();
                     let export = tauri::async_runtime::spawn(
@@ -2337,7 +2412,7 @@ pub fn run() {
 
                     return Ok(());
                 }
-                LaunchRequest::InvalidHeadless(_) | LaunchRequest::InvalidBench(_) => unreachable!("invalid headless arguments exit before app setup"),
+                LaunchRequest::InvalidHeadless(_) | LaunchRequest::InvalidBench(_) | LaunchRequest::InvalidDenoise(_) => unreachable!("invalid headless arguments exit before app setup"),
                 _ => {}
             }
 
@@ -2607,6 +2682,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             apply_adjustments,
             generate_preview_for_path,
+            culling_preview::begin_culling_preview_batch,
+            generate_culling_preview_for_path,
             generate_preset_preview,
             generate_uncropped_preview,
             get_log_file_path,
@@ -2654,6 +2731,10 @@ pub fn run() {
             denoising::cancel_denoise,
             denoising::apply_denoising,
             denoising::batch_denoise_images,
+            denoising::queue::set_denoise_mark,
+            denoising::queue::denoise_mark_status,
+            denoising::queue::denoise_queue_paths,
+            denoising::queue::run_denoise_queue,
             denoising::save_denoised_image,
             focus_stacking::stitch_focus_stack,
             focus_stacking::save_focus_stack,
@@ -2716,6 +2797,10 @@ pub fn run() {
             file_management::import_matching_xmp_sidecars_in_folder,
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
+            preset_application::load_applied_preset,
+            preset_application::save_applied_preset,
+            export_framing::get_instagram_framing_preview,
+            export_framing::save_instagram_framing,
             file_management::load_presets,
             file_management::save_presets,
             file_management::get_or_create_internal_library_root,
@@ -2729,6 +2814,7 @@ pub fn run() {
             file_management::export_lightroom_preset,
             file_management::save_community_preset,
             file_management::clear_all_sidecars,
+            file_management::get_thumbnail_cache_usage,
             file_management::clear_thumbnail_cache,
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,

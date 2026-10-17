@@ -1847,6 +1847,8 @@
       "clearThumbnail": "Wyczyść pamięć podręczną miniatur",
       "clearThumbnailButton": "Wyczyść",
       "clearThumbnailDesc": "Zostaną usunięte wszystkie zbuforowane miniatury. Zostaną wygenerowane na nowo w trakcie przeglądania biblioteki.",
+      "cacheUsage": "Miniatury i podglądy: {{size}} · Pliki: {{files}}",
+      "cacheUsageError": "Nie można odczytać wykorzystania pamięci podręcznej.",
       "loading": "Wczytywanie...",
       "logs": "Wyświetl logi aplikacji",
       "logsButton": "Otwórz",
@@ -2002,7 +2004,8 @@
         "zoom_out": "Oddal",
         "zoom_out_step": "Oddal (krokowo)",
         "toggle_pick": "Przełącz oznaczenie wybrania",
-        "toggle_reject": "Przełącz oznaczenie odrzucenia"
+        "toggle_reject": "Przełącz oznaczenie odrzucenia",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "Edycja",
@@ -2398,5 +2401,34 @@
         "vectorscope": "Wektroskop"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
   }
 }
