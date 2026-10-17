@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useRef, useMemo } from 'react';
-import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Columns2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Columns2, Frame } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
@@ -75,6 +75,8 @@ const EditorToolbar = memo(
     const [displayedResolution, setDisplayedResolution] = useState('');
 
     const imageList = useLibraryStore((s) => s.imageList);
+    const appSettings = useSettingsStore((s) => s.appSettings);
+    const handleSettingsChange = useSettingsStore((s) => s.handleSettingsChange);
     const groupingMode: GroupingMode = useSettingsStore((s) => s.appSettings?.grouping) ?? 'off';
 
     const variantOptions = useMemo(() => {
@@ -694,6 +696,25 @@ const EditorToolbar = memo(
             }
           >
             {showOriginal ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
+          <button
+            type="button"
+            aria-label={t('export.instagram.guide')}
+            aria-pressed={appSettings?.showInstagramGuide ?? false}
+            data-instagram-guide-toggle
+            data-tooltip={t('export.instagram.guide')}
+            className={clsx(
+              'p-2 rounded-full transition-colors',
+              appSettings?.showInstagramGuide
+                ? 'bg-accent text-button-text'
+                : 'bg-surface hover:bg-card-active text-text-primary',
+            )}
+            onClick={() =>
+              appSettings &&
+              void handleSettingsChange({ ...appSettings, showInstagramGuide: !appSettings.showInstagramGuide })
+            }
+          >
+            <Frame size={20} />
           </button>
           {onToggleReferenceView && (
             <button

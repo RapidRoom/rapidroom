@@ -1129,7 +1129,16 @@
       "drag": "Move Instagram frame with drag or arrow keys",
       "loading": "Preparing or saving framing…",
       "disable": "Use ordinary export settings",
-      "retry": "Reload framing"
+      "retry": "Reload framing",
+      "chooseFolder": "Choose Instagram folder…",
+      "useDatedFolder": "Use dated Pictures folder",
+      "defaultFolder": "Pictures/Instagram/YYYY-MM-DD",
+      "openFolder": "Open folder",
+      "complete": "Instagram export complete. Ready to upload in your browser.",
+      "guide": "Instagram composition guide",
+      "strip": "Photo frames",
+      "selectPhoto": "Frame photo {{index}}: {{name}}",
+      "adjustFrame": "Adjust frame"
     }
   },
   "library": {
@@ -2070,7 +2079,8 @@
         "zoom_in_step": "Zoom in (by step)",
         "zoom_out": "Zoom out",
         "zoom_out_step": "Zoom out (by step)",
-        "toggle_denoise_mark": "Toggle denoise mark"
+        "toggle_denoise_mark": "Toggle denoise mark",
+        "export_instagram": "Export for Instagram"
       },
       "sections": {
         "editing": "Editing",

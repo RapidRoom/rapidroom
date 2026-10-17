@@ -277,6 +277,8 @@ export interface AppSettings {
   exportPresets?: ExportPreset[];
   lastSelectedExportPresetId?: string | null;
   lastInstagramExportPresetId?: string | null;
+  instagramExportFolder?: string | null;
+  showInstagramGuide?: boolean;
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
   adjustmentLayout?: AdjustmentLayout;
