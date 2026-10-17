@@ -407,8 +407,6 @@ export function CullingPreview({
       ? 'ring-2 ring-inset ring-gray-400'
       : 'group-hover:ring-2 group-hover:ring-inset group-hover:ring-hover-color';
 
-  const effectiveDragging = isDragging || (syncViewport.isActive && syncViewport.isDragging);
-
   const knownDimensions = initialPreview?.thumbKey === safeThumbKey ? (initialPreview.dimensions ?? null) : null;
   const previewFrame = useImageRenderSize(containerRef, knownDimensions);
   const thumbnailFrameStyle: React.CSSProperties | undefined =
@@ -429,7 +427,6 @@ export function CullingPreview({
     height: `${zoom * 100}%`,
     flexShrink: 0,
     transform: `translate(${pan.x}px, ${pan.y}px)`,
-    transition: effectiveDragging ? 'none' : 'transform 0.1s ease-out',
     transformOrigin: 'center center',
     willChange: 'transform',
   };
