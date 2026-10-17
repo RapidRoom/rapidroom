@@ -23,6 +23,7 @@ import clsx from 'clsx';
 import { Invokes, ImageFile, ImageFlag, ThumbnailAspectRatio } from '../../ui/AppProperties';
 import FlagToggles from '../../ui/FlagToggles';
 import FlagBadges from '../../ui/FlagBadges';
+import ShootingInfo from '../../ui/ShootingInfo';
 import { Thumbnail } from './LibraryItems';
 import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
@@ -46,7 +47,6 @@ function CullingPreview({
   rating,
   isActive,
   isSelected,
-  isFullWidth,
   syncViewport,
   setSyncViewport,
   onContextMenu,
@@ -62,7 +62,6 @@ function CullingPreview({
   rating: number;
   isActive: boolean;
   isSelected: boolean;
-  isFullWidth?: boolean;
   syncViewport: SyncViewport;
   setSyncViewport: React.Dispatch<React.SetStateAction<SyncViewport>>;
   onContextMenu: (e: React.MouseEvent, path: string, forceSingleSelection?: boolean) => void;
@@ -495,8 +494,7 @@ function CullingPreview({
       onMouseEnter={() => setHoveredCullingPath(image.path)}
       onMouseLeave={() => setHoveredCullingPath(null)}
       className={clsx(
-        'relative flex items-center justify-center w-full h-full overflow-hidden group bg-bg-primary rounded-lg shadow-sm border border-border-color/10 cursor-grab active:cursor-grabbing select-none',
-        isFullWidth && 'col-span-2',
+        'relative flex flex-1 min-h-0 items-center justify-center w-full overflow-hidden group bg-bg-primary rounded-lg shadow-sm border border-border-color/10 cursor-grab active:cursor-grabbing select-none',
       )}
     >
       <div
@@ -1221,24 +1219,31 @@ export default function CullingView(props: any) {
             )}
           >
             {displayImages.map((img: ImageFile, index: number) => (
-              <CullingPreview
+              <div
                 key={img.path}
-                image={img}
-                rating={imageRatings?.[img.path] || 0}
-                onContextMenu={onContextMenu}
-                onImageDoubleClick={onImageDoubleClick}
-                isActive={activePath === img.path}
-                isSelected={true}
-                isFullWidth={(displayCount === 3 && index === 2) || (displayCount === 5 && index === 4)}
-                syncViewport={syncViewport}
-                setSyncViewport={setSyncViewport}
-                hoveredPath={hoveredCullingPath}
-                setHoveredCullingPath={setHoveredCullingPath}
-                showRateBar={showRateBar}
-                setShowRateBar={setShowRateBar}
-                showInfoBar={showInfoBar}
-                setShowInfoBar={setShowInfoBar}
-              />
+                className={clsx(
+                  'group/shooting-info flex flex-col min-w-0 min-h-0',
+                  ((displayCount === 3 && index === 2) || (displayCount === 5 && index === 4)) && 'col-span-2',
+                )}
+              >
+                <ShootingInfo exif={img.exif} className="px-3 py-1 text-center" />
+                <CullingPreview
+                  image={img}
+                  rating={imageRatings?.[img.path] || 0}
+                  onContextMenu={onContextMenu}
+                  onImageDoubleClick={onImageDoubleClick}
+                  isActive={activePath === img.path}
+                  isSelected={true}
+                  syncViewport={syncViewport}
+                  setSyncViewport={setSyncViewport}
+                  hoveredPath={hoveredCullingPath}
+                  setHoveredCullingPath={setHoveredCullingPath}
+                  showRateBar={showRateBar}
+                  setShowRateBar={setShowRateBar}
+                  showInfoBar={showInfoBar}
+                  setShowInfoBar={setShowInfoBar}
+                />
+              </div>
             ))}
           </div>
         )}

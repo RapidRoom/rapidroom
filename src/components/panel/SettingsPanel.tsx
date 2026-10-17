@@ -657,6 +657,7 @@ export default function SettingsPanel({
   const settingCategories = useMemo(
     () => [
       { id: 'general', label: t('settings.categories.general'), icon: SlidersHorizontal },
+      { id: 'view', label: t('settings.categories.view'), icon: SlidersHorizontal },
       { id: 'processing', label: t('settings.categories.processing'), icon: Cpu },
       { id: 'shortcuts', label: t('settings.categories.shortcuts'), icon: Keyboard },
     ],
@@ -1183,6 +1184,27 @@ export default function SettingsPanel({
 
           <div className="flex-1 overflow-y-auto overflow-x-hidden pr-2 -mr-2 custom-scrollbar">
             <AnimatePresence mode="wait">
+              {activeCategory === 'view' && (
+                <div className="p-6 bg-surface rounded-xl shadow-md">
+                  <Text variant={TextVariants.title} color={TextColors.accent} className="mb-8">
+                    {t('settings.categories.view')}
+                  </Text>
+                  <SettingItem
+                    label={t('settings.view.shootingInfo')}
+                    description={t('settings.view.shootingInfoDesc')}
+                  >
+                    <Dropdown<NonNullable<AppSettings['shootingInfoVisibility']>>
+                      value={appSettings?.shootingInfoVisibility ?? 'always'}
+                      onChange={(value) => onSettingsChange({ ...appSettings, shootingInfoVisibility: value })}
+                      options={[
+                        { value: 'always', label: t('settings.view.always') },
+                        { value: 'hover', label: t('settings.view.onHover') },
+                        { value: 'off', label: t('settings.view.off') },
+                      ]}
+                    />
+                  </SettingItem>
+                </div>
+              )}
               {activeCategory === 'general' && (
                 <motion.div
                   key="general"
