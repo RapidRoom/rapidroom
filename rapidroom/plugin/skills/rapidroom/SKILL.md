@@ -29,7 +29,7 @@ The terminal supplies `RAPIDROOM_UNTRUSTED_CONTEXT`, a labelled data-only JSON o
 ## Start
 
 1. `get_active_image_state`. Nothing open: ask which photo, or `list_images` and `open_image`. No RapidRoom tools at all: see [starting.md](references/starting.md).
-2. Keep the starting `adjustments` and pass the latest `editRevision` as `expectedRevision` on every change. A mismatch means the user changed something: read again and build on it.
+2. For a full starting snapshot, call `get_active_image_state(nonDefaultOnly: false)`. Keep its `adjustments` and pass the latest `editRevision` as `expectedRevision` on every change. A mismatch means the user changed something: read again and build on it.
 3. Ask for the destination (feed, story, print or screen) and the look when the request does not establish them. Agree the crop before grading, so previews show the final frame. Ask, or infer from the request, how the user wants to work: fast, explain as you go, or walk them through it ([tutor.md](references/tutor.md)).
 
 ## Gotchas

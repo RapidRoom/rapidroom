@@ -1403,14 +1403,9 @@ fn scan_dir_lazy(
                 )?
             } else {
                 let count = if show_image_counts {
-                    WalkDir::new(&current_path)
-                        .into_iter()
-                        .filter_map(Result::ok)
-                        .filter(|e| {
-                            e.file_type().is_file()
-                                && crate::formats::is_supported_image_file(e.path())
-                        })
-                        .count()
+                    crate::folder_counts::count_photos(&current_path, false)
+                        .map(|result| result.count)
+                        .unwrap_or(0)
                 } else {
                     0
                 };
@@ -1423,15 +1418,12 @@ fn scan_dir_lazy(
                 has_subdirs(&current_path)
             };
 
-            let grand_children_sum: usize = grand_children.iter().map(|c| c.image_count).sum();
-            let total_child_count = sub_dir_own_images + grand_children_sum;
-
             children_folders.push(FolderNode {
                 name: name_str.into_owned(),
                 path: path_str,
                 children: grand_children,
                 is_dir: true,
-                image_count: total_child_count,
+                image_count: sub_dir_own_images,
                 has_subdirs: has_any_subdirs,
                 modified,
                 created,
@@ -1482,7 +1474,6 @@ fn get_folder_tree_sync(
     let (children, own_count) = scan_dir_lazy(root_path, &expanded_set, show_image_counts, true)
         .map_err(|e| e.to_string())?;
 
-    let children_sum: usize = children.iter().map(|c| c.image_count).sum();
     let has_subdirs = children.iter().any(|c| c.is_dir);
 
     let name = match root_path.file_name() {
@@ -1502,7 +1493,7 @@ fn get_folder_tree_sync(
         path: path.clone(),
         children,
         is_dir: true,
-        image_count: own_count + children_sum,
+        image_count: own_count,
         has_subdirs,
         modified,
         created,
@@ -4551,6 +4542,46 @@ pub fn clear_all_sidecars(root_path: String) -> Result<usize, String> {
     }
 
     Ok(deleted_count)
+}
+
+#[derive(Serialize)]
+pub struct ThumbnailCacheUsage {
+    bytes: u64,
+    files: u64,
+}
+
+#[tauri::command]
+pub async fn get_thumbnail_cache_usage(
+    app_handle: AppHandle,
+) -> Result<ThumbnailCacheUsage, String> {
+    let directory = app_handle
+        .path()
+        .app_cache_dir()
+        .map_err(|error| error.to_string())?
+        .join("thumbnails");
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut usage = ThumbnailCacheUsage { bytes: 0, files: 0 };
+        let entries = match fs::read_dir(directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(usage),
+            Err(error) => return Err(error.to_string()),
+        };
+        for entry in entries {
+            let entry = entry.map_err(|error| error.to_string())?;
+            let metadata = match fs::symlink_metadata(entry.path()) {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.to_string()),
+            };
+            if metadata.is_file() {
+                usage.bytes = usage.bytes.saturating_add(metadata.len());
+                usage.files += 1;
+            }
+        }
+        Ok(usage)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

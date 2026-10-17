@@ -850,6 +850,9 @@ export default function ExportPanel({
           }))
         )
           return;
+        // The desktop Save dialog already confirms replacement of this exact
+        // path. Automatic names still use the explicit overwrite toggle.
+        if (shouldChooseOutputFile && !isAndroid) exportSettings.overwriteExisting = true;
         if (!isAndroid) {
           if (isOriginalFolder) {
             saveLastUsedPreset(lastExportPath || '');

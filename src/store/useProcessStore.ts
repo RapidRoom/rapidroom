@@ -22,7 +22,10 @@ interface ProcessState {
   thumbnails: Record<string, string>;
   mediumThumbnails: Record<string, string>;
   thumbnailProgress: Progress;
-  previews: Record<string, { url: string; thumbKey: string; timestamp: number }>;
+  previews: Record<
+    string,
+    { url: string; thumbKey: string; timestamp: number; dimensions?: { width: number; height: number } }
+  >;
   aiModelDownloadStatus: string | null;
   copiedFilePaths: Array<string>;
   isCopied: boolean;
@@ -34,7 +37,13 @@ interface ProcessState {
   setProcess: (state: Partial<ProcessState> | ((state: ProcessState) => Partial<ProcessState>)) => void;
   setExportState: (updater: Partial<ExportState> | ((state: ExportState) => Partial<ExportState>)) => void;
   setImportState: (updater: Partial<ImportState> | ((state: ImportState) => Partial<ImportState>)) => void;
-  setPreview: (path: string, url: string, thumbKey: string) => void;
+  setPreview: (
+    path: string,
+    url: string,
+    thumbKey: string,
+    dimensions?: { width: number; height: number },
+    protectedPaths?: string[],
+  ) => void;
   clearPreviews: () => void;
   registerAiTask: (id: string, type: string) => void;
   unregisterAiTask: (id: string) => void;
@@ -128,7 +137,7 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
     }
   },
 
-  setPreview: (path, url, thumbKey) => {
+  setPreview: (path, url, thumbKey, dimensions, protectedPaths = []) => {
     set((state) => {
       const newPreviews = { ...state.previews };
 
@@ -136,22 +145,16 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
         URL.revokeObjectURL(newPreviews[path].url);
       }
 
-      newPreviews[path] = { url, thumbKey, timestamp: Date.now() };
+      newPreviews[path] = { url, thumbKey, timestamp: Date.now(), dimensions };
 
       const keys = Object.keys(newPreviews);
       if (keys.length > MAX_PREVIEW_CACHE_SIZE) {
-        let oldestPath = keys[0];
-        let oldestTime = newPreviews[oldestPath].timestamp;
-
-        for (let i = 1; i < keys.length; i++) {
-          const key = keys[i];
-          if (newPreviews[key].timestamp < oldestTime) {
-            oldestTime = newPreviews[key].timestamp;
-            oldestPath = key;
-          }
-        }
-
-        if (oldestPath !== path) {
+        const candidates = keys.filter((key) => key !== path && !protectedPaths.slice(-6).includes(key));
+        const oldestPath = candidates.reduce<string | null>(
+          (oldest, key) => (!oldest || newPreviews[key].timestamp < newPreviews[oldest].timestamp ? key : oldest),
+          null,
+        );
+        if (oldestPath) {
           URL.revokeObjectURL(newPreviews[oldestPath].url);
           delete newPreviews[oldestPath];
         }

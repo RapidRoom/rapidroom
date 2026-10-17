@@ -45,6 +45,7 @@ const parseFocalLength = (val: string | undefined): number => {
 
 export interface GroupedLibrary {
   displayList: ImageFile[];
+  matchingPhotoCount: number;
   badges: Map<GroupId, GroupBadgeInfo> | null;
 }
 
@@ -295,7 +296,11 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
     ? buildImageGroups(imageList, groupingMode, appSettings?.groupEditedFiles ?? true).badges
     : null;
 
-  return { displayList: list, badges };
+  return {
+    displayList: list,
+    badges,
+    matchingPhotoCount: imageList.filter((image) => matchesFilter(image) && matchesSearch(image)).length,
+  };
 }
 
 export function computeSortedLibrary(libraryState: LibrarySortState, settingsState: SettingsSortState): ImageFile[] {
