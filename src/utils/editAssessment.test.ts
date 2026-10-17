@@ -102,3 +102,15 @@ it('keeps plain crop/aspect plus a few Basic sliders in place', () => {
   expect(result.changedSettingCount).toBe(2);
   expect(result.recommendVirtualCopy).toBe(false);
 });
+
+it('counts an explicitly selected manual lens profile rather than discarding it as a cache', () => {
+  const image = { width: 6000, height: 4000 };
+  const reset = createResetAdjustmentsForImage(image);
+  const result = assessEdit(
+    { ...reset, lensCorrectionMode: 'manual', lensMaker: 'Maker', lensModel: 'Manual profile' },
+    image,
+    1,
+  );
+  expect(result.changedSettingCount).toBe(2);
+  expect(result.recommendVirtualCopy).toBe(true);
+});

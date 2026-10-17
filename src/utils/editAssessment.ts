@@ -19,7 +19,11 @@ export function assessEdit(adjustments: Adjustments, image: { width: number; hei
     'baselineExposure',
   ]);
   // These are render caches, not evidence that a user edited a photograph.
-  const derived = new Set(['curves', 'lensDistortionParams', 'lensMaker', 'lensModel']);
+  const derived = new Set(['curves', 'lensDistortionParams']);
+  if (adjustments.lensCorrectionMode === 'auto') {
+    derived.add('lensMaker');
+    derived.add('lensModel');
+  }
   const meaningful = changedKeys.filter((key) => !derived.has(key));
   const beyondCrop = meaningful.filter((key) => !crop.has(key));
   const masks = (adjustments.masks?.length ?? 0) > 0 || (adjustments.aiPatches?.length ?? 0) > 0;
