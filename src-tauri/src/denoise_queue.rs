@@ -1283,7 +1283,10 @@ mod tests {
                 shot,
                 render,
             );
-            assert!((fresh.global.exposure - legacy.global.exposure).abs() > 0.5);
+            let expected_camera_ev = 0.35 + if compensate { 2.0 } else { 0.0 };
+            assert!(
+                (fresh.global.exposure - legacy.global.exposure - expected_camera_ev).abs() < 1e-6
+            );
         }
         let mut metadata =
             serde_json::to_value(crate::image_processing::ImageMetadata::default()).unwrap();
