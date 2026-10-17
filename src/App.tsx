@@ -409,7 +409,7 @@ function App() {
     return () => setImageSelectHandler(null);
   }, [handleImageSelect]);
 
-  const { displayList: sortedImageList, badges: groupBadgeInfo } = useSortedLibrary();
+  const { displayList: sortedImageList, badges: groupBadgeInfo, matchingPhotoCount } = useSortedLibrary();
 
   const handleLibraryRefresh = useCallback(async () => {
     if (currentFolderPath) {
@@ -1011,6 +1011,7 @@ function App() {
                   )}
                 >
                   <LibraryView
+                    matchingPhotoCount={matchingPhotoCount}
                     sortedImageList={sortedImageList}
                     groupBadgeInfo={groupBadgeInfo}
                     thumbnailSize={thumbnailSize}

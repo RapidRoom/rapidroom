@@ -55,6 +55,7 @@ mod file_naming;
 mod file_transfer;
 mod focus_stacking;
 mod fog;
+mod folder_counts;
 mod formats;
 mod gpu_processing;
 mod guided_perspective;
@@ -2752,6 +2753,7 @@ pub fn run() {
             file_management::update_exif_fields,
             file_management::set_card_browse_root,
             file_management::get_supported_file_types,
+            folder_counts::count_folder_photos,
             file_management::read_exif_for_paths,
             file_management::list_images_in_dir,
             file_management::list_images_recursive,
