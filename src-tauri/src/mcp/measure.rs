@@ -1,6 +1,6 @@
 use ab_glyph::{Font, FontRef};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use image::{DynamicImage, GenericImageView, Rgb, RgbImage, imageops};
+use image::{DynamicImage, Rgb, RgbImage, imageops};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tauri::AppHandle;
@@ -315,9 +315,11 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         if name == "render_compare" {
             properties.as_object_mut().unwrap().remove("stage");
             properties["separateImages"] = json!({"type":"boolean","default":false});
+            properties["historyIndex"] = json!({"type":"integer","minimum":0,"description":"Use this active editor history snapshot as the base for variants; no undo or sidecar writes."});
             properties["variants"] = json!({"type":"array","minItems":2,"maxItems":6,"items":{
                 "type":"object","additionalProperties":false,"properties":{
                     "name":{"type":"string","minLength":1,"maxLength":80},"imagePath":{"type":"string"},
+                    "historyIndex":{"type":"integer","minimum":0,"description":"Read an active image history snapshot for this variant; cannot combine with imagePath."},
                     "changes":{"type":"object"}}}});
             required.push("variants");
         }
@@ -413,6 +415,8 @@ struct Variant {
     #[serde(rename = "imagePath")]
     path: Option<String>,
     changes: Option<Value>,
+    #[serde(rename = "historyIndex")]
+    history_index: Option<u64>,
 }
 
 fn copy_parameters(
@@ -484,17 +488,47 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
     let bound = dimension(arguments)?;
     let fraction = preview::region(arguments)?;
     let separate = preview::option(arguments, "separateImages")?;
+    let base_history = if let Some(index) = tools::history_index(arguments)? {
+        Some(tools::history_snapshot(app, &path, index).await?)
+    } else {
+        None
+    };
+    let base = base_history
+        .as_ref()
+        .map_or(&state["adjustments"], |snapshot| &snapshot["adjustments"]);
     let mut prepared = Vec::new();
+    let mut receipts = Vec::new();
     for (index, variant) in variants.into_iter().enumerate() {
+        if variant.path.is_some() && variant.history_index.is_some() {
+            return Err("A comparison variant cannot combine imagePath with historyIndex".into());
+        }
+        let history_index = variant.history_index.or_else(|| {
+            base_history
+                .as_ref()
+                .and_then(|snapshot| snapshot["historyIndex"].as_u64())
+        });
+        let historical = variant.path.is_none() && history_index.is_some();
+        let mut history_revision = base_history
+            .as_ref()
+            .map(|snapshot| snapshot["historyRevision"].clone());
         let (mut parameters, label) = if let Some(copy) = variant.path {
             let (parameters, label) = copy_parameters(&path, &copy, &state["adjustments"])?;
             if variant.name.as_ref().is_some_and(|name| name != &label) {
                 return Err("Virtual-copy name must match its GUI label".into());
             }
             (parameters, label)
+        } else if let Some(history_index) = variant.history_index {
+            let history = tools::history_snapshot(app, &path, history_index).await?;
+            history_revision = Some(history["historyRevision"].clone());
+            (
+                history["adjustments"].clone(),
+                variant
+                    .name
+                    .unwrap_or_else(|| format!("History {history_index}")),
+            )
         } else {
             (
-                state["adjustments"].clone(),
+                base.clone(),
                 variant
                     .name
                     .unwrap_or_else(|| format!("Variant {}", (b'A' + index as u8) as char)),
@@ -511,9 +545,16 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
             parameters = adjustments::merge_adjustments(parameters, changes)?;
         }
         adjustments::validate_adjustments(&parameters)?;
-        if !same_geometry_value(&geometry(&parameters), &geometry(&state["adjustments"])) {
+        if !historical
+            && !same_geometry_value(&geometry(&parameters), &geometry(&state["adjustments"]))
+        {
             return Err("Variants must keep the active crop/orientation/lens geometry; color and tone patches are allowed".into());
         }
+        receipts.push(
+            json!({"renderRevision":adjustments::revision_for(&path, &parameters),
+            "historyIndex":if historical {history_index} else {None},
+            "historyRevision":if historical {history_revision} else {None}}),
+        );
         prepared.push((parameters, label));
     }
     let mut images = Vec::new();
@@ -528,12 +569,8 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
         )
         .await?;
         let image = preview::crop(image, fraction);
-        if images
-            .first()
-            .is_some_and(|first: &DynamicImage| first.dimensions() != image.dimensions())
-        {
-            return Err("Comparison render dimensions differ".into());
-        }
+        // Historical snapshots may have different crops. Contact-sheet cells
+        // already letterbox each tile; separate images keep their exact shape.
         images.push(image);
         labels.push(label);
     }
@@ -561,16 +598,17 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
     }
     tools::ensure_read_state(app, arguments, state).await?;
     Ok(
-        json!({"imagePath":path,"editRevision":state["editRevision"],"labels":labels,"variantDimensions":dimensions,
+        json!({"imagePath":path,"editRevision":state["editRevision"],"labels":labels,"variantDimensions":dimensions,"variants":receipts,
         "identifiers":(0..labels.len()).map(|i|((b'A'+i as u8) as char).to_string()).collect::<Vec<_>>(),
         "separateImages":separate,"width":output[0].width(),"height":output[0].height(),"content":encoded,
-        "readOnly":true,"geometry":"active rendered crop/orientation/lens geometry","mimeType":"image/png"}),
+        "readOnly":true,"geometry":"each variant rendered with its selected edit geometry","mimeType":"image/png"}),
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::GenericImageView;
 
     #[test]
     fn summary_keeps_exact_statistics_and_percentiles_without_histogram_echoes() {

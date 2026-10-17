@@ -350,9 +350,28 @@ makes a real model request; no user library or global client config is changed.
 
 ## Shipped skill/plugin acceptance (#118)
 
-`--mcp-skill --skill-source /path/to/matching/clean/checkout` runs a fresh Claude session with the shipped plugin and its stdio MCP configuration. It uses the owned CC0 NEX-6 copy, an approved 4:5 crop, three temporary look variants, a native detail check, GPS-stripped 1080×1350 export and a source-backed exposure explanation. The source checkout must match the pinned app's `sourceCommit`; the app and checkout must be clean. Named virtual-copy tools remain coming, so this test uses temporary comparisons.
+`--mcp-skill --skill-source /path/to/matching/clean/checkout` runs a fresh Claude session with the shipped plugin and its stdio MCP configuration. It uses the owned CC0 Sony A7C II APS-C RAW copy, an approved 4:5 crop, three temporary look variants, a native detail check, GPS-stripped 1080×1350 export and a source-backed exposure explanation. The source checkout must match the pinned app's `sourceCommit`; the app and checkout must be clean. Named virtual-copy tools remain coming, so this test uses temporary comparisons.
 
 Use a pinned `native-ui-test,mcp` build plus the adapter, and pass `--lock /tmp/rapidroom-gpu.lock` when running the native harness. The real client needs account access. Raw client transcripts, endpoint credentials and private source paths stay local; publish only allowlisted summaries and inspected CC0 panels. A pass proves workflow and source use, not the aesthetic quality of the grade.
+
+`--atomic-exports` keeps the ordinary RAW GUI export, then repeats it through the
+real Export panel with overwrite disabled and checks that the earlier JPEG is
+preserved. It submits an explicit overwrite for the owned fixture with the exact
+settings captured from the real panel, verifies inode replacement, checks that
+the sibling export is untouched and records every observed final JPEG state.
+The temporary fetch observer records only the exact export IPC endpoint and
+forwards every request unchanged. Its installation and three observed requests
+are checked, and it is restored in a finally block; no IO or error handler is mocked. This does not automate the
+native overwrite-confirmation dialog. A separate Rust subprocess check kills a
+writer after partial staging to deterministically check interruption safety.
+
+`--file-transfers` adds owned synthetic JPEGs from two cards with overlapping
+names, real native copy/import IPC, paired `.rrdata`/virtual-copy/`.XMP` checks,
+exact reimport skips, failure continuation and source preservation even when
+Delete after import is enabled for a skipped file. It also uses the real Library
+keyboard copy/paste path and checks visible copy/import/partial-failure summaries.
+No IPC, filesystem write or frontend error handler is mocked. The ordinary RAW
+preview/edit/Undo/export and clean-exit assertions still run afterwards.
 
 ### Editable Library filter chips (#312)
 

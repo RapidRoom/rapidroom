@@ -644,6 +644,7 @@ export function ViewOptionsDropdown({
     (filterCriteria.rawStatus && filterCriteria.rawStatus !== RawStatus.All) ||
     (filterCriteria.editedStatus && filterCriteria.editedStatus !== EditedStatus.All) ||
     (filterCriteria.flagStatus && filterCriteria.flagStatus !== FlagStatus.All) ||
+    (filterCriteria.denoiseStatus && filterCriteria.denoiseStatus !== 'all') ||
     (filterCriteria.colors && filterCriteria.colors.length > 0);
 
   const [lastClickedColor, setLastClickedColor] = useState<string | null>(null);
@@ -820,6 +821,38 @@ export function ViewOptionsDropdown({
             </div>
           </div>
 
+          <div className="px-3">
+            <label>
+              {t('denoiseQueue.filter')}
+              <span className="relative block">
+                <select
+                  className="appearance-none bg-bg-secondary text-text-primary rounded p-1 pr-6 w-full"
+                  value={filterCriteria.denoiseStatus ?? 'all'}
+                  onChange={(e) =>
+                    setFilterCriteria((prev: FilterCriteria) => ({
+                      ...prev,
+                      denoiseStatus: e.target.value as FilterCriteria['denoiseStatus'],
+                    }))
+                  }
+                >
+                  <option className="bg-bg-secondary text-text-primary" value="all">
+                    {t('denoiseQueue.all')}
+                  </option>
+                  <option className="bg-bg-secondary text-text-primary" value="marked">
+                    {t('denoiseQueue.marked')}
+                  </option>
+                  <option className="bg-bg-secondary text-text-primary" value="done">
+                    {t('denoiseQueue.done')}
+                  </option>
+                </select>
+                <ChevronDown
+                  size={14}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+                  aria-hidden="true"
+                />
+              </span>
+            </label>
+          </div>
           <div>
             <Text as="div" variant={TextVariants.small} weight={TextWeights.semibold} className="px-3 py-1 uppercase">
               {t('library.header.viewOptions.filterByEdited', 'Filter by Edit Status')}

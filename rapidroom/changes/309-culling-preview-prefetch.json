@@ -1,0 +1,12 @@
+{
+  "id": "culling-preview-prefetch",
+  "title": "Prepare nearby RAW previews for smoother culling",
+  "category": "fix",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Prepare a bounded window of RAW-rendered culling previews around the selected photo, cancel obsolete navigation work, retain recently viewed previews, and open cached RAWs without a camera-JPEG flash. Keep first-visit JPEGs instant, align their known frame and crossfade to the RAW over 150 ms. Filmstrip previews and processing defaults stay unchanged. Fixes the geometry/preview-handoff portion of #309; brightness is tracked separately in #334."
+}

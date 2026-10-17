@@ -45,6 +45,7 @@ const parseFocalLength = (val: string | undefined): number => {
 
 export interface GroupedLibrary {
   displayList: ImageFile[];
+  matchingPhotoCount: number;
   badges: Map<GroupId, GroupBadgeInfo> | null;
 }
 
@@ -61,7 +62,7 @@ interface SearchCriteria {
 type LibrarySortState = Pick<
   ReturnType<typeof useLibraryStore.getState>,
   'imageList' | 'imageRatings' | 'filterCriteria' | 'sortCriteria'
-> & { searchCriteria: SearchCriteria };
+> & { searchCriteria: SearchCriteria; denoiseStatuses?: Record<string, { marked: boolean; denoised: boolean }> };
 
 type SettingsSortState = {
   appSettings: { grouping?: GroupingMode; groupEditedFiles?: boolean } | null;
@@ -75,6 +76,8 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
   const isGroupingActive = groupingMode !== 'off';
 
   const matchesFilter = (image: ImageFile): boolean => {
+    if (filterCriteria.denoiseStatus === 'marked' && !libraryState.denoiseStatuses?.[image.path]?.marked) return false;
+    if (filterCriteria.denoiseStatus === 'done' && !libraryState.denoiseStatuses?.[image.path]?.denoised) return false;
     if (filterCriteria.rating !== 0) {
       const rating = imageRatings[image.path] || 0;
       if (filterCriteria.rating === -1 && rating !== 0) return false;
@@ -293,7 +296,11 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
     ? buildImageGroups(imageList, groupingMode, appSettings?.groupEditedFiles ?? true).badges
     : null;
 
-  return { displayList: list, badges };
+  return {
+    displayList: list,
+    badges,
+    matchingPhotoCount: imageList.filter((image) => matchesFilter(image) && matchesSearch(image)).length,
+  };
 }
 
 export function computeSortedLibrary(libraryState: LibrarySortState, settingsState: SettingsSortState): ImageFile[] {
@@ -303,6 +310,7 @@ export function computeSortedLibrary(libraryState: LibrarySortState, settingsSta
 export function useSortedLibrary() {
   const imageList = useLibraryStore((state) => state.imageList);
   const imageRatings = useLibraryStore((state) => state.imageRatings);
+  const denoiseStatuses = useLibraryStore((state) => state.denoiseStatuses);
   const filterCriteria = useLibraryStore((state) => state.filterCriteria);
   const searchCriteria = useLibraryStore((state) => state.searchCriteria);
   const sortCriteria = useLibraryStore((state) => state.sortCriteria);
@@ -311,10 +319,10 @@ export function useSortedLibrary() {
 
   const result = useMemo(() => {
     return computeGroupedLibrary(
-      { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria },
+      { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria, denoiseStatuses },
       { appSettings },
     );
-  }, [imageList, sortCriteria, imageRatings, filterCriteria, searchCriteria, appSettings]);
+  }, [imageList, sortCriteria, imageRatings, filterCriteria, searchCriteria, appSettings, denoiseStatuses]);
 
   return result;
 }

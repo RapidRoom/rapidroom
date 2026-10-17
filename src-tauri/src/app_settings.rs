@@ -25,6 +25,8 @@ pub struct FilterCriteria {
     pub edited_status: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub flag_status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub denoise_status: Option<String>,
     #[serde(default)]
     pub colors: Vec<String>,
     #[serde(default)]
@@ -40,6 +42,7 @@ impl Default for FilterCriteria {
             raw_status: "all".to_string(),
             edited_status: Some("all".to_string()),
             flag_status: None,
+            denoise_status: None,
             colors: Vec::new(),
             rating_exact: false,
             rating_operator: None,
