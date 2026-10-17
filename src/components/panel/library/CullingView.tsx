@@ -407,9 +407,6 @@ export function CullingPreview({
       ? 'ring-2 ring-inset ring-gray-400'
       : 'group-hover:ring-2 group-hover:ring-inset group-hover:ring-hover-color';
 
-  const effectiveDragging = isDragging || (syncViewport.isActive && syncViewport.isDragging);
-
-  const SCALE_FACTOR = 4;
   const knownDimensions = initialPreview?.thumbKey === safeThumbKey ? (initialPreview.dimensions ?? null) : null;
   const previewFrame = useImageRenderSize(containerRef, knownDimensions);
   const thumbnailFrameStyle: React.CSSProperties | undefined =
@@ -425,11 +422,11 @@ export function CullingPreview({
 
   const imageTransformStyle: React.CSSProperties = {
     position: 'relative',
-    width: `${SCALE_FACTOR * 100}%`,
-    height: `${SCALE_FACTOR * 100}%`,
+    // Lay out at the displayed size so WebKit preserves source detail at 100%.
+    width: `${zoom * 100}%`,
+    height: `${zoom * 100}%`,
     flexShrink: 0,
-    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / SCALE_FACTOR})`,
-    transition: effectiveDragging ? 'none' : 'transform 0.1s ease-out',
+    transform: `translate(${pan.x}px, ${pan.y}px)`,
     transformOrigin: 'center center',
     willChange: 'transform',
   };
