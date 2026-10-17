@@ -272,7 +272,7 @@ impl SonyCameraData {
                 .map(str::parse)
                 .collect::<Result<_, _>>()
                 .ok()?;
-            (values.len() == count * SONY_KNOTS + 1 && values[0] == SONY_KNOTS as i16)
+            (values.len() == count * SONY_KNOTS + 1 && values[0] == (count * SONY_KNOTS) as i16)
                 .then(|| values[1..].to_vec())
         };
         let data = Self {
@@ -358,14 +358,27 @@ mod tests {
 
     fn raw(table: [i16; SONY_KNOTS]) -> Vec<u8> {
         let mut bytes = b"II\x2a\0\x08\0\0\0".to_vec();
-        bytes.extend(1_u16.to_le_bytes());
+        bytes.extend(2_u16.to_le_bytes());
         bytes.extend(0x7037_u16.to_le_bytes());
         bytes.extend(8_u16.to_le_bytes());
         bytes.extend(17_u32.to_le_bytes());
-        bytes.extend(26_u32.to_le_bytes());
+        bytes.extend(38_u32.to_le_bytes());
+        bytes.extend(0x7035_u16.to_le_bytes());
+        bytes.extend(8_u16.to_le_bytes());
+        bytes.extend(33_u32.to_le_bytes());
+        bytes.extend(72_u32.to_le_bytes());
         bytes.extend(0_u32.to_le_bytes());
         bytes.extend(16_i16.to_le_bytes());
         for value in table {
+            bytes.extend(value.to_le_bytes());
+        }
+        // Sony/darktable: CA's count is twice the radial knot count. The
+        // signed payload has sixteen red and sixteen blue samples.
+        bytes.extend(32_i16.to_le_bytes());
+        for value in [128_i16; SONY_KNOTS]
+            .into_iter()
+            .chain([-128_i16; SONY_KNOTS])
+        {
             bytes.extend(value.to_le_bytes());
         }
         bytes
@@ -380,6 +393,8 @@ mod tests {
         std::fs::write(&path, raw([1024; SONY_KNOTS])).unwrap();
         // A pre-parser cached EXIF map deliberately contains no correction tags.
         let exif = Some(HashMap::from([("Make".into(), "SONY".into())]));
+        let parsed = source_data(&path, exif.as_ref().unwrap()).unwrap();
+        assert_eq!(parsed.tca, Some([[128; SONY_KNOTS], [-128; SONY_KNOTS]]));
         let base = json!({"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1});
         let mut first = base.clone();
         crate::file_management::resolve_lens_params_in_adjustments(&mut first, &exif, None, &path);
