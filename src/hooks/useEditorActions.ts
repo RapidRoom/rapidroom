@@ -1,3 +1,6 @@
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
+import { captureAdjustments } from '../utils/adjustmentCapture';
+import { normalizeLensPolicyVersion } from '../utils/lensPolicyVersion';
 import { getDpr, transformFromPercent } from '../utils/zoom';
 import { useCallback, type SyntheticEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -27,6 +30,8 @@ import i18n from 'i18next';
 interface LoadedMetadata {
   adjustments: (Adjustments & { is_null?: boolean }) | null;
 }
+
+let copyRequest = 0;
 
 export const debouncedSetHistory = debounce((newAdj: Adjustments) => {
   useEditorStore.getState().pushHistory(newAdj);
@@ -331,14 +336,22 @@ export function useEditorActions() {
       pathsToReset.forEach((p) => globalImageCache.delete(p));
       debouncedSetHistory.cancel();
 
+      const before = useEditorStore.getState().adjustments;
       invoke(Invokes.ResetAdjustmentsForPaths, { paths: pathsToReset })
-        .then(() => {
-          if (libraryActivePath && pathsToReset.includes(libraryActivePath))
-            setLibrary({ libraryActiveAdjustments: { ...INITIAL_ADJUSTMENTS } });
+        .then(async () => {
+          if (libraryActivePath && pathsToReset.includes(libraryActivePath)) {
+            const reset = await createResetAdjustmentsWithLensDefaults({
+              path: libraryActivePath,
+              width: 0,
+              height: 0,
+            });
+            if (useLibraryStore.getState().libraryActivePath === libraryActivePath)
+              setLibrary({ libraryActiveAdjustments: reset });
+          }
           if (selectedImage && pathsToReset.includes(selectedImage.path)) {
-            const aspect =
-              selectedImage.width && selectedImage.height ? selectedImage.width / selectedImage.height : null;
-            const resetData = { ...INITIAL_ADJUSTMENTS, aspectRatio: aspect, aiPatches: [] };
+            const resetData = await createResetAdjustmentsWithLensDefaults(selectedImage);
+            const current = useEditorStore.getState();
+            if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before) return;
             resetHistory(resetData);
             setEditor({ adjustments: resetData });
           }
@@ -389,46 +402,82 @@ export function useEditorActions() {
   );
 
   const handleCopyAdjustments = useCallback(async (pathOrEvent?: string | SyntheticEvent) => {
+    const request = ++copyRequest;
     const pathOverride = typeof pathOrEvent === 'string' ? pathOrEvent : undefined;
     const { selectedImage, adjustments } = useEditorStore.getState();
-    const { libraryActivePath, multiSelectedPaths } = useLibraryStore.getState();
+    const library = useLibraryStore.getState();
+    const { libraryActivePath, multiSelectedPaths } = library;
+    const settings = useSettingsStore.getState().appSettings;
     let sourceAdjustments: Adjustments | null = null;
 
     const pathToCopyFrom =
       pathOverride || (selectedImage ? selectedImage.path : libraryActivePath || multiSelectedPaths[0]);
+    if (!pathToCopyFrom) return;
+    const editorSource = selectedImage?.path === pathToCopyFrom;
+    const editorSnapshot = editorSource ? JSON.stringify(adjustments) : null;
+    const isCurrent = () => {
+      const current = useEditorStore.getState();
+      const activeLibrary = useLibraryStore.getState();
+      return (
+        request === copyRequest &&
+        current.selectedImage === selectedImage &&
+        useSettingsStore.getState().appSettings === settings &&
+        (editorSource
+          ? current.adjustments === adjustments && JSON.stringify(current.adjustments) === editorSnapshot
+          : activeLibrary.libraryActivePath === libraryActivePath &&
+            activeLibrary.multiSelectedPaths === multiSelectedPaths &&
+            activeLibrary.currentFolderPath === library.currentFolderPath &&
+            activeLibrary.libraryActiveAdjustments === library.libraryActiveAdjustments)
+      );
+    };
 
     if (selectedImage && pathToCopyFrom === selectedImage.path) {
-      sourceAdjustments = adjustments;
+      sourceAdjustments = structuredClone(adjustments);
     } else if (pathToCopyFrom) {
       try {
         const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: pathToCopyFrom });
         if (meta?.adjustments && !meta.adjustments.is_null) {
           sourceAdjustments = normalizeLoadedAdjustments(meta.adjustments);
-        } else {
-          sourceAdjustments = INITIAL_ADJUSTMENTS;
         }
       } catch (err) {
-        toast.error(`Failed to load metadata for copying: ${err}`);
+        if (isCurrent()) toast.error(`Failed to load metadata for copying: ${err}`);
         return;
       }
     }
 
-    if (!sourceAdjustments) return;
-
-    const adjustmentsToCopy: Partial<Adjustments> = {};
-
-    for (const key of COPYABLE_ADJUSTMENT_KEYS) {
-      if (Object.prototype.hasOwnProperty.call(sourceAdjustments, key)) {
-        adjustmentsToCopy[key] = structuredClone(sourceAdjustments[key]);
-      }
+    if (!isCurrent()) return;
+    const source = sourceAdjustments ? structuredClone(sourceAdjustments) : null;
+    const file = library.imageList.find((item) => item.path === pathToCopyFrom);
+    let defaults: Adjustments;
+    try {
+      defaults = await createResetAdjustmentsWithLensDefaults(
+        editorSource
+          ? selectedImage
+          : {
+              path: pathToCopyFrom,
+              width: 0,
+              height: 0,
+              isRaw: file?.is_raw,
+            },
+      );
+    } catch (err) {
+      if (isCurrent()) toast.error(`Failed to load metadata for copying: ${err}`);
+      return;
     }
-    useEditorStore.getState().setEditor({ copiedAdjustments: adjustmentsToCopy });
+    if (!isCurrent()) return;
+    // Unopened photos with no saved recipe use the same resolved fresh defaults
+    // as their comparison baseline; saved objects keep their own interpretation.
+    const adjustmentsToCopy = captureAdjustments(source ?? defaults, COPYABLE_ADJUSTMENT_KEYS);
+    useEditorStore.getState().setEditor({
+      copiedAdjustments: adjustmentsToCopy,
+      copiedAdjustmentDefaults: { adjustments: adjustmentsToCopy, defaults: structuredClone(defaults) },
+    });
     useProcessStore.getState().setProcess({ isCopied: true });
   }, []);
 
   const handlePasteAdjustments = useCallback(
     (paths?: string[]) => {
-      const { copiedAdjustments, selectedImage, adjustments } = useEditorStore.getState();
+      const { copiedAdjustments, copiedAdjustmentDefaults, selectedImage, adjustments } = useEditorStore.getState();
       const { multiSelectedPaths } = useLibraryStore.getState();
       const { appSettings } = useSettingsStore.getState();
       const { setProcess } = useProcessStore.getState();
@@ -437,22 +486,19 @@ export function useEditorActions() {
 
       const mode = appSettings.copyPasteSettings?.mode ?? PasteMode.Merge;
       const includedAdjustments = appSettings.copyPasteSettings?.includedAdjustments ?? COPYABLE_ADJUSTMENT_KEYS;
-      const adjustmentsToApply: Partial<Adjustments> = {};
+      // Old/programmatically supplied clipboards have no source provenance;
+      // retain their previous baseline instead of borrowing the target photo's.
+      const defaults =
+        copiedAdjustmentDefaults?.adjustments === copiedAdjustments
+          ? copiedAdjustmentDefaults.defaults
+          : INITIAL_ADJUSTMENTS;
+      const adjustmentsToApply = captureAdjustments(
+        copiedAdjustments,
+        includedAdjustments,
+        mode === PasteMode.Merge ? defaults : undefined,
+      );
 
-      for (const key of includedAdjustments) {
-        if (Object.prototype.hasOwnProperty.call(copiedAdjustments, key)) {
-          const value = copiedAdjustments[key as keyof Adjustments];
-          if (mode === PasteMode.Merge) {
-            const defaultValue = INITIAL_ADJUSTMENTS[key as keyof Adjustments];
-            if (JSON.stringify(value) !== JSON.stringify(defaultValue))
-              adjustmentsToApply[key as keyof Adjustments] = value;
-          } else {
-            adjustmentsToApply[key as keyof Adjustments] = value;
-          }
-        }
-      }
-
-      if (includedAdjustments.includes(LensAdjustment.LensMaker)) {
+      if (Object.prototype.hasOwnProperty.call(adjustmentsToApply, LensAdjustment.LensMaker)) {
         if (!adjustmentsToApply.lensMaker) {
           adjustmentsToApply.lensDistortionParams = null;
         }
@@ -470,7 +516,13 @@ export function useEditorActions() {
       pathsToUpdate.forEach((p) => globalImageCache.delete(p));
 
       if (selectedImage && pathsToUpdate.includes(selectedImage.path)) {
-        setAdjustments({ ...adjustments, ...adjustmentsToApply });
+        setAdjustments(
+          normalizeLensPolicyVersion(
+            { ...adjustments, ...adjustmentsToApply },
+            adjustmentsToApply,
+            adjustments,
+          ) as Adjustments,
+        );
       }
 
       invoke(Invokes.ApplyAdjustmentsToPaths, { paths: pathsToUpdate, adjustments: adjustmentsToApply })

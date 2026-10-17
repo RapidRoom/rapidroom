@@ -1561,6 +1561,13 @@
       "title": "가져오기 설정"
     },
     "lensCorrection": {
+      "sourceApplied": "적용됨: {{source}}",
+      "sourceAvailable": "사용 가능: {{source}}",
+      "sourceCameraData": "카메라 데이터",
+      "sourceExistingRecipe": "저장된 편집 설정",
+      "sourceNoData": "보정 데이터 없음",
+      "sourceUnavailable": "보정 소스를 가져올 수 없음",
+      "sourceChecking": "보정 소스 확인 중…",
       "amount": "양",
       "apply": "적용",
       "autoDetectLens": "렌즈 자동 감지",
@@ -2041,6 +2048,9 @@
       },
       "nativeDpi": "네이티브 DPI로 렌더링",
       "preprocessing": {
+        "autoLensCorrection": "새 RAW 자동 렌즈 보정",
+        "autoLensCorrectionDesc": "RAW 사진을 처음 열거나 초기화할 때 사용 가능한 렌즈 보정을 적용합니다. 저장된 편집 설정은 유지됩니다.",
+        "enableAutoLensCorrection": "자동 렌즈 보정을 기본으로 사용",
         "appleRaw9": "Apple RAW 9 엔진",
         "appleRaw9Desc": "Apple의 Core Image RAW 9 디코더로 RAW 파일을 현상합니다. Neural Engine에서 디모자이크와 노이즈 제거를 한 번에 처리합니다. macOS 27 이상 및 지원되는 카메라가 필요하며, 지원되지 않는 파일은 내장 디코더를 자동으로 사용합니다. 기본 디코더보다 느립니다. 썸네일에는 영향을 주지 않습니다.",
         "applyPreprocessing": "RAW가 아닌 이미지에 전처리 적용",

@@ -1,5 +1,6 @@
 import type { Adjustments } from './adjustments';
 import schema from '../../rapidroom/adjustment-schema.json';
+import { normalizeLensPolicyVersion } from './lensPolicyVersion';
 
 const parameters: Record<
   string,
@@ -104,5 +105,5 @@ export function mixAdjustments(
     }
     return target;
   };
-  return blend(preset, before, '') as Partial<Adjustments>;
+  return normalizeLensPolicyVersion(blend(preset, before, '') as Partial<Adjustments>, preset, before, fraction * 100);
 }

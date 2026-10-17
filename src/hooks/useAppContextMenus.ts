@@ -1,3 +1,4 @@
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
 import { copyFilesWithSummary } from '../utils/fileTransfers';
 import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
@@ -77,13 +78,7 @@ import {
   FolderTree,
 } from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
-import {
-  Color,
-  COLOR_LABELS,
-  INITIAL_ADJUSTMENTS,
-  normalizeLoadedAdjustments,
-  type Adjustments,
-} from '../utils/adjustments';
+import { Color, COLOR_LABELS, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
 import TaggingSubMenu from '../context/TaggingSubMenu';
 import {
   prepareEditorDraftForXmpImport,
@@ -805,15 +800,19 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               label: t('contextMenus.editor.confirmReset'),
               icon: Check,
               isDestructive: true,
-              onClick: () => {
-                const originalAspectRatio =
-                  selectedImage.width && selectedImage.height ? selectedImage.width / selectedImage.height : null;
-                resetHistory({
-                  ...INITIAL_ADJUSTMENTS,
-                  aspectRatio: originalAspectRatio,
-                  aiPatches: [],
-                });
-                setEditor({ adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: originalAspectRatio, aiPatches: [] } });
+              onClick: async () => {
+                const before = useEditorStore.getState();
+                if (before.selectedImage?.path !== selectedImage.path) return;
+                try {
+                  const reset = await createResetAdjustmentsWithLensDefaults(selectedImage);
+                  const current = useEditorStore.getState();
+                  if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before.adjustments)
+                    return;
+                  resetHistory(reset);
+                  setEditor({ adjustments: reset });
+                } catch (error) {
+                  toast.error(`Failed to reset adjustments: ${error}`);
+                }
               },
             },
           ],

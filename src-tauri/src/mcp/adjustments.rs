@@ -376,6 +376,10 @@ pub(super) fn adjustments_schema() -> Value {
         json!({ "type": "string", "enum": ["auto", "manual"] }),
     );
     properties.insert(
+        "cameraLensCorrectionVersion".to_string(),
+        json!({ "type": "integer", "enum": [0, 1], "description": "Discrete lens-policy metadata. 0 or absent preserves the existing recipe; 1 opts Auto into validated camera correction fallback. Not an amount control." }),
+    );
+    properties.insert(
         "lensBlurShape".to_string(),
         json!({ "type": "string", "enum": ["circle", "hexagon", "octagon", "ring"] }),
     );
@@ -666,6 +670,7 @@ fn adjustment_keys() -> Vec<String> {
         .chain(
             [
                 "baselineExposure",
+                "cameraLensCorrectionVersion",
                 "aiPatches",
                 "sectionVisibility",
                 "activeTools",
@@ -753,6 +758,11 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "curveMode" => validate_string_enum(value, key, &["point", "parametric"])?,
                 "toneMapper" => validate_string_enum(value, key, &["basic", "agx"])?,
                 "lensCorrectionMode" => validate_string_enum(value, key, &["auto", "manual"])?,
+                "cameraLensCorrectionVersion" => {
+                    if !matches!(value.as_u64(), Some(0 | 1)) {
+                        return Err("cameraLensCorrectionVersion must be the integer 0 or 1".into());
+                    }
+                }
                 "lensBlurShape" => {
                     validate_string_enum(value, key, &["circle", "hexagon", "octagon", "ring"])?
                 }
@@ -1394,6 +1404,71 @@ mod tests {
         }
         for value in [json!(1), json!("true"), Value::Null] {
             assert!(validate_adjustments(&json!({"baselineExposure":value})).is_err());
+        }
+    }
+
+    #[test]
+    fn fresh_and_reset_raw_snapshots_accept_only_discrete_camera_policy_versions() {
+        let schema = adjustments_schema();
+        assert_eq!(
+            schema["properties"]["cameraLensCorrectionVersion"]["type"],
+            "integer"
+        );
+        assert_eq!(
+            schema["properties"]["cameraLensCorrectionVersion"]["enum"],
+            json!([0, 1])
+        );
+        assert!(!crate::all_available_adjustments().contains("cameraLensCorrectionVersion"));
+        let editor_schema: Value =
+            serde_json::from_str(include_str!("../../../rapidroom/adjustment-schema.json"))
+                .unwrap();
+        for initial in [Value::Null, crate::image_processing::default_adjustments()] {
+            let dir = tempfile::tempdir().unwrap();
+            let raw = dir.path().join("photo.ARW");
+            let sidecar = dir.path().join("photo.ARW.rrdata");
+            let raw_bytes = crate::exif_processing::rating_samples::sony_arw(true, Some("4"), None);
+            std::fs::write(&raw, &raw_bytes).unwrap();
+            let mut metadata = crate::image_processing::ImageMetadata {
+                adjustments: initial,
+                ..Default::default()
+            };
+            crate::file_management::apply_default_raw_lens_policy(
+                &mut metadata,
+                &raw,
+                &sidecar,
+                &crate::app_settings::AppSettings::default(),
+                None,
+            );
+            assert_eq!(metadata.adjustments["cameraLensCorrectionVersion"], 1);
+            let mut snapshot = json!({});
+            for (key, value) in editor_schema["parameters"].as_object().unwrap() {
+                if !key.contains('.') {
+                    snapshot[key] = value["default"].clone();
+                }
+            }
+            snapshot
+                .as_object_mut()
+                .unwrap()
+                .extend(metadata.adjustments.as_object().unwrap().clone());
+            validate_adjustments(&snapshot).unwrap();
+            for value in [json!(0), json!(1)] {
+                snapshot["cameraLensCorrectionVersion"] = value;
+                validate_adjustments(&snapshot).unwrap();
+            }
+            for value in [
+                json!(-1),
+                json!(2),
+                json!(0.5),
+                json!("1"),
+                json!(true),
+                Value::Null,
+                json!([]),
+                json!({}),
+            ] {
+                snapshot["cameraLensCorrectionVersion"] = value;
+                assert!(validate_adjustments(&snapshot).is_err());
+            }
+            assert_eq!(std::fs::read(&raw).unwrap(), raw_bytes);
         }
     }
 

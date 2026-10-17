@@ -3289,7 +3289,13 @@ fn import_xmp_adjustments_to_sidecar(
     xmp_path: &Path,
     lens_db: Option<&crate::lens_correction::LensDatabase>,
 ) -> Result<ImportedXmpSidecar, String> {
-    import_xmp_adjustments_to_sidecar_with_draft(path, xmp_path, lens_db, None)
+    import_xmp_adjustments_to_sidecar_with_draft(
+        path,
+        xmp_path,
+        lens_db,
+        None,
+        &AppSettings::default(),
+    )
 }
 
 fn import_xmp_adjustments_to_sidecar_with_draft(
@@ -3297,6 +3303,7 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
     xmp_path: &Path,
     lens_db: Option<&crate::lens_correction::LensDatabase>,
     pending_adjustments: Option<&Value>,
+    settings: &AppSettings,
 ) -> Result<ImportedXmpSidecar, String> {
     if !is_xmp_sidecar_path(xmp_path) {
         return Err("Selected file is not an XMP sidecar.".to_string());
@@ -3360,7 +3367,17 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         metadata.adjustments = pending.clone();
     }
     if has_supported_adjustments {
-        merge_imported_adjustments(&mut metadata.adjustments, converted_preset.adjustments);
+        apply_fresh_raw_defaults(
+            &mut metadata,
+            &source_path,
+            &sidecar_path,
+            settings,
+            lens_db,
+        );
+        let before = metadata.adjustments.clone();
+        let imported = converted_preset.adjustments;
+        merge_imported_adjustments(&mut metadata.adjustments, imported.clone());
+        normalize_lens_policy_version(&before, &imported, &mut metadata.adjustments, 100.0);
         resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
     }
     let draft_preserved = !has_supported_adjustments && pending_adjustments.is_some();
@@ -3425,12 +3442,14 @@ pub fn import_xmp_adjustments_for_image(
         .map(PathBuf::from)
         .or_else(|| find_matching_xmp_sidecar(&path))
         .ok_or_else(|| "No matching XMP sidecar was found next to this image.".to_string())?;
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
     let lens_db = state.lens_db.lock().unwrap().clone();
     let mut imported = import_xmp_adjustments_to_sidecar_with_draft(
         &path,
         &xmp_path,
         lens_db.as_deref(),
         pending_adjustments.as_ref(),
+        &settings,
     )?;
     hydrate_imported_xmp_exif(&path, &mut imported, lens_db.as_deref())?;
     let sidecar_path = imported.sidecar_path.clone();
@@ -3481,6 +3500,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
 
         let (matches, skipped, traversal_failures) = find_matching_xmp_sidecars_recursive(&folder);
         let total = matches.len();
+        let settings = load_settings(app_handle.clone()).unwrap_or_default();
         let lens_db = app_handle
             .state::<AppState>()
             .lens_db
@@ -3529,6 +3549,7 @@ pub async fn import_matching_xmp_sidecars_in_folder(
                 &xmp_path,
                 lens_db.as_deref(),
                 pending,
+                &settings,
             ) {
                 Ok(imported) => {
                     if imported.already_applied {
@@ -3673,13 +3694,23 @@ pub async fn apply_adjustments_to_paths(
         paths.par_iter().for_each(|path| {
             let (source_path, sidecar_path) = parse_virtual_path(path);
 
-            let mut existing_metadata =
-                crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
+            let mut existing_metadata = load_sidecar_with_raw_defaults(
+                &sidecar_path,
+                &source_path,
+                &settings,
+                lens_db.as_deref(),
+            );
+            if existing_metadata.exif.is_none() {
+                existing_metadata.exif =
+                    crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path)
+                        .exif;
+            }
 
             let mut new_adjustments = existing_metadata.adjustments;
             if new_adjustments.is_null() {
                 new_adjustments = default_adjustments();
             }
+            let before = new_adjustments.clone();
 
             if let (Some(new_map), Some(pasted_map)) =
                 (new_adjustments.as_object_mut(), adjustments.as_object())
@@ -3696,6 +3727,7 @@ pub async fn apply_adjustments_to_paths(
                 }
             }
 
+            normalize_lens_policy_version(&before, &adjustments, &mut new_adjustments, 100.0);
             resolve_lens_params_in_adjustments(
                 &mut new_adjustments,
                 &existing_metadata.exif,
@@ -3739,12 +3771,25 @@ pub async fn reset_adjustments_for_paths(
         let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
         let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
 
+        let lens_db = app_handle
+            .state::<AppState>()
+            .lens_db
+            .lock()
+            .unwrap()
+            .clone();
         paths.par_iter().for_each(|path| {
-            let (_, sidecar_path) = parse_virtual_path(path);
+            let (source_path, sidecar_path) = parse_virtual_path(path);
 
             let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
             existing_metadata.adjustments = default_adjustments();
+            apply_default_raw_lens_policy(
+                &mut existing_metadata,
+                &source_path,
+                &sidecar_path,
+                &settings,
+                lens_db.as_deref(),
+            );
 
             if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
                 let _ = write_file_atomically(&sidecar_path, json_string);
@@ -3840,6 +3885,10 @@ pub async fn apply_auto_lens_correction_to_paths(
 
             if let Some(obj) = existing_metadata.adjustments.as_object_mut() {
                 obj.insert("lensCorrectionMode".to_string(), serde_json::json!("auto"));
+                obj.insert(
+                    "cameraLensCorrectionVersion".to_string(),
+                    serde_json::json!(1),
+                );
                 obj.insert("lensDistortionEnabled".to_string(), serde_json::json!(true));
                 obj.insert("lensTcaEnabled".to_string(), serde_json::json!(true));
                 obj.insert("lensVignetteEnabled".to_string(), serde_json::json!(true));
@@ -3892,6 +3941,7 @@ pub async fn apply_auto_adjustments_to_paths(
         let create_xmp_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
 
         let state = app_handle.state::<AppState>();
+        let lens_db = state.lens_db.lock().unwrap().clone();
         let thumb_cache_dir = match resolve_thumbnail_cache_dir(&app_handle) {
             Ok(dir) => dir,
             Err(e) => {
@@ -3928,6 +3978,17 @@ pub async fn apply_auto_adjustments_to_paths(
 
                     if existing_metadata.adjustments.is_null() {
                         existing_metadata.adjustments = default_adjustments();
+                        crate::raw_processing::apply_camera_crop_default_from_path(
+                            &mut existing_metadata.adjustments,
+                            &source_path,
+                        );
+                        apply_default_raw_lens_policy(
+                            &mut existing_metadata,
+                            &source_path,
+                            &sidecar_path,
+                            &settings,
+                            lens_db.as_deref(),
+                        );
                     }
 
                     let auto_results = perform_auto_analysis(
@@ -4128,26 +4189,133 @@ pub fn set_flag_for_paths(
     })
 }
 
+pub(crate) fn normalize_lens_policy_version(
+    target: &Value,
+    source: &Value,
+    merged: &mut Value,
+    amount: f64,
+) {
+    let Some(map) = merged.as_object_mut() else {
+        return;
+    };
+    let replacing = source
+        .as_object()
+        .is_some_and(|source| source.contains_key("lensCorrectionMode"))
+        && amount >= 100.0;
+    let version = if replacing { source } else { target }.get("cameraLensCorrectionVersion");
+    if version.and_then(Value::as_u64) == Some(1) {
+        map.insert("cameraLensCorrectionVersion".into(), serde_json::json!(1));
+    } else if target.get("cameraLensCorrectionVersion").is_some() {
+        map.insert("cameraLensCorrectionVersion".into(), serde_json::json!(0));
+    } else {
+        map.remove("cameraLensCorrectionVersion");
+    }
+}
+
+pub(crate) fn apply_default_raw_lens_policy(
+    metadata: &mut ImageMetadata,
+    source_path: &Path,
+    sidecar_path: &Path,
+    settings: &AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) {
+    if !crate::formats::is_raw_file(source_path)
+        || !settings.auto_lens_correction_on_new_raws.unwrap_or(true)
+    {
+        return;
+    }
+    if metadata.exif.is_none() {
+        metadata.exif =
+            crate::exif_processing::load_sidecar_with_exif(sidecar_path, source_path).exif;
+    }
+    if !metadata.adjustments.is_object() {
+        metadata.adjustments = default_adjustments();
+    }
+    metadata.adjustments["lensCorrectionMode"] = serde_json::json!("auto");
+    metadata.adjustments["cameraLensCorrectionVersion"] = serde_json::json!(1);
+    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+}
+
+pub(crate) fn apply_fresh_raw_defaults(
+    metadata: &mut ImageMetadata,
+    source_path: &Path,
+    sidecar_path: &Path,
+    settings: &AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) {
+    if metadata.adjustments.is_null() {
+        crate::raw_processing::apply_camera_crop_default_from_path(
+            &mut metadata.adjustments,
+            source_path,
+        );
+        apply_default_raw_lens_policy(metadata, source_path, sidecar_path, settings, lens_db);
+    }
+}
+
+pub(crate) fn load_sidecar_with_raw_defaults(
+    sidecar_path: &Path,
+    source_path: &Path,
+    settings: &AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) -> ImageMetadata {
+    let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
+    apply_fresh_raw_defaults(&mut metadata, source_path, sidecar_path, settings, lens_db);
+    metadata
+}
+
+#[tauri::command]
+pub async fn get_default_raw_lens_adjustments(
+    path: String,
+    app_handle: AppHandle,
+) -> Result<Value, String> {
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    let lens_db = app_handle
+        .state::<AppState>()
+        .lens_db
+        .lock()
+        .unwrap()
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let (source_path, sidecar_path) = parse_virtual_path(&path);
+        let mut metadata = ImageMetadata::default();
+        apply_default_raw_lens_policy(
+            &mut metadata,
+            &source_path,
+            &sidecar_path,
+            &settings,
+            lens_db.as_deref(),
+        );
+        if let Some(patch) = metadata.adjustments.as_object_mut() {
+            patch.retain(|key, _| key.starts_with("lens") || key == "cameraLensCorrectionVersion");
+            metadata.adjustments
+        } else {
+            serde_json::json!({})
+        }
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadata, String> {
-    let settings = load_settings(app_handle).unwrap_or_default();
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
     let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
 
     let (source_path, sidecar_path) = parse_virtual_path(&path);
-    let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
+    let lens_db = app_handle
+        .state::<AppState>()
+        .lens_db
+        .lock()
+        .unwrap()
+        .clone();
+    let mut metadata =
+        load_sidecar_with_raw_defaults(&sidecar_path, &source_path, &settings, lens_db.as_deref());
 
     if enable_xmp_sync
         && sync_metadata_from_xmp(&source_path, &sidecar_path, &mut metadata)
         && let Ok(json) = serde_json::to_string_pretty(&metadata)
     {
         let _ = write_file_atomically(&sidecar_path, json);
-    }
-
-    if metadata.adjustments.is_null() {
-        crate::raw_processing::apply_camera_crop_default_from_path(
-            &mut metadata.adjustments,
-            &source_path,
-        );
     }
 
     Ok(metadata)
@@ -5403,7 +5571,7 @@ pub fn sync_metadata_from_xmp(
             && rating != 0
         {
             metadata.rating = rating;
-            if !metadata.adjustments.is_object() {
+            if !metadata.adjustments.is_null() && !metadata.adjustments.is_object() {
                 metadata.adjustments = default_adjustments();
             }
             if let Some(obj) = metadata.adjustments.as_object_mut() {
@@ -6697,6 +6865,7 @@ mod tests {
                 &xmp,
                 None,
                 Some(&pending),
+                &AppSettings::default(),
             )
             .unwrap();
             assert!(imported.unchanged);
@@ -6943,6 +7112,7 @@ mod lightroom_xmp_import_tests {
                 &xmp,
                 None,
                 Some(&pending),
+                &AppSettings::default(),
             )
             .unwrap();
             assert!(imported.draft_preserved);
@@ -6975,6 +7145,7 @@ mod lightroom_xmp_import_tests {
             &xmp,
             None,
             Some(&pending),
+            &AppSettings::default(),
         )
         .unwrap();
         let mut expected = pending;
@@ -7370,6 +7541,13 @@ mod embedded_rating_tests {
         let shot = camera_rated("4");
         fs::write(&shot.xmp, xmp_packet("5")).unwrap();
         assert_eq!(shown_rating(&shot, true), 5);
+        // Folder metadata reads must not turn a fresh photo into a saved
+        // manual recipe before the editor/default policy sees it.
+        assert!(
+            crate::exif_processing::load_sidecar(&shot.sidecar)
+                .adjustments
+                .is_null()
+        );
 
         let shot = camera_rated("4");
         store_user_rating(&shot.sidecar, 1);
@@ -8104,5 +8282,119 @@ mod export_framing_sidecar_transactions {
         fs::write(&sidecar, b"{ broken sidecar").unwrap();
         assert!(update_export_framing(&sidecar, |_| Ok(json!({"instagram":null}))).is_err());
         assert_eq!(fs::read(sidecar).unwrap(), b"{ broken sidecar");
+    }
+}
+
+#[cfg(test)]
+mod lens_policy_version_tests {
+    use super::{import_xmp_adjustments_to_sidecar_with_draft, normalize_lens_policy_version};
+    use serde_json::Value;
+
+    #[test]
+    fn first_tone_import_uses_fresh_policy_but_saved_and_explicit_lens_recipes_keep_their_policy() {
+        for (enabled, saved, explicit_lens) in [
+            (true, false, false),
+            (false, false, false),
+            (true, true, false),
+            (true, false, true),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let raw = dir.path().join("photo.ARW");
+            let sidecar = dir.path().join("photo.ARW.rrdata");
+            let xmp = dir.path().join("photo.xmp");
+            let bytes = crate::exif_processing::rating_samples::sony_arw(true, Some("4"), None);
+            std::fs::write(&raw, &bytes).unwrap();
+            if saved {
+                let saved_recipe = crate::image_processing::ImageMetadata {
+                    adjustments: serde_json::json!({"lensCorrectionMode":"manual","contrast":20}),
+                    ..Default::default()
+                };
+                std::fs::write(&sidecar, serde_json::to_vec(&saved_recipe).unwrap()).unwrap();
+                let restored = crate::exif_processing::load_sidecar(&sidecar);
+                assert_eq!(restored.adjustments, saved_recipe.adjustments);
+            }
+            let lens = if explicit_lens {
+                r#"crs:LensProfileEnable="1""#
+            } else {
+                ""
+            };
+            std::fs::write(&xmp, format!(r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" crs:Exposure2012="+1.25" {lens}/></rdf:RDF></x:xmpmeta>"#)).unwrap();
+            let settings = crate::app_settings::AppSettings {
+                auto_lens_correction_on_new_raws: Some(enabled),
+                ..Default::default()
+            };
+            let result = import_xmp_adjustments_to_sidecar_with_draft(
+                raw.to_str().unwrap(),
+                &xmp,
+                None,
+                None,
+                &settings,
+            )
+            .unwrap();
+            assert_eq!(std::fs::read(&raw).unwrap(), bytes);
+            let recipe = result.metadata.adjustments;
+            if saved {
+                assert_eq!(recipe["lensCorrectionMode"], "manual");
+                assert_eq!(recipe["contrast"], 20);
+                assert!(recipe.get("cameraLensCorrectionVersion").is_none());
+            } else if explicit_lens {
+                assert_eq!(recipe["lensCorrectionMode"], "auto");
+                assert_eq!(recipe["cameraLensCorrectionVersion"], 0);
+            } else if enabled {
+                assert_eq!(recipe["lensCorrectionMode"], "auto");
+                assert_eq!(recipe["cameraLensCorrectionVersion"], 1);
+            } else {
+                assert!(recipe.get("lensCorrectionMode").is_none());
+                assert!(recipe.get("cameraLensCorrectionVersion").is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn batch_merge_matches_the_shared_legacy_camera_policy_contract() {
+        let contract: Value = serde_json::from_str(include_str!(
+            "../../rapidroom/validation/lens-policy-version-cases.json"
+        ))
+        .unwrap();
+        for case in contract["cases"].as_array().unwrap() {
+            let mut merged = case["target"].clone();
+            merged
+                .as_object_mut()
+                .unwrap()
+                .extend(case["source"].as_object().unwrap().clone());
+            let mut ordinary = merged.clone();
+            ordinary
+                .as_object_mut()
+                .unwrap()
+                .remove("cameraLensCorrectionVersion");
+            normalize_lens_policy_version(
+                &case["target"],
+                &case["source"],
+                &mut merged,
+                case["amount"].as_f64().unwrap(),
+            );
+            if case["expected_version"].is_null() {
+                assert!(
+                    merged.get("cameraLensCorrectionVersion").is_none(),
+                    "{}",
+                    case["name"]
+                );
+            } else {
+                assert_eq!(
+                    merged["cameraLensCorrectionVersion"], case["expected_version"],
+                    "{}",
+                    case["name"]
+                );
+            }
+            merged
+                .as_object_mut()
+                .unwrap()
+                .remove("cameraLensCorrectionVersion");
+            assert_eq!(
+                merged, ordinary,
+                "Version normalization changed numeric/control payload: {}",
+                case["name"]
+            );
+        }
     }
 }

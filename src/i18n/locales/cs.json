@@ -1427,6 +1427,13 @@
       "title": "Nastavení importu"
     },
     "lensCorrection": {
+      "sourceApplied": "Použito: {{source}}",
+      "sourceAvailable": "K dispozici: {{source}}",
+      "sourceCameraData": "Data fotoaparátu",
+      "sourceExistingRecipe": "uložené úpravy",
+      "sourceNoData": "Žádná data korekce",
+      "sourceUnavailable": "Zdroje korekce nejsou dostupné",
+      "sourceChecking": "Kontrola zdrojů korekce…",
       "amount": "Míra",
       "apply": "Použít",
       "autoDetectLens": "Automatická detekce objektivu",
@@ -1848,6 +1855,9 @@
       },
       "nativeDpi": "Vykreslování v nativním DPI",
       "preprocessing": {
+        "autoLensCorrection": "Automatická korekce objektivu pro nové RAW",
+        "autoLensCorrectionDesc": "Použije dostupné korekce při prvním otevření nebo obnovení fotografie RAW. Uložené úpravy si zachovají nastavení.",
+        "enableAutoLensCorrection": "Používat automatickou korekci objektivu jako výchozí",
         "appleRaw9": "Apple RAW 9 Engine",
         "appleRaw9Desc": "Vyvolat soubory RAW pomocí dekodéru Apple Core Image RAW 9, který demosaikuje a odšumí v jednom kroku na Neural Engine. Vyžaduje macOS 27 nebo novější a podporovaný fotoaparát; nepodporované soubory automaticky použijí vestavěný dekodér. Pomalejší než výchozí dekodér. Miniatur se netýká.",
         "applyPreprocessing": "Použít předběžné zpracování na jiné než RAW",

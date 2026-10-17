@@ -1,4 +1,4 @@
-import { createResetAdjustmentsForImage } from '../utils/adjustments';
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { toast } from 'react-toastify';
 import { isPathInCardRoot } from '../utils/cardMode';
 import { describeHistoryChange, sameAdjustmentValue } from '../utils/editHistory';
@@ -343,8 +343,12 @@ export function useMcpBridge(handleImageSelect: (path: string, openInEditor?: bo
           if (command.kind === 'reset-adjustments') {
             // Same result as the library's reset, but as an undoable step;
             // autosave writes it to the sidecar like any other edit.
-            const image = useEditorStore.getState().selectedImage;
-            nextAdjustments = createResetAdjustmentsForImage(image);
+            const before = useEditorStore.getState();
+            nextAdjustments = await createResetAdjustmentsWithLensDefaults(before.selectedImage);
+            const current = useEditorStore.getState();
+            if (current.selectedImage?.path !== command.path || current.adjustments !== before.adjustments) {
+              throw new Error('Active edit changed while preparing Reset');
+            }
           } else if (command.adjustments) {
             nextAdjustments = normalizeMcpAdjustments(command.adjustments);
           } else {
