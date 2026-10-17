@@ -100,11 +100,39 @@ export async function adoptVirtualCopy(command: AdoptionRequest, actions: Adopti
   }
   const response = await actions.sync(originalPath);
   if (applied) void rememberAppliedPreset(originalPath, applied, applied.amount, recipe);
+  const stillOriginal = () => {
+    const current = useEditorStore.getState();
+    return (
+      current.selectedImage?.path === originalPath &&
+      current.selectedImage.isReady &&
+      sameAdjustmentValue(current.adjustments, recipe)
+    );
+  };
+  // Persist the adopted original before offering copy deletion: a subsequent
+  // library refresh must not reload the older base recipe from disk.
+  let originalSaved = false;
+  if (stillOriginal()) {
+    try {
+      debouncedSave(originalPath, recipe);
+      await debouncedSave.flush();
+      await waitForPendingEditorSaves();
+      originalSaved = true;
+    } catch {
+      /* Ordinary autosave reports the failure; retain the AI copy. */
+    }
+  }
   const renderPending = !(await rendered);
   let copyDeletionConfirmationPending = false;
-  if (requestDeletion && !useUIStore.getState().confirmModalState.isOpen) {
-    actions.requestDeletePaths!([command.path], true);
-    copyDeletionConfirmationPending = true;
+  let copyDeletionReason: string | undefined;
+  if (requestDeletion) {
+    if (!originalSaved) copyDeletionReason = 'Original save did not complete; the AI copy is retained';
+    else if (!stillOriginal()) copyDeletionReason = 'Original changed after adoption; the AI copy is retained';
+    else if (useUIStore.getState().confirmModalState.isOpen)
+      copyDeletionReason = 'Another confirmation is open; the AI copy is retained';
+    else {
+      actions.requestDeletePaths!([command.path], true);
+      copyDeletionConfirmationPending = true;
+    }
   }
   toast.info('Adopted the AI edit on the original. Undo restores your previous edit.', { autoClose: 3500 });
   return {
@@ -112,11 +140,10 @@ export async function adoptVirtualCopy(command: AdoptionRequest, actions: Adopti
     editRevision: response.editRevision,
     sourceCopyPath: command.path,
     adopted: true,
+    originalSaved,
     changedKeys,
     renderPending,
     copyDeletionConfirmationPending,
-    ...(requestDeletion && !copyDeletionConfirmationPending
-      ? { copyDeletionReason: 'Another confirmation is open; the AI copy is retained' }
-      : {}),
+    ...(copyDeletionReason ? { copyDeletionReason } : {}),
   };
 }

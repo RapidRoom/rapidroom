@@ -621,10 +621,8 @@ describe('adopt AI version without deleting the original RAW', () => {
     expect(useEditorStore.getState().adjustments).toEqual(base);
     expect(invoke.mock.calls.some(([name]) => name.startsWith('delete_'))).toBe(false);
     expect(
-      invoke.mock.calls
-        .filter(([name]) => name === 'save_metadata_and_update_thumbnail')
-        .every(([, args]) => args?.path === copyPath),
-    ).toBe(true);
+      invoke.mock.calls.filter(([name]) => name === 'save_metadata_and_update_thumbnail').map(([, args]) => args?.path),
+    ).toEqual([copyPath, path]);
   });
   it('refuses a changed original and leaves both recipes available without a deletion request', async () => {
     const { requestDeletePaths } = await adoptionHarness('new-user-revision');
@@ -645,6 +643,25 @@ describe('adopt AI version without deleting the original RAW', () => {
     expect(useEditorStore.getState().adjustments).toMatchObject({ exposure: 0.25, shadows: 16 });
     expect(requestDeletePaths).not.toHaveBeenCalled();
   });
+  it('retains the AI copy if persisting the adopted original fails', async () => {
+    const { requestDeletePaths } = await adoptionHarness();
+    mockCommand('save_metadata_and_update_thumbnail', (args) => {
+      if (args?.path === path) throw new Error('disk full');
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      await adopt();
+      expect(responses[0]).toMatchObject({
+        error: null,
+        response: { adopted: true, originalSaved: false, copyDeletionConfirmationPending: false },
+      });
+      expect(useEditorStore.getState().adjustments).toEqual(edited);
+      expect(requestDeletePaths).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it('keeps the AI copy when deletion was not requested', async () => {
     const { requestDeletePaths } = await adoptionHarness();
     await adopt(false);
