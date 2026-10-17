@@ -181,10 +181,10 @@ pub fn include_styles(library: &mut Vec<PresetItem>) -> Result<(), String> {
         serde_json::from_str(include_str!("../resources/styles/styles-v1.json"))
             .map_err(|error| error.to_string())?;
     for item in pack.presets.into_iter().rev() {
-        if let PresetItem::Preset(preset) = item {
-            if !ids.contains(&preset.id) {
-                library.insert(0, PresetItem::Preset(preset));
-            }
+        if let PresetItem::Preset(preset) = item
+            && !ids.contains(&preset.id)
+        {
+            library.insert(0, PresetItem::Preset(preset));
         }
     }
     Ok(())
