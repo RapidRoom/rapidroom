@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { sameAdjustmentValue } from '../../utils/editHistory';
 import { presetUnavailableReason } from '../../utils/presetBrowser';
 import { mixAdjustments } from '../../utils/presetAmount';
+import { rememberAppliedPreset } from '../../utils/appliedPreset';
 import type { UserPreset } from '../../hooks/usePresets';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
@@ -143,7 +144,7 @@ export default function CommandPalette() {
   }, [open]);
 
   const commit = useCallback(
-    (next: Adjustments) => {
+    (next: Adjustments, preset?: Preset) => {
       const state = useEditorStore.getState();
       const original = base.current;
       if (!original || state.selectedImage?.path !== original.path || state.adjustments !== original.adjustments) {
@@ -156,6 +157,7 @@ export default function CommandPalette() {
         setAdjustments(next);
         debouncedSetHistory.flush();
       }
+      if (preset) void rememberAppliedPreset(original.path, preset, 100, next);
       setOpen(false);
       setParameter(null);
       setQuery('');
@@ -206,7 +208,7 @@ export default function CommandPalette() {
           unavailableReason: reason ?? undefined,
           preview: (base: Adjustments) => ({ ...base, ...mixAdjustments(preset.adjustments, 100, base) }),
           execute: () =>
-            commit({ ...editor.adjustments, ...mixAdjustments(preset.adjustments, 100, editor.adjustments) }),
+            commit({ ...editor.adjustments, ...mixAdjustments(preset.adjustments, 100, editor.adjustments) }, preset),
         };
       }),
     ];

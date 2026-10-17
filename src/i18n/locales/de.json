@@ -1771,6 +1771,8 @@
       "clearThumbnail": "Miniaturbild-Cache löschen",
       "clearThumbnailButton": "Löschen",
       "clearThumbnailDesc": "Dies löscht alle zwischengespeicherten Miniaturbilder. Sie werden beim Durchsuchen der Bibliothek automatisch neu generiert.",
+      "cacheUsage": "Miniaturbilder und Vorschauen: {{size}} · Dateien: {{files}}",
+      "cacheUsageError": "Cache-Nutzung konnte nicht gelesen werden.",
       "loading": "Wird geladen...",
       "logs": "Anwendungsprotokolle anzeigen",
       "logsButton": "Öffnen",
@@ -1920,7 +1922,8 @@
         "zoom_out": "Verkleinern",
         "zoom_out_step": "Verkleinern (schrittweise)",
         "toggle_pick": "Auswahlmarkierung umschalten",
-        "toggle_reject": "Ablehnungsmarkierung umschalten"
+        "toggle_reject": "Ablehnungsmarkierung umschalten",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "Bearbeitung",
@@ -2314,5 +2317,34 @@
         "vectorscope": "Vektorskop"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
   }
 }

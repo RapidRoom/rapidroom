@@ -49,8 +49,9 @@ const CLIP_TOKENIZER_FILENAME: &str = "clip_tokenizer.json";
 const CLIP_MODEL_SHA256: &str = "57879bb1c23cdeb350d23569dd251ed4b740a96d747c529e94a2bb8040ac5d00";
 
 const DENOISE_URL: &str = "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/nind_denoise_utnet_684.onnx?download=true";
-const DENOISE_FILENAME: &str = "nind_denoise_utnet_684.onnx";
-const DENOISE_SHA256: &str = "ee3586279d514df557ff3f7dec6df37fafc51ba5d3a3435b2cc9ac2d9017e7fe";
+pub(crate) const DENOISE_FILENAME: &str = "nind_denoise_utnet_684.onnx";
+pub(crate) const DENOISE_SHA256: &str =
+    "ee3586279d514df557ff3f7dec6df37fafc51ba5d3a3435b2cc9ac2d9017e7fe";
 
 const LAMA_URL: &str =
     "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/lama_fp16.onnx?download=true";
@@ -371,7 +372,7 @@ async fn download_model(url: &str, dest: &Path) -> Result<()> {
     persist_downloaded_asset(dest, &bytes)
 }
 
-fn verify_sha256(path: &Path, expected_hash: &str) -> Result<bool> {
+pub(crate) fn verify_sha256(path: &Path, expected_hash: &str) -> Result<bool> {
     if !path.exists() {
         return Ok(false);
     }
@@ -576,6 +577,23 @@ pub async fn get_or_init_denoise_model(
     ai_state_mutex: &Mutex<Option<AiState>>,
     ai_init_lock: &TokioMutex<()>,
 ) -> Result<Arc<Mutex<Session>>> {
+    denoise_model(app_handle, ai_state_mutex, ai_init_lock, true).await
+}
+
+pub(crate) async fn cached_denoise_model(
+    app_handle: &tauri::AppHandle,
+    ai_state_mutex: &Mutex<Option<AiState>>,
+    ai_init_lock: &TokioMutex<()>,
+) -> Result<Arc<Mutex<Session>>> {
+    denoise_model(app_handle, ai_state_mutex, ai_init_lock, false).await
+}
+
+async fn denoise_model(
+    app_handle: &tauri::AppHandle,
+    ai_state_mutex: &Mutex<Option<AiState>>,
+    ai_init_lock: &TokioMutex<()>,
+    allow_download: bool,
+) -> Result<Arc<Mutex<Session>>> {
     if let Some(denoise_model) = ai_state_mutex
         .lock()
         .unwrap()
@@ -597,16 +615,22 @@ pub async fn get_or_init_denoise_model(
     }
 
     let models_dir = get_models_dir(app_handle)?;
-    download_and_verify_model(
-        app_handle,
-        &models_dir,
-        DENOISE_FILENAME,
-        DENOISE_URL,
-        DENOISE_SHA256,
-        "NIND Denoise Model",
-    )
-    .await?;
-
+    if !allow_download {
+        anyhow::ensure!(
+            verify_sha256(&models_dir.join(DENOISE_FILENAME), DENOISE_SHA256)?,
+            "Required NIND model is missing or invalid"
+        );
+    } else {
+        download_and_verify_model(
+            app_handle,
+            &models_dir,
+            DENOISE_FILENAME,
+            DENOISE_URL,
+            DENOISE_SHA256,
+            "NIND Denoise Model",
+        )
+        .await?;
+    }
     let _ = ort::init().with_name("AI-Denoise").commit();
     let model_path = models_dir.join(DENOISE_FILENAME);
     let session = Session::builder()?.commit_from_file(model_path)?;

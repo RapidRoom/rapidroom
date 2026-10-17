@@ -1767,6 +1767,8 @@
       "clearThumbnail": "清除縮圖快取",
       "clearThumbnailButton": "清除",
       "clearThumbnailDesc": "這將刪除所有快取的縮圖。在您瀏覽相簿時，它們會自動重新生成。",
+      "cacheUsage": "縮圖和預覽：{{size}} · 檔案數：{{files}}",
+      "cacheUsageError": "無法讀取快取用量。",
       "loading": "載入中...",
       "logs": "檢視應用日誌",
       "logsButton": "開啟",
@@ -1916,7 +1918,8 @@
         "zoom_out": "縮小",
         "zoom_out_step": "縮小（步進）",
         "toggle_pick": "切換留用標記",
-        "toggle_reject": "切換拒絕標記"
+        "toggle_reject": "切換拒絕標記",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "編輯",
@@ -2310,5 +2313,34 @@
         "vectorscope": "向量示波器"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
   }
 }

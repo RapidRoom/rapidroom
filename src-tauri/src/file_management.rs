@@ -1620,36 +1620,123 @@ pub fn write_file_atomically(
             &mut TempfileAtomicWriteBackend,
         );
     }
-    let _guard = SIDECAR_WRITE_LOCK
-        .lock()
-        .map_err(|_| std::io::Error::other("Sidecar write lock poisoned"))?;
+    let _guard = lock_sidecar(path)?;
     let mut bytes = contents.as_ref().to_vec();
-    if path
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("rrdata"))
-        && let Ok(existing) = fs::read(path)
+    if let Ok(existing) = fs::read(path)
         && let Ok(current) = serde_json::from_slice::<Value>(&existing)
-        && let Some(framing) = current.get("exportFraming")
-        && let Ok(mut incoming) = serde_json::from_slice::<Value>(&bytes)
-        && let Some(object) = incoming.as_object_mut()
+        && SIDECAR_OWNED_FIELDS
+            .iter()
+            .any(|key| current.get(key).is_some())
     {
-        // Edit/EXIF/rating writers can hold an older metadata snapshot. Framing
-        // belongs to this destination and is updated only by its own transaction.
-        object.insert("exportFraming".into(), framing.clone());
+        // Ordinary edit/EXIF/rating writers can hold stale snapshots. Each dedicated
+        // transaction owns its destination field, including an explicit null clear.
+        let mut incoming: Value = serde_json::from_slice(&bytes).map_err(std::io::Error::other)?;
+        let object = incoming
+            .as_object_mut()
+            .ok_or_else(|| std::io::Error::other("Sidecar must be a JSON object"))?;
+        preserve_sidecar_owned_fields(&current, object);
         bytes = serde_json::to_vec_pretty(&incoming).map_err(std::io::Error::other)?;
     }
-    write_file_atomically_with_backend(path, &bytes, &mut TempfileAtomicWriteBackend)
+    // Retain the exact-byte/non-JSON contract when there are no owned fields.
+    write_file_atomically_unmerged(path, bytes)
+}
+
+pub(crate) const SIDECAR_OWNED_FIELDS: [&str; 3] = ["denoise", "appliedPreset", "exportFraming"];
+
+pub(crate) fn preserve_sidecar_owned_fields(
+    current: &Value,
+    incoming: &mut serde_json::Map<String, Value>,
+) {
+    for key in SIDECAR_OWNED_FIELDS {
+        if let Some(value) = current.get(key) {
+            incoming.insert(key.into(), value.clone());
+        }
+    }
 }
 
 static SIDECAR_WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+pub(crate) struct SidecarWriteGuard {
+    _file: fs::File,
+    _mutex: std::sync::MutexGuard<'static, ()>,
+}
+
+// All ordinary and dedicated writers acquire in this order. The file guard also
+// coordinates the headless CLI with a GUI running in another process.
+pub(crate) fn lock_sidecar(path: &Path) -> std::io::Result<SidecarWriteGuard> {
+    if is_card_read_only_path(path) {
+        return Err(card_read_only_io_error());
+    }
+    let mutex = SIDECAR_WRITE_LOCK
+        .lock()
+        .map_err(|_| std::io::Error::other("Sidecar write lock poisoned"))?;
+    let file = lock_sidecar_file(path)?;
+    Ok(SidecarWriteGuard {
+        _file: file,
+        _mutex: mutex,
+    })
+}
+
+fn lock_sidecar_file(path: &Path) -> std::io::Result<fs::File> {
+    let target = if path.is_symlink() {
+        fs::canonicalize(path)?
+    } else {
+        path.to_path_buf()
+    };
+    let name = target
+        .file_name()
+        .ok_or_else(|| std::io::Error::other("Missing filename"))?
+        .to_string_lossy();
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(target.with_file_name(format!(".{name}.rapidroom-lock")))?;
+    file.lock()?;
+    Ok(file)
+}
+
+#[cfg(test)]
+pub(crate) fn lock_sidecar_as_external_writer(path: &Path) -> std::io::Result<fs::File> {
+    // Simulate a different process: it has its own mutex but shares the OS lock.
+    lock_sidecar_file(path)
+}
+
+// Only call while holding lock_sidecar, or for a non-sidecar target.
+pub(crate) fn write_file_atomically_unmerged(
+    path: impl AsRef<Path>,
+    contents: impl AsRef<[u8]>,
+) -> std::io::Result<()> {
+    write_file_atomically_with_backend(
+        path.as_ref(),
+        contents.as_ref(),
+        &mut TempfileAtomicWriteBackend,
+    )
+}
+
+pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), String> {
+    let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
+    let mut metadata = match fs::read(path) {
+        Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            serde_json::to_value(ImageMetadata::default()).map_err(|e| e.to_string())?
+        }
+        Err(error) => return Err(error.to_string()),
+    };
+    metadata
+        .as_object_mut()
+        .ok_or("Invalid photo metadata")?
+        .insert("appliedPreset".into(), record);
+    let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
+    write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())
+}
 
 pub(crate) fn update_export_framing(
     path: &Path,
     update: impl FnOnce(&Value) -> Result<Value, String>,
 ) -> Result<(), String> {
-    let _guard = SIDECAR_WRITE_LOCK
-        .lock()
-        .map_err(|_| "Sidecar write lock poisoned")?;
+    let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
     let mut metadata = match fs::read(path) {
         Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -1663,8 +1750,7 @@ pub(crate) fn update_export_framing(
         .ok_or("Invalid photo metadata")?
         .insert("exportFraming".into(), framing);
     let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
-    write_file_atomically_with_backend(path, &bytes, &mut TempfileAtomicWriteBackend)
-        .map_err(|e| e.to_string())
+    write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())
 }
 
 trait AtomicWriteTemp: std::io::Write {
@@ -2888,7 +2974,10 @@ fn find_all_associated_files(source_image_path: &Path) -> Result<Vec<PathBuf>, S
 }
 
 #[tauri::command]
-pub fn copy_files(source_paths: Vec<String>, destination_folder: String) -> Result<(), String> {
+pub fn copy_files(
+    source_paths: Vec<String>,
+    destination_folder: String,
+) -> Result<crate::file_transfer::TransferSummary, String> {
     let dest_path = Path::new(&destination_folder);
     ensure_card_writable(dest_path)?;
     if !dest_path.is_dir() {
@@ -2897,75 +2986,21 @@ pub fn copy_files(source_paths: Vec<String>, destination_folder: String) -> Resu
             destination_folder
         ));
     }
-
-    let unique_source_images: HashSet<PathBuf> = source_paths
-        .iter()
-        .map(|p| parse_virtual_path(p).0)
-        .collect();
-
-    let mut operations_to_perform = Vec::new();
-
-    for source_image_path in &unique_source_images {
-        let all_files_to_copy = find_all_associated_files(source_image_path)?;
-
-        let source_parent = source_image_path
-            .parent()
-            .ok_or("Could not get parent directory")?;
-
-        if source_parent == dest_path {
-            let stem = source_image_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .ok_or("Could not get file stem")?;
-            let extension = source_image_path
-                .extension()
-                .and_then(|s| s.to_str())
-                .unwrap_or("");
-
-            let mut counter = 1;
-            let new_base_path = loop {
-                let new_stem = format!("{}_copy_{}", stem, counter);
-                let temp_path = source_parent.join(format!("{}.{}", new_stem, extension));
-                if !temp_path.exists() {
-                    break temp_path;
-                }
-                counter += 1;
-            };
-            let new_filename = new_base_path.file_name().unwrap().to_string_lossy();
-
-            for original_file in all_files_to_copy {
-                let original_full_filename = original_file.file_name().unwrap().to_string_lossy();
-                let source_base_filename = source_image_path.file_name().unwrap().to_string_lossy();
-                let new_dest_filename =
-                    original_full_filename.replacen(&*source_base_filename, &new_filename, 1);
-
-                let final_dest_path = dest_path.join(new_dest_filename);
-                operations_to_perform.push((original_file, final_dest_path));
-            }
-        } else {
-            for file_to_copy in all_files_to_copy {
-                if let Some(file_name) = file_to_copy.file_name() {
-                    let dest_file_path = dest_path.join(file_name);
-
-                    if dest_file_path.exists() {
-                        return Err(format!(
-                            "Copy aborted: File already exists at destination: {}",
-                            dest_file_path.display()
-                        ));
-                    }
-
-                    operations_to_perform.push((file_to_copy, dest_file_path));
-                }
-            }
+    let mut seen = HashSet::new();
+    let mut summary = crate::file_transfer::TransferSummary::default();
+    for source in source_paths.iter().map(|p| parse_virtual_path(p).0) {
+        if !seen.insert(source.clone()) {
+            continue;
         }
+        let result = (|| {
+            let filename = source.file_name().ok_or("Source has no filename")?;
+            let in_place = source.parent().and_then(|p| p.canonicalize().ok())
+                == dest_path.canonicalize().ok();
+            crate::file_transfer::transfer(&source, &dest_path.join(filename), in_place)
+        })();
+        summary.record(result);
     }
-
-    for (source, dest) in operations_to_perform {
-        fs::copy(&source, &dest)
-            .map_err(|e| format!("Copy failed for {}: {}", source.display(), e))?;
-    }
-
-    Ok(())
+    Ok(summary)
 }
 
 #[tauri::command]
@@ -4518,6 +4553,46 @@ pub fn clear_all_sidecars(root_path: String) -> Result<usize, String> {
     Ok(deleted_count)
 }
 
+#[derive(Serialize)]
+pub struct ThumbnailCacheUsage {
+    bytes: u64,
+    files: u64,
+}
+
+#[tauri::command]
+pub async fn get_thumbnail_cache_usage(
+    app_handle: AppHandle,
+) -> Result<ThumbnailCacheUsage, String> {
+    let directory = app_handle
+        .path()
+        .app_cache_dir()
+        .map_err(|error| error.to_string())?
+        .join("thumbnails");
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut usage = ThumbnailCacheUsage { bytes: 0, files: 0 };
+        let entries = match fs::read_dir(directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(usage),
+            Err(error) => return Err(error.to_string()),
+        };
+        for entry in entries {
+            let entry = entry.map_err(|error| error.to_string())?;
+            let metadata = match fs::symlink_metadata(entry.path()) {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.to_string()),
+            };
+            if metadata.is_file() {
+                usage.bytes = usage.bytes.saturating_add(metadata.len());
+                usage.files += 1;
+            }
+        }
+        Ok(usage)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
 pub fn clear_thumbnail_cache(app_handle: AppHandle) -> Result<(), String> {
     let cache_dir = app_handle
@@ -4866,13 +4941,14 @@ pub async fn import_files(
     let _ = app_handle.emit("import-start", serde_json::json!({ "total": total_files }));
 
     tauri::async_runtime::spawn_blocking(move || {
+        let mut summary = crate::file_transfer::TransferSummary::default();
         for (i, source_path_str) in source_paths.iter().enumerate() {
             let _ = app_handle.emit(
                 "import-progress",
                 serde_json::json!({ "current": i, "total": total_files, "path": source_path_str }),
             );
 
-            let import_result: Result<(), String> = (|| {
+            let import_result: Result<crate::file_transfer::TransferOutcome, String> = (|| {
                 #[cfg(target_os = "android")]
                 if is_android_content_uri(source_path_str) {
                     let resolved_name = resolve_android_content_uri_name(source_path_str)?;
@@ -4908,17 +4984,15 @@ pub async fn import_files(
                         .extension()
                         .and_then(|s| s.to_str())
                         .unwrap_or("");
-                    let new_filename = format!("{}.{}", new_stem, extension);
+                    let new_filename = if extension.is_empty() {
+                        new_stem
+                    } else {
+                        format!("{new_stem}.{extension}")
+                    };
                     let dest_file_path = final_dest_folder.join(new_filename);
 
-                    if dest_file_path.exists() {
-                        return Err(format!(
-                            "File already exists at destination: {}",
-                            dest_file_path.display()
-                        ));
-                    }
-
-                    fs::write(&dest_file_path, source_bytes).map_err(|e| e.to_string())?;
+                    let outcome =
+                        crate::file_transfer::transfer_bytes(&source_bytes, &dest_file_path)?;
 
                     if settings.delete_after_import {
                         log::info!(
@@ -4927,10 +5001,10 @@ pub async fn import_files(
                         );
                     }
 
-                    return Ok(());
+                    return Ok(outcome);
                 }
 
-                let (source_path, source_sidecar) = parse_virtual_path(source_path_str);
+                let (source_path, _source_sidecar) = parse_virtual_path(source_path_str);
                 if !source_path.exists() {
                     return Err(format!("Source file not found: {}", source_path_str));
                 }
@@ -4962,81 +5036,45 @@ pub async fn import_files(
                     .extension()
                     .and_then(|s| s.to_str())
                     .unwrap_or("");
-                let new_filename = format!("{}.{}", new_stem, extension);
+                let new_filename = if extension.is_empty() {
+                    new_stem
+                } else {
+                    format!("{new_stem}.{extension}")
+                };
                 let dest_file_path = final_dest_folder.join(new_filename);
 
-                if dest_file_path.exists() {
-                    return Err(format!(
-                        "File already exists at destination: {}",
-                        dest_file_path.display()
-                    ));
-                }
-
-                fs::copy(&source_path, &dest_file_path).map_err(|e| e.to_string())?;
-                if source_sidecar.exists()
-                    && let Some(dest_str) = dest_file_path.to_str()
+                let outcome = crate::file_transfer::transfer(&source_path, &dest_file_path, false)?;
+                if settings.delete_after_import
+                    && let crate::file_transfer::TransferOutcome::Copied { files, .. } = &outcome
                 {
-                    let (_, dest_sidecar) = parse_virtual_path(dest_str);
-                    fs::copy(&source_sidecar, &dest_sidecar).map_err(|e| e.to_string())?;
+                    crate::file_transfer::remove_import_sources(files, |source| {
+                        #[cfg(any(
+                            target_os = "windows",
+                            target_os = "macos",
+                            target_os = "linux"
+                        ))]
+                        trash::delete(source).map_err(|e| {
+                            format!("Copied, but could not trash {}: {e}", source.display())
+                        })?;
+                        #[cfg(not(any(
+                            target_os = "windows",
+                            target_os = "macos",
+                            target_os = "linux"
+                        )))]
+                        fs::remove_file(source).map_err(|e| e.to_string())?;
+                        Ok(())
+                    })?;
                 }
-
-                let mut source_rrexif_name = source_path.file_name().unwrap().to_os_string();
-                source_rrexif_name.push(".rrexif");
-                let source_rrexif = source_path.with_file_name(source_rrexif_name);
-
-                if source_rrexif.exists() {
-                    let mut dest_rrexif_name = dest_file_path.file_name().unwrap().to_os_string();
-                    dest_rrexif_name.push(".rrexif");
-                    let dest_rrexif = dest_file_path.with_file_name(dest_rrexif_name);
-                    let _ = fs::copy(&source_rrexif, &dest_rrexif);
-                }
-
-                if settings.delete_after_import {
-                    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
-                    {
-                        if let Err(trash_error) = trash::delete(&source_path) {
-                            log::warn!(
-                                "Failed to trash source file {}: {}. Deleting permanently.",
-                                source_path.display(),
-                                trash_error
-                            );
-                            fs::remove_file(&source_path).map_err(|e| e.to_string())?;
-                        }
-                        if source_sidecar.exists()
-                            && let Err(trash_error) = trash::delete(&source_sidecar)
-                        {
-                            log::warn!(
-                                "Failed to trash source sidecar {}: {}. Deleting permanently.",
-                                source_sidecar.display(),
-                                trash_error
-                            );
-                            fs::remove_file(&source_sidecar).map_err(|e| e.to_string())?;
-                        }
-                    }
-
-                    #[cfg(not(any(
-                        target_os = "windows",
-                        target_os = "macos",
-                        target_os = "linux"
-                    )))]
-                    {
-                        fs::remove_file(&source_path).map_err(|e| e.to_string())?;
-                        if source_sidecar.exists() {
-                            fs::remove_file(&source_sidecar).map_err(|e| e.to_string())?;
-                        }
-                        if source_rrexif.exists() {
-                            let _ = fs::remove_file(&source_rrexif);
-                        }
-                    }
-                }
-
-                Ok(())
-            })();
+                Ok(outcome)
+            })(
+            );
 
             if let Err(e) = import_result {
                 eprintln!("Failed to import {}: {}", source_path_str, e);
-                let _ = app_handle.emit("import-error", e);
-                continue;
+                let _ = app_handle.emit("import-error", e.clone());
+                summary.record(Err(e));
+            } else {
+                summary.record(import_result);
             }
         }
 
@@ -5044,7 +5082,7 @@ pub async fn import_files(
             "import-progress",
             serde_json::json!({ "current": total_files, "total": total_files, "path": "" }),
         );
-        let _ = app_handle.emit("import-complete", ());
+        let _ = app_handle.emit("import-complete", &summary);
     });
 
     Ok(())

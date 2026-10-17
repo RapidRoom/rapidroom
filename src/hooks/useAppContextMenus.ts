@@ -1,3 +1,5 @@
+import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
+import { copyFilesWithSummary } from '../utils/fileTransfers';
 import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -713,6 +715,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               disabled: !selectedImage?.isReady,
             },
             {
+              label: t('denoiseQueue.toggle'),
+              icon: Grip,
+              onClick: () => void setDenoiseMark(undefined, [selectedImage.path]),
+            },
+            {
               label: t('contextMenus.editor.denoise'),
               icon: Grip,
               disabled: useUIStore.getState().denoiseModalState.isProcessing,
@@ -1042,6 +1049,13 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       };
 
       const options = [
+        { label: t('denoiseQueue.mark'), icon: Grip, onClick: () => void setDenoiseMark(true, finalSelection) },
+        { label: t('denoiseQueue.unmark'), icon: Grip, onClick: () => void setDenoiseMark(false, finalSelection) },
+        {
+          label: t('denoiseQueue.title'),
+          icon: Grip,
+          onClick: () => useDenoiseQueueStore.setState({ setupOpen: true }),
+        },
         ...(!isEditingThisImage
           ? [
               {
@@ -1475,7 +1489,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               label: copyPastedLabel,
               onClick: async () => {
                 try {
-                  await invoke(Invokes.CopyFiles, { sourcePaths: copiedFilePaths, destinationFolder: targetPath });
+                  await copyFilesWithSummary(copiedFilePaths, targetPath);
                   if (targetPath === currentFolderPath) props.handleLibraryRefresh();
                 } catch (err) {
                   toast.error(t('contextMenus.toasts.failedCopy', { err }));
@@ -1875,12 +1889,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             submenu: [
               {
                 label: copyPastedLabel,
+                disabled: !currentFolderPath,
                 onClick: async () => {
+                  if (!currentFolderPath) return;
                   try {
-                    await invoke(Invokes.CopyFiles, {
-                      sourcePaths: copiedFilePaths,
-                      destinationFolder: currentFolderPath,
-                    });
+                    await copyFilesWithSummary(copiedFilePaths, currentFolderPath);
                     props.handleLibraryRefresh();
                   } catch (err) {
                     toast.error(t('contextMenus.toasts.failedCopy', { err }));

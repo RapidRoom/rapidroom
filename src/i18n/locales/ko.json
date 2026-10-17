@@ -1767,6 +1767,8 @@
       "clearThumbnail": "썸네일 캐시 지우기",
       "clearThumbnailButton": "지우기",
       "clearThumbnailDesc": "캐시된 모든 썸네일 이미지가 삭제됩니다. 라이브러리를 탐색할 때 자동으로 다시 생성됩니다.",
+      "cacheUsage": "썸네일 및 미리 보기: {{size}} · 파일 수: {{files}}",
+      "cacheUsageError": "캐시 사용량을 읽을 수 없습니다.",
       "loading": "로딩 중...",
       "logs": "애플리케이션 로그 보기",
       "logsButton": "열기",
@@ -1916,7 +1918,8 @@
         "zoom_out": "축소",
         "zoom_out_step": "축소 (단계별)",
         "toggle_pick": "선택 플래그 전환",
-        "toggle_reject": "거부 플래그 전환"
+        "toggle_reject": "거부 플래그 전환",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "편집",
@@ -2310,5 +2313,34 @@
         "vectorscope": "벡터스코프"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
   }
 }
