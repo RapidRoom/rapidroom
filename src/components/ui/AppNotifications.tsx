@@ -29,10 +29,11 @@ export default function AppNotifications({ isLightTheme }: { isLightTheme: boole
       theme={isLightTheme ? 'light' : 'dark'}
       transition={Slide}
       style={{ maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', overflowAnchor: 'none' }}
+      toastStyle={{ flexShrink: 0 }}
       toastClassName={({ defaultClassName, type } = {}) =>
         clsx(
           defaultClassName,
-          'shrink-0 min-h-16 p-4 rounded-lg overflow-hidden mb-4',
+          'min-h-16 p-4 rounded-lg overflow-hidden mb-4',
           'bg-surface! text-text-primary! border! border-border-color! shadow-2xl! max-w-[420px]!',
           type === 'error' && 'order-first',
         )
