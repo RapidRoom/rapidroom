@@ -514,6 +514,7 @@ export interface MaskAdjustments {
 }
 
 export interface MaskContainer {
+  relativeToImage?: boolean;
   adjustments: MaskAdjustments;
   id?: any;
   invert: boolean;

@@ -57,7 +57,7 @@ import { OPTION_SEPARATOR, Preset, type Folder } from '../../ui/AppProperties';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useUIStore } from '../../../store/useUIStore';
 import { debouncedSetHistory, useEditorActions } from '../../../hooks/useEditorActions';
-import { mixAdjustments } from '../../../utils/presetAmount';
+import { mixPresetAdjustments } from '../../../utils/presetAmount';
 import { rememberAppliedPreset } from '../../../utils/appliedPreset';
 import { useAppliedPreset } from '../../../hooks/useAppliedPreset';
 import { presetUnavailableReason, filterPresetLibrary } from '../../../utils/presetBrowser';
@@ -179,9 +179,12 @@ function PresetItemDisplay({
       className={`group flex flex-col px-2.5 py-1.5 rounded-md hover:bg-surface-hover transition-colors cursor-grabbing ${isApplied ? 'bg-primary/10 ring-1 ring-inset ring-primary/50' : 'bg-surface'}`}
     >
       <div className="flex items-center gap-2">
-        <Text color={TextColors.primary} className="grow min-w-0 truncate">
-          {preset.name}
-        </Text>
+        <div className="grow min-w-0" data-tooltip={preset.description}>
+          <Text color={TextColors.primary} className="truncate">
+            {preset.name}
+          </Text>
+          {preset.description && <p className="text-xs text-text-secondary truncate">{preset.description}</p>}
+        </div>
         {isApplied && (
           <span className="flex items-center gap-1 shrink-0 text-primary text-xs">
             <Check size={14} aria-label={t('editor.presets.applied')} />
@@ -490,12 +493,12 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
         activeView === 'editor' &&
         selectedImage?.isReady
       ) {
-        showPresetHoverPreview(mixAdjustments(preset.adjustments, 100, useEditorStore.getState().adjustments));
+        showPresetHoverPreview(mixPresetAdjustments(preset, 100, useEditorStore.getState().adjustments, selectedImage));
       } else {
         clearPresetHoverPreview();
       }
     },
-    [activePresetId, activeView, selectedImage?.isReady, selectedImage?.exif?.Model],
+    [activePresetId, activeView, selectedImage],
   );
 
   useEffect(() => clearPresetHoverPreview, []);
@@ -606,7 +609,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
 
     debouncedSetHistory.flush();
     presetBase.current = useEditorStore.getState().adjustments;
-    const next = { ...presetBase.current, ...mixAdjustments(preset.adjustments, 100, presetBase.current) };
+    const next = { ...presetBase.current, ...mixPresetAdjustments(preset, 100, presetBase.current, selectedImage) };
     lastPresetEdit.current = next;
     setAdjustments(() => next);
     void rememberAppliedPreset(selectedImage.path, preset, 100, next);
@@ -620,13 +623,13 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
       setPresetIntensity(intensity);
       const base = presetBase.current;
       if (!base || useEditorStore.getState().adjustments !== lastPresetEdit.current) return;
-      const mixed = mixAdjustments(preset.adjustments, intensity, base);
+      const mixed = mixPresetAdjustments(preset, intensity, base, selectedImage);
       const next = { ...base, ...mixed };
       lastPresetEdit.current = next;
       setAdjustments(() => next);
       void rememberAppliedPreset(image.path, preset, intensity, next);
     },
-    [setAdjustments, selectedImage?.path],
+    [setAdjustments, selectedImage],
   );
 
   const handleSaveConfiguredPreset = async (

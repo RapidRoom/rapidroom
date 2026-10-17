@@ -1711,6 +1711,7 @@ fn preset_from_xmp_fields(
     Preset {
         id: Uuid::new_v4().to_string(),
         name: preset_name,
+        description: None,
         adjustments: Value::Object(adjustments),
         include_masks: Some(false),
         include_crop_transform: Some(include_crop_transform),
