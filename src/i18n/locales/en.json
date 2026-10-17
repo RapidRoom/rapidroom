@@ -2212,7 +2212,7 @@
         "baselineExposure": "Baseline Exposure",
         "baselineExposureAmount": "Baseline Amount",
         "baselineExposureAmountDesc": "Exposure added to RAW files. darktable uses +0.7 EV.",
-        "baselineExposureDesc": "Brightens every RAW file by a fixed amount, like darktable's scene-referred default, plus the DNG BaselineExposure tag when present. Images edited before this option existed are not affected.",
+        "baselineExposureDesc": "Applies a fixed exposure lift to older edits using baseline exposure. Fresh and reset RAW edits use camera/DNG exposure compensation instead of this fixed lift.",
         "colorNr": "Base Color Noise Reduction",
         "colorNrDesc": "Applies a cross-bilateral filter early in the pipeline to remove chroma noise. Higher value = Stronger NR.",
         "defaultNonRawTonemapper": "Default Non-RAW Tonemapper",

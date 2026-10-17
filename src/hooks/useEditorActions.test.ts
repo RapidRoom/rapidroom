@@ -79,7 +79,12 @@ describe('useEditorActions.handlePasteAdjustments', () => {
 
     actions.handlePasteAdjustments(['/photos/a.raw']);
 
-    expect(applied).toEqual([{ paths: ['/photos/a.raw'], adjustments: { exposure: 1 } }]);
+    expect(applied).toEqual([
+      {
+        paths: ['/photos/a.raw'],
+        adjustments: { exposure: 1, baselineExposure: true, cameraExposureCompensation: true },
+      },
+    ]);
     await unmount();
   });
 });
