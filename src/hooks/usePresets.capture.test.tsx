@@ -455,3 +455,81 @@ it('Tool creation finishing after unmount cannot write presets', async () => {
   expect(result).toBeNull();
   expect(saved).toHaveLength(0);
 });
+
+it.each([null, { is_null: true }])(
+  'unopened Library source %j copies resolved fresh defaults; Merge preserves target and Replace copies full policy',
+  async (metadata) => {
+    useEditorStore.setState({ selectedImage: null, adjustments: { ...INITIAL_ADJUSTMENTS, exposure: 9 } });
+    useLibraryStore.setState({ libraryActivePath: '/source.ARW', multiSelectedPaths: ['/source.ARW'] });
+    mockCommand(Invokes.LoadMetadata, () => ({ adjustments: metadata }));
+    await mount();
+    await act(async () => {
+      await actions.handleCopyAdjustments();
+    });
+    const copied = useEditorStore.getState().copiedAdjustments!;
+    expect(copied).toMatchObject({ ...auto, exposure: 0, baselineExposure: true, cameraExposureCompensation: true });
+    const target = {
+      ...INITIAL_ADJUSTMENTS,
+      ...auto,
+      lensVignetteAmount: 42,
+      baselineExposure: false,
+      cameraExposureCompensation: false,
+    } as Adjustments;
+    await act(async () => {
+      useEditorStore.setState({ selectedImage: image('/target.ARW'), adjustments: target });
+      actions.handlePasteAdjustments(['/target.ARW']);
+    });
+    expect(applied).toHaveLength(0);
+    expect(useEditorStore.getState().adjustments).toBe(target);
+    await act(async () => {
+      useSettingsStore.setState({
+        appSettings: {
+          theme: Theme.Dark,
+          lastRootPath: null,
+          copyPasteSettings: {
+            mode: PasteMode.Replace,
+            includedAdjustments: ['exposure', 'lensCorrectionMode', 'lensVignetteAmount'],
+            knownAdjustments: [],
+            autoSync: false,
+          },
+        },
+      });
+      actions.handlePasteAdjustments(['/target.ARW']);
+    });
+    expect(applied.at(-1)?.adjustments).toEqual({
+      exposure: 0,
+      baselineExposure: true,
+      cameraExposureCompensation: true,
+      lensCorrectionMode: 'auto',
+      cameraLensCorrectionVersion: 1,
+      lensVignetteAmount: 100,
+    });
+  },
+);
+
+it.each([{}, { lensCorrectionMode: 'manual', baselineExposure: false, cameraExposureCompensation: false }])(
+  'unopened Library saved object %j retains legacy interpretation instead of fresh defaults',
+  async (metadata) => {
+    useEditorStore.setState({ selectedImage: null });
+    useLibraryStore.setState({ libraryActivePath: '/saved.ARW', multiSelectedPaths: ['/saved.ARW'] });
+    mockCommand(Invokes.LoadMetadata, () => ({ adjustments: metadata }));
+    await mount();
+    await act(async () => {
+      await actions.handleCopyAdjustments('/saved.ARW');
+    });
+    const copied = useEditorStore.getState().copiedAdjustments!;
+    expect(copied.lensCorrectionMode).toBe('manual');
+    expect(copied.cameraLensCorrectionVersion).toBeUndefined();
+    expect(copied.baselineExposure).toBe(false);
+    await act(async () => {
+      useEditorStore.setState({
+        selectedImage: image('/target.ARW'),
+        adjustments: { ...INITIAL_ADJUSTMENTS, ...auto } as Adjustments,
+      });
+      actions.handlePasteAdjustments(['/target.ARW']);
+    });
+    expect(applied.at(-1)?.adjustments.lensCorrectionMode).toBe('manual');
+    expect(useEditorStore.getState().adjustments.lensCorrectionMode).toBe('manual');
+    expect(useEditorStore.getState().adjustments.cameraLensCorrectionVersion ?? 0).toBe(0);
+  },
+);

@@ -438,8 +438,6 @@ export function useEditorActions() {
         const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: pathToCopyFrom });
         if (meta?.adjustments && !meta.adjustments.is_null) {
           sourceAdjustments = normalizeLoadedAdjustments(meta.adjustments);
-        } else {
-          sourceAdjustments = INITIAL_ADJUSTMENTS;
         }
       } catch (err) {
         if (isCurrent()) toast.error(`Failed to load metadata for copying: ${err}`);
@@ -447,8 +445,8 @@ export function useEditorActions() {
       }
     }
 
-    if (!sourceAdjustments || !isCurrent()) return;
-    const source = structuredClone(sourceAdjustments);
+    if (!isCurrent()) return;
+    const source = sourceAdjustments ? structuredClone(sourceAdjustments) : null;
     const file = library.imageList.find((item) => item.path === pathToCopyFrom);
     let defaults: Adjustments;
     try {
@@ -467,7 +465,9 @@ export function useEditorActions() {
       return;
     }
     if (!isCurrent()) return;
-    const adjustmentsToCopy = captureAdjustments(source, COPYABLE_ADJUSTMENT_KEYS);
+    // Unopened photos with no saved recipe use the same resolved fresh defaults
+    // as their comparison baseline; saved objects keep their own interpretation.
+    const adjustmentsToCopy = captureAdjustments(source ?? defaults, COPYABLE_ADJUSTMENT_KEYS);
     useEditorStore.getState().setEditor({
       copiedAdjustments: adjustmentsToCopy,
       copiedAdjustmentDefaults: { adjustments: adjustmentsToCopy, defaults: structuredClone(defaults) },
