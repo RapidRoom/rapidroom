@@ -978,6 +978,7 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
         {
             insert_missing_lens_fields(&mut map, &lens);
         }
+        insert_sony_correction_metadata(&mut map, file_bytes);
         return Some(map);
     }
 
@@ -1226,6 +1227,8 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
     if let Some(lens) = &metadata.lens {
         insert_missing_lens_fields(&mut map, lens);
     }
+
+    insert_sony_correction_metadata(&mut map, file_bytes);
 
     Some(map)
 }
@@ -2256,6 +2259,148 @@ pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>>
     None
 }
 
+/// Reads the Sony correction tables stored in ARW SubIFDs.
+///
+/// The values are intentionally preserved as metadata only. Their physical
+/// units and interpolation are not documented by Sony, so rendering must not
+/// infer a correction from this raw table.
+fn sony_correction_metadata(file_bytes: &[u8]) -> HashMap<&'static str, Vec<i16>> {
+    const MAX_IFDS: usize = 32;
+    const SUB_IFDS: u16 = 0x014a;
+    const VIGNETTING: u16 = 0x7032;
+    const CA: u16 = 0x7035;
+    const DISTORTION: u16 = 0x7037;
+
+    let Some(endian) = file_bytes.get(..2) else {
+        return HashMap::new();
+    };
+    let little = match endian {
+        b"II" => true,
+        b"MM" => false,
+        _ => return HashMap::new(),
+    };
+    let u16_at = |at: usize| -> Option<u16> {
+        let bytes: [u8; 2] = file_bytes.get(at..at.checked_add(2)?)?.try_into().ok()?;
+        Some(if little {
+            u16::from_le_bytes(bytes)
+        } else {
+            u16::from_be_bytes(bytes)
+        })
+    };
+    let u32_at = |at: usize| -> Option<u32> {
+        let bytes: [u8; 4] = file_bytes.get(at..at.checked_add(4)?)?.try_into().ok()?;
+        Some(if little {
+            u32::from_le_bytes(bytes)
+        } else {
+            u32::from_be_bytes(bytes)
+        })
+    };
+    if u16_at(2) != Some(42) {
+        return HashMap::new();
+    }
+    let Some(first_ifd) = u32_at(4).and_then(|offset| usize::try_from(offset).ok()) else {
+        return HashMap::new();
+    };
+
+    let mut result = HashMap::new();
+    let mut pending = vec![first_ifd];
+    // Bound both processed and queued IFDs. An untrusted IFD can name up to
+    // 32 SubIFDs, so limiting only the pop loop would still allow a crafted
+    // file to grow `pending` without bound before those offsets are visited.
+    let mut queued = std::collections::HashSet::from([first_ifd]);
+    let mut seen = std::collections::HashSet::new();
+    while let Some(ifd) = pending.pop() {
+        if !seen.insert(ifd) || seen.len() > MAX_IFDS {
+            continue;
+        }
+        let Some(count) = u16_at(ifd).map(usize::from) else {
+            continue;
+        };
+        let Some(entries_end) = ifd
+            .checked_add(2)
+            .and_then(|n| n.checked_add(count.checked_mul(12)?))
+        else {
+            continue;
+        };
+        if entries_end > file_bytes.len() {
+            continue;
+        }
+        for entry in 0..count {
+            let at = ifd + 2 + entry * 12;
+            let (Some(tag), Some(kind), Some(values)) =
+                (u16_at(at), u16_at(at + 2), u32_at(at + 4))
+            else {
+                continue;
+            };
+            // Sony's correction arrays are signed SHORTs. Refuse any type or
+            // count change instead of accidentally treating offsets as values.
+            let expected = match tag {
+                VIGNETTING | DISTORTION => Some(17),
+                CA => Some(33),
+                _ => None,
+            };
+            if let Some(expected) = expected {
+                if kind != 8 || values != expected {
+                    continue;
+                }
+                let Some(start) = u32_at(at + 8).and_then(|offset| usize::try_from(offset).ok())
+                else {
+                    continue;
+                };
+                let Some(end) = start.checked_add(expected as usize * 2) else {
+                    continue;
+                };
+                if end > file_bytes.len() {
+                    continue;
+                }
+                let values: Option<Vec<i16>> = (0..expected as usize)
+                    .map(|index| u16_at(start + index * 2).map(|n| n as i16))
+                    .collect();
+                let Some(values) = values else { continue };
+                let key = match tag {
+                    VIGNETTING => "SonyVignettingCorrParams",
+                    CA => "SonyChromaticAberrationCorrParams",
+                    DISTORTION => "SonyDistortionCorrParams",
+                    _ => unreachable!(),
+                };
+                result.insert(key, values);
+            } else if tag == SUB_IFDS && (kind == 4 || kind == 13) {
+                let count = values.min(MAX_IFDS as u32) as usize;
+                let start = if count == 1 {
+                    at + 8
+                } else if let Some(offset) = u32_at(at + 8).and_then(|n| usize::try_from(n).ok()) {
+                    offset
+                } else {
+                    continue;
+                };
+                for index in 0..count {
+                    if let Some(offset) =
+                        u32_at(start + index * 4).and_then(|n| usize::try_from(n).ok())
+                        && queued.len() < MAX_IFDS
+                        && queued.insert(offset)
+                    {
+                        pending.push(offset);
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+
+fn insert_sony_correction_metadata(map: &mut HashMap<String, String>, file_bytes: &[u8]) {
+    for (key, values) in sony_correction_metadata(file_bytes) {
+        map.insert(
+            key.to_string(),
+            values
+                .into_iter()
+                .map(|value| value.to_string())
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+    }
+}
+
 pub fn read_exif_data_from_bytes(path: &str, file_bytes: &[u8]) -> HashMap<String, String> {
     if is_raw_file(path)
         && let Some(map) = extract_metadata(file_bytes)
@@ -2895,7 +3040,9 @@ pub(crate) mod rating_samples {
 #[cfg(test)]
 mod tests {
     use super::rating_samples::*;
-    use super::{XMP_UUID, parse_xmp_rating, read_image_rating, xmp_rating};
+    use super::{
+        XMP_UUID, parse_xmp_rating, read_image_rating, sony_correction_metadata, xmp_rating,
+    };
     use std::io::Cursor;
 
     fn rating(bytes: &[u8]) -> Option<u8> {
@@ -2963,6 +3110,24 @@ mod tests {
         bytes.extend([0x46, 0x47, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
         bytes.extend(0u32.to_le_bytes());
         assert_eq!(rating(&bytes), Some(2));
+    }
+
+    #[test]
+    fn sony_correction_parser_bounds_malformed_subifd_fanout() {
+        let mut bytes = b"II*\0\x08\0\0\0".to_vec();
+        bytes.extend(1u16.to_le_bytes());
+        // IFD0 points at 32 otherwise-empty IFDs. The parser must dedupe and
+        // bound this graph before queueing more offsets from untrusted input.
+        bytes.extend([0x4a, 0x01, 4, 0, 32, 0, 0, 0, 26, 0, 0, 0]);
+        bytes.extend(0u32.to_le_bytes());
+        bytes.resize(26 + 32 * 4, 0);
+        for index in 0..32 {
+            let offset = 154 + index * 2;
+            bytes[26 + index * 4..30 + index * 4].copy_from_slice(&(offset as u32).to_le_bytes());
+        }
+        bytes.resize(218, 0); // each referenced IFD has a zero entry count
+
+        assert!(sony_correction_metadata(&bytes).is_empty());
     }
 
     #[test]
