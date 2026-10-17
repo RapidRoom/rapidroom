@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Preset } from '../components/ui/AppProperties';
 import { useEditorStore } from '../store/useEditorStore';
-import type { Adjustments } from './adjustments';
+import { normalizeLoadedAdjustments, type Adjustments } from './adjustments';
 import { mixPresetAdjustments } from './presetAmount';
 import { presetUnavailableReason } from './presetBrowser';
 import { rememberAppliedPreset } from './appliedPreset';
@@ -51,6 +51,15 @@ export function preparePresetApplication(preset: Preset, amount: number) {
     same && previous.amount === amount
       ? previous.result
       : { ...base, ...mixPresetAdjustments(preset, amount, base, image) };
+  if (result.masks !== base.masks) {
+    // Materialize new preset masks exactly as ordinary image loading does, so
+    // saving/opening a copy cannot change its recipe or the original revision.
+    const normalized = normalizeLoadedAdjustments(result).masks as Adjustments['masks'];
+    result = {
+      ...result,
+      masks: result.masks.map((mask, index) => (base.masks.includes(mask) ? mask : normalized[index])),
+    };
+  }
   if (sameAdjustmentValue(result, editor.adjustments)) result = editor.adjustments;
   const application: Application = { path: image.path, preset, definition, amount, base, result };
   return {
