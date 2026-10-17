@@ -1,6 +1,6 @@
 use ab_glyph::{Font, FontRef};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use image::{DynamicImage, GenericImageView, Rgb, RgbImage, imageops};
+use image::{DynamicImage, Rgb, RgbImage, imageops};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tauri::AppHandle;
@@ -608,6 +608,7 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::GenericImageView;
 
     #[test]
     fn summary_keeps_exact_statistics_and_percentiles_without_histogram_echoes() {
