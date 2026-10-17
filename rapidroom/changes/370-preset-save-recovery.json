@@ -9,5 +9,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": false,
-  "notes": "AI-assisted implementation: a failed save_presets no longer blocks later preset refreshes and imports from reading the catalog from disk. Explicit flushCatalogWrites callers still see the failure."
+  "notes": "AI-assisted implementation: a failed save_presets no longer blocks later preset refreshes and imports from reading the catalog from disk. Explicit flushCatalogWrites callers still see the failure until a refresh has applied the disk presets, after which the stale failure is cleared."
 }

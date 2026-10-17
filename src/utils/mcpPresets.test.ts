@@ -37,19 +37,23 @@ describe('live preset catalog discovery and exact selectors', () => {
     await expect(resolveMcpPreset({ presetId: page.presets[0].id })).rejects.toThrow('not found');
   });
 
-  it('reads presets from disk after one failed save, while flush callers still see the failure', async () => {
+  it('reads presets from disk after one failed save, then stops reporting that failure', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    mockCommand('save_presets', () => {
-      throw new Error('disk full');
-    });
-    mockCommand('load_presets', () => [{ preset: { id: 'disk', name: 'From disk', adjustments: {} } }]);
-    saveCatalogPresets([]);
-    await expect(flushCatalogWrites()).rejects.toThrow('disk full');
-    await loadPresetCatalog(true);
-    expect(usePresetCatalog.getState().presets).toEqual([
-      { preset: { id: 'disk', name: 'From disk', adjustments: {} } },
-    ]);
-    errorSpy.mockRestore();
+    try {
+      mockCommand('save_presets', () => {
+        throw new Error('disk full');
+      });
+      mockCommand('load_presets', () => [{ preset: { id: 'disk', name: 'From disk', adjustments: {} } }]);
+      saveCatalogPresets([]);
+      await expect(flushCatalogWrites()).rejects.toThrow('disk full');
+      await loadPresetCatalog(true);
+      expect(usePresetCatalog.getState().presets).toEqual([
+        { preset: { id: 'disk', name: 'From disk', adjustments: {} } },
+      ]);
+      await expect(flushCatalogWrites()).resolves.toBeUndefined();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it('preserves pending GUI changes when initialization finishes late', async () => {
