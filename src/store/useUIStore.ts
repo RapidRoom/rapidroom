@@ -247,7 +247,12 @@ export function reconcileWorkspace(
       ...(savedWorkspace.panelSwitcherPlacement || {}),
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
-    bottomDockHeight: clampDockHeight(savedWorkspace.bottomDockHeight ?? DEFAULT_DOCK_HEIGHT),
+    // The live window bound is applied when the dock renders; the saved normal height must not be clamped to the (possibly not yet laid out) window here.
+    bottomDockHeight: clampDockHeight(
+      savedWorkspace.bottomDockHeight ?? DEFAULT_DOCK_HEIGHT,
+      Number.POSITIVE_INFINITY,
+      Number.POSITIVE_INFINITY,
+    ),
   };
 }
 
