@@ -1,5 +1,5 @@
 {
-  "creator": "RapidRoom — original Styles",
+  "creator": "RapidRoom \u2014 original Styles",
   "presets": [
     {
       "folder": {
@@ -5045,6 +5045,787 @@
                 "presence": true,
                 "vignette": true,
                 "grain": true
+              }
+            }
+          },
+          {
+            "id": "rapidroom-style:cyberpunk-teal",
+            "name": "Cyberpunk Teal",
+            "description": "Intense teal streets and cool shadows against glowing orange lamps. Best with mixed warm lights, neon signs and wet pavement.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 20,
+              "highlights": -40,
+              "shadows": 56,
+              "blacks": -5,
+              "whites": -7,
+              "saturation": -5,
+              "vibrance": 22,
+              "clarity": -5,
+              "dehaze": 8,
+              "vignetteAmount": -5,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 0,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": 35,
+                  "saturation": 24,
+                  "luminance": 16
+                },
+                "oranges": {
+                  "hue": -12,
+                  "saturation": 28,
+                  "luminance": 16
+                },
+                "yellows": {
+                  "hue": -60,
+                  "saturation": 16,
+                  "luminance": 12
+                },
+                "greens": {
+                  "hue": 70,
+                  "saturation": -15,
+                  "luminance": 2
+                },
+                "aquas": {
+                  "hue": -10,
+                  "saturation": 36,
+                  "luminance": 18
+                },
+                "blues": {
+                  "hue": -55,
+                  "saturation": 29,
+                  "luminance": 18
+                },
+                "purples": {
+                  "hue": -100,
+                  "saturation": -18,
+                  "luminance": 6
+                },
+                "magentas": {
+                  "hue": 100,
+                  "saturation": -30,
+                  "luminance": 10
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 188,
+                  "saturation": 58,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 188,
+                  "saturation": 33,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 31,
+                  "saturation": 44,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 0,
+                  "saturation": 0,
+                  "luminance": 0
+                },
+                "balance": 5,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 2
+                  },
+                  {
+                    "x": 32,
+                    "y": 30
+                  },
+                  {
+                    "x": 80,
+                    "y": 90
+                  },
+                  {
+                    "x": 128,
+                    "y": 148
+                  },
+                  {
+                    "x": 207,
+                    "y": 225
+                  },
+                  {
+                    "x": 255,
+                    "y": 251
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 32,
+                    "y": 10
+                  },
+                  {
+                    "x": 80,
+                    "y": 50
+                  },
+                  {
+                    "x": 128,
+                    "y": 125
+                  },
+                  {
+                    "x": 207,
+                    "y": 230
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 32,
+                    "y": 36
+                  },
+                  {
+                    "x": 80,
+                    "y": 95
+                  },
+                  {
+                    "x": 128,
+                    "y": 146
+                  },
+                  {
+                    "x": 207,
+                    "y": 213
+                  },
+                  {
+                    "x": 255,
+                    "y": 250
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 32,
+                    "y": 44
+                  },
+                  {
+                    "x": 80,
+                    "y": 108
+                  },
+                  {
+                    "x": 128,
+                    "y": 142
+                  },
+                  {
+                    "x": 207,
+                    "y": 193
+                  },
+                  {
+                    "x": 255,
+                    "y": 244
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 2
+                  },
+                  {
+                    "x": 32,
+                    "y": 30
+                  },
+                  {
+                    "x": 80,
+                    "y": 90
+                  },
+                  {
+                    "x": 128,
+                    "y": 148
+                  },
+                  {
+                    "x": 207,
+                    "y": 225
+                  },
+                  {
+                    "x": 255,
+                    "y": 251
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 32,
+                    "y": 10
+                  },
+                  {
+                    "x": 80,
+                    "y": 50
+                  },
+                  {
+                    "x": 128,
+                    "y": 125
+                  },
+                  {
+                    "x": 207,
+                    "y": 230
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 32,
+                    "y": 36
+                  },
+                  {
+                    "x": 80,
+                    "y": 95
+                  },
+                  {
+                    "x": 128,
+                    "y": 146
+                  },
+                  {
+                    "x": 207,
+                    "y": 213
+                  },
+                  {
+                    "x": 255,
+                    "y": 250
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 3
+                  },
+                  {
+                    "x": 32,
+                    "y": 44
+                  },
+                  {
+                    "x": 80,
+                    "y": 108
+                  },
+                  {
+                    "x": 128,
+                    "y": 142
+                  },
+                  {
+                    "x": 207,
+                    "y": 193
+                  },
+                  {
+                    "x": 255,
+                    "y": 244
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": 20,
+                "redSaturation": 0,
+                "greenHue": 12,
+                "greenSaturation": 0,
+                "blueHue": -12,
+                "blueSaturation": 8
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true,
+                "creative": true
+              },
+              "structure": 15,
+              "glowAmount": 12
+            }
+          },
+          {
+            "id": "rapidroom-style:cyberpunk-indigo",
+            "name": "Cyberpunk Indigo",
+            "description": "Electric blue shadows with clear pink and magenta light accents. Best with neon streets, illuminated signs and rain reflections.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 22,
+              "highlights": -41,
+              "shadows": 58,
+              "blacks": -5,
+              "whites": -5,
+              "saturation": 1,
+              "vibrance": 19,
+              "clarity": -6,
+              "dehaze": 9,
+              "vignetteAmount": -5,
+              "vignetteMidpoint": 46,
+              "vignetteRoundness": 0,
+              "vignetteFeather": 82,
+              "grainAmount": 0,
+              "grainSize": 22,
+              "grainRoughness": 43,
+              "hsl": {
+                "reds": {
+                  "hue": -26,
+                  "saturation": -8,
+                  "luminance": 16
+                },
+                "oranges": {
+                  "hue": -68,
+                  "saturation": -76,
+                  "luminance": 16
+                },
+                "yellows": {
+                  "hue": -100,
+                  "saturation": -85,
+                  "luminance": 12
+                },
+                "greens": {
+                  "hue": 82,
+                  "saturation": -65,
+                  "luminance": 2
+                },
+                "aquas": {
+                  "hue": 10,
+                  "saturation": 24,
+                  "luminance": 20
+                },
+                "blues": {
+                  "hue": -42,
+                  "saturation": 29,
+                  "luminance": 22
+                },
+                "purples": {
+                  "hue": -20,
+                  "saturation": 24,
+                  "luminance": 14
+                },
+                "magentas": {
+                  "hue": -15,
+                  "saturation": 18,
+                  "luminance": 14
+                }
+              },
+              "colorGrading": {
+                "shadows": {
+                  "hue": 240,
+                  "saturation": 46,
+                  "luminance": 0
+                },
+                "midtones": {
+                  "hue": 234,
+                  "saturation": 31,
+                  "luminance": 0
+                },
+                "highlights": {
+                  "hue": 274,
+                  "saturation": 37,
+                  "luminance": 0
+                },
+                "global": {
+                  "hue": 236,
+                  "saturation": 10,
+                  "luminance": 0
+                },
+                "balance": -4,
+                "blending": 63
+              },
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 2
+                  },
+                  {
+                    "x": 32,
+                    "y": 32
+                  },
+                  {
+                    "x": 80,
+                    "y": 93
+                  },
+                  {
+                    "x": 128,
+                    "y": 146
+                  },
+                  {
+                    "x": 207,
+                    "y": 225
+                  },
+                  {
+                    "x": 255,
+                    "y": 251
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 32,
+                    "y": 23
+                  },
+                  {
+                    "x": 80,
+                    "y": 66
+                  },
+                  {
+                    "x": 128,
+                    "y": 122
+                  },
+                  {
+                    "x": 207,
+                    "y": 212
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 32,
+                    "y": 24
+                  },
+                  {
+                    "x": 80,
+                    "y": 66
+                  },
+                  {
+                    "x": 128,
+                    "y": 112
+                  },
+                  {
+                    "x": 207,
+                    "y": 200
+                  },
+                  {
+                    "x": 255,
+                    "y": 252
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 32,
+                    "y": 50
+                  },
+                  {
+                    "x": 80,
+                    "y": 121
+                  },
+                  {
+                    "x": 128,
+                    "y": 176
+                  },
+                  {
+                    "x": 207,
+                    "y": 243
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 2
+                  },
+                  {
+                    "x": 32,
+                    "y": 32
+                  },
+                  {
+                    "x": 80,
+                    "y": 93
+                  },
+                  {
+                    "x": 128,
+                    "y": 146
+                  },
+                  {
+                    "x": 207,
+                    "y": 225
+                  },
+                  {
+                    "x": 255,
+                    "y": 251
+                  }
+                ],
+                "red": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 32,
+                    "y": 23
+                  },
+                  {
+                    "x": 80,
+                    "y": 66
+                  },
+                  {
+                    "x": 128,
+                    "y": 122
+                  },
+                  {
+                    "x": 207,
+                    "y": 212
+                  },
+                  {
+                    "x": 255,
+                    "y": 253
+                  }
+                ],
+                "green": [
+                  {
+                    "x": 0,
+                    "y": 1
+                  },
+                  {
+                    "x": 32,
+                    "y": 24
+                  },
+                  {
+                    "x": 80,
+                    "y": 66
+                  },
+                  {
+                    "x": 128,
+                    "y": 112
+                  },
+                  {
+                    "x": 207,
+                    "y": 200
+                  },
+                  {
+                    "x": 255,
+                    "y": 252
+                  }
+                ],
+                "blue": [
+                  {
+                    "x": 0,
+                    "y": 4
+                  },
+                  {
+                    "x": 32,
+                    "y": 50
+                  },
+                  {
+                    "x": 80,
+                    "y": 121
+                  },
+                  {
+                    "x": 128,
+                    "y": 176
+                  },
+                  {
+                    "x": 207,
+                    "y": 243
+                  },
+                  {
+                    "x": 255,
+                    "y": 255
+                  }
+                ]
+              },
+              "curveMode": "point",
+              "colorCalibration": {
+                "shadowsTint": 0,
+                "redHue": -28,
+                "redSaturation": 0,
+                "greenHue": 25,
+                "greenSaturation": 0,
+                "blueHue": -18,
+                "blueSaturation": 8
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorGrading": true,
+                "colorMixer": true,
+                "colorCalibration": true,
+                "presence": true,
+                "vignette": true,
+                "grain": true,
+                "creative": true
+              },
+              "structure": 10,
+              "glowAmount": 12
+            }
+          },
+          {
+            "id": "rapidroom-style:my-look",
+            "name": "My Look",
+            "description": "Rich everyday street color, luminous midtones, rounded highlights and deep clean shadows. An original curve and restrained color shaping follow the repeated editing habits across your posts.",
+            "presetType": "style",
+            "includeMasks": false,
+            "includeCropTransform": false,
+            "adjustments": {
+              "contrast": 10,
+              "highlights": -64,
+              "shadows": 54,
+              "whites": 7,
+              "blacks": -19,
+              "vibrance": 28,
+              "saturation": 6,
+              "clarity": -8,
+              "structure": 18,
+              "dehaze": 10,
+              "curves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 38,
+                    "y": 30
+                  },
+                  {
+                    "x": 88,
+                    "y": 93
+                  },
+                  {
+                    "x": 144,
+                    "y": 164
+                  },
+                  {
+                    "x": 211,
+                    "y": 229
+                  },
+                  {
+                    "x": 255,
+                    "y": 252
+                  }
+                ]
+              },
+              "pointCurves": {
+                "luma": [
+                  {
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "x": 38,
+                    "y": 30
+                  },
+                  {
+                    "x": 88,
+                    "y": 93
+                  },
+                  {
+                    "x": 144,
+                    "y": 164
+                  },
+                  {
+                    "x": 211,
+                    "y": 229
+                  },
+                  {
+                    "x": 255,
+                    "y": 252
+                  }
+                ]
+              },
+              "hsl": {
+                "reds": {
+                  "hue": 0,
+                  "saturation": 4,
+                  "luminance": 2
+                },
+                "oranges": {
+                  "hue": 0,
+                  "saturation": 10,
+                  "luminance": 2
+                },
+                "yellows": {
+                  "hue": -7,
+                  "saturation": 5,
+                  "luminance": 0
+                },
+                "greens": {
+                  "hue": -8,
+                  "saturation": -6,
+                  "luminance": -3
+                },
+                "aquas": {
+                  "hue": -4,
+                  "saturation": 4,
+                  "luminance": 0
+                },
+                "blues": {
+                  "hue": 0,
+                  "saturation": 8,
+                  "luminance": -5
+                },
+                "purples": {
+                  "hue": 0,
+                  "saturation": -4,
+                  "luminance": 0
+                },
+                "magentas": {
+                  "hue": 0,
+                  "saturation": -4,
+                  "luminance": 0
+                }
+              },
+              "activeTools": {
+                "basic": true,
+                "curves": true,
+                "colorPresence": true,
+                "colorMixer": true,
+                "presence": true
               }
             }
           }
