@@ -1393,7 +1393,7 @@
       "showSubfolders": "Show photos in subfolders",
       "total_one": "{{count}} photo",
       "total_other": "{{count}} photos",
-      "filtered_one": "{{count}} of {{total}} photo",
+      "filtered_one": "{{count}} of {{total}} photos",
       "filtered_other": "{{count}} of {{total}} photos",
       "recursive": "(incl. subfolders)",
       "albumCountsLabel": "Album image counts",
