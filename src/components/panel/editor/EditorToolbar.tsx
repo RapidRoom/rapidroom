@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { SelectedImage, GroupingMode } from '../../ui/AppProperties';
 import { IconAperture, IconCalendar, IconClock, IconFocalLength, IconIso, IconShutter } from './ExifIcons';
 import Text from '../../ui/Text';
+import AppliedPresetBadge from '../../ui/AppliedPresetBadge';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useLibraryStore } from '../../../store/useLibraryStore';
@@ -423,6 +424,7 @@ const EditorToolbar = memo(
               >
                 {baseName}
               </Text>
+              <AppliedPresetBadge />
 
               {isVirtualCopy && (
                 <Text

@@ -63,7 +63,9 @@ export const clearLibrarySelection = () => {
   });
 };
 
-const advanceWhenSaved = (changedPaths: string[]): { visibleOrder: readonly ImageFile[]; onSaved?: () => void } => {
+export const advanceWhenSaved = (
+  changedPaths: string[],
+): { visibleOrder: readonly ImageFile[]; onSaved?: () => void } => {
   const before =
     getPendingLibraryVisibleOrder() ?? computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState());
   const { activeView, cullingModalState } = useUIStore.getState();

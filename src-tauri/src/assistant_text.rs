@@ -67,6 +67,7 @@ fn operational(key: &str) -> bool {
     matches!(
         key,
         "path"
+            | "activeImagePath"
             | "imagePath"
             | "imagePaths"
             | "filePath"
@@ -87,6 +88,8 @@ fn opaque(key: &str, value: &str) -> bool {
     if matches!(
         key,
         "editRevision"
+            | "renderRevision"
+            | "historyRevision"
             | "expectedRevision"
             | "currentRevision"
             | "id"
@@ -186,7 +189,7 @@ fn trusted_key(key: &str) -> bool {
     use std::{collections::HashSet, sync::OnceLock};
     static KEYS: OnceLock<HashSet<String>> = OnceLock::new();
     KEYS.get_or_init(|| {
-        let mut keys: HashSet<String> = "aiPatches patchData color mask offsetX offsetY isSrgbEncoded prompt feather grow range tool brushSize points lines flow targetX targetY tolerance minDepth maxDepth minFade maxFade liquifyMode pressure intensity isInitialDraw sourceX sourceY total hasMore modified is_edited is_raw is_virtual_copy is_cloud_placeholder group_id flag tags displayName path imagePath imagePaths filePath filePaths outputDirectory lutPath lensBlurDepthMap editRevision expectedRevision currentRevision id activeMaskId activeMaskContainerId virtualCopy data maskDataBase64 mimeType type actor mode curveMode toneMapper lensBlurShape stage adjustments changes content text name title caption description note notes rationale keywords reference look exif Make Model LensModel FNumber ExposureTime PhotographicSensitivity ISO FocalLength DateTimeOriginal masks subMasks parameters visible opacity invert startX startY endX endY centerX centerY radiusX radiusY name x y width height imageCount maskCount dimensions canUndo canRedo historyIndex entries index active undone changedKeys timestamp sourceCommit sourceDirty appVersion activePanel activePanels cardMode error validationError isSelected renderPending labels variants count offset limit recursive images cameraModel isRaw thumbnailUrl metadata history exposureMean meanRGB medianRGB meanLuminance medianLuminance histogram red green blue luma pixelCount shadowPixels highlightPixels shadowPercent highlightPercent clipping percentileMethod luminancePercentiles clippingDefinition rgbUnits luminanceUnits bins smoothed normalized transport renderStage suggestedWhiteBalance changesKnown currentKeys expectedKeys written report losses field reason preservedInPayload".split_whitespace().map(str::to_owned).collect();
+        let mut keys: HashSet<String> = "aiPatches patchData color mask offsetX offsetY isSrgbEncoded prompt feather grow range tool brushSize points lines flow targetX targetY tolerance minDepth maxDepth minFade maxFade liquifyMode pressure intensity isInitialDraw sourceX sourceY total hasMore modified is_edited is_raw is_virtual_copy is_cloud_placeholder group_id flag tags displayName path imagePath imagePaths filePath filePaths outputDirectory lutPath lensBlurDepthMap editRevision renderRevision historyRevision expectedRevision currentRevision nonDefaultOnly historyLabel id activeMaskId activeMaskContainerId virtualCopy data maskDataBase64 mimeType type actor mode curveMode toneMapper lensBlurShape stage adjustments changes content text name title caption description note notes rationale keywords reference look exif Make Model LensModel FNumber ExposureTime PhotographicSensitivity ISO FocalLength DateTimeOriginal masks subMasks parameters visible opacity invert startX startY endX endY centerX centerY radiusX radiusY name x y width height imageCount maskCount dimensions canUndo canRedo historyIndex entries index active undone changedKeys timestamp sourceCommit sourceDirty appVersion activePanel activePanels cardMode error validationError isSelected renderPending labels variants count offset limit recursive images cameraModel isRaw thumbnailUrl metadata history exposureMean meanRGB medianRGB meanLuminance medianLuminance histogram red green blue luma pixelCount shadowPixels highlightPixels shadowPercent highlightPercent clipping percentileMethod luminancePercentiles clippingDefinition rgbUnits luminanceUnits bins smoothed normalized transport renderStage suggestedWhiteBalance changesKnown currentKeys expectedKeys written report losses field reason preservedInPayload".split_whitespace().map(str::to_owned).collect();
         if let Ok(schema) = serde_json::from_str::<Value>(include_str!("../../rapidroom/adjustment-schema.json"))
             && let Some(parameters) = schema["parameters"].as_object() {
             for key in parameters.keys() { keys.extend(key.split('.').map(str::to_owned)); }
@@ -286,7 +289,7 @@ pub(crate) fn envelope(value: &Value) -> Value {
 /// JSON's standard escaping preserves exact control-containing paths. Escape
 /// invisible Unicode formatting too, so terminals cannot reverse displayed text.
 pub(crate) fn json_text(value: &Value) -> String {
-    serde_json::to_string_pretty(value)
+    serde_json::to_string(value)
         .unwrap_or_default()
         .chars()
         .fold(String::new(), |mut out, ch| {

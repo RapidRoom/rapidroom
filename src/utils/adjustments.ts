@@ -833,6 +833,22 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
       if (!VALID_SUB_MASK_MODES.includes(normalized.mode)) {
         normalized.mode = SubMaskMode.Additive;
       }
+      // Old GUI drawing setup seeded both radial and linear geometry. These
+      // unused placeholders must not invalidate an otherwise ordinary edit.
+      if (normalized.parameters && ['radial', 'linear'].includes(normalized.type ?? '')) {
+        normalized.parameters = { ...normalized.parameters };
+        const obsolete = normalized.type === 'radial' ? ['startX', 'startY', 'endX', 'endY'] : ['centerX', 'centerY'];
+        for (const key of obsolete) {
+          if (normalized.parameters[key as keyof typeof normalized.parameters] === -10000) {
+            delete normalized.parameters[key as keyof typeof normalized.parameters];
+          }
+        }
+        if (normalized.type === 'linear') {
+          for (const key of ['radiusX', 'radiusY'] as const) {
+            if (normalized.parameters[key] === 0) delete normalized.parameters[key];
+          }
+        }
+      }
       return normalized;
     });
   };

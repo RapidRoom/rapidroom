@@ -1,3 +1,5 @@
+#[path = "denoise_queue.rs"]
+pub mod queue;
 use crate::app_settings::load_settings;
 use crate::app_state::AppState;
 use crate::file_management::parse_virtual_path;
@@ -473,7 +475,7 @@ fn run_batch(
             && let Some(output_path_str) = output_path.to_str()
         {
             let (_, dest_sidecar_path) = parse_virtual_path(output_path_str);
-            if let Err(e) = fs::copy(&source_sidecar_path, &dest_sidecar_path) {
+            if let Err(e) = copy_denoised_sidecar(&source_sidecar_path, &dest_sidecar_path) {
                 log::warn!("Failed to copy sidecar file for denoised image: {}", e);
             }
         }
@@ -482,6 +484,20 @@ fn run_batch(
     }
 
     results
+}
+
+fn copy_denoised_sidecar(source: &Path, destination: &Path) -> std::io::Result<()> {
+    let bytes = fs::read(source)?;
+    let contents = match serde_json::from_slice::<serde_json::Value>(&bytes) {
+        Ok(serde_json::Value::Object(mut metadata)) if metadata.contains_key("denoise") => {
+            metadata.remove("denoise");
+            serde_json::to_vec_pretty(&metadata).map_err(std::io::Error::other)?
+        }
+        _ => bytes,
+    };
+    // The regular atomic writer preserves any queue state already owned by the target.
+    crate::file_management::write_file_atomically(destination, contents)?;
+    fs::set_permissions(destination, fs::metadata(source)?.permissions())
 }
 
 fn write_denoised_output(
@@ -574,7 +590,7 @@ pub async fn save_denoised_image(
         && let Some(output_path_str) = output_path.to_str()
     {
         let (_, dest_sidecar_path) = crate::file_management::parse_virtual_path(output_path_str);
-        if let Err(e) = std::fs::copy(&source_sidecar_path, &dest_sidecar_path) {
+        if let Err(e) = copy_denoised_sidecar(&source_sidecar_path, &dest_sidecar_path) {
             log::warn!("Failed to copy sidecar file for denoised image: {}", e);
         }
     }
@@ -664,6 +680,25 @@ fn nind_raw_view(
     app_handle: &AppHandle,
     job: &DenoiseJob,
 ) -> Result<DynamicImage, String> {
+    nind_raw_view_with_baseline(path, image, settings, app_handle, job, None)
+}
+
+fn nind_raw_defaults(baseline_eligible: Option<bool>) -> serde_json::Value {
+    let mut defaults = crate::image_processing::default_adjustments();
+    if let Some(eligible) = baseline_eligible {
+        defaults["baselineExposure"] = eligible.into();
+    }
+    defaults
+}
+
+fn nind_raw_view_with_baseline(
+    path: &str,
+    image: &DynamicImage,
+    settings: &crate::app_settings::AppSettings,
+    app_handle: &AppHandle,
+    job: &DenoiseJob,
+    baseline_eligible: Option<bool>,
+) -> Result<DynamicImage, String> {
     use crate::gpu_processing::{RenderOutputPrecision, RenderRequest};
 
     job.check()?;
@@ -688,7 +723,7 @@ fn nind_raw_view(
     // the save path. NIND receives the same encoded, default-developed look
     // that the original photo displays; its TIFF needs no second tone curve.
     let mut adjustments = crate::image_processing::get_all_adjustments_from_json(
-        &crate::image_processing::default_adjustments(),
+        &nind_raw_defaults(baseline_eligible),
         true,
         crate::as_shot::as_shot(path),
         crate::image_processing::resolve_render_options(settings, true),
@@ -696,6 +731,9 @@ fn nind_raw_view(
     adjustments.global.show_clipping = 0;
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     "nind-default-raw-view".hash(&mut hash);
+    if let Some(eligible) = baseline_eligible {
+        eligible.hash(&mut hash);
+    }
     job.id.hash(&mut hash);
     image.as_bytes().hash(&mut hash);
     let developed = crate::gpu_processing::process_and_get_dynamic_image_with_precision(
@@ -723,6 +761,26 @@ fn denoise_image(
     ai_session: DenoiseModels,
     job: &DenoiseJob,
 ) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
+    denoise_image_with_settings(
+        path_str,
+        options,
+        app_handle,
+        ai_session,
+        job,
+        load_settings(app_handle.clone()).unwrap_or_default(),
+        None,
+    )
+}
+
+fn denoise_image_with_settings(
+    path_str: &str,
+    options: &DenoiseOptions,
+    app_handle: &AppHandle,
+    ai_session: DenoiseModels,
+    job: &DenoiseJob,
+    settings: crate::app_settings::AppSettings,
+    nind_baseline_eligible: Option<bool>,
+) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
     let method = options.method.as_str();
     let intensity = options.intensity;
     let path = Path::new(path_str);
@@ -731,8 +789,6 @@ fn denoise_image(
     }
 
     let is_raw = is_raw_file(path_str);
-    let settings = load_settings(app_handle.clone()).unwrap_or_default();
-
     job.progress("Loading image...");
 
     let file_bytes = fs::read(path).map_err(|e| e.to_string())?;
@@ -755,7 +811,18 @@ fn denoise_image(
 
     let rgb_img_for_denoiser = if method == "ai" {
         let encoded = if is_raw {
-            nind_raw_view(path_str, &dynamic_img, &original_settings, app_handle, job)?
+            if nind_baseline_eligible.is_some() {
+                nind_raw_view_with_baseline(
+                    path_str,
+                    &dynamic_img,
+                    &original_settings,
+                    app_handle,
+                    job,
+                    nind_baseline_eligible,
+                )?
+            } else {
+                nind_raw_view(path_str, &dynamic_img, &original_settings, app_handle, job)?
+            }
         } else {
             dynamic_img
         };

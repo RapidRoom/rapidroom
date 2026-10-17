@@ -1847,6 +1847,8 @@
       "clearThumbnail": "Очистить кеш миниатюр",
       "clearThumbnailButton": "Очистить",
       "clearThumbnailDesc": "Это приведет к удалению всех закешированных миниатюр снимков. Они будут автоматически пересозданы по мере просмотра библиотеки.",
+      "cacheUsage": "Миниатюры и предпросмотры: {{size}} · Файлы: {{files}}",
+      "cacheUsageError": "Не удалось прочитать размер кэша.",
       "loading": "Загрузка...",
       "logs": "Просмотр логов приложения",
       "logsButton": "Открыть",
@@ -2002,7 +2004,8 @@
         "zoom_out": "Отдалить",
         "zoom_out_step": "Отдалить по шагам",
         "toggle_pick": "Переключить отметку «выбрано»",
-        "toggle_reject": "Переключить отметку «отклонено»"
+        "toggle_reject": "Переключить отметку «отклонено»",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "Редактирование",
@@ -2398,5 +2401,34 @@
         "vectorscope": "Вектороскоп"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
   }
 }
