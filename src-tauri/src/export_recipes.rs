@@ -73,9 +73,25 @@ fn instagram_crop_recipe(
     preset
 }
 
+fn web_share_recipe() -> ExportPreset {
+    let mut preset = instagram_recipe(
+        "web-share",
+        "Web / Share (camera info, no GPS)",
+        "share",
+        1.0,
+        1.0,
+    );
+    preset.enable_pad = Some(false);
+    preset.resize_mode = "longEdge".to_string();
+    preset.resize_value = 2048;
+    preset.dont_enlarge = true;
+    preset
+}
+
 pub fn builtin_export_recipes() -> Vec<ExportPreset> {
     use crate::export_framing::InstagramRatio;
     vec![
+        web_share_recipe(),
         instagram_crop_recipe(
             InstagramRatio::Portrait,
             "instagram-crop-4x5",
@@ -301,6 +317,88 @@ mod tests {
         (3000, 9000),
         (640, 480),
     ];
+
+    #[test]
+    fn share_recipe_jpeg_round_trip_keeps_camera_lens_date_without_gps() {
+        use crate::exif_processing::{ExportXmp, write_image_with_metadata};
+        use little_exif::rational::uR64;
+        use little_exif::{exif_tag::ExifTag, filetype::FileExtension, metadata::Metadata};
+        use std::io::Cursor;
+
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("camera.jpg");
+        let mut encoded = Cursor::new(Vec::new());
+        image::DynamicImage::new_rgb8(16, 8)
+            .write_to(&mut encoded, image::ImageFormat::Jpeg)
+            .unwrap();
+        let pixels = encoded.into_inner();
+        let mut source_bytes = pixels.clone();
+        let mut metadata = Metadata::new();
+        metadata.set_tag(ExifTag::Make("Sony".into()));
+        metadata.set_tag(ExifTag::Model("ILCE-7CM2".into()));
+        metadata.set_tag(ExifTag::LensModel("FE 35mm F1.4 GM".into()));
+        metadata.set_tag(ExifTag::DateTimeOriginal("2026:10:16 12:34:56".into()));
+        metadata.set_tag(ExifTag::GPSLatitudeRef("N".into()));
+        metadata.set_tag(ExifTag::GPSLatitude(vec![
+            uR64 {
+                nominator: 45,
+                denominator: 1,
+            },
+            uR64 {
+                nominator: 30,
+                denominator: 1,
+            },
+            uR64 {
+                nominator: 0,
+                denominator: 1,
+            },
+        ]));
+        metadata
+            .write_to_vec(&mut source_bytes, FileExtension::JPEG)
+            .unwrap();
+        std::fs::write(&source, source_bytes).unwrap();
+        let xmp = ExportXmp::from_metadata(&Default::default());
+
+        for (id, expect_gps) in [("default-hq", true), ("recipe-web-share", false)] {
+            let preset = find_export_preset(&default_export_presets(), id).unwrap();
+            let settings = preset_to_export_settings(&preset).unwrap();
+            let mut output = pixels.clone();
+            write_image_with_metadata(
+                &mut output,
+                source.to_str().unwrap(),
+                "jpg",
+                settings.keep_metadata,
+                settings.strip_gps,
+                &xmp,
+            )
+            .unwrap();
+            let decoded = exif::Reader::new()
+                .read_from_container(&mut Cursor::new(output))
+                .unwrap();
+            for (tag, expected) in [
+                (exif::Tag::Make, "Sony"),
+                (exif::Tag::Model, "ILCE-7CM2"),
+                (exif::Tag::LensModel, "FE 35mm F1.4 GM"),
+                (exif::Tag::DateTimeOriginal, "2026:10:16 12:34:56"),
+            ] {
+                let value = &decoded
+                    .get_field(tag, exif::In::PRIMARY)
+                    .expect("camera info retained")
+                    .value;
+                assert!(
+                    matches!(value, exif::Value::Ascii(values) if values[0] == expected.as_bytes()),
+                    "{id}: {tag}"
+                );
+            }
+            for tag in [exif::Tag::GPSLatitude, exif::Tag::GPSLatitudeRef] {
+                assert_eq!(
+                    decoded.get_field(tag, exif::In::PRIMARY).is_some(),
+                    expect_gps,
+                    "{id}: {tag}"
+                );
+            }
+        }
+    }
 
     fn assert_recipe_size(id: &str, expected: (u32, u32), with_border: bool) {
         let mut preset = find_export_preset(&[], id).expect("recipe exists");
