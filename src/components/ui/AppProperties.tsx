@@ -311,6 +311,7 @@ export interface AppSettings {
   openTreeSections?: string[];
   folderIcons?: Record<string, string>;
   exifOverlay?: ExifOverlay;
+  shootingInfoVisibility?: 'always' | 'hover' | 'off';
   language?: string;
   fontFamily?: string;
   folderTreeSort?: FolderTreeSort;

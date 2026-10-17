@@ -651,6 +651,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub exif_overlay: Option<String>,
     #[serde(default)]
+    pub shooting_info_visibility: Option<String>,
+    #[serde(default)]
     pub language: Option<String>,
     #[serde(default)]
     pub folder_tree_sort: Option<FolderTreeSort>,
@@ -779,6 +781,7 @@ impl Default for AppSettings {
             apply_preprocessing_to_non_raws: Some(false),
             use_apple_raw9: Some(false),
             exif_overlay: Some("off".to_string()),
+            shooting_info_visibility: Some("always".to_string()),
             language: Some("en".to_string()),
             folder_tree_sort: Some(FolderTreeSort::default()),
             lightroom_path_mappings: Some(HashMap::new()),
@@ -903,6 +906,27 @@ pub fn save_settings(settings: AppSettings, app_handle: AppHandle) -> Result<(),
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shooting_info_setting_survives_save_and_old_settings_load() {
+        let mut saved = serde_json::to_value(AppSettings::default()).unwrap();
+        assert_eq!(saved["shootingInfoVisibility"], "always");
+        saved
+            .as_object_mut()
+            .unwrap()
+            .remove("shootingInfoVisibility");
+        let old: AppSettings = serde_json::from_value(saved.clone()).unwrap();
+        assert!(old.shooting_info_visibility.is_none());
+        for mode in ["always", "hover", "off"] {
+            saved["shootingInfoVisibility"] = serde_json::json!(mode);
+            let loaded: AppSettings = serde_json::from_value(saved.clone()).unwrap();
+            assert_eq!(loaded.shooting_info_visibility.as_deref(), Some(mode));
+            assert_eq!(
+                serde_json::to_value(loaded).unwrap()["shootingInfoVisibility"],
+                mode
+            );
+        }
+    }
 
     #[test]
     fn existing_preferences_do_not_enable_ai_control() {

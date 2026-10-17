@@ -30,9 +30,19 @@ pub struct RawExposure {
     pub scene_referred: bool,
     pub dng_baseline: f32,
     pub highlight_preservation: f32,
+    pub camera_baseline: Option<f32>,
 }
 
 impl RawExposure {
+    pub fn camera_compensation(&self, compensate_highlights: bool) -> f32 {
+        self.camera_baseline.unwrap_or(0.0)
+            + if compensate_highlights {
+                self.highlight_preservation
+            } else {
+                0.0
+            }
+    }
+
     pub fn compensation(&self, options: BaselineOptions) -> f32 {
         let baseline = options.baseline_exposure.map_or(0.0, |amount| {
             let scene_referred = if self.scene_referred { amount } else { 0.0 };
@@ -64,27 +74,48 @@ impl BaselineOptions {
     }
 }
 
-pub fn read(decoder: &dyn Decoder, file_bytes: &[u8], is_monochrome: bool) -> RawExposure {
+pub fn read(
+    decoder: &dyn Decoder,
+    file_bytes: &[u8],
+    is_monochrome: bool,
+    make: &str,
+    model: &str,
+) -> RawExposure {
     let highlight_preservation = catch_unwind(AssertUnwindSafe(|| {
         highlight_preservation(decoder.format_hint(), file_bytes)
     }))
     .unwrap_or(0.0);
+    let dng_baseline = dng_baseline(decoder);
     RawExposure {
         scene_referred: !is_monochrome,
-        dng_baseline: dng_baseline(decoder),
+        dng_baseline: dng_baseline.unwrap_or(0.0),
+        // An explicit DNG zero is a baseline, not permission to add a camera fallback.
+        camera_baseline: dng_baseline
+            .or_else(|| camera_baseline(make, model))
+            .filter(|value| value.is_finite()),
         highlight_preservation: highlight_preservation
             .clamp(HIGHLIGHT_BIAS_MIN, HIGHLIGHT_BIAS_MAX),
     }
 }
 
-fn dng_baseline(decoder: &dyn Decoder) -> f32 {
+fn camera_baseline(make: &str, model: &str) -> Option<f32> {
+    if make.trim().eq_ignore_ascii_case("SONY") && matches!(model.trim(), "ILCE-7CM2" | "ILCE-7RM5")
+    {
+        Some(0.35)
+    } else {
+        None
+    }
+}
+
+fn dng_baseline(decoder: &dyn Decoder) -> Option<f32> {
     let Ok(Some(tags)) = decoder.ifd(WellKnownIFD::VirtualDngRootTags) else {
-        return 0.0;
+        return None;
     };
-    [DngTag::BaselineExposure, DngTag::BaselineExposureOffset]
+    let values: Vec<f32> = [DngTag::BaselineExposure, DngTag::BaselineExposureOffset]
         .into_iter()
         .filter_map(|tag| tags.get_entry(tag)?.value.get_f32(0).ok().flatten())
-        .sum()
+        .collect();
+    (!values.is_empty()).then(|| values.into_iter().sum())
 }
 
 fn highlight_preservation(format: FormatHint, file_bytes: &[u8]) -> f32 {

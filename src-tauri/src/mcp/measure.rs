@@ -341,7 +341,7 @@ fn stage_adjustments(arguments: &Value, current: &Value) -> Result<Value, String
     match stage {
         "edited" => Ok(current.clone()),
         "original" => {
-            let mut neutral = tools::original_adjustments()?;
+            let mut neutral = tools::original_adjustments_for(current)?;
             for (key, value) in geometry(current).as_object().unwrap() {
                 neutral[key] = value.clone();
             }
@@ -461,7 +461,7 @@ fn copy_parameters(
             return Err("Virtual copy has no adjustment snapshot".into());
         }
         adjustments::merge_adjustments(
-            tools::original_adjustments()?,
+            tools::original_adjustments_for(&metadata["adjustments"])?,
             metadata["adjustments"].clone(),
         )?
     };
@@ -679,6 +679,68 @@ mod tests {
         ] {
             assert!(copy_parameters("/not-a-photo", path, &current).is_err());
         }
+    }
+
+    #[test]
+    fn saved_virtual_copy_and_original_preserve_legacy_or_explicit_exposure_policy() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("photo.png");
+        RgbImage::from_pixel(2, 1, Rgb([90, 30, 40]))
+            .save(&source)
+            .unwrap();
+        let active = source.to_str().unwrap();
+        let copy = format!("{active}?vc=saved");
+        let (_, sidecar) = crate::file_management::parse_virtual_path(&copy);
+        let source_bytes = std::fs::read(&source).unwrap();
+        let source_modified = source.metadata().unwrap().modified().unwrap();
+        for (saved_policy, baseline, camera) in [
+            (json!({}), false, false),
+            (json!({"baselineExposure":true}), true, false),
+            (
+                json!({"baselineExposure":false,"cameraExposureCompensation":true}),
+                false,
+                true,
+            ),
+            (
+                json!({"baselineExposure":true,"cameraExposureCompensation":false}),
+                true,
+                false,
+            ),
+            (
+                json!({"baselineExposure":true,"cameraExposureCompensation":true}),
+                true,
+                true,
+            ),
+        ] {
+            let mut saved = json!({"exposure":1.25,"rotation":90,"toneMapper":"linear"});
+            saved
+                .as_object_mut()
+                .unwrap()
+                .extend(saved_policy.as_object().unwrap().clone());
+            let bytes = serde_json::to_vec(&json!({"version":1,"adjustments":saved})).unwrap();
+            std::fs::write(&sidecar, &bytes).unwrap();
+            let modified = sidecar.metadata().unwrap().modified().unwrap();
+            let fresh_active = tools::original_adjustments().unwrap();
+            let (parameters, _) = copy_parameters(active, &copy, &fresh_active).unwrap();
+            assert_eq!(parameters["exposure"], json!(1.25));
+            assert_eq!(parameters["baselineExposure"], json!(baseline));
+            assert_eq!(parameters["cameraExposureCompensation"], json!(camera));
+            for selected in [&saved, &parameters] {
+                let original = stage_adjustments(&json!({"stage":"original"}), selected).unwrap();
+                assert_eq!(original["exposure"], json!(0));
+                assert_eq!(original["baselineExposure"], json!(baseline));
+                assert_eq!(original["cameraExposureCompensation"], json!(camera));
+                assert_eq!(geometry(&original), geometry(selected));
+                assert_eq!(original["toneMapper"], selected["toneMapper"]);
+            }
+            assert_eq!(std::fs::read(&sidecar).unwrap(), bytes);
+            assert_eq!(sidecar.metadata().unwrap().modified().unwrap(), modified);
+        }
+        assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+        assert_eq!(
+            source.metadata().unwrap().modified().unwrap(),
+            source_modified
+        );
     }
 
     #[test]

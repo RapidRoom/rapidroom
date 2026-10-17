@@ -25,6 +25,7 @@
     "aiPatches": { "defaultType": "array", "default": [] },
     "aspectRatio": { "defaultType": "null", "default": null },
     "baselineExposure": { "defaultType": "boolean", "default": true },
+    "cameraExposureCompensation": { "defaultType": "boolean", "default": true },
     "blacks": {
       "defaultType": "number",
       "default": 0,
@@ -3159,7 +3160,7 @@
     },
     {
       "source": "src/components/ui/LUTControl.tsx",
-      "line": 277,
+      "line": 280,
       "valueExpression": "lutIntensity",
       "changeExpression": "(e) => onIntensityChange(Number(e.target.value))",
       "labelExpression": "t('ui.lut.intensity')",

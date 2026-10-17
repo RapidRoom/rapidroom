@@ -3353,7 +3353,22 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         metadata.adjustments = pending.clone();
     }
     if has_supported_adjustments {
+        let imported_exposure_without_policy =
+            converted_preset.adjustments.get("exposure").is_some()
+                && converted_preset
+                    .adjustments
+                    .get("cameraExposureCompensation")
+                    .is_none();
         merge_imported_adjustments(&mut metadata.adjustments, converted_preset.adjustments);
+        if imported_exposure_without_policy
+            && metadata
+                .adjustments
+                .get("cameraExposureCompensation")
+                .and_then(Value::as_bool)
+                == Some(true)
+        {
+            metadata.adjustments["cameraExposureCompensation"] = Value::Bool(false);
+        }
         resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
     }
     let draft_preserved = !has_supported_adjustments && pending_adjustments.is_some();
@@ -4137,6 +4152,7 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
     }
 
     if metadata.adjustments.is_null() {
+        metadata.adjustments = default_adjustments();
         crate::raw_processing::apply_camera_crop_default_from_path(
             &mut metadata.adjustments,
             &source_path,
@@ -7190,6 +7206,8 @@ mod lightroom_xmp_import_tests {
         let metadata = ImageMetadata {
             adjustments: serde_json::json!({
                 "exposure": 0.75,
+                "baselineExposure": true,
+                "cameraExposureCompensation": true,
                 "curves": {"luma": [{"x": 0, "y": 0}, {"x": 255, "y": 220}]},
                 "masks": [{"id": "kept-mask", "subMasks": []}],
                 "lensCorrectionMode": "manual",
@@ -7297,6 +7315,40 @@ mod lightroom_xmp_import_tests {
         assert_eq!(saved.adjustments, imported.metadata.adjustments);
         assert!(leftover_temp_files(dir.path()).is_empty());
         assert_eq!(fs::read(&raw).unwrap(), b"raw bytes");
+    }
+
+    #[test]
+    fn explicit_xmp_exposure_opts_out_of_a_fresh_camera_baseline_including_zero() {
+        let _mode = CardMode::off();
+        for exposure in ["0", "1.25"] {
+            let dir = tempfile::tempdir().unwrap();
+            let raw = dir.path().join("photo.ARW");
+            let sidecar = dir.path().join("photo.ARW.rrdata");
+            let xmp = dir.path().join("photo.xmp");
+            fs::write(&raw, b"untouched raw bytes").unwrap();
+            let metadata = ImageMetadata {
+                adjustments: crate::image_processing::default_adjustments(),
+                ..Default::default()
+            };
+            fs::write(&sidecar, serde_json::to_string(&metadata).unwrap()).unwrap();
+            let xml = lightroom_xmp(&format!(r#"crs:Exposure2012="{exposure}""#));
+            fs::write(&xmp, &xml).unwrap();
+            let imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+            assert_eq!(
+                adjustment(&imported.metadata, "exposure"),
+                exposure.parse::<f64>().unwrap()
+            );
+            assert_eq!(
+                imported.metadata.adjustments["cameraExposureCompensation"],
+                false
+            );
+            assert_eq!(
+                crate::exif_processing::load_sidecar(&sidecar).adjustments,
+                imported.metadata.adjustments
+            );
+            assert_eq!(fs::read_to_string(&xmp).unwrap(), xml);
+            assert_eq!(fs::read(&raw).unwrap(), b"untouched raw bytes");
+        }
     }
 
     #[test]
@@ -8191,8 +8243,7 @@ mod xmp_preset_browser_tests {
             r#"<rdf:Description crs:Exposure2012="1.25"/>"#,
         )
         .unwrap();
-        preset.adjustments =
-            serde_json::json!({"exposure":1.25,"brightness":8,"hsl":{"reds":{"hue":17}}});
+        preset.adjustments = serde_json::json!({"exposure":1.25,"brightness":8,"cameraExposureCompensation":true,"hsl":{"reds":{"hue":17}}});
         preset.camera_model_restriction = Some("Sony & Fujifilm".into());
         preset.unavailable_reason = Some("Requires camera profile: Adobe Standard".into());
         let (xml, missing) = crate::preset_xmp::serialize(&preset).unwrap();
