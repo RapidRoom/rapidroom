@@ -32,11 +32,13 @@ def run_preset_checks(smoke, wait_for, baseline):
         time.sleep(.2)
 
     # Built-ins are now flat; the retired Color/Punch stock group must not be
-    # an implicit fixture. User-owned folder persistence is checked in styles.py.
-    search('copper warmth')
-    wait_for(lambda: smoke.execute("return document.body.innerText.includes('Teal & Orange') && !document.body.innerText.includes('Neon Night');"), 'description search filters flat Styles')
-    search('Teal & Orange')
-    row="[...document.querySelectorAll('[data-tooltip]')].find(e=>e.dataset.tooltip==='Cyan city shadows and copper warmth. Best with blue skies, warm buildings and people in mixed light.')?.closest('[role=button]')"
+    # an implicit fixture. Use a different Style from the Teal lifecycle suite,
+    # so clicking an already-active row does not merely toggle its expansion.
+    # User-owned folder persistence is checked in styles.py.
+    search('textured clouds')
+    wait_for(lambda: smoke.execute("return document.body.innerText.includes('Vivid Rainbow') && !document.body.innerText.includes('Neon Night');"), 'description search filters flat Styles')
+    search('Vivid Rainbow')
+    row="[...document.querySelectorAll('[data-tooltip]')].find(e=>e.dataset.tooltip==='Deep blue skies, textured clouds and bright warm colour. Best with daylight travel, rooftops and people.')?.closest('[role=button]')"
     wait_for(lambda: smoke.execute('return !!('+row+');'), 'name search finds flat Style')
     smoke.execute('const row='+row+";row.scrollIntoView({block:'center'});row.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));return true;")
     hovered=smoke.stable_preview('preset-hover')
