@@ -1,9 +1,9 @@
 {
   "_comment": "Per-image pixel hashes for the CI regression check (.github/workflows/regression.yml), recorded on a GitHub Actions runner with Mesa lavapipe. pixel_sha256 is the SHA-256 of the decoded 16-bit RGB pixels (little-endian), so TIFF container changes don't matter. Updating this file is a rendering decision that needs a maintainer's sign-off (see GOVERNANCE).",
   "kind": "rapidraw-ci-reference",
-  "created": "2026-10-17T19:23:09+00:00",
+  "created": "2026-10-17T23:30:38+00:00",
   "recorded_by": "GitHub Actions (workflow_dispatch, record)",
-  "source": "https://github.com/RapidRoom/rapidroom/actions/runs/39058652156 at e3e9f4e18e04bdb44c271a45216d5db5f8f70c23",
+  "source": "https://github.com/RapidRoom/rapidroom/actions/runs/39076134636 at 61c6660cfe1b110266ebfa03b985719e82e79c63",
   "environment": {
     "kernel": "6.17.0-1022-azure",
     "cpu_count": 4,
@@ -20,7 +20,7 @@
       "mesa-vulkan-drivers 25.2.8-0ubuntu0.24.04.4"
     ]
   },
-  "engine_sha256": "bf42b84e07e6be8039ec8b70c9361acfd43163cc6779c3cc6ca9d0e64aef975e",
+  "engine_sha256": "acfa2e8cd7799fe6afda6844386e83a514e17a913a46818cfd8495a2d0088398",
   "corpus_sha256": "09d42ceaf831e7b7cebbb85d3a6f6deabe8d37814dc19968e004b3caf522b724",
   "adjustment_sets": {
     "busy-agx-lut-effects": "7017a74e8bcee5c10f84e254b926c7fa19140985041bc96db8bd5c6a27e4df01",
@@ -153,7 +153,7 @@
       "id": "sony-a7cr-18mp-lossless-s",
       "width": 4752,
       "height": 3168,
-      "pixel_sha256": "b0ca77bbcacd83939eab481e5f9d61cc6e29d11ad744d343335696feac5f4b3f"
+      "pixel_sha256": "5fff82d3868731b1696d4abb3d99234a862b500506edf086225574a7c712ed15"
     }
   ]
 }
