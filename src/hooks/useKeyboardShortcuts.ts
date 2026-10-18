@@ -841,8 +841,16 @@ export const useKeyboardShortcuts = ({
             ? sortedListRef.current.filter((img) => getParentFolder(img.path) === getParentFolder(activePath))
             : sortedListRef.current;
           const currentIndex = navigationList.findIndex((img) => img.path === activePath);
-          if (currentIndex === -1) return;
-          let nextIndex = isNext ? currentIndex + 1 : currentIndex - 1;
+          // A member hidden by collapsing its stack is not in the list:
+          // start from the first (next) or last (previous) visible photo.
+          let nextIndex =
+            currentIndex === -1
+              ? isNext
+                ? 0
+                : navigationList.length - 1
+              : isNext
+                ? currentIndex + 1
+                : currentIndex - 1;
           if (nextIndex >= navigationList.length) nextIndex = 0;
           if (nextIndex < 0) nextIndex = navigationList.length - 1;
           const nextImage = navigationList[nextIndex];

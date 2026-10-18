@@ -48,9 +48,21 @@ export default function AutoStackModal() {
     try {
       const updates = await invoke<StackUpdate[]>(Invokes.ApplyPhotoStacks, { groups });
       acceptStackUpdates(updates);
-      useLibraryStore
-        .getState()
-        .setLibrary({ stackPreviewOpen: false, multiSelectedPaths: [], libraryActivePath: null });
+      // Keep the selection on a visible photo: the cover of the applied group
+      // that held the selection, otherwise clear it.
+      const library = useLibraryStore.getState();
+      const selected = [library.libraryActivePath, ...library.multiSelectedPaths];
+      const cover = groups.find((g) => g.some((p) => selected.includes(p)))?.[0];
+      library.setLibrary(
+        cover
+          ? {
+              stackPreviewOpen: false,
+              multiSelectedPaths: [cover],
+              libraryActivePath: cover,
+              selectionAnchorPath: cover,
+            }
+          : { stackPreviewOpen: false, multiSelectedPaths: [], libraryActivePath: null },
+      );
     } catch (err) {
       setError(String(err));
     } finally {
