@@ -2649,8 +2649,15 @@ pub fn resolve_lens_params_in_adjustments(
     adjustments: &mut Value,
     exif_data: &Option<HashMap<String, String>>,
     lens_db: Option<&crate::lens_correction::LensDatabase>,
+    source_path: &Path,
 ) {
     if let Some(map) = adjustments.as_object_mut() {
+        let mut lensfun_components = [false; 3];
+        let modern_auto = map.get("lensCorrectionMode").and_then(Value::as_str) == Some("auto")
+            && map
+                .get("cameraLensCorrectionVersion")
+                .and_then(Value::as_u64)
+                == Some(1);
         let mode = map
             .get("lensCorrectionMode")
             .and_then(|v| v.as_str())
@@ -2692,10 +2699,11 @@ pub fn resolve_lens_params_in_adjustments(
         // Lens values from an older version carry no radius scale. They keep
         // the old evaluation when the edit is saved again, so that the image
         // does not change. Choosing a lens again gives the current one.
-        let legacy = map
-            .get("lensDistortionParams")
-            .and_then(|v| v.as_object())
-            .is_some_and(|p| !p.contains_key("radius_scale"));
+        let legacy = !modern_auto
+            && map
+                .get("lensDistortionParams")
+                .and_then(|v| v.as_object())
+                .is_some_and(|p| !p.contains_key("radius_scale"));
 
         if let Some(db) = lens_db {
             let has_valid_lens = match (
@@ -2757,7 +2765,10 @@ pub fn resolve_lens_params_in_adjustments(
                     };
 
                     if let Some(mut params) = resolved {
-                        if let Some(saved) = map.get("lensDistortionParams") {
+                        lensfun_components = params.components;
+                        if let Some(saved) =
+                            map.get("lensDistortionParams").filter(|_| !modern_auto)
+                        {
                             params.preserve_saved_tca(saved);
                         }
                         map.insert(
@@ -2776,6 +2787,7 @@ pub fn resolve_lens_params_in_adjustments(
                 map.remove("lensDistortionParams");
             }
         }
+        crate::camera_lens::resolve_in_adjustments(map, source_path, exif_data, lensfun_components);
     }
 }
 
@@ -3129,6 +3141,7 @@ pub fn save_metadata_and_update_thumbnail(
             &mut final_adjustments,
             &metadata.exif,
             lens_db_guard.as_deref(),
+            &source_path,
         );
     }
 
@@ -3412,7 +3425,12 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         {
             metadata.adjustments["cameraExposureCompensation"] = Value::Bool(false);
         }
-        resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+        resolve_lens_params_in_adjustments(
+            &mut metadata.adjustments,
+            &metadata.exif,
+            lens_db,
+            &source_path,
+        );
     }
     let draft_preserved = !has_supported_adjustments && pending_adjustments.is_some();
     let preserved_adjustments =
@@ -3456,7 +3474,12 @@ fn hydrate_imported_xmp_exif(
     let (source_path, _) = parse_virtual_path(path);
     let mut metadata =
         crate::exif_processing::load_sidecar_with_exif(&imported.sidecar_path, &source_path);
-    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    resolve_lens_params_in_adjustments(
+        &mut metadata.adjustments,
+        &metadata.exif,
+        lens_db,
+        &source_path,
+    );
     let json = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
     write_file_atomically(&imported.sidecar_path, json).map_err(|error| error.to_string())?;
     imported.metadata = metadata;
@@ -3766,6 +3789,7 @@ pub async fn apply_adjustments_to_paths(
                 &mut new_adjustments,
                 &existing_metadata.exif,
                 lens_db.as_deref(),
+                &source_path,
             );
 
             existing_metadata.adjustments = new_adjustments;
@@ -3933,6 +3957,7 @@ pub async fn apply_auto_lens_correction_to_paths(
                 &mut existing_metadata.adjustments,
                 &existing_metadata.exif,
                 lens_db.as_deref(),
+                &source_path,
             );
 
             if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
@@ -4282,7 +4307,12 @@ pub(crate) fn apply_default_raw_lens_policy(
     }
     metadata.adjustments["lensCorrectionMode"] = serde_json::json!("auto");
     metadata.adjustments["cameraLensCorrectionVersion"] = serde_json::json!(1);
-    resolve_lens_params_in_adjustments(&mut metadata.adjustments, &metadata.exif, lens_db);
+    resolve_lens_params_in_adjustments(
+        &mut metadata.adjustments,
+        &metadata.exif,
+        lens_db,
+        source_path,
+    );
 }
 
 pub(crate) fn apply_fresh_raw_defaults(
@@ -4302,6 +4332,30 @@ pub(crate) fn apply_fresh_raw_defaults(
     }
 }
 
+pub(crate) fn apply_raw_defaults_and_resolve_auto_lens(
+    metadata: &mut ImageMetadata,
+    source_path: &Path,
+    sidecar_path: &Path,
+    settings: &AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) {
+    apply_fresh_raw_defaults(metadata, source_path, sidecar_path, settings, lens_db);
+    if metadata.adjustments["lensCorrectionMode"].as_str() == Some("auto")
+        && metadata.adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)
+    {
+        if metadata.exif.is_none() {
+            metadata.exif =
+                crate::exif_processing::load_sidecar_with_exif(sidecar_path, source_path).exif;
+        }
+        resolve_lens_params_in_adjustments(
+            &mut metadata.adjustments,
+            &metadata.exif,
+            lens_db,
+            source_path,
+        );
+    }
+}
+
 pub(crate) fn load_sidecar_with_raw_defaults(
     sidecar_path: &Path,
     source_path: &Path,
@@ -4309,8 +4363,39 @@ pub(crate) fn load_sidecar_with_raw_defaults(
     lens_db: Option<&crate::lens_correction::LensDatabase>,
 ) -> ImageMetadata {
     let mut metadata = crate::exif_processing::load_sidecar(sidecar_path);
-    apply_fresh_raw_defaults(&mut metadata, source_path, sidecar_path, settings, lens_db);
+    apply_raw_defaults_and_resolve_auto_lens(
+        &mut metadata,
+        source_path,
+        sidecar_path,
+        settings,
+        lens_db,
+    );
     metadata
+}
+
+#[tauri::command]
+pub async fn get_lens_correction_resolution(
+    path: String,
+    adjustments: Value,
+    app_handle: AppHandle,
+) -> Result<Value, String> {
+    if !adjustments.is_object() {
+        return Err("Lens correction resolution requires an adjustment object".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let mut available = adjustments.clone();
+        available["lensCorrectionMode"] = serde_json::json!("auto");
+        available["cameraLensCorrectionVersion"] = serde_json::json!(1);
+        crate::camera_lens::resolve_snapshot(&mut available, &path, &state);
+        let resolution = crate::camera_lens::resolution_report(
+            &adjustments,
+            available["lensDistortionParams"]["resolution"].clone(),
+        );
+        Ok(resolution)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -7948,7 +8033,12 @@ mod lens_params_tests {
         if let Some(params) = params {
             adjustments["lensDistortionParams"] = params;
         }
-        resolve_lens_params_in_adjustments(&mut adjustments, &exif(), Some(db));
+        resolve_lens_params_in_adjustments(
+            &mut adjustments,
+            &exif(),
+            Some(db),
+            Path::new("test.ARW"),
+        );
         adjustments["lensDistortionParams"].clone()
     }
 
@@ -7977,14 +8067,19 @@ mod lens_params_tests {
             "35 mm".to_string(),
         )]));
         let mut fresh = base.clone();
-        resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db));
+        resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db), Path::new("test.ARW"));
         assert!(fresh["lensDistortionParams"]["tca_poly3"].is_object());
         let snapshot = fresh.clone();
-        resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db));
+        resolve_lens_params_in_adjustments(&mut fresh, &exif, Some(&db), Path::new("test.ARW"));
         assert_eq!(fresh, snapshot);
         let mut unresolved = base.clone();
         unresolved["lensDistortionParams"] = serde_json::Value::Null;
-        resolve_lens_params_in_adjustments(&mut unresolved, &exif, Some(&db));
+        resolve_lens_params_in_adjustments(
+            &mut unresolved,
+            &exif,
+            Some(&db),
+            Path::new("test.ARW"),
+        );
         assert_eq!(unresolved, snapshot);
         for radius in [false, true] {
             let mut old = base.clone();
@@ -7992,7 +8087,7 @@ mod lens_params_tests {
             if radius {
                 old["lensDistortionParams"]["radius_scale"] = serde_json::json!(1.8);
             }
-            resolve_lens_params_in_adjustments(&mut old, &exif, Some(&db));
+            resolve_lens_params_in_adjustments(&mut old, &exif, Some(&db), Path::new("test.ARW"));
             assert!(old["lensDistortionParams"].get("tca_poly3").is_none());
             assert_eq!(old["lensDistortionParams"]["tca_vr"], 1.003);
             assert_eq!(old["lensDistortionParams"]["tca_vb"], 0.998);

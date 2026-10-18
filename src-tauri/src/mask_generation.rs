@@ -1508,6 +1508,15 @@ pub fn generate_mask_overlay(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     if let Some(ref mut adj) = js_adjustments {
+        let source = state
+            .original_image
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|image| image.path.clone());
+        if let Some(path) = source {
+            crate::camera_lens::resolve_snapshot(adj, &path, &state);
+        }
         crate::adjustment_utils::hydrate_adjustments(&state, adj);
     }
 

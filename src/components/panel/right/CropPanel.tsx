@@ -141,8 +141,8 @@ export default function CropPanel() {
     adjustments,
     isLensExpanded,
   );
-  const hasAppliedAutoCorrection = Object.values(lensResolution?.components ?? {}).some(
-    (component) => component.applied_source !== null,
+  const hasAvailableAutoCorrection = Object.values(lensResolution?.components ?? {}).some(
+    (component) => component.available_source !== null,
   );
   const sourceName = (source: LensCorrectionSource) =>
     source === 'lensfun'
@@ -1466,9 +1466,9 @@ export default function CropPanel() {
                           <div
                             className={clsx(
                               'w-full flex items-center justify-center gap-2 p-3 text-sm rounded-md border transition-colors',
-                              detectionStatus === 'not_found' && !hasAppliedAutoCorrection
+                              detectionStatus === 'not_found' && !hasAvailableAutoCorrection
                                 ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                                : adjustments.lensMaker || hasAppliedAutoCorrection
+                                : adjustments.lensMaker || hasAvailableAutoCorrection
                                   ? 'bg-green-500/10 text-green-400 border-green-500/20'
                                   : 'bg-bg-primary border-surface text-text-secondary',
                             )}
@@ -1477,13 +1477,13 @@ export default function CropPanel() {
                               <>
                                 <Loader size={16} className="animate-spin" /> {t('modals.lensCorrection.detectingExif')}
                               </>
-                            ) : detectionStatus === 'not_found' && !hasAppliedAutoCorrection ? (
+                            ) : detectionStatus === 'not_found' && !hasAvailableAutoCorrection ? (
                               t('modals.lensCorrection.lensProfileNotFound')
                             ) : adjustments.lensMaker && adjustments.lensModel ? (
                               <>
                                 <Check size={16} /> {adjustments.lensMaker} - {adjustments.lensModel}
                               </>
-                            ) : hasAppliedAutoCorrection ? (
+                            ) : hasAvailableAutoCorrection ? (
                               <>
                                 <Check size={16} />{' '}
                                 {selectedImage?.exif?.LensModel || t('modals.lensCorrection.modeAuto')}

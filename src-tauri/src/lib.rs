@@ -39,6 +39,7 @@ mod baseline_exposure;
 mod batch_rename;
 mod bench;
 mod cache_utils;
+mod camera_lens;
 mod camera_tethering;
 mod culling;
 mod culling_preview;
@@ -227,6 +228,8 @@ pub fn generate_transformed_preview(
     adjustments: &serde_json::Value,
     preview_dim: u32,
 ) -> Result<(DynamicImage, f32, (f32, f32)), String> {
+    let resolved = crate::camera_lens::resolved_snapshot(adjustments, &loaded_image.path, state);
+    let adjustments = resolved.as_ref();
     let mut hasher = DefaultHasher::new();
     loaded_image.path.hash(&mut hasher);
     calculate_transform_hash(adjustments).hash(&mut hasher);
@@ -463,6 +466,8 @@ pub fn get_cached_full_warped_image_for_path(
         return Err(format!("'{}' is not the loaded image", path));
     }
 
+    let resolved = crate::camera_lens::resolved_snapshot(js_adjustments, &loaded_image.path, state);
+    let js_adjustments = resolved.as_ref();
     let cache_key =
         calculate_image_cache_hash(&loaded_image.path, calculate_geometry_hash(js_adjustments));
 
@@ -577,7 +582,7 @@ fn process_preview_job(
     let hydrate_span = perf_trace::span("job.hydrate_adjustments");
     hydrate_adjustments(&state, &mut adjustments_json);
     drop(hydrate_span);
-    let adjustments_clone = adjustments_json;
+    let mut adjustments_clone = adjustments_json;
 
     let loaded_image_guard = state.original_image.lock().unwrap();
     let loaded_image = loaded_image_guard
@@ -585,6 +590,7 @@ fn process_preview_job(
         .ok_or("No original image loaded")?
         .clone();
     drop(loaded_image_guard);
+    crate::camera_lens::resolve_snapshot(&mut adjustments_clone, &loaded_image.path, &state);
 
     let new_transform_hash = calculate_image_cache_hash(
         &loaded_image.path,
@@ -1007,6 +1013,7 @@ async fn generate_uncropped_preview(
         let state = app_handle.state::<AppState>();
         let path = loaded_image.path.clone();
         let is_raw = loaded_image.is_raw;
+        crate::camera_lens::resolve_snapshot(&mut adjustments_clone, &path, &state);
         let visual_hash = calculate_visual_hash(&path, &adjustments_clone);
 
         let pre_geometry_base = {
@@ -1053,7 +1060,13 @@ async fn generate_uncropped_preview(
 
         let params = crate::image_processing::get_geometry_params_from_json(&adjustments_clone);
         let mut adjusted_params = params;
-        adjusted_params.lens_vignette_amount *= if is_raw { 0.4 } else { 0.8 };
+        if adjusted_params
+            .camera_data
+            .as_ref()
+            .is_none_or(|data| data.vignetting.is_none())
+        {
+            adjusted_params.lens_vignette_amount *= if is_raw { 0.4 } else { 0.8 };
+        }
 
         let warped_image = warp_image_geometry(&pre_geometry_base, adjusted_params);
         let orientation_steps = adjustments_clone["orientationSteps"].as_u64().unwrap_or(0) as u8;
@@ -1143,7 +1156,7 @@ pub fn get_original_image(
 
 #[tauri::command]
 fn generate_preset_preview(
-    js_adjustments: serde_json::Value,
+    mut js_adjustments: serde_json::Value,
     state: tauri::State<AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<Response, String> {
@@ -1156,6 +1169,7 @@ fn generate_preset_preview(
         .clone()
         .ok_or("No original image loaded for preset preview")?;
     let is_raw = loaded_image.is_raw;
+    crate::camera_lens::resolve_snapshot(&mut js_adjustments, &loaded_image.path, &state);
     let unique_hash = calculate_full_job_hash(&loaded_image.path, &js_adjustments);
 
     const PRESET_PREVIEW_DIM: u32 = 400;
@@ -1258,7 +1272,8 @@ async fn generate_all_community_previews(
 
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
-    let mut base_thumbnails: Vec<(DynamicImage, bool, crate::as_shot::AsShot, f32)> = Vec::new();
+    let mut base_thumbnails: Vec<(DynamicImage, bool, crate::as_shot::AsShot, f32, String)> =
+        Vec::new();
     for image_path in image_paths.iter() {
         let (source_path, _) = parse_virtual_path(image_path);
         let source_path_str = source_path.to_string_lossy().to_string();
@@ -1287,6 +1302,7 @@ async fn generate_all_community_previews(
             is_raw,
             crate::as_shot::as_shot(&source_path_str),
             base_scale,
+            source_path_str,
         ));
     }
 
@@ -1298,8 +1314,11 @@ async fn generate_all_community_previews(
         preset.name.hash(&mut preset_hasher);
         let preset_hash = preset_hasher.finish();
 
-        for (i, (base_image, is_raw, as_shot, base_scale)) in base_thumbnails.iter().enumerate() {
+        for (i, (base_image, is_raw, as_shot, base_scale, source_path)) in
+            base_thumbnails.iter().enumerate()
+        {
             let mut scaled_adjustments = js_adjustments.clone();
+            crate::camera_lens::resolve_snapshot(&mut scaled_adjustments, source_path, &state);
             if let Some(crop_val) = scaled_adjustments.get_mut("crop")
                 && let Ok(c) = serde_json::from_value::<Crop>(crop_val.clone())
             {
@@ -1678,7 +1697,7 @@ pub(crate) async fn generate_measurement_pixels_for_path(
 
 async fn render_preview_for_path(
     path: String,
-    js_adjustments: Value,
+    mut js_adjustments: Value,
     target_resolution: u32,
     options: PreviewRenderOptions,
     app_handle: tauri::AppHandle,
@@ -1704,6 +1723,7 @@ async fn render_preview_for_path(
         let context = get_or_init_gpu_context(&state, &app_handle)?;
         let (source_path, _) = parse_virtual_path(&path);
         let source_path_str = source_path.to_string_lossy().to_string();
+        crate::camera_lens::resolve_snapshot(&mut js_adjustments, &source_path_str, &state);
         let is_raw = is_raw_file(&source_path_str);
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
@@ -2828,6 +2848,7 @@ pub fn run() {
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
             file_management::get_default_raw_lens_adjustments,
+            file_management::get_lens_correction_resolution,
             preset_application::load_applied_preset,
             preset_application::save_applied_preset,
             export_framing::get_instagram_framing_preview,

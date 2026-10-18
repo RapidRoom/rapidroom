@@ -74,6 +74,18 @@ pub fn geometry_signature(adjustments: &Value) -> String {
     let params = crate::image_processing::get_geometry_params_from_json(adjustments);
     let mut warp = serde_json::to_value(params).expect("Geometry parameters serialize");
     if let Some(object) = warp.as_object_mut() {
+        // Instagram framing depends on distortion, not brightness or TCA.
+        // Keep canonical distortion provenance while excluding those components.
+        if let Some(data) = object.get_mut("camera_data").and_then(Value::as_object_mut) {
+            data.retain(|key, _| key == "distortion");
+        }
+        if let Some(components) = object
+            .get_mut("lens_resolution")
+            .and_then(|resolution| resolution.get_mut("components"))
+            .and_then(Value::as_object_mut)
+        {
+            components.retain(|key, _| key == "distortion");
+        }
         object.retain(|key, _| {
             !key.contains("vignette")
                 && !key.starts_with("vig_")
@@ -120,7 +132,7 @@ fn source_adjustments(
         exif: serde_json::from_value(metadata["exif"].clone()).unwrap_or_default(),
         ..Default::default()
     };
-    crate::file_management::apply_fresh_raw_defaults(
+    crate::file_management::apply_raw_defaults_and_resolve_auto_lens(
         &mut recipe,
         source,
         sidecar,
@@ -283,13 +295,19 @@ pub fn save_instagram_framing(
     let settings = crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default();
     let state = app_handle.state::<crate::AppState>();
     let lens_db = state.lens_db.lock().unwrap().clone();
-    crate::file_management::update_export_framing(&sidecar, |metadata| {
+    save_framing_for_source(&sidecar, &source, &settings, lens_db.as_deref(), framing)
+}
+
+fn save_framing_for_source(
+    sidecar: &std::path::Path,
+    source: &std::path::Path,
+    settings: &crate::app_settings::AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+    framing: InstagramFraming,
+) -> Result<(), String> {
+    crate::file_management::update_export_framing(sidecar, |metadata| {
         if geometry_signature(&source_adjustments(
-            metadata,
-            &source,
-            &sidecar,
-            &settings,
-            lens_db.as_deref(),
+            metadata, source, sidecar, settings, lens_db,
         )) != framing.geometry_signature
         {
             return Err("Photo geometry changed; reopen Instagram framing".into());
@@ -484,6 +502,86 @@ mod framing_geometry_regression {
             assert_eq!(preview.adjustments, saved.adjustments);
             assert_eq!(save, saved.adjustments);
             assert_eq!(std::fs::read(&sidecar).unwrap(), original);
+        }
+    }
+
+    #[test]
+    fn saved_auto_frame_preview_and_save_resolve_the_physical_source_without_saving_edits() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        let sidecar = dir.path().join("photo.ARW.rrdata");
+        // A bounded physical Sony distortion tag; saved payloads below
+        // deliberately describe a different lens or source.
+        let mut bytes = b"II\x2a\0\x08\0\0\0".to_vec();
+        bytes.extend(1_u16.to_le_bytes());
+        bytes.extend(0x7037_u16.to_le_bytes());
+        bytes.extend(8_u16.to_le_bytes());
+        bytes.extend(17_u32.to_le_bytes());
+        bytes.extend(26_u32.to_le_bytes());
+        bytes.extend(0_u32.to_le_bytes());
+        bytes.extend(16_i16.to_le_bytes());
+        for value in [1024_i16; 16] {
+            bytes.extend(value.to_le_bytes());
+        }
+        std::fs::write(&raw, &bytes).unwrap();
+        // The setting controls fresh files, not previously saved Auto1 edits.
+        let settings = crate::app_settings::AppSettings {
+            auto_lens_correction_on_new_raws: Some(false),
+            ..Default::default()
+        };
+        for stale in [
+            json!({"k1":0.123,"radius_scale":1.0}),
+            json!({"camera_data":{"distortion":vec![512;16]}}),
+        ] {
+            for (mode, version) in [("auto", 1), ("auto", 0), ("manual", 1)] {
+                let saved = crate::image_processing::ImageMetadata {
+                    adjustments: json!({"lensCorrectionMode":mode,
+                        "cameraLensCorrectionVersion":version,"lensDistortionParams":stale,
+                        "lensDistortionAmount":25,"contrast":20}),
+                    exif: Some(HashMap::from([("Make".into(), "SONY".into())])),
+                    ..Default::default()
+                };
+                let original = serde_json::to_vec(&saved).unwrap();
+                std::fs::write(&sidecar, &original).unwrap();
+                let preview = crate::file_management::load_sidecar_with_raw_defaults(
+                    &sidecar, &raw, &settings, None,
+                );
+                assert_eq!(std::fs::read(&sidecar).unwrap(), original);
+                if mode == "auto" && version == 1 {
+                    assert_eq!(
+                        preview.adjustments["lensDistortionParams"]["camera_data"]["distortion"][0],
+                        1024
+                    );
+                    assert_ne!(
+                        geometry_signature(&saved.adjustments),
+                        geometry_signature(&preview.adjustments)
+                    );
+                } else {
+                    assert_eq!(preview.adjustments, saved.adjustments);
+                }
+                let framing = InstagramFraming {
+                    version: 1,
+                    ratio: InstagramRatio::Portrait,
+                    geometry_signature: geometry_signature(&preview.adjustments),
+                    frame: centered_frame(1600, 1000, InstagramRatio::Portrait),
+                };
+                // The same source/recipe check and atomic writer as the command.
+                save_framing_for_source(&sidecar, &raw, &settings, None, framing.clone()).unwrap();
+                let after: Value =
+                    serde_json::from_slice(&std::fs::read(&sidecar).unwrap()).unwrap();
+                assert_eq!(after["adjustments"], saved.adjustments);
+                assert_eq!(after["exportFraming"]["instagram"], json!(framing));
+                assert_eq!(std::fs::read(&raw).unwrap(), bytes);
+                let mut changed = after;
+                changed["adjustments"]["rotation"] = json!(5);
+                let changed_bytes = serde_json::to_vec(&changed).unwrap();
+                std::fs::write(&sidecar, &changed_bytes).unwrap();
+                assert_eq!(
+                    save_framing_for_source(&sidecar, &raw, &settings, None, framing).unwrap_err(),
+                    "Photo geometry changed; reopen Instagram framing"
+                );
+                assert_eq!(std::fs::read(&sidecar).unwrap(), changed_bytes);
+            }
         }
     }
 
