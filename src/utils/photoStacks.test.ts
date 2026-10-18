@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 import { ImageFile } from '../components/ui/AppProperties';
 import { buildImageGroups } from './imageGrouping';
-import { collapseStacks, expandStackPaths, stackKey } from './photoStacks';
+import { collapseStacks, expandStackPaths, stackKey, toggleStack } from './photoStacks';
+import { useLibraryStore } from '../store/useLibraryStore';
+import { useUIStore } from '../store/useUIStore';
 
 const image = (path: string, position?: number, id = 'burst'): ImageFile =>
   ({
@@ -32,9 +34,16 @@ describe('photo stacks shared by grid and filmstrip', () => {
     expect(collapseStacks([a, b, c], new Set())).toEqual([a, c]);
     expect(expandStackPaths([a, b, c], [a.path])).toEqual([a.path, b.path]);
   });
-  it('shows a matching member when filtering excludes the stored cover', () => {
+  it('hides a collapsed stack whose cover fails the filter instead of showing another member', () => {
+    const cover = { ...image('/photos/cover.jpg', 0), flag: 'pick' } as ImageFile;
     const member = image('/photos/member.jpg', 1);
-    expect(collapseStacks([member], new Set())).toEqual([member]);
+    const all = [member, cover];
+    // Unrated filter after rating the cover: only the unrated member passes.
+    const unratedMembersOnly = [member];
+    expect(collapseStacks(unratedMembersOnly, new Set(), all)).toEqual([]);
+    expect(collapseStacks(all, new Set(), all)).toEqual([cover]);
+    // An expanded stack follows the filter as normal.
+    expect(collapseStacks(unratedMembersOnly, new Set([stackKey(cover)]), all)).toEqual([member]);
   });
   it('preserves explicit cover and expanded members with RAW+JPEG grouping enabled', () => {
     const raw = image('/photos/pair.raw', 1);
@@ -51,4 +60,22 @@ it('does not hide or expand legacy virtual copies carrying a physical stack ID',
   expect(collapseStacks([physical, copy], new Set())).toEqual([physical, copy]);
   expect(expandStackPaths([physical, copy], [copy.path])).toEqual([copy.path]);
   expect(expandStackPaths([physical, copy], [physical.path])).toEqual([physical.path]);
+});
+
+it('moves the selection to the cover when the active member is hidden by collapsing', () => {
+  const cover = image('/photos/cover.jpg', 0);
+  const member = image('/photos/member.jpg', 1);
+  const key = stackKey(cover);
+  useUIStore.getState().setUI({ activeView: 'library' });
+  useLibraryStore.getState().setLibrary({
+    imageList: [cover, member],
+    expandedStacks: new Set([key]),
+    libraryActivePath: member.path,
+    multiSelectedPaths: [member.path],
+  });
+  toggleStack(key);
+  const state = useLibraryStore.getState();
+  expect(state.expandedStacks.has(key)).toBe(false);
+  expect(state.libraryActivePath).toBe(cover.path);
+  expect(state.multiSelectedPaths).toEqual([cover.path]);
 });

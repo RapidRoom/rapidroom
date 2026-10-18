@@ -94,3 +94,28 @@ describe('flag filter and rating sort', () => {
     ]);
   });
 });
+
+describe('stacks under an Unrated filter', () => {
+  const stacked = (path: string, position: number) => ({
+    ...makeImage(path, position),
+    stack: { id: 'bracket', position },
+  });
+  const bracket = [stacked('/x/dark.raw', 1), stacked('/x/normal.raw', 0), stacked('/x/light.raw', 2)];
+  const unrated = (imageRatings: Record<string, number>) =>
+    computeSortedLibrary(
+      {
+        imageList: bracket,
+        imageRatings,
+        filterCriteria: { colors: [], rating: -1, rawStatus: RawStatus.All },
+        searchCriteria: { tags: [], text: '', mode: 'AND' },
+        sortCriteria: { key: 'name', order: 'asc' },
+        expandedStacks: new Set(),
+      },
+      { appSettings: {} },
+    ).map((image) => image.path);
+
+  it('shows the cover while unrated, and shows nothing (not a member) once the cover is rated', () => {
+    expect(unrated({})).toEqual(['/x/normal.raw']);
+    expect(unrated({ '/x/normal.raw': 3 })).toEqual([]);
+  });
+});

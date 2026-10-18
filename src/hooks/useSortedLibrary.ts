@@ -302,7 +302,7 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
     : null;
 
   return {
-    displayList: collapseStacks(list, libraryState.expandedStacks ?? new Set()),
+    displayList: collapseStacks(list, libraryState.expandedStacks ?? new Set(), imageList),
     badges,
     matchingPhotoCount: imageList.filter((image) => matchesFilter(image) && matchesSearch(image)).length,
   };
