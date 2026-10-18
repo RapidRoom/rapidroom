@@ -8,7 +8,7 @@ as local physical photos before stacking.
 The numbered badge expands or collapses the stack in both the Library grid
 and the editor filmstrip. Expand, right-click a member and choose **Use this
 photo as the cover**. The cover is first in the stored order. When a filter or
-album excludes it, the first matching member represents the stack. Expanded
+album excludes the cover, the whole collapsed stack is hidden rather than another member appearing. Expanded
 members stay together in stored order. Existing RAW+JPEG pairing continues
 for unstacked photos; explicit stack members remain visible when expanded,
 regardless of the RAW+JPEG preference.
@@ -19,7 +19,7 @@ folder when their gap is at most the chosen number of seconds (default 1),
 using DateTimeOriginal and SubSecTimeOriginal. Existing stacks and photos
 without valid capture dates are skipped. When a proposed group's exposure
 bias (ExposureBiasValue) differs between members, as in an exposure bracket, the
-frame closest to 0 EV becomes its cover; bursts keep capture order. No stack
+frame at the median exposure becomes its cover; bursts keep capture order. No stack
 writes happen until Apply.
 
 Stars and pick/reject flags affect the selected cover by default. Enable

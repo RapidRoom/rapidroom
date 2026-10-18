@@ -65,7 +65,7 @@ fn persist_with(
 ) -> Result<Vec<StackUpdate>, String> {
     let _metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
         .lock()
-        .map_err(|e| e.to_string())?;
+        .unwrap_or_else(|e| e.into_inner());
     let paths: Vec<String> = updates
         .iter()
         .map(|(p, _)| p.to_string_lossy().into_owned())
@@ -114,7 +114,7 @@ fn persist_with(
 pub(crate) fn expanded(paths: &[String]) -> Result<Vec<PathBuf>, String> {
     let _metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
         .lock()
-        .map_err(|e| e.to_string())?;
+        .unwrap_or_else(|e| e.into_inner());
     let selected: Vec<PathBuf> = paths.iter().map(|p| source(p)).collect::<Result<_, _>>()?;
     let mut all = selected.clone();
     let mut ids: HashMap<PathBuf, HashSet<String>> = HashMap::new();
@@ -190,7 +190,7 @@ pub fn edit_photo_stack(
     paths: Vec<String>,
     action: StackAction,
 ) -> Result<Vec<StackUpdate>, String> {
-    let _lock = STACK_WRITES.lock().map_err(|e| e.to_string())?;
+    let _lock = STACK_WRITES.lock().unwrap_or_else(|e| e.into_inner());
     ensure_card_writable_for_paths(&paths)?;
     if paths.is_empty() {
         return Err("No images selected".into());
@@ -255,7 +255,9 @@ fn exposure_bias(exif: &HashMap<String, String>) -> Option<f64> {
 }
 
 // A bracket's cover is its normal exposure: when the members' exposure bias
-// differs, the frame closest to 0 EV leads. Otherwise (bursts) capture order stays.
+// differs, the member at the median bias leads. The median stays correct with
+// a camera exposure compensation dial offset (a +/-1 bracket at -0.7 is
+// -1.7/-0.7/+0.3). Otherwise (bursts) capture order stays.
 fn bracket_cover_first(groups: &mut [Vec<String>], bias: &HashMap<String, f64>) {
     for group in groups {
         let values: Option<Vec<f64>> = group.iter().map(|p| bias.get(p).copied()).collect();
@@ -266,12 +268,9 @@ fn bracket_cover_first(groups: &mut [Vec<String>], bias: &HashMap<String, f64>) 
         if hi - lo < 0.25 {
             continue;
         }
-        let mut best = 0;
-        for (i, v) in values.iter().enumerate() {
-            if v.abs() < values[best].abs() - 1e-9 {
-                best = i;
-            }
-        }
+        let mut order: Vec<usize> = (0..values.len()).collect();
+        order.sort_by(|a, b| values[*a].total_cmp(&values[*b]));
+        let best = order[(order.len() - 1) / 2];
         group[..=best].rotate_right(1);
     }
 }
@@ -360,7 +359,7 @@ pub async fn preview_photo_stacks(
 
 #[tauri::command]
 pub fn apply_photo_stacks(groups: Vec<Vec<String>>) -> Result<Vec<StackUpdate>, String> {
-    let _lock = STACK_WRITES.lock().map_err(|e| e.to_string())?;
+    let _lock = STACK_WRITES.lock().unwrap_or_else(|e| e.into_inner());
     let mut updates = Vec::new();
     let mut seen = HashSet::new();
     for group in groups {
@@ -422,7 +421,7 @@ mod tests {
     }
 
     #[test]
-    fn bracket_cover_is_the_normal_exposure_and_bursts_keep_capture_order() {
+    fn bracket_cover_is_the_median_exposure_and_bursts_keep_capture_order() {
         let ev = |pairs: &[(&str, f64)]| -> HashMap<String, f64> {
             pairs.iter().map(|(p, v)| (p.to_string(), *v)).collect()
         };
@@ -439,6 +438,13 @@ mod tests {
             &ev(&[("dark", -2.0), ("normal", 0.0), ("light", 2.0)]),
         );
         assert_eq!(groups[0], names("normal", "dark", "light"));
+        // Camera dial at -0.7: a +/-1 bracket records -1.7/-0.7/+0.3.
+        let mut offset = vec![names("dark", "normal", "light")];
+        bracket_cover_first(
+            &mut offset,
+            &ev(&[("dark", -1.7), ("normal", -0.7), ("light", 0.3)]),
+        );
+        assert_eq!(offset[0], names("normal", "dark", "light"));
         let mut burst = vec![names("a", "b", "c")];
         bracket_cover_first(&mut burst, &ev(&[("a", 0.0), ("b", 0.0), ("c", 0.0)]));
         assert_eq!(burst[0], names("a", "b", "c"));
@@ -450,6 +456,22 @@ mod tests {
         assert_eq!(exposure_bias(&one("+2 EV")), Some(2.0));
         assert_eq!(exposure_bias(&one("-2/3")), Some(-2.0 / 3.0));
         assert_eq!(exposure_bias(&HashMap::new()), None);
+    }
+
+    #[test]
+    fn malformed_stack_becomes_none_without_losing_the_rest_of_the_sidecar() {
+        for bad in [
+            "\"oops\"",
+            "{\"id\":1}",
+            "{\"id\":\"a\",\"position\":-3}",
+            "[1]",
+        ] {
+            let json =
+                format!("{{\"version\":1,\"rating\":4,\"adjustments\":null,\"stack\":{bad}}}");
+            let meta: ImageMetadata = serde_json::from_str(&json).unwrap();
+            assert!(meta.stack.is_none(), "{bad}");
+            assert_eq!(meta.rating, 4);
+        }
     }
 
     #[test]

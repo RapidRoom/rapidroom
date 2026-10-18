@@ -9,5 +9,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": false,
-  "notes": "Manual folder-scoped stacks, cover selection and shared grid/filmstrip collapse state persist membership in portable sidecars. Capture-time auto-stacking previews sub-second groups; exposure brackets get their normal (closest to 0 EV) frame as the cover. Optional whole-stack ratings/flags and saved-merge grouping; Card mode refuses writes."
+  "notes": "Manual folder-scoped stacks, cover selection and shared grid/filmstrip collapse state persist membership in portable sidecars. Capture-time auto-stacking previews sub-second groups; exposure brackets get their normal (median exposure) frame as the cover. Optional whole-stack ratings/flags and saved-merge grouping; Card mode refuses writes."
 }
