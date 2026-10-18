@@ -375,6 +375,9 @@ class Smoke:
                                       "e.complete && e.naturalWidth>100);"), "real library thumbnail")
         self.capture("library")
         self.step("library thumbnail", self.snapshot("library")["images"])
+        if (self.case / "stacks-test.json").exists():
+            from stacks import run_stack_checks
+            run_stack_checks(self, wait_for)
         if (self.case / "file-transfers-test.json").exists():
             from file_transfers import run_transfer_checks
             run_transfer_checks(self, wait_for)
@@ -633,6 +636,10 @@ def launch(args):
                         str(wheel_source), "-o", str(case / "native-wheel.so"), *flags], check=True)
         save(case / "native-wheel-injector.json", {"source_sha256": sha(wheel_source),
              "library_sha256": sha(case / "native-wheel.so"), "method": "GTK GDK_SCROLL_UP/DOWN through gtk_widget_event(WebView)"})
+    if args.stacks:
+        from stacks import prepare_stacks
+        prepare_stacks(case)
+        save(case / "stacks-test.json", {"issue": 86, "owned_synthetic_jpegs": 3})
     if args.palette:
         save(case / "palette-test.json", {"issue": 162, "real_model_requests": False})
     if args.mask_drop:
@@ -795,6 +802,7 @@ def main():
     parser.add_argument("--crs-interop", action="store_true", help="Check public CRS import and XML safety without model requests")
     parser.add_argument("--mask-drop", action="store_true", help="Check mask creation drop insertion on a sub-mask row")
     parser.add_argument("--untrusted-text", action="store_true", help="Check hostile descriptive text against real authenticated MCP without model requests")
+    parser.add_argument("--stacks", action="store_true", help="Manual and capture-time stacks, sidecars, cover and native grid/filmstrip")
     parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()

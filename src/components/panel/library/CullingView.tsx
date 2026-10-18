@@ -949,6 +949,7 @@ const Row = React.memo(
             onLoad={() => {}}
             rating={imageRatings?.[image.path] || 0}
             flag={image.flag}
+            stack={image.stack}
             tags={image.tags}
             exif={image.exif}
             isEdited={image.is_edited}

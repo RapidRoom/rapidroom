@@ -16,6 +16,7 @@ import {
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { computeSortedLibrary } from './useSortedLibrary';
+import { expandStackPaths } from '../utils/photoStacks';
 import { expandGroupedPaths } from '../utils/imageGrouping';
 import { getReferenceLabel, isReferenceCandidate } from '../utils/referenceView';
 import type { FolderTree } from '../components/panel/right/FolderTree';
@@ -34,9 +35,21 @@ const resolveTargetPaths = (paths?: string[]) => {
     paths || (multiSelectedPaths.length > 0 ? multiSelectedPaths : selectedImage ? [selectedImage.path] : []);
 
   const groupingMode = useSettingsStore.getState().appSettings?.grouping ?? 'off';
+  const applyToStack = useLibraryStore.getState().applyMetadataToStack;
+  const stackPaths = applyToStack ? expandStackPaths(imageList, selectedPaths) : selectedPaths;
   return {
     selectedPaths,
-    expandedPaths: expandGroupedPaths(imageList, selectedPaths, groupingMode),
+    applyToStack,
+    expandedPaths: [
+      ...new Set([
+        ...stackPaths.filter((p) => imageList.find((i) => i.path === p)?.stack),
+        ...expandGroupedPaths(
+          imageList,
+          stackPaths.filter((p) => !imageList.find((i) => i.path === p)?.stack),
+          groupingMode,
+        ),
+      ]),
+    ],
   };
 };
 export const clearLibrarySelection = () => {
@@ -124,7 +137,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
   const handleRate = useCallback((newRating: number, paths?: string[]) => {
     const { imageRatings, imageList, setLibrary } = useLibraryStore.getState();
 
-    const { selectedPaths, expandedPaths: pathsToRate } = resolveTargetPaths(paths);
+    const { selectedPaths, expandedPaths: pathsToRate, applyToStack } = resolveTargetPaths(paths);
     if (selectedPaths.length === 0) return;
 
     const isRejected = getImageFlag(imageList, selectedPaths[0]) === ImageFlag.Reject;
@@ -165,6 +178,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
         invoke(Invokes.SetRatingForPaths, {
           paths: pathsToRate,
           rating: finalRating,
+          ...(applyToStack ? { applyToStack: true } : {}),
         }),
       ...advanceWhenSaved(pathsToRate),
       onError: (err) => {
@@ -175,7 +189,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
   }, []);
 
   const handleSetFlag = useCallback((flag: ImageFlag | null, paths?: string[]) => {
-    const { expandedPaths } = resolveTargetPaths(paths);
+    const { expandedPaths, applyToStack } = resolveTargetPaths(paths);
     if (expandedPaths.length === 0) return;
 
     const { setLibrary } = useLibraryStore.getState();
@@ -190,7 +204,12 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
             imageList: restoreFlags(state.imageList, previous, expandedPaths),
           }));
       },
-      save: () => invoke(Invokes.SetFlagForPaths, { paths: expandedPaths, flag }),
+      save: () =>
+        invoke(Invokes.SetFlagForPaths, {
+          paths: expandedPaths,
+          flag,
+          ...(applyToStack ? { applyToStack: true } : {}),
+        }),
       ...advanceWhenSaved(expandedPaths),
       onError: (err) => {
         console.error(err);

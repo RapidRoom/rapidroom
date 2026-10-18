@@ -354,6 +354,18 @@ makes a real model request; no user library or global client config is changed.
 
 Use a pinned `native-ui-test,mcp` build plus the adapter, and pass `--lock /tmp/rapidroom-gpu.lock` when running the native harness. The real client needs account access. Raw client transcripts, endpoint credentials and private source paths stay local; publish only allowlisted summaries and inspected CC0 panels. A pass proves workflow and source use, not the aesthetic quality of the grade.
 
+### Photo stacks (#86)
+
+Run `smoke.py --stacks` with a freshly pinned native engine. The harness creates
+three owned synthetic JPEGs with explicit sub-second capture times alongside
+the CC0 RAW. Native Ctrl+G, badges and context menus create a manual stack,
+choose a cover, expand grid and filmstrip, unstack, preview a 0.15-second auto
+stack without writing, apply it, and persist whole-stack stars. Captures and
+sidecar assertions are followed by the normal real-RAW edit/export smoke.
+Rust tests reopen saved sidecars to check disk persistence. This scenario
+does not test a full application restart. Physical keyboard/mouse and other platforms
+remain human checks.
+
 `--atomic-exports` keeps the ordinary RAW GUI export, then repeats it through the
 real Export panel with overwrite disabled and checks that the earlier JPEG is
 preserved. It submits an explicit overwrite for the owned fixture with the exact

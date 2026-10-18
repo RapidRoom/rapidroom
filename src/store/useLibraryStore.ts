@@ -25,6 +25,10 @@ interface SearchCriteria {
 }
 
 interface LibraryState {
+  expandedStacks: Set<string>;
+  stackPreviewOpen: boolean;
+  applyMetadataToStack: boolean;
+  stackMergedResults: boolean;
   // Paths & Trees
   rootPaths: string[];
   cardBrowseRoot: string | null;
@@ -72,6 +76,10 @@ interface LibraryState {
 }
 
 export const useLibraryStore = create<LibraryState>((set) => ({
+  expandedStacks: new Set<string>(),
+  stackPreviewOpen: false,
+  applyMetadataToStack: false,
+  stackMergedResults: false,
   rootPaths: [],
   cardBrowseRoot: null,
   currentFolderPath: null,

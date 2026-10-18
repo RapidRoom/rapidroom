@@ -66,6 +66,16 @@ where
     Ok(serde_json::from_value(Value::deserialize(deserializer)?).unwrap_or(None))
 }
 
+// A malformed stack must not make the whole sidecar unreadable.
+fn deserialize_stack<'de, D>(
+    deserializer: D,
+) -> Result<Option<crate::photo_stacks::StackMember>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(serde_json::from_value(Value::deserialize(deserializer)?).unwrap_or(None))
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImageMetadata {
     pub version: u32,
@@ -82,6 +92,12 @@ pub struct ImageMetadata {
     pub flag: Option<ImageFlag>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub flag_is_explicit: bool,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_stack",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub stack: Option<crate::photo_stacks::StackMember>,
     #[serde(
         default,
         rename = "exportFraming",
@@ -104,6 +120,7 @@ impl Default for ImageMetadata {
             rating_is_explicit: false,
             flag: None,
             flag_is_explicit: false,
+            stack: None,
             export_framing: None,
             adjustments: Value::Null,
             tags: None,

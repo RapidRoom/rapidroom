@@ -20,7 +20,7 @@ export function buildImageGroups(
   const buckets = new Map<GroupId, ImageFile[]>();
 
   for (const image of images) {
-    if (!image.group_id || image.is_virtual_copy) continue;
+    if (!image.group_id || image.is_virtual_copy || image.stack) continue;
     if (!groupEditedFiles && image.is_edited) continue;
 
     let bucket = buckets.get(image.group_id);
