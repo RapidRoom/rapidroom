@@ -4109,7 +4109,9 @@ pub(crate) fn update_sidecar(
     sidecar_path: &Path,
     update: impl Fn(&mut ImageMetadata),
 ) -> Result<ImageMetadata, String> {
-    let _lock = SIDECAR_METADATA_LOCK.lock().map_err(|e| e.to_string())?;
+    let _lock = SIDECAR_METADATA_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut metadata = crate::exif_processing::load_sidecar_unlocked(sidecar_path);
     update(&mut metadata);
     let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
@@ -5617,7 +5619,9 @@ fn create_virtual_copy_on_disk(source_virtual_path: &str) -> Result<String, Stri
     let new_virtual_path = format!("{}?vc={}", source_path.to_string_lossy(), new_copy_id);
     let (_, new_sidecar_path) = parse_virtual_path(&new_virtual_path);
 
-    let _metadata_lock = SIDECAR_METADATA_LOCK.lock().map_err(|e| e.to_string())?;
+    let _metadata_lock = SIDECAR_METADATA_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut value = if source_sidecar_path.exists() {
         let bytes = fs::read(&source_sidecar_path).map_err(|e| e.to_string())?;
         serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?

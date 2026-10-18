@@ -566,7 +566,7 @@ fn clear_tags_in_tree(
         }
         let metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
             .lock()
-            .map_err(|e| e.to_string())?;
+            .unwrap_or_else(|e| e.into_inner());
         if let Ok(content) = fs::read_to_string(path)
             && let Ok(mut metadata) = serde_json::from_str::<ImageMetadata>(&content)
             && let Some(tags) = &mut metadata.tags

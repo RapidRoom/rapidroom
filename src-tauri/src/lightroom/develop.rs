@@ -597,7 +597,7 @@ fn apply_import(
     for mut photo in photos {
         let _metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
             .lock()
-            .map_err(|e| e.to_string())?;
+            .unwrap_or_else(|e| e.into_inner());
         let (source, _) = parse_virtual_path(&photo.preview.path);
         let unchanged = sidecar_bytes(&photo.sidecar)
             .is_ok_and(|bytes| bytes == photo.sidecar_bytes)
