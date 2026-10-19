@@ -82,13 +82,13 @@ export default function ReferencePane({
 
     const render = async () => {
       try {
-        const adjustments = await invoke<Adjustments | null>(Invokes.ReadCompareAdjustments, {
+        const adjustments = await invoke<Adjustments>(Invokes.ReadCompareAdjustments, {
           path: referencePath,
-        }).catch(() => null);
+        });
         if (!active) return;
         const bytes = await invoke<Uint8Array>(Invokes.GeneratePreviewForPath, {
           path: referencePath,
-          jsAdjustments: adjustments ?? {},
+          jsAdjustments: adjustments,
         });
         if (!active) return;
         blobUrl = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));

@@ -4456,11 +4456,27 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
     Ok(metadata)
 }
 
-/// Read a saved recipe without XMP synchronization, repair, or any filesystem write.
+/// Read a recipe without XMP synchronization, repair, or any filesystem write.
+/// Missing sidecars receive the same read-only fresh RAW defaults as the editor;
+/// malformed existing sidecars refuse comparison instead of being misrepresented as empty.
 #[tauri::command]
-pub fn read_compare_adjustments(path: String) -> Result<serde_json::Value, String> {
-    let (_, sidecar_path) = parse_virtual_path(&path);
-    let metadata = read_sidecar_report_snapshot(&sidecar_path)?;
+pub fn read_compare_adjustments(
+    path: String,
+    app_handle: AppHandle,
+) -> Result<serde_json::Value, String> {
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    let lens_db = app_handle
+        .state::<AppState>()
+        .lens_db
+        .lock()
+        .unwrap()
+        .clone();
+    let (source_path, sidecar_path) = parse_virtual_path(&path);
+    if sidecar_path.exists() {
+        read_sidecar_report_snapshot(&sidecar_path)?;
+    }
+    let metadata =
+        load_sidecar_with_raw_defaults(&sidecar_path, &source_path, &settings, lens_db.as_deref());
     serde_json::to_value(metadata.adjustments).map_err(|error| error.to_string())
 }
 

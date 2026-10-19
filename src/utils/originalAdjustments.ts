@@ -21,6 +21,8 @@ export const originalComparisonAdjustments = (adjustments: Adjustments): Adjustm
     'transformXOffset',
     'transformYOffset',
     'lensDistortionAmount',
+    'lensCorrectionMode',
+    'cameraLensCorrectionVersion',
     'lensVignetteAmount',
     'lensTcaAmount',
     'lensDistortionParams',

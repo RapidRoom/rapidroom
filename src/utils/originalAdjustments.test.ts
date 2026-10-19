@@ -8,9 +8,10 @@ describe('originalComparisonAdjustments', () => {
       ...INITIAL_ADJUSTMENTS,
       exposure: 1.2,
       contrast: 25,
-      crop: { unit: '%', x: 5, y: 10, width: 80, height: 75 },
+      crop: { unit: '%' as const, x: 5, y: 10, width: 80, height: 75 },
       rotation: 3,
       lensCorrectionMode: 'auto' as const,
+      cameraLensCorrectionVersion: 1 as const,
       baselineExposure: true,
       cameraExposureCompensation: true,
     };
@@ -22,6 +23,8 @@ describe('originalComparisonAdjustments', () => {
       rotation: 3,
       baselineExposure: true,
       cameraExposureCompensation: true,
+      lensCorrectionMode: 'auto',
+      cameraLensCorrectionVersion: 1,
     });
   });
 });

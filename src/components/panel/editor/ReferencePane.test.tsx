@@ -118,9 +118,8 @@ describe('ReferencePane', () => {
   });
 
   it('shows an unavailable state when the reference file is missing', async () => {
-    mockCommand(Invokes.ReadCompareAdjustments, () => null);
-    mockCommand(Invokes.GeneratePreviewForPath, () => {
-      throw new Error('No such file or directory');
+    mockCommand(Invokes.ReadCompareAdjustments, () => {
+      throw new Error('Malformed saved comparison recipe');
     });
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -131,6 +130,7 @@ describe('ReferencePane', () => {
       'error',
     );
     expect(container.textContent).toContain('editor.referenceView.unavailable');
+    expect(invoke.mock.calls.map(([command]) => command)).toEqual([Invokes.ReadCompareAdjustments]);
     consoleError.mockRestore();
   });
 
