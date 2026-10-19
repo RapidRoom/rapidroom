@@ -18,7 +18,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::AppState;
 use crate::cache_utils::calculate_transform_hash;
 use crate::image_processing::{
-    RenderRequest, get_all_adjustments_from_json, mark_baseline_exposure,
+    RenderRequest, copy_exposure_policy, get_all_adjustments_from_json,
     process_and_get_dynamic_image, resolve_render_options_from_handle,
 };
 
@@ -683,6 +683,7 @@ fn render_lut_swatch(
 pub fn generate_lut_previews(
     luts: Vec<LutPreviewRequest>,
     size: u32,
+    js_adjustments: Option<serde_json::Value>,
     state: State<AppState>,
     app_handle: AppHandle,
 ) -> Result<Vec<LutPreview>, String> {
@@ -694,6 +695,10 @@ pub fn generate_lut_previews(
         .clone()
         .ok_or("No original image loaded for LUT previews")?;
     let is_raw = loaded_image.is_raw;
+    let source_adjustments = js_adjustments.unwrap_or_else(|| {
+        let (_, sidecar) = crate::file_management::parse_virtual_path(&loaded_image.path);
+        crate::exif_processing::load_sidecar(&sidecar).adjustments
+    });
 
     let base_json = serde_json::json!({});
     let (base_image, _scale, _offset) =
@@ -711,7 +716,7 @@ pub fn generate_lut_previews(
                 "lutIsSceneReferred": request.is_built_in,
                 "sectionVisibility": { "effects": true }
             });
-            mark_baseline_exposure(&mut swatch_lut_json);
+            copy_exposure_policy(&source_adjustments, &mut swatch_lut_json);
             let swatch_adjustments = get_all_adjustments_from_json(
                 &swatch_lut_json,
                 is_raw,

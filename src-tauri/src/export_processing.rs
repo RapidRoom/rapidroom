@@ -1967,10 +1967,26 @@ pub(crate) async fn export_images_impl(
                     ExportAdjustmentsMode::GlobalOverride(_) => false,
                 };
 
-                let sidecar = crate::exif_processing::load_sidecar_with_camera_crop(
-                    &sidecar_path,
-                    &source_path,
-                );
+                let uses_fresh_sidecar = match &adjustments_mode {
+                    ExportAdjustmentsMode::UseSidecars {
+                        active_adjustments, ..
+                    } => !is_current_edit || active_adjustments.is_none(),
+                    ExportAdjustmentsMode::GlobalOverride(_) => false,
+                };
+                let sidecar = if uses_fresh_sidecar {
+                    let lens_db = state.lens_db.lock().unwrap().clone();
+                    crate::file_management::load_sidecar_with_raw_defaults(
+                        &sidecar_path,
+                        &source_path,
+                        &settings,
+                        lens_db.as_deref(),
+                    )
+                } else {
+                    crate::exif_processing::load_sidecar_with_camera_crop(
+                        &sidecar_path,
+                        &source_path,
+                    )
+                };
                 let export_xmp = crate::exif_processing::ExportXmp::from_metadata(&sidecar);
                 let framing = export_settings.instagram.as_ref().and_then(|instagram| {
                     instagram
@@ -2014,6 +2030,7 @@ pub(crate) async fn export_images_impl(
                         &source_path,
                     );
                 }
+                crate::camera_lens::resolve_snapshot(&mut js_adjustments, &source_path_str, &state);
                 hydrate_adjustments(&state, &mut js_adjustments);
                 let is_raw = is_raw_file(&source_path_str);
                 let original_path = std::path::Path::new(&source_path_str);
@@ -2321,7 +2338,20 @@ pub(crate) async fn export_images_impl(
                         "batch-export-progress",
                         serde_json::json!({ "current": total_paths, "total": total_paths, "path": "" }),
                     );
-                    let _ = app_handle.emit("export-complete", ());
+                    let instagram_output_folder =
+                        export_settings.instagram.as_ref().and_then(|_| {
+                            if export_settings.destination_type.as_deref() == Some("originalFolder")
+                            {
+                                None
+                            } else if is_explicit_file_path {
+                                output_folder_path.parent()
+                            } else {
+                                Some(output_folder_path)
+                            }
+                        });
+                    let _ = app_handle.emit("export-complete", serde_json::json!({
+                        "instagramOutputFolder": instagram_output_folder.map(|p| p.to_string_lossy())
+                    }));
                 }
             },
         );
@@ -2621,8 +2651,20 @@ pub async fn estimate_export_sizes(
     let source_path_str = source_path.to_string_lossy().to_string();
 
     if let Some(instagram) = &export_settings.instagram {
-        let metadata =
-            crate::exif_processing::load_sidecar_with_camera_crop(&sidecar_path, &source_path);
+        let uses_fresh_sidecar =
+            Some(first_path) != current_edit_path.as_ref() || current_edit_adjustments.is_none();
+        let metadata = if uses_fresh_sidecar {
+            let settings = load_settings(app_handle.clone()).unwrap_or_default();
+            let lens_db = state.lens_db.lock().unwrap().clone();
+            crate::file_management::load_sidecar_with_raw_defaults(
+                &sidecar_path,
+                &source_path,
+                &settings,
+                lens_db.as_deref(),
+            )
+        } else {
+            crate::exif_processing::load_sidecar_with_camera_crop(&sidecar_path, &source_path)
+        };
         let adjustments = if Some(first_path) == current_edit_path.as_ref() {
             current_edit_adjustments.unwrap_or(metadata.adjustments)
         } else {
@@ -2676,6 +2718,7 @@ pub async fn estimate_export_sizes(
             .clone()
             .ok_or("No original image loaded")?;
         let mut adjustments_clone = current_edit_adjustments.clone().unwrap();
+        crate::camera_lens::resolve_snapshot(&mut adjustments_clone, &loaded_image.path, &state);
         hydrate_adjustments(&state, &mut adjustments_clone);
 
         let new_transform_hash = calculate_transform_hash(&adjustments_clone);

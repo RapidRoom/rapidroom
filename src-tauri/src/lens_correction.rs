@@ -165,6 +165,8 @@ pub struct TcaPolynomial {
 
 #[derive(Serialize, Clone)]
 pub struct LensDistortionParams {
+    #[serde(skip)]
+    pub components: [bool; 3],
     k1: f64,
     k2: f64,
     k3: f64,
@@ -593,6 +595,11 @@ impl Lens {
         };
 
         Some(LensDistortionParams {
+            components: [
+                !distortions.is_empty(),
+                !tcas.is_empty(),
+                !vignettings.is_empty(),
+            ],
             k1,
             k2,
             k3,
@@ -1062,6 +1069,18 @@ pub fn find_best_lens_match(
     find_lens_by_camera_mount(db, maker, camera_model).map(|lens| lens_result(db, lens))
 }
 
+/// Model words that identify a distinct optical design rather than a spelling
+/// variation. These must survive an automatic fuzzy match.
+fn model_qualifiers(model: &str) -> Vec<String> {
+    model
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter_map(|word| {
+            let word = word.to_ascii_lowercase();
+            matches!(word.as_str(), "macro" | "ii" | "iii" | "iv").then_some(word)
+        })
+        .collect()
+}
+
 fn find_lens_by_fuzzy_model(
     db: &LensDatabase,
     maker: &str,
@@ -1070,6 +1089,20 @@ fn find_lens_by_fuzzy_model(
     let clean_maker = maker.trim().trim_matches('"').to_string();
     let clean_model = model.trim().trim_matches('"').to_string();
     let matcher = fuzzy_matcher::skim::SkimMatcherV2::default().ignore_case();
+
+    // Fuzzy matching is useful for the punctuation and maker-prefix variants
+    // cameras write, but it must not turn a newer optical design into the
+    // older Lensfun profile. In particular, Sony's FE 70-200mm F4 Macro G OSS
+    // II is not the FE 70-200mm f/4 G OSS. Keep explicit generation and
+    // optical-design qualifiers as hard requirements.
+    let required_qualifiers = model_qualifiers(&clean_model);
+    let is_compatible = |lens: &Lens| {
+        let names = [lens.get_full_model_name(), lens.get_canonical_model_name()];
+        names.iter().any(|name| {
+            let qualifiers = model_qualifiers(name);
+            required_qualifiers.iter().all(|q| qualifiers.contains(q))
+        })
+    };
 
     let lenses_from_maker: Vec<&Lens> = db
         .lenses
@@ -1080,6 +1113,7 @@ fn find_lens_by_fuzzy_model(
     if !lenses_from_maker.is_empty() {
         let best_match = lenses_from_maker
             .iter()
+            .filter(|lens| is_compatible(lens))
             .filter_map(|lens| {
                 let english_name = lens.get_full_model_name();
                 let canonical_name = lens.get_canonical_model_name();
@@ -1119,6 +1153,7 @@ fn find_lens_by_fuzzy_model(
     let best_match_fallback = db
         .lenses
         .iter()
+        .filter(|lens| is_compatible(lens))
         .filter_map(|lens| {
             let english_name = lens.get_full_model_name();
             let canonical_name = lens.get_canonical_model_name();
@@ -1315,6 +1350,7 @@ pub fn resolve_lens_params(
         merged.k3 = p.k3;
         merged.model = p.model;
         merged.radius_scale = p.radius_scale;
+        merged.components[0] = p.components[0];
     }
 
     if let Some(source) = group.iter().find(|l| l.has_tca_data())
@@ -1323,6 +1359,7 @@ pub fn resolve_lens_params(
         merged.tca_vr = p.tca_vr;
         merged.tca_vb = p.tca_vb;
         merged.tca_poly3 = p.tca_poly3;
+        merged.components[1] = p.components[1];
     }
 
     if let Some(source) = group.iter().find(|l| l.has_vignetting_data())
@@ -1331,6 +1368,7 @@ pub fn resolve_lens_params(
         merged.vig_k1 = p.vig_k1;
         merged.vig_k2 = p.vig_k2;
         merged.vig_k3 = p.vig_k3;
+        merged.components[2] = p.components[2];
     }
 
     Some(merged)
@@ -1619,6 +1657,19 @@ mod tests {
         assert!((crop.vig_k1 - same.vig_k1 * s.powi(2)).abs() < 1e-12);
         assert!((crop.vig_k2 - same.vig_k2 * s.powi(4)).abs() < 1e-12);
         assert!((crop.vig_k3 - same.vig_k3 * s.powi(6)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn auto_does_not_substitute_the_old_sony_70_200_for_macro_ii() {
+        let db = load_bundled_db();
+
+        // The bundled database has the older FE 70-200mm f/4 G OSS, but not
+        // the optically different Macro G OSS II. Auto must leave this lens
+        // unresolved instead of silently applying the old profile.
+        assert!(
+            find_best_lens_match(&db, "SONY", "FE 70-200mm F4 Macro G OSS II", "ILCE-7CM2",)
+                .is_none()
+        );
     }
 
     /// A full frame lens on a crop body, mounted through an adapter.

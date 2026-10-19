@@ -1352,6 +1352,29 @@
       "communityPresets": "Paramètres prédéfinis de la communauté",
       "goHome": "Aller à l'accueil",
       "importImages": "Importer des images"
+    },
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again.",
+      "descendants_many": "{{count}} photos in subfolders.",
+      "descendantsPartial_many": "At least {{count}} photos in subfolders.",
+      "total_many": "{{count}} photos",
+      "filtered_many": "{{count}} of {{total}} photos"
     }
   },
   "masks": {
@@ -1596,6 +1619,13 @@
       "title": "Paramètres d'importation"
     },
     "lensCorrection": {
+      "sourceApplied": "Appliqué : {{source}}",
+      "sourceAvailable": "Disponible : {{source}}",
+      "sourceCameraData": "Données de l’appareil",
+      "sourceExistingRecipe": "réglages enregistrés",
+      "sourceNoData": "Aucune donnée de correction",
+      "sourceUnavailable": "Sources de correction indisponibles",
+      "sourceChecking": "Vérification des sources de correction…",
       "amount": "Quantité",
       "apply": "Appliquer",
       "autoDetectLens": "Détection automatique de l'objectif",
@@ -2085,6 +2115,9 @@
       },
       "nativeDpi": "Rendre à la DPI native",
       "preprocessing": {
+        "autoLensCorrection": "Correction automatique de l’objectif pour les nouveaux RAW",
+        "autoLensCorrectionDesc": "Applique les corrections disponibles à la première ouverture ou à la réinitialisation d’une photo RAW. Les retouches enregistrées conservent leurs réglages.",
+        "enableAutoLensCorrection": "Utiliser la correction automatique de l’objectif par défaut",
         "appleRaw9": "Moteur Apple RAW 9",
         "appleRaw9Desc": "Développe les fichiers RAW avec le décodeur RAW 9 de Core Image d'Apple, qui effectue le dématriçage et la réduction de bruit en une seule étape sur le Neural Engine. Nécessite macOS 27 ou ultérieur et un appareil photo pris en charge ; les fichiers non pris en charge utilisent automatiquement le décodeur intégré. Plus lent que le décodeur par défaut. Les miniatures ne sont pas affectées.",
         "applyPreprocessing": "Appliquer le prétraitement aux Non-RAW",
@@ -2092,7 +2125,7 @@
         "baselineExposure": "Exposition de base",
         "baselineExposureAmount": "Valeur de base",
         "baselineExposureAmountDesc": "Exposition ajoutée aux fichiers RAW. darktable utilise +0,7 IL.",
-        "baselineExposureDesc": "Éclaircit tous les fichiers RAW d'une valeur fixe, comme le réglage par défaut de darktable en mode relatif à la scène, plus la balise DNG BaselineExposure si elle est présente. Les images retouchées avant l'ajout de cette option ne sont pas modifiées.",
+        "baselineExposureDesc": "Applique une augmentation fixe de l’exposition aux anciennes retouches utilisant l’exposition de base. Les retouches RAW nouvelles ou réinitialisées utilisent à la place la compensation d’exposition de l’appareil ou du DNG.",
         "colorNr": "Réduction du bruit colorimétrique de base",
         "colorNrDesc": "Applique un filtre bilatéral croisé tôt dans le traitement pour éliminer le bruit de chrominance. Valeur plus élevée = Réduction plus forte.",
         "defaultNonRawTonemapper": "Mappeur de tons par défaut (Non-RAW)",

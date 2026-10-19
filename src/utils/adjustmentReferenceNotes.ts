@@ -4,7 +4,9 @@
 // no note or a note's key no longer exists.
 export const ADJUSTMENT_NOTES: Record<string, string> = {
   baselineExposure:
-    'Eligibility marker for Settings baseline/highlight-preservation compensation: new/reset images use true; legacy sidecars without the marker use false. Does not change the Exposure slider or enable the Settings option.',
+    'Eligibility marker for baseline/highlight-preservation compensation. Fresh/reset images use true; older sidecars without it use false. With cameraExposureCompensation=false, the original Settings baseline path is retained. Does not change the Exposure slider.',
+  cameraExposureCompensation:
+    'Fresh/reset RAW baseline policy: DNG BaselineExposure plus Offset takes precedence, including explicit zero; otherwise supported Sony A7C II/A7R V use +0.35 EV. Does not add the generic Settings scene lift. Missing/false on saved recipes keeps legacy behavior; baselineExposure still controls eligibility.',
   exposure:
     '+ brightens linear light before tone mapping: ×2^(value/0.8), so 1.0 is about +1.25 EV. The first slider for overall brightness.',
   toneMapper:

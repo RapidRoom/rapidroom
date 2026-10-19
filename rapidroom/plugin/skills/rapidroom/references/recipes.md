@@ -48,7 +48,7 @@ The user wants to see a few directions before choosing one: "show me three looks
 
 **Until then, with proposed edits**:
 
-1. Make the base edit first (geometry, white balance, exposure) and save its state from `get_active_image_state`.
+1. Make the base edit first (geometry, white balance, exposure) and save its full state from `get_active_image_state(nonDefaultOnly: false)`.
 2. Pick two or three different directions that suit this photo, from [looks.md](looks.md) or the user's words. Different in key, colour or mood, not five shades of the same thing.
 3. Call `render_compare` once with named variants and temporary `changes` for those directions, at about 800 px. Keep a common approved crop if the current build requires matching geometry. Use separate proposed `get_preview` calls only if comparison is unavailable.
 4. Show the comparison with a one-line description each: "**Gold and black**: deep shadows, warm light on the face; the blue jacket is muted." Inspect shadow and midtone subject detail before accepting a strong curve.

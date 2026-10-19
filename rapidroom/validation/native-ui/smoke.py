@@ -2,6 +2,7 @@
 """Exercise the real Linux release on a private Weston compositor (issue #134)."""
 
 import argparse
+import base64
 import fcntl
 import hashlib
 import json
@@ -150,6 +151,9 @@ class Smoke:
         return {"label": label, "requested": value, "before": before, "after": after}
 
     def crop(self, path):
+        native=path.with_suffix('.preview.png')
+        if native.exists():
+            with Image.open(native) as image:return image.convert('RGB')
         with Image.open(path) as image:
             return image.convert("RGB").crop(self.roi)
 
@@ -158,6 +162,13 @@ class Smoke:
         for attempt in range(12):
             time.sleep(0.5)
             path = self.capture(name + "-" + str(attempt))
+            if (self.case / "presets-test.json").exists():
+                frame=request(self.url+'/execute/async',{'script':"""const done=arguments[arguments.length-1];
+                  const images=[...document.querySelectorAll('svg image')].filter(e=>{const r=e.getBoundingClientRect();return r.width>500&&r.height>300&&Number(getComputedStyle(e).opacity)>.99});
+                  const image=images.at(-1);if(!image){done({error:'Native preview missing'});return;}
+                  const decoded=new Image();decoded.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=decoded.naturalWidth;canvas.height=decoded.naturalHeight;canvas.getContext('2d').drawImage(decoded,0,0);done({png:canvas.toDataURL('image/png').split(',')[1]})}catch(e){done({error:String(e)})}};decoded.onerror=()=>done({error:'Preview decode failed'});decoded.src=image.getAttribute('href');""",'args':[]})['value']
+                if 'error' in frame:raise RuntimeError(frame)
+                path.with_suffix('.preview.png').write_bytes(base64.b64decode(frame['png']))
             image = self.crop(path)
             if previous is not None and ImageChops.difference(previous, image).getbbox() is None:
                 stats = ImageStat.Stat(image)
@@ -364,6 +375,9 @@ class Smoke:
                                       "e.complete && e.naturalWidth>100);"), "real library thumbnail")
         self.capture("library")
         self.step("library thumbnail", self.snapshot("library")["images"])
+        if (self.case / "stacks-test.json").exists():
+            from stacks import run_stack_checks
+            run_stack_checks(self, wait_for)
         if (self.case / "file-transfers-test.json").exists():
             from file_transfers import run_transfer_checks
             run_transfer_checks(self, wait_for)
@@ -622,6 +636,10 @@ def launch(args):
                         str(wheel_source), "-o", str(case / "native-wheel.so"), *flags], check=True)
         save(case / "native-wheel-injector.json", {"source_sha256": sha(wheel_source),
              "library_sha256": sha(case / "native-wheel.so"), "method": "GTK GDK_SCROLL_UP/DOWN through gtk_widget_event(WebView)"})
+    if args.stacks:
+        from stacks import prepare_stacks
+        prepare_stacks(case)
+        save(case / "stacks-test.json", {"issue": 86, "owned_synthetic_jpegs": 3})
     if args.palette:
         save(case / "palette-test.json", {"issue": 162, "real_model_requests": False})
     if args.mask_drop:
@@ -784,6 +802,7 @@ def main():
     parser.add_argument("--crs-interop", action="store_true", help="Check public CRS import and XML safety without model requests")
     parser.add_argument("--mask-drop", action="store_true", help="Check mask creation drop insertion on a sub-mask row")
     parser.add_argument("--untrusted-text", action="store_true", help="Check hostile descriptive text against real authenticated MCP without model requests")
+    parser.add_argument("--stacks", action="store_true", help="Manual and capture-time stacks, sidecars, cover and native grid/filmstrip")
     parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()

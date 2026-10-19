@@ -1,3 +1,4 @@
+import { showInstagramExportComplete } from '../utils/instagramExportToast';
 import { showTransferSummary, type TransferSummary } from '../utils/fileTransfers';
 import { useEffect, useRef } from 'react';
 import { listen as tauriListen, type Event, type UnlistenFn } from '@tauri-apps/api/event';
@@ -7,6 +8,7 @@ import type {
   CullingSuggestions,
   ImageFile,
   ImageFlag,
+  StackMember,
   HistogramData,
   Progress,
   WaveformData,
@@ -42,7 +44,7 @@ interface TauriEventPayloads {
   'external-edit-session': ExternalEditSession;
   'export-cancelled': null;
   'export-cancelling': null;
-  'export-complete': null;
+  'export-complete': { instagramOutputFolder?: string | null } | null;
   'export-error': string;
   'focus-stack-complete': { base64: string; depthMap: string };
   'focus-stack-error': string;
@@ -56,6 +58,7 @@ interface TauriEventPayloads {
     path: string;
     rating: number;
     tags: string[] | null;
+    stack?: StackMember | null;
   };
   'import-complete': TransferSummary;
   'import-error': string;
@@ -220,12 +223,12 @@ export function useTauriListeners({
       }),
       listen('image-metadata-loaded', (event) => {
         if (!isEffectActive) return;
-        const { path, rating, flag, is_edited, tags } = event.payload;
+        const { path, rating, flag, is_edited, tags, stack } = event.payload;
 
         useLibraryStore.getState().setLibrary((state) => ({
           imageRatings: { ...state.imageRatings, [path]: rating },
           imageList: state.imageList.map((img) =>
-            img.path === path ? { ...img, flag, is_edited, tags: tags ?? img.tags } : img,
+            img.path === path ? { ...img, flag, is_edited, stack, tags: tags ?? img.tags } : img,
           ),
         }));
       }),
@@ -254,9 +257,10 @@ export function useTauriListeners({
       listen('batch-export-progress', (event) => {
         if (isEffectActive) useProcessStore.getState().setExportState({ progress: event.payload });
       }),
-      listen('export-complete', () => {
+      listen('export-complete', (event) => {
         if (isEffectActive) {
           useProcessStore.getState().setExportState({ status: Status.Success });
+          if (event.payload?.instagramOutputFolder) showInstagramExportComplete(event.payload.instagramOutputFolder);
           refreshAfterExport();
         }
       }),

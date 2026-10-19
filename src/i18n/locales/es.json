@@ -1352,6 +1352,29 @@
       "communityPresets": "Ajustes de la comunidad",
       "goHome": "Ir al Inicio",
       "importImages": "Importar imágenes"
+    },
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again.",
+      "descendants_many": "{{count}} photos in subfolders.",
+      "descendantsPartial_many": "At least {{count}} photos in subfolders.",
+      "total_many": "{{count}} photos",
+      "filtered_many": "{{count}} of {{total}} photos"
     }
   },
   "masks": {
@@ -1596,6 +1619,13 @@
       "title": "Ajustes de importación"
     },
     "lensCorrection": {
+      "sourceApplied": "Aplicado: {{source}}",
+      "sourceAvailable": "Disponible: {{source}}",
+      "sourceCameraData": "Datos de la cámara",
+      "sourceExistingRecipe": "edición guardada",
+      "sourceNoData": "Sin datos de corrección",
+      "sourceUnavailable": "Fuentes de corrección no disponibles",
+      "sourceChecking": "Comprobando fuentes de corrección…",
       "amount": "Cantidad",
       "apply": "Aplicar",
       "autoDetectLens": "Autodetectar lente",
@@ -2085,6 +2115,9 @@
       },
       "nativeDpi": "Renderizar en DPI nativo",
       "preprocessing": {
+        "autoLensCorrection": "Corrección automática del objetivo para RAW nuevos",
+        "autoLensCorrectionDesc": "Aplica las correcciones disponibles al abrir por primera vez o restablecer una foto RAW. Las ediciones guardadas conservan sus ajustes.",
+        "enableAutoLensCorrection": "Usar la corrección automática del objetivo por defecto",
         "appleRaw9": "Motor Apple RAW 9",
         "appleRaw9Desc": "Revela archivos RAW con el decodificador RAW 9 de Core Image de Apple, que realiza el interpolado cromático y reduce el ruido en un solo paso en el Neural Engine. Requiere macOS 27 o posterior y una cámara compatible; los archivos no compatibles usan automáticamente el decodificador integrado. Más lento que el decodificador predeterminado. Las miniaturas no se ven afectadas.",
         "applyPreprocessing": "Aplicar preprocesamiento a los no RAW",
@@ -2092,7 +2125,7 @@
         "baselineExposure": "Exposición base",
         "baselineExposureAmount": "Cantidad base",
         "baselineExposureAmountDesc": "Exposición añadida a los archivos RAW. darktable usa +0,7 EV.",
-        "baselineExposureDesc": "Aclara todos los archivos RAW en una cantidad fija, como el valor predeterminado de darktable en modo referido a la escena, más la etiqueta DNG BaselineExposure si existe. Las imágenes editadas antes de que existiera esta opción no se ven afectadas.",
+        "baselineExposureDesc": "Aplica un aumento fijo de exposición a las ediciones antiguas que usan la exposición base. Las ediciones RAW nuevas o restablecidas usan la compensación de exposición de la cámara o DNG en lugar de este aumento fijo.",
         "colorNr": "Reducción base del ruido de color",
         "colorNrDesc": "Aplica un filtro bilateral cruzado temprano en el pipeline para eliminar el ruido de croma. Valor más alto = mayor reducción.",
         "defaultNonRawTonemapper": "Mapeador de tonos predeterminado no RAW",

@@ -1,8 +1,6 @@
 import { DenoiseBadge } from '../DenoiseQueue';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  Ban,
-  Flag,
   Image as ImageIcon,
   Folder,
   FolderOpen,
@@ -16,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { useDraggable } from '@dnd-kit/core';
 import { COLOR_LABELS, Color } from '../../../utils/adjustments';
 import FlagBadges from '../../ui/FlagBadges';
+import StackBadge from '../../ui/StackBadge';
 import { ThumbnailAspectRatio, ImageFile, ImageFlag, ExifOverlay } from '../../ui/AppProperties';
 import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights, TEXT_COLOR_KEYS } from '../../../types/typography';
@@ -47,6 +46,7 @@ const ThumbnailComponent = ({
   exif,
   isCloudPlaceholder,
   groupBadgeLabel,
+  stack,
   onAspectRatioLoaded,
 }: any) => {
   const { t } = useTranslation();
@@ -167,7 +167,7 @@ const ThumbnailComponent = ({
   const isRejected = flag === ImageFlag.Reject;
   const hasRating = rating > 0 && !isRejected;
   const hasGroupBadge = !!groupBadgeLabel;
-  const hasAnyOverlay = hasEditIcon || hasColorLabel || hasRating || !!flag || hasGroupBadge;
+  const hasAnyOverlay = hasEditIcon || hasColorLabel || hasRating || !!flag || hasGroupBadge || !!stack;
 
   return (
     <div
@@ -183,6 +183,7 @@ const ThumbnailComponent = ({
         e.stopPropagation();
         onImageClick(path, e);
       }}
+      data-image-path={path}
       onContextMenu={(e: any) => onContextMenu(e, path)}
       onDoubleClick={() => onImageDoubleClick(path)}
     >
@@ -304,7 +305,8 @@ const ThumbnailComponent = ({
             <StarIcon size={12} className="text-white fill-white" />
           </div>
 
-          <FlagBadges flag={flag} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating} />
+          <StackBadge path={path} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating} />
+          <FlagBadges flag={flag} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating || !!stack} />
 
           <div
             className={clsx(
@@ -644,6 +646,7 @@ const ListItemComponent = ({
         e.stopPropagation();
         onImageClick(path, e);
       }}
+      data-image-path={path}
       onContextMenu={(e: any) => onContextMenu(e, path)}
       onDoubleClick={() => onImageDoubleClick(path)}
     >
@@ -711,6 +714,7 @@ const ListItemComponent = ({
         <Text variant={TextVariants.small} className="truncate" weight={TextWeights.medium} color={TextColors.primary}>
           {baseName}
         </Text>
+        <StackBadge path={path} />
         <DenoiseBadge path={path} inline />
         {isVirtualCopy && (
           <Text
@@ -734,22 +738,22 @@ const ListItemComponent = ({
 
       <div style={{ width: getW('rating') }} className="flex items-center px-3 h-full overflow-hidden">
         {isRejected ? (
-          <div className="flex items-center gap-1">
-            <Ban size={12} className="text-text-secondary" />
-            <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate">
+          <div className="flex items-center">
+            <FlagBadges flag={flag} hasPrecedingBadge={false} />
+            <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate ml-1">
               {t('library.items.rejected')}
             </Text>
           </div>
         ) : (
-          <div className="flex items-center gap-1">
-            {flag === ImageFlag.Pick && <Flag size={12} className="text-accent fill-accent" />}
+          <div className="flex items-center">
+            <FlagBadges flag={flag} hasPrecedingBadge={false} />
             {rating > 0 && (
-              <>
+              <div className={clsx('flex items-center gap-1', flag === ImageFlag.Pick && 'ml-1.5')}>
                 <StarIcon size={12} className="text-accent fill-accent" />
                 <Text variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
                   {rating}
                 </Text>
-              </>
+              </div>
             )}
           </div>
         )}
@@ -978,6 +982,7 @@ const RowComponent = ({
                 isEdited={imageFile.is_edited}
                 aspectRatio={thumbnailAspectRatio}
                 isCloudPlaceholder={imageFile.is_cloud_placeholder}
+                stack={imageFile.stack}
                 groupBadgeLabel={imageFile.group_id && groupBadgeInfo?.get(imageFile.group_id)?.label}
                 onAspectRatioLoaded={onAspectRatioLoaded}
               />

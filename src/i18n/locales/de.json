@@ -1324,6 +1324,25 @@
       "communityPresets": "Community-Vorgaben",
       "goHome": "Zur Startseite",
       "importImages": "Bilder importieren"
+    },
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again."
     }
   },
   "masks": {
@@ -1565,6 +1584,13 @@
       "title": "Importeinstellungen"
     },
     "lensCorrection": {
+      "sourceApplied": "Angewendet: {{source}}",
+      "sourceAvailable": "Verfügbar: {{source}}",
+      "sourceCameraData": "Kameradaten",
+      "sourceExistingRecipe": "gespeicherte Bearbeitung",
+      "sourceNoData": "Keine Korrekturdaten",
+      "sourceUnavailable": "Korrekturquellen nicht verfügbar",
+      "sourceChecking": "Korrekturquellen werden geprüft…",
       "amount": "Betrag",
       "apply": "Anwenden",
       "autoDetectLens": "Objektiv autom. erkennen",
@@ -2045,6 +2071,9 @@
       },
       "nativeDpi": "In nativer DPI rendern",
       "preprocessing": {
+        "autoLensCorrection": "Automatische Objektivkorrektur für neue RAWs",
+        "autoLensCorrectionDesc": "Verfügbare Objektivkorrekturen beim ersten Öffnen oder Zurücksetzen eines RAW-Fotos anwenden. Gespeicherte Bearbeitungen behalten ihre Einstellungen.",
+        "enableAutoLensCorrection": "Automatische Objektivkorrektur standardmäßig verwenden",
         "appleRaw9": "Apple RAW 9 Engine",
         "appleRaw9Desc": "Entwickelt RAW-Dateien mit Apples Core-Image-Decoder RAW 9, der Demosaicing und Entrauschen in einem Schritt auf der Neural Engine ausführt. Erfordert macOS 27 oder neuer und eine unterstützte Kamera; nicht unterstützte Dateien verwenden automatisch den integrierten Decoder. Langsamer als der Standard-Decoder. Vorschaubilder sind nicht betroffen.",
         "applyPreprocessing": "Vorverarbeitung auf Nicht-RAWs anwenden",
@@ -2052,7 +2081,7 @@
         "baselineExposure": "Basisbelichtung",
         "baselineExposureAmount": "Basiswert",
         "baselineExposureAmountDesc": "Belichtung, die zu RAW-Dateien addiert wird. darktable verwendet +0,7 LW.",
-        "baselineExposureDesc": "Hellt alle RAW-Dateien um einen festen Wert auf, wie die szenenbezogene Voreinstellung von darktable, zuzüglich des DNG-Tags BaselineExposure, falls vorhanden. Bilder, die vor Einführung dieser Option bearbeitet wurden, sind nicht betroffen.",
+        "baselineExposureDesc": "Wendet eine feste Aufhellung auf ältere Bearbeitungen mit Basisbelichtung an. Neue und zurückgesetzte RAW-Bearbeitungen verwenden stattdessen die Belichtungskorrektur der Kamera oder des DNG.",
         "colorNr": "Basis-Farbrauschreduzierung",
         "colorNrDesc": "Wendet früh in der Pipeline einen Filter an, um Farbrauschen zu entfernen. Höherer Wert = Stärkere Reduzierung.",
         "defaultNonRawTonemapper": "Standard-Tonemapper (Nicht-RAW)",

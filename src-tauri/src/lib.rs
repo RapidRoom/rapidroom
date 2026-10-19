@@ -39,8 +39,10 @@ mod baseline_exposure;
 mod batch_rename;
 mod bench;
 mod cache_utils;
+mod camera_lens;
 mod camera_tethering;
 mod culling;
+mod culling_preview;
 mod dcp;
 mod denoise_quality;
 mod denoising;
@@ -54,6 +56,7 @@ mod file_naming;
 mod file_transfer;
 mod focus_stacking;
 mod fog;
+mod folder_counts;
 mod formats;
 mod gpu_processing;
 mod guided_perspective;
@@ -89,6 +92,7 @@ mod output_sharpening;
 mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
+mod photo_stacks;
 mod preset_application;
 mod preset_converter;
 mod preset_xmp;
@@ -107,6 +111,7 @@ mod terminal_pty;
 mod test_support;
 mod tree_denoise;
 mod two_phase_rename;
+mod video_notice;
 mod white_balance;
 mod window_customizer;
 mod xmp;
@@ -223,6 +228,8 @@ pub fn generate_transformed_preview(
     adjustments: &serde_json::Value,
     preview_dim: u32,
 ) -> Result<(DynamicImage, f32, (f32, f32)), String> {
+    let resolved = crate::camera_lens::resolved_snapshot(adjustments, &loaded_image.path, state);
+    let adjustments = resolved.as_ref();
     let mut hasher = DefaultHasher::new();
     loaded_image.path.hash(&mut hasher);
     calculate_transform_hash(adjustments).hash(&mut hasher);
@@ -459,6 +466,8 @@ pub fn get_cached_full_warped_image_for_path(
         return Err(format!("'{}' is not the loaded image", path));
     }
 
+    let resolved = crate::camera_lens::resolved_snapshot(js_adjustments, &loaded_image.path, state);
+    let js_adjustments = resolved.as_ref();
     let cache_key =
         calculate_image_cache_hash(&loaded_image.path, calculate_geometry_hash(js_adjustments));
 
@@ -573,7 +582,7 @@ fn process_preview_job(
     let hydrate_span = perf_trace::span("job.hydrate_adjustments");
     hydrate_adjustments(&state, &mut adjustments_json);
     drop(hydrate_span);
-    let adjustments_clone = adjustments_json;
+    let mut adjustments_clone = adjustments_json;
 
     let loaded_image_guard = state.original_image.lock().unwrap();
     let loaded_image = loaded_image_guard
@@ -581,6 +590,7 @@ fn process_preview_job(
         .ok_or("No original image loaded")?
         .clone();
     drop(loaded_image_guard);
+    crate::camera_lens::resolve_snapshot(&mut adjustments_clone, &loaded_image.path, &state);
 
     let new_transform_hash = calculate_image_cache_hash(
         &loaded_image.path,
@@ -1003,6 +1013,7 @@ async fn generate_uncropped_preview(
         let state = app_handle.state::<AppState>();
         let path = loaded_image.path.clone();
         let is_raw = loaded_image.is_raw;
+        crate::camera_lens::resolve_snapshot(&mut adjustments_clone, &path, &state);
         let visual_hash = calculate_visual_hash(&path, &adjustments_clone);
 
         let pre_geometry_base = {
@@ -1049,7 +1060,13 @@ async fn generate_uncropped_preview(
 
         let params = crate::image_processing::get_geometry_params_from_json(&adjustments_clone);
         let mut adjusted_params = params;
-        adjusted_params.lens_vignette_amount *= if is_raw { 0.4 } else { 0.8 };
+        if adjusted_params
+            .camera_data
+            .as_ref()
+            .is_none_or(|data| data.vignetting.is_none())
+        {
+            adjusted_params.lens_vignette_amount *= if is_raw { 0.4 } else { 0.8 };
+        }
 
         let warped_image = warp_image_geometry(&pre_geometry_base, adjusted_params);
         let orientation_steps = adjustments_clone["orientationSteps"].as_u64().unwrap_or(0) as u8;
@@ -1139,7 +1156,7 @@ pub fn get_original_image(
 
 #[tauri::command]
 fn generate_preset_preview(
-    js_adjustments: serde_json::Value,
+    mut js_adjustments: serde_json::Value,
     state: tauri::State<AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<Response, String> {
@@ -1152,6 +1169,7 @@ fn generate_preset_preview(
         .clone()
         .ok_or("No original image loaded for preset preview")?;
     let is_raw = loaded_image.is_raw;
+    crate::camera_lens::resolve_snapshot(&mut js_adjustments, &loaded_image.path, &state);
     let unique_hash = calculate_full_job_hash(&loaded_image.path, &js_adjustments);
 
     const PRESET_PREVIEW_DIM: u32 = 400;
@@ -1254,7 +1272,8 @@ async fn generate_all_community_previews(
 
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
-    let mut base_thumbnails: Vec<(DynamicImage, bool, crate::as_shot::AsShot, f32)> = Vec::new();
+    let mut base_thumbnails: Vec<(DynamicImage, bool, crate::as_shot::AsShot, f32, String)> =
+        Vec::new();
     for image_path in image_paths.iter() {
         let (source_path, _) = parse_virtual_path(image_path);
         let source_path_str = source_path.to_string_lossy().to_string();
@@ -1283,6 +1302,7 @@ async fn generate_all_community_previews(
             is_raw,
             crate::as_shot::as_shot(&source_path_str),
             base_scale,
+            source_path_str,
         ));
     }
 
@@ -1294,8 +1314,11 @@ async fn generate_all_community_previews(
         preset.name.hash(&mut preset_hasher);
         let preset_hash = preset_hasher.finish();
 
-        for (i, (base_image, is_raw, as_shot, base_scale)) in base_thumbnails.iter().enumerate() {
+        for (i, (base_image, is_raw, as_shot, base_scale, source_path)) in
+            base_thumbnails.iter().enumerate()
+        {
             let mut scaled_adjustments = js_adjustments.clone();
+            crate::camera_lens::resolve_snapshot(&mut scaled_adjustments, source_path, &state);
             if let Some(crop_val) = scaled_adjustments.get_mut("crop")
                 && let Ok(c) = serde_json::from_value::<Crop>(crop_val.clone())
             {
@@ -1568,8 +1591,43 @@ async fn generate_preview_for_path(
     ))
 }
 
+#[tauri::command]
+async fn generate_culling_preview_for_path(
+    path: String,
+    js_adjustments: Value,
+    generation: usize,
+    app_handle: tauri::AppHandle,
+) -> Result<Response, String> {
+    match render_preview_for_path(
+        path,
+        js_adjustments,
+        0,
+        PreviewRenderOptions {
+            cancel_token: Some(culling_preview::token(generation)),
+            ..PreviewRenderOptions::default()
+        },
+        app_handle,
+    )
+    .await?
+    {
+        RenderedPreview::Jpeg { bytes, .. } => Ok(Response::new(bytes)),
+        #[cfg(feature = "mcp")]
+        RenderedPreview::Pixels(_) => Err("Expected encoded preview".into()),
+    }
+}
+
+#[derive(Default)]
+struct PreviewRenderOptions {
+    native_region: Option<(u32, u32, u32, u32)>,
+    raw_pixels: bool,
+    cancel_token: Option<culling_preview::CancelToken>,
+}
+
 enum RenderedPreview {
-    Jpeg(Vec<u8>),
+    Jpeg {
+        bytes: Vec<u8>,
+        finished_dimensions: (u32, u32),
+    },
     #[cfg(feature = "mcp")]
     Pixels(DynamicImage),
 }
@@ -1580,17 +1638,32 @@ pub async fn generate_preview_bytes_for_path(
     target_resolution: u32,
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<u8>, String> {
+    generate_preview_with_geometry_for_path(path, js_adjustments, target_resolution, app_handle)
+        .await
+        .map(|(bytes, _)| bytes)
+}
+
+// Framing belongs to the finished image, before rounding its thumbnail dimensions.
+// Keep the existing bytes-only API for callers that do not need geometry.
+pub(crate) async fn generate_preview_with_geometry_for_path(
+    path: String,
+    js_adjustments: Value,
+    target_resolution: u32,
+    app_handle: tauri::AppHandle,
+) -> Result<(Vec<u8>, (u32, u32)), String> {
     match render_preview_for_path(
         path,
         js_adjustments,
         target_resolution,
-        None,
-        false,
+        PreviewRenderOptions::default(),
         app_handle,
     )
     .await?
     {
-        RenderedPreview::Jpeg(bytes) => Ok(bytes),
+        RenderedPreview::Jpeg {
+            bytes,
+            finished_dimensions,
+        } => Ok((bytes, finished_dimensions)),
         #[cfg(feature = "mcp")]
         RenderedPreview::Pixels(_) => Err("Expected encoded preview".into()),
     }
@@ -1608,42 +1681,49 @@ pub(crate) async fn generate_measurement_pixels_for_path(
         path,
         js_adjustments,
         target_resolution,
-        native_region,
-        true,
+        PreviewRenderOptions {
+            native_region,
+            raw_pixels: true,
+            ..PreviewRenderOptions::default()
+        },
         app_handle,
     )
     .await?
     {
         RenderedPreview::Pixels(image) => Ok(image),
-        RenderedPreview::Jpeg(_) => Err("Expected uncompressed rendered pixels".into()),
+        RenderedPreview::Jpeg { .. } => Err("Expected uncompressed rendered pixels".into()),
     }
 }
 
 async fn render_preview_for_path(
     path: String,
-    js_adjustments: Value,
+    mut js_adjustments: Value,
     target_resolution: u32,
-    native_region: Option<(u32, u32, u32, u32)>,
-    raw_pixels: bool,
+    options: PreviewRenderOptions,
     app_handle: tauri::AppHandle,
 ) -> Result<RenderedPreview, String> {
-    // Culling fires one of these per image and nothing here is cancellable, so
-    // without a permit a burst of navigation stacks up full decodes — each
+    let PreviewRenderOptions {
+        native_region,
+        raw_pixels,
+        cancel_token,
+    } = options;
+    // Keep one full decode in flight, cancelling superseded culling requests
+    // before they acquire the permit. Otherwise navigation stacks up images — each
     // holding the source image plus its f16 RGBA upload buffer (~190 MB for a
     // 24MP frame) before it ever reaches the GPU mutex. Enough of them in
     // flight exhausts system memory.
     let decode_permit = app_handle.state::<AppState>().decode_permit.clone();
-    let decode_permit = decode_permit
-        .acquire_owned()
-        .await
-        .map_err(|e| e.to_string())?;
+    let decode_permit =
+        culling_preview::acquire_decode_permit(decode_permit, &cancel_token).await?;
 
     tokio::task::spawn_blocking(move || {
         let _decode_permit = decode_permit;
+        culling_preview::ensure_current(&cancel_token)?;
         let state = app_handle.state::<AppState>();
         let context = get_or_init_gpu_context(&state, &app_handle)?;
         let (source_path, _) = parse_virtual_path(&path);
         let source_path_str = source_path.to_string_lossy().to_string();
+        crate::camera_lens::resolve_snapshot(&mut js_adjustments, &source_path_str, &state);
         let is_raw = is_raw_file(&source_path_str);
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
@@ -1655,7 +1735,7 @@ async fn render_preview_for_path(
                 &js_adjustments,
                 false,
                 &settings,
-                None,
+                cancel_token.clone(),
             )
             .map_err(|e| e.to_string())?,
             Err(e) => {
@@ -1671,12 +1751,13 @@ async fn render_preview_for_path(
                     &js_adjustments,
                     false,
                     &settings,
-                    None,
+                    cancel_token.clone(),
                 )
                 .map_err(|e| e.to_string())?
             }
         };
 
+        culling_preview::ensure_current(&cancel_token)?;
         drop(load_span);
         let transform_span = perf_trace::span("full.transform");
         let (transformed_image, unscaled_crop_offset) =
@@ -1730,6 +1811,7 @@ async fn render_preview_for_path(
         let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
         let unique_hash = calculate_full_job_hash(&source_path_str, &js_adjustments);
 
+        culling_preview::ensure_current(&cancel_token)?;
         let final_image = process_and_get_dynamic_image(
             &context,
             &state,
@@ -1744,7 +1826,8 @@ async fn render_preview_for_path(
             "generate_preview_for_path",
         )?;
 
-        let (width, height) = final_image.dimensions();
+        let finished_dimensions = final_image.dimensions();
+        let (width, height) = finished_dimensions;
         let final_image = if let Some((x, y, width, height)) = native_region {
             final_image.crop_imm(x, y, width, height)
         } else if target_resolution > 0 && (width > target_resolution || height > target_resolution)
@@ -1768,7 +1851,11 @@ async fn render_preview_for_path(
             .encode_rgb(&rgb_pixels, width, height)
             .map_err(|e| format!("Failed to encode with mozjpeg-rs: {}", e))?;
 
-        Ok(RenderedPreview::Jpeg(bytes))
+        culling_preview::ensure_current(&cancel_token)?;
+        Ok(RenderedPreview::Jpeg {
+            bytes,
+            finished_dimensions,
+        })
     })
     .await
     .map_err(|e| format!("Task execution failed: {}", e))?
@@ -2641,6 +2728,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             apply_adjustments,
             generate_preview_for_path,
+            culling_preview::begin_culling_preview_batch,
+            generate_culling_preview_for_path,
             generate_preset_preview,
             generate_uncropped_preview,
             get_log_file_path,
@@ -2658,6 +2747,7 @@ pub fn run() {
             save_temp_file,
             get_image_dimensions,
             frontend_ready,
+            video_notice::count_unshown_videos,
             cancel_thumbnail_generation,
             update_wgpu_transform,
             sample_display_area,
@@ -2709,6 +2799,7 @@ pub fn run() {
             file_management::update_exif_fields,
             file_management::set_card_browse_root,
             file_management::get_supported_file_types,
+            folder_counts::count_folder_photos,
             file_management::read_exif_for_paths,
             file_management::list_images_in_dir,
             file_management::list_images_recursive,
@@ -2728,6 +2819,8 @@ pub fn run() {
             file_management::generate_export_filename,
             file_management::duplicate_file,
             file_management::show_in_finder,
+            file_management::instagram_export_folder,
+            file_management::open_export_folder,
             terminal::open_terminal_here,
             terminal::is_terminal_supported,
             #[cfg(all(feature = "terminal", any(target_os = "linux", target_os = "macos", target_os = "windows")))]
@@ -2754,6 +2847,8 @@ pub fn run() {
             file_management::import_matching_xmp_sidecars_in_folder,
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
+            file_management::get_default_raw_lens_adjustments,
+            file_management::get_lens_correction_resolution,
             preset_application::load_applied_preset,
             preset_application::save_applied_preset,
             export_framing::get_instagram_framing_preview,
@@ -2776,6 +2871,9 @@ pub fn run() {
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,
             file_management::set_flag_for_paths,
+            photo_stacks::edit_photo_stack,
+            photo_stacks::preview_photo_stacks,
+            photo_stacks::apply_photo_stacks,
             file_management::import_files,
             file_management::create_virtual_copy,
             file_management::get_albums,
@@ -2806,6 +2904,12 @@ pub fn run() {
             camera_tethering::tether_get_preview,
             camera_tethering::tether_autofocus,
             guided_perspective::calculate_guided_perspective,
+            #[cfg(feature = "mcp")]
+            mcp::validate_mcp_adjustments,
+            #[cfg(feature = "mcp")]
+            mcp::create_mcp_virtual_copy,
+            #[cfg(feature = "mcp")]
+            mcp::set_mcp_image_metadata,
             #[cfg(feature = "mcp")]
             mcp::ui_response,
             #[cfg(feature = "mcp")]

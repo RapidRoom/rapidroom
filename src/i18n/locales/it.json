@@ -1354,6 +1354,29 @@
       "communityPresets": "Predefiniti della Community",
       "goHome": "Torna alla Home page",
       "importImages": "Importa Immagini"
+    },
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again.",
+      "descendants_many": "{{count}} photos in subfolders.",
+      "descendantsPartial_many": "At least {{count}} photos in subfolders.",
+      "total_many": "{{count}} photos",
+      "filtered_many": "{{count}} of {{total}} photos"
     }
   },
   "masks": {
@@ -1599,6 +1622,13 @@
       "title": "Impostazioni di Importazione"
     },
     "lensCorrection": {
+      "sourceApplied": "Applicato: {{source}}",
+      "sourceAvailable": "Disponibile: {{source}}",
+      "sourceCameraData": "Dati della fotocamera",
+      "sourceExistingRecipe": "modifiche salvate",
+      "sourceNoData": "Nessun dato di correzione",
+      "sourceUnavailable": "Sorgenti di correzione non disponibili",
+      "sourceChecking": "Verifica delle sorgenti di correzione…",
       "amount": "Quantità",
       "apply": "Applica",
       "autoDetectLens": "Rilevamento Automatico Obiettivo",
@@ -2088,6 +2118,9 @@
       },
       "nativeDpi": "Renderizza al DPI nativo",
       "preprocessing": {
+        "autoLensCorrection": "Correzione automatica obiettivo per i nuovi RAW",
+        "autoLensCorrectionDesc": "Applica le correzioni disponibili alla prima apertura o al ripristino di una foto RAW. Le modifiche salvate mantengono le impostazioni.",
+        "enableAutoLensCorrection": "Usa la correzione automatica obiettivo per impostazione predefinita",
         "appleRaw9": "Motore Apple RAW 9",
         "appleRaw9Desc": "Sviluppa i file RAW con il decodificatore RAW 9 di Core Image di Apple, che esegue la demosaicizzazione e la riduzione del rumore in un solo passaggio sul Neural Engine. Richiede macOS 27 o successivo e una fotocamera supportata; i file non supportati utilizzano automaticamente il decodificatore integrato. Più lento del decodificatore predefinito. Le miniature non ne sono influenzate.",
         "applyPreprocessing": "Applica Pre-elaborazione a File non RAW",
@@ -2095,7 +2128,7 @@
         "baselineExposure": "Esposizione di base",
         "baselineExposureAmount": "Valore di base",
         "baselineExposureAmountDesc": "Esposizione aggiunta ai file RAW. darktable usa +0,7 EV.",
-        "baselineExposureDesc": "Schiarisce tutti i file RAW di un valore fisso, come l'impostazione predefinita di darktable in modalità scene-referred, più il tag DNG BaselineExposure se presente. Le immagini modificate prima dell'introduzione di questa opzione non cambiano.",
+        "baselineExposureDesc": "Applica un aumento fisso dell’esposizione alle modifiche precedenti che usano l’esposizione di base. Le modifiche RAW nuove o ripristinate usano invece la compensazione dell’esposizione della fotocamera o del DNG.",
         "colorNr": "Riduzione Rumore Cromatico di Base",
         "colorNrDesc": "Applica un filtro bilaterale incrociato all'inizio del processo per rimuovere il rumore cromatico. Valore più alto = Riduzione Rumore (NR) più forte.",
         "defaultNonRawTonemapper": "Tonemapper Predefinito per Non-RAW",

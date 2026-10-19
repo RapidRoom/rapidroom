@@ -1129,7 +1129,16 @@
       "drag": "Move Instagram frame with drag or arrow keys",
       "loading": "Preparing or saving framing…",
       "disable": "Use ordinary export settings",
-      "retry": "Reload framing"
+      "retry": "Reload framing",
+      "chooseFolder": "Choose Instagram folder…",
+      "useDatedFolder": "Use dated Pictures folder",
+      "defaultFolder": "Pictures/Instagram/YYYY-MM-DD",
+      "openFolder": "Open folder",
+      "complete": "Instagram export complete. Ready to upload in your browser.",
+      "guide": "Instagram composition guide",
+      "strip": "Photo frames",
+      "selectPhoto": "Frame photo {{index}}: {{name}}",
+      "adjustFrame": "Adjust frame"
     }
   },
   "library": {
@@ -1141,7 +1150,8 @@
       "browseFailed": "Failed to browse the card: {{error}}",
       "browseTooltip": "Browse a memory card read-only",
       "editNotSaved": "Card mode is read-only: edits stay in memory and aren't saved to the card. Import the photo to keep them.",
-      "opened": "Card opened read-only. RapidRoom won't change anything on it; import photos to keep your edits."
+      "opened": "Card opened read-only. RapidRoom won't change anything on it; import photos to keep your edits.",
+      "videoNotice": "On this card. Photo import excludes videos."
     },
     "community": {
       "actionSave": "Save",
@@ -1405,6 +1415,27 @@
       "communityPresets": "Community Presets",
       "goHome": "Go to Home",
       "importImages": "Import Images"
+    },
+    "videosNotShown_one": "{{count}} video not shown",
+    "videosNotShown_other": "{{count}} videos not shown",
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again."
     }
   },
   "masks": {
@@ -1643,9 +1674,17 @@
       "organizeByDate": "Organize into subfolders by date",
       "sourceFiles": "Source Files",
       "startImport": "Start Import",
-      "title": "Import Settings"
+      "title": "Import Settings",
+      "photosOnly": "Imports photos only. Videos are not copied or removed."
     },
     "lensCorrection": {
+      "sourceApplied": "Applied: {{source}}",
+      "sourceAvailable": "Available: {{source}}",
+      "sourceCameraData": "Camera data",
+      "sourceExistingRecipe": "existing recipe",
+      "sourceNoData": "No correction data",
+      "sourceUnavailable": "Correction sources unavailable",
+      "sourceChecking": "Checking correction sources…",
       "amount": "Amount",
       "apply": "Apply",
       "autoDetectLens": "Auto-detect Lens",
@@ -1864,7 +1903,8 @@
     "categories": {
       "general": "General",
       "processing": "Processing",
-      "shortcuts": "Controls"
+      "shortcuts": "Controls",
+      "view": "View"
     },
     "controls": {
       "keyboardTitle": "Keyboard Controls",
@@ -2047,7 +2087,9 @@
         "zoom_in_step": "Zoom in (by step)",
         "zoom_out": "Zoom out",
         "zoom_out_step": "Zoom out (by step)",
-        "toggle_denoise_mark": "Toggle denoise mark"
+        "toggle_denoise_mark": "Toggle denoise mark",
+        "export_instagram": "Export for Instagram",
+        "toggle_dock_height": "Expand or restore AI panel"
       },
       "sections": {
         "editing": "Editing",
@@ -2171,6 +2213,9 @@
       },
       "nativeDpi": "Render at native DPI",
       "preprocessing": {
+        "autoLensCorrection": "Auto lens correction for new RAWs",
+        "autoLensCorrectionDesc": "Apply available lens corrections when first opening or resetting a RAW photo. Saved edits keep their settings.",
+        "enableAutoLensCorrection": "Use Auto lens correction by default",
         "appleRaw9": "Apple RAW 9 Engine",
         "appleRaw9Desc": "Develop RAW files with Apple's Core Image RAW 9 decoder, which demosaics and denoises in one step on the Neural Engine. Requires macOS 27 or later and a supported camera; unsupported files automatically use the built-in decoder. Slower than the default decoder. Thumbnails are not affected.",
         "applyPreprocessing": "Apply Preprocessing to Non-RAWs",
@@ -2178,7 +2223,7 @@
         "baselineExposure": "Baseline Exposure",
         "baselineExposureAmount": "Baseline Amount",
         "baselineExposureAmountDesc": "Exposure added to RAW files. darktable uses +0.7 EV.",
-        "baselineExposureDesc": "Brightens every RAW file by a fixed amount, like darktable's scene-referred default, plus the DNG BaselineExposure tag when present. Images edited before this option existed are not affected.",
+        "baselineExposureDesc": "Applies a fixed exposure lift to older edits using baseline exposure. Fresh and reset RAW edits use camera/DNG exposure compensation instead of this fixed lift.",
         "colorNr": "Base Color Noise Reduction",
         "colorNrDesc": "Applies a cross-bilateral filter early in the pipeline to remove chroma noise. Higher value = Stronger NR.",
         "defaultNonRawTonemapper": "Default Non-RAW Tonemapper",
@@ -2296,6 +2341,13 @@
     "title": "Settings",
     "tooltips": {
       "goHome": "Go to Home"
+    },
+    "view": {
+      "shootingInfo": "Show shooting info in editor and culling",
+      "shootingInfoDesc": "Lens, focal length, aperture, shutter speed and ISO above each photo. Long lens names shorten first.",
+      "always": "Always",
+      "onHover": "On hover",
+      "off": "Off"
     }
   },
   "terminal": {
@@ -2323,7 +2375,13 @@
     "enableAndStart": "Enable and start",
     "resizeLeftDock": "Resize left panel",
     "resizeRightDock": "Resize right panel",
-    "collapsePanel": "Collapse terminal panel"
+    "collapsePanel": "Collapse terminal panel",
+    "introTitle": "Start an AI assistant",
+    "introConnection": "Click Claude Code or Codex above to connect the assistant to the open photo. Enable Settings → Let AI assistants control RapidRoom when prompted.",
+    "introShell": "Typing claude or codex in a plain shell starts without RapidRoom tools. Press any key for a plain shell.",
+    "introFont": "Change the panel font size in Terminal preferences (gear).",
+    "plainShell": "Plain shell",
+    "toggleDockHeightHint": "Double-click to expand or restore the panel"
   },
   "tethering": {
     "aperture": "Aperture",
@@ -2499,5 +2557,27 @@
     "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
     "cancelled": "Cancelled. Run the queue again to resume.",
     "errors": "Errors"
+  },
+  "stacks": {
+    "menu": "Stacks",
+    "create": "Stack selected photos (Ctrl+G)",
+    "unstack": "Unstack (Ctrl+Shift+G)",
+    "cover": "Use this photo as the cover",
+    "expandCollapse": "Expand / collapse stack",
+    "auto": "Auto-stack by capture time…",
+    "wholeMetadata": "Apply stars and flags to whole stacks (this session)",
+    "mergedResults": "Stack saved merge results with sources (this session)",
+    "badge_one": "Expand or collapse stack ({{count}} photo)",
+    "badge_other": "Expand or collapse stack ({{count}} photos)",
+    "failed": "Could not save stack: {{error}}",
+    "mergeSaved": "The merged image was saved, but stacking failed: {{error}}",
+    "explanation": "Groups consecutive shots in each folder by the gap between capture times, including sub-seconds. Existing stacks and photos without capture dates are skipped. Preview covers the loaded folder or album, including filtered-out photos.",
+    "gap": "Maximum gap (seconds)",
+    "previewCount_one": "{{count}} stack proposed",
+    "previewCount_other": "{{count}} stacks proposed",
+    "cancel": "Cancel",
+    "preview": "Preview",
+    "apply": "Apply stacks",
+    "renameGroups": "Use saved photo stacks"
   }
 }

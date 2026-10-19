@@ -1,0 +1,13 @@
+{
+  "id": "default-auto-lens-raw",
+  "title": "Use Auto lens correction for fresh and reset RAWs",
+  "category": "feature",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "A default-on Settings preference resolves Auto lens correction for fresh/reset RAWs and unopened sidecar-based exports. Saved recipes preserve legacy behavior; a discrete camera-fallback version travels with explicit lens-policy copies and presets without changing numeric Amount interpolation or tone-only policies. Changed-only Tools and Merge copies compare against their source photo’s resolved Reset defaults, preserving unrelated target policies; full Styles/Replace copies retain full settings. Saved preset configuration preserves explicit and legacy exposure policies. Auto source labels use renderer-reported component provenance. Validated Sony camera-data rendering and the source-status command are delivered by the lens resolver dependency."
+}

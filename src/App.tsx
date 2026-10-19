@@ -13,7 +13,7 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ToastContainer, toast, Slide } from 'react-toastify';
+import { toast } from 'react-toastify';
 import {
   DndContext,
   DragOverlay,
@@ -33,6 +33,7 @@ import SettingsPanel from './components/panel/SettingsPanel';
 import ExportPanel from './components/panel/right/ExportPanel';
 import GlobalTooltip from './components/ui/GlobalTooltip';
 import AppModals from './components/modals/AppModals';
+import AppNotifications from './components/ui/AppNotifications';
 import CommandPalette from './components/ui/CommandPalette';
 
 import SidePanelArea from './components/panel/SidePanelArea';
@@ -64,6 +65,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTauriListeners } from './hooks/useTauriListeners';
 import { useFileOperations } from './hooks/useFileOperations';
 import { useAppContextMenus } from './hooks/useAppContextMenus';
+import AutoStackModal from './components/modals/AutoStackModal';
 import { useSortedLibrary } from './hooks/useSortedLibrary';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { useExternalEditSession } from './hooks/useExternalEditSession';
@@ -409,7 +411,7 @@ function App() {
     return () => setImageSelectHandler(null);
   }, [handleImageSelect]);
 
-  const { displayList: sortedImageList, badges: groupBadgeInfo } = useSortedLibrary();
+  const { displayList: sortedImageList, badges: groupBadgeInfo, matchingPhotoCount } = useSortedLibrary();
 
   const handleLibraryRefresh = useCallback(async () => {
     if (currentFolderPath) {
@@ -435,7 +437,18 @@ function App() {
     }
   }, [currentFolderPath, handleSelectSubfolder, handleSelectAlbum]);
 
+  const savedLibraryViewMode = appSettings ? (appSettings.libraryViewMode ?? defaultLibraryViewMode) : null;
+  const previousLibraryViewMode = useRef(savedLibraryViewMode);
+  useEffect(() => {
+    const previous = previousLibraryViewMode.current;
+    previousLibraryViewMode.current = savedLibraryViewMode;
+    if (previous !== null && savedLibraryViewMode !== null && previous !== savedLibraryViewMode) {
+      void handleLibraryRefresh().catch((error) => console.error('Failed to reload library display mode:', error));
+    }
+  }, [savedLibraryViewMode, handleLibraryRefresh]);
+
   const {
+    requestDeletePaths,
     executeDelete,
     handleDeleteSelected,
     handleDeleteRejected,
@@ -495,7 +508,7 @@ function App() {
   });
 
   useAndroidBackHandler();
-  useMcpBridge(handleImageSelect);
+  useMcpBridge(handleImageSelect, { requestDeletePaths, refreshImageList: handleLibraryRefresh });
 
   useKeyboardShortcuts({
     sortedImageList,
@@ -900,6 +913,7 @@ function App() {
 
   return (
     <CloudAuthProvider>
+      <AutoStackModal />
       <DenoiseQueue />
       <ImageProcessingManager
         transformWrapperRef={transformWrapperRef}
@@ -1011,6 +1025,7 @@ function App() {
                   )}
                 >
                   <LibraryView
+                    matchingPhotoCount={matchingPhotoCount}
                     sortedImageList={sortedImageList}
                     groupBadgeInfo={groupBadgeInfo}
                     thumbnailSize={thumbnailSize}
@@ -1104,25 +1119,7 @@ function App() {
           handleRenameAlbumItem={handleRenameAlbumItem}
           refreshAllFolderTrees={refreshAllFolderTrees}
         />
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable={false}
-          pauseOnHover
-          theme={isLightTheme ? 'light' : 'dark'}
-          transition={Slide}
-          toastClassName={() =>
-            clsx(
-              'relative flex min-h-16 p-4 rounded-lg justify-between overflow-hidden cursor-pointer mb-4',
-              'bg-surface! text-text-primary! border! border-border-color! shadow-2xl! max-w-[420px]!',
-            )
-          }
-        />
+        <AppNotifications isLightTheme={isLightTheme} />
       </div>
     </CloudAuthProvider>
   );

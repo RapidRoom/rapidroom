@@ -581,6 +581,10 @@ pub struct AppSettings {
     #[serde(default)]
     pub last_instagram_export_preset_id: Option<String>,
     #[serde(default)]
+    pub instagram_export_folder: Option<String>,
+    #[serde(default)]
+    pub show_instagram_guide: bool,
+    #[serde(default)]
     pub my_lenses: Option<Vec<MyLens>>,
     #[serde(default)]
     pub enable_folder_image_counts: Option<bool>,
@@ -647,6 +651,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub exif_overlay: Option<String>,
     #[serde(default)]
+    pub shooting_info_visibility: Option<String>,
+    #[serde(default)]
     pub language: Option<String>,
     #[serde(default)]
     pub folder_tree_sort: Option<FolderTreeSort>,
@@ -668,6 +674,8 @@ pub struct AppSettings {
     pub group_preferred_type: Option<String>,
     #[serde(default)]
     pub always_decode_raw_thumbnails: Option<bool>,
+    #[serde(default)]
+    pub auto_lens_correction_on_new_raws: Option<bool>,
     #[serde(default)]
     pub custom_aspect_ratios: Vec<CustomAspectRatio>,
     #[serde(default)]
@@ -727,6 +735,8 @@ impl Default for AppSettings {
             export_presets: default_export_presets(),
             last_selected_export_preset_id: None,
             last_instagram_export_preset_id: None,
+            instagram_export_folder: None,
+            show_instagram_guide: false,
             my_lenses: Some(Vec::new()),
             #[cfg(target_os = "android")]
             high_res_zoom_multiplier: Some(0.75),
@@ -773,6 +783,7 @@ impl Default for AppSettings {
             apply_preprocessing_to_non_raws: Some(false),
             use_apple_raw9: Some(false),
             exif_overlay: Some("off".to_string()),
+            shooting_info_visibility: Some("always".to_string()),
             language: Some("en".to_string()),
             folder_tree_sort: Some(FolderTreeSort::default()),
             lightroom_path_mappings: Some(HashMap::new()),
@@ -783,6 +794,7 @@ impl Default for AppSettings {
             group_associated_files: Some(false),
             group_preferred_type: Some("raw".to_string()),
             always_decode_raw_thumbnails: Some(false),
+            auto_lens_correction_on_new_raws: Some(true),
             custom_aspect_ratios: Vec::new(),
             adjustment_layout: AdjustmentLayout::default(),
             adjustment_density: None,
@@ -897,6 +909,27 @@ pub fn save_settings(settings: AppSettings, app_handle: AppHandle) -> Result<(),
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shooting_info_setting_survives_save_and_old_settings_load() {
+        let mut saved = serde_json::to_value(AppSettings::default()).unwrap();
+        assert_eq!(saved["shootingInfoVisibility"], "always");
+        saved
+            .as_object_mut()
+            .unwrap()
+            .remove("shootingInfoVisibility");
+        let old: AppSettings = serde_json::from_value(saved.clone()).unwrap();
+        assert!(old.shooting_info_visibility.is_none());
+        for mode in ["always", "hover", "off"] {
+            saved["shootingInfoVisibility"] = serde_json::json!(mode);
+            let loaded: AppSettings = serde_json::from_value(saved.clone()).unwrap();
+            assert_eq!(loaded.shooting_info_visibility.as_deref(), Some(mode));
+            assert_eq!(
+                serde_json::to_value(loaded).unwrap()["shootingInfoVisibility"],
+                mode
+            );
+        }
+    }
 
     #[test]
     fn existing_preferences_do_not_enable_ai_control() {
