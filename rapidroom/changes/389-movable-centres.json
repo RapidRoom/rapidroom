@@ -1,0 +1,13 @@
+{
+  "id": "movable-centres",
+  "title": "Move vignette and centr\u00e9 centres directly on the image",
+  "category": "feature",
+  "landed": "2026-10-19",
+  "authors": ["CyberTimon", "yojen7"],
+  "source": "Adapted from RapidRAW movable on-canvas centres",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/b39884b38d8f148caef6fd0d52afd264951be329"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Reuses four uniform padding slots and legacy 0.5 centre defaults so existing renders stay unchanged. Adds independent draggable centres and midpoint reset, with bounded typed MCP updates and existing mixer/WB/relight picker behavior preserved."
+}
