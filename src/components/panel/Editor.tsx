@@ -122,6 +122,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const referenceView = useEditorStore((s) => s.referenceView);
   const dispatchReferenceView = useEditorStore((s) => s.dispatchReferenceView);
   const isReferenceViewOn = isReferenceViewActive(referenceView);
+  const isReferenceWipe = referenceView.mode === 'wipe';
   const isSliderDragging = useEditorStore((s) => s.isSliderDragging);
   const targetZoom = useEditorStore((s) => s.zoom);
   const zoomRequest = useEditorStore((s) => s.zoomRequest);
@@ -278,6 +279,13 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const editingText = target?.matches('input, textarea, [contenteditable="true"]');
+      if (!editingText && !e.metaKey && !e.ctrlKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        dispatchReferenceView({ type: 'toggle-wipe' });
+        return;
+      }
       if (e.key === 'Shift') {
         setIsShiftPressed(true);
       }
@@ -314,7 +322,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
     };
-  }, []);
+  }, [dispatchReferenceView]);
 
   useEffect(() => {
     const clearCropResizeStart = () => {
@@ -2425,6 +2433,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onToggleShowOriginal={toggleShowOriginal}
           isReferenceViewActive={isReferenceViewOn}
           onToggleReferenceView={() => dispatchReferenceView({ type: 'toggle' })}
+          isWipeActive={isReferenceWipe}
+          onToggleWipe={() => dispatchReferenceView({ type: 'toggle-wipe' })}
           onUndo={undo}
           selectedImage={selectedImage}
           showOriginal={showOriginal}
@@ -2434,130 +2444,144 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         />
       </div>
 
-      <div className={clsx('lights-out-content flex-1 flex min-h-0 min-w-0', isReferenceViewOn && 'gap-2')}>
+      <div
+        className={clsx(
+          'lights-out-content flex-1 flex min-h-0 min-w-0',
+          isReferenceViewOn && !isReferenceWipe && 'gap-2',
+        )}
+      >
         {isReferenceViewOn && (
           <ReferencePane
             isChooserOpen={referenceView.isChooserOpen}
+            mode={isReferenceWipe ? 'wipe' : 'side-by-side'}
+            comparisonUrl={finalPreviewUrl ?? selectedImage.thumbnailUrl}
+            originalUrl={selectedImage.thumbnailUrl}
             reference={referenceView.reference}
+            wipePosition={referenceView.wipePosition}
+            wipeSwapped={referenceView.wipeSwapped}
+            onSetWipePosition={(position) => dispatchReferenceView({ type: 'set-wipe-position', position })}
+            onSwapWipeSides={() => dispatchReferenceView({ type: 'swap-wipe-sides' })}
             onCancelChooser={() => dispatchReferenceView({ type: 'close-chooser' })}
             onChoose={() => dispatchReferenceView({ type: 'open-chooser' })}
             onClear={() => dispatchReferenceView({ type: 'clear-reference' })}
             onExit={() => dispatchReferenceView({ type: 'exit' })}
           />
         )}
-        <div
-          className={clsx(
-            'lights-out-content flex-1 basis-0 min-w-0 relative overflow-hidden touch-none',
-            'rounded-none',
-            appSettings?.useWgpuRenderer !== false &&
-              !isFullScreen &&
-              clsx('ring-[9999px]', isLightsOut ? 'ring-black' : 'ring-bg-secondary'),
-            !isWgpuActive &&
-              (isLightsOut ? 'bg-black' : appSettings?.editorNeutralGreyBg ? 'bg-[#808080]' : 'bg-bg-secondary'),
-          )}
-          style={{ cursor: cursorStyle }}
-          onContextMenu={onContextMenu}
-          ref={imageContainerRef}
-          data-editor-viewport
-          onPointerDownCapture={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onClick={handleClick}
-        >
-          <EmbeddedPreviewWarning
-            isReady={selectedImage?.isReady ?? false}
-            usedEmbeddedPreview={selectedImage?.usedEmbeddedPreview}
-          />
-          {showSpinner && (
-            <div
-              className={clsx(
-                'absolute inset-0 bg-bg-secondary/80 flex items-center justify-center z-50 transition-opacity duration-300',
-                isLoaderVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
-              )}
-            >
-              <Loader2 size={48} className="animate-spin text-accent" />
-            </div>
-          )}
-
+        {!isReferenceWipe && (
           <div
-            ref={contentRef}
-            className="w-full h-full flex items-center justify-center origin-top-left"
-            style={{
-              transform: `translate(${transformState.positionX}px, ${transformState.positionY}px) scale(${transformState.scale})`,
-            }}
+            className={clsx(
+              'lights-out-content flex-1 basis-0 min-w-0 relative overflow-hidden touch-none',
+              'rounded-none',
+              appSettings?.useWgpuRenderer !== false &&
+                !isFullScreen &&
+                clsx('ring-[9999px]', isLightsOut ? 'ring-black' : 'ring-bg-secondary'),
+              !isWgpuActive &&
+                (isLightsOut ? 'bg-black' : appSettings?.editorNeutralGreyBg ? 'bg-[#808080]' : 'bg-bg-secondary'),
+            )}
+            style={{ cursor: cursorStyle }}
+            onContextMenu={onContextMenu}
+            ref={imageContainerRef}
+            data-editor-viewport
+            onPointerDownCapture={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onClick={handleClick}
           >
-            <ImageCanvas
-              appSettings={appSettings}
-              activeAiPatchContainerId={activeAiPatchContainerId}
-              activeAiSubMaskId={activeAiSubMaskId}
-              activeMaskContainerId={activeMaskContainerId}
-              activeMaskId={activeMaskId}
-              adjustments={adjustments}
-              brushSettings={brushSettings}
-              crop={crop}
-              finalPreviewUrl={finalPreviewUrl}
-              handleCropComplete={handleCropComplete}
-              imageRenderSize={imageRenderSize}
-              interactivePatch={interactivePatch}
-              isAiEditing={isAiEditing}
-              isCropping={isCropping}
-              isMaskControlHovered={isMaskControlHovered}
-              isMasking={isMasking}
-              isStraightenActive={isStraightenActive}
-              isRotationActive={isRotationActive}
-              isSliderDragging={isSliderDragging}
-              maskOverlayUrl={maskOverlayUrl}
-              onGenerateAiMask={handleGenerateAiMask}
-              onSelectAiPatchContainer={(id) => setEditor({ activeAiPatchContainerId: id })}
-              onSelectMaskContainer={(id) => setEditor({ activeMaskContainerId: id })}
-              onLiveMaskPreview={handleLiveMaskPreview}
-              onDirectPatch={handleDirectPatch}
-              onQuickErase={handleQuickErase}
-              onSelectAiSubMask={(id) => setEditor({ activeAiSubMaskId: id })}
-              onSelectMask={(id) => setEditor({ activeMaskId: id })}
-              onStraighten={handleStraighten}
-              selectedImage={selectedImage}
-              setCrop={handleCropChange}
-              setIsMaskHovered={setIsMaskHovered}
-              setIsMaskTouchInteracting={setIsMaskTouchInteracting}
-              showOriginal={showOriginal}
-              uncroppedAdjustedPreviewUrl={uncroppedAdjustedPreviewUrl}
-              updateSubMask={updateSubMaskLocal}
-              isWbPickerActive={isWbPickerActive}
-              onWbPicked={handleWbPicked}
-              setAdjustments={setAdjustments}
-              overlayRotation={overlayRotation}
-              overlayMode={overlayMode}
-              cursorStyle={cursorStyle}
-              isMaxZoom={isMaxZoom}
-              liveRotation={liveRotation}
-              transformState={transformState}
-              hasRenderedFirstFrame={hasRenderedFirstFrame}
+            <EmbeddedPreviewWarning
+              isReady={selectedImage?.isReady ?? false}
+              usedEmbeddedPreview={selectedImage?.usedEmbeddedPreview}
             />
-          </div>
-          {straightenDragLine && (
-            <svg className="absolute inset-0 pointer-events-none z-[100]" style={{ width: '100%', height: '100%' }}>
-              <line
-                x1={straightenDragLine.start.x}
-                y1={straightenDragLine.start.y}
-                x2={straightenDragLine.end.x}
-                y2={straightenDragLine.end.y}
-                stroke="#0ea5e9"
-                strokeWidth="2"
-                strokeDasharray="4 4"
+            {showSpinner && (
+              <div
+                className={clsx(
+                  'absolute inset-0 bg-bg-secondary/80 flex items-center justify-center z-50 transition-opacity duration-300',
+                  isLoaderVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
+                )}
+              >
+                <Loader2 size={48} className="animate-spin text-accent" />
+              </div>
+            )}
+
+            <div
+              ref={contentRef}
+              className="w-full h-full flex items-center justify-center origin-top-left"
+              style={{
+                transform: `translate(${transformState.positionX}px, ${transformState.positionY}px) scale(${transformState.scale})`,
+              }}
+            >
+              <ImageCanvas
+                appSettings={appSettings}
+                activeAiPatchContainerId={activeAiPatchContainerId}
+                activeAiSubMaskId={activeAiSubMaskId}
+                activeMaskContainerId={activeMaskContainerId}
+                activeMaskId={activeMaskId}
+                adjustments={adjustments}
+                brushSettings={brushSettings}
+                crop={crop}
+                finalPreviewUrl={finalPreviewUrl}
+                handleCropComplete={handleCropComplete}
+                imageRenderSize={imageRenderSize}
+                interactivePatch={interactivePatch}
+                isAiEditing={isAiEditing}
+                isCropping={isCropping}
+                isMaskControlHovered={isMaskControlHovered}
+                isMasking={isMasking}
+                isStraightenActive={isStraightenActive}
+                isRotationActive={isRotationActive}
+                isSliderDragging={isSliderDragging}
+                maskOverlayUrl={maskOverlayUrl}
+                onGenerateAiMask={handleGenerateAiMask}
+                onSelectAiPatchContainer={(id) => setEditor({ activeAiPatchContainerId: id })}
+                onSelectMaskContainer={(id) => setEditor({ activeMaskContainerId: id })}
+                onLiveMaskPreview={handleLiveMaskPreview}
+                onDirectPatch={handleDirectPatch}
+                onQuickErase={handleQuickErase}
+                onSelectAiSubMask={(id) => setEditor({ activeAiSubMaskId: id })}
+                onSelectMask={(id) => setEditor({ activeMaskId: id })}
+                onStraighten={handleStraighten}
+                selectedImage={selectedImage}
+                setCrop={handleCropChange}
+                setIsMaskHovered={setIsMaskHovered}
+                setIsMaskTouchInteracting={setIsMaskTouchInteracting}
+                showOriginal={showOriginal}
+                uncroppedAdjustedPreviewUrl={uncroppedAdjustedPreviewUrl}
+                updateSubMask={updateSubMaskLocal}
+                isWbPickerActive={isWbPickerActive}
+                onWbPicked={handleWbPicked}
+                setAdjustments={setAdjustments}
+                overlayRotation={overlayRotation}
+                overlayMode={overlayMode}
+                cursorStyle={cursorStyle}
+                isMaxZoom={isMaxZoom}
+                liveRotation={liveRotation}
+                transformState={transformState}
+                hasRenderedFirstFrame={hasRenderedFirstFrame}
               />
-            </svg>
-          )}
-          {isReferenceViewOn && (
-            <div className="lights-out-chrome absolute left-2 top-2 z-20 flex max-w-[70%] items-center gap-2 rounded-md bg-surface/90 px-2 py-1 shadow pointer-events-none">
-              <span className="shrink-0 rounded bg-accent px-1.5 text-[10px] font-semibold uppercase tracking-wide text-button-text">
-                {t('editor.referenceView.active')}
-              </span>
-              <span className="truncate text-xs text-text-primary">{getReferenceLabel(selectedImage.path)}</span>
             </div>
-          )}
-        </div>
+            {straightenDragLine && (
+              <svg className="absolute inset-0 pointer-events-none z-[100]" style={{ width: '100%', height: '100%' }}>
+                <line
+                  x1={straightenDragLine.start.x}
+                  y1={straightenDragLine.start.y}
+                  x2={straightenDragLine.end.x}
+                  y2={straightenDragLine.end.y}
+                  stroke="#0ea5e9"
+                  strokeWidth="2"
+                  strokeDasharray="4 4"
+                />
+              </svg>
+            )}
+            {isReferenceViewOn && (
+              <div className="lights-out-chrome absolute left-2 top-2 z-20 flex max-w-[70%] items-center gap-2 rounded-md bg-surface/90 px-2 py-1 shadow pointer-events-none">
+                <span className="shrink-0 rounded bg-accent px-1.5 text-[10px] font-semibold uppercase tracking-wide text-button-text">
+                  {t('editor.referenceView.active')}
+                </span>
+                <span className="truncate text-xs text-text-primary">{getReferenceLabel(selectedImage.path)}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

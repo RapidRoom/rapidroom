@@ -10,7 +10,14 @@ import { ReferenceViewImage } from '../../../utils/referenceView';
 
 interface ReferencePaneProps {
   isChooserOpen: boolean;
+  mode?: 'side-by-side' | 'wipe';
+  comparisonUrl?: string | null;
+  originalUrl?: string | null;
   reference: ReferenceViewImage | null;
+  wipePosition?: number;
+  wipeSwapped?: boolean;
+  onSetWipePosition?(position: number): void;
+  onSwapWipeSides?(): void;
   onCancelChooser(): void;
   onChoose(): void;
   onClear(): void;
@@ -32,7 +39,14 @@ const blurOnKey = (e: React.KeyboardEvent<HTMLButtonElement>) => {
 
 export default function ReferencePane({
   isChooserOpen,
+  mode = 'side-by-side',
+  comparisonUrl = null,
+  originalUrl = null,
   reference,
+  wipePosition = 50,
+  wipeSwapped = false,
+  onSetWipePosition,
+  onSwapWipeSides,
   onCancelChooser,
   onChoose,
   onClear,
@@ -177,6 +191,24 @@ export default function ReferencePane({
 
   const displayUrl = previewUrl ?? (status === 'loading' ? thumbnailUrl : undefined);
   const isZoomed = transform.scale > 1.01;
+  const comparisonReference = displayUrl ?? originalUrl;
+  const baseUrl = wipeSwapped ? comparisonReference : comparisonUrl;
+  const revealUrl = wipeSwapped ? comparisonUrl : comparisonReference;
+  const moveWipe = (clientX: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || !onSetWipePosition) return;
+    onSetWipePosition(((clientX - rect.left) / rect.width) * 100);
+  };
+  const handleWipeKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (mode !== 'wipe') return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      onSetWipePosition?.(wipePosition + (e.key === 'ArrowLeft' ? -5 : 5));
+    } else if (e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      onSwapWipeSides?.();
+    }
+  };
 
   return (
     <div
@@ -185,6 +217,7 @@ export default function ReferencePane({
         isLightsOut ? 'bg-black border-transparent' : 'bg-bg-secondary border-dashed border-text-secondary/40',
       )}
       data-testid="editor-reference-pane"
+      data-reference-mode={mode}
       data-reference-state={reference ? status : 'choose-reference'}
     >
       <div
@@ -196,8 +229,32 @@ export default function ReferencePane({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onKeyDown={handleWipeKeyDown}
+        tabIndex={mode === 'wipe' ? 0 : undefined}
+        aria-label={mode === 'wipe' ? 'Compare versions; arrow keys move the divider, A swaps sides' : undefined}
       >
-        {displayUrl && (
+        {mode === 'wipe' && baseUrl && (
+          <div
+            className="w-full h-full origin-top-left"
+            style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}
+          >
+            <img className="w-full h-full object-contain select-none" draggable={false} src={baseUrl} alt="Your edit" />
+            {revealUrl && (
+              <div
+                className="absolute inset-0 overflow-hidden"
+                style={{ clipPath: `inset(0 ${100 - wipePosition}% 0 0)` }}
+              >
+                <img
+                  className="w-full h-full object-contain select-none"
+                  draggable={false}
+                  src={revealUrl}
+                  alt="AI edit"
+                />
+              </div>
+            )}
+          </div>
+        )}
+        {mode !== 'wipe' && displayUrl && (
           <div
             className="w-full h-full origin-top-left"
             style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}
@@ -209,6 +266,29 @@ export default function ReferencePane({
               draggable={false}
               src={displayUrl}
             />
+          </div>
+        )}
+        {mode === 'wipe' && (baseUrl || revealUrl) && (
+          <div
+            aria-label="Comparison divider"
+            aria-orientation="vertical"
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={Math.round(wipePosition)}
+            className="absolute inset-y-0 z-30 w-8 -translate-x-1/2 cursor-ew-resize touch-none"
+            data-wipe-handle="true"
+            role="slider"
+            style={{ left: `${wipePosition}%` }}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              moveWipe(e.clientX);
+            }}
+            onPointerMove={(e) => {
+              if (e.currentTarget.hasPointerCapture(e.pointerId)) moveWipe(e.clientX);
+            }}
+          >
+            <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white shadow" />
+            <div className="absolute left-1/2 top-1/2 h-8 w-5 -translate-x-1/2 -translate-y-1/2 rounded bg-white/90 shadow" />
           </div>
         )}
       </div>
@@ -226,7 +306,7 @@ export default function ReferencePane({
         </div>
       )}
 
-      {(isChooserOpen || !reference) && (
+      {mode !== 'wipe' && (isChooserOpen || !reference) && (
         <div className="lights-out-chrome absolute inset-0 flex items-center justify-center p-6 bg-bg-secondary/70 pointer-events-none">
           <div className="pointer-events-auto max-w-xs rounded-lg bg-surface/95 px-4 py-3 text-center shadow-lg">
             <p className="text-sm text-text-primary">{t('editor.referenceView.chooseHint')}</p>
@@ -245,9 +325,9 @@ export default function ReferencePane({
       <div className="lights-out-chrome absolute inset-x-2 top-2 flex items-start justify-between gap-2 pointer-events-none">
         <div className="flex min-w-0 items-center gap-2 rounded-md bg-surface/90 px-2 py-1 shadow">
           <span className="shrink-0 rounded bg-text-secondary/25 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-primary">
-            {t('editor.referenceView.reference')}
+            {mode === 'wipe' ? (wipeSwapped ? 'AI edit' : 'Your edit') : t('editor.referenceView.reference')}
           </span>
-          {reference && (
+          {reference && mode !== 'wipe' && (
             <span className="truncate text-xs text-text-primary" data-tooltip={reference.path}>
               {reference.label}
             </span>
@@ -293,6 +373,12 @@ export default function ReferencePane({
           </button>
         </div>
       </div>
+      {mode === 'wipe' && (
+        <div className="lights-out-chrome absolute bottom-2 left-2 flex items-center gap-2 rounded-md bg-surface/90 px-2 py-1 text-xs text-text-primary shadow pointer-events-none">
+          <span>{wipeSwapped ? 'Your edit' : 'AI edit'}</span>
+          <span className="text-text-secondary">←/→ divider · A swap</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,16 @@
 import { memo, useState, useEffect, useRef, useMemo } from 'react';
-import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Columns2, Frame } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  Maximize,
+  Loader2,
+  Undo,
+  Redo,
+  Columns2,
+  Frame,
+  SplitSquareVertical,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +37,8 @@ interface EditorToolbarProps {
   onToggleShowOriginal(): void;
   isReferenceViewActive?: boolean;
   onToggleReferenceView?(): void;
+  onToggleWipe?(): void;
+  isWipeActive?: boolean;
   onUndo(): void;
   selectedImage: SelectedImage;
   showOriginal: boolean;
@@ -47,6 +60,8 @@ const EditorToolbar = memo(
     onToggleShowOriginal,
     isReferenceViewActive = false,
     onToggleReferenceView,
+    onToggleWipe,
+    isWipeActive = false,
     onUndo,
     selectedImage,
     showOriginal,
@@ -588,6 +603,22 @@ const EditorToolbar = memo(
               data-testid="editor-reference-view-toggle"
             >
               <Columns2 size={20} />
+            </button>
+          )}
+          {onToggleWipe && (
+            <button
+              className={clsx(
+                'p-1 rounded-full transition-colors',
+                isWipeActive ? 'bg-accent text-button-text' : 'bg-surface hover:bg-card-active text-text-primary',
+              )}
+              onClick={onToggleWipe}
+              onKeyDown={handleButtonKeyDown}
+              aria-pressed={isWipeActive}
+              aria-label="Compare versions"
+              data-tooltip="Compare versions (C)"
+              data-testid="editor-compare-wipe-toggle"
+            >
+              <SplitSquareVertical size={20} />
             </button>
           )}
           <button
