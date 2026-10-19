@@ -2046,6 +2046,11 @@ mod tests {
         .unwrap();
         let source_hash = context.source_hash.clone();
         drop(context);
+        // Acquire METADATA before spawning to avoid another parallel test
+        // becoming the inverse-order writer while this test owns the file lock.
+        let metadata_guard = crate::file_management::SIDECAR_METADATA_LOCK
+            .lock()
+            .unwrap();
         let external = crate::file_management::lock_sidecar_as_external_writer(&dest).unwrap();
         let inode = external.metadata().unwrap().ino();
         let worker_sidecar = sidecar.clone();
