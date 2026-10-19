@@ -21,6 +21,7 @@ import {
   normalizeLoadedAdjustments,
   setToolActive,
 } from '../utils/adjustments';
+import { originalComparisonAdjustments } from '../utils/originalAdjustments';
 import { calculateCenteredCrop, getOrientedDimensions } from '../utils/cropUtils';
 import { Invokes } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
@@ -243,40 +244,7 @@ export function useEditorActions() {
       const isShowing = !state.showOriginal;
 
       if (isShowing) {
-        const override: Adjustments = { ...INITIAL_ADJUSTMENTS };
-        const preservedKeys: Array<keyof Adjustments> = [
-          'baselineExposure',
-          'cameraExposureCompensation',
-          'crop',
-          'rotation',
-          'flipHorizontal',
-          'flipVertical',
-          'orientationSteps',
-          'aspectRatio',
-          'transformDistortion',
-          'transformVertical',
-          'transformHorizontal',
-          'transformRotate',
-          'transformAspect',
-          'transformScale',
-          'transformXOffset',
-          'transformYOffset',
-          'lensDistortionAmount',
-          'lensVignetteAmount',
-          'lensTcaAmount',
-          'lensDistortionParams',
-          'lensMaker',
-          'lensModel',
-          'lensDistortionEnabled',
-          'lensTcaEnabled',
-          'lensVignetteEnabled',
-        ];
-
-        preservedKeys.forEach((key) => {
-          override[key] = state.adjustments[key];
-        });
-
-        return { showOriginal: true, previewOverride: override };
+        return { showOriginal: true, previewOverride: originalComparisonAdjustments(state.adjustments) };
       } else {
         return { showOriginal: false, previewOverride: null };
       }

@@ -43,6 +43,7 @@ import {
 } from '../../utils/zoom';
 import { useDevicePixelRatio } from '../../hooks/useDevicePixelRatio';
 import { getReferenceLabel, isReferenceViewActive } from '../../utils/referenceView';
+import { originalComparisonAdjustments } from '../../utils/originalAdjustments';
 
 const parseRgb = (rgbStr: string): [number, number, number, number] => {
   const match = rgbStr.match(/[\d.]+/g);
@@ -283,7 +284,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       const editingText = target?.matches('input, textarea, [contenteditable="true"]');
       if (!editingText && !e.metaKey && !e.ctrlKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
-        dispatchReferenceView({ type: 'toggle-wipe' });
+        dispatchReferenceView({ type: 'toggle-original-wipe' });
         return;
       }
       if (e.key === 'Shift') {
@@ -2434,7 +2435,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           isReferenceViewActive={isReferenceViewOn}
           onToggleReferenceView={() => dispatchReferenceView({ type: 'toggle' })}
           isWipeActive={isReferenceWipe}
-          onToggleWipe={() => dispatchReferenceView({ type: 'toggle-wipe' })}
+          onToggleWipe={() => dispatchReferenceView({ type: 'toggle-original-wipe' })}
           onUndo={undo}
           selectedImage={selectedImage}
           showOriginal={showOriginal}
@@ -2454,9 +2455,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           <ReferencePane
             isChooserOpen={referenceView.isChooserOpen}
             mode={isReferenceWipe ? 'wipe' : 'side-by-side'}
-            comparisonUrl={finalPreviewUrl ?? selectedImage.thumbnailUrl}
-            originalUrl={selectedImage.thumbnailUrl}
-            reference={referenceView.reference}
+            activePath={selectedImage.path}
+            activeAdjustments={adjustments}
+            originalAdjustments={originalComparisonAdjustments(adjustments)}
+            reference={isReferenceWipe && !referenceView.wipeReference ? null : referenceView.reference}
             wipePosition={referenceView.wipePosition}
             wipeSwapped={referenceView.wipeSwapped}
             onSetWipePosition={(position) => dispatchReferenceView({ type: 'set-wipe-position', position })}

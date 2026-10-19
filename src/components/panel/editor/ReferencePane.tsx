@@ -7,12 +7,14 @@ import { Invokes } from '../../ui/AppProperties';
 import { useUIStore } from '../../../store/useUIStore';
 import { useProcessStore } from '../../../store/useProcessStore';
 import { ReferenceViewImage } from '../../../utils/referenceView';
+import type { Adjustments } from '../../../utils/adjustments';
 
 interface ReferencePaneProps {
   isChooserOpen: boolean;
   mode?: 'side-by-side' | 'wipe';
-  comparisonUrl?: string | null;
-  originalUrl?: string | null;
+  activePath?: string | null;
+  activeAdjustments?: Adjustments;
+  originalAdjustments?: Adjustments;
   reference: ReferenceViewImage | null;
   wipePosition?: number;
   wipeSwapped?: boolean;
@@ -40,8 +42,9 @@ const blurOnKey = (e: React.KeyboardEvent<HTMLButtonElement>) => {
 export default function ReferencePane({
   isChooserOpen,
   mode = 'side-by-side',
-  comparisonUrl = null,
-  originalUrl = null,
+  activePath = null,
+  activeAdjustments,
+  originalAdjustments,
   reference,
   wipePosition = 50,
   wipeSwapped = false,
@@ -57,6 +60,8 @@ export default function ReferencePane({
   const referencePath = reference?.path ?? null;
   const thumbnailUrl = useProcessStore((s) => (referencePath ? s.thumbnails[referencePath] : undefined));
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
+  const [originalPreviewUrl, setOriginalPreviewUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [transform, setTransform] = useState<PaneTransform>(FIT);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,14 +82,13 @@ export default function ReferencePane({
 
     const render = async () => {
       try {
-        const metadata = await invoke<{ adjustments?: { is_null?: boolean } } | null>(Invokes.LoadMetadata, {
+        const adjustments = await invoke<Adjustments | null>(Invokes.ReadCompareAdjustments, {
           path: referencePath,
         }).catch(() => null);
         if (!active) return;
-        const adjustments = metadata?.adjustments && !metadata.adjustments.is_null ? metadata.adjustments : {};
         const bytes = await invoke<Uint8Array>(Invokes.GeneratePreviewForPath, {
           path: referencePath,
-          jsAdjustments: adjustments,
+          jsAdjustments: adjustments ?? {},
         });
         if (!active) return;
         blobUrl = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));
@@ -102,6 +106,64 @@ export default function ReferencePane({
       if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
   }, [referencePath]);
+
+  const renderActivePreview = useCallback(
+    async (adjustments: Adjustments) => {
+      if (!activePath) return null;
+      const bytes = await invoke<Uint8Array>(Invokes.GeneratePreviewForPath, {
+        path: activePath,
+        jsAdjustments: adjustments,
+      });
+      return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));
+    },
+    [activePath],
+  );
+
+  useEffect(() => {
+    if (mode !== 'wipe' || !activeAdjustments) {
+      setActivePreviewUrl(null);
+      return;
+    }
+    let active = true;
+    let blobUrl: string | null = null;
+    renderActivePreview(activeAdjustments)
+      .then((url) => {
+        if (!active) return url && URL.revokeObjectURL(url);
+        blobUrl = url;
+        setActivePreviewUrl(url);
+      })
+      .catch((err) => {
+        console.error('Failed to render current comparison image:', err);
+        if (active) setActivePreviewUrl(null);
+      });
+    return () => {
+      active = false;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [activeAdjustments, mode, renderActivePreview]);
+
+  useEffect(() => {
+    if (mode !== 'wipe' || referencePath || !originalAdjustments) {
+      setOriginalPreviewUrl(null);
+      return;
+    }
+    let active = true;
+    let blobUrl: string | null = null;
+    renderActivePreview(originalAdjustments)
+      .then((url) => {
+        if (!active) return url && URL.revokeObjectURL(url);
+        blobUrl = url;
+        setOriginalPreviewUrl(url);
+      })
+      .catch((err) => {
+        console.error('Failed to render original comparison image:', err);
+        if (active) setOriginalPreviewUrl(null);
+      });
+    return () => {
+      active = false;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [mode, originalAdjustments, referencePath, renderActivePreview]);
 
   const getMaxScale = useCallback(() => {
     const container = containerRef.current;
@@ -191,9 +253,9 @@ export default function ReferencePane({
 
   const displayUrl = previewUrl ?? (status === 'loading' ? thumbnailUrl : undefined);
   const isZoomed = transform.scale > 1.01;
-  const comparisonReference = displayUrl ?? originalUrl;
-  const baseUrl = wipeSwapped ? comparisonReference : comparisonUrl;
-  const revealUrl = wipeSwapped ? comparisonUrl : comparisonReference;
+  const comparisonReference = previewUrl ?? originalPreviewUrl;
+  const baseUrl = wipeSwapped ? comparisonReference : activePreviewUrl;
+  const revealUrl = wipeSwapped ? activePreviewUrl : comparisonReference;
   const moveWipe = (clientX: number) => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect || !onSetWipePosition) return;
@@ -239,19 +301,21 @@ export default function ReferencePane({
             style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}
           >
             <img className="w-full h-full object-contain select-none" draggable={false} src={baseUrl} alt="Your edit" />
-            {revealUrl && (
-              <div
-                className="absolute inset-0 overflow-hidden"
-                style={{ clipPath: `inset(0 ${100 - wipePosition}% 0 0)` }}
-              >
-                <img
-                  className="w-full h-full object-contain select-none"
-                  draggable={false}
-                  src={revealUrl}
-                  alt="AI edit"
-                />
-              </div>
-            )}
+          </div>
+        )}
+        {mode === 'wipe' && revealUrl && (
+          <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - wipePosition}% 0 0)` }}>
+            <div
+              className="w-full h-full origin-top-left"
+              style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}
+            >
+              <img
+                className="w-full h-full object-contain select-none"
+                draggable={false}
+                src={revealUrl}
+                alt="AI edit"
+              />
+            </div>
           </div>
         )}
         {mode !== 'wipe' && displayUrl && (

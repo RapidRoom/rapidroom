@@ -4456,6 +4456,14 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
     Ok(metadata)
 }
 
+/// Read a saved recipe without XMP synchronization, repair, or any filesystem write.
+#[tauri::command]
+pub fn read_compare_adjustments(path: String) -> Result<serde_json::Value, String> {
+    let (_, sidecar_path) = parse_virtual_path(&path);
+    let metadata = read_sidecar_report_snapshot(&sidecar_path)?;
+    serde_json::to_value(metadata.adjustments).map_err(|error| error.to_string())
+}
+
 fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
     let presets_dir = app_handle
         .path()

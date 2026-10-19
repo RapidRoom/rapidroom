@@ -9,6 +9,7 @@ export interface ReferenceViewState {
   readonly reference: ReferenceViewImage | null;
   readonly wipePosition: number;
   readonly wipeSwapped: boolean;
+  readonly wipeReference: boolean;
 }
 
 export type ReferenceViewCommand =
@@ -16,6 +17,7 @@ export type ReferenceViewCommand =
   | { type: 'exit' }
   | { type: 'toggle' }
   | { type: 'toggle-wipe' }
+  | { type: 'toggle-original-wipe' }
   | { type: 'set-wipe-position'; position: number }
   | { type: 'swap-wipe-sides' }
   | { type: 'open-chooser' }
@@ -29,6 +31,7 @@ export const DEFAULT_REFERENCE_VIEW_STATE: ReferenceViewState = {
   reference: null,
   wipePosition: 50,
   wipeSwapped: false,
+  wipeReference: false,
 };
 
 export const reduceReferenceView = (state: ReferenceViewState, command: ReferenceViewCommand): ReferenceViewState => {
@@ -42,7 +45,11 @@ export const reduceReferenceView = (state: ReferenceViewState, command: Referenc
     case 'toggle-wipe':
       return state.mode === 'wipe'
         ? { ...state, mode: 'off', isChooserOpen: false }
-        : { ...state, mode: 'wipe', isChooserOpen: false };
+        : { ...state, mode: 'wipe', isChooserOpen: false, wipeReference: state.reference !== null };
+    case 'toggle-original-wipe':
+      return state.mode === 'wipe' && !state.wipeReference
+        ? { ...state, mode: 'off', isChooserOpen: false }
+        : { ...state, mode: 'wipe', isChooserOpen: false, wipeReference: false };
     case 'set-wipe-position':
       return { ...state, wipePosition: Math.max(0, Math.min(100, command.position)) };
     case 'swap-wipe-sides':

@@ -2847,6 +2847,7 @@ pub fn run() {
             file_management::import_matching_xmp_sidecars_in_folder,
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
+            file_management::read_compare_adjustments,
             file_management::get_default_raw_lens_adjustments,
             file_management::get_lens_correction_resolution,
             preset_application::load_applied_preset,

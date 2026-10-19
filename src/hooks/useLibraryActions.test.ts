@@ -71,6 +71,7 @@ describe('useLibraryActions.handleImageClick with Reference View', () => {
       reference: { label: 'other.raw (VC)', path: '/photos/other.raw?vc=v1' },
       wipePosition: 50,
       wipeSwapped: false,
+      wipeReference: false,
     });
     expect(handleImageSelect).not.toHaveBeenCalled();
     expect(useEditorStore.getState().selectedImage?.path).toBe('/photos/active.raw');
