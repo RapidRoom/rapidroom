@@ -253,16 +253,33 @@ pub fn truncate_large_exif(value: &str) -> String {
 pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
     // Each sidecar is atomically replaced; readers see a complete old or new
     // document and need not serialize a whole folder behind metadata writes.
-    load_sidecar_unlocked(sidecar_path)
+    let (meta, healed) = read_sidecar(sidecar_path);
+    if healed {
+        // Reload under the shared write guard before persisting normalization:
+        // a read snapshot must not overwrite a concurrent edit.
+        if crate::file_management::update_sidecar(sidecar_path, |_| {}).is_ok() {
+            log::info!(
+                "Auto-healed bloated sidecar for: {}",
+                sidecar_path.display()
+            );
+        }
+    }
+    meta
 }
 
+// Safe inside a sidecar transaction: normalization here never acquires a
+// second write guard. The transaction's caller publishes the normalized data.
 pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
+    read_sidecar(sidecar_path).0
+}
+
+fn read_sidecar(sidecar_path: &Path) -> (ImageMetadata, bool) {
     if !sidecar_path.exists() {
-        return ImageMetadata::default();
+        return (ImageMetadata::default(), false);
     }
 
     let Ok(content) = fs::read_to_string(sidecar_path) else {
-        return ImageMetadata::default();
+        return (ImageMetadata::default(), false);
     };
 
     let mut meta = serde_json::from_str::<ImageMetadata>(&content).unwrap_or_default();
@@ -277,15 +294,7 @@ pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
         }
     }
 
-    if healed && let Ok(json) = serde_json::to_string_pretty(&meta) {
-        let _ = crate::file_management::write_file_atomically(sidecar_path, json);
-        log::info!(
-            "Auto-healed bloated sidecar for: {}",
-            sidecar_path.display()
-        );
-    }
-
-    meta
+    (meta, healed)
 }
 
 /// Seed only an unedited image; existing sidecar framing stays in the original

@@ -649,6 +649,48 @@ mod tests {
     }
 
     #[test]
+    fn bloated_exif_normalization_does_not_reenter_the_sidecar_write_lock() {
+        let _mode = CardMode::off();
+        let f = folders();
+        let path = f.library.join("bloated.jpg");
+        std::fs::write(&path, b"fixture").unwrap();
+        let (_, sidecar) = parse_virtual_path(&path.to_string_lossy());
+        let original = serde_json::json!({
+            "version": 1, "rating": 2, "adjustments": {"exposure": 0.75},
+            "exif": {"MakerNote": "x".repeat(2000)},
+            "stack": {"id": "bracket", "position": 0},
+            "appliedPreset": {"id": "kept"}
+        });
+        std::fs::write(&sidecar, serde_json::to_vec(&original).unwrap()).unwrap();
+        let pure = crate::exif_processing::load_sidecar_unlocked(&sidecar);
+        assert!(pure.exif.unwrap()["MakerNote"].len() < 500);
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&std::fs::read(&sidecar).unwrap()).unwrap(),
+            original
+        );
+        let (tx, rx) = std::sync::mpsc::channel();
+        let target = sidecar.clone();
+        let worker = std::thread::spawn(move || {
+            let result = crate::file_management::update_sidecar(&target, |m| m.rating = 4);
+            tx.send(result.map(|_| ())).unwrap();
+        });
+        rx.recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
+        worker.join().unwrap();
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&sidecar).unwrap()).unwrap();
+        assert_eq!(saved["rating"], 4);
+        assert!(saved["exif"]["MakerNote"].as_str().unwrap().len() < 500);
+        assert_eq!(saved["stack"], original["stack"]);
+        assert_eq!(saved["appliedPreset"], original["appliedPreset"]);
+        // The public reader still persists healing, through a fresh guarded RMW.
+        std::fs::write(&sidecar, serde_json::to_vec(&original).unwrap()).unwrap();
+        crate::exif_processing::load_sidecar(&sidecar);
+        assert!(metadata(&sidecar).unwrap().exif.unwrap()["MakerNote"].len() < 500);
+    }
+
+    #[test]
     fn stack_preflight_waits_for_the_shared_cross_process_sidecar_lock() {
         let _mode = CardMode::off();
         let f = folders();
