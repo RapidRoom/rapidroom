@@ -618,14 +618,14 @@ def launch(args):
     if args.compare_read_only:
         for name in ("compare-uncached.ARW", "compare-legacy.ARW", "compare-auto.ARW", "compare-healing.ARW"):
             shutil.copy2(raw, case / "input" / name)
-        (case / "input/compare-legacy.ARW.rrdata").write_text(
-            '{"adjustments":{"exposure":0},"exif":{"Make":"SONY","Model":"ILCE-7CM2"},"unknown":{"mustStay":true}}\\n')
-        (case / "input/compare-legacy.ARW.rrexif").write_text(
-            '{"Make":"SONY","Model":"ILCE-7CM2"}\\n')
-        (case / "input/compare-auto.ARW.rrdata").write_text(
-            '{"adjustments":{"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1},"exif":{"Make":"SONY","Model":"ILCE-7CM2"},"unknown":{"mustStay":true}}\\n')
-        (case / "input/compare-healing.ARW.rrdata").write_text(
-            '{"adjustments":{"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1},"unknown":{"healingControl":true}}\\n')
+        save(case / "input/compare-legacy.ARW.rrdata", {"adjustments": {"exposure": 0},
+             "unknown": {"mustStay": True}})
+        save(case / "input/compare-legacy.ARW.rrexif", {"Make": "SONY", "Model": "ILCE-7CM2"})
+        save(case / "input/compare-auto.ARW.rrdata", {"adjustments": {"lensCorrectionMode": "auto",
+             "cameraLensCorrectionVersion": 1}, "exif": {"Make": "SONY", "Model": "ILCE-7CM2"},
+             "unknown": {"mustStay": True}})
+        save(case / "input/compare-healing.ARW.rrdata", {"adjustments": {"lensCorrectionMode": "auto",
+             "cameraLensCorrectionVersion": 1}, "unknown": {"healingControl": True}})
         save(case / "compare-read-only-test.json", {"issue": 358, "real_native_render": True,
               "invariants": ["bytes", "mtime", "unknown_fields", "legacy_rrexif"]})
     if args.atomic_exports:
@@ -749,6 +749,10 @@ def launch(args):
             engine = args.engine.resolve()
             source_hash = sha(engine)
             shutil.copy2(engine, case / "engine/rapidroom")
+            runtime_payload = engine.parent / "lib" / "RapidRoom"
+            if not runtime_payload.is_dir():
+                raise RuntimeError("Pinned engine is missing lib/RapidRoom runtime payload")
+            shutil.copytree(runtime_payload, case / "lib" / "RapidRoom", symlinks=True)
             if args.mcp_clients:
                 adapter = engine.parent / "rapidroom-mcp-stdio"
                 if not adapter.is_file():
@@ -759,10 +763,6 @@ def launch(args):
                     raise RuntimeError("Pinned stdio adapter copy differs")
             if sha(case / "engine/rapidroom") != source_hash:
                 raise RuntimeError("Engine changed while pinning")
-            for name in ("resources", "lensfun_db"):
-                source = engine.parent / name
-                if source.is_dir():
-                    (case / "engine" / name).symlink_to(source)
             save(case / "environment.json", {"engine_source": str(engine), "engine_sha256": source_hash,
                  "fixture": FIXTURE, "fixture_guard": guard, "compositor": "Weston headless GL",
                  "weston_version": subprocess.check_output(["weston", "--version"], text=True).strip(),
