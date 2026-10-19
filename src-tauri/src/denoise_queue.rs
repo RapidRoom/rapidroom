@@ -323,7 +323,29 @@ struct RecipeSnapshot {
 
 struct RecipeContext<'a> {
     settings: &'a crate::app_settings::AppSettings,
-    state: &'a AppState,
+    lens_db: Option<std::sync::Arc<crate::lens_correction::LensDatabase>>,
+    exif: std::collections::HashMap<String, String>,
+    source_hash: String,
+}
+
+impl<'a> RecipeContext<'a> {
+    fn for_source(
+        path: &str,
+        settings: &'a crate::app_settings::AppSettings,
+        state: &AppState,
+    ) -> Result<Self, String> {
+        let (source, _) = parse_virtual_path(path);
+        let bytes = crate::file_management::read_file_mapped(&source).map_err(|e| e.to_string())?;
+        Ok(Self {
+            settings,
+            lens_db: state.lens_db.lock().unwrap().clone(),
+            exif: crate::exif_processing::read_exif_data_from_bytes(
+                &source.to_string_lossy(),
+                &bytes,
+            ),
+            source_hash: blake3::hash(&bytes).to_hex().to_string(),
+        })
+    }
 }
 
 fn rendered_snapshot(
@@ -337,20 +359,17 @@ fn rendered_snapshot(
             serde_json::from_value(metadata.clone())
                 .map_err(|e| format!("Cannot freeze source metadata: {e}"))?;
         let (_, sidecar) = parse_virtual_path(&source.to_string_lossy());
-        let db = context.state.lens_db.lock().unwrap().clone();
+        // An explicit in-memory EXIF map prevents the normal helper's healing
+        // loader from acquiring metadata locks during the destination transaction.
+        resolved.exif = Some(context.exif.clone());
         crate::file_management::apply_raw_defaults_and_resolve_auto_lens(
             &mut resolved,
             source,
             &sidecar,
             context.settings,
-            db.as_deref(),
+            context.lens_db.as_deref(),
         );
         adjustments = resolved.adjustments;
-        crate::camera_lens::resolve_snapshot(
-            &mut adjustments,
-            &source.to_string_lossy(),
-            context.state,
-        );
     } else if adjustments.is_null() {
         // Protocol-only callers without an app retain the prior normalization.
         crate::raw_processing::apply_camera_crop_default_from_path(&mut adjustments, source);
@@ -825,10 +844,6 @@ pub async fn run(
                 libc::setpriority(libc::PRIO_PROCESS, 0, 10);
             }
             let state = app.state::<AppState>();
-            let recipe_context = RecipeContext {
-                settings: &frozen_settings,
-                state: &state,
-            };
             let mut summary = Summary::default();
             for (index, path) in paths.iter().enumerate() {
                 if job.is_cancelled() {
@@ -839,31 +854,42 @@ pub async fn run(
                     "denoise-queue-progress",
                     json!({"current":index+1,"total":paths.len(),"path":path,"summary":summary}),
                 );
-                let result = run_item_with_context(
-                    path,
-                    &ident,
-                    &job,
-                    Some(&recipe_context),
-                    |item_identity| {
-                        let recipe = RenderedRecipe::load_with_context(
-                            path,
-                            item_identity,
-                            Some(&recipe_context),
-                        )?;
-                        denoise_image_with_settings(
-                            path,
-                            &internal,
-                            &app,
-                            models.clone(),
-                            &job,
-                            frozen_settings.clone(),
-                            recipe.as_ref(),
-                        )
-                        .map(|(image, _, raw)| {
-                            raw.map_or_else(|| DenoisedOutput::Image(image), DenoisedOutput::Raw)
-                        })
-                    },
-                );
+                let result = (|| {
+                    let (source, _) = parse_virtual_path(path);
+                    let recipe_context = if rendered_raw(&source, &ident) {
+                        Some(RecipeContext::for_source(path, &frozen_settings, &state)?)
+                    } else {
+                        None
+                    };
+                    run_item_with_context(
+                        path,
+                        &ident,
+                        &job,
+                        recipe_context.as_ref(),
+                        |item_identity| {
+                            let recipe = RenderedRecipe::load_with_context(
+                                path,
+                                item_identity,
+                                recipe_context.as_ref(),
+                            )?;
+                            denoise_image_with_settings(
+                                path,
+                                &internal,
+                                &app,
+                                models.clone(),
+                                &job,
+                                frozen_settings.clone(),
+                                recipe.as_ref(),
+                            )
+                            .map(|(image, _, raw)| {
+                                raw.map_or_else(
+                                    || DenoisedOutput::Image(image),
+                                    DenoisedOutput::Raw,
+                                )
+                            })
+                        },
+                    )
+                })();
                 match result {
                     Ok((output, skipped)) => {
                         if skipped {
@@ -966,6 +992,9 @@ fn run_item_with_context(
         return Err("Photo is no longer marked for denoise".into());
     }
     let source_hash = hash_file(&source)?;
+    if context.is_some_and(|context| context.source_hash != source_hash) {
+        return Err("Source changed while freezing camera metadata; run the queue again.".into());
+    }
     let key =
         hash_value(&json!({"source":source_hash,"sidecar":sidecar.file_name(),"identity":ident}));
     let previous = q["completed"]
@@ -1974,6 +2003,109 @@ mod tests {
         assert!(blocked, "queue did not block on the held destination lock");
         assert!(outcome.unwrap_err().contains("independent edits"));
         assert_eq!(strict_json(&dest).unwrap()["adjustments"]["exposure"], 3);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn resolved_recipe_publication_does_not_take_metadata_lock_under_destination_write() {
+        use std::os::unix::fs::MetadataExt;
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("context.ARW");
+        // Real sidecar/lock/publication protocol; camera bytes are synthetic here.
+        fs::write(&raw, b"context protocol RAW").unwrap();
+        let path = raw.to_string_lossy().into_owned();
+        set_denoise_mark(vec![path.clone()], true).unwrap();
+        let (_, sidecar) = parse_virtual_path(&path);
+        let exif = std::collections::HashMap::from([("Make".into(), "SONY".into())]);
+        mutate(&sidecar, |metadata| {
+            metadata["adjustments"] =
+                json!({"lensCorrectionMode":"auto", "cameraLensCorrectionVersion":1});
+            metadata["exif"] = json!(exif);
+            Ok(())
+        })
+        .unwrap();
+        let settings = crate::app_settings::AppSettings::default();
+        let context = RecipeContext {
+            settings: &settings,
+            lens_db: None,
+            exif: exif.clone(),
+            source_hash: hash_file(&raw).unwrap(),
+        };
+        let (out, _) = run_item_with_context(
+            &path,
+            &ident(),
+            &DenoiseJob::testing(),
+            Some(&context),
+            output,
+        )
+        .unwrap();
+        let (_, dest) = parse_virtual_path(&out);
+        let receipt: Receipt = serde_json::from_value(
+            queue(&strict_json(&sidecar).unwrap()).unwrap()["completed"][0].clone(),
+        )
+        .unwrap();
+        let source_hash = context.source_hash.clone();
+        drop(context);
+        let external = crate::file_management::lock_sidecar_as_external_writer(&dest).unwrap();
+        let inode = external.metadata().unwrap().ino();
+        let worker_sidecar = sidecar.clone();
+        let worker_output = PathBuf::from(&out);
+        let worker_raw = raw.clone();
+        let (send, receive) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let context = RecipeContext {
+                settings: &settings,
+                lens_db: None,
+                exif,
+                source_hash,
+            };
+            let result = save_result_edits_with_context(
+                &worker_sidecar,
+                &worker_raw,
+                &worker_output,
+                &receipt.identity,
+                Some(&receipt),
+                Some(&context),
+            );
+            send.send(result).unwrap();
+        });
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let mut waiting_for_destination = false;
+        while std::time::Instant::now() < deadline {
+            if fs::read_to_string("/proc/locks")
+                .unwrap()
+                .lines()
+                .any(|line| line.contains("->") && line.contains(&format!(":{inode} ")))
+            {
+                waiting_for_destination = true;
+                break;
+            }
+            std::thread::yield_now();
+        }
+        // The worker now holds WRITE and waits for the destination file lock.
+        // Hold METADATA as an ordinary autosave/rating writer does before WRITE.
+        let metadata_guard = crate::file_management::SIDECAR_METADATA_LOCK
+            .lock()
+            .unwrap();
+        drop(external);
+        let completed_without_metadata = receive.recv_timeout(std::time::Duration::from_secs(2));
+        // Release before joining even on failure, so the old reverse-order path
+        // produces a bounded regression failure rather than hanging the suite.
+        drop(metadata_guard);
+        worker.join().unwrap();
+        assert!(
+            waiting_for_destination,
+            "publication never reached the destination transaction"
+        );
+        completed_without_metadata
+            .expect("context recheck tried to acquire METADATA under WRITE")
+            .unwrap();
+        crate::file_management::update_sidecar(&sidecar, |metadata| metadata.rating = 5).unwrap();
+        assert_eq!(strict_json(&sidecar).unwrap()["rating"], 5);
+        assert_eq!(
+            strict_json(&dest).unwrap()["adjustments"],
+            json!({"toneMapper":"basic","baselineExposure":false})
+        );
     }
 
     #[test]
