@@ -2402,6 +2402,9 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   return (
     <div
+      data-current-path={selectedImage.path}
+      data-full-render-complete={hasRenderedAnyPreview ? 'true' : 'false'}
+      data-testid="editor-current-photo"
       className={clsx(
         'lights-out-content flex-1 flex flex-col relative overflow-hidden min-h-0',
         !isInstantTransition && 'transition-all duration-300 ease-in-out',

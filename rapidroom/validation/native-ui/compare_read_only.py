@@ -46,8 +46,9 @@ def _click(smoke, name, event):
 
 
 def _ready(smoke, wait_for, name):
-    wait_for(lambda: smoke.execute("""return !!document.querySelector('[data-testid=editor-compare-wipe-toggle]') &&
-      [...document.images].some(e=>e.alt===arguments[0] && e.complete && e.naturalWidth>100);""", [name]), "decoded editor " + name, 90)
+    wait_for(lambda: smoke.execute("""const editor=document.querySelector('[data-testid=editor-current-photo]');
+      return !!document.querySelector('[data-testid=editor-compare-wipe-toggle]') &&
+        editor?.dataset.currentPath.endsWith('/'+arguments[0]) && editor.dataset.fullRenderComplete==='true';""", [name]), "decoded editor " + name, 90)
 
 
 def _original(smoke, wait_for, photo, kind):
@@ -70,11 +71,12 @@ def _pinned(smoke, wait_for, photo, kind):
     smoke.execute("document.querySelector('[data-testid=editor-reference-view-toggle]').click();return true;")
     wait_for(lambda: smoke.execute("return !!document.querySelector('[data-testid=editor-reference-pane]');"), "reference chooser")
     smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]');
-      pane.querySelector('button[aria-label=\"Choose another reference\"]')?.click();return true;""")
+      pane.querySelector('button[aria-label=\"Clear reference\"]')?.click();return true;""")
     wait_for(lambda: smoke.execute("return document.querySelector('[data-testid=editor-reference-pane]')?.dataset.referenceState==='choose-reference';"), "explicit reference chooser")
     _click(smoke, photo.name, "click")
     wait_for(lambda: smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]'),image=pane?.querySelector('img');
-      return pane?.dataset.referenceState==='ready'&&pane.textContent.includes(arguments[0])&&image?.complete&&image.naturalWidth>100&&document.body.innerText.includes('smoke.ARW');""", [photo.name]), "pinned comparison " + photo.name, 90)
+      const anchor=document.querySelector('[data-testid=editor-current-photo]');
+      return pane?.dataset.referenceState==='ready'&&pane.textContent.includes(arguments[0])&&image?.complete&&image.naturalWidth>100&&anchor?.dataset.currentPath.endsWith('/smoke.ARW')&&anchor.dataset.fullRenderComplete==='true';""", [photo.name]), "pinned comparison " + photo.name, 90)
     smoke.execute("document.querySelector('[data-testid=editor-reference-pane] button[aria-label=\"Close reference view\"]').click();return true;")
     after = _snapshot(_paths(photo))
     if after != before: raise RuntimeError("Pinned comparison changed " + photo.name)
