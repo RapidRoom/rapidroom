@@ -277,4 +277,107 @@ describe('external file folder context (CLI/Open With and MCP)', () => {
       await unmount();
     }
   });
+  it('does not let an older same-folder EXIF read remove a newer externally opened photo from the filmstrip', async () => {
+    setup();
+    useLibraryStore.setState({ sortCriteria: { ...useLibraryStore.getState().sortCriteria, key: 'iso' } });
+    const a = file('/A/a.ARW'),
+      b = file('/A/b.ARW');
+    let listings = 0,
+      exifCalls = 0;
+    let release!: (v: unknown) => void;
+    const pending = new Promise((r) => {
+      release = r;
+    });
+    mockCommand(Invokes.ListImagesInDir, () => (++listings === 1 ? [a] : [a, b]));
+    mockCommand(Invokes.ReadExifForPaths, () => (++exifCalls === 1 ? pending : {}));
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      let first!: Promise<void>;
+      await act(async () => {
+        first = navigation.handleOpenImage(a.path);
+      });
+      await waitUntil(() => exifCalls === 1);
+      await act(async () => navigation.handleOpenImage(b.path));
+      expect(useEditorStore.getState().selectedImage?.path).toBe(b.path);
+      const latest = useLibraryStore.getState().imageList;
+      expect(latest.map((f) => f.path)).toContain(b.path);
+      await act(async () => {
+        release({});
+        await first;
+      });
+      expect(useLibraryStore.getState().imageList).toBe(latest);
+    } finally {
+      release({});
+      await unmount();
+    }
+  });
+  it('does not replace the filmstrip after a newer manual image choice during external EXIF loading', async () => {
+    setup();
+    const a = file('/A/a.ARW'),
+      b = file('/B/b.ARW');
+    const previous = [b];
+    useLibraryStore.setState({
+      imageList: previous,
+      currentFolderPath: '/B',
+      sortCriteria: { ...useLibraryStore.getState().sortCriteria, key: 'iso' },
+    });
+    let release!: (v: unknown) => void,
+      started = false;
+    const pending = new Promise((r) => {
+      release = r;
+    });
+    mockCommand(Invokes.ListImagesInDir, () => [a]);
+    mockCommand(Invokes.ReadExifForPaths, () => {
+      started = true;
+      return pending;
+    });
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      let first!: Promise<void>;
+      await act(async () => {
+        first = navigation.handleOpenImage(a.path);
+      });
+      await waitUntil(() => started);
+      await act(async () => navigation.handleImageSelect(b.path));
+      await act(async () => {
+        release({});
+        await first;
+      });
+      expect(useEditorStore.getState().selectedImage?.path).toBe(b.path);
+      expect(useLibraryStore.getState().imageList).toBe(previous);
+    } finally {
+      release({});
+      await unmount();
+    }
+  });
+
+  it('checks card boundaries even when an old listed image is outside the card', async () => {
+    setup();
+    const previous = [file('/outside/a.ARW')];
+    useLibraryStore.setState({ cardBrowseRoot: '/card', rootPaths: ['/card'], imageList: previous });
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      await expect(navigation.handleOpenImage('/outside/a.ARW')).rejects.toThrow('read-only card');
+      expect(useLibraryStore.getState().cardBrowseRoot).toBe('/card');
+      expect(useEditorStore.getState().selectedImage).toBeNull();
+    } finally {
+      await unmount();
+    }
+  });
+  it('still fills background EXIF after handing a non-EXIF-sorted folder to the editor', async () => {
+    setup();
+    const photo = file('/A/a.ARW');
+    mockCommand(Invokes.ListImagesInDir, () => [photo]);
+    mockCommand(Invokes.ReadExifForPaths, () => ({ [photo.path]: { ISO: '800' } }));
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      await act(async () => navigation.handleOpenImage(photo.path));
+      expect(useEditorStore.getState().selectedImage?.path).toBe(photo.path);
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 650)));
+      expect(useLibraryStore.getState().imageList[0].exif).toEqual({ ISO: '800' });
+      expect(useLibraryStore.getState().currentFolderPath).toBe('/A');
+    } finally {
+      await unmount();
+    }
+  });
 });
