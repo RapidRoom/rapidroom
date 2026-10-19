@@ -24,6 +24,13 @@ describe('capture clock and recorded zones', () => {
       captureSortTime(hawaii),
     );
   });
+  it('pairs CreateDate with its digitized fraction rather than the original exposure fraction', () => {
+    const created = { CreateDate: '2026:10:20 18:30:00', OffsetTimeDigitized: '+09:00', SubSecTimeDigitized: '100' };
+    const expected = Date.parse('2026-10-20T09:30:00.100Z');
+    expect(captureSortTime(created)).toBe(expected);
+    expect(captureSortTime({ ...created, SubSecTimeOriginal: '900' })).toBe(expected);
+    expect(captureSortTime({ ...created, CreateDate: '2026:10:20 18:30:00.250' })).toBe(expected + 150);
+  });
   it('keeps legacy clock order without a zone and accepts fractional zones with a safe fallback', () => {
     expect(displayCaptureClock({ DateTimeOriginal: hawaii.DateTimeOriginal })).toMatchObject({
       time: '23:30:00',

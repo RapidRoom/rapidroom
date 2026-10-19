@@ -75,3 +75,37 @@ it('closes the editor on folder navigation without saving the previous folder sh
   expect(document.querySelector('[role="dialog"]')).toBeNull();
   expect(invoke).not.toHaveBeenCalled();
 });
+
+it.each(['different folder', 'cancel and reopen same folder'])(
+  'keeps a newer dialog draft after a pending old save completes: %s',
+  async (mode) => {
+    let resolveSave!: () => void;
+    invoke.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    useSettingsStore.setState({ appSettings: {} as AppSettings });
+    await act(async () => root.render(<CaptureTime path="/old/a.jpg" exif={exif} editable />));
+    await act(async () => container.querySelector('button')!.click());
+    await enterHours('19');
+    await act(async () =>
+      document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+    );
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
+    if (mode === 'different folder') {
+      await act(async () => root.render(<CaptureTime path="/new/b.jpg" exif={exif} editable />));
+    } else {
+      await act(async () =>
+        document.querySelector<HTMLButtonElement>('[role="dialog"] button[type="button"]')!.click(),
+      );
+    }
+    await act(async () => container.querySelector('button')!.click());
+    await enterHours('2');
+    await act(async () => resolveSave());
+    expect(document.querySelector<HTMLInputElement>('[role="dialog"] input')?.value).toBe('2');
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+    expect(invoke).toHaveBeenCalledOnce();
+  },
+);

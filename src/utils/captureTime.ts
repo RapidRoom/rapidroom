@@ -34,7 +34,7 @@ export function captureClock(exif: CaptureExif) {
     date.getUTCSeconds() !== Number(sec)
   )
     return null;
-  const subsec = fraction ?? exif?.SubSecTimeOriginal ?? '';
+  const subsec = fraction ?? (original ? exif?.SubSecTimeOriginal : exif?.SubSecTimeDigitized) ?? '';
   const subseconds = /^\d+$/.test(subsec) ? Number('0.' + subsec.slice(0, 9)) * 1000 : 0;
   const offset =
     [original ? exif?.OffsetTimeOriginal : exif?.OffsetTimeDigitized, exif?.OffsetTime]

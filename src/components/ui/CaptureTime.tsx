@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/useSettingsStore';
@@ -27,6 +27,7 @@ export default function CaptureTime({ path, exif, editable = false }: Props) {
   const [hours, setHours] = useState('0');
   const [editFolder, setEditFolder] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const dialogGeneration = useRef(0);
   const folder = captureFolder(path);
   const minutes = Number(hours) * 60;
   const valid =
@@ -36,22 +37,34 @@ export default function CaptureTime({ path, exif, editable = false }: Props) {
     Math.abs(minutes - Math.round(minutes)) < 1e-7;
 
   useEffect(() => {
+    dialogGeneration.current++;
     setOpen(false);
+    setSaving(false);
+    return () => {
+      dialogGeneration.current++;
+    };
   }, [folder]);
+
+  const closeDialog = () => {
+    dialogGeneration.current++;
+    setOpen(false);
+    setSaving(false);
+  };
 
   const save = async () => {
     if (!valid || saving || editFolder !== folder) return;
     const { appSettings, handleSettingsChange } = useSettingsStore.getState();
     if (!appSettings) return;
+    const generation = dialogGeneration.current;
     setSaving(true);
     try {
       const values = { ...appSettings.folderCaptureTimeShiftMinutes };
       if (Math.round(minutes)) values[folder] = Math.round(minutes);
       else delete values[folder];
       await handleSettingsChange({ ...appSettings, folderCaptureTimeShiftMinutes: values });
-      setOpen(false);
+      if (dialogGeneration.current === generation) closeDialog();
     } finally {
-      setSaving(false);
+      if (dialogGeneration.current === generation) setSaving(false);
     }
   };
 
@@ -77,8 +90,10 @@ export default function CaptureTime({ path, exif, editable = false }: Props) {
         <button
           className="text-xs text-accent hover:underline text-left"
           onClick={() => {
+            dialogGeneration.current++;
             setHours(String(shift / 60));
             setEditFolder(folder);
+            setSaving(false);
             setOpen(true);
           }}
         >
@@ -94,7 +109,7 @@ export default function CaptureTime({ path, exif, editable = false }: Props) {
             className="fixed inset-0 z-100 flex items-center justify-center bg-black/40"
             onKeyDown={(event) => {
               event.stopPropagation();
-              if (event.key === 'Escape') setOpen(false);
+              if (event.key === 'Escape') closeDialog();
             }}
           >
             <form
@@ -125,7 +140,7 @@ export default function CaptureTime({ path, exif, editable = false }: Props) {
               </label>
               <p className="text-sm text-text-secondary">{t('captureTime.example')}</p>
               <div className="flex justify-end gap-3">
-                <button type="button" className="px-3 py-2 rounded hover:bg-bg-primary" onClick={() => setOpen(false)}>
+                <button type="button" className="px-3 py-2 rounded hover:bg-bg-primary" onClick={closeDialog}>
                   {t('captureTime.cancel')}
                 </button>
                 <button
