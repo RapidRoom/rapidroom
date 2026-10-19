@@ -4398,9 +4398,29 @@ pub async fn get_lens_correction_resolution(
     .map_err(|error| error.to_string())?
 }
 
+fn resolve_explicit_auto_lens(
+    source_path: &Path,
+    sidecar_path: &Path,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) -> ImageMetadata {
+    let mut metadata = ImageMetadata {
+        exif: crate::exif_processing::load_sidecar_with_exif(sidecar_path, source_path).exif,
+        adjustments: serde_json::json!({"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1}),
+        ..Default::default()
+    };
+    resolve_lens_params_in_adjustments(
+        &mut metadata.adjustments,
+        &metadata.exif,
+        lens_db,
+        source_path,
+    );
+    metadata
+}
+
 #[tauri::command]
 pub async fn get_default_raw_lens_adjustments(
     path: String,
+    force_auto: Option<bool>,
     app_handle: AppHandle,
 ) -> Result<Value, String> {
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
@@ -4412,14 +4432,21 @@ pub async fn get_default_raw_lens_adjustments(
         .clone();
     tauri::async_runtime::spawn_blocking(move || {
         let (source_path, sidecar_path) = parse_virtual_path(&path);
-        let mut metadata = ImageMetadata::default();
-        apply_default_raw_lens_policy(
-            &mut metadata,
-            &source_path,
-            &sidecar_path,
-            &settings,
-            lens_db.as_deref(),
-        );
+        let mut metadata = if force_auto.unwrap_or(false) {
+            // An explicit active-editor action resolves a patch without reading
+            // or writing the saved recipe. The GUI retains its captured draft.
+            resolve_explicit_auto_lens(&source_path, &sidecar_path, lens_db.as_deref())
+        } else {
+            let mut metadata = ImageMetadata::default();
+            apply_default_raw_lens_policy(
+                &mut metadata,
+                &source_path,
+                &sidecar_path,
+                &settings,
+                lens_db.as_deref(),
+            );
+            metadata
+        };
         if let Some(patch) = metadata.adjustments.as_object_mut() {
             patch.retain(|key, _| key.starts_with("lens") || key == "cameraLensCorrectionVersion");
             metadata.adjustments
@@ -8860,5 +8887,43 @@ mod photo_stack_virtual_copy_tests {
             assert_eq!(meta.rating, 4);
             assert_eq!(meta.flag, Some(ImageFlag::Reject));
         }
+    }
+}
+
+#[cfg(test)]
+mod explicit_auto_lens_readonly_tests {
+    use super::*;
+    #[test]
+    fn explicit_lens_resolution_never_writes_the_saved_recipe_or_source() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("photo.png");
+        image::RgbImage::from_pixel(2, 1, image::Rgb([30, 60, 90]))
+            .save(&source)
+            .unwrap();
+        let (_, sidecar) = parse_virtual_path(source.to_str().unwrap());
+        let metadata = ImageMetadata {
+            adjustments: serde_json::json!({"exposure":0.7,"lensDistortionAmount":37}),
+            ..Default::default()
+        };
+        std::fs::write(&sidecar, serde_json::to_vec(&metadata).unwrap()).unwrap();
+        let source_bytes = std::fs::read(&source).unwrap();
+        let saved = std::fs::read(&sidecar).unwrap();
+        let source_modified = source.metadata().unwrap().modified().unwrap();
+        let sidecar_modified = sidecar.metadata().unwrap().modified().unwrap();
+        let patch = resolve_explicit_auto_lens(&source, &sidecar, None).adjustments;
+        assert_eq!(patch["lensCorrectionMode"], "auto");
+        assert_eq!(patch["cameraLensCorrectionVersion"], 1);
+        assert!(patch.get("exposure").is_none());
+        assert!(patch.get("lensDistortionAmount").is_none());
+        assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+        assert_eq!(std::fs::read(&sidecar).unwrap(), saved);
+        assert_eq!(
+            source.metadata().unwrap().modified().unwrap(),
+            source_modified
+        );
+        assert_eq!(
+            sidecar.metadata().unwrap().modified().unwrap(),
+            sidecar_modified
+        );
     }
 }

@@ -9,5 +9,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": false,
-  "notes": "AI-assisted implementation: record a label when every GUI history snapshot is pushed, support explicit action names for presets, paste, reset and auto adjustments, and name local mask fields, HSL channels, tone curves, crop ratios and current slider values. MCP mutators accept optional descriptive labels. The history dropdown is wider, stays within the viewport, wraps labels with full-text tooltips, numbers steps and highlights the current step. Reset and automatic lens correction retain an undoable labelled editor snapshot."
+  "notes": "AI-assisted implementation: record a label when every GUI history snapshot is pushed, support explicit action names for presets, paste, reset and auto adjustments, and name local mask fields, HSL channels, tone curves, crop ratios and current slider values. MCP mutators accept optional descriptive labels. The history dropdown is wider, stays within the viewport, wraps labels with full-text tooltips, numbers steps and highlights the current step. Reset and automatic lens correction retain an undoable labelled editor snapshot, resolve the active draft without sending it to bulk sidecar writers, and refuse delayed results after a newer edit or image selection."
 }
