@@ -328,6 +328,22 @@ pub fn load_sidecar_with_exif(sidecar_path: &Path, source_path: &Path) -> ImageM
     meta
 }
 
+/// Extract source EXIF without reopening or healing the editable sidecar.
+pub(crate) fn read_source_exif(source_path: &Path) -> Option<HashMap<String, String>> {
+    if let Some(cached_exif) = read_rrexif_sidecar(source_path) {
+        return Some(cached_exif);
+    }
+    let source_path_str = source_path.to_string_lossy();
+    let extracted = if let Ok(mmap) = crate::file_management::read_file_mapped(source_path) {
+        read_exif_data(&source_path_str, &mmap)
+    } else if let Ok(bytes) = std::fs::read(source_path) {
+        read_exif_data(&source_path_str, &bytes)
+    } else {
+        HashMap::new()
+    };
+    (!extracted.is_empty()).then_some(extracted)
+}
+
 fn to_ur64(val: &exif::Rational) -> uR64 {
     uR64 {
         nominator: val.num,

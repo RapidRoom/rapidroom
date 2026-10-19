@@ -4344,8 +4344,7 @@ pub(crate) fn apply_raw_defaults_and_resolve_auto_lens(
         && metadata.adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)
     {
         if metadata.exif.is_none() {
-            metadata.exif =
-                crate::exif_processing::load_sidecar_with_exif(sidecar_path, source_path).exif;
+            metadata.exif = crate::exif_processing::read_source_exif(source_path);
         }
         resolve_lens_params_in_adjustments(
             &mut metadata.adjustments,
@@ -4472,11 +4471,14 @@ pub fn read_compare_adjustments(
         .unwrap()
         .clone();
     let (source_path, sidecar_path) = parse_virtual_path(&path);
-    if sidecar_path.exists() {
-        read_sidecar_report_snapshot(&sidecar_path)?;
-    }
-    let metadata =
-        load_sidecar_with_raw_defaults(&sidecar_path, &source_path, &settings, lens_db.as_deref());
+    let mut metadata = read_sidecar_report_snapshot(&sidecar_path)?;
+    apply_raw_defaults_and_resolve_auto_lens(
+        &mut metadata,
+        &source_path,
+        &sidecar_path,
+        &settings,
+        lens_db.as_deref(),
+    );
     serde_json::to_value(metadata.adjustments).map_err(|error| error.to_string())
 }
 
