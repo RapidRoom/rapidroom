@@ -9,9 +9,8 @@ use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, LazyLock, Mutex, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
-pub(crate) static SIDECAR_METADATA_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 use std::thread;
 
 use anyhow::Result;
@@ -5768,9 +5767,8 @@ fn create_virtual_copy_on_disk(source_virtual_path: &str) -> Result<String, Stri
     let new_virtual_path = format!("{}?vc={}", source_path.to_string_lossy(), new_copy_id);
     let (_, new_sidecar_path) = parse_virtual_path(&new_virtual_path);
 
-    let _metadata_lock = SIDECAR_METADATA_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    // A virtual copy takes one complete atomic snapshot and writes a new
+    // destination; it does not modify or need a write lock on the source.
     let mut value = if source_sidecar_path.exists() {
         let bytes = fs::read(&source_sidecar_path).map_err(|e| e.to_string())?;
         serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?

@@ -15,7 +15,9 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::catalog::{Catalog, text};
-use crate::file_management::{is_card_read_only_path, parse_virtual_path, write_file_atomically};
+use crate::file_management::{
+    is_card_read_only_path, parse_virtual_path, write_file_atomically_unmerged,
+};
 use crate::image_processing::ImageMetadata;
 use crate::lrtemplate::{catalog_as_shot_white_balance, catalog_develop_to_xmp};
 use crate::preset_converter::{
@@ -561,6 +563,29 @@ fn apply_import(
     import_ratings: bool,
     replace_ratings: bool,
 ) -> Result<DevelopImportResult, String> {
+    apply_import_with(
+        path,
+        mappings,
+        fingerprint,
+        selections,
+        replace_edits,
+        import_ratings,
+        replace_ratings,
+        |path, bytes| write_file_atomically_unmerged(path, bytes),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_import_with(
+    path: &Path,
+    mappings: &HashMap<String, String>,
+    fingerprint: &str,
+    selections: &[i64],
+    replace_edits: bool,
+    import_ratings: bool,
+    replace_ratings: bool,
+    write: impl Fn(&Path, &[u8]) -> std::io::Result<()>,
+) -> Result<DevelopImportResult, String> {
     let _guard = IMPORT_LOCK
         .lock()
         .map_err(|_| "Catalog import lock failed.".to_string())?;
@@ -595,9 +620,11 @@ fn apply_import(
     }
     let mut result = DevelopImportResult::default();
     for mut photo in photos {
-        let _metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let mut targets = vec![photo.sidecar.clone()];
+        if let Some((path, _)) = &photo.inherit_from {
+            targets.push(path.clone());
+        }
+        let _guard = crate::file_management::lock_sidecars(&targets).map_err(|e| e.to_string())?;
         let (source, _) = parse_virtual_path(&photo.preview.path);
         let unchanged = sidecar_bytes(&photo.sidecar)
             .is_ok_and(|bytes| bytes == photo.sidecar_bytes)
@@ -636,7 +663,7 @@ fn apply_import(
             document.remove("stack");
         }
         let bytes = serde_json::to_vec_pretty(&photo.document).map_err(|e| e.to_string())?;
-        match write_file_atomically(&photo.sidecar, bytes) {
+        match write(&photo.sidecar, &bytes) {
             Ok(()) => {
                 result.imported += 1;
                 if photo.preview.virtual_copy && !photo.preview.existing_sidecar {
@@ -864,6 +891,72 @@ mod tests {
         let saved: Value = serde_json::from_slice(&fs::read(&sidecar).unwrap()).unwrap();
         assert_eq!(saved["rating"], json!(3));
         assert_eq!(saved["adjustments"]["exposure"], json!(0.5));
+    }
+
+    #[test]
+    fn develop_publication_and_user_edits_share_one_sidecar_transaction() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+        let _mode = CardMode::off();
+        let library = Library::new();
+        let raw = library.photo(1, "concurrent", SETTINGS);
+        let (_, sidecar) = parse_virtual_path(&raw.to_string_lossy());
+        let original = json!({"version":1,"rating":0,"adjustments":{},"tags":["user:keep"],
+            "stack":{"id":"burst","position":0},"appliedPreset":{"id":"preset"},
+            "exportFraming":{"version":1},"denoise":{"version":1},"future":{"keep":true}});
+        fs::write(&sidecar, serde_json::to_vec(&original).unwrap()).unwrap();
+        let preview = library.prepare();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (allow_tx, allow_rx) = mpsc::channel();
+        let allow_rx = Mutex::new(allow_rx);
+        let (path, mappings) = (library.path.clone(), library.mappings.clone());
+        let importer = std::thread::spawn(move || {
+            apply_import_with(
+                &path,
+                &mappings,
+                &preview.fingerprint,
+                &[1],
+                true,
+                true,
+                true,
+                |path, bytes| {
+                    entered_tx.send(()).unwrap();
+                    allow_rx.lock().unwrap().recv().unwrap();
+                    write_file_atomically_unmerged(path, bytes)
+                },
+            )
+            .unwrap()
+        });
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let target = sidecar.clone();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let writer = std::thread::spawn(move || {
+            ready_tx.send(()).unwrap();
+            crate::file_management::update_sidecar(&target, |m| {
+                m.rating = 5;
+                m.adjustments = json!({"exposure":1.25});
+                m.tags.get_or_insert_with(Vec::new).push("user:new".into());
+            })
+            .unwrap();
+            done_tx.send(()).unwrap();
+        });
+        ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let premature = done_rx.recv_timeout(Duration::from_millis(150));
+        allow_tx.send(()).unwrap();
+        assert_eq!(importer.join().unwrap().imported, 1);
+        writer.join().unwrap();
+        assert!(
+            premature.is_err(),
+            "rating writer entered between preview validation and publication"
+        );
+        let saved: Value = serde_json::from_slice(&fs::read(sidecar).unwrap()).unwrap();
+        assert_eq!(saved["rating"], 5);
+        assert_eq!(saved["adjustments"]["exposure"], 1.25);
+        assert_eq!(saved["tags"], json!(["user:keep", "user:new"]));
+        for key in crate::file_management::SIDECAR_OWNED_FIELDS {
+            assert_eq!(saved[key], original[key]);
+        }
     }
 
     #[test]
