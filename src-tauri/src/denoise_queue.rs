@@ -321,10 +321,38 @@ struct RecipeSnapshot {
     lut_bytes: Option<Vec<u8>>,
 }
 
-fn rendered_snapshot(metadata: &Value, source: &Path) -> Result<RecipeSnapshot, String> {
+struct RecipeContext<'a> {
+    settings: &'a crate::app_settings::AppSettings,
+    state: &'a AppState,
+}
+
+fn rendered_snapshot(
+    metadata: &Value,
+    source: &Path,
+    context: Option<&RecipeContext<'_>>,
+) -> Result<RecipeSnapshot, String> {
     let mut adjustments = metadata["adjustments"].clone();
-    if adjustments.is_null() {
-        // Match ordinary export's load_sidecar_with_camera_crop before normalization.
+    if let Some(context) = context {
+        let mut resolved: crate::image_processing::ImageMetadata =
+            serde_json::from_value(metadata.clone())
+                .map_err(|e| format!("Cannot freeze source metadata: {e}"))?;
+        let (_, sidecar) = parse_virtual_path(&source.to_string_lossy());
+        let db = context.state.lens_db.lock().unwrap().clone();
+        crate::file_management::apply_raw_defaults_and_resolve_auto_lens(
+            &mut resolved,
+            source,
+            &sidecar,
+            context.settings,
+            db.as_deref(),
+        );
+        adjustments = resolved.adjustments;
+        crate::camera_lens::resolve_snapshot(
+            &mut adjustments,
+            &source.to_string_lossy(),
+            context.state,
+        );
+    } else if adjustments.is_null() {
+        // Protocol-only callers without an app retain the prior normalization.
         crate::raw_processing::apply_camera_crop_default_from_path(&mut adjustments, source);
         if adjustments.is_null() {
             adjustments = crate::image_processing::default_adjustments();
@@ -357,14 +385,23 @@ pub(crate) struct RenderedRecipe {
 }
 
 impl RenderedRecipe {
+    #[cfg(test)]
     fn load(path: &str, ident: &Value) -> Result<Option<Self>, String> {
+        Self::load_with_context(path, ident, None)
+    }
+
+    fn load_with_context(
+        path: &str,
+        ident: &Value,
+        context: Option<&RecipeContext<'_>>,
+    ) -> Result<Option<Self>, String> {
         let (source, sidecar) = parse_virtual_path(path);
         if !rendered_raw(&source, ident) {
             return Ok(None);
         }
         let metadata = strict_json(&sidecar)?;
-        ensure_rendered_eligible(&metadata, &source, ident)?;
-        let snapshot = rendered_snapshot(&metadata, &source)?;
+        ensure_rendered_eligible_with_context(&metadata, &source, ident, context)?;
+        let snapshot = rendered_snapshot(&metadata, &source, context)?;
         if snapshot.identity != ident["renderedSource"] {
             return Err("Source recipe or LUT changed before denoise; run the queue again.".into());
         }
@@ -451,7 +488,17 @@ impl RenderedRecipe {
     }
 }
 
+#[cfg(test)]
 fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> Result<(), String> {
+    ensure_rendered_eligible_with_context(metadata, source, ident, None)
+}
+
+fn ensure_rendered_eligible_with_context(
+    metadata: &Value,
+    source: &Path,
+    ident: &Value,
+    context: Option<&RecipeContext<'_>>,
+) -> Result<(), String> {
     if !rendered_raw(source, ident) {
         return Ok(());
     }
@@ -473,7 +520,7 @@ fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> R
         );
     }
     if !ident["renderedSource"].is_null() {
-        if rendered_snapshot(metadata, source)?.identity != ident["renderedSource"] {
+        if rendered_snapshot(metadata, source, context)?.identity != ident["renderedSource"] {
             return Err("Source recipe or LUT changed during denoise; run the queue again.".into());
         }
     } else {
@@ -505,6 +552,7 @@ fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> R
     Ok(())
 }
 
+#[cfg(test)]
 fn save_result_edits(
     source: &Path,
     source_image: &Path,
@@ -512,8 +560,19 @@ fn save_result_edits(
     ident: &Value,
     previous: Option<&Receipt>,
 ) -> Result<String, String> {
+    save_result_edits_with_context(source, source_image, output, ident, previous, None)
+}
+
+fn save_result_edits_with_context(
+    source: &Path,
+    source_image: &Path,
+    output: &Path,
+    ident: &Value,
+    previous: Option<&Receipt>,
+    context: Option<&RecipeContext<'_>>,
+) -> Result<String, String> {
     let original = strict_json(source)?;
-    ensure_rendered_eligible(&original, source_image, ident)?;
+    ensure_rendered_eligible_with_context(&original, source_image, ident, context)?;
     let mut source_edits = edits(original);
     if source_edits.get("exif").is_none_or(Value::is_null)
         && let Some(exif) = crate::exif_processing::read_rrexif_sidecar(source_image)
@@ -533,7 +592,7 @@ fn save_result_edits(
     let (_, dest) = parse_virtual_path(&output.to_string_lossy());
     let _guard = crate::file_management::lock_sidecar(&dest).map_err(|e| e.to_string())?;
     // A normal save can change the source while this job waits for the output lock.
-    ensure_rendered_eligible(&strict_json(source)?, source_image, ident)?;
+    ensure_rendered_eligible_with_context(&strict_json(source)?, source_image, ident, context)?;
     // The destination ownership check and write are one transaction with ordinary saves.
     if dest.exists() {
         let existing = strict_json(&dest)?;
@@ -765,6 +824,11 @@ pub async fn run(
             unsafe {
                 libc::setpriority(libc::PRIO_PROCESS, 0, 10);
             }
+            let state = app.state::<AppState>();
+            let recipe_context = RecipeContext {
+                settings: &frozen_settings,
+                state: &state,
+            };
             let mut summary = Summary::default();
             for (index, path) in paths.iter().enumerate() {
                 if job.is_cancelled() {
@@ -775,21 +839,31 @@ pub async fn run(
                     "denoise-queue-progress",
                     json!({"current":index+1,"total":paths.len(),"path":path,"summary":summary}),
                 );
-                let result = run_item(path, &ident, &job, |item_identity| {
-                    let recipe = RenderedRecipe::load(path, item_identity)?;
-                    denoise_image_with_settings(
-                        path,
-                        &internal,
-                        &app,
-                        models.clone(),
-                        &job,
-                        frozen_settings.clone(),
-                        recipe.as_ref(),
-                    )
-                    .map(|(image, _, raw)| {
-                        raw.map_or_else(|| DenoisedOutput::Image(image), DenoisedOutput::Raw)
-                    })
-                });
+                let result = run_item_with_context(
+                    path,
+                    &ident,
+                    &job,
+                    Some(&recipe_context),
+                    |item_identity| {
+                        let recipe = RenderedRecipe::load_with_context(
+                            path,
+                            item_identity,
+                            Some(&recipe_context),
+                        )?;
+                        denoise_image_with_settings(
+                            path,
+                            &internal,
+                            &app,
+                            models.clone(),
+                            &job,
+                            frozen_settings.clone(),
+                            recipe.as_ref(),
+                        )
+                        .map(|(image, _, raw)| {
+                            raw.map_or_else(|| DenoisedOutput::Image(image), DenoisedOutput::Raw)
+                        })
+                    },
+                );
                 match result {
                     Ok((output, skipped)) => {
                         if skipped {
@@ -837,10 +911,21 @@ pub async fn run(
     }
 }
 
+#[cfg(test)]
 fn run_item(
     path: &str,
     ident: &Value,
     job: &DenoiseJob,
+    denoise: impl FnOnce(&Value) -> Result<DenoisedOutput, String>,
+) -> Result<(String, bool), String> {
+    run_item_with_context(path, ident, job, None, denoise)
+}
+
+fn run_item_with_context(
+    path: &str,
+    ident: &Value,
+    job: &DenoiseJob,
+    context: Option<&RecipeContext<'_>>,
     denoise: impl FnOnce(&Value) -> Result<DenoisedOutput, String>,
 ) -> Result<(String, bool), String> {
     let (source, sidecar) = parse_virtual_path(path);
@@ -872,10 +957,10 @@ fn run_item(
         item_identity["sourceExposurePolicy"] = nind_raw_defaults(&metadata["adjustments"]);
     }
     if rendered_raw(&source, ident) {
-        item_identity["renderedSource"] = rendered_snapshot(&metadata, &source)?.identity;
+        item_identity["renderedSource"] = rendered_snapshot(&metadata, &source, context)?.identity;
     }
     let ident = &item_identity;
-    ensure_rendered_eligible(&metadata, &source, ident)?;
+    ensure_rendered_eligible_with_context(&metadata, &source, ident, context)?;
     let q = queue(&metadata)?;
     if q["marked"] != true {
         return Err("Photo is no longer marked for denoise".into());
@@ -891,7 +976,14 @@ fn run_item(
         .find(|r| r.key == key);
     if let Some(mut receipt) = previous.clone().filter(|r| receipt_valid(r, &sidecar)) {
         let output = safe_output(&sidecar, &receipt.output)?;
-        receipt.edits_hash = save_result_edits(&sidecar, &source, &output, ident, Some(&receipt))?;
+        receipt.edits_hash = save_result_edits_with_context(
+            &sidecar,
+            &source,
+            &output,
+            ident,
+            Some(&receipt),
+            context,
+        )?;
         record(&sidecar, &receipt)?;
         return Ok((output.to_string_lossy().into_owned(), true));
     }
@@ -926,7 +1018,14 @@ fn run_item(
                 "Existing denoise output failed provenance/hash validation; keeping it".into(),
             );
         }
-        receipt.edits_hash = save_result_edits(&sidecar, &source, &output, ident, Some(&receipt))?;
+        receipt.edits_hash = save_result_edits_with_context(
+            &sidecar,
+            &source,
+            &output,
+            ident,
+            Some(&receipt),
+            context,
+        )?;
         record(&sidecar, &receipt)?;
         return Ok((output.to_string_lossy().into_owned(), true));
     }
@@ -942,12 +1041,13 @@ fn run_item(
     }
     let mut committed = None;
     publish(image, &output, raw, job, |hash| {
-        let edits_hash = save_result_edits(
+        let edits_hash = save_result_edits_with_context(
             &sidecar,
             &source,
             &output,
             ident,
             previous.as_ref().or(staged_receipt.as_ref()),
+            context,
         )?;
         let receipt = Receipt {
             key,

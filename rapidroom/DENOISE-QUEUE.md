@@ -19,6 +19,7 @@ Run the same command again after an interruption. The queue keeps marks and skip
 Fast/Best sensor DNGs retain editable source adjustments. A later sensor-DNG rerun synchronizes updated source edits without repeating denoise. Rendered RAW methods bake the source's development and edits into a TIFF instead:
 
 - NIND receives the normal source renderer's encoded 16-bit RGB view, including camera/as-shot and absolute/relative WB, tone, crop/geometry, masks, and repairs. It denoises that view without a second RAW tone curve.
+- Fresh RAWs use the same crop and automatic lens defaults as normal export. Saved automatic camera/lens recipes resolve against the actual source; the frozen resolved recipe participates in job freshness along with the saved exposure policy.
 - Basic/BM3D keeps its linear RGB denoising input. Apple RAW 9 keeps its sensor input on macOS. The normal source renderer applies the frozen edits to their linear result afterwards.
 - The original source and its edits remain separate and editable. The TIFF starts with neutral Basic/non-RAW adjustments and upright orientation; new raster edits can be applied to it. The source's active preset and export framing are not carried to this neutral result. Export-only framing, resizing, borders and watermarks are not baked.
 
