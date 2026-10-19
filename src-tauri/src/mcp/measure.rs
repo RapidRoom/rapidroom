@@ -146,7 +146,7 @@ fn png(image: &DynamicImage) -> Result<Vec<u8>, String> {
     Ok(bytes.into_inner())
 }
 
-fn content(images: &[DynamicImage]) -> Result<Value, String> {
+pub(super) fn content(images: &[DynamicImage]) -> Result<Value, String> {
     let mut total = 0_usize;
     let mut result = Vec::with_capacity(images.len());
     for image in images {
@@ -312,7 +312,10 @@ pub(super) fn tool_definitions() -> Vec<Value> {
             properties["histogram"] = json!({"type":"boolean","default":false,"description":"Include four unsmoothed 256-bin pixel-count histograms."});
         }
         if name == "sample_region" {
-            required.push("region");
+            properties["regions"] = json!({"type":"array","minItems":1,"maxItems":16,"description":"Batch of labelled fractional rectangles, measured from ONE shared render. Use region OR regions.","items":{"type":"object","additionalProperties":false,"properties":{
+                "label":{"type":"string","minLength":1,"maxLength":80},
+                "x":{"type":"number","minimum":0,"maximum":1},"y":{"type":"number","minimum":0,"maximum":1},
+                "width":{"type":"number","exclusiveMinimum":0,"maximum":1},"height":{"type":"number","exclusiveMinimum":0,"maximum":1}},"required":["label","x","y","width","height"]}});
             properties["suggestWhiteBalance"] = json!({"type":"boolean","default":false});
         }
         if name == "render_region" {
@@ -379,12 +382,17 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
     } else {
         (dimension(arguments)?, None)
     };
+    let regions = if name == "sample_region" {
+        sample_regions(arguments)?
+    } else {
+        None
+    };
     let fraction = if native.is_none() {
         preview::region(arguments)?
     } else {
         None
     };
-    if name == "sample_region" && fraction.is_none() {
+    if name == "sample_region" && fraction.is_none() && regions.is_none() {
         return Err("region is required".into());
     }
     let image = crate::generate_measurement_pixels_for_path(
@@ -395,11 +403,13 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
         app.clone(),
     )
     .await?;
-    let image = preview::crop(image, fraction);
-    let mut value = if name == "render_region" {
+    let mut value = if let Some(regions) = regions {
+        sample_batch(&image, regions, histogram, suggest)?
+    } else if name == "render_region" {
         json!({"width":image.width(),"height":image.height(),"nativePixels":true,
             "coordinates":"pixels of the full rendered image after edit geometry/crop","content":content(&[image])?})
     } else {
+        let image = preview::crop(image, fraction);
         let mut value = statistics(&image, histogram)?;
         if suggest {
             value["whiteBalanceSuggestion"] = white_balance(&value);
@@ -417,6 +427,68 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
             .unwrap_or("edited")
     );
     Ok(value)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SampleRegion {
+    label: String,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+fn sample_regions(arguments: &Value) -> Result<Option<Vec<SampleRegion>>, String> {
+    let Some(regions) = arguments.get("regions") else {
+        return Ok(None);
+    };
+    if arguments.get("region").is_some() {
+        return Err("Use region or regions, not both".into());
+    }
+    let regions: Vec<SampleRegion> =
+        serde_json::from_value(regions.clone()).map_err(|e| e.to_string())?;
+    if regions.is_empty() || regions.len() > 16 {
+        return Err("regions must contain 1–16 rectangles".into());
+    }
+    for r in &regions {
+        if r.label.trim().is_empty()
+            || r.label.chars().count() > 80
+            || r.label.chars().any(char::is_control)
+        {
+            return Err("Region labels must be 1–80 printable characters".into());
+        }
+        preview::region(&json!({"region":{"x":r.x,"y":r.y,"width":r.width,"height":r.height}}))?;
+    }
+    Ok(Some(regions))
+}
+fn sample_batch(
+    image: &DynamicImage,
+    regions: Vec<SampleRegion>,
+    histogram: bool,
+    suggest: bool,
+) -> Result<Value, String> {
+    let mut total = 0u64;
+    let mut samples = Vec::with_capacity(regions.len());
+    for r in regions {
+        let region = json!({"x":r.x,"y":r.y,"width":r.width,"height":r.height});
+        let crop = preview::crop(image.clone(), preview::region(&json!({"region":region}))?);
+        total += u64::from(crop.width()) * u64::from(crop.height());
+        if total > 32_000_000 {
+            return Err(
+                "Combined samples exceed 32 million pixels; reduce maxDimension or regions".into(),
+            );
+        }
+        let mut value = statistics(&crop, histogram)?;
+        if suggest {
+            value["whiteBalanceSuggestion"] = white_balance(&value);
+        }
+        value["label"] = json!(r.label);
+        value["region"] = region;
+        samples.push(value);
+    }
+    Ok(
+        json!({"samples":samples,"sharedRender":true,"renderWidth":image.width(),"renderHeight":image.height()}),
+    )
 }
 
 #[derive(Deserialize)]
@@ -656,6 +728,46 @@ mod tests {
             assert_eq!(sheet.dimensions(), expected);
             assert!(sheet.width() <= 1000 && sheet.height() <= 1000);
         }
+    }
+
+    #[test]
+    fn batched_samples_match_independent_regions_of_one_render() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_fn(20, 10, |x, _| {
+            if x < 10 {
+                Rgb([30, 60, 90])
+            } else {
+                Rgb([150, 180, 210])
+            }
+        }));
+        let args = json!({"regions":[{"label":"left","x":0,"y":0,"width":0.5,"height":1},{"label":"right","x":0.5,"y":0,"width":0.5,"height":1}]});
+        let samples =
+            sample_batch(&image, sample_regions(&args).unwrap().unwrap(), true, true).unwrap();
+        for (i, region) in args["regions"].as_array().unwrap().iter().enumerate() {
+            let mut rect = region.clone();
+            rect.as_object_mut().unwrap().remove("label");
+            let crop = preview::crop(
+                image.clone(),
+                preview::region(&json!({"region":rect})).unwrap(),
+            );
+            let single = statistics(&crop, true).unwrap();
+            assert_eq!(samples["samples"][i]["meanRGB"], single["meanRGB"]);
+            assert_eq!(samples["samples"][i]["histogram"], single["histogram"]);
+            assert_eq!(
+                samples["samples"][i]["whiteBalanceSuggestion"],
+                white_balance(&single)
+            );
+        }
+        assert_ne!(
+            samples["samples"][0]["meanRGB"],
+            samples["samples"][1]["meanRGB"]
+        );
+        assert!(sample_regions(&json!({"region":{},"regions":[]})).is_err());
+        assert!(
+            sample_regions(
+                &json!({"regions":[{"label":"outside","x":0.9,"y":0,"width":0.2,"height":1}]})
+            )
+            .is_err()
+        );
     }
 
     #[test]

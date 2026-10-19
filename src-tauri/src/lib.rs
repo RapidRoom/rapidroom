@@ -1618,6 +1618,8 @@ async fn generate_culling_preview_for_path(
 
 #[derive(Default)]
 struct PreviewRenderOptions {
+    #[cfg(feature = "mcp")]
+    mask_id: Option<String>,
     native_region: Option<(u32, u32, u32, u32)>,
     raw_pixels: bool,
     cancel_token: Option<culling_preview::CancelToken>,
@@ -1670,6 +1672,32 @@ pub(crate) async fn generate_preview_with_geometry_for_path(
 }
 
 #[cfg(feature = "mcp")]
+pub(crate) async fn generate_mask_pixels_for_path(
+    path: String,
+    js_adjustments: Value,
+    mask_id: String,
+    target_resolution: u32,
+    app_handle: tauri::AppHandle,
+) -> Result<DynamicImage, String> {
+    match render_preview_for_path(
+        path,
+        js_adjustments,
+        target_resolution,
+        PreviewRenderOptions {
+            mask_id: Some(mask_id),
+            raw_pixels: true,
+            ..Default::default()
+        },
+        app_handle,
+    )
+    .await?
+    {
+        RenderedPreview::Pixels(image) => Ok(image),
+        _ => Err("Expected mask pixels".into()),
+    }
+}
+
+#[cfg(feature = "mcp")]
 pub(crate) async fn generate_measurement_pixels_for_path(
     path: String,
     js_adjustments: Value,
@@ -1706,6 +1734,8 @@ async fn render_preview_for_path(
         native_region,
         raw_pixels,
         cancel_token,
+        #[cfg(feature = "mcp")]
+        mask_id,
     } = options;
     // Keep one full decode in flight, cancelling superseded culling requests
     // before they acquire the permit. Otherwise navigation stacks up images — each
@@ -1783,6 +1813,36 @@ async fn render_preview_for_path(
         let mask_definitions: Vec<MaskDefinition> =
             mask_generation::parse_mask_definitions(&js_adjustments);
 
+        #[cfg(feature = "mcp")]
+        if let Some(mask_id) = mask_id {
+            let definition = mask_definitions
+                .iter()
+                .find(|m| m.id == mask_id)
+                .ok_or("Mask id not found")?;
+            let warped = build_warped_image_for_masks(
+                &base_image,
+                is_raw,
+                &js_adjustments,
+                std::slice::from_ref(definition),
+            );
+            let matte = generate_mask_bitmap(
+                definition,
+                img_w,
+                img_h,
+                1.0,
+                unscaled_crop_offset,
+                warped.as_deref(),
+            )
+            .unwrap_or_else(|| image::GrayImage::new(img_w, img_h));
+            let matte = DynamicImage::ImageLuma8(matte);
+            return Ok(RenderedPreview::Pixels(
+                if img_w > target_resolution || img_h > target_resolution {
+                    matte.thumbnail(target_resolution, target_resolution)
+                } else {
+                    matte
+                },
+            ));
+        }
         let warped_image =
             build_warped_image_for_masks(&base_image, is_raw, &js_adjustments, &mask_definitions);
         let mask_bitmaps: Vec<ImageBuffer<Luma<u8>, Vec<u8>>> = mask_definitions
