@@ -469,6 +469,7 @@ fn sample_batch(
 ) -> Result<Value, String> {
     let mut total = 0u64;
     let mut samples = Vec::with_capacity(regions.len());
+    let mut shared = json!({});
     for r in regions {
         let region = json!({"x":r.x,"y":r.y,"width":r.width,"height":r.height});
         let crop = preview::crop(image.clone(), preview::region(&json!({"region":region}))?);
@@ -479,16 +480,34 @@ fn sample_batch(
             );
         }
         let mut value = statistics(&crop, histogram)?;
+        for key in [
+            "rgbUnits",
+            "luminanceUnits",
+            "clippingDefinition",
+            "percentileMethod",
+        ] {
+            if let Some(field) = value.as_object_mut().unwrap().remove(key) {
+                shared[key] = field;
+            }
+        }
         if suggest {
-            value["whiteBalanceSuggestion"] = white_balance(&value);
+            let mut suggestion = white_balance(&value);
+            for key in ["assumption", "warning"] {
+                if let Some(field) = suggestion.as_object_mut().unwrap().remove(key) {
+                    shared["whiteBalanceAdvice"][key] = field;
+                }
+            }
+            value["whiteBalanceSuggestion"] = suggestion;
         }
         value["label"] = json!(r.label);
         value["region"] = region;
         samples.push(value);
     }
-    Ok(
-        json!({"samples":samples,"sharedRender":true,"renderWidth":image.width(),"renderHeight":image.height()}),
-    )
+    shared["samples"] = json!(samples);
+    shared["sharedRender"] = json!(true);
+    shared["renderWidth"] = json!(image.width());
+    shared["renderHeight"] = json!(image.height());
+    Ok(shared)
 }
 
 #[derive(Deserialize)]
@@ -753,8 +772,8 @@ mod tests {
             assert_eq!(samples["samples"][i]["meanRGB"], single["meanRGB"]);
             assert_eq!(samples["samples"][i]["histogram"], single["histogram"]);
             assert_eq!(
-                samples["samples"][i]["whiteBalanceSuggestion"],
-                white_balance(&single)
+                samples["samples"][i]["whiteBalanceSuggestion"]["neutralRGBGainSuggestion"],
+                white_balance(&single)["neutralRGBGainSuggestion"]
             );
         }
         assert_ne!(
@@ -768,6 +787,41 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn all_sixteen_batch_labels_and_protocol_fields_survive_projection() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(2, 2, Rgb([30, 60, 90])));
+        let regions = (0..16)
+            .map(|i| SampleRegion {
+                label: format!("Patch{i} {}", "z".repeat(65)),
+                x: 0.,
+                y: 0.,
+                width: 1.,
+                height: 1.,
+            })
+            .collect();
+        let raw = sample_batch(&image, regions, true, true).unwrap();
+        let projected = crate::assistant_text::project(&raw);
+        assert_eq!(projected["sharedRender"], true);
+        assert_eq!(projected["samples"].as_array().unwrap().len(), 16);
+        for (a, b) in raw["samples"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(projected["samples"].as_array().unwrap())
+        {
+            assert_eq!(a["label"], b["label"]);
+            assert_eq!(a["meanRGB"], b["meanRGB"]);
+            assert_eq!(a["whiteBalanceSuggestion"], b["whiteBalanceSuggestion"]);
+        }
+        let id = "a".repeat(64);
+        let projected = crate::assistant_text::project(
+            &json!({"caption":"x".repeat(9000),"maskId":id,"subMaskId":id,"coordinateSpace":"view","kind":"subject"}),
+        );
+        assert_eq!(projected["maskId"], id);
+        assert_eq!(projected["subMaskId"], id);
+        assert_eq!(projected["coordinateSpace"], "view");
     }
 
     #[test]
