@@ -321,8 +321,8 @@ const EditorToolbar = memo(
     };
 
     return (
-      <div className="group/shooting-info relative shrink-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center px-3 min-h-10 py-1 gap-x-3 z-40">
-        <div className="flex items-center gap-2 shrink-0 z-40">
+      <div className="@container/editor-toolbar group/shooting-info relative shrink-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center px-3 min-h-10 py-1 gap-x-3 z-40">
+        <div className="flex items-center gap-2 shrink-0 z-40 @max-[32rem]/editor-toolbar:gap-1">
           <button
             className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors shrink-0"
             onClick={onBackToLibrary}
@@ -349,8 +349,8 @@ const EditorToolbar = memo(
           </div>
         </div>
 
-        <div className="flex-1 flex justify-center min-w-0 relative">
-          <div className="bg-surface flex items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-3 py-1">
+        <div className="@container/editor-info flex-1 flex justify-center min-w-0 relative">
+          <div className="bg-surface flex items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-3 py-1 @max-[14rem]/editor-info:px-1">
             <div className="flex items-center justify-center min-w-0 max-w-full h-5" data-editor-info-line>
               <Text
                 as="span"
@@ -362,9 +362,7 @@ const EditorToolbar = memo(
               >
                 {baseName}
               </Text>
-              <span className="shrink-0 max-w-28 min-w-0 overflow-hidden flex">
-                <AppliedPresetBadge />
-              </span>
+              <AppliedPresetBadge compact />
 
               {isVirtualCopy && (
                 <Text
@@ -372,14 +370,14 @@ const EditorToolbar = memo(
                   variant={TextVariants.small}
                   color={TextColors.accent}
                   weight={TextWeights.bold}
-                  className="ml-2 shrink-0 bg-accent/20 px-2 py-0.5 rounded-full flex items-center overflow-hidden cursor-default"
+                  className="ml-2 shrink-0 bg-accent/20 px-2 py-0.5 rounded-full flex items-center overflow-hidden cursor-default @max-[14rem]/editor-info:ml-1 @max-[14rem]/editor-info:px-1"
                   onMouseEnter={() => setIsVcHovered(true)}
                   onMouseLeave={() => setIsVcHovered(false)}
                 >
                   <span>{t('editor.toolbar.vc')}</span>
                   <div
                     className={clsx(
-                      'transition-all duration-300 ease-out overflow-hidden whitespace-nowrap',
+                      'transition-all duration-300 ease-out overflow-hidden whitespace-nowrap @max-[14rem]/editor-info:hidden',
                       isVcHovered ? 'max-w-20 opacity-100' : 'max-w-0 opacity-0',
                     )}
                   >
@@ -411,7 +409,7 @@ const EditorToolbar = memo(
                 </div>
               )}
 
-              <ShootingInfo exif={selectedImage.exif} inline className="ml-2" />
+              <ShootingInfo exif={selectedImage.exif} inline />
 
               <div
                 className={clsx(
@@ -431,8 +429,8 @@ const EditorToolbar = memo(
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 z-40">
-          <div className="relative flex items-center gap-2" ref={historyButtonRef}>
+        <div className="flex items-center gap-2 shrink-0 z-40 @max-[32rem]/editor-toolbar:gap-1">
+          <div className="relative flex items-center gap-2 @max-[32rem]/editor-toolbar:gap-1" ref={historyButtonRef}>
             <button
               className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canUndo}

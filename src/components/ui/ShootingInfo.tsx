@@ -31,7 +31,7 @@ export default function ShootingInfo({
       )}
     >
       {inline && (
-        <span className="mr-2 shrink-0" aria-hidden="true">
+        <span className="mx-2 shrink-0" aria-hidden="true">
           ·
         </span>
       )}
