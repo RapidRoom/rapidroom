@@ -130,7 +130,14 @@ export default function CenterMarkerShape({
         onDblTap={onReset}
         onDragStart={() => onDragStateChange(true)}
         onDragEnd={() => onDragStateChange(false)}
-        onDragMove={(e: KonvaEventObject<DragEvent>) => onMove({ x: e.target.x(), y: e.target.y() })}
+        onDragMove={(e: KonvaEventObject<DragEvent>) => {
+          const bounded = {
+            x: Math.min(imageWidth, Math.max(0, e.target.x())),
+            y: Math.min(imageHeight, Math.max(0, e.target.y())),
+          };
+          e.target.position(bounded);
+          onMove(bounded);
+        }}
         onMouseEnter={(e: KonvaEventObject<MouseEvent>) => {
           setCursor(e, 'move');
           onHoverChange(true);
