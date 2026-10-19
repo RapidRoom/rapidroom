@@ -887,7 +887,10 @@
         "preset": "프리셋",
         "style": "스타일",
         "tool": "도구"
-      }
+      },
+      "appliedFolder": "",
+      "bakedIn": "",
+      "bakedInNotice": ""
     },
     "referenceView": {
       "active": "편집 중",

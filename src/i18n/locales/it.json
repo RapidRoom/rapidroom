@@ -916,7 +916,10 @@
         "preset": "Predefinito",
         "style": "Stile",
         "tool": "Strumento"
-      }
+      },
+      "appliedFolder": "",
+      "bakedIn": "",
+      "bakedInNotice": ""
     },
     "referenceView": {
       "active": "Attiva",

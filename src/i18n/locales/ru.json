@@ -937,7 +937,10 @@
         "preset": "Псет",
         "style": "Стиль",
         "tool": "Инструмент"
-      }
+      },
+      "appliedFolder": "",
+      "bakedIn": "",
+      "bakedInNotice": ""
     },
     "referenceView": {
       "active": "Текущее",

@@ -788,7 +788,10 @@
         "preset": "Preset",
         "style": "Styl",
         "tool": "Nástroj"
-      }
+      },
+      "appliedFolder": "",
+      "bakedIn": "",
+      "bakedInNotice": ""
     },
     "switcher": {
       "tooltips": {

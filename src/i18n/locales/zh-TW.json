@@ -887,7 +887,10 @@
         "preset": "預設",
         "style": "風格",
         "tool": "工具"
-      }
+      },
+      "appliedFolder": "",
+      "bakedIn": "",
+      "bakedInNotice": ""
     },
     "referenceView": {
       "active": "目前",

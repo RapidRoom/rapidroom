@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockCommand, invoke } from '../test/tauriMock';
 import { Invokes } from '../components/ui/AppProperties';
+import { rememberAppliedStyleStack, hashPresetAdjustments } from '../utils/appliedPreset';
+import { changeStyleStack } from '../utils/styleStack';
 import { INITIAL_ADJUSTMENTS } from '../utils/adjustments';
 import { useEditorStore } from '../store/useEditorStore';
 import { debouncedSave, waitForPendingEditorSaves, prepareEditorDraftForXmpImport } from './useEditorActions';
@@ -183,4 +185,42 @@ describe('waiting for editor writes before XMP import', () => {
     write.reject(new Error('disk full'));
     await refusal;
   });
+});
+
+it('serializes a delayed older autosave before a newer paired Style stack and controls', async () => {
+  vi.useFakeTimers();
+  const first = pendingWrite();
+  const path = '/queue-style.raw';
+  const writes: number[] = [];
+  let controls = 0;
+  mockCommand(Invokes.SaveMetadataAndUpdateThumbnail, async (args) => {
+    const exposure = (args?.adjustments as typeof INITIAL_ADJUSTMENTS).exposure;
+    if (exposure === 1) await first.promise;
+    controls = exposure;
+    writes.push(exposure);
+  });
+  mockCommand('save_applied_preset', (args) => {
+    controls = (args?.adjustments as typeof INITIAL_ADJUSTMENTS).exposure;
+    writes.push(controls);
+  });
+  debouncedSave(path, { ...INITIAL_ADJUSTMENTS, exposure: 1 });
+  debouncedSave.flush();
+  debouncedSave(path, { ...INITIAL_ADJUSTMENTS, exposure: 2 });
+  debouncedSave.flush();
+  const base = { ...INITIAL_ADJUSTMENTS, exposure: 2 };
+  const stack = changeStyleStack(
+    null,
+    base,
+    { preset: { id: 'look', name: 'Look', presetType: 'style', adjustments: { exposure: 3 } }, amount: 100 },
+    { width: 6000, height: 4000 },
+  );
+  await hashPresetAdjustments(stack.result);
+  const saved = rememberAppliedStyleStack(path, stack, stack.result);
+  await vi.advanceTimersByTimeAsync(300);
+  expect(writes).toEqual([]);
+  first.resolve();
+  await saved;
+  await waitForPendingEditorSaves();
+  expect(writes).toEqual([1, 2, 3]);
+  expect(controls).toBe(3);
 });

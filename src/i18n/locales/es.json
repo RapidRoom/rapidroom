@@ -914,7 +914,10 @@
         "preset": "Ajuste preestablecido",
         "style": "Estilo",
         "tool": "Herramienta"
-      }
+      },
+      "appliedFolder": "",
+      "bakedIn": "",
+      "bakedInNotice": ""
     },
     "referenceView": {
       "active": "Activa",

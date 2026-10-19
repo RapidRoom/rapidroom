@@ -6,6 +6,24 @@ export default function AppliedPresetBadge() {
   const record = useAppliedPreset();
   const { t } = useTranslation();
   if (!record) return null;
+  if (record.stack?.entries.length) {
+    const label = record.stack.entries
+      .map(
+        (entry, index) =>
+          `${index + 1} ${entry.name}${entry.bakedIn ? ` (${t('editor.presets.bakedIn')})` : ` ${entry.amount}`}`,
+      )
+      .join(' · ');
+    return (
+      <span
+        data-applied-preset={record.id}
+        data-applied-style-count={record.stack.entries.length}
+        title={`${t('editor.presets.appliedFolder')}: ${label}`}
+        className="ml-2 min-w-0 max-w-80 truncate text-primary text-xs"
+      >
+        {t('editor.presets.appliedFolder')}: {label}
+      </span>
+    );
+  }
   return (
     <span
       data-applied-preset={record.id}

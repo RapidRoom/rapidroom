@@ -838,7 +838,10 @@
         "preset": "Voorinstelling",
         "style": "Stijl",
         "tool": "Gereedschap"
-      }
+      },
+      "appliedFolder": "",
+      "bakedIn": "",
+      "bakedInNotice": ""
     },
     "referenceView": {
       "active": "Actief",

@@ -937,7 +937,10 @@
         "preset": "Preset",
         "style": "Styl",
         "tool": "Narzędzie"
-      }
+      },
+      "appliedFolder": "",
+      "bakedIn": "",
+      "bakedInNotice": ""
     },
     "referenceView": {
       "active": "Aktywne",

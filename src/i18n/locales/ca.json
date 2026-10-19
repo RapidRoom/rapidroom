@@ -893,7 +893,10 @@
         "preset": "Ajust preestablert",
         "style": "Estil",
         "tool": "Eina"
-      }
+      },
+      "appliedFolder": "",
+      "bakedIn": "",
+      "bakedInNotice": ""
     },
     "referenceView": {
       "active": "Activa",
