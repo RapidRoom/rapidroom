@@ -375,6 +375,9 @@ class Smoke:
                                       "e.complete && e.naturalWidth>100);"), "real library thumbnail")
         self.capture("library")
         self.step("library thumbnail", self.snapshot("library")["images"])
+        if (self.case / "compare-read-only-test.json").exists():
+            from compare_read_only import run_compare_read_only
+            run_compare_read_only(self.case, self, wait_for)
         if (self.case / "stacks-test.json").exists():
             from stacks import run_stack_checks
             run_stack_checks(self, wait_for)
@@ -612,6 +615,17 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.compare_read_only:
+        for name in ("compare-uncached.ARW", "compare-legacy.ARW", "compare-auto.ARW"):
+            shutil.copy2(raw, case / "input" / name)
+        (case / "input/compare-legacy.ARW.rrdata").write_text(
+            '{"adjustments":{"exposure":0},"unknown":{"mustStay":true}}\\n')
+        (case / "input/compare-legacy.ARW.rrexif").write_text(
+            '{"Make":"SONY","Model":"ILCE-7CM2"}\\n')
+        (case / "input/compare-auto.ARW.rrdata").write_text(
+            '{"adjustments":{"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1},"unknown":{"mustStay":true}}\\n')
+        save(case / "compare-read-only-test.json", {"issue": 358, "real_native_render": True,
+              "invariants": ["bytes", "mtime", "unknown_fields", "legacy_rrexif"]})
     if args.atomic_exports:
         save(case / "atomic-exports-test.json", {"issue": 326, "io_mocked": False})
     if args.file_transfers:
@@ -794,6 +808,7 @@ def main():
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
     parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
+    parser.add_argument("--compare-read-only", action="store_true", help="Check real Original/pinned comparison rendering never writes sidecars or legacy EXIF")
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
     parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
