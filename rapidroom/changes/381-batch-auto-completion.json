@@ -5,7 +5,7 @@
   "landed": "2026-10-19",
   "authors": ["marclaliberte", "yojen7"],
   "source": "Adapted from RapidRAW 7fb5fadd7cb0ad04393e7246548fcac71aa12d6a",
-  "commits": ["7fb5fadd7cb0ad04393e7246548fcac71aa12d6a"],
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/7fb5fadd7cb0ad04393e7246548fcac71aa12d6a"],
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": false,
