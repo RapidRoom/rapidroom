@@ -166,6 +166,12 @@ fn compose(pair_path: &Path, output: &Path, amount: f32, invert: bool) -> Result
     let metadata: Value =
         serde_json::from_slice(&mask_bytes).map_err(|e| format!("Invalid mask snapshot: {e}"))?;
     let adjustments = metadata.get("adjustments").unwrap_or(&metadata);
+    let geometry = crate::image_processing::get_geometry_params_from_json(adjustments);
+    if !crate::image_processing::is_geometry_identity(&geometry)
+        || adjustments["guidedPerspective"]["enabled"] == true
+    {
+        return Err("Nonidentity prepared-view mask geometry is outside this prototype".into());
+    }
     if !adjustments["crop"].is_null()
         || ["rotation", "orientationSteps"]
             .iter()
@@ -383,6 +389,40 @@ mod tests {
                 .map(|name| fs::read(dir.path().join(name)).unwrap()),
             before
         );
+        for (name, geometry) in [
+            ("distortion", json!({"transformDistortion":12})),
+            ("vertical", json!({"transformVertical":12})),
+            ("horizontal", json!({"transformHorizontal":12})),
+            ("rotate", json!({"transformRotate":12})),
+            ("aspect", json!({"transformAspect":12})),
+            ("scale", json!({"transformScale":110})),
+            ("offset-x", json!({"transformXOffset":12})),
+            ("offset-y", json!({"transformYOffset":12})),
+            (
+                "guided",
+                json!({"guidedPerspective":{"enabled":true,"lines":[]}}),
+            ),
+        ] {
+            let mut changed = mask.clone();
+            changed["adjustments"]
+                .as_object_mut()
+                .unwrap()
+                .extend(geometry.as_object().unwrap().clone());
+            let bytes = serde_json::to_vec(&changed).unwrap();
+            fs::write(dir.path().join("mask.json"), &bytes).unwrap();
+            let mut changed_manifest = manifest.clone();
+            changed_manifest["mask"]["sha256"] = digest(&bytes).into();
+            fs::write(&pair, serde_json::to_vec(&changed_manifest).unwrap()).unwrap();
+            let refused = dir.path().join(format!("refused-{name}.tiff"));
+            assert!(
+                compose(&pair, &refused, 100.0, false)
+                    .unwrap_err()
+                    .contains("geometry"),
+                "{name}"
+            );
+            assert!(!refused.exists());
+        }
+        fs::write(&pair, serde_json::to_vec(&manifest).unwrap()).unwrap();
         fs::write(dir.path().join("mask.json"), b"changed same path").unwrap();
         let refused = dir.path().join("stale.tiff");
         assert!(
