@@ -9016,6 +9016,43 @@ mod stock_folder_upgrade_tests {
     }
 
     #[test]
+    fn user_uuid_named_cool_keeps_the_whole_original_color_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("presets.json");
+        upgraded_library(&path);
+        let mut older: Vec<Value> = serde_json::from_slice(OLDER).unwrap();
+        // Same ID shape and name as the GUI's addPreset("Cool", stockColor).
+        older[1]["folder"]["children"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({
+                "id": "8f9ab237-4a89-49a2-9baa-c84c482f65c3", "name": "Cool",
+                "adjustments": {"contrast": 42}, "favorite": true
+            }));
+        let bytes = serde_json::to_vec_pretty(&older).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        load_presets_at(&path).unwrap();
+        let saved: Vec<Value> = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let mut expected = vec![older[1].clone()];
+        expected.extend_from_slice(&older[3..]);
+        assert_eq!(
+            saved, expected,
+            "same-name user preset and all stock siblings survive"
+        );
+        assert!(
+            fs::read_dir(dir.path())
+                .unwrap()
+                .map(|p| p.unwrap().path())
+                .filter(|p| p
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("presets.json.bak-"))
+                .any(|p| fs::read(p).unwrap() == bytes)
+        );
+    }
+
+    #[test]
     fn stock_moved_between_original_groups_is_retained() {
         let mut library: Vec<Value> = serde_json::from_slice(OLDER).unwrap();
         library[2]["folder"]["children"][0]["id"] =

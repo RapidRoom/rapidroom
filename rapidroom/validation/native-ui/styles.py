@@ -208,6 +208,17 @@ def run_styles_checks(smoke, wait_for, baseline):
     assert ipc('load_presets') == migrated
     assert set(presetfile.parent.glob('presets.json.bak-*')) - before_backups == backups
     smoke.step('native v2 upgrade backs up exact older-library bytes, removes whole stock folders, preserves mixed/moved/renamed/user items and prior Styles deletion')
+    # A normal GUI-created UUID preset can have the same name as stock.
+    mixed = deepcopy(old_library)
+    mixed[1]['folder']['children'].append({
+        'id': '8f9ab237-4a89-49a2-9baa-c84c482f65c3', 'name': 'Cool',
+        'adjustments': {'contrast': 42}, 'favorite': True})
+    mixed_bytes = json.dumps(mixed, indent=2).encode()
+    presetfile.write_bytes(mixed_bytes)
+    replacement_v2.unlink()
+    ipc('load_presets')
+    assert json.loads(presetfile.read_text()) == [mixed[1]] + mixed[3:]
+    smoke.step('native v2 keeps the whole mixed stock folder when a user UUID preset shares the name Cool')
     presetfile.write_bytes(older_bytes)
     marker.unlink()
     replacement_marker.unlink()

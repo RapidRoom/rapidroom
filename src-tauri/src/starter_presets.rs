@@ -217,19 +217,9 @@ pub fn retire_legacy_stock_folders(library: &mut Vec<serde_json::Value>) -> Resu
         };
         !children.iter().all(|preset| {
             let id = preset.get("id").and_then(|v| v.as_str());
-            // A known ID moved from a different stock folder is user-owned.
-            if let Some(known) = stock.iter().find_map(|item| match item {
-                PresetItem::Folder(group) => {
-                    group.children.iter().find(|p| Some(p.id.as_str()) == id)
-                }
-                _ => None,
-            }) {
-                return original.children.iter().any(|p| p.id == known.id);
-            }
-            original
-                .children
-                .iter()
-                .any(|p| preset.get("name").and_then(|v| v.as_str()) == Some(p.name.as_str()))
+            // All shipped stock seeders reserve these exact IDs. An unknown
+            // ID with a stock display name may be a user-created preset.
+            original.children.iter().any(|p| Some(p.id.as_str()) == id)
         })
     });
     Ok(())
