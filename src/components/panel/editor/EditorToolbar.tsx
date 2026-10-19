@@ -67,7 +67,6 @@ const EditorToolbar = memo(
     const historyButtonRef = useRef<HTMLDivElement>(null);
 
     const showResolution = !isAndroid && selectedImage.width > 0 && selectedImage.height > 0;
-    const [displayedResolution, setDisplayedResolution] = useState('');
 
     const imageList = useLibraryStore((s) => s.imageList);
     const appSettings = useSettingsStore((s) => s.appSettings);
@@ -91,12 +90,6 @@ const EditorToolbar = memo(
         vcId: parts.length > 1 ? parts[1] : null,
       };
     }, [selectedImage.path]);
-
-    useEffect(() => {
-      if (showResolution) {
-        setDisplayedResolution(` - ${selectedImage.width} × ${selectedImage.height}`);
-      }
-    }, [showResolution, selectedImage.width, selectedImage.height]);
 
     useEffect(() => {
       const wasLoadingResolution = prevIsLoadingRef.current && !isLoading;
@@ -357,18 +350,21 @@ const EditorToolbar = memo(
         </div>
 
         <div className="flex-1 flex justify-center min-w-0 relative">
-          <div className="bg-surface flex flex-col items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-4 py-1">
-            <div className="flex items-center justify-center max-w-full h-5 shrink-0">
+          <div className="bg-surface flex items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-3 py-1">
+            <div className="flex items-center justify-center min-w-0 max-w-full h-5" data-editor-info-line>
               <Text
                 as="span"
                 variant={TextVariants.small}
                 color={TextColors.primary}
                 weight={TextWeights.medium}
-                className="truncate min-w-0 shrink"
+                className="truncate min-w-0 shrink max-w-[45%]"
+                title={showResolution ? `${baseName} - ${selectedImage.width} × ${selectedImage.height}` : baseName}
               >
                 {baseName}
               </Text>
-              <AppliedPresetBadge />
+              <span className="shrink-0 max-w-28 min-w-0 overflow-hidden flex">
+                <AppliedPresetBadge />
+              </span>
 
               {isVirtualCopy && (
                 <Text
@@ -415,23 +411,7 @@ const EditorToolbar = memo(
                 </div>
               )}
 
-              <div
-                className={clsx(
-                  'transition-all duration-300 ease-out overflow-hidden whitespace-nowrap shrink-0',
-                  showResolution ? 'max-w-40 opacity-100 ml-2' : 'max-w-0 opacity-0 ml-0',
-                )}
-              >
-                <Text
-                  as="span"
-                  variant={TextVariants.small}
-                  className={clsx(
-                    'block transition-transform duration-200 delay-100',
-                    showResolution ? 'scale-100' : 'scale-95',
-                  )}
-                >
-                  {displayedResolution}
-                </Text>
-              </div>
+              <ShootingInfo exif={selectedImage.exif} inline className="ml-2" />
 
               <div
                 className={clsx(
@@ -601,7 +581,6 @@ const EditorToolbar = memo(
             </div>
           </button>
         </div>
-        <ShootingInfo exif={selectedImage.exif} className="col-span-3 pb-1" />
       </div>
     );
   },

@@ -6,9 +6,11 @@ import { shootingInfoParts } from '../../utils/shootingInfo';
 export default function ShootingInfo({
   exif,
   className,
+  inline = false,
 }: {
   exif?: Record<string, unknown> | null;
   className?: string;
+  inline?: boolean;
 }) {
   const mode = useSettingsStore((s) => s.appSettings?.shootingInfoVisibility) ?? 'always';
   const { lens, details } = shootingInfoParts(exif);
@@ -21,17 +23,19 @@ export default function ShootingInfo({
       title={full}
       aria-label={full}
       className={clsx(
-        'flex justify-center min-w-0 max-w-full w-full text-xs text-text-secondary whitespace-nowrap overflow-hidden',
+        'flex min-w-0 max-w-full text-xs text-text-secondary whitespace-nowrap overflow-hidden',
+        inline ? 'shrink-[999]' : 'w-full justify-center',
+        mode === 'hover' &&
+          'opacity-0 group-hover/shooting-info:opacity-100 group-focus-within/shooting-info:opacity-100',
         className,
       )}
     >
-      <div
-        className={clsx(
-          'flex min-w-0 max-w-full items-center overflow-hidden',
-          mode === 'hover' &&
-            'opacity-0 group-hover/shooting-info:opacity-100 group-focus-within/shooting-info:opacity-100',
-        )}
-      >
+      {inline && (
+        <span className="mr-2 shrink-0" aria-hidden="true">
+          ·
+        </span>
+      )}
+      <div className="flex min-w-0 max-w-full items-center overflow-hidden">
         {lens && <span className="min-w-0 truncate shrink-[999]">{lens}</span>}
         {lens && details && (
           <span className="shrink-0 mx-1" aria-hidden="true">
