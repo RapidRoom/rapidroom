@@ -326,7 +326,12 @@ async fn generate(
             "Loaded source changed during model initialization; no edit was applied".into(),
         );
     }
-    let edit = before["adjustments"].clone();
+    let mut edit = before["adjustments"].clone();
+    let (source, _) = crate::file_management::parse_virtual_path(path);
+    // SAM's embedding key hashes the concrete geometry fields. Resolve the
+    // source-bound camera policy first, so Auto/Manual cannot reuse embeddings
+    // made from a different warp with the same unresolved recipe fields.
+    crate::camera_lens::resolve_snapshot(&mut edit, &source.to_string_lossy(), &state);
     let rot = edit["rotation"].as_f64().unwrap_or(0.0) as f32;
     let fh = edit["flipHorizontal"].as_bool().unwrap_or(false);
     let fv = edit["flipVertical"].as_bool().unwrap_or(false);
