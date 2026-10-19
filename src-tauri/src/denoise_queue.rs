@@ -279,6 +279,7 @@ fn hash_value(value: &Value) -> String {
 }
 fn edits(mut metadata: Value) -> Value {
     metadata.as_object_mut().unwrap().remove("denoise");
+    metadata.as_object_mut().unwrap().remove("stack");
     metadata
 }
 fn edit_hash(metadata: &Value) -> String {
@@ -1183,6 +1184,35 @@ mod tests {
         crate::file_management::write_file_atomically(&ordinary, b"older non-JSON sidecar")
             .unwrap();
         assert_eq!(fs::read(ordinary).unwrap(), b"older non-JSON sidecar");
+    }
+
+    #[test]
+    fn queued_and_legacy_outputs_do_not_inherit_source_stack_membership() {
+        let (_dir, path) = fixture();
+        let (_, sidecar) = parse_virtual_path(&path);
+        mutate(&sidecar, |v| {
+            v["stack"] = json!({"id":"source-burst","position":0});
+            Ok(())
+        })
+        .unwrap();
+        let before = fs::read(&sidecar).unwrap();
+        run_item(&path, &ident(), &DenoiseJob::testing(), output).unwrap();
+        let receipt = queue(&strict_json(&sidecar).unwrap()).unwrap()["completed"][0].clone();
+        let dest = safe_output(&sidecar, receipt["output"].as_str().unwrap()).unwrap();
+        let (_, dest_sidecar) = parse_virtual_path(&dest.to_string_lossy());
+        assert!(strict_json(&dest_sidecar).unwrap().get("stack").is_none());
+        let legacy = sidecar.with_file_name("legacy.tiff.rrdata");
+        copy_denoised_sidecar(&sidecar, &legacy).unwrap();
+        assert!(strict_json(&legacy).unwrap().get("stack").is_none());
+        let source: Value = serde_json::from_slice(&before).unwrap();
+        assert_eq!(strict_json(&sidecar).unwrap()["stack"], source["stack"]);
+        mutate(&legacy, |v| {
+            v["stack"] = json!({"id":"output-stack","position":2});
+            Ok(())
+        })
+        .unwrap();
+        copy_denoised_sidecar(&sidecar, &legacy).unwrap();
+        assert_eq!(strict_json(&legacy).unwrap()["stack"]["id"], "output-stack");
     }
 
     #[test]

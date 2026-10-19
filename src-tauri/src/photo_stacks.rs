@@ -7,7 +7,7 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::file_management::{
-    ensure_card_writable_for_paths, parse_virtual_path, write_file_atomically,
+    ensure_card_writable_for_paths, parse_virtual_path, write_file_atomically_unmerged,
 };
 use crate::image_processing::ImageMetadata;
 
@@ -56,21 +56,25 @@ fn source(path: &str) -> Result<PathBuf, String> {
 // Preflight every sidecar, then replace each atomically. Restore exact bytes on
 // an I/O error and report any rollback failures rather than claiming success.
 fn persist(updates: &[(PathBuf, Option<StackMember>)]) -> Result<Vec<StackUpdate>, String> {
-    persist_with(updates, |path, bytes| write_file_atomically(path, bytes))
+    persist_with(updates, |path, bytes| {
+        write_file_atomically_unmerged(path, bytes)
+    })
 }
 
 fn persist_with(
     updates: &[(PathBuf, Option<StackMember>)],
     write: impl Fn(&Path, &[u8]) -> std::io::Result<()>,
 ) -> Result<Vec<StackUpdate>, String> {
-    let _metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
     let paths: Vec<String> = updates
         .iter()
         .map(|(p, _)| p.to_string_lossy().into_owned())
         .collect();
     ensure_card_writable_for_paths(&paths)?;
+    let sidecars: Vec<_> = updates
+        .iter()
+        .map(|(p, _)| parse_virtual_path(&p.to_string_lossy()).1)
+        .collect();
+    let _guard = crate::file_management::lock_sidecars(&sidecars).map_err(|e| e.to_string())?;
     let mut writes = Vec::new();
     for (path, stack) in updates {
         let (_, sidecar) = parse_virtual_path(&path.to_string_lossy());
@@ -79,9 +83,24 @@ fn persist_with(
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => return Err(e.to_string()),
         };
-        let mut meta = metadata(&sidecar)?;
-        meta.stack = stack.clone();
-        let json = serde_json::to_string_pretty(&meta).map_err(|e| e.to_string())?;
+        // Validate the document but keep unknown destination-owned fields.
+        metadata(&sidecar)?;
+        let mut value = match &old {
+            Some(bytes) => {
+                serde_json::from_slice::<serde_json::Value>(bytes).map_err(|e| e.to_string())?
+            }
+            None => serde_json::to_value(ImageMetadata::default()).map_err(|e| e.to_string())?,
+        };
+        value
+            .as_object_mut()
+            .ok_or("Sidecar must be an object")?
+            .insert(
+                "stack".into(),
+                serde_json::to_value(stack).map_err(|e| e.to_string())?,
+            );
+        // An explicit null is a tombstone: a later stale ordinary save must
+        // not resurrect membership after Unstack.
+        let json = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
         writes.push((sidecar, old, json));
     }
     for (index, (sidecar, _, json)) in writes.iter().enumerate() {
@@ -112,9 +131,6 @@ fn persist_with(
 }
 
 pub(crate) fn expanded(paths: &[String]) -> Result<Vec<PathBuf>, String> {
-    let _metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
     let selected: Vec<PathBuf> = paths.iter().map(|p| source(p)).collect::<Result<_, _>>()?;
     let mut all = selected.clone();
     let mut ids: HashMap<PathBuf, HashSet<String>> = HashMap::new();
@@ -186,7 +202,16 @@ fn group_updates(paths: &[PathBuf]) -> Result<Vec<(PathBuf, Option<StackMember>)
 }
 
 #[tauri::command]
-pub fn edit_photo_stack(
+pub async fn edit_photo_stack(
+    paths: Vec<String>,
+    action: StackAction,
+) -> Result<Vec<StackUpdate>, String> {
+    tauri::async_runtime::spawn_blocking(move || edit_photo_stack_on_disk(paths, action))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+pub(crate) fn edit_photo_stack_on_disk(
     paths: Vec<String>,
     action: StackAction,
 ) -> Result<Vec<StackUpdate>, String> {
@@ -270,7 +295,16 @@ fn bracket_cover_first(groups: &mut [Vec<String>], bias: &HashMap<String, f64>) 
         }
         let mut order: Vec<usize> = (0..values.len()).collect();
         order.sort_by(|a, b| values[*a].total_cmp(&values[*b]));
-        let best = order[(order.len() - 1) / 2];
+        let best = if order.len() == 2 {
+            // With only two exposures, the lower median can be the dark frame.
+            // Prefer the recorded compensation nearest neutral, retaining
+            // capture order when the pair is symmetric.
+            (0..values.len())
+                .min_by(|a, b| values[*a].abs().total_cmp(&values[*b].abs()))
+                .unwrap()
+        } else {
+            order[(order.len() - 1) / 2]
+        };
         group[..=best].rotate_right(1);
     }
 }
@@ -280,25 +314,54 @@ fn parent_identity(path: &Path) -> PathBuf {
     std::fs::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf())
 }
 
+fn exposure_duration(exif: &HashMap<String, String>) -> chrono::Duration {
+    let seconds = exif
+        .get("ExposureTime")
+        .and_then(|value| {
+            let text = value
+                .trim()
+                .trim_matches('"')
+                .split_whitespace()
+                .next()?
+                .trim_end_matches('s');
+            let value = if let Some((n, d)) = text.split_once('/') {
+                n.parse::<f64>().ok()? / d.parse::<f64>().ok()?
+            } else {
+                text.parse::<f64>().ok()?
+            };
+            (value.is_finite() && (0.0..=86400.0).contains(&value)).then_some(value)
+        })
+        .unwrap_or(0.0);
+    chrono::Duration::nanoseconds((seconds * 1e9).round() as i64)
+}
+
 fn time_groups(
-    mut photos: Vec<(PathBuf, NaiveDateTime)>,
+    photos: Vec<(PathBuf, NaiveDateTime, chrono::Duration)>,
     seconds: f64,
 ) -> Result<Vec<Vec<String>>, String> {
     if !seconds.is_finite() || !(0.0..=3600.0).contains(&seconds) {
         return Err("Use a capture-time gap from 0 to 3600 seconds".into());
     }
-    photos.sort_by(|a, b| {
-        parent_identity(&a.0)
-            .cmp(&parent_identity(&b.0))
-            .then(a.1.cmp(&b.1))
-            .then(a.0.cmp(&b.0))
-    });
+    // Resolve each folder once, rather than doing filesystem I/O in sort comparisons.
+    let mut photos: Vec<_> = photos
+        .into_iter()
+        .map(|(path, start, duration)| {
+            let folder = parent_identity(&path);
+            let end = start.checked_add_signed(duration).unwrap_or(start);
+            (folder, path, start, end)
+        })
+        .collect();
+    photos.sort_by(|a, b| a.0.cmp(&b.0).then(a.2.cmp(&b.2)).then(a.1.cmp(&b.1)));
+    let starts: HashMap<_, _> = photos
+        .iter()
+        .map(|(_, p, t, _)| (p.to_string_lossy().into_owned(), *t))
+        .collect();
     let gap = chrono::Duration::nanoseconds((seconds * 1e9).round() as i64);
     let mut groups: Vec<Vec<String>> = Vec::new();
     let mut previous: Option<(PathBuf, NaiveDateTime)> = None;
-    for (path, time) in photos {
-        let same = previous.as_ref().is_some_and(|(prev, t)| {
-            parent_identity(prev) == parent_identity(&path) && time - *t <= gap
+    for (folder, path, start, end) in photos {
+        let same = previous.as_ref().is_some_and(|(prev_folder, prev_end)| {
+            *prev_folder == folder && start - *prev_end <= gap
         });
         if !same {
             groups.push(Vec::new());
@@ -307,9 +370,36 @@ fn time_groups(
             .last_mut()
             .unwrap()
             .push(path.to_string_lossy().into_owned());
-        previous = Some((path, time));
+        let last_end = if same {
+            previous.as_ref().unwrap().1.max(end)
+        } else {
+            end
+        };
+        previous = Some((folder, last_end));
     }
-    groups.retain(|g| g.len() > 1);
+    groups.retain(|group| {
+        if group.len() < 2 {
+            return false;
+        }
+        if group.len() != 2 {
+            return true;
+        }
+        let a = Path::new(&group[0]);
+        let b = Path::new(&group[1]);
+        let jpeg = |p: &Path| {
+            p.extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("jpg") || e.eq_ignore_ascii_case("jpeg"))
+        };
+        let same_stem = a
+            .file_stem()
+            .zip(b.file_stem())
+            .is_some_and(|(a, b)| a.eq_ignore_ascii_case(b));
+        let pair = same_stem
+            && ((crate::formats::is_raw_file(a) && jpeg(b))
+                || (jpeg(a) && crate::formats::is_raw_file(b)))
+            && (starts[&group[0]] - starts[&group[1]]).abs() <= chrono::Duration::milliseconds(10);
+        !pair
+    });
     Ok(groups)
 }
 
@@ -346,7 +436,7 @@ pub async fn preview_photo_stacks(
                 if let Some(ev) = exposure_bias(&exif) {
                     bias.insert(path.to_string_lossy().into_owned(), ev);
                 }
-                photos.push((path, time));
+                photos.push((path, time, exposure_duration(&exif)));
             }
         }
         let mut groups = time_groups(photos, seconds)?;
@@ -358,7 +448,13 @@ pub async fn preview_photo_stacks(
 }
 
 #[tauri::command]
-pub fn apply_photo_stacks(groups: Vec<Vec<String>>) -> Result<Vec<StackUpdate>, String> {
+pub async fn apply_photo_stacks(groups: Vec<Vec<String>>) -> Result<Vec<StackUpdate>, String> {
+    tauri::async_runtime::spawn_blocking(move || apply_photo_stacks_on_disk(groups))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn apply_photo_stacks_on_disk(groups: Vec<Vec<String>>) -> Result<Vec<StackUpdate>, String> {
     let _lock = STACK_WRITES.lock().unwrap_or_else(|e| e.into_inner());
     let mut updates = Vec::new();
     let mut seen = HashSet::new();
@@ -385,6 +481,7 @@ pub fn apply_photo_stacks(groups: Vec<Vec<String>>) -> Result<Vec<StackUpdate>, 
 mod tests {
     use super::*;
     use crate::file_management::card_mode_test_support::{CardMode, folders, snapshot};
+    use crate::file_management::write_file_atomically;
 
     fn time(date: &str, sub: &str) -> NaiveDateTime {
         capture_time(&HashMap::from([
@@ -399,10 +496,26 @@ mod tests {
         let date = "2026:10:12 12:00:00";
         let groups = time_groups(
             vec![
-                (PathBuf::from("/a/late.jpg"), time(date, "90")),
-                (PathBuf::from("/a/first.jpg"), time(date, "1")),
-                (PathBuf::from("/a/second.jpg"), time(date, "200000001")),
-                (PathBuf::from("/b/other.jpg"), time(date, "1")),
+                (
+                    PathBuf::from("/a/late.jpg"),
+                    time(date, "90"),
+                    chrono::Duration::zero(),
+                ),
+                (
+                    PathBuf::from("/a/first.jpg"),
+                    time(date, "1"),
+                    chrono::Duration::zero(),
+                ),
+                (
+                    PathBuf::from("/a/second.jpg"),
+                    time(date, "200000001"),
+                    chrono::Duration::zero(),
+                ),
+                (
+                    PathBuf::from("/b/other.jpg"),
+                    time(date, "1"),
+                    chrono::Duration::zero(),
+                ),
             ],
             0.100000001,
         )
@@ -459,6 +572,35 @@ mod tests {
     }
 
     #[test]
+    fn two_frame_brackets_prefer_neutral_and_pairs_do_not_become_bursts() {
+        let mut groups = vec![vec!["dark".to_owned(), "neutral".to_owned()]];
+        bracket_cover_first(
+            &mut groups,
+            &HashMap::from([("dark".into(), -1.0), ("neutral".into(), 0.0)]),
+        );
+        assert_eq!(groups[0], vec!["neutral", "dark"]);
+        let start = time("2026:10:19 21:00:00", "");
+        let d = |value: &str| {
+            exposure_duration(&HashMap::from([("ExposureTime".into(), value.into())]))
+        };
+        let pair = vec![
+            (PathBuf::from("/photos/DSC001.ARW"), start, d("30 s")),
+            (PathBuf::from("/photos/DSC001.JPG"), start, d("30")),
+        ];
+        assert!(time_groups(pair.clone(), 1.0).unwrap().is_empty());
+        let mut bracket = pair;
+        bracket.push((
+            PathBuf::from("/photos/DSC002.ARW"),
+            start + chrono::Duration::seconds(31),
+            d("1/2"),
+        ));
+        assert_eq!(time_groups(bracket.clone(), 1.0).unwrap()[0].len(), 3);
+        assert!(time_groups(bracket, 0.9).unwrap().is_empty());
+        assert_eq!(d("1/2"), chrono::Duration::milliseconds(500));
+        assert_eq!(d("1/0"), chrono::Duration::zero());
+    }
+
+    #[test]
     fn malformed_stack_becomes_none_without_losing_the_rest_of_the_sidecar() {
         for bad in [
             "\"oops\"",
@@ -472,6 +614,67 @@ mod tests {
             assert!(meta.stack.is_none(), "{bad}");
             assert_eq!(meta.rating, 4);
         }
+    }
+
+    #[test]
+    fn stale_batch_saves_cannot_erase_membership_or_resurrect_unstacked_photos() {
+        let _mode = CardMode::off();
+        let f = folders();
+        let a = f.library.join("one.jpg");
+        let b = f.library.join("two.jpg");
+        std::fs::write(&a, b"fixture").unwrap();
+        std::fs::write(&b, b"fixture").unwrap();
+        let paths = vec![
+            a.to_string_lossy().into_owned(),
+            b.to_string_lossy().into_owned(),
+        ];
+        let (_, sidecar) = parse_virtual_path(&paths[0]);
+        let original = serde_json::json!({"version":1,"rating":4,"adjustments":{"exposure":0.7},"appliedPreset":{"name":"trip"},"futureField":{"preserve":true}});
+        write_file_atomically(&sidecar, serde_json::to_vec(&original).unwrap()).unwrap();
+        edit_photo_stack_on_disk(paths.clone(), StackAction::Stack).unwrap();
+        let stacked: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&sidecar).unwrap()).unwrap();
+        assert_eq!(stacked["futureField"], original["futureField"]);
+        write_file_atomically(&sidecar, serde_json::to_vec(&original).unwrap()).unwrap();
+        assert!(metadata(&sidecar).unwrap().stack.is_some());
+        edit_photo_stack_on_disk(vec![paths[0].clone()], StackAction::Unstack).unwrap();
+        crate::file_management::update_sidecar(&sidecar, |m| m.rating = 5).unwrap();
+        write_file_atomically(&sidecar, serde_json::to_vec(&stacked).unwrap()).unwrap();
+        let cleared: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&sidecar).unwrap()).unwrap();
+        assert_eq!(cleared.get("stack"), Some(&serde_json::Value::Null));
+        assert_eq!(cleared["appliedPreset"], original["appliedPreset"]);
+        assert_eq!(cleared["adjustments"], original["adjustments"]);
+        assert!(metadata(&sidecar).unwrap().stack.is_none());
+    }
+
+    #[test]
+    fn stack_preflight_waits_for_the_shared_cross_process_sidecar_lock() {
+        let _mode = CardMode::off();
+        let f = folders();
+        let a = f.library.join("one.jpg");
+        let b = f.library.join("two.jpg");
+        std::fs::write(&a, b"fixture").unwrap();
+        std::fs::write(&b, b"fixture").unwrap();
+        let (_, sidecar) = parse_virtual_path(&a.to_string_lossy());
+        let guard = crate::file_management::lock_sidecar_as_external_writer(&sidecar).unwrap();
+        let updates = group_updates(&[a, b]).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            persist_with(&updates, |path, bytes| {
+                tx.send(()).unwrap();
+                write_file_atomically_unmerged(path, bytes)
+            })
+            .unwrap()
+        });
+        assert!(
+            rx.recv_timeout(std::time::Duration::from_millis(150))
+                .is_err()
+        );
+        drop(guard);
+        rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+        worker.join().unwrap();
+        assert!(metadata(&sidecar).unwrap().stack.is_some());
     }
 
     #[test]
@@ -493,7 +696,7 @@ mod tests {
             ..Default::default()
         };
         write_file_atomically(&sidecar, serde_json::to_vec(&original).unwrap()).unwrap();
-        let updates = edit_photo_stack(paths.clone(), StackAction::Stack).unwrap();
+        let updates = edit_photo_stack_on_disk(paths.clone(), StackAction::Stack).unwrap();
         assert_eq!(updates[0].stack.as_ref().unwrap().position, 0);
         assert_eq!(
             updates[0].stack.as_ref().unwrap().id,
@@ -506,11 +709,12 @@ mod tests {
         let (_, new_sidecar) = parse_virtual_path(&renamed.to_string_lossy());
         std::fs::rename(&a, &renamed).unwrap();
         std::fs::rename(sidecar, new_sidecar).unwrap();
-        let updates = edit_photo_stack(vec![paths[1].clone()], StackAction::Cover).unwrap();
+        let updates = edit_photo_stack_on_disk(vec![paths[1].clone()], StackAction::Cover).unwrap();
         assert_eq!(updates.len(), 2);
         assert_eq!(updates[0].path, paths[1]);
         assert_eq!(updates[0].stack.as_ref().unwrap().position, 0);
-        let updates = edit_photo_stack(vec![paths[1].clone()], StackAction::Unstack).unwrap();
+        let updates =
+            edit_photo_stack_on_disk(vec![paths[1].clone()], StackAction::Unstack).unwrap();
         assert_eq!(updates.len(), 2);
         assert!(updates.iter().all(|u| u.stack.is_none()));
     }
@@ -527,14 +731,14 @@ mod tests {
             })
             .into();
         let before = snapshot(&f.card);
-        assert!(edit_photo_stack(paths.clone(), StackAction::Stack).is_err());
-        assert!(apply_photo_stacks(vec![paths.clone()]).is_err());
+        assert!(edit_photo_stack_on_disk(paths.clone(), StackAction::Stack).is_err());
+        assert!(apply_photo_stacks_on_disk(vec![paths.clone()]).is_err());
         assert_eq!(snapshot(&f.card), before);
         drop(_mode);
         let _mode = CardMode::off();
-        edit_photo_stack(paths.clone(), StackAction::Stack).unwrap();
+        edit_photo_stack_on_disk(paths.clone(), StackAction::Stack).unwrap();
         assert!(
-            apply_photo_stacks(vec![paths])
+            apply_photo_stacks_on_disk(vec![paths])
                 .unwrap_err()
                 .contains("preview again")
         );
@@ -566,7 +770,7 @@ mod failure_tests {
             if path == last {
                 return Err(std::io::Error::other("injected I/O failure"));
             }
-            write_file_atomically(path, bytes)
+            write_file_atomically_unmerged(path, bytes)
         })
         .err()
         .unwrap();
@@ -593,24 +797,25 @@ mod alias_tests {
         let paths: Vec<String> = ["one.jpg", "two.jpg"]
             .map(|n| alias.join(n).to_string_lossy().into_owned())
             .into();
-        let updates = edit_photo_stack(paths.clone(), StackAction::Stack).unwrap();
+        let updates = edit_photo_stack_on_disk(paths.clone(), StackAction::Stack).unwrap();
         assert_eq!(
             updates.iter().map(|u| u.path.clone()).collect::<Vec<_>>(),
             paths
         );
-        let updates = edit_photo_stack(vec![paths[1].clone()], StackAction::Cover).unwrap();
+        let updates = edit_photo_stack_on_disk(vec![paths[1].clone()], StackAction::Cover).unwrap();
         assert!(updates.iter().all(|u| paths.contains(&u.path)));
         assert_eq!(updates[0].path, paths[1]);
         let targets = metadata_paths(&[paths[0].clone()]).unwrap();
         assert!(targets.iter().all(|p| paths.contains(p)));
         assert_eq!(targets.len(), 2);
-        let updates = edit_photo_stack(vec![paths[0].clone()], StackAction::Unstack).unwrap();
+        let updates =
+            edit_photo_stack_on_disk(vec![paths[0].clone()], StackAction::Unstack).unwrap();
         assert!(
             updates
                 .iter()
                 .all(|u| paths.contains(&u.path) && u.stack.is_none())
         );
-        let updates = apply_photo_stacks(vec![paths.clone()]).unwrap();
+        let updates = apply_photo_stacks_on_disk(vec![paths.clone()]).unwrap();
         assert_eq!(
             updates.iter().map(|u| u.path.clone()).collect::<Vec<_>>(),
             paths
@@ -651,7 +856,7 @@ mod concurrency_tests {
                     entered_tx.send(()).unwrap();
                     allow_rx.lock().unwrap().recv().unwrap();
                 }
-                write_file_atomically(path, bytes)
+                write_file_atomically_unmerged(path, bytes)
             })
             .unwrap()
         });
@@ -680,7 +885,8 @@ mod concurrency_tests {
             m.adjustments = serde_json::json!({"exposure":0.3})
         })
         .unwrap();
-        edit_photo_stack(vec![a.to_string_lossy().into_owned()], StackAction::Cover).unwrap();
+        edit_photo_stack_on_disk(vec![a.to_string_lossy().into_owned()], StackAction::Cover)
+            .unwrap();
         assert_eq!(
             metadata(&sidecar).unwrap().adjustments,
             serde_json::json!({"exposure":0.3})

@@ -7,19 +7,23 @@ as local physical photos before stacking.
 
 The numbered badge expands or collapses the stack in both the Library grid
 and the editor filmstrip. Expand, right-click a member and choose **Use this
-photo as the cover**. The cover is first in the stored order. When a filter or
-album excludes the cover, the whole collapsed stack is hidden rather than another member appearing. Expanded
-members stay together in stored order. Existing RAW+JPEG pairing continues
+photo as the cover**. The cover is first in the stored order. Within an album, the lowest-position included member represents the stack;
+its stored folder cover may be outside that album. If a filter excludes this
+representative, the collapsed stack is hidden rather than another member
+appearing. Expanded members stay together in stored order. Existing RAW+JPEG pairing continues
 for unstacked photos; explicit stack members remain visible when expanded,
 regardless of the RAW+JPEG preference.
 
 **Auto-stack by capture time** previews the entire loaded folder or album,
 including photos hidden by filters. It groups consecutive captures in each
-folder when their gap is at most the chosen number of seconds (default 1),
-using DateTimeOriginal and SubSecTimeOriginal. Existing stacks and photos
+folder when the gap from the previous exposure's end to the next capture is
+at most the chosen number of seconds (default 1), using DateTimeOriginal,
+SubSecTimeOriginal and ExposureTime. A RAW+JPEG pair from one capture does not
+become a two-photo stack. Existing stacks and photos
 without valid capture dates are skipped. When a proposed group's exposure
 bias (ExposureBiasValue) differs between members, as in an exposure bracket, the
-frame at the median exposure becomes its cover; bursts keep capture order. No stack
+frame at the median exposure becomes its cover. For a two-frame bracket, the
+exposure bias nearest zero leads; bursts and symmetric ties keep capture order. No stack
 writes happen until Apply.
 
 Stars and pick/reject flags affect the selected cover by default. Enable

@@ -14,7 +14,8 @@ def prepare_stacks(case):
         image.save(path, quality=90)
         path.with_name(path.name + '.rrdata').write_text(json.dumps({
             'version': 1, 'rating': 0, 'adjustments': None,
-            'exif': {'DateTimeOriginal': '2026-10-12 12:00:00', 'SubSecTimeOriginal': subsec}
+            'exif': {'DateTimeOriginal': '2026-10-12 12:00:00', 'SubSecTimeOriginal': subsec,
+                     'ExposureBiasValue': ('0 EV', '-1 EV', '0 EV')[index - 1]}
         }))
 
 
@@ -83,6 +84,20 @@ def run_stack_checks(smoke, wait_for):
     smoke.execute("document.querySelector('button[aria-label=\"Expand or collapse stack (2 photos)\"]').click();return true;")
     wait_for(lambda: paths[0] in visible() and paths[1] in visible(), 'filmstrip expands shared stack')
     smoke.step('native filmstrip expand', {'capture': capture('stacks-filmstrip')})
+    # The toolbar filename comes from the loaded editor photo. A filmstrip
+    # highlight alone would pass with the old bug while leaving arrows dead.
+    def loaded(name):
+        return smoke.execute("return [...document.querySelector('[data-bench-id=back-to-library]').parentElement.parentElement.querySelectorAll('span')].some(e=>e.textContent.trim()===arguments[0]);", [name])
+    click(paths[0])
+    wait_for(lambda: loaded('stack-1.jpg'), 'non-cover member loaded in editor')
+    smoke.execute("document.querySelector('button[aria-label=\"Expand or collapse stack (2 photos)\"]').click();return true;")
+    wait_for(lambda: loaded('stack-2.jpg') and paths[0] not in visible(), 'collapse loads cover and hides prior member')
+    smoke.step('filmstrip collapse navigates loaded editor to cover', {'capture': capture('stacks-filmstrip-collapse')})
+    smoke.key('ArrowRight', 'ArrowRight')
+    wait_for(lambda: loaded('stack-3.jpg'), 'editor arrow navigates after stack collapse')
+    smoke.step('editor arrows remain live after stack collapse')
+    smoke.execute("document.querySelector('button[aria-label=\"Expand or collapse stack (2 photos)\"]').click();return true;")
+    wait_for(lambda: paths[0] in visible(), 'filmstrip expanded for library return')
     smoke.key('Escape', 'Escape')
     wait_for(lambda: paths[0] in visible(), 'library retains expanded stack')
     stack_menu(paths[1], 'Unstack (Ctrl+Shift+G)')
@@ -106,6 +121,8 @@ def run_stack_checks(smoke, wait_for):
     stack_menu(paths[0], 'Apply stars and flags to whole stacks (this session)')
     click(paths[0]); smoke.key('Digit3','3')
     wait_for(lambda: all(json.loads((case / f'input/stack-{i}.jpg.rrdata').read_text()).get('rating') == 3 for i in (1,2)), 'whole-stack stars persist to both members')
+    if saved()[0]['position'] != 0:
+        raise RuntimeError('Two-frame 0/-1 bracket chose dark cover')
     smoke.step('auto apply and opt-in whole-stack rating', {'capture': capture('stacks-auto-applied')})
     stack_menu(paths[0], 'Unstack (Ctrl+Shift+G)')
     wait_for(lambda: not any(saved()), 'native test cleanup unstacks fixtures')
