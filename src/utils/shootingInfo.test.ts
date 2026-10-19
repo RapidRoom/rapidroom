@@ -47,6 +47,10 @@ describe('friendly EXIF and Lensfun display names', () => {
     ['Tamron SP AF 70-200mm f/2.8 Di LD (IF) Macro (A001)', 'Tamron 70-200mm f2.8 Macro'],
     ['Nikon AF-S Nikkor 24-70mm f/2.8E ED VR', 'Nikon AF-S Nikkor 24-70mm f/2.8E ED VR'],
     ['E 20mm F2 Unknown', 'E 20mm F2 Unknown'],
+    ['Tamron E 28-75mm F/2.8 Di III VXD G2 A063Z', 'Tamron 28-75mm f2.8 G2'],
+    ['Tamron 28-75mm F/2.8 Di III RXD', 'Tamron 28-75mm f2.8'],
+    ['Sigma 60-600mm f/4.5-6.3 DG OS HSM | S', 'Sigma 60-600mm f4.5-6.3 Sports'],
+    ['Sigma 150-600mm f/5-6.3 DG OS HSM | C', 'Sigma 150-600mm f5-6.3 Contemporary'],
     ['Unknown lens', 'Unknown lens'],
   ])('%s → %s', (raw, expected) => expect(friendlyLensName(raw)).toBe(expected));
   it('uses the lens maker, never the camera maker, to identify third-party E lenses', () => {

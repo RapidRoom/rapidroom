@@ -357,7 +357,7 @@ const EditorToolbar = memo(
                 variant={TextVariants.small}
                 color={TextColors.primary}
                 weight={TextWeights.medium}
-                className="truncate min-w-0 shrink max-w-[45%]"
+                className="truncate min-w-0 shrink"
                 title={showResolution ? `${baseName} - ${selectedImage.width} × ${selectedImage.height}` : baseName}
               >
                 {baseName}

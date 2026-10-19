@@ -26,8 +26,12 @@ export function friendlyLensName(value: unknown, maker?: unknown) {
   const aperture = optical[2].replace(/[\sf/]/gi, '').replace(/–/g, '-');
   const suffix = raw.slice(optical.index! + optical[0].length).replace(/\bDi\s+(?:IV|III|II|I)\b/gi, '');
   // Preserve optical design/generation and familiar product families, discard mount/motor/model codes.
-  const qualifiers = suffix.match(/\b(?:Macro|GM|G|ZA|IV|III|II|Art|Sports|Contemporary)\b/gi) ?? [];
-  if (name === 'Sigma' && /\|\s*A\b/.test(suffix) && !qualifiers.some((q) => /^art$/i.test(q))) qualifiers.push('Art');
+  const qualifiers = suffix.match(/\b(?:Macro|GM|G[2-9]?|ZA|IV|III|II|Art|Sports|Contemporary)\b/gi) ?? [];
+  const sigmaFamily = suffix.match(/\|\s*([ASC])\b/i)?.[1].toUpperCase();
+  if (name === 'Sigma' && sigmaFamily) {
+    const family = { A: 'Art', S: 'Sports', C: 'Contemporary' }[sigmaFamily as 'A' | 'S' | 'C'];
+    if (!qualifiers.some((q) => q.toLowerCase() === family.toLowerCase())) qualifiers.push(family);
+  }
   const words = qualifiers.map((q) =>
     /^(macro|art|sports|contemporary)$/i.test(q) ? q[0].toUpperCase() + q.slice(1).toLowerCase() : q.toUpperCase(),
   );
