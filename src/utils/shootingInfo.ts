@@ -26,7 +26,7 @@ export function friendlyLensName(value: unknown, maker?: unknown) {
   const aperture = optical[2].replace(/[\sf/]/gi, '').replace(/–/g, '-');
   const suffix = raw.slice(optical.index! + optical[0].length).replace(/\bDi\s+(?:IV|III|II|I)\b/gi, '');
   // Preserve optical design/generation and familiar product families, discard mount/motor/model codes.
-  const qualifiers = suffix.match(/\b(?:Macro|GM|G[2-9]?|ZA|IV|III|II|Art|Sports|Contemporary)\b/gi) ?? [];
+  const qualifiers: string[] = suffix.match(/\b(?:Macro|GM|G[2-9]?|ZA|IV|III|II|Art|Sports|Contemporary)\b/gi) ?? [];
   const sigmaFamily = suffix.match(/\|\s*([ASC])\b/i)?.[1].toUpperCase();
   if (name === 'Sigma' && sigmaFamily) {
     const family = { A: 'Art', S: 'Sports', C: 'Contemporary' }[sigmaFamily as 'A' | 'S' | 'C'];
