@@ -187,10 +187,10 @@ interface Row {
 }
 
 const typeOf = (value: unknown, path: string): string => {
+  if (path === 'aspectRatio') return 'number | null';
   if (value === null) {
     if (/^(lutPath|lutName|lutData|lensMaker|lensModel|lensBlurDepthMap|relightNormalMap|fogDepthMap)$/.test(path))
       return 'string | null';
-    if (path === 'aspectRatio') return 'number | null';
     return 'object | null';
   }
   if (Array.isArray(value)) return 'array';
@@ -294,7 +294,7 @@ const maskSection = (maskConfig: Record<string, MaskPanelConfig>): string[] => {
     '- Positions and sizes are in full-resolution pixels of the image after rotation and flips, before the crop.',
     '- Discovery validates each container/component and local adjustment. `upsert_mask` creates or deep-updates one id while preserving siblings; `remove_mask` removes only that id. A supplied `subMasks` replaces only its container’s component array. Full `masks` arrays in set/update replace every container. Read the latest revision before each mutation.',
     '- IDs contain 1–128 ASCII letters, digits, underscore, colon, dot or hyphen. Sparse local settings receive defaults, including nested HSL/grading channels. Parametric `split1 < split2 < split3` is checked after existing-value merge or defaults 25/50/75. Echoed display names retain stored names; intentional new names use the existing bounded text policy.',
-    '- Radial/brush feather is 0–1; colour/luminance/AI feather is 0–100. Coordinates are full-resolution image pixels before crop, independent of display/preview size. `crop` is `{x,y,width,height,unit:"px"}`, or null; set `aspectRatio` separately to width ÷ height. Last-preview coordinate conversion and AI generation remain #120 follow-ups. Editing a stored AI bitmap does not run a model.',
+    '- Radial/brush feather is 0–1; colour/luminance/AI feather is 0–100. Coordinates are full-resolution image pixels before crop, independent of display/preview size. `crop` is `{x,y,width,height,unit:"px"}`, or null; set `aspectRatio` separately to `0` for Original, `null` for Free, or a positive fixed width ÷ height. Last-preview coordinate conversion and AI generation remain #120 follow-ups. Editing a stored AI bitmap does not run a model.',
     '',
     'A new container looks like this (`id` can be a UUID):',
     '',
