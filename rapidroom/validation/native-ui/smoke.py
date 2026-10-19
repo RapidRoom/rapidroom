@@ -743,6 +743,11 @@ def launch(args):
                     raise RuntimeError("Pinned stdio adapter copy differs")
             if sha(case / "engine/rapidroom") != source_hash:
                 raise RuntimeError("Engine changed while pinning")
+            # Preserve the pinned release resource layout after copying the
+            # executable. Otherwise Tauri may resolve the installed app's lib.
+            pinned_lib = engine.parent.parent / "lib/RapidRoom"
+            if pinned_lib.is_dir():
+                shutil.copytree(pinned_lib, case / "lib/RapidRoom", symlinks=True)
             for name in ("resources", "lensfun_db"):
                 source = engine.parent / name
                 if source.is_dir():
