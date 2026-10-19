@@ -1,4 +1,4 @@
-import { Crop } from 'react-image-crop';
+import { Crop, PixelCrop } from 'react-image-crop';
 
 // aspectRatio 0 locks the crop to the image's own ratio, null leaves it free.
 // 0 is the default, because the image ratio differs per image and cannot be stored as one number.
@@ -20,6 +20,18 @@ export function resolveAspectRatio(
     return null;
   const { width, height } = getOrientedDimensions(image.width, image.height, orientationSteps);
   return width / height;
+}
+
+export function toPixelCrop(crop: Crop, imageWidth: number, imageHeight: number): PixelCrop {
+  return crop.unit === '%'
+    ? {
+        unit: 'px',
+        x: (crop.x * imageWidth) / 100,
+        y: (crop.y * imageHeight) / 100,
+        width: (crop.width * imageWidth) / 100,
+        height: (crop.height * imageHeight) / 100,
+      }
+    : { ...crop, unit: 'px' };
 }
 
 export function getOrientedDimensions(
@@ -163,6 +175,7 @@ export function calculateAreaPreservingCrop(
 
   const { width: W, height: H } = getOrientedDimensions(imageWidth, imageHeight, orientationSteps);
 
+  currentCrop = toPixelCrop(currentCrop, W, H);
   const area = currentCrop.width * currentCrop.height;
   const newH = Math.sqrt(area / aspectRatio);
   const newW = aspectRatio * newH;
@@ -215,6 +228,7 @@ export function calculateAutoCropForRotation(
     return calculateCenteredCrop(imageWidth, imageHeight, orientationSteps, A, newRotation);
   }
 
+  currentCrop = toPixelCrop(currentCrop, W, H);
   const followedCrop = rotationDelta !== 0 ? rotateCropCenter(currentCrop, W, H, rotationDelta) : currentCrop;
 
   if (isCropWithinBounds(followedCrop, W, H, newRotation)) {

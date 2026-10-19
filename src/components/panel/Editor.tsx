@@ -17,6 +17,7 @@ import {
   moveCropInsideBounds,
   zoomCrop,
   normalizeCropChange,
+  toPixelCrop,
 } from '../../utils/cropUtils';
 import EditorToolbar from './editor/EditorToolbar';
 import EmbeddedPreviewWarning from './EmbeddedPreviewWarning';
@@ -1837,7 +1838,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       return;
     }
 
-    const { aspectRatio, orientationSteps = 0, crop: currentAdjCrop, rotation = 0 } = adjustments;
+    const { aspectRatio, orientationSteps = 0, crop: storedCrop, rotation = 0 } = adjustments;
     const effectiveRotation = liveRotation !== null && liveRotation !== undefined ? liveRotation : rotation;
 
     const imageChanged = prevCropParams.current?.imagePath !== selectedImage.path;
@@ -1848,7 +1849,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       prevCropParams.current?.orientationSteps !== orientationSteps;
 
     const isDraggingRotation = liveRotation !== null && liveRotation !== undefined;
-    const needsRecalc = currentAdjCrop === null || geometryChanged || isDraggingRotation;
+    const needsRecalc = storedCrop === null || geometryChanged || isDraggingRotation;
 
     if (needsRecalc) {
       const { width: W, height: H } = getOrientedDimensions(
@@ -1857,6 +1858,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         orientationSteps,
       );
       const A = aspectRatio || (W > 0 && H > 0 ? W / H : 1);
+      const currentAdjCrop = storedCrop ? toPixelCrop(storedCrop, W, H) : null;
 
       let nextPixelCrop: Crop | null;
       const aspectChanged = prevCropParams.current?.aspectRatio !== aspectRatio;
@@ -1886,16 +1888,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       }
 
       if (imageChanged && currentAdjCrop && !isDraggingRotation) {
-        nextPixelCrop =
-          currentAdjCrop.unit === '%'
-            ? {
-                unit: 'px',
-                x: (currentAdjCrop.x * W) / 100,
-                y: (currentAdjCrop.y * H) / 100,
-                width: (currentAdjCrop.width * W) / 100,
-                height: (currentAdjCrop.height * H) / 100,
-              }
-            : currentAdjCrop;
+        nextPixelCrop = currentAdjCrop;
       } else if (!currentAdjCrop || orientationChanged) {
         nextPixelCrop = calculateCenteredCrop(
           selectedImage.width,
@@ -1977,10 +1970,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         prevCropParams.current = { imagePath: selectedImage.path, rotation, aspectRatio, orientationSteps };
 
         const normalizedCrop =
-          imageChanged && currentAdjCrop?.unit === '%'
-            ? currentAdjCrop
+          imageChanged && storedCrop
+            ? storedCrop
             : normalizeCropChange(
-                currentAdjCrop,
+                storedCrop,
                 nextPixelCrop,
                 selectedImage.width,
                 selectedImage.height,
@@ -1989,13 +1982,13 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
               );
 
         if (
-          normalizedCrop !== currentAdjCrop &&
+          normalizedCrop !== storedCrop &&
           (!normalizedCrop ||
-            !currentAdjCrop ||
-            Math.abs(currentAdjCrop.x - normalizedCrop.x) > 1 ||
-            Math.abs(currentAdjCrop.y - normalizedCrop.y) > 1 ||
-            Math.abs(currentAdjCrop.width - normalizedCrop.width) > 1 ||
-            Math.abs(currentAdjCrop.height - normalizedCrop.height) > 1)
+            !storedCrop ||
+            Math.abs(storedCrop.x - normalizedCrop.x) > 1 ||
+            Math.abs(storedCrop.y - normalizedCrop.y) > 1 ||
+            Math.abs(storedCrop.width - normalizedCrop.width) > 1 ||
+            Math.abs(storedCrop.height - normalizedCrop.height) > 1)
         ) {
           setAdjustments((prev: Adjustments) => ({ ...prev, crop: normalizedCrop }));
         }
@@ -2030,13 +2023,16 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     const { crop: pixelCrop } = adjustments;
 
     if (pixelCrop) {
-      const pct: PercentCrop = {
-        unit: '%',
-        x: (pixelCrop.x / cropBaseWidth) * 100,
-        y: (pixelCrop.y / cropBaseHeight) * 100,
-        width: (pixelCrop.width / cropBaseWidth) * 100,
-        height: (pixelCrop.height / cropBaseHeight) * 100,
-      };
+      const pct: PercentCrop =
+        pixelCrop.unit === '%'
+          ? { ...pixelCrop, unit: '%' }
+          : {
+              unit: '%',
+              x: (pixelCrop.x / cropBaseWidth) * 100,
+              y: (pixelCrop.y / cropBaseHeight) * 100,
+              width: (pixelCrop.width / cropBaseWidth) * 100,
+              height: (pixelCrop.height / cropBaseHeight) * 100,
+            };
       setCrop(pct);
       lastValidCropRef.current = pct;
     }

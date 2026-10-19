@@ -85,6 +85,38 @@ describe('copy adjustments', () => {
 });
 
 describe('Original crop orientation compatibility', () => {
+  it('flips a saved percentage ROI around the same image-space centre as pixels', () => {
+    let actions: ReturnType<typeof useEditorActions> | undefined;
+    function Probe() {
+      actions = useEditorActions();
+      return null;
+    }
+    renderToStaticMarkup(createElement(Probe));
+    const selectedImage = {
+      exif: {},
+      height: 4000,
+      isRaw: true,
+      isReady: true,
+      path: '/photos/percent.raw',
+      thumbnailUrl: '',
+      width: 6000,
+    };
+    const frames = [
+      { unit: '%' as const, x: 10, y: 20, width: 30, height: 60 },
+      { unit: 'px' as const, x: 600, y: 800, width: 1800, height: 2400 },
+    ];
+    const outputs = frames.map((crop) => {
+      useEditorStore
+        .getState()
+        .setEditor({ selectedImage, adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: 0.75, crop } });
+      actions!.handleCropOrientationToggle();
+      return useEditorStore.getState().adjustments;
+    });
+    expect(outputs[0].crop).toEqual(outputs[1].crop);
+    expect(outputs[0].aspectRatio).toBeCloseTo(4 / 3);
+    expect(outputs[0].crop!.width).toBeGreaterThan(1000);
+  });
+
   it('keeps Original during image rotation and flips its resolved ratio with X', () => {
     const selectedImage = {
       exif: {},

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Crop } from 'react-image-crop';
 import {
   calculateCenteredCrop,
+  calculateAreaPreservingCrop,
+  calculateAutoCropForRotation,
   getOrientedDimensions,
   isCropWithinBounds,
   normalizeCropChange,
@@ -86,5 +88,28 @@ describe('Original ratio and fixed Instagram crop compatibility', () => {
     const free = zoomCrop(crop, 0.8, 6000, 4000, 0, null);
     expect(original.width / original.height).toBeCloseTo(1.5, 2);
     expect(free.width / free.height).toBe(1);
+  });
+});
+
+describe('saved percentage crop geometry regression', () => {
+  const percent: Crop = { unit: '%', x: 10, y: 20, width: 30, height: 60 };
+  const pixels: Crop = { unit: 'px', x: 600, y: 800, width: 1800, height: 2400 };
+
+  it('preserves the same frame area and centre when switching from3:4 to4:5', () => {
+    const expected = calculateAreaPreservingCrop(6000, 4000, 0, 0.8, 0, pixels)!;
+    const changed = calculateAreaPreservingCrop(6000, 4000, 0, 0.8, 0, percent)!;
+    expect(changed).toEqual(expected);
+    expect(changed.width).toBeGreaterThan(1800);
+    expect(changed.height).toBeGreaterThan(2000);
+    expect(Math.abs(changed.x + changed.width / 2 - 1500)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(changed.y + changed.height / 2 - 2000)).toBeLessThanOrEqual(0.5);
+  });
+
+  it('straightens a saved percentage ROI in image pixels without collapsing it', () => {
+    const changed = calculateAutoCropForRotation(6000, 4000, 0, 0.75, 1, percent, 1)!;
+    expect(changed).toEqual(calculateAutoCropForRotation(6000, 4000, 0, 0.75, 1, pixels, 1));
+    expect(changed.width).toBeGreaterThan(1000);
+    expect(changed.height).toBeGreaterThan(1500);
+    expect(isCropWithinBounds(changed, 6000, 4000, 1)).toBe(true);
   });
 });
