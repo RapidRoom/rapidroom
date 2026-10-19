@@ -839,9 +839,9 @@
         "style": "Stijl",
         "tool": "Gereedschap"
       },
-      "appliedFolder": "",
-      "bakedIn": "",
-      "bakedInNotice": ""
+      "appliedFolder": "Toegepast",
+      "bakedIn": "ingebakken",
+      "bakedInNotice": "Eerder toegepast en in de bewerking opgenomen. Verwijderen behoudt de bewerking."
     },
     "referenceView": {
       "active": "Actief",

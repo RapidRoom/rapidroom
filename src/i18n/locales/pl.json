@@ -938,9 +938,9 @@
         "style": "Styl",
         "tool": "Narzędzie"
       },
-      "appliedFolder": "",
-      "bakedIn": "",
-      "bakedInNotice": ""
+      "appliedFolder": "Zastosowane",
+      "bakedIn": "trwale zastosowany",
+      "bakedInNotice": "Zastosowany wcześniej i utrwalony w edycji. Usunięcie zachowuje edycję."
     },
     "referenceView": {
       "active": "Aktywne",

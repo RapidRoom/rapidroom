@@ -162,7 +162,7 @@ class Smoke:
         for attempt in range(12):
             time.sleep(0.5)
             path = self.capture(name + "-" + str(attempt))
-            if (self.case / "presets-test.json").exists():
+            if (self.case / "presets-test.json").exists() or (self.case / "style-stack-test.json").exists():
                 frame=request(self.url+'/execute/async',{'script':"""const done=arguments[arguments.length-1];
                   const images=[...document.querySelectorAll('svg image')].filter(e=>{const r=e.getBoundingClientRect();return r.width>500&&r.height>300&&Number(getComputedStyle(e).opacity)>.99});
                   const image=images.at(-1);if(!image){done({error:'Native preview missing'});return;}

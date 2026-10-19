@@ -789,9 +789,9 @@
         "style": "Styl",
         "tool": "Nástroj"
       },
-      "appliedFolder": "",
-      "bakedIn": "",
-      "bakedInNotice": ""
+      "appliedFolder": "Použité",
+      "bakedIn": "pevně začleněno",
+      "bakedInNotice": "Použito dříve a pevně začleněno do úprav. Odebrání zachová úpravy."
     },
     "switcher": {
       "tooltips": {

@@ -69,6 +69,16 @@ impl StyleStackRecord {
                             })
                     })
             })
+            && self.overrides.iter().all(|change| {
+                change.get("order").is_none_or(|value| {
+                    value.as_array().is_some_and(|ids| {
+                        ids.len() <= 4096
+                            && ids
+                                .iter()
+                                .all(|id| id.as_str().is_some_and(|id| id.len() <= 1024))
+                    })
+                })
+            })
     }
 }
 
@@ -127,7 +137,9 @@ pub fn save_applied_preset(
         return Err("Only Style stack saves may include their paired adjustments".into());
     }
     if let Some(stack) = record.as_ref().and_then(|record| record.stack.as_ref())
-        && adjustments.as_ref() != Some(&stack.result)
+        && adjustments
+            .as_ref()
+            .is_some_and(|controls| controls != &stack.result)
     {
         return Err("Style stack controls must match their paired result".into());
     }
@@ -288,7 +300,12 @@ mod tests {
             Some(stack.clone())
         );
         assert!(
-            save_applied_preset(source.clone(), Some(stack), Some(json!({"exposure":99}))).is_err()
+            save_applied_preset(
+                source.clone(),
+                Some(stack.clone()),
+                Some(json!({"exposure":99}))
+            )
+            .is_err()
         );
         let saved: Value = serde_json::from_slice(&std::fs::read(&sidecar).unwrap()).unwrap();
         assert_eq!(saved["adjustments"], controls);
@@ -304,6 +321,16 @@ mod tests {
         let after_rejection: Value =
             serde_json::from_slice(&std::fs::read(&sidecar).unwrap()).unwrap();
         assert_eq!(after_rejection, saved);
+        let mut imported = saved.clone();
+        imported["adjustments"]["exposure"] = json!(3);
+        std::fs::write(&sidecar, serde_json::to_vec(&imported).unwrap()).unwrap();
+        // Completing a paused metadata write retains recipe/Amount without
+        // sending the pre-import controls back over the imported pixels.
+        save_applied_preset(source.clone(), Some(stack.clone()), None).unwrap();
+        let after_import: Value =
+            serde_json::from_slice(&std::fs::read(&sidecar).unwrap()).unwrap();
+        assert_eq!(after_import["adjustments"], imported["adjustments"]);
+        assert_eq!(load_applied_preset(source.clone()).unwrap(), Some(stack));
         save_applied_preset(source.clone(), None, Some(controls.clone())).unwrap();
         assert_eq!(load_applied_preset(source).unwrap(), None);
         let cleared: Value = serde_json::from_slice(&std::fs::read(&sidecar).unwrap()).unwrap();

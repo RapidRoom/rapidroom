@@ -915,9 +915,9 @@
         "style": "Style",
         "tool": "Outil"
       },
-      "appliedFolder": "",
-      "bakedIn": "",
-      "bakedInNotice": ""
+      "appliedFolder": "Appliqués",
+      "bakedIn": "intégré",
+      "bakedInNotice": "Appliqué précédemment et intégré à la retouche. Le retirer conserve la retouche."
     },
     "referenceView": {
       "active": "Active",

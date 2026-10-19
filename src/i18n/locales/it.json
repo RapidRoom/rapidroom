@@ -917,9 +917,9 @@
         "style": "Stile",
         "tool": "Strumento"
       },
-      "appliedFolder": "",
-      "bakedIn": "",
-      "bakedInNotice": ""
+      "appliedFolder": "Applicati",
+      "bakedIn": "incorporato",
+      "bakedInNotice": "Applicato in precedenza e incorporato nella modifica. La rimozione conserva la modifica."
     },
     "referenceView": {
       "active": "Attiva",

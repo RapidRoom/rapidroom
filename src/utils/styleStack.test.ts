@@ -112,6 +112,19 @@ describe('ordered Style stack with manual edits', () => {
     expect(removed.result.masks[0].subMasks[0].parameters!.centerX).toBe(1234);
   });
 
+  it('keeps a manual mask reorder without freezing untouched opacity or resurrecting removed Style masks', () => {
+    const forest = styles.presets.find((item) => item.preset.id === 'rapidroom-style:forest-gothic')!.preset as Preset;
+    const one = changeStyleStack(null, base(), { preset: { ...forest, id: 'one-mask' }, amount: 100 }, size);
+    const two = changeStyleStack(one, one.result, { preset: { ...forest, id: 'two-mask' }, amount: 100 }, size);
+    const user = { ...structuredClone(two.result.masks[0]), id: 'user-mask', subMasks: [] };
+    const manual = { ...two.result, masks: [user, two.result.masks[1], two.result.masks[0]] };
+    const half = changeStyleStack(two, manual, { preset: { ...forest, id: 'one-mask' }, amount: 50 }, size);
+    expect(half.result.masks.map((mask) => mask.id)).toEqual(manual.masks.map((mask) => mask.id));
+    expect(half.result.masks[2].opacity).toBe(two.result.masks[0].opacity / 2);
+    const removed = changeStyleStack(half, half.result, { remove: 'one-mask' }, size);
+    expect(removed.result.masks.map((mask) => mask.id)).toEqual(['user-mask', two.result.masks[1].id]);
+  });
+
   it('does not resurrect a manually deleted mask or overwrite a later user mask', () => {
     const forest = styles.presets.find((item) => item.preset.id === 'rapidroom-style:forest-gothic')!.preset as Preset;
     const one = changeStyleStack(null, base(), { preset: forest, amount: 100 }, size);

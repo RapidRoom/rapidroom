@@ -153,14 +153,25 @@ function persistAppliedPreset(path: string, record: AppliedPreset | null, adjust
       await new Promise((resolve) => setTimeout(resolve, 250));
       if (generations.get(path) !== generation) return;
       if (!isPathInCardRoot(path, useLibraryStore.getState().cardBrowseRoot)) {
-        await queuePhotoWrite(path, async () => {
-          if (generations.get(path) !== generation) return;
-          await invoke('save_applied_preset', {
-            path,
-            record: saved,
-            ...(saved?.stack || !saved ? { adjustments } : {}),
-          });
-        });
+        await queuePhotoWrite(
+          path,
+          async () => {
+            if (generations.get(path) !== generation) return;
+            await invoke('save_applied_preset', {
+              path,
+              record: saved,
+              ...(saved?.stack || !saved ? { adjustments } : {}),
+            });
+          },
+          adjustments,
+          async () => {
+            if (generations.get(path) !== generation) return;
+            // An imported packet consumed these controls. Retain the captured
+            // Style recipe/Amount while leaving the native import's pixels alone;
+            // loading it reconciles imported differences as manual edits.
+            await invoke('save_applied_preset', { path, record: saved });
+          },
+        );
       }
     })
     .catch(() => {

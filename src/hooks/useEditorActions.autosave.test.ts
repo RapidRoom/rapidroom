@@ -224,3 +224,67 @@ it('serializes a delayed older autosave before a newer paired Style stack and co
   expect(writes).toEqual([1, 2, 3]);
   expect(controls).toBe(3);
 });
+
+it('holds paired Style writes across native XMP import and retains only their recipe after the old controls are consumed', async () => {
+  vi.useFakeTimers();
+  const path = '/styles-import.raw';
+  const stack = changeStyleStack(
+    null,
+    INITIAL_ADJUSTMENTS,
+    { preset: { id: 'look', name: 'Look', presetType: 'style', adjustments: { contrast: 40 } }, amount: 100 },
+    { width: 6000, height: 4000 },
+  );
+  useEditorStore.setState({
+    selectedImage: { path, width: 6000, height: 4000, isReady: true, isRaw: true, thumbnailUrl: '', exif: {} },
+    adjustments: stack.result,
+  });
+  await hashPresetAdjustments(stack.result);
+  const writes: unknown[] = [];
+  mockCommand('save_applied_preset', (args) => writes.push(args));
+  const saving = rememberAppliedStyleStack(path, stack, stack.result);
+  const pause = await prepareEditorDraftForXmpImport(path);
+  await vi.advanceTimersByTimeAsync(400);
+  expect(writes).toEqual([]);
+  pause.finish([path]);
+  await saving;
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatchObject({ path, record: { stack: { entries: [{ presetId: 'look', amount: 100 }] } } });
+  expect(writes[0]).not.toHaveProperty('adjustments');
+});
+
+it('drains an in-flight paired Style save before permitting a native XMP import', async () => {
+  vi.useFakeTimers();
+  const path = '/styles-import-inflight.raw';
+  const stack = changeStyleStack(
+    null,
+    INITIAL_ADJUSTMENTS,
+    { preset: { id: 'look', name: 'Look', presetType: 'style', adjustments: { contrast: 40 } }, amount: 100 },
+    { width: 6000, height: 4000 },
+  );
+  useEditorStore.setState({
+    selectedImage: { path, width: 6000, height: 4000, isReady: true, isRaw: true, thumbnailUrl: '', exif: {} },
+    adjustments: stack.result,
+  });
+  await hashPresetAdjustments(stack.result);
+  const write = pendingWrite();
+  let started = false;
+  mockCommand('save_applied_preset', () => {
+    started = true;
+    return write.promise;
+  });
+  const saving = rememberAppliedStyleStack(path, stack, stack.result);
+  await vi.advanceTimersByTimeAsync(400);
+  expect(started).toBe(true);
+  let ready = false;
+  const preparing = prepareEditorDraftForXmpImport(path).then((pause) => {
+    ready = true;
+    return pause;
+  });
+  await Promise.resolve();
+  expect(ready).toBe(false);
+  write.resolve();
+  const pause = await preparing;
+  expect(ready).toBe(true);
+  pause.finish([]);
+  await saving;
+});

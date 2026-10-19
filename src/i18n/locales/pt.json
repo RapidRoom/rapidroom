@@ -915,9 +915,9 @@
         "style": "Estilo",
         "tool": "Ferramenta"
       },
-      "appliedFolder": "",
-      "bakedIn": "",
-      "bakedInNotice": ""
+      "appliedFolder": "Aplicados",
+      "bakedIn": "incorporado",
+      "bakedInNotice": "Aplicado anteriormente e incorporado na edição. A remoção mantém a edição."
     },
     "referenceView": {
       "active": "Ativa",

@@ -27,7 +27,7 @@ import { Invokes } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
 import i18n from 'i18next';
-import { queuePhotoWrite } from '../utils/photoWriteQueue';
+import { queuePhotoWrite, pausePhotoWrites, waitForPhotoWrites } from '../utils/photoWriteQueue';
 import { describeHistoryChange } from '../utils/editHistory';
 
 interface LoadedMetadata {
@@ -141,6 +141,7 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
   // Pause new requests synchronously, before waiting for existing writes. Never
   // flush a queued autosave into the incoming XMP packet.
   importSavePause = buffered;
+  const resumePhotoWrites = pausePhotoWrites();
   debouncedSave.cancel();
   let finished = false;
   const finish = (consumedPaths: string[]) => {
@@ -156,6 +157,9 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
       writes.set(path, current?.path === path ? current : draft);
     }
     importSavePause = undefined;
+    resumePhotoWrites(
+      (path, snapshot) => !consumedPaths.includes(path) || !snapshot || snapshot !== captured.get(path)?.adjustments,
+    );
     const entries = [...writes.values()];
     entries.forEach((draft, index) => {
       debouncedSave(draft.path, draft.adjustments);
@@ -165,6 +169,7 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
   };
   try {
     await waitForPendingEditorSaves();
+    await waitForPhotoWrites();
     debouncedSetHistory.flush();
     for (const [path, bufferedDraft] of buffered) captured.set(path, bufferedDraft);
     const active = captureEditorDraft();

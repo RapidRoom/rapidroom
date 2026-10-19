@@ -19,6 +19,7 @@ export interface ManualOverride {
   path: Segment[];
   value?: unknown;
   remove?: boolean;
+  order?: string[];
 }
 
 export interface StyleStack {
@@ -46,15 +47,8 @@ function differences(before: unknown, after: unknown, path: Segment[] = []): Man
         .filter((item) => !next.has(item.id))
         .map((item) => ({ path: [...path, { id: item.id, fallback: item }], remove: true })),
       ...after.flatMap((item) => differences(old.get(item.id), item, [...path, { id: item.id, fallback: item }])),
-      ...(before
-        .filter((item) => next.has(item.id))
-        .map((item) => item.id)
-        .join('\0') !==
-      after
-        .filter((item) => old.has(item.id))
-        .map((item) => item.id)
-        .join('\0')
-        ? [{ path, value: after }]
+      ...(before.map((item) => item.id).join('\0') !== after.map((item) => item.id).join('\0')
+        ? [{ path, order: after.map((item) => item.id) }]
         : []),
     ];
   }
@@ -69,7 +63,15 @@ function differences(before: unknown, after: unknown, path: Segment[] = []): Man
 }
 
 function applyOverride(value: unknown, override: ManualOverride, index = 0): unknown {
-  if (index === override.path.length) return override.value;
+  if (index === override.path.length) {
+    if (override.order && Array.isArray(value)) {
+      const order = override.order;
+      const rank = (item: unknown) =>
+        object(item) && typeof item.id === 'string' && order.includes(item.id) ? order.indexOf(item.id) : order.length;
+      return [...value].sort((a, b) => rank(a) - rank(b));
+    }
+    return override.value;
+  }
   const segment = override.path[index];
   const last = index === override.path.length - 1;
   if (typeof segment !== 'string') {
@@ -100,8 +102,12 @@ export function keepManualStyleEdits(stack: StyleStack, current: Adjustments): S
       ...overrides.filter((old) => {
         const oldKey = pathKey(old.path);
         return (
-          oldKey !== key &&
-          !(old.path.length > change.path.length && pathKey(old.path.slice(0, change.path.length)) === key)
+          !(oldKey === key && !!old.order === !!change.order) &&
+          !(
+            !change.order &&
+            old.path.length > change.path.length &&
+            pathKey(old.path.slice(0, change.path.length)) === key
+          )
         );
       }),
       change,

@@ -938,9 +938,9 @@
         "style": "Стиль",
         "tool": "Инструмент"
       },
-      "appliedFolder": "",
-      "bakedIn": "",
-      "bakedInNotice": ""
+      "appliedFolder": "Применённые",
+      "bakedIn": "встроен в обработку",
+      "bakedInNotice": "Применён ранее и встроен в обработку. Удаление сохранит результат обработки."
     },
     "referenceView": {
       "active": "Текущее",

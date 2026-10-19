@@ -888,9 +888,9 @@
         "style": "风格",
         "tool": "工具"
       },
-      "appliedFolder": "",
-      "bakedIn": "",
-      "bakedInNotice": ""
+      "appliedFolder": "已应用",
+      "bakedIn": "已固化",
+      "bakedInNotice": "此前已应用并固化到编辑结果中。移除后仍会保留编辑效果。"
     },
     "referenceView": {
       "active": "当前",

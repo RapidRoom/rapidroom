@@ -892,9 +892,9 @@
         "style": "Stil",
         "tool": "Werkzeug"
       },
-      "appliedFolder": "",
-      "bakedIn": "",
-      "bakedInNotice": ""
+      "appliedFolder": "Angewendet",
+      "bakedIn": "fest übernommen",
+      "bakedInNotice": "Früher angewendet und fest in die Bearbeitung übernommen. Entfernen behält die Bearbeitung bei."
     },
     "referenceView": {
       "active": "Aktiv",
