@@ -105,12 +105,10 @@ fn id(arguments: &Value, key: &str) -> Result<String, String> {
     masks::validate_id(id)?;
     Ok(id.into())
 }
-fn current_rect(app: &AppHandle, path: &str, edit: &Value) -> Result<[f64; 4], String> {
-    let state = app.state::<AppState>();
-    let image = state.original_image.lock().unwrap();
-    let image = image.as_ref().ok_or("No loaded image")?;
-    let (source, _) = crate::file_management::parse_virtual_path(path);
-    if source != std::path::Path::new(&image.path) {
+fn loaded_rect(path: &str, image: &crate::LoadedImage, edit: &Value) -> Result<[f64; 4], String> {
+    // Bind the full editor session, including virtual-copy identity. Merely
+    // matching the physical file could borrow a sibling copy's loaded canvas.
+    if path != image.path {
         return Err("Loaded image changed".into());
     }
     let (w, h) = image.image.dimensions();
@@ -118,6 +116,11 @@ fn current_rect(app: &AppHandle, path: &str, edit: &Value) -> Result<[f64; 4], S
         return Err("Empty loaded image".into());
     }
     Ok(view_rect(w, h, edit))
+}
+fn current_rect(app: &AppHandle, path: &str, edit: &Value) -> Result<[f64; 4], String> {
+    let state = app.state::<AppState>();
+    let image = state.original_image.lock().unwrap();
+    loaded_rect(path, image.as_ref().ok_or("No loaded image")?, edit)
 }
 
 pub(super) async fn call(app: &AppHandle, name: &str, args: &Value) -> Result<Value, String> {
@@ -443,6 +446,35 @@ async fn generate(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn virtual_copy_canvas_requires_the_exact_loaded_session() {
+        let image = crate::LoadedImage {
+            path: "/photo.ARW?vc=abcdef".into(),
+            image: std::sync::Arc::new(image::DynamicImage::ImageRgb8(image::RgbImage::new(
+                64, 32,
+            ))),
+            is_raw: true,
+            as_shot: crate::as_shot::AsShot::reference(),
+        };
+        let edit = json!({"orientationSteps":1,"crop":{"x":4,"y":8,"width":16,"height":32}});
+        assert_eq!(
+            loaded_rect("/photo.ARW?vc=abcdef", &image, &edit).unwrap(),
+            [4., 8., 16., 32.]
+        );
+        for path in ["/photo.ARW", "/photo.ARW?vc=123456", "/other.ARW?vc=abcdef"] {
+            assert!(loaded_rect(path, &image, &edit).is_err());
+        }
+        let physical = crate::LoadedImage {
+            path: "/photo.ARW".into(),
+            ..image
+        };
+        assert_eq!(
+            loaded_rect("/photo.ARW", &physical, &edit).unwrap(),
+            [4., 8., 16., 32.]
+        );
+        assert!(loaded_rect("/photo.ARW?vc=abcdef", &physical, &edit).is_err());
+    }
+
     #[test]
     fn converted_view_point_lands_in_the_rendered_matte_after_geometry() {
         let edit = json!({"orientationSteps":1,"rotation":10,"flipHorizontal":true,
