@@ -21,7 +21,7 @@ import {
   normalizeLoadedAdjustments,
   setToolActive,
 } from '../utils/adjustments';
-import { calculateCenteredCrop, getOrientedDimensions } from '../utils/cropUtils';
+import { calculateCenteredCrop, getOrientedDimensions, resolveAspectRatio } from '../utils/cropUtils';
 import { Invokes } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
@@ -202,8 +202,7 @@ export function useEditorActions() {
     (degrees: number) => {
       const { selectedImage, adjustments } = useEditorStore.getState();
       const increment = degrees > 0 ? 1 : 3;
-      const newAspectRatio =
-        adjustments.aspectRatio && adjustments.aspectRatio !== 0 ? 1 / adjustments.aspectRatio : null;
+      const newAspectRatio = adjustments.aspectRatio ? 1 / adjustments.aspectRatio : adjustments.aspectRatio;
       const newOrientationSteps = ((adjustments.orientationSteps || 0) + increment) % 4;
       const newCrop =
         selectedImage?.width && selectedImage?.height
@@ -558,11 +557,12 @@ export function useEditorActions() {
     const { selectedImage } = useEditorStore.getState();
     if (!selectedImage?.width || !selectedImage.height) return;
     setAdjustments((prev) => {
-      if (!prev.aspectRatio || !Number.isFinite(prev.aspectRatio) || prev.aspectRatio <= 0 || prev.aspectRatio === 1) {
+      const steps = prev.orientationSteps || 0;
+      const currentRatio = resolveAspectRatio(prev.aspectRatio, selectedImage, steps);
+      if (!currentRatio || !Number.isFinite(currentRatio) || currentRatio <= 0 || currentRatio === 1) {
         return prev;
       }
-      const aspectRatio = 1 / prev.aspectRatio;
-      const steps = prev.orientationSteps || 0;
+      const aspectRatio = 1 / currentRatio;
       const { width, height } = getOrientedDimensions(selectedImage.width, selectedImage.height, steps);
       const crop = prev.crop;
       const center = crop

@@ -83,3 +83,39 @@ describe('copy adjustments', () => {
     expect(useProcessStore.getState().isCopied).toBe(true);
   });
 });
+
+describe('Original crop orientation compatibility', () => {
+  it('keeps Original during image rotation and flips its resolved ratio with X', () => {
+    const selectedImage = {
+      exif: {},
+      height: 4000,
+      isRaw: true,
+      isReady: true,
+      path: '/photos/original.raw',
+      thumbnailUrl: '',
+      width: 6000,
+    };
+    let actions: ReturnType<typeof useEditorActions> | undefined;
+    function Probe() {
+      actions = useEditorActions();
+      return null;
+    }
+    renderToStaticMarkup(createElement(Probe));
+    useEditorStore
+      .getState()
+      .setEditor({ selectedImage, adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: 0, crop: null } });
+    actions!.handleRotate(90);
+    expect(useEditorStore.getState().adjustments.aspectRatio).toBe(0);
+    expect(useEditorStore.getState().adjustments.orientationSteps).toBe(1);
+
+    useEditorStore.getState().setEditor({ adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: 0, crop: null } });
+    actions!.handleCropOrientationToggle();
+    const flipped = useEditorStore.getState().adjustments;
+    expect(flipped.aspectRatio).toBeCloseTo(2 / 3);
+    expect(flipped.crop!.width / flipped.crop!.height).toBeCloseTo(2 / 3, 2);
+
+    useEditorStore.getState().setEditor({ adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: 0.75, crop: null } });
+    actions!.handleCropOrientationToggle();
+    expect(useEditorStore.getState().adjustments.aspectRatio).toBeCloseTo(4 / 3);
+  });
+});

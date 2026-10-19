@@ -1016,14 +1016,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         if (now - lastCtrlClickTimeRef.current < 300) {
           lastCtrlClickTimeRef.current = 0;
 
-          const originalAspectRatio =
-            selectedImage?.width && selectedImage?.height ? selectedImage.width / selectedImage.height : null;
-
           setAdjustments((prev) => ({
             ...prev,
             crop: INITIAL_ADJUSTMENTS.crop,
             rotation: INITIAL_ADJUSTMENTS.rotation ?? 0,
-            aspectRatio: originalAspectRatio,
+            aspectRatio: INITIAL_ADJUSTMENTS.aspectRatio,
           }));
 
           setEditor({ liveRotation: null, isSliderDragging: false });
@@ -1843,7 +1840,9 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     const { aspectRatio, orientationSteps = 0, crop: currentAdjCrop, rotation = 0 } = adjustments;
     const effectiveRotation = liveRotation !== null && liveRotation !== undefined ? liveRotation : rotation;
 
+    const imageChanged = prevCropParams.current?.imagePath !== selectedImage.path;
     const geometryChanged =
+      imageChanged ||
       prevCropParams.current?.rotation !== rotation ||
       prevCropParams.current?.aspectRatio !== aspectRatio ||
       prevCropParams.current?.orientationSteps !== orientationSteps;
@@ -1886,7 +1885,18 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         }
       }
 
-      if (!currentAdjCrop || orientationChanged) {
+      if (imageChanged && currentAdjCrop && !isDraggingRotation) {
+        nextPixelCrop =
+          currentAdjCrop.unit === '%'
+            ? {
+                unit: 'px',
+                x: (currentAdjCrop.x * W) / 100,
+                y: (currentAdjCrop.y * H) / 100,
+                width: (currentAdjCrop.width * W) / 100,
+                height: (currentAdjCrop.height * H) / 100,
+              }
+            : currentAdjCrop;
+      } else if (!currentAdjCrop || orientationChanged) {
         nextPixelCrop = calculateCenteredCrop(
           selectedImage.width,
           selectedImage.height,
@@ -1895,7 +1905,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           effectiveRotation,
         );
       } else if (aspectChanged) {
-        if (!aspectRatio) {
+        if (aspectRatio === null) {
           nextPixelCrop = currentAdjCrop;
         } else {
           const curW = currentAdjCrop.width;
@@ -1964,16 +1974,19 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         lastValidCropRef.current = pc;
       }
       if (!isDraggingRotation) {
-        prevCropParams.current = { rotation, aspectRatio, orientationSteps };
+        prevCropParams.current = { imagePath: selectedImage.path, rotation, aspectRatio, orientationSteps };
 
-        const normalizedCrop = normalizeCropChange(
-          currentAdjCrop,
-          nextPixelCrop,
-          selectedImage.width,
-          selectedImage.height,
-          orientationSteps,
-          rotation,
-        );
+        const normalizedCrop =
+          imageChanged && currentAdjCrop?.unit === '%'
+            ? currentAdjCrop
+            : normalizeCropChange(
+                currentAdjCrop,
+                nextPixelCrop,
+                selectedImage.width,
+                selectedImage.height,
+                orientationSteps,
+                rotation,
+              );
 
         if (
           normalizedCrop !== currentAdjCrop &&
@@ -2180,7 +2193,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
       const lastRatio = oldW / oldH;
       const newRatio = newW / newH;
-      const isProportional = adjustments.aspectRatio || Math.abs(lastRatio - newRatio) < 0.005;
+      const isProportional = adjustments.aspectRatio !== null || Math.abs(lastRatio - newRatio) < 0.005;
 
       if (isProportional) {
         const oldCX = oldL + oldW / 2;
