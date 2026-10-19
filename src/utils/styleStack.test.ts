@@ -99,10 +99,16 @@ describe('ordered Style stack with manual edits', () => {
 
   it('keeps a later edited mask attached to its Style when copied recipes shared template IDs', () => {
     const forest = styles.presets.find((item) => item.preset.id === 'rapidroom-style:forest-gothic')!.preset as Preset;
-    const first = { ...forest, id: 'copy-one' };
-    const second = { ...forest, id: 'copy-two' };
+    const recipe = structuredClone(forest.adjustments);
+    recipe.masks![0].id = 'm'.repeat(128);
+    recipe.masks![0].subMasks[0].id = 's'.repeat(128);
+    const first = { ...forest, id: 'copy-one / 日本', adjustments: recipe };
+    const second = { ...forest, id: 'copy-two / 日本', adjustments: recipe };
     const one = changeStyleStack(null, base(), { preset: first, amount: 100 }, size);
     const two = changeStyleStack(one, one.result, { preset: second, amount: 100 }, size);
+    for (const mask of two.result.masks) {
+      for (const id of [mask.id, ...mask.subMasks.map((sub) => sub.id)]) expect(id).toMatch(/^[A-Za-z0-9_:.-]{1,128}$/);
+    }
     const manual = structuredClone(two.result);
     const id = manual.masks[1].id;
     manual.masks[1].subMasks[0].parameters!.centerX = 1234;

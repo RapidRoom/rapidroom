@@ -174,9 +174,13 @@ export function changeStyleStack(
       // IDs; removing an earlier Style must never rename a later edited mask.
       const used = new Set(current.masks.flatMap((mask) => [mask.id, ...mask.subMasks.map((sub) => sub.id)]));
       const reserve = (id: string) => {
-        const base = id.startsWith(preset.id + ':') ? id : preset.id + ':' + id;
+        const base =
+          (typeof id === 'string' ? id : 'style-mask').replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 128) || 'style-mask';
         let candidate = base;
-        for (let suffix = 1; used.has(candidate); suffix++) candidate = base + ':' + suffix;
+        for (let suffix = 1; used.has(candidate); suffix++) {
+          const tail = ':' + suffix;
+          candidate = base.slice(0, 128 - tail.length) + tail;
+        }
         used.add(candidate);
         return candidate;
       };
