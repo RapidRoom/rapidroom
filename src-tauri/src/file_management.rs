@@ -4398,16 +4398,23 @@ pub async fn get_lens_correction_resolution(
     .map_err(|error| error.to_string())?
 }
 
-fn resolve_explicit_auto_lens(
+fn resolve_auto_lens_query(
     source_path: &Path,
     sidecar_path: &Path,
     lens_db: Option<&crate::lens_correction::LensDatabase>,
+    fresh_defaults: bool,
 ) -> ImageMetadata {
     let mut metadata = ImageMetadata {
-        exif: crate::exif_processing::load_sidecar_with_exif(sidecar_path, source_path).exif,
-        adjustments: serde_json::json!({"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1}),
+        exif: crate::exif_processing::read_exif_for_query(sidecar_path, source_path),
+        adjustments: if fresh_defaults {
+            default_adjustments()
+        } else {
+            serde_json::json!({})
+        },
         ..Default::default()
     };
+    metadata.adjustments["lensCorrectionMode"] = serde_json::json!("auto");
+    metadata.adjustments["cameraLensCorrectionVersion"] = serde_json::json!(1);
     resolve_lens_params_in_adjustments(
         &mut metadata.adjustments,
         &metadata.exif,
@@ -4435,17 +4442,13 @@ pub async fn get_default_raw_lens_adjustments(
         let mut metadata = if force_auto.unwrap_or(false) {
             // An explicit active-editor action resolves a patch without reading
             // or writing the saved recipe. The GUI retains its captured draft.
-            resolve_explicit_auto_lens(&source_path, &sidecar_path, lens_db.as_deref())
+            resolve_auto_lens_query(&source_path, &sidecar_path, lens_db.as_deref(), false)
+        } else if crate::formats::is_raw_file(&source_path)
+            && settings.auto_lens_correction_on_new_raws.unwrap_or(true)
+        {
+            resolve_auto_lens_query(&source_path, &sidecar_path, lens_db.as_deref(), true)
         } else {
-            let mut metadata = ImageMetadata::default();
-            apply_default_raw_lens_policy(
-                &mut metadata,
-                &source_path,
-                &sidecar_path,
-                &settings,
-                lens_db.as_deref(),
-            );
-            metadata
+            ImageMetadata::default()
         };
         if let Some(patch) = metadata.adjustments.as_object_mut() {
             patch.retain(|key, _| key.starts_with("lens") || key == "cameraLensCorrectionVersion");
@@ -8910,7 +8913,7 @@ mod explicit_auto_lens_readonly_tests {
         let saved = std::fs::read(&sidecar).unwrap();
         let source_modified = source.metadata().unwrap().modified().unwrap();
         let sidecar_modified = sidecar.metadata().unwrap().modified().unwrap();
-        let patch = resolve_explicit_auto_lens(&source, &sidecar, None).adjustments;
+        let patch = resolve_auto_lens_query(&source, &sidecar, None, false).adjustments;
         assert_eq!(patch["lensCorrectionMode"], "auto");
         assert_eq!(patch["cameraLensCorrectionVersion"], 1);
         assert!(patch.get("exposure").is_none());
@@ -8925,5 +8928,49 @@ mod explicit_auto_lens_readonly_tests {
             sidecar.metadata().unwrap().modified().unwrap(),
             sidecar_modified
         );
+    }
+    #[test]
+    fn query_default_lens_output_matches_existing_policy_without_healing_its_input() {
+        let directory = tempfile::tempdir().unwrap();
+        for exif in [
+            serde_json::json!({"Make":"Canon","LensModel":"test","LongField":"z".repeat(900)}),
+            Value::Null,
+        ] {
+            let old = directory.path().join("old.ARW");
+            let new = directory.path().join("new.ARW");
+            std::fs::write(&old, b"fixture").unwrap();
+            std::fs::write(&new, b"fixture").unwrap();
+            let (_, old_side) = parse_virtual_path(old.to_str().unwrap());
+            let (_, new_side) = parse_virtual_path(new.to_str().unwrap());
+            let bytes=serde_json::to_vec(&serde_json::json!({"adjustments":{"exposure":0.7},"exif":exif,"future":"preserve"})).unwrap();
+            std::fs::write(&old_side, &bytes).unwrap();
+            std::fs::write(&new_side, &bytes).unwrap();
+            let legacy = crate::exif_processing::get_rrexif_path(&new);
+            std::fs::write(&legacy, r#"{"Make":"Legacy"}"#).unwrap();
+            let old_legacy = crate::exif_processing::get_rrexif_path(&old);
+            std::fs::write(&old_legacy, r#"{"Make":"Legacy"}"#).unwrap();
+            let modified = new_side.metadata().unwrap().modified().unwrap();
+            let legacy_modified = legacy.metadata().unwrap().modified().unwrap();
+            let mut expected = ImageMetadata::default();
+            apply_default_raw_lens_policy(
+                &mut expected,
+                &old,
+                &old_side,
+                &AppSettings {
+                    auto_lens_correction_on_new_raws: Some(true),
+                    ..Default::default()
+                },
+                None,
+            );
+            let actual = resolve_auto_lens_query(&new, &new_side, None, true);
+            assert_eq!(actual.adjustments, expected.adjustments);
+            assert_eq!(std::fs::read(&new_side).unwrap(), bytes);
+            assert_eq!(new_side.metadata().unwrap().modified().unwrap(), modified);
+            assert_eq!(std::fs::read(&legacy).unwrap(), br#"{"Make":"Legacy"}"#);
+            assert_eq!(
+                legacy.metadata().unwrap().modified().unwrap(),
+                legacy_modified
+            );
+        }
     }
 }
