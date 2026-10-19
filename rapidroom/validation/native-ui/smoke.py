@@ -753,6 +753,12 @@ def launch(args):
             if not runtime_payload.is_dir():
                 raise RuntimeError("Pinned engine is missing lib/RapidRoom runtime payload")
             shutil.copytree(runtime_payload, case / "lib" / "RapidRoom", symlinks=True)
+            runtime_manifest = {str(path.relative_to(runtime_payload)): sha(path)
+                                for path in sorted(runtime_payload.rglob("*")) if path.is_file()}
+            copied_payload = case / "lib" / "RapidRoom"
+            if runtime_manifest != {str(path.relative_to(copied_payload)): sha(path)
+                                   for path in sorted(copied_payload.rglob("*")) if path.is_file()}:
+                raise RuntimeError("Copied lib/RapidRoom runtime payload differs from pinned engine")
             if args.mcp_clients:
                 adapter = engine.parent / "rapidroom-mcp-stdio"
                 if not adapter.is_file():
@@ -767,7 +773,7 @@ def launch(args):
                  "fixture": FIXTURE, "fixture_guard": guard, "compositor": "Weston headless GL",
                  "weston_version": subprocess.check_output(["weston", "--version"], text=True).strip(),
                  "driver": "tauri-plugin-wdio-webdriver 1.4.0", "viewport": [WIDTH, HEIGHT],
-                 "harness_sha256": sha(Path(__file__).resolve())})
+                 "harness_sha256": sha(Path(__file__).resolve()), "runtime_payload": runtime_manifest})
             with (case / "session-bus.log").open("w") as log:
                 result = subprocess.run(["nice", "-n", "10", "dbus-run-session", "--", sys.executable,
                                          str(Path(__file__).resolve()), "--inside", str(case)],

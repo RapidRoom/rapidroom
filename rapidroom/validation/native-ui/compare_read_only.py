@@ -31,6 +31,8 @@ def _seed(photo, kind):
     if kind != "legacy":
         metadata["exif"] = {"Make": "SONY", "Model": "ILCE-7CM2"}
     if kind == "auto":
+        metadata["exif"]["SyntheticLongExif"] = "X" * 700
+    if kind == "auto":
         metadata["adjustments"] = {"lensCorrectionMode": "auto", "cameraLensCorrectionVersion": 1}
     _write(sidecar, metadata)
     if kind == "legacy":
@@ -55,7 +57,7 @@ def _original(smoke, wait_for, photo, kind):
     before = _snapshot(_paths(photo))
     smoke.key("KeyC", "c")
     wait_for(lambda: smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]');
-      return pane?.dataset.referenceMode==='wipe' && [...pane.querySelectorAll('img')].every(e=>e.complete&&e.naturalWidth>100);"""), "Original comparison " + photo.name, 90)
+      const images=[...pane.querySelectorAll('img')];return pane?.dataset.referenceMode==='wipe' && images.length>=2 && images.every(e=>e.complete&&e.naturalWidth>100);"""), "Original comparison " + photo.name, 90)
     smoke.key("KeyC", "c")
     after = _snapshot(_paths(photo))
     if after != before: raise RuntimeError("Original comparison changed " + photo.name)
@@ -67,9 +69,12 @@ def _pinned(smoke, wait_for, photo, kind):
     before = _snapshot(_paths(photo))
     smoke.execute("document.querySelector('[data-testid=editor-reference-view-toggle]').click();return true;")
     wait_for(lambda: smoke.execute("return !!document.querySelector('[data-testid=editor-reference-pane]');"), "reference chooser")
+    smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]');
+      pane.querySelector('button[aria-label=\"Choose another reference\"]')?.click();return true;""")
+    wait_for(lambda: smoke.execute("return document.querySelector('[data-testid=editor-reference-pane]')?.dataset.referenceState==='choose-reference';"), "explicit reference chooser")
     _click(smoke, photo.name, "click")
     wait_for(lambda: smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]'),image=pane?.querySelector('img');
-      return pane?.dataset.referenceState==='ready'&&image?.complete&&image.naturalWidth>100;"""), "pinned comparison " + photo.name, 90)
+      return pane?.dataset.referenceState==='ready'&&pane.textContent.includes(arguments[0])&&image?.complete&&image.naturalWidth>100&&document.body.innerText.includes('smoke.ARW');""", [photo.name]), "pinned comparison " + photo.name, 90)
     smoke.execute("document.querySelector('[data-testid=editor-reference-pane] button[aria-label=\"Close reference view\"]').click();return true;")
     after = _snapshot(_paths(photo))
     if after != before: raise RuntimeError("Pinned comparison changed " + photo.name)
