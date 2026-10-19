@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
-import { Invokes, SelectedImage } from '../components/ui/AppProperties';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Invokes, SelectedImage, type ImageFile, type AppSettings } from '../components/ui/AppProperties';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useUIStore } from '../store/useUIStore';
-import { mockCommand } from '../test/tauriMock';
+import { mockCommand, invoke } from '../test/tauriMock';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { INITIAL_ADJUSTMENTS } from '../utils/adjustments';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { AppNavigationProps, useAppNavigation } from './useAppNavigation';
@@ -16,12 +17,19 @@ import { AppNavigationProps, useAppNavigation } from './useAppNavigation';
 const initialEditorState = useEditorStore.getState();
 const initialLibraryState = useLibraryStore.getState();
 const initialUiState = useUIStore.getState();
+const initialSettingsState = useSettingsStore.getState();
+vi.mock('@tauri-apps/api/path', () => ({
+  resolve: async (path: string) => (path.startsWith('/') ? path : '/cwd/' + path),
+  dirname: async (path: string) => path.slice(0, path.lastIndexOf('/')),
+  homeDir: async () => '/home/test',
+}));
 
 afterEach(() => {
   globalImageCache.clear();
   useEditorStore.setState(initialEditorState, true);
   useLibraryStore.setState(initialLibraryState, true);
   useUIStore.setState(initialUiState, true);
+  useSettingsStore.setState(initialSettingsState, true);
 });
 
 function selectedImage(path: string, usedEmbeddedPreview: boolean): SelectedImage {
@@ -138,6 +146,133 @@ describe('useAppNavigation cached image refresh', () => {
 
       expect(useEditorStore.getState().selectedImage?.path).toBe(pathB);
       expect(useEditorStore.getState().selectedImage?.usedEmbeddedPreview).toBeUndefined();
+    } finally {
+      await unmount();
+    }
+  });
+});
+
+describe('external file folder context (CLI/Open With and MCP)', () => {
+  const file = (path: string) => ({ path, is_raw: true, rating: 2 }) as ImageFile;
+  function setup() {
+    useSettingsStore.setState({
+      appSettings: { rootFolders: ['/configured'], libraryViewMode: 'flat' } as AppSettings,
+    });
+    mockCommand(Invokes.GetFolderTree, ({ path } = {}) => ({ path, name: 'Folder', children: [] }));
+    mockCommand(Invokes.ReadExifForPaths, () => ({}));
+  }
+  it('fills a fresh filmstrip from the opened file folder before selecting the photo', async () => {
+    setup();
+    const files = [file('/photos/a.ARW'), file('/photos/b.ARW')];
+    mockCommand(Invokes.ListImagesInDir, () => files);
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      await act(async () => navigation.handleOpenImage('/photos/b.ARW'));
+      expect(useLibraryStore.getState()).toMatchObject({
+        imageList: files,
+        currentFolderPath: '/photos',
+        rootPaths: ['/photos'],
+        libraryActivePath: '/photos/b.ARW',
+      });
+      expect(useEditorStore.getState().selectedImage?.path).toBe('/photos/b.ARW');
+      expect(useUIStore.getState().activeView).toBe('editor');
+      expect(useSettingsStore.getState().appSettings?.rootFolders).toEqual(['/configured']);
+    } finally {
+      await unmount();
+    }
+  });
+  it('resolves a relative CLI path before loading its sibling filmstrip', async () => {
+    setup();
+    mockCommand(Invokes.ListImagesInDir, () => [file('/cwd/relative.ARW')]);
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      await act(async () => navigation.handleOpenImage('relative.ARW'));
+      expect(useLibraryStore.getState().currentFolderPath).toBe('/cwd');
+      expect(useEditorStore.getState().selectedImage?.path).toBe('/cwd/relative.ARW');
+    } finally {
+      await unmount();
+    }
+  });
+  it('keeps an existing album or recursive context when the requested original or VC is already listed', async () => {
+    setup();
+    const files = [file('/photos/a.ARW'), file('/other/b.ARW')];
+    useLibraryStore.setState({ imageList: files, currentFolderPath: 'album:test', activeAlbumId: 'test' });
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      await act(async () => navigation.handleOpenImage('/photos/a.ARW?vc=copy'));
+      expect(useLibraryStore.getState()).toMatchObject({
+        imageList: files,
+        currentFolderPath: 'album:test',
+        activeAlbumId: 'test',
+      });
+      expect(invoke.mock.calls.some(([name]) => name === Invokes.ListImagesInDir)).toBe(false);
+    } finally {
+      await unmount();
+    }
+  });
+  it('discards an older folder response when another external file opens first', async () => {
+    setup();
+    let resolveA!: (value: ImageFile[]) => void;
+    const pendingA = new Promise<ImageFile[]>((resolve) => {
+      resolveA = resolve;
+    });
+    const filesB = [file('/B/b.ARW')];
+    mockCommand(Invokes.ListImagesInDir, ({ path } = {}) => (path === '/A' ? pendingA : filesB));
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      let first!: Promise<void>;
+      await act(async () => {
+        first = navigation.handleOpenImage('/A/a.ARW');
+        await Promise.resolve();
+      });
+      await act(async () => navigation.handleOpenImage('/B/b.ARW'));
+      await act(async () => {
+        resolveA([file('/A/a.ARW')]);
+        await first;
+      });
+      expect(useLibraryStore.getState().imageList).toEqual(filesB);
+      expect(useLibraryStore.getState().currentFolderPath).toBe('/B');
+      expect(useEditorStore.getState().selectedImage?.path).toBe('/B/b.ARW');
+    } finally {
+      await unmount();
+    }
+  });
+  it('keeps a later manual selection when an external folder read completes', async () => {
+    setup();
+    let resolve!: (value: ImageFile[]) => void;
+    mockCommand(
+      Invokes.ListImagesInDir,
+      () =>
+        new Promise<ImageFile[]>((done) => {
+          resolve = done;
+        }),
+    );
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      let pending!: Promise<void>;
+      await act(async () => {
+        pending = navigation.handleOpenImage('/A/a.ARW');
+        await Promise.resolve();
+      });
+      await act(async () => navigation.handleImageSelect('/B/b.ARW'));
+      await act(async () => {
+        resolve([file('/A/a.ARW')]);
+        await pending;
+      });
+      expect(useEditorStore.getState().selectedImage?.path).toBe('/B/b.ARW');
+      expect(useLibraryStore.getState().imageList).toEqual([]);
+    } finally {
+      await unmount();
+    }
+  });
+  it('does not leave or weaken read-only card mode for an outside file', async () => {
+    setup();
+    useLibraryStore.setState({ cardBrowseRoot: '/card', rootPaths: ['/card'] });
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      await expect(navigation.handleOpenImage('/elsewhere/a.ARW')).rejects.toThrow('read-only card');
+      expect(useLibraryStore.getState().cardBrowseRoot).toBe('/card');
+      expect(invoke.mock.calls.some(([name]) => name === Invokes.ListImagesInDir)).toBe(false);
     } finally {
       await unmount();
     }
