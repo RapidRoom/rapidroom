@@ -53,7 +53,9 @@ def run_compare_read_only(case, smoke, wait_for):
     if after != before:
         raise RuntimeError("Comparison changed a sidecar or legacy EXIF cache")
     smoke.step("comparison render preserves sidecars and legacy EXIF", {"before": before, "after": after})
-    _click_image(smoke, saved_auto.name, "dblclick")
-    target = saved_auto.with_name(saved_auto.name + ".rrdata")
-    wait_for(lambda: _snapshot([target])[target.name] != before[target.name], "ordinary editor EXIF healing", 45)
-    smoke.step("ordinary editor still heals saved Auto recipe", {"before": before[target.name], "after": _snapshot([target])[target.name]})
+    healing = folder / "compare-healing.ARW"
+    target = healing.with_name(healing.name + ".rrdata")
+    healing_before = _snapshot([target])[target.name]
+    _click_image(smoke, healing.name, "dblclick")
+    wait_for(lambda: _snapshot([target])[target.name] != healing_before, "ordinary editor EXIF healing", 45)
+    smoke.step("ordinary editor still heals saved Auto recipe", {"before": healing_before, "after": _snapshot([target])[target.name]})

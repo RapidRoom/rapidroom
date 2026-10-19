@@ -616,14 +616,16 @@ def launch(args):
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
     if args.compare_read_only:
-        for name in ("compare-uncached.ARW", "compare-legacy.ARW", "compare-auto.ARW"):
+        for name in ("compare-uncached.ARW", "compare-legacy.ARW", "compare-auto.ARW", "compare-healing.ARW"):
             shutil.copy2(raw, case / "input" / name)
         (case / "input/compare-legacy.ARW.rrdata").write_text(
-            '{"adjustments":{"exposure":0},"unknown":{"mustStay":true}}\\n')
+            '{"adjustments":{"exposure":0},"exif":{"Make":"SONY","Model":"ILCE-7CM2"},"unknown":{"mustStay":true}}\\n')
         (case / "input/compare-legacy.ARW.rrexif").write_text(
             '{"Make":"SONY","Model":"ILCE-7CM2"}\\n')
         (case / "input/compare-auto.ARW.rrdata").write_text(
-            '{"adjustments":{"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1},"unknown":{"mustStay":true}}\\n')
+            '{"adjustments":{"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1},"exif":{"Make":"SONY","Model":"ILCE-7CM2"},"unknown":{"mustStay":true}}\\n')
+        (case / "input/compare-healing.ARW.rrdata").write_text(
+            '{"adjustments":{"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1},"unknown":{"healingControl":true}}\\n')
         save(case / "compare-read-only-test.json", {"issue": 358, "real_native_render": True,
               "invariants": ["bytes", "mtime", "unknown_fields", "legacy_rrexif"]})
     if args.atomic_exports:
