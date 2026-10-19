@@ -83,3 +83,62 @@ describe('copy adjustments', () => {
     expect(useProcessStore.getState().isCopied).toBe(true);
   });
 });
+
+describe('labelled async editor actions', () => {
+  const path = '/photos/history.raw';
+  function setup() {
+    vi.useFakeTimers();
+    useEditorStore.getState().resetHistory({ ...INITIAL_ADJUSTMENTS });
+    useEditorStore.setState({
+      selectedImage: { path, width: 6000, height: 4000, isRaw: true, isReady: true, thumbnailUrl: '', exif: {} },
+    });
+    useLibraryStore.setState({ multiSelectedPaths: [], libraryActivePath: null });
+    let actions: ReturnType<typeof useEditorActions> | undefined;
+    function Probe() {
+      actions = useEditorActions();
+      return null;
+    }
+    renderToStaticMarkup(createElement(Probe));
+    return actions!;
+  }
+
+  it('preserves the pending slider state as the undo target of Reset', async () => {
+    vi.mocked(invoke).mockImplementation(async () => ({}));
+    const actions = setup();
+    actions.setAdjustments({ exposure: 0.75 });
+    const pending = useEditorStore.getState().adjustments;
+    actions.handleResetAdjustments([path]);
+    await vi.advanceTimersByTimeAsync(0);
+    const after = useEditorStore.getState();
+    expect(after.adjustments.exposure).toBe(0);
+    expect(after.historyDetails.at(-1)?.label).toBe('Reset adjustments');
+    after.undo();
+    expect(useEditorStore.getState().adjustments).toEqual(pending);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(useEditorStore.getState().historyIndex).toBe(1);
+  });
+
+  it('does not overwrite a later edit when Auto lens finishes', async () => {
+    let finish!: () => void;
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === 'apply_auto_lens_correction_to_paths')
+        await new Promise<void>((resolve) => {
+          finish = resolve;
+        });
+      if (command === 'load_metadata')
+        return { adjustments: { ...INITIAL_ADJUSTMENTS, exposure: 0.75, lensDistortionEnabled: true } };
+      return {};
+    });
+    const actions = setup();
+    actions.setAdjustments({ exposure: 0.75 });
+    actions.handleAutoLensCorrection([path]);
+    actions.setAdjustments({ exposure: 1 });
+    const later = useEditorStore.getState().adjustments;
+    finish();
+    await vi.advanceTimersByTimeAsync(600);
+    expect(useEditorStore.getState().adjustments).toEqual(later);
+    expect(useEditorStore.getState().historyDetails.some((entry) => entry?.label === 'Auto lens correction')).toBe(
+      false,
+    );
+  });
+});

@@ -339,7 +339,7 @@ export function useEditorActions() {
       if (pathsToReset.length === 0) return;
 
       pathsToReset.forEach((p) => globalImageCache.delete(p));
-      debouncedSetHistory.cancel();
+      debouncedSetHistory.flush();
 
       const before = useEditorStore.getState().adjustments;
       invoke(Invokes.ResetAdjustmentsForPaths, { paths: pathsToReset })
@@ -356,7 +356,12 @@ export function useEditorActions() {
           if (selectedImage && pathsToReset.includes(selectedImage.path)) {
             const resetData = await createResetAdjustmentsWithLensDefaults(selectedImage);
             const current = useEditorStore.getState();
-            if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before) return;
+            if (
+              current.selectedImage !== selectedImage ||
+              !current.selectedImage.isReady ||
+              current.adjustments !== before
+            )
+              return;
             useEditorStore.getState().pushHistory(resetData, 'Reset adjustments');
             setEditor({ adjustments: resetData });
           }
@@ -383,6 +388,8 @@ export function useEditorActions() {
       if (pathsToUpdate.length === 0) return;
 
       pathsToUpdate.forEach((p) => globalImageCache.delete(p));
+      debouncedSetHistory.flush();
+      const before = useEditorStore.getState().adjustments;
 
       invoke('apply_auto_lens_correction_to_paths', { paths: pathsToUpdate })
         .then(async () => {
@@ -390,6 +397,13 @@ export function useEditorActions() {
             const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: selectedImage.path });
             if (meta.adjustments && !meta.adjustments.is_null) {
               const normalized = normalizeLoadedAdjustments(meta.adjustments);
+              const current = useEditorStore.getState();
+              if (
+                current.selectedImage !== selectedImage ||
+                !current.selectedImage.isReady ||
+                current.adjustments !== before
+              )
+                return;
               setEditor({ adjustments: normalized });
               useEditorStore.getState().pushHistory(normalized, 'Auto lens correction');
             }
