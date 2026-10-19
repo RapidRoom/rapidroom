@@ -1,7 +1,7 @@
 {
   "id": "inline-shooting-info",
   "title": "Keep filename and friendly shooting information on one editor line",
-  "category": "improvement",
+  "category": "fix",
   "landed": "2026-10-19",
   "authors": ["yojen7"],
   "source": "rapidroom (original implementation)",
