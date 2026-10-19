@@ -4470,41 +4470,110 @@ fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String
     Ok(presets_dir.join("presets.json"))
 }
 
-#[tauri::command]
-pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
-    let path = get_presets_path(&app_handle)?;
+static PRESET_LIBRARY_LOCK: Mutex<()> = Mutex::new(());
+
+fn backup_presets(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    let date = Utc::now().format("%Y-%m-%d");
+    for index in 0..1000 {
+        let suffix = if index == 0 {
+            String::new()
+        } else {
+            format!("-{index}")
+        };
+        let backup = path.with_file_name(format!("presets.json.bak-{date}{suffix}"));
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        match options.open(&backup) {
+            Ok(mut file) => {
+                if let Err(error) = file.write_all(bytes).and_then(|()| file.sync_all()) {
+                    let _ = fs::remove_file(&backup);
+                    return Err(error.to_string());
+                }
+                #[cfg(unix)]
+                fs::File::open(path.parent().ok_or("Presets directory missing")?)
+                    .and_then(|parent| parent.sync_all())
+                    .map_err(|e| e.to_string())?;
+                return Ok(());
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.to_string()),
+        }
+    }
+    Err("No free presets backup name".into())
+}
+
+fn load_presets_at(path: &Path) -> Result<Vec<PresetItem>, String> {
+    let _guard = PRESET_LIBRARY_LOCK.lock().map_err(|e| e.to_string())?;
     let marker = path.with_file_name(".rapidroom-styles-v1");
     let replacement_marker = path.with_file_name(".rapidroom-styles-replacement-v1");
-    let mut presets = if path.exists() {
-        let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    let replacement_v2 = path.with_file_name(".rapidroom-styles-replacement-v2");
+    let bytes = match fs::read(path) {
+        Ok(bytes) => Some(bytes),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(error.to_string()),
+    };
+    let mut raw: Vec<Value> = if let Some(bytes) = &bytes {
+        serde_json::from_slice(bytes).map_err(|e| e.to_string())?
     } else if !marker.exists() {
-        crate::starter_presets::library()?
+        serde_json::to_value(crate::starter_presets::library()?)
+            .map_err(|e| e.to_string())?
+            .as_array()
+            .ok_or("Invalid built-in library")?
+            .clone()
     } else {
         Vec::new()
     };
-    if !marker.exists() || !replacement_marker.exists() {
-        if !replacement_marker.exists() {
-            crate::starter_presets::retire_untouched_stock(&mut presets)?;
+    // Validate before creating a backup or changing any files. Keep the raw
+    // objects for v2 so fields from newer or imported presets survive intact.
+    let mut presets: Vec<PresetItem> =
+        serde_json::from_value(Value::Array(raw.clone())).map_err(|e| e.to_string())?;
+    if !marker.exists() || !replacement_marker.exists() || !replacement_v2.exists() {
+        if let Some(bytes) = &bytes {
+            backup_presets(path, bytes)?;
+        }
+        if !replacement_v2.exists() {
+            crate::starter_presets::retire_legacy_stock_folders(&mut raw)?;
+            presets =
+                serde_json::from_value(Value::Array(raw.clone())).map_err(|e| e.to_string())?;
         }
         if !marker.exists() {
+            let before = presets.len();
             crate::starter_presets::include_styles(&mut presets)?;
+            let additions = presets.len() - before;
+            let added: Vec<Value> = presets[..additions]
+                .iter()
+                .map(serde_json::to_value)
+                .collect::<Result<_, _>>()
+                .map_err(|e| e.to_string())?;
+            raw.splice(0..0, added);
         }
-        // Persist before either marker; an existing Styles marker also protects
-        // a user's deletion when retiring the old stock pack on upgrade.
-        let content = serde_json::to_string_pretty(&presets).map_err(|e| e.to_string())?;
-        write_file_atomically(&path, content).map_err(|e| e.to_string())?;
+        // Persist before markers; a prior Styles marker protects deletions.
+        let content = serde_json::to_vec_pretty(&raw).map_err(|e| e.to_string())?;
+        write_file_atomically(path, content).map_err(|e| e.to_string())?;
         write_file_atomically(&replacement_marker, "1\n").map_err(|e| e.to_string())?;
         write_file_atomically(&marker, "1\n").map_err(|e| e.to_string())?;
+        write_file_atomically(&replacement_v2, "1\n").map_err(|e| e.to_string())?;
     }
     Ok(presets)
 }
 
 #[tauri::command]
+pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
+    load_presets_at(&get_presets_path(&app_handle)?)
+}
+
+#[tauri::command]
 pub fn save_presets(presets: Vec<PresetItem>, app_handle: AppHandle) -> Result<(), String> {
     let path = get_presets_path(&app_handle)?;
+    let _guard = PRESET_LIBRARY_LOCK.lock().map_err(|e| e.to_string())?;
     let json_string = serde_json::to_string_pretty(&presets).map_err(|e| e.to_string())?;
-    fs::write(path, json_string).map_err(|e| e.to_string())
+    write_file_atomically(path, json_string).map_err(|e| e.to_string())
 }
 
 fn get_internal_library_root_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
@@ -8860,5 +8929,130 @@ mod photo_stack_virtual_copy_tests {
             assert_eq!(meta.rating, 4);
             assert_eq!(meta.flag, Some(ImageFlag::Reject));
         }
+    }
+}
+
+#[cfg(test)]
+mod stock_folder_upgrade_tests {
+    use super::*;
+
+    // Sanitized older-converter values, not an export of a user's library.
+    const OLDER: &[u8] =
+        include_bytes!("../../rapidroom/validation/fixtures/presets-stock-older.json");
+
+    fn upgraded_library(path: &Path) {
+        fs::write(path, OLDER).unwrap();
+        fs::write(path.with_file_name(".rapidroom-styles-v1"), "1\n").unwrap();
+        fs::write(
+            path.with_file_name(".rapidroom-styles-replacement-v1"),
+            "1\n",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn older_library_upgrade_backs_up_exact_bytes_and_keeps_user_items_on_disk() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("presets.json");
+        upgraded_library(&path);
+        let first_backup = path.with_file_name(format!(
+            "presets.json.bak-{}",
+            Utc::now().format("%Y-%m-%d")
+        ));
+        fs::write(&first_backup, b"earlier backup").unwrap();
+        let older: Vec<Value> = serde_json::from_slice(OLDER).unwrap();
+        load_presets_at(&path).unwrap();
+        let expected = &older[3..];
+        let actual: Vec<Value> = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(
+            actual, expected,
+            "mixed/moved/renamed/user items and unknown fields survive"
+        );
+        assert_eq!(fs::read(&first_backup).unwrap(), b"earlier backup");
+        let backups: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .map(|p| p.unwrap().path())
+            .filter(|p| {
+                p.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("presets.json.bak-")
+            })
+            .collect();
+        assert_eq!(backups.len(), 2);
+        assert!(backups.iter().any(|p| fs::read(p).unwrap() == OLDER));
+        assert!(
+            path.with_file_name(".rapidroom-styles-replacement-v2")
+                .is_file()
+        );
+        let migrated = fs::read(&path).unwrap();
+        load_presets_at(&path).unwrap();
+        assert_eq!(fs::read(&path).unwrap(), migrated);
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 6);
+        fs::remove_file(&path).unwrap();
+        assert!(
+            load_presets_at(&path).unwrap().is_empty(),
+            "deleted Styles stay deleted"
+        );
+    }
+
+    #[test]
+    fn first_upgrade_keeps_mixed_items_and_seeds_only_twenty_colour_styles() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("presets.json");
+        fs::write(&path, OLDER).unwrap();
+        let loaded = load_presets_at(&path).unwrap();
+        let older: Vec<Value> = serde_json::from_slice(OLDER).unwrap();
+        let saved: Vec<Value> = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        // The fixture's renamed Style has a deliberately older ID, so the
+        // complete current pack is seeded ahead of the five retained items.
+        assert_eq!(loaded.len(), 25);
+        assert_eq!(&saved[20..], &older[3..]);
+        assert!(saved[..20].iter().all(|item| item.get("preset").is_some()));
+        assert!(loaded[..20].iter().all(|item| match item {
+            PresetItem::Preset(p) => p.adjustments.get("monochrome") != Some(&Value::Bool(true)),
+            _ => false,
+        }));
+    }
+
+    #[test]
+    fn stock_moved_between_original_groups_is_retained() {
+        let mut library: Vec<Value> = serde_json::from_slice(OLDER).unwrap();
+        library[2]["folder"]["children"][0]["id"] =
+            Value::String("rapidroom-starter:Curve/Lighten.xmp".into());
+        library[2]["folder"]["children"][0]["name"] = Value::String("Light".into());
+        let moved = library[2].clone();
+        crate::starter_presets::retire_legacy_stock_folders(&mut library).unwrap();
+        assert!(library.contains(&moved));
+    }
+
+    #[test]
+    fn malformed_library_is_neither_backed_up_nor_marked_complete() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("presets.json");
+        fs::write(&path, b"[broken").unwrap();
+        assert!(load_presets_at(&path).is_err());
+        assert_eq!(fs::read(&path).unwrap(), b"[broken");
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn failed_backup_leaves_library_and_markers_unchanged() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("presets.json");
+        upgraded_library(&path);
+        fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o500)).unwrap();
+        let result = load_presets_at(&path);
+        fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(result.is_err());
+        assert_eq!(fs::read(&path).unwrap(), OLDER);
+        assert!(
+            !path
+                .with_file_name(".rapidroom-styles-replacement-v2")
+                .exists()
+        );
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 3);
     }
 }
