@@ -171,7 +171,13 @@ pub(super) async fn call(app: &AppHandle, name: &str, args: &Value) -> Result<Va
                 .iter()
                 .map(|m| m["name"].as_str().or(m["id"].as_str()).unwrap_or("Mask"))
                 .collect();
-            let title = label(args, format!("AI: Masks: {}", names.join(", ")))?;
+            let summary = names.iter().take(3).copied().collect::<Vec<_>>().join(", ");
+            let extra = if names.len() > 3 {
+                format!(" (+{} more)", names.len() - 3)
+            } else {
+                String::new()
+            };
+            let title = label(args, format!("AI: Masks: {summary}{extra}"))?;
             commit(app, args, &before, changed, title).await
         }
         "generate_ai_mask" => generate(app, args, &before, &path).await,

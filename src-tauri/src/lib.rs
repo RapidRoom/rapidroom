@@ -1754,6 +1754,10 @@ async fn render_preview_for_path(
         let (source_path, _) = parse_virtual_path(&path);
         let source_path_str = source_path.to_string_lossy().to_string();
         crate::camera_lens::resolve_snapshot(&mut js_adjustments, &source_path_str, &state);
+        #[cfg(feature = "mcp")]
+        if mask_id.is_some() {
+            crate::adjustment_utils::hydrate_adjustments(&state, &mut js_adjustments);
+        }
         let is_raw = is_raw_file(&source_path_str);
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
