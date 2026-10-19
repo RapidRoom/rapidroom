@@ -2087,11 +2087,8 @@ mod tests {
             }
             std::thread::yield_now();
         }
-        // The worker now holds WRITE and waits for the destination file lock.
-        // Hold METADATA as an ordinary autosave/rating writer does before WRITE.
-        let metadata_guard = crate::file_management::SIDECAR_METADATA_LOCK
-            .lock()
-            .unwrap();
+        // The worker now holds WRITE and waits for the destination file lock,
+        // while this thread retains METADATA like a concurrent rating writer.
         drop(external);
         let completed_without_metadata = receive.recv_timeout(std::time::Duration::from_secs(2));
         // Release before joining even on failure, so the old reverse-order path
