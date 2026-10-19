@@ -148,7 +148,7 @@ export default function CommandPalette() {
       revert();
       if (plan) {
         commitPresetApplication(plan, (adjustments) => {
-          setAdjustments(() => adjustments);
+          setAdjustments(() => adjustments, `Style: ${plan.application.preset.name} ${plan.application.amount}`);
           debouncedSetHistory.flush();
         });
       } else if (!sameAdjustmentValue(next, state.adjustments)) {

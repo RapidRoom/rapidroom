@@ -594,7 +594,9 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
     }
     debouncedSetHistory.flush();
     const plan = preparePresetApplication(preset, 100);
-    commitPresetApplication(plan, (next) => setAdjustments(() => next));
+    commitPresetApplication(plan, (next) =>
+      setAdjustments(() => next, `Style: ${preset.name} ${plan.application.amount}`),
+    );
     setIsActivePresetExpanded(true);
     debouncedSetHistory.flush();
   };
@@ -604,7 +606,9 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
       const active = usePresetApplication.getState().application;
       if (!active || active.preset.id !== preset.id || active.path !== selectedImage?.path) return;
       const plan = preparePresetApplication(preset, intensity);
-      commitPresetApplication(plan, (next) => setAdjustments(() => next));
+      commitPresetApplication(plan, (next) =>
+        setAdjustments(() => next, `Style: ${preset.name} ${plan.application.amount}`),
+      );
     },
     [setAdjustments, selectedImage],
   );

@@ -33,8 +33,9 @@ interface LoadedMetadata {
 
 let copyRequest = 0;
 
-export const debouncedSetHistory = debounce((newAdj: Adjustments) => {
-  useEditorStore.getState().pushHistory(newAdj);
+export const debouncedSetHistory = debounce((newAdj: Adjustments, label?: string) => {
+  if (label) useEditorStore.getState().pushHistory(newAdj, label);
+  else useEditorStore.getState().pushHistory(newAdj);
 }, 500);
 
 let cardEditNoticeShownFor: string | null = null;
@@ -177,7 +178,7 @@ export function useEditorActions() {
   const setEditor = useEditorStore((s) => s.setEditor);
 
   const setAdjustments = useCallback(
-    (value: Partial<Adjustments> | ((prev: Adjustments) => Adjustments)) => {
+    (value: Partial<Adjustments> | ((prev: Adjustments) => Adjustments), label?: string) => {
       setEditor((state) => {
         const prev = state.adjustments;
         const newAdjustments = typeof value === 'function' ? value(prev) : { ...prev, ...value };
@@ -188,7 +189,7 @@ export function useEditorActions() {
             adjustments: newAdjustments,
           });
         }
-        debouncedSetHistory(newAdjustments);
+        debouncedSetHistory(newAdjustments, label);
         return {
           adjustments: newAdjustments,
           ...(state.showOriginal ? { showOriginal: false, previewOverride: null } : {}),
@@ -228,11 +229,14 @@ export function useEditorActions() {
       const autoAdjustments: Adjustments = await invoke(Invokes.CalculateAutoAdjustments, {
         jsAdjustments: useEditorStore.getState().adjustments,
       });
-      setAdjustments((prev: Adjustments) => ({
-        ...prev,
-        ...autoAdjustments,
-        activeTools: mergeActiveTools(prev, autoAdjustments),
-      }));
+      setAdjustments(
+        (prev: Adjustments) => ({
+          ...prev,
+          ...autoAdjustments,
+          activeTools: mergeActiveTools(prev, autoAdjustments),
+        }),
+        'Auto adjustments',
+      );
     } catch (err) {
       toast.error(`Failed to apply auto adjustments: ${err}`);
     }
@@ -330,7 +334,7 @@ export function useEditorActions() {
   const handleResetAdjustments = useCallback(
     (paths?: string[]) => {
       const { multiSelectedPaths, libraryActivePath, setLibrary } = useLibraryStore.getState();
-      const { selectedImage, resetHistory } = useEditorStore.getState();
+      const { selectedImage } = useEditorStore.getState();
       const pathsToReset = paths || multiSelectedPaths;
       if (pathsToReset.length === 0) return;
 
@@ -353,7 +357,7 @@ export function useEditorActions() {
             const resetData = await createResetAdjustmentsWithLensDefaults(selectedImage);
             const current = useEditorStore.getState();
             if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before) return;
-            resetHistory(resetData);
+            useEditorStore.getState().pushHistory(resetData, 'Reset adjustments');
             setEditor({ adjustments: resetData });
           }
         })
@@ -365,7 +369,7 @@ export function useEditorActions() {
   const handleAutoLensCorrection = useCallback(
     (paths?: string[]) => {
       const { multiSelectedPaths, libraryActivePath, setLibrary } = useLibraryStore.getState();
-      const { selectedImage, resetHistory } = useEditorStore.getState();
+      const { selectedImage } = useEditorStore.getState();
 
       const pathsToUpdate =
         paths && paths.length > 0
@@ -387,7 +391,7 @@ export function useEditorActions() {
             if (meta.adjustments && !meta.adjustments.is_null) {
               const normalized = normalizeLoadedAdjustments(meta.adjustments);
               setEditor({ adjustments: normalized });
-              resetHistory(normalized);
+              useEditorStore.getState().pushHistory(normalized, 'Auto lens correction');
             }
           }
           if (libraryActivePath && pathsToUpdate.includes(libraryActivePath)) {
@@ -528,6 +532,7 @@ export function useEditorActions() {
             adjustmentsToApply,
             adjustments,
           ) as Adjustments,
+          'Paste adjustments',
         );
       }
 

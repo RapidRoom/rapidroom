@@ -52,6 +52,7 @@ interface McpCommand {
   referencePath?: string;
   sourceEditRevision?: string;
   originalExpectedRevision?: string;
+  label?: string;
   deleteCopyAfterAdoption?: boolean;
 }
 
@@ -383,7 +384,12 @@ export function useMcpBridge(
           clearPresetHoverPreview();
           let rendered = Promise.resolve(true);
           commitPresetApplication(plan, (next) => {
-            rendered = applyEdit(command.path, next, before.adjustments);
+            rendered = applyEdit(
+              command.path,
+              next,
+              before.adjustments,
+              command.label ?? `AI: Style: ${selected.preset.name} ${plan.application.amount}`,
+            );
           });
           renderPending = !(await rendered);
           const response = await syncState(command.path);
@@ -585,7 +591,7 @@ export function useMcpBridge(
           } else {
             throw new Error('MCP adjustment command did not include adjustments');
           }
-          renderPending = !(await applyEdit(command.path, nextAdjustments, command.baseAdjustments));
+          renderPending = !(await applyEdit(command.path, nextAdjustments, command.baseAdjustments, command.label));
         }
 
         const response = await syncState(command.path);
