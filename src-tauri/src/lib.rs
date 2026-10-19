@@ -1584,11 +1584,18 @@ async fn save_collage(base64_data: String, first_path_str: String) -> Result<Str
 async fn generate_preview_for_path(
     path: String,
     js_adjustments: Value,
+    read_only: Option<bool>,
     app_handle: tauri::AppHandle,
 ) -> Result<Response, String> {
-    Ok(Response::new(
-        generate_preview_bytes_for_path(path, js_adjustments, 0, app_handle).await?,
-    ))
+    let options = PreviewRenderOptions {
+        read_only: read_only.unwrap_or(false),
+        ..PreviewRenderOptions::default()
+    };
+    match render_preview_for_path(path, js_adjustments, 0, options, app_handle).await? {
+        RenderedPreview::Jpeg { bytes, .. } => Ok(Response::new(bytes)),
+        #[cfg(feature = "mcp")]
+        RenderedPreview::Pixels(_) => Err("Expected encoded preview".into()),
+    }
 }
 
 #[tauri::command]
@@ -1621,6 +1628,8 @@ struct PreviewRenderOptions {
     native_region: Option<(u32, u32, u32, u32)>,
     raw_pixels: bool,
     cancel_token: Option<culling_preview::CancelToken>,
+    /// Comparison rendering must not cause source metadata/cache persistence.
+    read_only: bool,
 }
 
 enum RenderedPreview {
@@ -1706,6 +1715,7 @@ async fn render_preview_for_path(
         native_region,
         raw_pixels,
         cancel_token,
+        read_only,
     } = options;
     // Keep one full decode in flight, cancelling superseded culling requests
     // before they acquire the permit. Otherwise navigation stacks up images — each
@@ -1723,13 +1733,25 @@ async fn render_preview_for_path(
         let context = get_or_init_gpu_context(&state, &app_handle)?;
         let (source_path, _) = parse_virtual_path(&path);
         let source_path_str = source_path.to_string_lossy().to_string();
-        crate::camera_lens::resolve_snapshot(&mut js_adjustments, &source_path_str, &state);
+        if read_only {
+            crate::camera_lens::resolve_snapshot_read_only(
+                &mut js_adjustments,
+                &source_path_str,
+                &state,
+            );
+        } else {
+            crate::camera_lens::resolve_snapshot(&mut js_adjustments, &source_path_str, &state);
+        }
         let is_raw = is_raw_file(&source_path_str);
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
         let load_span = perf_trace::span("full.decode_raw");
         let base_image = match read_file_mapped(&source_path) {
-            Ok(mmap) => load_and_composite(
+            Ok(mmap) => (if read_only {
+                image_loader::load_and_composite_read_only
+            } else {
+                load_and_composite
+            })(
                 &mmap,
                 &source_path_str,
                 &js_adjustments,
@@ -1745,7 +1767,11 @@ async fn render_preview_for_path(
                     e
                 );
                 let bytes = fs::read(&source_path).map_err(|io_err| io_err.to_string())?;
-                load_and_composite(
+                (if read_only {
+                    image_loader::load_and_composite_read_only
+                } else {
+                    load_and_composite
+                })(
                     &bytes,
                     &source_path_str,
                     &js_adjustments,

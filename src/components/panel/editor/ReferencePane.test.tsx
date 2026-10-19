@@ -70,7 +70,9 @@ describe('ReferencePane', () => {
     await renderPane('/photos/ref.raw');
     await flush();
 
-    expect(previewArgs).toEqual([{ path: '/photos/ref.raw', jsAdjustments: savedAdjustments }]);
+    expect(previewArgs).toEqual([{
+      path: '/photos/ref.raw', jsAdjustments: savedAdjustments, readOnly: true,
+    }]);
     expect(invoke.mock.calls.map(([cmd]) => cmd)).toEqual([
       Invokes.ReadCompareAdjustments,
       Invokes.GeneratePreviewForPath,
@@ -158,8 +160,8 @@ describe('ReferencePane', () => {
     await flush();
 
     expect(invoke.mock.calls.filter(([name]) => name === Invokes.GeneratePreviewForPath)).toEqual([
-      [Invokes.GeneratePreviewForPath, { path: '/photos/active.raw', jsAdjustments: { exposure: 1 } }],
-      [Invokes.GeneratePreviewForPath, { path: '/photos/active.raw', jsAdjustments: { exposure: 0 } }],
+      [Invokes.GeneratePreviewForPath, { path: '/photos/active.raw', jsAdjustments: { exposure: 1 }, readOnly: true }],
+      [Invokes.GeneratePreviewForPath, { path: '/photos/active.raw', jsAdjustments: { exposure: 0 }, readOnly: true }],
     ]);
     expect(container.querySelector('[role="slider"]')?.getAttribute('aria-valuenow')).toBe('25');
     expect(container.querySelectorAll('div[style*="translate"]').length).toBe(2);

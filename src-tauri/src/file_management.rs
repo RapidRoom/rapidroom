@@ -3272,7 +3272,7 @@ fn find_matching_xmp_sidecars_recursive(
     (matches, skipped, failures)
 }
 
-fn read_sidecar_report_snapshot(path: &Path) -> Result<ImageMetadata, String> {
+pub(crate) fn read_sidecar_report_snapshot(path: &Path) -> Result<ImageMetadata, String> {
     const MAX_REPORT_SIDECAR_BYTES: usize = 16 * 1024 * 1024;
     let mut options = fs::OpenOptions::new();
     options.read(true);
@@ -4491,11 +4491,11 @@ fn apply_compare_defaults(
             source_path,
         );
     }
+    let saved_auto_recipe = metadata.adjustments["lensCorrectionMode"].as_str() == Some("auto")
+        && metadata.adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1);
     let auto_lens = crate::formats::is_raw_file(source_path)
-        && settings.auto_lens_correction_on_new_raws.unwrap_or(true)
-        && (fresh
-            || (metadata.adjustments["lensCorrectionMode"].as_str() == Some("auto")
-                && metadata.adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)));
+        && ((fresh && settings.auto_lens_correction_on_new_raws.unwrap_or(true))
+            || saved_auto_recipe);
     if !auto_lens {
         return;
     }

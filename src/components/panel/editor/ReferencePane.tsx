@@ -89,6 +89,7 @@ export default function ReferencePane({
         const bytes = await invoke<Uint8Array>(Invokes.GeneratePreviewForPath, {
           path: referencePath,
           jsAdjustments: adjustments,
+          readOnly: true,
         });
         if (!active) return;
         blobUrl = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));
@@ -113,6 +114,7 @@ export default function ReferencePane({
       const bytes = await invoke<Uint8Array>(Invokes.GeneratePreviewForPath, {
         path: activePath,
         jsAdjustments: adjustments,
+        readOnly: true,
       });
       return URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));
     },
