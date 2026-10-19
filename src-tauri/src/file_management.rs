@@ -4344,7 +4344,8 @@ pub(crate) fn apply_raw_defaults_and_resolve_auto_lens(
         && metadata.adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)
     {
         if metadata.exif.is_none() {
-            metadata.exif = crate::exif_processing::read_source_exif(source_path);
+            metadata.exif =
+                crate::exif_processing::load_sidecar_with_exif(sidecar_path, source_path).exif;
         }
         resolve_lens_params_in_adjustments(
             &mut metadata.adjustments,
@@ -4472,14 +4473,53 @@ pub fn read_compare_adjustments(
         .clone();
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     let mut metadata = read_sidecar_report_snapshot(&sidecar_path)?;
-    apply_raw_defaults_and_resolve_auto_lens(
-        &mut metadata,
-        &source_path,
-        &sidecar_path,
-        &settings,
-        lens_db.as_deref(),
-    );
+    apply_compare_defaults(&mut metadata, &source_path, &settings, lens_db.as_deref());
     serde_json::to_value(metadata.adjustments).map_err(|error| error.to_string())
+}
+
+fn apply_compare_defaults(
+    metadata: &mut ImageMetadata,
+    source_path: &Path,
+    settings: &AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) {
+    let fresh = metadata.adjustments.is_null();
+    if fresh {
+        metadata.adjustments = default_adjustments();
+        crate::raw_processing::apply_camera_crop_default_from_path(
+            &mut metadata.adjustments,
+            source_path,
+        );
+    }
+    let auto_lens = crate::formats::is_raw_file(source_path)
+        && settings.auto_lens_correction_on_new_raws.unwrap_or(true)
+        && (fresh
+            || (metadata.adjustments["lensCorrectionMode"].as_str() == Some("auto")
+                && metadata.adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)));
+    if !auto_lens {
+        return;
+    }
+    if metadata.exif.is_none() {
+        let source = source_path.to_string_lossy();
+        let exif = if let Ok(bytes) = read_file_mapped(source_path) {
+            crate::exif_processing::read_exif_data_from_bytes(&source, &bytes)
+        } else if let Ok(bytes) = fs::read(source_path) {
+            crate::exif_processing::read_exif_data_from_bytes(&source, &bytes)
+        } else {
+            Default::default()
+        };
+        if !exif.is_empty() {
+            metadata.exif = Some(exif);
+        }
+    }
+    metadata.adjustments["lensCorrectionMode"] = serde_json::json!("auto");
+    metadata.adjustments["cameraLensCorrectionVersion"] = serde_json::json!(1);
+    resolve_lens_params_in_adjustments(
+        &mut metadata.adjustments,
+        &metadata.exif,
+        lens_db,
+        source_path,
+    );
 }
 
 fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
@@ -7192,6 +7232,74 @@ mod tests {
         fs::write(&sidecar, "invalid JSON").unwrap();
         assert!(read_sidecar_report_snapshot(&sidecar).is_err());
         assert_eq!(fs::read_to_string(&sidecar).unwrap(), "invalid JSON");
+    }
+
+    #[test]
+    fn comparison_snapshot_never_heals_a_bloated_saved_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("sample.jpg");
+        let sidecar = dir.path().join("sample.jpg.rrdata");
+        fs::write(&source, b"not a raw image").unwrap();
+        let huge = "x".repeat(700);
+        let original = format!(
+            r#"{{"adjustments":{{"exposure":1}},"exif":{{"Comment":"{huge}"}},"unknown":"keep"}}"#
+        );
+        fs::write(&sidecar, &original).unwrap();
+        let before = fs::metadata(&sidecar).unwrap().modified().unwrap();
+
+        let mut metadata = read_sidecar_report_snapshot(&sidecar).unwrap();
+        apply_compare_defaults(&mut metadata, &source, &AppSettings::default(), None);
+
+        assert_eq!(metadata.adjustments["exposure"], 1);
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        assert_eq!(fs::metadata(&sidecar).unwrap().modified().unwrap(), before);
+    }
+
+    #[test]
+    fn comparison_snapshot_fresh_file_builds_defaults_without_creating_a_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("fresh.NEF");
+        let sidecar = dir.path().join("fresh.NEF.rrdata");
+        let legacy_exif = crate::exif_processing::get_rrexif_path(&source);
+        fs::write(&source, b"not a raw image").unwrap();
+
+        let mut metadata = read_sidecar_report_snapshot(&sidecar).unwrap();
+        apply_compare_defaults(&mut metadata, &source, &AppSettings::default(), None);
+
+        assert!(metadata.adjustments.is_object());
+        assert!(!sidecar.exists());
+        assert!(!legacy_exif.exists());
+    }
+
+    #[test]
+    fn comparison_snapshot_preserves_a_saved_empty_recipe_byte_for_byte() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("empty.jpg");
+        let sidecar = dir.path().join("empty.jpg.rrdata");
+        let original = r#"{ "adjustments": {}, "unknown": "keep" }"#;
+        fs::write(&source, b"not a raw image").unwrap();
+        fs::write(&sidecar, original).unwrap();
+        let before = fs::metadata(&sidecar).unwrap().modified().unwrap();
+
+        let mut metadata = read_sidecar_report_snapshot(&sidecar).unwrap();
+        apply_compare_defaults(&mut metadata, &source, &AppSettings::default(), None);
+
+        assert_eq!(metadata.adjustments, serde_json::json!({}));
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        assert_eq!(fs::metadata(&sidecar).unwrap().modified().unwrap(), before);
+    }
+
+    #[test]
+    fn comparison_snapshot_rejects_a_corrupt_recipe_without_touching_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let sidecar = dir.path().join("corrupt.jpg.rrdata");
+        let original = "{ invalid JSON";
+        fs::write(&sidecar, original).unwrap();
+        let before = fs::metadata(&sidecar).unwrap().modified().unwrap();
+
+        assert!(read_sidecar_report_snapshot(&sidecar).is_err());
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        assert_eq!(fs::metadata(&sidecar).unwrap().modified().unwrap(), before);
     }
 
     #[test]
