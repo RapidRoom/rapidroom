@@ -288,3 +288,56 @@ it('drains an in-flight paired Style save before permitting a native XMP import'
   pause.finish([]);
   await saving;
 });
+
+it.each([
+  { active: true, delay: 0 },
+  { active: false, delay: 0 },
+  { active: false, delay: 400 },
+])(
+  'preserves imported controls when the pending Style intent is active=$active and import finishes after $delay ms',
+  async ({ active, delay }) => {
+    vi.useFakeTimers();
+    const path = `/style-intent-${active}-${delay}.raw`;
+    const stack = changeStyleStack(
+      null,
+      INITIAL_ADJUSTMENTS,
+      {
+        preset: { id: 'look', name: 'Look', presetType: 'style', adjustments: { exposure: 2 } },
+        amount: 100,
+      },
+      { width: 6000, height: 4000 },
+    );
+    useEditorStore.setState({
+      selectedImage: {
+        path: active ? path : '/other-active.raw',
+        width: 6000,
+        height: 4000,
+        isReady: true,
+        isRaw: true,
+        thumbnailUrl: '',
+        exif: {},
+      },
+      adjustments: active ? stack.result : INITIAL_ADJUSTMENTS,
+    });
+    await hashPresetAdjustments(stack.result);
+    let diskExposure: number;
+    const writes: Array<Record<string, unknown>> = [];
+    mockCommand('save_applied_preset', (args) => {
+      writes.push(args!);
+      if (args?.adjustments) diskExposure = (args.adjustments as typeof INITIAL_ADJUSTMENTS).exposure;
+    });
+    const saving = rememberAppliedStyleStack(path, stack, stack.result);
+    const pause = await prepareEditorDraftForXmpImport(path);
+    expect(pause.draft?.adjustments).toBe(stack.result);
+    diskExposure = 3; // A real importer owns the sidecar during this pause.
+    if (delay) await vi.advanceTimersByTimeAsync(delay);
+    expect(writes).toEqual([]);
+    pause.finish([path]);
+    await vi.advanceTimersByTimeAsync(400);
+    await saving;
+    expect(diskExposure).toBe(3);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).not.toHaveProperty('adjustments');
+    expect(writes[0]).toMatchObject({ record: { stack: { entries: [{ presetId: 'look', amount: 100 }] } } });
+  },
+);

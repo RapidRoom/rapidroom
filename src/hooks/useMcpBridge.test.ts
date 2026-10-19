@@ -553,6 +553,36 @@ describe('protected editing workflow', () => {
     });
   });
 
+  it('commits and removes an Amount0 stack entry without waiting for an unchanged preview', async () => {
+    const base = { ...INITIAL_ADJUSTMENTS, exposure: 0.7 };
+    useEditorStore.setState({ selectedImage: image, adjustments: base, history: [base], historyIndex: 0 });
+    setCatalogPresets([
+      { preset: { id: 'zero-look', name: 'Zero look', presetType: 'style', adjustments: { contrast: 40 } } },
+    ]);
+    const id = (await listMcpPresets({})).presets[0].id;
+    await mount();
+    const change = async (kind: string, options: Record<string, unknown>) => {
+      const count = responses.length;
+      await act(async () => {
+        await emit('mcp-command', {
+          requestId: 'zero',
+          kind,
+          path,
+          baseAdjustments: useEditorStore.getState().adjustments,
+          options,
+        });
+        await vi.waitFor(() => expect(responses).toHaveLength(count + 1));
+      });
+      expect(responses.at(-1)).toMatchObject({ error: null, response: { renderPending: false } });
+    };
+    await change('apply-preset', { presetId: id, amount: 0 });
+    expect(useEditorStore.getState().adjustments).toEqual(base);
+    expect(useEditorStore.getState().history).toHaveLength(2);
+    await change('remove-style', { presetId: id });
+    expect(useEditorStore.getState().adjustments).toEqual(base);
+    expect(useEditorStore.getState().history).toHaveLength(3);
+  });
+
   it('rejects an edit racing native preflight before setting the marker or committing a Style', async () => {
     useEditorStore.setState({ selectedImage: image });
     setCatalogPresets([{ preset: { id: 'style', name: 'Style', adjustments: { exposure: 2 } } }]);

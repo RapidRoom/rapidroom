@@ -6,7 +6,7 @@ import type { Preset } from '../components/ui/AppProperties';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { isPathInCardRoot } from './cardMode';
 import { useEditorStore } from '../store/useEditorStore';
-import { queuePhotoWrite } from './photoWriteQueue';
+import { queuePhotoWrite, registerPhotoWriteIntent } from './photoWriteQueue';
 import { keepManualStyleEdits, migrateAppliedStyle, type StyleStack } from './styleStack';
 
 export interface AppliedPreset {
@@ -144,6 +144,8 @@ function persistAppliedPreset(path: string, record: AppliedPreset | null, adjust
   const generation = (generations.get(path) ?? 0) + 1;
   generations.set(path, generation);
   setRecord(path, record);
+  // Import must see the intent before hashing, debounce or a preceding write.
+  const intent = registerPhotoWriteIntent(path, adjustments, !!record?.stack);
   const pending = (writes.get(path) ?? Promise.resolve())
     .then(async () => {
       if (generations.get(path) !== generation) return;
@@ -160,7 +162,7 @@ function persistAppliedPreset(path: string, record: AppliedPreset | null, adjust
             await invoke('save_applied_preset', {
               path,
               record: saved,
-              ...(saved?.stack || !saved ? { adjustments } : {}),
+              ...(saved?.stack ? { adjustments } : {}),
             });
           },
           adjustments,
@@ -171,6 +173,7 @@ function persistAppliedPreset(path: string, record: AppliedPreset | null, adjust
             // loading it reconciles imported differences as manual edits.
             await invoke('save_applied_preset', { path, record: saved });
           },
+          intent,
         );
       }
     })
@@ -178,6 +181,7 @@ function persistAppliedPreset(path: string, record: AppliedPreset | null, adjust
       if (generations.get(path) === generation) toast.error('Could not save the applied Styles.');
     })
     .finally(() => {
+      intent.release();
       if (writes.get(path) === pending) writes.delete(path);
     });
   writes.set(path, pending);
@@ -204,7 +208,7 @@ export function rememberAppliedStyleStack(
   adjustments: Adjustments,
 ): Promise<void> {
   rememberStyleSnapshot(path, adjustments, stack);
-  if (!stack) return persistAppliedPreset(path, null, adjustments);
+  if (!stack?.entries.length) return persistAppliedPreset(path, null, adjustments);
   const last = stack.entries.at(-1);
   return rememberAppliedPreset(
     path,

@@ -27,7 +27,12 @@ import { Invokes } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
 import i18n from 'i18next';
-import { queuePhotoWrite, pausePhotoWrites, waitForPhotoWrites } from '../utils/photoWriteQueue';
+import {
+  queuePhotoWrite,
+  pausePhotoWrites,
+  waitForPhotoWrites,
+  pendingPhotoWriteDrafts,
+} from '../utils/photoWriteQueue';
 import { describeHistoryChange } from '../utils/editHistory';
 
 interface LoadedMetadata {
@@ -136,6 +141,7 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
   // Active snapshots supply import data; only pending edits need resuming.
   const queuedBeforePause = queuedEditorDraft;
   if (queuedBeforePause) captured.set(queuedBeforePause.path, queuedBeforePause);
+  for (const draft of pendingPhotoWriteDrafts()) captured.set(draft.path, draft);
   const before = captureEditorDraft();
   if (before) captured.set(before.path, before);
   // Pause new requests synchronously, before waiting for existing writes. Never
@@ -158,7 +164,12 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
     }
     importSavePause = undefined;
     resumePhotoWrites(
-      (path, snapshot) => !consumedPaths.includes(path) || !snapshot || snapshot !== captured.get(path)?.adjustments,
+      (path, snapshot) =>
+        !consumedPaths.includes(path) ||
+        !snapshot ||
+        (captured.has(path)
+          ? snapshot !== captured.get(path)!.adjustments
+          : buffered.get(path)?.adjustments === snapshot),
     );
     const entries = [...writes.values()];
     entries.forEach((draft, index) => {
@@ -171,6 +182,7 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
     await waitForPendingEditorSaves();
     await waitForPhotoWrites();
     debouncedSetHistory.flush();
+    for (const draft of pendingPhotoWriteDrafts()) captured.set(draft.path, draft);
     for (const [path, bufferedDraft] of buffered) captured.set(path, bufferedDraft);
     const active = captureEditorDraft();
     if (active) captured.set(active.path, active);

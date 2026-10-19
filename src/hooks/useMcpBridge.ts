@@ -166,16 +166,15 @@ async function applyEdit(
     throw new Error(
       'Active image or edit changed before the single-mask operation; read the current revision and retry',
     );
-  if (!forceHistory && sameAdjustmentValue(nextAdjustments, editor.adjustments)) {
-    return true;
-  }
+  const pixelsChanged = !sameAdjustmentValue(nextAdjustments, editor.adjustments);
+  if (!forceHistory && !pixelsChanged) return true;
   const previousRenderVersion = editor.previewRenderVersion;
   editor.setEditor({ adjustments: nextAdjustments });
   const details = describeHistoryChange(editor.adjustments, nextAdjustments, 'assistant');
   if (label) details.label = label;
   editor.pushHistory(nextAdjustments, details);
   toast.info(details.label, { autoClose: 2500 });
-  return waitForAdjustmentRender(path, previousRenderVersion, nextAdjustments);
+  return pixelsChanged ? waitForAdjustmentRender(path, previousRenderVersion, nextAdjustments) : true;
 }
 
 async function syncState(path: string): Promise<McpStateResponse> {
