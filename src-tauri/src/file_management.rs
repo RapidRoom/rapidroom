@@ -4184,9 +4184,9 @@ pub async fn apply_auto_adjustments_to_paths(
 
             increment_thumbnail_progress(&state, &app_handle);
         });
-    });
-
-    Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 fn metadata_bytes_preserving_owned(

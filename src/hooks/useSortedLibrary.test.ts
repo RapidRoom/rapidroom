@@ -119,3 +119,30 @@ describe('stacks under an Unrated filter', () => {
     expect(unrated({ '/x/normal.raw': 3 })).toEqual([]);
   });
 });
+
+describe('capture-date ordering', () => {
+  it('uses recorded UTC instants and ignores folder display shifts', () => {
+    const photos: ImageFile[] = [
+      {
+        ...makeImage('/trip/hawaii.jpg', 1),
+        exif: { DateTimeOriginal: '2026:10:19 23:30:00', OffsetTimeOriginal: '-10:00' },
+      },
+      {
+        ...makeImage('/trip/japan.jpg', 2),
+        exif: { DateTimeOriginal: '2026:10:20 12:00:00', OffsetTimeOriginal: '+09:00' },
+      },
+    ];
+    const appSettings = { grouping: 'off' as const, folderCaptureTimeShiftMinutes: { '/trip': 1140 } };
+    const result = computeSortedLibrary(
+      {
+        imageList: photos,
+        imageRatings: {},
+        filterCriteria: { colors: [], rating: 0, rawStatus: RawStatus.All },
+        searchCriteria: { tags: [], text: '', mode: 'AND' },
+        sortCriteria: { key: 'date_taken', order: 'asc' },
+      },
+      { appSettings },
+    );
+    expect(result.map((image) => image.path)).toEqual(['/trip/japan.jpg', '/trip/hawaii.jpg']);
+  });
+});

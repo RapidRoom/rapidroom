@@ -261,7 +261,11 @@ fn capture_time(exif: &HashMap<String, String>) -> Option<NaiveDateTime> {
     }
     let digits: String = digits.chars().take(9).collect();
     let nanos = digits.parse::<i64>().unwrap_or(0) * 10i64.pow(9 - digits.len() as u32);
-    base.checked_add_signed(chrono::Duration::nanoseconds(nanos))
+    let time = base.checked_add_signed(chrono::Duration::nanoseconds(nanos))?;
+    // Offset-less photos keep legacy camera-clock grouping; only recorded zones define an instant.
+    let seconds = crate::exif_processing::recorded_capture_offset(exif)
+        .map_or(0, |zone| zone.local_minus_utc());
+    time.checked_sub_signed(chrono::Duration::seconds(i64::from(seconds)))
 }
 
 // ExposureBiasValue is a plain number for RAW files and may be a fraction or
@@ -932,6 +936,51 @@ mod concurrency_tests {
         assert_eq!(
             metadata(&sidecar).unwrap().adjustments,
             serde_json::json!({"exposure":0.3})
+        );
+    }
+}
+
+#[cfg(test)]
+mod capture_zone_tests {
+    use super::*;
+
+    #[test]
+    fn auto_stack_uses_recorded_instants_across_camera_zones() {
+        let time = |date: &str, zone: &str| {
+            capture_time(&HashMap::from([
+                ("DateTimeOriginal".into(), date.into()),
+                ("OffsetTimeOriginal".into(), zone.into()),
+                ("SubSecTimeOriginal".into(), "1".into()),
+            ]))
+            .unwrap()
+        };
+        let groups = time_groups(
+            vec![
+                (
+                    PathBuf::from("/trip/hawaii.jpg"),
+                    time("2026:10:19 23:30:00", "-10:00"),
+                ),
+                (
+                    PathBuf::from("/trip/japan.jpg"),
+                    time("2026:10:20 18:30:00", "+09:00"),
+                ),
+                (
+                    PathBuf::from("/trip/other.jpg"),
+                    time("2026:10:20 12:00:00", "+09:00"),
+                ),
+            ],
+            1.0,
+        )
+        .unwrap();
+        assert_eq!(groups, vec![vec!["/trip/hawaii.jpg", "/trip/japan.jpg"]]);
+        let legacy = capture_time(&HashMap::from([(
+            "DateTimeOriginal".into(),
+            "2026:10:19 23:30:00".into(),
+        )]))
+        .unwrap();
+        assert_eq!(
+            legacy,
+            NaiveDateTime::parse_from_str("2026:10:19 23:30:00", "%Y:%m:%d %H:%M:%S").unwrap()
         );
     }
 }

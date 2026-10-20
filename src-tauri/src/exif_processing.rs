@@ -10,7 +10,7 @@ use crate::file_management;
 use crate::formats::is_raw_file;
 use crate::image_processing::ImageMetadata;
 use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
-use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, FixedOffset, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use exif::{Exif, In, Value};
 use image::ImageDecoder;
 use little_exif::exif_tag::ExifTag;
@@ -419,12 +419,64 @@ fn creation_datetime_to_utc(dt: NaiveDateTime) -> DateTime<Utc> {
     }
 }
 
-fn parse_creation_field(field: &exif::Field) -> Option<DateTime<Utc>> {
-    parse_creation_datetime(&field.display_value().to_string()).map(creation_datetime_to_utc)
+pub(crate) fn parse_capture_offset(value: &str) -> Option<FixedOffset> {
+    let value = clean_creation_datetime_str(value);
+    if value == "Z" {
+        return FixedOffset::east_opt(0);
+    }
+    let bytes = value.as_bytes();
+    if bytes.len() != 6
+        || !matches!(bytes[0], b'+' | b'-')
+        || bytes[3] != b':'
+        || ![bytes[1], bytes[2], bytes[4], bytes[5]]
+            .iter()
+            .all(u8::is_ascii_digit)
+    {
+        return None;
+    }
+    let hours = value[1..3].parse::<i32>().ok()?;
+    let minutes = value[4..6].parse::<i32>().ok()?;
+    if hours > 23 || minutes > 59 {
+        return None;
+    }
+    let seconds = (hours * 60 + minutes) * 60 * if bytes[0] == b'-' { -1 } else { 1 };
+    FixedOffset::east_opt(seconds)
 }
 
-fn parse_raw_creation_date(date_str: Option<&str>) -> Option<DateTime<Utc>> {
-    parse_creation_datetime(date_str?).map(creation_datetime_to_utc)
+pub(crate) fn recorded_capture_offset(exif: &HashMap<String, String>) -> Option<FixedOffset> {
+    ["OffsetTimeOriginal", "OffsetTime"]
+        .iter()
+        .filter_map(|key| exif.get(*key))
+        .find_map(|value| parse_capture_offset(value))
+}
+
+fn creation_datetime_with_offset(dt: NaiveDateTime, offset: Option<FixedOffset>) -> DateTime<Utc> {
+    offset
+        .and_then(|zone| zone.from_local_datetime(&dt).single())
+        .map(|date| date.with_timezone(&Utc))
+        .unwrap_or_else(|| creation_datetime_to_utc(dt))
+}
+
+fn parse_creation_field(
+    field: &exif::Field,
+    exif: &Exif,
+    offset_tag: exif::Tag,
+) -> Option<DateTime<Utc>> {
+    let offset = [offset_tag, exif::Tag::OffsetTime].iter().find_map(|tag| {
+        exif.get_field(*tag, In::PRIMARY)
+            .and_then(|field| clean_ascii_value(&field.value))
+            .and_then(|value| parse_capture_offset(&value))
+    });
+    parse_creation_datetime(&field.display_value().to_string())
+        .map(|date| creation_datetime_with_offset(date, offset))
+}
+
+fn parse_raw_creation_date(
+    date_str: Option<&str>,
+    offsets: [Option<&str>; 2],
+) -> Option<DateTime<Utc>> {
+    let offset = offsets.into_iter().flatten().find_map(parse_capture_offset);
+    parse_creation_datetime(date_str?).map(|date| creation_datetime_with_offset(date, offset))
 }
 
 fn clean_ascii_value(value: &exif::Value) -> Option<String> {
@@ -1265,7 +1317,16 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
         && let Some(dt_str) = map.get("DateTimeOriginal").or(map.get("CreateDate"))
         && let Some(dt) = parse_creation_datetime(dt_str)
     {
-        return Some(creation_datetime_to_utc(dt));
+        let specific_offset = if map.contains_key("DateTimeOriginal") {
+            "OffsetTimeOriginal"
+        } else {
+            "OffsetTimeDigitized"
+        };
+        let offset = [specific_offset, "OffsetTime"]
+            .iter()
+            .filter_map(|key| map.get(*key))
+            .find_map(|value| parse_capture_offset(value));
+        return Some(creation_datetime_with_offset(dt, offset));
     }
 
     if let Ok(file) = std::fs::File::open(path) {
@@ -1275,7 +1336,15 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
         if let Ok(exif_obj) = exifreader.read_from_container(&mut bufreader) {
             for tag in [exif::Tag::DateTimeOriginal, exif::Tag::DateTime] {
                 if let Some(field) = exif_obj.get_field(tag, exif::In::PRIMARY)
-                    && let Some(dt) = parse_creation_field(field)
+                    && let Some(dt) = parse_creation_field(
+                        field,
+                        &exif_obj,
+                        if tag == exif::Tag::DateTimeOriginal {
+                            exif::Tag::OffsetTimeOriginal
+                        } else {
+                            exif::Tag::OffsetTime
+                        },
+                    )
                 {
                     return Some(dt);
                 }
@@ -1289,10 +1358,22 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
             && let Ok(decoder) = loader.get_decoder(&raw_source)
             && let Ok(metadata) = decoder.raw_metadata(&raw_source, &Default::default())
         {
-            if let Some(dt) = parse_raw_creation_date(metadata.exif.date_time_original.as_deref()) {
+            if let Some(dt) = parse_raw_creation_date(
+                metadata.exif.date_time_original.as_deref(),
+                [
+                    metadata.exif.offset_time_original.as_deref(),
+                    metadata.exif.offset_time.as_deref(),
+                ],
+            ) {
                 return Some(dt);
             }
-            if let Some(dt) = parse_raw_creation_date(metadata.exif.create_date.as_deref()) {
+            if let Some(dt) = parse_raw_creation_date(
+                metadata.exif.create_date.as_deref(),
+                [
+                    metadata.exif.offset_time_digitized.as_deref(),
+                    metadata.exif.offset_time.as_deref(),
+                ],
+            ) {
                 return Some(dt);
             }
         }
@@ -1306,7 +1387,15 @@ pub fn get_creation_date_from_bytes(path_hint: &str, file_bytes: &[u8]) -> DateT
     if let Some(exif_obj) = read_exif(file_bytes) {
         for tag in [exif::Tag::DateTimeOriginal, exif::Tag::DateTime] {
             if let Some(field) = exif_obj.get_field(tag, exif::In::PRIMARY)
-                && let Some(dt) = parse_creation_field(field)
+                && let Some(dt) = parse_creation_field(
+                    field,
+                    &exif_obj,
+                    if tag == exif::Tag::DateTimeOriginal {
+                        exif::Tag::OffsetTimeOriginal
+                    } else {
+                        exif::Tag::OffsetTime
+                    },
+                )
             {
                 return dt;
             }
@@ -1316,10 +1405,22 @@ pub fn get_creation_date_from_bytes(path_hint: &str, file_bytes: &[u8]) -> DateT
     if is_raw_file(path_hint)
         && let Some(metadata) = read_raw_metadata(file_bytes)
     {
-        if let Some(dt) = parse_raw_creation_date(metadata.exif.date_time_original.as_deref()) {
+        if let Some(dt) = parse_raw_creation_date(
+            metadata.exif.date_time_original.as_deref(),
+            [
+                metadata.exif.offset_time_original.as_deref(),
+                metadata.exif.offset_time.as_deref(),
+            ],
+        ) {
             return dt;
         }
-        if let Some(dt) = parse_raw_creation_date(metadata.exif.create_date.as_deref()) {
+        if let Some(dt) = parse_raw_creation_date(
+            metadata.exif.create_date.as_deref(),
+            [
+                metadata.exif.offset_time_digitized.as_deref(),
+                metadata.exif.offset_time.as_deref(),
+            ],
+        ) {
             return dt;
         }
     }
@@ -3268,5 +3369,69 @@ mod tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod capture_offset_tests {
+    use super::*;
+
+    #[test]
+    fn real_jpeg_capture_offset_is_read_without_rewriting_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("hawaii.jpg");
+        image::RgbImage::from_pixel(8, 6, image::Rgb([40, 90, 120]))
+            .save(&path)
+            .unwrap();
+        let mut metadata = Metadata::new();
+        metadata.set_tag(ExifTag::DateTimeOriginal("2026:10:19 23:30:00".into()));
+        metadata.set_tag(ExifTag::OffsetTimeOriginal("-10:00".into()));
+        metadata.write_to_file(&path).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let expected = DateTime::parse_from_rfc3339("2026-10-20T09:30:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        assert_eq!(try_get_exif_creation_date(&path), Some(expected));
+        let decoded = extract_metadata(&before).unwrap();
+        assert_eq!(
+            decoded.get("OffsetTimeOriginal").map(String::as_str),
+            Some("-10:00")
+        );
+        assert_eq!(std::fs::read(path).unwrap(), before);
+    }
+
+    #[test]
+    fn raw_offsets_cover_rollovers_fractional_zones_and_invalid_fallbacks() {
+        for (date, offset, expected) in [
+            ("2026:10:19 23:30:00", "-10:00", "2026-10-20T09:30:00Z"),
+            ("2026-10-20 18:30:00", "+09:00", "2026-10-20T09:30:00Z"),
+            ("2026:01:01 00:15:00", "+05:45", "2025-12-31T18:30:00Z"),
+            ("2026:01:01 00:00:00", "Z", "2026-01-01T00:00:00Z"),
+        ] {
+            let actual = parse_raw_creation_date(Some(date), [Some(offset), None]);
+            assert_eq!(
+                actual,
+                Some(
+                    DateTime::parse_from_rfc3339(expected)
+                        .unwrap()
+                        .with_timezone(&Utc)
+                )
+            );
+        }
+        for bad in ["+24:00", "-10:60", "9:00", "no zone", "+é:00"] {
+            assert!(parse_capture_offset(bad).is_none());
+        }
+        let date = "2026:10:19 23:30:00";
+        let legacy = creation_datetime_to_utc(
+            NaiveDateTime::parse_from_str(date, EXIF_DATETIME_FORMAT).unwrap(),
+        );
+        assert_eq!(
+            parse_raw_creation_date(Some(date), [Some("invalid"), None]),
+            Some(legacy)
+        );
+        assert_eq!(
+            parse_raw_creation_date(Some(date), [Some("invalid"), Some("-10:00")]),
+            parse_raw_creation_date(Some(date), [Some("-10:00"), None])
+        );
     }
 }
