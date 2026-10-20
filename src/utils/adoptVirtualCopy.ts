@@ -11,7 +11,9 @@ import {
   hashPresetAdjustments,
   loadAppliedPreset,
   rememberAppliedPreset,
+  rememberAppliedStyleStack,
   useAppliedPresetStore,
+  styleSnapshot,
 } from './appliedPreset';
 import { clearPresetHoverPreview } from './presetHoverPreview';
 
@@ -63,7 +65,13 @@ export async function adoptVirtualCopy(command: AdoptionRequest, actions: Adopti
   assertCopy();
   await loadAppliedPreset(command.path);
   const record = useAppliedPresetStore.getState().records[command.path];
-  const applied = record && (await hashPresetAdjustments(recipe)) === record.adjustmentsHash ? record : null;
+  const stack = styleSnapshot(command.path, recipe);
+  const applied =
+    record && stack
+      ? { ...record, stack }
+      : record && (await hashPresetAdjustments(recipe)) === record.adjustmentsHash
+        ? record
+        : null;
   assertCopy();
   debouncedSetHistory.flush();
   await actions.open(originalPath, true);
@@ -99,7 +107,9 @@ export async function adoptVirtualCopy(command: AdoptionRequest, actions: Adopti
     throw new Error('Original changed before adoption committed; no AI-copy deletion was requested');
   }
   const response = await actions.sync(originalPath);
-  if (applied) void rememberAppliedPreset(originalPath, applied, applied.amount, recipe);
+  if (applied?.stack) void rememberAppliedStyleStack(originalPath, applied.stack, recipe);
+  else if (applied) void rememberAppliedPreset(originalPath, applied, applied.amount, recipe);
+  else void rememberAppliedStyleStack(originalPath, null, recipe);
   const stillOriginal = () => {
     const current = useEditorStore.getState();
     return (

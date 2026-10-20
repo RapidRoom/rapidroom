@@ -309,7 +309,9 @@ pub(super) async fn call_tool(
         | "assess_edits"
         | "open_reference_view"
         | "request_delete_image" => super::library::call(app_handle, name, &arguments).await,
-        "list_presets" | "apply_preset" => super::presets::call(app_handle, name, &arguments).await,
+        "list_presets" | "apply_preset" | "list_applied_styles" | "remove_style" => {
+            super::presets::call(app_handle, name, &arguments).await
+        }
         "list_images" => list_images(app_handle, &arguments),
         "open_image" | "select_image" => select_image(app_handle, &arguments).await,
         "get_image_state" => get_image_state(app_handle, &arguments),

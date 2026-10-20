@@ -317,6 +317,16 @@ pub(super) fn adjustments_schema() -> Value {
         curves_schema("Saved point-curve channels restored when curveMode is point."),
     );
     properties.insert("parametricCurve".to_string(), parametric_curve_schema());
+    for key in ["vignetteCenterX", "vignetteCenterY", "centréX", "centréY"] {
+        properties.insert(
+            key.to_string(),
+            ranged_number_schema(
+                0.0,
+                1.0,
+                "Normalized centre in the rendered image, from 0 to 1; 0.5 is centered.",
+            ),
+        );
+    }
     properties.insert("hsl".to_string(), hsl_schema());
     properties.insert("colorGrading".to_string(), color_grading_schema());
     properties.insert("colorCalibration".to_string(), color_calibration_schema());
@@ -1163,6 +1173,7 @@ fn validate_color_calibration(value: &Value) -> Result<(), String> {
 
 fn numeric_adjustment_range(key: &str) -> Option<(f64, f64)> {
     match key {
+        "vignetteCenterX" | "vignetteCenterY" | "centréX" | "centréY" => Some((0.0, 1.0)),
         "exposure" | "brightness" => Some((-5.0, 5.0)),
         "contrast"
         | "highlights"
@@ -1244,6 +1255,21 @@ pub(super) fn merge_adjustments(current: Value, changes: Value) -> Result<Value,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn centre_positions_have_bounded_typed_discovery_and_updates() {
+        let schema = adjustments_schema();
+        for key in ["vignetteCenterX", "vignetteCenterY", "centréX", "centréY"] {
+            assert_eq!(schema["properties"][key]["minimum"], 0.0);
+            assert_eq!(schema["properties"][key]["maximum"], 1.0);
+            for value in [json!(0), json!(0.5), json!(1)] {
+                assert!(validate_adjustments(&json!({(key):value})).is_ok());
+            }
+            for value in [json!(-0.1), json!(1.1), json!(null), json!("0.5")] {
+                assert!(validate_adjustments(&json!({(key):value})).is_err());
+            }
+        }
+    }
 
     #[test]
     fn sparse_native_mask_snapshot_keeps_geometry_and_nondefault_nested_edits() {

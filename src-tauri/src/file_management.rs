@@ -1737,6 +1737,14 @@ pub(crate) fn write_file_atomically_unmerged(
 }
 
 pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), String> {
+    update_applied_preset_with_adjustments(path, record, None)
+}
+
+pub(crate) fn update_applied_preset_with_adjustments(
+    path: &Path,
+    record: Value,
+    adjustments: Option<Value>,
+) -> Result<(), String> {
     let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
     let mut metadata = match fs::read(path) {
         Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
@@ -1749,6 +1757,12 @@ pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), St
         .as_object_mut()
         .ok_or("Invalid photo metadata")?
         .insert("appliedPreset".into(), record);
+    if let Some(adjustments) = adjustments {
+        metadata
+            .as_object_mut()
+            .ok_or("Invalid photo metadata")?
+            .insert("adjustments".into(), adjustments);
+    }
     let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
     write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())
 }
@@ -3868,6 +3882,8 @@ pub async fn reset_adjustments_for_paths(
             if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
                 let _ = write_file_atomically(&sidecar_path, json_string);
             }
+            // Reset is an explicit removal of Styles, including on unopened photos.
+            let _ = update_applied_preset(&sidecar_path, serde_json::Value::Null);
 
             if enable_xmp_sync {
                 let source_path = parse_virtual_path(path).0;
