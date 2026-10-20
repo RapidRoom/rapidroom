@@ -2065,6 +2065,10 @@ mod tests {
                     "child {child_pid}: {}",
                     fs::read_to_string(&log_path).unwrap()
                 );
+                assert!(
+                    dir.path().join("recipe-assertions-complete").is_file(),
+                    "child did not execute the recipe assertions"
+                );
                 break;
             }
             if std::time::Instant::now() >= deadline {
@@ -2182,6 +2186,11 @@ mod tests {
             strict_json(&dest).unwrap()["adjustments"],
             json!({"toneMapper":"basic","baselineExposure":false})
         );
+        fs::write(
+            dir.join("recipe-assertions-complete"),
+            b"real recipe, external lock, rating and neutral output assertions passed",
+        )
+        .unwrap();
     }
 
     #[test]
