@@ -3,9 +3,7 @@
   "title": "Keep arrow navigation working after reopening a virtual copy’s original",
   "category": "fix",
   "landed": "2026-10-19",
-  "authors": [
-    "yojen7"
-  ],
+  "authors": ["yojen7"],
   "source": "rapidroom (original implementation)",
   "commits": [],
   "upstream_issues": [],

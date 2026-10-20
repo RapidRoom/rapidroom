@@ -322,14 +322,12 @@ it.each([
     useEditorStore
       .getState()
       .setEditor({ selectedImage: { ...useEditorStore.getState().selectedImage!, path: selected } });
-    useLibraryStore
-      .getState()
-      .setLibrary({
-        libraryActivePath: active,
-        currentFolderPath: '/existing-album',
-        activeAlbumId: 'album',
-        multiSelectedPaths: [selected],
-      });
+    useLibraryStore.getState().setLibrary({
+      libraryActivePath: active,
+      currentFolderPath: '/existing-album',
+      activeAlbumId: 'album',
+      multiSelectedPaths: [selected],
+    });
     root.render(<Harness />);
   });
   const originalEditor = useEditorStore.getState();
