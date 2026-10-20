@@ -13,6 +13,8 @@ The 2026-10-12 refresh retains baseline exposure and export metadata work by mar
 
 The 2026-10-15 daily refresh retains upstream contributions by Timon Käch, marclaliberte, cl1x, Max (waxm134) and Yojen in normal merge history. Per-tool visibility, capture-time timezone, auto-lens sidecar completion, headless exit codes, mask-drop insertion and layout-aware shortcuts are integrated while preserving RapidRoom additions. Conflict resolution and compatibility work is by yojen7 with Codex.
 
+Batch Auto Adjust completion is adapted from marclaliberte’s [RapidRAW commit 7fb5fadd](https://github.com/CyberTimon/RapidRAW/commit/7fb5fadd7cb0ad04393e7246548fcac71aa12d6a). Yojen adapted the wait to RapidRoom’s existing atomic sidecar, Card and XMP paths.
+
 Movable vignette and centré centres are adapted from [CyberTimon’s RapidRAW commit b39884b3](https://github.com/CyberTimon/RapidRAW/commit/b39884b38d8f148caef6fd0d52afd264951be329). Yojen adapted the overlay to RapidRoom’s mixer/WB tools, defaults, typed MCP and renderer layout.
 
 ## Bounded assistant judge policy
