@@ -1,3 +1,4 @@
+import { captureSortTime } from '../utils/captureTime';
 import { useMemo } from 'react';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -249,7 +250,12 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
       case 'date_taken': {
         const dateA = a.exif?.DateTimeOriginal || '';
         const dateB = b.exif?.DateTimeOriginal || '';
-        if (dateA !== dateB) comparison = dateA < dateB ? -1 : 1;
+        const timeA = captureSortTime(a.exif);
+        const timeB = captureSortTime(b.exif);
+        if (timeA !== null && timeB !== null) comparison = timeA - timeB || a.modified - b.modified;
+        else if (timeA === null && timeB !== null) comparison = dateA ? 1 : -1;
+        else if (timeB === null && timeA !== null) comparison = dateB ? -1 : 1;
+        else if (dateA !== dateB) comparison = dateA < dateB ? -1 : 1;
         else comparison = a.modified - b.modified;
         break;
       }

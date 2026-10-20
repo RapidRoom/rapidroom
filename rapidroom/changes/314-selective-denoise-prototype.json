@@ -1,0 +1,13 @@
+{
+  "id": "selective-denoise-prototype",
+  "title": "Prototype selective denoise using saved AI Subject masks",
+  "category": "feature",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Opt-in CLI experiment blends verified 16-bit rendered pairs through an existing saved Subject mask, with amount and background inversion changes requiring no inference. Default rendering and editor behavior stay unchanged; quality and owner taste acceptance remain pending."
+}
