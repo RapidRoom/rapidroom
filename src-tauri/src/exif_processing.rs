@@ -3359,7 +3359,8 @@ mod readonly_query_tests {
             serde_json::json!({"Make":"Primary","LongField":"z".repeat(900)}),
             serde_json::Value::Null,
         ] {
-            fs::write(&primary,serde_json::to_vec(&serde_json::json!({"exif":primary_exif,"adjustments":{"exposure":0.7},"future_owner_field":{"keep":true}})).unwrap()).unwrap();
+            fs::write(&primary,serde_json::to_vec(&serde_json::json!({"version":1,"rating":0,"exif":primary_exif,"adjustments":{"exposure":0.7},"future_owner_field":{"keep":true}})).unwrap()).unwrap();
+            serde_json::from_slice::<ImageMetadata>(&fs::read(&primary).unwrap()).unwrap();
             let paths = [
                 source.as_path(),
                 primary.as_path(),
@@ -3388,12 +3389,12 @@ mod readonly_query_tests {
         let virtual_sidecar = directory.path().join("source-copy.rrdata");
         fs::write(
             &virtual_sidecar,
-            r#"{"adjustments":{"exposure":1},"future":"keep"}"#,
+            r#"{"version":1,"rating":0,"adjustments":{"exposure":1},"future":"keep"}"#,
         )
         .unwrap();
         fs::write(
             &primary,
-            r#"{"adjustments":null,"exif":{"Make":"Physical primary"},"future":"keep"}"#,
+            r#"{"version":1,"rating":0,"adjustments":null,"exif":{"Make":"Physical primary"},"future":"keep"}"#,
         )
         .unwrap();
         let paths = [

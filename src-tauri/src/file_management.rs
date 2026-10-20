@@ -8942,7 +8942,8 @@ mod explicit_auto_lens_readonly_tests {
             std::fs::write(&new, b"fixture").unwrap();
             let (_, old_side) = parse_virtual_path(old.to_str().unwrap());
             let (_, new_side) = parse_virtual_path(new.to_str().unwrap());
-            let bytes=serde_json::to_vec(&serde_json::json!({"adjustments":{"exposure":0.7},"exif":exif,"future":"preserve"})).unwrap();
+            let bytes=serde_json::to_vec(&serde_json::json!({"version":1,"rating":0,"adjustments":{"exposure":0.7},"exif":exif,"future":"preserve"})).unwrap();
+            serde_json::from_slice::<ImageMetadata>(&bytes).unwrap();
             std::fs::write(&old_side, &bytes).unwrap();
             std::fs::write(&new_side, &bytes).unwrap();
             let legacy = crate::exif_processing::get_rrexif_path(&new);
