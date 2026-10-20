@@ -2161,6 +2161,15 @@ pub fn generate_thumbnail_data(
         );
         let rotated_image = apply_rotation(flipped_image, rotation_degrees);
 
+        let crop_data = if meta.adjustments["crop"]["unit"].as_str() == Some("%") {
+            crate::image_processing::crop_in_pixels(
+                &meta.adjustments["crop"],
+                rotated_image.width() as f64 / total_scale as f64,
+                rotated_image.height() as f64 / total_scale as f64,
+            )
+        } else {
+            crop_data
+        };
         let scaled_crop_json = if let Some(c) = &crop_data {
             serde_json::to_value(Crop {
                 x: c.x * total_scale as f64,
