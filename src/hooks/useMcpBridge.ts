@@ -64,6 +64,7 @@ interface McpCommand {
   referencePath?: string;
   sourceEditRevision?: string;
   originalExpectedRevision?: string;
+  label?: string;
   deleteCopyAfterAdoption?: boolean;
 }
 
@@ -671,7 +672,7 @@ export function useMcpBridge(
             command.path,
             nextAdjustments,
             command.baseAdjustments,
-            undefined,
+            command.label,
             command.kind === 'reset-adjustments' && !!activeStyleStack()?.entries.length,
           ));
         }

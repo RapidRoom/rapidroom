@@ -1045,8 +1045,72 @@ fn process_image_for_export_pipeline(
     app_handle: &tauri::AppHandle,
     output_precision: RenderOutputPrecision,
 ) -> Result<DynamicImage, String> {
-    let (transformed_image, unscaled_crop_offset) =
-        apply_all_transformations(Cow::Borrowed(base_image), js_adjustments);
+    let options = SourceViewOptions {
+        render: resolve_render_options_from_handle(app_handle, is_raw),
+        as_shot: as_shot(path),
+        lut: js_adjustments["lutPath"]
+            .as_str()
+            .and_then(|path| get_or_load_lut(state, path).ok()),
+        job_hash: calculate_full_job_hash(path, js_adjustments),
+        output_precision,
+        require_gpu_render: false,
+    };
+    process_source_view(
+        base_image,
+        js_adjustments,
+        context,
+        state,
+        is_raw,
+        debug_tag,
+        &options,
+    )
+}
+
+pub(crate) struct SourceViewOptions {
+    pub render: RenderOptions,
+    pub as_shot: crate::as_shot::AsShot,
+    pub lut: Option<Arc<crate::lut_processing::Lut>>,
+    pub job_hash: u64,
+    pub output_precision: RenderOutputPrecision,
+    pub require_gpu_render: bool,
+}
+
+// Denoise publishes a neutral TIFF, so it cannot accept the GPU renderer's
+// oversized-image fallback: that fallback has not baked the source adjustments.
+pub(crate) fn prepare_source_view<'a>(
+    base_image: &'a DynamicImage,
+    js_adjustments: &Value,
+    required_gpu_limit: Option<u32>,
+) -> Result<(Cow<'a, DynamicImage>, (f32, f32)), String> {
+    let (image, offset) = apply_all_transformations(Cow::Borrowed(base_image), js_adjustments);
+    let (width, height) = image.dimensions();
+    if let Some(limit) = required_gpu_limit
+        && (width > limit || height > limit)
+    {
+        return Err(format!(
+            "Rendered RAW denoise view {width}x{height} exceeds GPU image limit {limit}; source edits cannot be baked. Crop smaller or use Fast/Best sensor denoise."
+        ));
+    }
+    Ok((image, offset))
+}
+
+/// The normal source renderer, before export-only framing, sizing and decoration.
+pub(crate) fn process_source_view(
+    base_image: &DynamicImage,
+    js_adjustments: &Value,
+    context: &GpuContext,
+    state: &tauri::State<AppState>,
+    is_raw: bool,
+    debug_tag: &str,
+    options: &SourceViewOptions,
+) -> Result<DynamicImage, String> {
+    let (transformed_image, unscaled_crop_offset) = prepare_source_view(
+        base_image,
+        js_adjustments,
+        options
+            .require_gpu_render
+            .then_some(context.limits.max_texture_dimension_2d),
+    )?;
     let (img_w, img_h) = transformed_image.dimensions();
 
     let mask_definitions: Vec<MaskDefinition> =
@@ -1068,29 +1132,23 @@ fn process_image_for_export_pipeline(
         })
         .collect();
 
-    let render = resolve_render_options_from_handle(app_handle, is_raw);
     let mut all_adjustments =
-        get_all_adjustments_from_json(js_adjustments, is_raw, as_shot(path), render);
+        get_all_adjustments_from_json(js_adjustments, is_raw, options.as_shot, options.render);
     all_adjustments.global.show_clipping = 0;
-
-    let lut_path = js_adjustments["lutPath"].as_str();
-    let lut = lut_path.and_then(|p| get_or_load_lut(state, p).ok());
-
-    let unique_hash = calculate_full_job_hash(path, js_adjustments);
 
     process_and_get_dynamic_image_with_precision(
         context,
         state,
         transformed_image.as_ref(),
-        unique_hash,
+        options.job_hash,
         RenderRequest {
             adjustments: all_adjustments,
             mask_bitmaps: &mask_bitmaps,
-            lut,
+            lut: options.lut.clone(),
             roi: None,
         },
         debug_tag,
-        output_precision,
+        options.output_precision,
     )
 }
 

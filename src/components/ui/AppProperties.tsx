@@ -316,6 +316,7 @@ export interface AppSettings {
   autoAdvanceOnRate?: boolean;
   openTreeSections?: string[];
   folderIcons?: Record<string, string>;
+  folderCaptureTimeShiftMinutes?: Record<string, number>;
   exifOverlay?: ExifOverlay;
   shootingInfoVisibility?: 'always' | 'hover' | 'off';
   language?: string;
