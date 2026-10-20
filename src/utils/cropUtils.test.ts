@@ -95,6 +95,17 @@ describe('saved percentage crop geometry regression', () => {
   const percent: Crop = { unit: '%', x: 10, y: 20, width: 30, height: 60 };
   const pixels: Crop = { unit: 'px', x: 600, y: 800, width: 1800, height: 2400 };
 
+  it('keeps saved percent metadata on display completion while retaining a one-pixel gesture', () => {
+    const saved: Crop = { unit: '%', x: 10, y: 10, width: 30, height: 60 };
+    const completed: Crop = { unit: 'px', x: 461, y: 308, width: 1382, height: 1843 };
+    expect(normalizeCropChange(saved, completed, 4608, 3072)).toBe(saved);
+    expect(normalizeCropChange(saved, { ...completed, x: 462 }, 4608, 3072)).toEqual({ ...completed, x: 462 });
+    const fullPercent: Crop = { unit: '%', x: 0, y: 0, width: 100, height: 100 };
+    expect(normalizeCropChange(fullPercent, { unit: 'px', x: 0, y: 0, width: 4608, height: 3072 }, 4608, 3072)).toBe(
+      fullPercent,
+    );
+  });
+
   it('preserves the same frame area and centre when switching from3:4 to4:5', () => {
     const expected = calculateAreaPreservingCrop(6000, 4000, 0, 0.8, 0, pixels)!;
     const changed = calculateAreaPreservingCrop(6000, 4000, 0, 0.8, 0, percent)!;

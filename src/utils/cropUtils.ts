@@ -55,6 +55,19 @@ export function normalizeCropChange(
   rotation: number = 0,
 ): Crop | null {
   const { width, height } = getOrientedDimensions(imageWidth, imageHeight, orientationSteps);
+  // ReactCrop completes its initial display crop without a user gesture.
+  // Preserve a saved percentage payload when that callback only rounds it to pixels.
+  if (
+    current?.unit === '%' &&
+    next &&
+    (next.unit ?? 'px') === 'px' &&
+    next.x === Math.ceil((current.x / 100) * width) &&
+    next.y === Math.ceil((current.y / 100) * height) &&
+    next.width === Math.floor((current.width / 100) * width) &&
+    next.height === Math.floor((current.height / 100) * height)
+  ) {
+    return current;
+  }
   const normalize = (crop: Crop | null): Crop | null =>
     crop &&
     (crop.unit === 'px' || crop.unit === undefined) &&
