@@ -67,7 +67,7 @@ def run_stack_checks(smoke, wait_for):
     wait_for(lambda: saved()[1] and saved()[1]['position'] == 0 and paths[0] not in visible(), 'member becomes persisted cover')
     smoke.step('expanded grid and cover selection', {'capture': capture('stacks-new-cover')})
     click(paths[1], double=True)
-    wait_for(lambda: smoke.execute("return document.body.innerText.includes('960 × 640') && document.body.innerText.includes('Exposure');"), 'stack cover opens editor')
+    wait_for(lambda: smoke.execute("return document.querySelector('[data-editor-info-line]')?.innerText.includes('stack-2.jpg') && document.body.innerText.includes('Exposure');"), 'stack cover opens editor')
     # Dimensions and sliders appear while the first GPU pipeline is still
     # compiling. Keep this editor open until its actual processed preview is
     # displayed; a thumbnail is insufficient evidence for filmstrip review.
