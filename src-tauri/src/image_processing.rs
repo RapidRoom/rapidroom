@@ -5024,7 +5024,7 @@ mod movable_centre_tests {
             ],
             [0.5; 4]
         );
-        assert_eq!(hidden.centre, 0.0);
+        assert_eq!(hidden.centré, 0.0);
         assert_eq!(hidden.vignette_amount, 0.0);
     }
 }
