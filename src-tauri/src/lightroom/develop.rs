@@ -624,7 +624,15 @@ fn apply_import_with(
         if let Some((path, _)) = &photo.inherit_from {
             targets.push(path.clone());
         }
-        let _guard = crate::file_management::lock_sidecars(&targets).map_err(|e| e.to_string())?;
+        let _guard = match crate::file_management::lock_sidecars(&targets) {
+            Ok(guard) => guard,
+            Err(error) => {
+                result
+                    .errors
+                    .push(format!("{}: {error}", photo.preview.path));
+                continue;
+            }
+        };
         let (source, _) = parse_virtual_path(&photo.preview.path);
         let unchanged = sidecar_bytes(&photo.sidecar)
             .is_ok_and(|bytes| bytes == photo.sidecar_bytes)
