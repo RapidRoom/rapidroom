@@ -959,14 +959,17 @@ mod capture_zone_tests {
                 (
                     PathBuf::from("/trip/hawaii.jpg"),
                     time("2026:10:19 23:30:00", "-10:00"),
+                    chrono::Duration::zero(),
                 ),
                 (
                     PathBuf::from("/trip/japan.jpg"),
                     time("2026:10:20 18:30:00", "+09:00"),
+                    chrono::Duration::zero(),
                 ),
                 (
                     PathBuf::from("/trip/other.jpg"),
                     time("2026:10:20 12:00:00", "+09:00"),
+                    chrono::Duration::zero(),
                 ),
             ],
             1.0,

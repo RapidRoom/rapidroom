@@ -2037,7 +2037,7 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn resolved_recipe_publication_does_not_take_metadata_lock_under_destination_write() {
+    fn resolved_recipe_publication_completes_after_destination_lock_release() {
         use std::os::unix::fs::MetadataExt;
         let dir = tempfile::tempdir().unwrap();
         let raw = dir.path().join("context.ARW");
@@ -2076,11 +2076,8 @@ mod tests {
         .unwrap();
         let source_hash = context.source_hash.clone();
         drop(context);
-        // Acquire METADATA before spawning to avoid another parallel test
-        // becoming the inverse-order writer while this test owns the file lock.
-        let metadata_guard = crate::file_management::SIDECAR_METADATA_LOCK
-            .lock()
-            .unwrap();
+        // Hold a separate-process file lock so the worker must enter the
+        // shared destination transaction before publishing the resolved recipe.
         let external = crate::file_management::lock_sidecar_as_external_writer(&dest).unwrap();
         let inode = external.metadata().unwrap().ino();
         let worker_sidecar = sidecar.clone();
@@ -2117,20 +2114,17 @@ mod tests {
             }
             std::thread::yield_now();
         }
-        // The worker now holds WRITE and waits for the destination file lock,
-        // while this thread retains METADATA like a concurrent rating writer.
+        // The old separate metadata mutex no longer exists. Completion after
+        // releasing the external lock still detects reentry into WRITE.
         drop(external);
-        let completed_without_metadata = receive.recv_timeout(std::time::Duration::from_secs(2));
-        // Release before joining even on failure, so the old reverse-order path
-        // produces a bounded regression failure rather than hanging the suite.
-        drop(metadata_guard);
+        let completed = receive.recv_timeout(std::time::Duration::from_secs(2));
         worker.join().unwrap();
         assert!(
             waiting_for_destination,
             "publication never reached the destination transaction"
         );
-        completed_without_metadata
-            .expect("context recheck tried to acquire METADATA under WRITE")
+        completed
+            .expect("context recheck reentered the sidecar transaction")
             .unwrap();
         crate::file_management::update_sidecar(&sidecar, |metadata| metadata.rating = 5).unwrap();
         assert_eq!(strict_json(&sidecar).unwrap()["rating"], 5);
