@@ -1,5 +1,6 @@
 mod adjustments;
 mod http;
+mod mask_tools;
 mod masks;
 mod measure;
 mod preview;
