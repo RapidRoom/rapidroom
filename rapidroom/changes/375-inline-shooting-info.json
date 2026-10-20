@@ -1,0 +1,13 @@
+{
+  "id": "inline-shooting-info",
+  "title": "Keep filename and friendly shooting information on one editor line",
+  "category": "fix",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Filename, virtual-copy and preset indicators share a single line with friendly lens names and compact focal/shutter units. Culling and library tooltips use the same unit formatting. Metadata and adjustments are unchanged."
+}
