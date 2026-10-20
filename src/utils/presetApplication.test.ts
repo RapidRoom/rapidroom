@@ -41,14 +41,18 @@ describe('shared GUI/MCP preset Amount baseline', () => {
     expect(usePresetApplication.getState().application?.base).toBe(base);
   });
 
-  it('tracks a zero/no-op Amount without artificial GUI/MCP history', () => {
+  it('tracks Amount0 as a real stack entry with unchanged pixels', () => {
     const before = useEditorStore.getState();
-    const commit = vi.fn();
+    const commit = vi.fn((adjustments) => useEditorStore.setState({ adjustments }));
     commitPresetApplication(preparePresetApplication(preset, 0), commit);
-    expect(commit).not.toHaveBeenCalled();
-    expect(useEditorStore.getState().adjustments).toBe(before.adjustments);
+    expect(commit).toHaveBeenCalledOnce();
+    expect(useEditorStore.getState().adjustments).toEqual(before.adjustments);
     expect(useEditorStore.getState().history).toBe(before.history);
-    expect(usePresetApplication.getState().application).toMatchObject({ amount: 0, result: before.adjustments });
+    expect(usePresetApplication.getState().application).toMatchObject({
+      amount: 0,
+      stackChanged: true,
+      stack: { entries: [{ presetId: preset.id, amount: 0 }] },
+    });
     apply(50);
     expect(useEditorStore.getState().adjustments.exposure).toBe(1.5);
   });
@@ -112,7 +116,7 @@ describe('shared GUI/MCP preset Amount baseline', () => {
     }
   });
 
-  it('rejects a stale prepared result or changed preset before touching the marker or edit', () => {
+  it('rejects a stale prepared result and retains the applied recipe when its catalog definition changes', () => {
     apply(100);
     const plan = preparePresetApplication(preset, 50);
     useEditorStore.setState({ adjustments: { ...useEditorStore.getState().adjustments, exposure: 0.2 } });
@@ -125,8 +129,7 @@ describe('shared GUI/MCP preset Amount baseline', () => {
     expect(useEditorStore.getState().adjustments).toBe(before);
     expect(usePresetApplication.getState().application).toBeNull();
     apply(100);
-    expect(() => preparePresetApplication({ ...preset, adjustments: { exposure: 3 } }, 50)).toThrow(
-      'definition changed',
-    );
+    const changed = preparePresetApplication({ ...preset, adjustments: { exposure: 3 } }, 50);
+    expect(changed.application.stack?.entries[0].adjustments).toEqual(preset.adjustments);
   });
 });

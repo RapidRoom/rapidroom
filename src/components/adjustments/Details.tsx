@@ -8,6 +8,7 @@ import {
 } from '../../utils/adjustments';
 import { AppSettings } from '../ui/AppProperties';
 import AdjustmentSubSection from './AdjustmentSubSection';
+import { useEditorStore } from '../../store/useEditorStore';
 
 interface DetailsPanelProps {
   adjustments: Adjustments;
@@ -25,6 +26,7 @@ export default function DetailsPanel({
   onDragStateChange,
 }: DetailsPanelProps) {
   const { t } = useTranslation();
+  const setEditor = useEditorStore((state) => state.setEditor);
 
   const handleAdjustmentChange = (key: DetailsAdjustment, value: string | number) => {
     const numericValue = parseInt(String(value), 10);
@@ -101,15 +103,27 @@ export default function DetailsPanel({
             onDragStateChange={onDragStateChange}
           />
           {!isForMask && (
-            <Slider
-              label={t('adjustments.details.centre')}
-              max={100}
-              min={-100}
-              onChange={(e) => handleAdjustmentChange(DetailsAdjustment.Centré, e.target.value)}
-              step={1}
-              value={adjustments.centré}
-              onDragStateChange={onDragStateChange}
-            />
+            <div
+              data-center-marker-controls="centre"
+              onPointerDown={() =>
+                setEditor({
+                  activeCenterMarker: 'centre',
+                  isRelightPickerActive: false,
+                  isWbPickerActive: false,
+                  mixerPickerProperty: null,
+                })
+              }
+            >
+              <Slider
+                label={t('adjustments.details.centre')}
+                max={100}
+                min={-100}
+                onChange={(e) => handleAdjustmentChange(DetailsAdjustment.Centré, e.target.value)}
+                step={1}
+                value={adjustments.centré}
+                onDragStateChange={onDragStateChange}
+              />
+            </div>
           )}
         </AdjustmentSubSection>
       )}
