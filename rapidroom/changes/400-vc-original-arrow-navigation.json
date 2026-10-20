@@ -1,0 +1,15 @@
+{
+  "id": "vc-original-arrow-navigation",
+  "title": "Keep arrow navigation working after reopening a virtual copy’s original",
+  "category": "fix",
+  "landed": "2026-10-19",
+  "authors": [
+    "yojen7"
+  ],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Editor arrows use the first visible virtual-copy representation only when a reopened physical original has no exact filmstrip entry. Exact virtual copies and pending navigation retain priority; the existing folder and edits stay intact."
+}
