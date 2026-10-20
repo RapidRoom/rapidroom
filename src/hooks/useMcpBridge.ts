@@ -52,6 +52,7 @@ interface McpCommand {
   referencePath?: string;
   sourceEditRevision?: string;
   originalExpectedRevision?: string;
+  label?: string;
   deleteCopyAfterAdoption?: boolean;
 }
 
@@ -586,7 +587,7 @@ export function useMcpBridge(
           } else {
             throw new Error('MCP adjustment command did not include adjustments');
           }
-          renderPending = !(await applyEdit(command.path, nextAdjustments, command.baseAdjustments));
+          renderPending = !(await applyEdit(command.path, nextAdjustments, command.baseAdjustments, command.label));
         }
 
         const response = await syncState(command.path);

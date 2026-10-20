@@ -191,6 +191,41 @@ describe('MCP editor bridge review', () => {
     expect(useEditorStore.getState().adjustments).toEqual(INITIAL_ADJUSTMENTS);
   });
 
+  it('records a labelled multi-mask commit once and undoes the complete batch', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    await mount();
+    renderChanges();
+    const base = useEditorStore.getState().adjustments;
+    const masks = ['Face', 'Sky'].map((name, i) => ({
+      id: `m${i}`,
+      name,
+      visible: true,
+      invert: false,
+      opacity: 100,
+      adjustments: { exposure: i + 0.2 },
+      subMasks: [],
+    }));
+    await act(async () =>
+      emit('mcp-command', {
+        requestId: 'batch',
+        kind: 'apply-adjustments',
+        path,
+        adjustments: { ...base, masks },
+        baseAdjustments: base,
+        label: 'AI: Portrait masks',
+      }),
+    );
+    const after = useEditorStore.getState();
+    expect(responses.at(-1)?.error).toBeNull();
+    expect(after.history).toHaveLength(2);
+    expect(after.adjustments.masks.map((m) => m.name)).toEqual(['Face', 'Sky']);
+    expect(after.historyDetails[1]?.label).toBe('AI: Portrait masks');
+    after.undo();
+    expect(useEditorStore.getState().adjustments).toEqual(base);
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().adjustments).toEqual(after.adjustments);
+  });
+
   it('rejects a queued single-mask snapshot after a user edit without overwriting it', async () => {
     useEditorStore.setState({ selectedImage: image });
     await mount();
