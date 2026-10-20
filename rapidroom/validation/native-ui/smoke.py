@@ -390,7 +390,7 @@ class Smoke:
         self.execute("""const e=[...document.images].find(e=>e.src.startsWith('asset:') && e.alt==='smoke.ARW');
           if(!e)throw Error('Smoke thumbnail missing');
           e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;""")
-        wait_for(lambda: self.execute("return document.body.innerText.includes('4608 × 3072') && "
+        wait_for(lambda: self.execute("return document.querySelector('[data-editor-info-line]')?.innerText.includes('smoke.ARW') && "
                                       "document.body.innerText.includes('Exposure');"), "editor opens")
         rect = self.execute("""const e=[...document.querySelectorAll('svg')]
           .filter(e=>e.getBoundingClientRect().width>500 && e.getBoundingClientRect().height>300)[0];
