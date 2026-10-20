@@ -2669,14 +2669,19 @@ pub fn resolve_lens_params_in_adjustments(
                 let exif_model = exif.get("LensModel").map(|s| s.as_str()).unwrap_or("");
                 let exif_camera_model = exif.get("Model").map(|s| s.as_str()).unwrap_or("");
                 if let Some(db) = lens_db {
-                    if let Some((detected_maker, detected_model)) =
-                        crate::lens_correction::find_best_lens_match(
-                            db,
-                            exif_maker,
-                            exif_model,
-                            exif_camera_model,
-                        )
-                    {
+                    // The new identity alias must not change legacy Auto recipes.
+                    let detected =
+                        if !modern_auto && crate::lens_correction::is_sony_a058_alias(exif_model) {
+                            None
+                        } else {
+                            crate::lens_correction::find_best_lens_match(
+                                db,
+                                exif_maker,
+                                exif_model,
+                                exif_camera_model,
+                            )
+                        };
+                    if let Some((detected_maker, detected_model)) = detected {
                         map.insert(
                             "lensMaker".to_string(),
                             serde_json::to_value(&detected_maker).unwrap(),
@@ -2743,7 +2748,18 @@ pub fn resolve_lens_params_in_adjustments(
                         )
                     });
 
-                    let resolved = if legacy {
+                    let eligible = !modern_auto
+                        || exif_data.as_ref().is_none_or(|exif| {
+                            crate::lens_correction::automatic_calibration_eligible(
+                                db,
+                                maker,
+                                model,
+                                exif.get("Make").map(String::as_str).unwrap_or(""),
+                            )
+                        });
+                    let resolved = if !eligible {
+                        None
+                    } else if legacy {
                         crate::lens_correction::resolve_legacy_lens_params(
                             db,
                             maker,
