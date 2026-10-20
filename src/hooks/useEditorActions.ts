@@ -6,10 +6,12 @@ import { useCallback, type SyntheticEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import debounce from 'lodash.debounce';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useProcessStore } from '../store/useProcessStore';
+import { useUIStore } from '../store/useUIStore';
 import {
   Adjustments,
   INITIAL_ADJUSTMENTS,
@@ -21,8 +23,13 @@ import {
   normalizeLoadedAdjustments,
   setToolActive,
 } from '../utils/adjustments';
-import { calculateCenteredCrop, getOrientedDimensions } from '../utils/cropUtils';
-import { Invokes } from '../components/ui/AppProperties';
+import {
+  calculateAutoCropForRotation,
+  calculateCenteredCrop,
+  getOrientedDimensions,
+  normalizeCropChange,
+} from '../utils/cropUtils';
+import { Invokes, type SelectedImage } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
 import i18n from 'i18next';
@@ -172,8 +179,89 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
     throw error;
   }
 }
+const waitForImageReady = (path: string) =>
+  new Promise<boolean>((resolve) => {
+    const finish = (ready: boolean) => {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve(ready);
+    };
+    const timer = setTimeout(() => finish(false), 60_000);
+    const check = (state: ReturnType<typeof useEditorStore.getState>) => {
+      if (state.selectedImage?.path !== path) finish(false);
+      else if (state.selectedImage.isReady) finish(true);
+    };
+    const unsubscribe = useEditorStore.subscribe(check);
+    check(useEditorStore.getState());
+  });
+
+export const withRotation = (adjustments: Adjustments, image: SelectedImage | null, rotation: number): Adjustments => {
+  const nextCrop =
+    image?.width && image.height
+      ? calculateAutoCropForRotation(
+          image.width,
+          image.height,
+          adjustments.orientationSteps || 0,
+          adjustments.aspectRatio,
+          rotation,
+          adjustments.crop,
+          rotation - (adjustments.rotation || 0),
+        )
+      : adjustments.crop;
+  const crop =
+    image?.width && image.height
+      ? normalizeCropChange(
+          adjustments.crop,
+          nextCrop,
+          image.width,
+          image.height,
+          adjustments.orientationSteps || 0,
+          rotation,
+        )
+      : nextCrop;
+  return rotation === adjustments.rotation && crop === adjustments.crop
+    ? adjustments
+    : { ...adjustments, rotation, crop };
+};
+
+export const reloadAdjustmentsForPaths = async (
+  paths: string[],
+  beforeBatch?: { path: string | undefined; adjustments: Adjustments },
+) => {
+  const editor = useEditorStore.getState();
+  if (
+    editor.selectedImage &&
+    paths.includes(editor.selectedImage.path) &&
+    (!beforeBatch || (editor.selectedImage.path === beforeBatch.path && editor.adjustments === beforeBatch.adjustments))
+  ) {
+    const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: editor.selectedImage.path });
+    const current = useEditorStore.getState();
+    if (
+      meta.adjustments &&
+      !meta.adjustments.is_null &&
+      current.selectedImage?.path === editor.selectedImage.path &&
+      current.adjustments === editor.adjustments
+    ) {
+      const normalized = normalizeLoadedAdjustments(meta.adjustments);
+      current.setEditor({ adjustments: normalized });
+      current.resetHistory(normalized);
+    }
+  }
+  const library = useLibraryStore.getState();
+  if (library.libraryActivePath && paths.includes(library.libraryActivePath)) {
+    const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: library.libraryActivePath });
+    if (
+      meta.adjustments &&
+      !meta.adjustments.is_null &&
+      useLibraryStore.getState().libraryActivePath === library.libraryActivePath
+    ) {
+      library.setLibrary({ libraryActiveAdjustments: normalizeLoadedAdjustments(meta.adjustments) });
+    }
+  }
+};
 
 export function useEditorActions() {
+  const { t } = useTranslation();
   const setEditor = useEditorStore((s) => s.setEditor);
 
   const setAdjustments = useCallback(
@@ -237,6 +325,33 @@ export function useEditorActions() {
       toast.error(`Failed to apply auto adjustments: ${err}`);
     }
   }, [setAdjustments]);
+
+  const handleAutoStraighten = useCallback(async () => {
+    const { selectedImage, isAutoStraightening } = useEditorStore.getState();
+    if (!selectedImage || isAutoStraightening) return;
+    setEditor({ isAutoStraightening: true });
+    try {
+      if (!selectedImage.isReady && !(await waitForImageReady(selectedImage.path))) return;
+      const request = useEditorStore.getState();
+      if (request.selectedImage?.path !== selectedImage.path) return;
+      const rotation: number | null = await invoke(Invokes.CalculateAutoStraighten, {
+        jsAdjustments: request.adjustments,
+      });
+      const current = useEditorStore.getState();
+      const loadedImage = current.selectedImage;
+      if (loadedImage?.path !== selectedImage.path || current.adjustments !== request.adjustments) return;
+      if (rotation === null) {
+        toast.info(t('editor.crop.autoStraightenNoLines'));
+        return;
+      }
+      setEditor({ liveRotation: null, isStraightenActive: false });
+      setAdjustments((prev: Adjustments) => withRotation(prev, loadedImage, rotation));
+    } catch (err) {
+      toast.error(t('editor.crop.autoStraightenFailed', { error: String(err) }));
+    } finally {
+      setEditor({ isAutoStraightening: false });
+    }
+  }, [setAdjustments, setEditor, t]);
 
   const toggleShowOriginal = useCallback(() => {
     setEditor((state) => {
@@ -400,6 +515,26 @@ export function useEditorActions() {
         .catch((err) => toast.error(`Failed to apply auto lens correction: ${err}`));
     },
     [setEditor],
+  );
+
+  const handleAutoStraightenPaths = useCallback(
+    (paths: string[]) => {
+      const beforeBatch = useEditorStore.getState();
+      const { selectedImage } = beforeBatch;
+      const editingPath = useUIStore.getState().activeView === 'editor' ? selectedImage?.path : undefined;
+      const batchPaths = paths.filter((path) => path !== editingPath);
+      if (batchPaths.length < paths.length) {
+        handleAutoStraighten();
+      }
+      if (batchPaths.length === 0) return;
+      batchPaths.forEach((p) => globalImageCache.delete(p));
+      invoke(Invokes.ApplyAutoStraightenToPaths, { paths: batchPaths })
+        .then(() =>
+          reloadAdjustmentsForPaths(batchPaths, { path: selectedImage?.path, adjustments: beforeBatch.adjustments }),
+        )
+        .catch((err) => toast.error(t('editor.crop.autoStraightenFailed', { error: String(err) })));
+    },
+    [handleAutoStraighten, t],
   );
 
   const handleCopyAdjustments = useCallback(async (pathOrEvent?: string | SyntheticEvent) => {
@@ -603,6 +738,8 @@ export function useEditorActions() {
     setAdjustments,
     handleRotate,
     handleAutoAdjustments,
+    handleAutoStraighten,
+    handleAutoStraightenPaths,
     handleLutSelect,
     setLutPreviewOverride,
     handleResetAdjustments,
