@@ -129,7 +129,13 @@ pub fn forward(
     )
     .map_err(|_| "The RapidRoom endpoint is stale or the editor is not running")?;
     stream
-        .set_read_timeout(Some(Duration::from_secs(90)))
+        .set_read_timeout(Some(Duration::from_secs(
+            if request["params"]["name"] == "generate_ai_mask" {
+                630
+            } else {
+                90
+            },
+        )))
         .map_err(|_| "Cannot set MCP read timeout")?;
     stream
         .set_write_timeout(Some(Duration::from_secs(10)))

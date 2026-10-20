@@ -312,8 +312,214 @@ fn source_baseline_eligible(adjustments: &Value) -> bool {
     adjustments.is_null() || adjustments["baselineExposure"].as_bool().unwrap_or(false)
 }
 
+fn rendered_raw(source: &Path, ident: &Value) -> bool {
+    is_raw_file(source) && !matches!(ident["method"].as_str(), Some("best" | "fast"))
+}
+
+struct RecipeSnapshot {
+    adjustments: Value,
+    identity: Value,
+    lut_bytes: Option<Vec<u8>>,
+}
+
+struct RecipeContext<'a> {
+    settings: &'a crate::app_settings::AppSettings,
+    lens_db: Option<std::sync::Arc<crate::lens_correction::LensDatabase>>,
+    exif: std::collections::HashMap<String, String>,
+    source_hash: String,
+}
+
+impl<'a> RecipeContext<'a> {
+    fn for_source(
+        path: &str,
+        settings: &'a crate::app_settings::AppSettings,
+        state: &AppState,
+    ) -> Result<Self, String> {
+        let (source, _) = parse_virtual_path(path);
+        let bytes = crate::file_management::read_file_mapped(&source).map_err(|e| e.to_string())?;
+        Ok(Self {
+            settings,
+            lens_db: state.lens_db.lock().unwrap().clone(),
+            exif: crate::exif_processing::read_exif_data_from_bytes(
+                &source.to_string_lossy(),
+                &bytes,
+            ),
+            source_hash: blake3::hash(&bytes).to_hex().to_string(),
+        })
+    }
+}
+
+fn rendered_snapshot(
+    metadata: &Value,
+    source: &Path,
+    context: Option<&RecipeContext<'_>>,
+) -> Result<RecipeSnapshot, String> {
+    let mut adjustments = metadata["adjustments"].clone();
+    if let Some(context) = context {
+        let mut resolved: crate::image_processing::ImageMetadata =
+            serde_json::from_value(metadata.clone())
+                .map_err(|e| format!("Cannot freeze source metadata: {e}"))?;
+        let (_, sidecar) = parse_virtual_path(&source.to_string_lossy());
+        // An explicit in-memory EXIF map prevents the normal helper's healing
+        // loader from acquiring metadata locks during the destination transaction.
+        resolved.exif = Some(context.exif.clone());
+        crate::file_management::apply_raw_defaults_and_resolve_auto_lens(
+            &mut resolved,
+            source,
+            &sidecar,
+            context.settings,
+            context.lens_db.as_deref(),
+        );
+        adjustments = resolved.adjustments;
+    } else if adjustments.is_null() {
+        // Protocol-only callers without an app retain the prior normalization.
+        crate::raw_processing::apply_camera_crop_default_from_path(&mut adjustments, source);
+        if adjustments.is_null() {
+            adjustments = crate::image_processing::default_adjustments();
+        }
+    }
+    let mut assets = Vec::new();
+    let lut_bytes = if let Some(path) = adjustments["lutPath"].as_str().filter(|p| !p.is_empty()) {
+        crate::lut_processing::validate_lut_path(path).map_err(|e| e.to_string())?;
+        let bytes = fs::read(path).map_err(|e| format!("Cannot freeze source LUT: {e}"))?;
+        assets.push(json!({"role":"lut","path":path,"bytes":bytes.len(),
+            "blake3":blake3::hash(&bytes).to_hex().as_str()}));
+        Some(bytes)
+    } else {
+        None
+    };
+    let identity = json!({"version":1,"adjustments":hash_value(&adjustments),"assets":assets});
+    Ok(RecipeSnapshot {
+        adjustments,
+        identity,
+        lut_bytes,
+    })
+}
+
+/// Holds the exact source recipe and parsed asset bytes used by a rendered RAW job.
+pub(crate) struct RenderedRecipe {
+    snapshot: RecipeSnapshot,
+    lut: Option<std::sync::Arc<crate::lut_processing::Lut>>,
+    identity_hash: String,
+    as_shot: crate::as_shot::AsShot,
+}
+
+impl RenderedRecipe {
+    #[cfg(test)]
+    fn load(path: &str, ident: &Value) -> Result<Option<Self>, String> {
+        Self::load_with_context(path, ident, None)
+    }
+
+    fn load_with_context(
+        path: &str,
+        ident: &Value,
+        context: Option<&RecipeContext<'_>>,
+    ) -> Result<Option<Self>, String> {
+        let (source, sidecar) = parse_virtual_path(path);
+        if !rendered_raw(&source, ident) {
+            return Ok(None);
+        }
+        let metadata = strict_json(&sidecar)?;
+        ensure_rendered_eligible_with_context(&metadata, &source, ident, context)?;
+        let snapshot = rendered_snapshot(&metadata, &source, context)?;
+        if snapshot.identity != ident["renderedSource"] {
+            return Err("Source recipe or LUT changed before denoise; run the queue again.".into());
+        }
+        let lut = snapshot
+            .lut_bytes
+            .as_deref()
+            .map(|bytes| {
+                crate::lut_processing::parse_lut_bytes(
+                    snapshot.adjustments["lutPath"].as_str().unwrap(),
+                    bytes,
+                )
+                .map(std::sync::Arc::new)
+                .map_err(|e| format!("Cannot freeze source LUT: {e}"))
+            })
+            .transpose()?;
+        // Bind camera WB/baseline to this source, avoiding the editor's path-only cache.
+        let bytes = crate::file_management::read_file_mapped(&source).map_err(|e| e.to_string())?;
+        let as_shot = crate::raw_processing::read_as_shot(&bytes)
+            .unwrap_or_else(crate::as_shot::AsShot::reference);
+        Ok(Some(Self {
+            snapshot,
+            lut,
+            identity_hash: hash_value(
+                &json!({"job":ident,"source":blake3::hash(&bytes).to_hex().as_str()}),
+            ),
+            as_shot,
+        }))
+    }
+
+    pub(crate) fn render(
+        &self,
+        path: &str,
+        image: &image::DynamicImage,
+        settings: &crate::app_settings::AppSettings,
+        app: &AppHandle,
+        job: &DenoiseJob,
+    ) -> Result<image::DynamicImage, String> {
+        use sha2::Digest;
+        use std::hash::{Hash, Hasher};
+        job.check()?;
+        let invalid = match image {
+            image::DynamicImage::ImageRgb32F(rgb) => rgb.as_raw().iter().any(|v| !v.is_finite()),
+            image::DynamicImage::ImageRgba32F(rgba) => rgba.as_raw().iter().any(|v| !v.is_finite()),
+            _ => false,
+        };
+        if invalid {
+            return Err("Rendered RAW denoise requires finite source RGB samples".into());
+        }
+        let state = app.state::<AppState>();
+        let context = crate::image_processing::get_or_init_gpu_context(&state, app)?;
+        let base =
+            crate::image_loader::composite_patches_on_image(image, &self.snapshot.adjustments)
+                .map_err(|e| format!("Cannot composite source repairs: {e}"))?;
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        self.identity_hash.hash(&mut hash);
+        path.hash(&mut hash);
+        base.as_bytes().hash(&mut hash);
+        let options = crate::export_processing::SourceViewOptions {
+            render: crate::image_processing::resolve_render_options(settings, true),
+            as_shot: self.as_shot,
+            lut: self.lut.clone(),
+            job_hash: hash.finish(),
+            output_precision: crate::image_processing::RenderOutputPrecision::SixteenBit,
+            require_gpu_render: true,
+        };
+        let view = crate::export_processing::process_source_view(
+            &base,
+            &self.snapshot.adjustments,
+            &context,
+            &state,
+            true,
+            "denoise_source_view",
+            &options,
+        )?;
+        job.check()?;
+        let rgb = view.to_rgb16();
+        log::info!(
+            "Denoise baked source view {}x{} RGB16-native SHA256 {}",
+            rgb.width(),
+            rgb.height(),
+            hex::encode(sha2::Sha256::digest(bytemuck::cast_slice(rgb.as_raw())))
+        );
+        Ok(view)
+    }
+}
+
+#[cfg(test)]
 fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> Result<(), String> {
-    if !is_raw_file(source) || matches!(ident["method"].as_str(), Some("best" | "fast")) {
+    ensure_rendered_eligible_with_context(metadata, source, ident, None)
+}
+
+fn ensure_rendered_eligible_with_context(
+    metadata: &Value,
+    source: &Path,
+    ident: &Value,
+    context: Option<&RecipeContext<'_>>,
+) -> Result<(), String> {
+    if !rendered_raw(source, ident) {
         return Ok(());
     }
     let adjustments = &metadata["adjustments"];
@@ -333,26 +539,40 @@ fn ensure_rendered_eligible(metadata: &Value, source: &Path, ident: &Value) -> R
             "Source exposure policy changed during denoise; run the marked queue again.".into(),
         );
     }
-    let override_mode = (ident["settings"]["toneOverride"] == true).then(|| {
-        if ident["settings"]["rawTone"].as_str().unwrap_or("agx") == "agx" {
-            1
-        } else {
-            0
+    if !ident["renderedSource"].is_null() {
+        if rendered_snapshot(metadata, source, context)?.identity != ident["renderedSource"] {
+            return Err("Source recipe or LUT changed during denoise; run the queue again.".into());
         }
-    });
-    let cropped = adjustments.get("crop").is_some_and(|c| !c.is_null());
-    if cropped
-        || !adjustments["whiteBalance"].is_null()
-        || crate::image_processing::is_image_edited(adjustments, true, override_mode)
-    {
-        return Err("Edited photo: use Fast or Best, or reset edits first. Rendered-method RAW edit baking is not supported yet.".into());
+    } else {
+        // Callers without a frozen recipe retain the original eligibility contract.
+        let override_mode = (ident["settings"]["toneOverride"] == true).then(|| {
+            if ident["settings"]["rawTone"].as_str().unwrap_or("agx") == "agx" {
+                1
+            } else {
+                0
+            }
+        });
+        let cropped = adjustments.get("crop").is_some_and(|c| !c.is_null());
+        if cropped
+            || !adjustments["whiteBalance"].is_null()
+            || crate::image_processing::is_image_edited(adjustments, true, override_mode)
+        {
+            return Err("Edited photo: use Fast or Best, or reset edits first. A frozen source recipe is required for rendered RAW denoise.".into());
+        }
     }
     if ident["settings"]["toneOverride"] == true && ident["settings"]["nonRawTone"] == "agx" {
         return Err("Rendered-image AgX override would tone-map this TIFF again; use Fast or Best, or select Basic for rendered images in Processing settings.".into());
     }
+    if ident["settings"]["applyToNonRaws"] == true
+        && (ident["settings"]["colorNR"].as_f64().unwrap_or(0.5) > 0.0
+            || ident["settings"]["preSharpen"].as_f64().unwrap_or(0.35) > 0.0)
+    {
+        return Err("Rendered-image preprocessing would process this TIFF again; use Fast or Best, or disable preprocessing for non-RAW images in Processing settings.".into());
+    }
     Ok(())
 }
 
+#[cfg(test)]
 fn save_result_edits(
     source: &Path,
     source_image: &Path,
@@ -360,8 +580,19 @@ fn save_result_edits(
     ident: &Value,
     previous: Option<&Receipt>,
 ) -> Result<String, String> {
+    save_result_edits_with_context(source, source_image, output, ident, previous, None)
+}
+
+fn save_result_edits_with_context(
+    source: &Path,
+    source_image: &Path,
+    output: &Path,
+    ident: &Value,
+    previous: Option<&Receipt>,
+    context: Option<&RecipeContext<'_>>,
+) -> Result<String, String> {
     let original = strict_json(source)?;
-    ensure_rendered_eligible(&original, source_image, ident)?;
+    ensure_rendered_eligible_with_context(&original, source_image, ident, context)?;
     let mut source_edits = edits(original);
     if source_edits.get("exif").is_none_or(Value::is_null)
         && let Some(exif) = crate::exif_processing::read_rrexif_sidecar(source_image)
@@ -369,15 +600,19 @@ fn save_result_edits(
         source_edits["exif"] = json!(exif);
     }
     if is_raw_file(source_image) && !matches!(ident["method"].as_str(), Some("best" | "fast")) {
-        // These pixels already contain default RAW development/tone and camera WB.
-        // Only unedited RAW is eligible; never replay its RAW defaults on encoded TIFF.
+        // Source development, WB, geometry, masks and repairs are already baked.
+        // The encoded TIFF starts neutral and can receive its own raster edits.
         source_edits["adjustments"] = json!({"toneMapper":"basic","baselineExposure":false});
+        source_edits["appliedPreset"] = Value::Null;
+        source_edits["exportFraming"] = Value::Null;
         if let Some(exif) = source_edits.get_mut("exif").and_then(Value::as_object_mut) {
             exif.insert("Orientation".into(), "1".into());
         }
     }
     let (_, dest) = parse_virtual_path(&output.to_string_lossy());
     let _guard = crate::file_management::lock_sidecar(&dest).map_err(|e| e.to_string())?;
+    // A normal save can change the source while this job waits for the output lock.
+    ensure_rendered_eligible_with_context(&strict_json(source)?, source_image, ident, context)?;
     // The destination ownership check and write are one transaction with ordinary saves.
     if dest.exists() {
         let existing = strict_json(&dest)?;
@@ -609,6 +844,7 @@ pub async fn run(
             unsafe {
                 libc::setpriority(libc::PRIO_PROCESS, 0, 10);
             }
+            let state = app.state::<AppState>();
             let mut summary = Summary::default();
             for (index, path) in paths.iter().enumerate() {
                 if job.is_cancelled() {
@@ -619,20 +855,42 @@ pub async fn run(
                     "denoise-queue-progress",
                     json!({"current":index+1,"total":paths.len(),"path":path,"summary":summary}),
                 );
-                let result = run_item(path, &ident, &job, |item_identity| {
-                    denoise_image_with_settings(
+                let result = (|| {
+                    let (source, _) = parse_virtual_path(path);
+                    let recipe_context = if rendered_raw(&source, &ident) {
+                        Some(RecipeContext::for_source(path, &frozen_settings, &state)?)
+                    } else {
+                        None
+                    };
+                    run_item_with_context(
                         path,
-                        &internal,
-                        &app,
-                        models.clone(),
+                        &ident,
                         &job,
-                        frozen_settings.clone(),
-                        item_identity.get("sourceExposurePolicy").cloned(),
+                        recipe_context.as_ref(),
+                        |item_identity| {
+                            let recipe = RenderedRecipe::load_with_context(
+                                path,
+                                item_identity,
+                                recipe_context.as_ref(),
+                            )?;
+                            denoise_image_with_settings(
+                                path,
+                                &internal,
+                                &app,
+                                models.clone(),
+                                &job,
+                                frozen_settings.clone(),
+                                recipe.as_ref(),
+                            )
+                            .map(|(image, _, raw)| {
+                                raw.map_or_else(
+                                    || DenoisedOutput::Image(image),
+                                    DenoisedOutput::Raw,
+                                )
+                            })
+                        },
                     )
-                    .map(|(image, _, raw)| {
-                        raw.map_or_else(|| DenoisedOutput::Image(image), DenoisedOutput::Raw)
-                    })
-                });
+                })();
                 match result {
                     Ok((output, skipped)) => {
                         if skipped {
@@ -680,10 +938,21 @@ pub async fn run(
     }
 }
 
+#[cfg(test)]
 fn run_item(
     path: &str,
     ident: &Value,
     job: &DenoiseJob,
+    denoise: impl FnOnce(&Value) -> Result<DenoisedOutput, String>,
+) -> Result<(String, bool), String> {
+    run_item_with_context(path, ident, job, None, denoise)
+}
+
+fn run_item_with_context(
+    path: &str,
+    ident: &Value,
+    job: &DenoiseJob,
+    context: Option<&RecipeContext<'_>>,
     denoise: impl FnOnce(&Value) -> Result<DenoisedOutput, String>,
 ) -> Result<(String, bool), String> {
     let (source, sidecar) = parse_virtual_path(path);
@@ -714,13 +983,19 @@ fn run_item(
             source_baseline_eligible(&metadata["adjustments"]).into();
         item_identity["sourceExposurePolicy"] = nind_raw_defaults(&metadata["adjustments"]);
     }
+    if rendered_raw(&source, ident) {
+        item_identity["renderedSource"] = rendered_snapshot(&metadata, &source, context)?.identity;
+    }
     let ident = &item_identity;
-    ensure_rendered_eligible(&metadata, &source, ident)?;
+    ensure_rendered_eligible_with_context(&metadata, &source, ident, context)?;
     let q = queue(&metadata)?;
     if q["marked"] != true {
         return Err("Photo is no longer marked for denoise".into());
     }
     let source_hash = hash_file(&source)?;
+    if context.is_some_and(|context| context.source_hash != source_hash) {
+        return Err("Source changed while freezing camera metadata; run the queue again.".into());
+    }
     let key =
         hash_value(&json!({"source":source_hash,"sidecar":sidecar.file_name(),"identity":ident}));
     let previous = q["completed"]
@@ -731,7 +1006,14 @@ fn run_item(
         .find(|r| r.key == key);
     if let Some(mut receipt) = previous.clone().filter(|r| receipt_valid(r, &sidecar)) {
         let output = safe_output(&sidecar, &receipt.output)?;
-        receipt.edits_hash = save_result_edits(&sidecar, &source, &output, ident, Some(&receipt))?;
+        receipt.edits_hash = save_result_edits_with_context(
+            &sidecar,
+            &source,
+            &output,
+            ident,
+            Some(&receipt),
+            context,
+        )?;
         record(&sidecar, &receipt)?;
         return Ok((output.to_string_lossy().into_owned(), true));
     }
@@ -766,7 +1048,14 @@ fn run_item(
                 "Existing denoise output failed provenance/hash validation; keeping it".into(),
             );
         }
-        receipt.edits_hash = save_result_edits(&sidecar, &source, &output, ident, Some(&receipt))?;
+        receipt.edits_hash = save_result_edits_with_context(
+            &sidecar,
+            &source,
+            &output,
+            ident,
+            Some(&receipt),
+            context,
+        )?;
         record(&sidecar, &receipt)?;
         return Ok((output.to_string_lossy().into_owned(), true));
     }
@@ -782,12 +1071,13 @@ fn run_item(
     }
     let mut committed = None;
     publish(image, &output, raw, job, |hash| {
-        let edits_hash = save_result_edits(
+        let edits_hash = save_result_edits_with_context(
             &sidecar,
             &source,
             &output,
             ident,
             previous.as_ref().or(staged_receipt.as_ref()),
+            context,
         )?;
         let receipt = Receipt {
             key,
@@ -1459,6 +1749,240 @@ mod tests {
         assert_eq!(all.global.tonemapper_mode, 0);
     }
 
+    #[test]
+    fn baked_raw_sidecars_recover_and_key_edits_and_actual_lut_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("recipe.ARW");
+        // This exercises the publication/sidecar protocol; native checks supply real RAWs.
+        fs::write(&raw, b"queue protocol source").unwrap();
+        let path = raw.to_string_lossy().into_owned();
+        let lut = dir.path().join("source.cube");
+        let cube = "LUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n";
+        fs::write(&lut, cube).unwrap();
+        let (_, sidecar) = parse_virtual_path(&path);
+        set_denoise_mark(vec![path.clone()], true).unwrap();
+        let adjustments = json!({"toneMapper":"agx","whiteBalance":{"temperature":4300,"tint":12},
+            "temperature":10,"tint":-5,"exposure":0.75,
+            "crop":{"unit":"%","x":0,"y":0,"width":80,"height":80},"lutPath":lut});
+        mutate(&sidecar, |v| {
+            v["adjustments"] = adjustments.clone();
+            v["rating"] = 2.into();
+            v["appliedPreset"] = json!({"id":"source-preset"});
+            v["exportFraming"] = json!({"ratio":"4:5"});
+            Ok(())
+        })
+        .unwrap();
+        let (first, skipped) = run_item(&path, &ident(), &DenoiseJob::testing(), |identity| {
+            let recipe = RenderedRecipe::load(&path, identity)?.unwrap();
+            assert_eq!(recipe.snapshot.adjustments, adjustments);
+            assert_eq!(recipe.lut.unwrap().size, 2);
+            output(identity)
+        })
+        .unwrap();
+        assert!(!skipped);
+        let first_hash = hash_file(Path::new(&first)).unwrap();
+        let source = strict_json(&sidecar).unwrap();
+        assert_eq!(source["adjustments"], adjustments);
+        assert_eq!(source["appliedPreset"]["id"], "source-preset");
+        assert_eq!(source["exportFraming"]["ratio"], "4:5");
+        let original_recipe =
+            source["denoise"]["completed"][0]["identity"]["renderedSource"].clone();
+        assert!(!original_recipe.is_null());
+        let (_, result_sidecar) = parse_virtual_path(&first);
+        assert!(strict_json(&result_sidecar).unwrap()["appliedPreset"].is_null());
+        assert!(strict_json(&result_sidecar).unwrap()["exportFraming"].is_null());
+        assert_eq!(
+            strict_json(&result_sidecar).unwrap()["adjustments"],
+            json!({"toneMapper":"basic","baselineExposure":false})
+        );
+
+        // Simulate a crash after durable image/provenance publication, before completion.
+        mutate(&sidecar, |v| {
+            v["denoise"]["completed"] = json!([]);
+            v["rating"] = 5.into();
+            Ok(())
+        })
+        .unwrap();
+        let (recovered, skipped) = run_item(&path, &ident(), &DenoiseJob::testing(), |_| {
+            panic!("must recover without inference")
+        })
+        .unwrap();
+        assert!(skipped);
+        assert_eq!(recovered, first);
+        assert_eq!(hash_file(Path::new(&first)).unwrap(), first_hash);
+        assert_eq!(strict_json(&result_sidecar).unwrap()["rating"], 5);
+
+        mutate(&sidecar, |v| {
+            v["adjustments"]["exposure"] = 1.25.into();
+            Ok(())
+        })
+        .unwrap();
+        let (second, skipped) = run_item(&path, &ident(), &DenoiseJob::testing(), output).unwrap();
+        assert!(!skipped);
+        assert_ne!(first, second);
+
+        // Same pathname, byte count and timestamp, different external asset contents.
+        let time = filetime::FileTime::from_last_modification_time(&fs::metadata(&lut).unwrap());
+        fs::write(&lut, cube.replacen("0 0 0", "1 0 0", 1)).unwrap();
+        filetime::set_file_mtime(&lut, time).unwrap();
+        let (third, skipped) = run_item(&path, &ident(), &DenoiseJob::testing(), |identity| {
+            let recipe = RenderedRecipe::load(&path, identity)?.unwrap();
+            assert_eq!(recipe.lut.unwrap().data[0], 1.0);
+            output(identity)
+        })
+        .unwrap();
+        assert!(!skipped);
+        assert_ne!(second, third);
+        assert_eq!(hash_file(Path::new(&first)).unwrap(), first_hash);
+        let (_, target) = parse_virtual_path(&third);
+        mutate(&target, |v| {
+            v["adjustments"]["exposure"] = 2.0.into();
+            Ok(())
+        })
+        .unwrap();
+        let independent = fs::read(&target).unwrap();
+        assert!(
+            run_item(&path, &ident(), &DenoiseJob::testing(), |_| panic!(
+                "must reuse"
+            ))
+            .unwrap_err()
+            .contains("independent edits")
+        );
+        assert_eq!(fs::read(target).unwrap(), independent);
+    }
+
+    #[test]
+    fn baked_gpu_limit_uses_effective_crop_and_keeps_failed_photos_unpublished() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = DynamicImage::new_rgb8(64, 48);
+        // Synthetic RAW placeholders exercise real transforms, sidecars and publication,
+        // without claiming to execute GPU rendering or model inference.
+        let cases = [
+            ("oversize", json!({"exposure":0.5}), None),
+            (
+                "boundary",
+                json!({"crop":{"x":4,"y":3,"width":32,"height":32}}),
+                Some((32, 32)),
+            ),
+            (
+                "height",
+                json!({"crop":{"x":4,"y":3,"width":32,"height":33}}),
+                None,
+            ),
+            (
+                "later",
+                json!({"crop":{"x":4,"y":3,"width":16,"height":16}}),
+                Some((16, 16)),
+            ),
+        ];
+        let mut successes = 0;
+        let mut failures = 0;
+        for (name, adjustments, expected) in cases {
+            let raw = dir.path().join(format!("{name}.ARW"));
+            fs::write(&raw, b"queue protocol source").unwrap();
+            let path = raw.to_string_lossy().into_owned();
+            set_denoise_mark(vec![path.clone()], true).unwrap();
+            let (_, sidecar) = parse_virtual_path(&path);
+            mutate(&sidecar, |v| {
+                v["adjustments"] = adjustments.clone();
+                Ok(())
+            })
+            .unwrap();
+            let result = run_item(&path, &ident(), &DenoiseJob::testing(), |identity| {
+                let recipe = RenderedRecipe::load(&path, identity)?.unwrap();
+                let (view, _) = crate::export_processing::prepare_source_view(
+                    &base,
+                    &recipe.snapshot.adjustments,
+                    Some(32),
+                )?;
+                Ok(DenoisedOutput::Image(view.into_owned()))
+            });
+            let metadata = strict_json(&sidecar).unwrap();
+            assert_eq!(metadata["adjustments"], adjustments);
+            if let Some(dimensions) = expected {
+                let (output, skipped) = result.unwrap();
+                assert!(!skipped);
+                assert_eq!(image::image_dimensions(&output).unwrap(), dimensions);
+                assert_eq!(
+                    queue(&metadata).unwrap()["completed"]
+                        .as_array()
+                        .unwrap()
+                        .len(),
+                    1
+                );
+                successes += 1;
+            } else {
+                let error = result.unwrap_err();
+                assert!(error.contains("exceeds GPU image limit 32"), "{error}");
+                assert!(
+                    queue(&metadata).unwrap()["completed"]
+                        .as_array()
+                        .unwrap()
+                        .is_empty()
+                );
+                assert!(queue(&metadata).unwrap()["marked"].as_bool().unwrap());
+                assert!(!fs::read_dir(dir.path()).unwrap().any(|p| {
+                    p.unwrap()
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with(&format!("{name}.ARW_Denoised_"))
+                }));
+                failures += 1;
+            }
+        }
+        assert_eq!((successes, failures), (2, 2));
+        // Ordinary export retains its previous oversized fallback behavior.
+        let (ordinary, _) =
+            crate::export_processing::prepare_source_view(&base, &json!({"exposure":0.5}), None)
+                .unwrap();
+        assert_eq!(ordinary.dimensions(), (64, 48));
+    }
+
+    #[test]
+    fn changed_baked_recipe_or_asset_is_rejected_before_publication() {
+        for change_asset in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let raw = dir.path().join("changing.ARW");
+            fs::write(&raw, b"queue protocol source").unwrap();
+            let path = raw.to_string_lossy().into_owned();
+            let (_, sidecar) = parse_virtual_path(&path);
+            let lut = dir.path().join("source.cube");
+            fs::write(&lut, "original asset").unwrap();
+            set_denoise_mark(vec![path.clone()], true).unwrap();
+            mutate(&sidecar, |v| {
+                v["adjustments"] = json!({"lutPath":lut,"exposure":0.5});
+                Ok(())
+            })
+            .unwrap();
+            let error = run_item(&path, &ident(), &DenoiseJob::testing(), |identity| {
+                if change_asset {
+                    fs::write(&lut, "modified asset").unwrap();
+                } else {
+                    mutate(&sidecar, |v| {
+                        v["adjustments"]["exposure"] = 1.0.into();
+                        Ok(())
+                    })
+                    .unwrap();
+                }
+                output(identity)
+            })
+            .unwrap_err();
+            assert!(error.contains("Source recipe or LUT changed"), "{error}");
+            assert!(!fs::read_dir(dir.path()).unwrap().any(|p| {
+                p.unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("_Denoised_")
+            }));
+            assert!(
+                queue(&strict_json(&sidecar).unwrap()).unwrap()["completed"]
+                    .as_array()
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     fn waiting_output_sync_checks_user_edits_after_acquiring_the_destination_lock() {
@@ -1509,6 +2033,111 @@ mod tests {
         assert!(blocked, "queue did not block on the held destination lock");
         assert!(outcome.unwrap_err().contains("independent edits"));
         assert_eq!(strict_json(&dest).unwrap()["adjustments"]["exposure"], 3);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn resolved_recipe_publication_does_not_take_metadata_lock_under_destination_write() {
+        use std::os::unix::fs::MetadataExt;
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("context.ARW");
+        // Real sidecar/lock/publication protocol; camera bytes are synthetic here.
+        fs::write(&raw, b"context protocol RAW").unwrap();
+        let path = raw.to_string_lossy().into_owned();
+        set_denoise_mark(vec![path.clone()], true).unwrap();
+        let (_, sidecar) = parse_virtual_path(&path);
+        let exif = std::collections::HashMap::from([("Make".into(), "SONY".into())]);
+        mutate(&sidecar, |metadata| {
+            metadata["adjustments"] =
+                json!({"lensCorrectionMode":"auto", "cameraLensCorrectionVersion":1});
+            metadata["exif"] = json!(exif);
+            Ok(())
+        })
+        .unwrap();
+        let settings = crate::app_settings::AppSettings::default();
+        let context = RecipeContext {
+            settings: &settings,
+            lens_db: None,
+            exif: exif.clone(),
+            source_hash: hash_file(&raw).unwrap(),
+        };
+        let (out, _) = run_item_with_context(
+            &path,
+            &ident(),
+            &DenoiseJob::testing(),
+            Some(&context),
+            output,
+        )
+        .unwrap();
+        let (_, dest) = parse_virtual_path(&out);
+        let receipt: Receipt = serde_json::from_value(
+            queue(&strict_json(&sidecar).unwrap()).unwrap()["completed"][0].clone(),
+        )
+        .unwrap();
+        let source_hash = context.source_hash.clone();
+        drop(context);
+        // Acquire METADATA before spawning to avoid another parallel test
+        // becoming the inverse-order writer while this test owns the file lock.
+        let metadata_guard = crate::file_management::SIDECAR_METADATA_LOCK
+            .lock()
+            .unwrap();
+        let external = crate::file_management::lock_sidecar_as_external_writer(&dest).unwrap();
+        let inode = external.metadata().unwrap().ino();
+        let worker_sidecar = sidecar.clone();
+        let worker_output = PathBuf::from(&out);
+        let worker_raw = raw.clone();
+        let (send, receive) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let context = RecipeContext {
+                settings: &settings,
+                lens_db: None,
+                exif,
+                source_hash,
+            };
+            let result = save_result_edits_with_context(
+                &worker_sidecar,
+                &worker_raw,
+                &worker_output,
+                &receipt.identity,
+                Some(&receipt),
+                Some(&context),
+            );
+            send.send(result).unwrap();
+        });
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let mut waiting_for_destination = false;
+        while std::time::Instant::now() < deadline {
+            if fs::read_to_string("/proc/locks")
+                .unwrap()
+                .lines()
+                .any(|line| line.contains("->") && line.contains(&format!(":{inode} ")))
+            {
+                waiting_for_destination = true;
+                break;
+            }
+            std::thread::yield_now();
+        }
+        // The worker now holds WRITE and waits for the destination file lock,
+        // while this thread retains METADATA like a concurrent rating writer.
+        drop(external);
+        let completed_without_metadata = receive.recv_timeout(std::time::Duration::from_secs(2));
+        // Release before joining even on failure, so the old reverse-order path
+        // produces a bounded regression failure rather than hanging the suite.
+        drop(metadata_guard);
+        worker.join().unwrap();
+        assert!(
+            waiting_for_destination,
+            "publication never reached the destination transaction"
+        );
+        completed_without_metadata
+            .expect("context recheck tried to acquire METADATA under WRITE")
+            .unwrap();
+        crate::file_management::update_sidecar(&sidecar, |metadata| metadata.rating = 5).unwrap();
+        assert_eq!(strict_json(&sidecar).unwrap()["rating"], 5);
+        assert_eq!(
+            strict_json(&dest).unwrap()["adjustments"],
+            json!({"toneMapper":"basic","baselineExposure":false})
+        );
     }
 
     #[test]
