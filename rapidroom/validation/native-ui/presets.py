@@ -1,4 +1,4 @@
-"""Grouped browser, hover, Amount and preset creation through public UI."""
+"""Flat Styles search, hover, Amount and preset creation through public UI."""
 import time
 from PIL import ImageChops
 
@@ -31,22 +31,25 @@ def run_preset_checks(smoke, wait_for, baseline):
           e.dispatchEvent(new Event('input',{bubbles:true}));return true;""",[query])
         time.sleep(.2)
 
-    search('Color')
-    wait_for(lambda: smoke.execute("return document.body.innerText.includes('Warm') && !document.body.innerText.includes('Green Filter');"), 'group search filters browser')
-    search('Punch')
-    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('[role=button]')].some(e=>e.textContent.trim()==='Punch');"), 'name search expands group')
-    smoke.execute("""const row=[...document.querySelectorAll('[role=button]')].find(e=>e.textContent.trim()==='Punch');
-      row.scrollIntoView({block:'center'});row.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));return true;""")
+    # Built-ins are now flat; the retired Color/Punch stock group must not be
+    # an implicit fixture. Use a different Style from the Teal lifecycle suite,
+    # so clicking an already-active row does not merely toggle its expansion.
+    # User-owned folder persistence is checked in styles.py.
+    search('textured clouds')
+    wait_for(lambda: smoke.execute("return document.body.innerText.includes('Vivid Rainbow') && !document.body.innerText.includes('Neon Night');"), 'description search filters flat Styles')
+    search('Vivid Rainbow')
+    row="[...document.querySelectorAll('[data-tooltip]')].find(e=>e.dataset.tooltip==='Deep blue skies, textured clouds and bright warm colour. Best with daylight travel, rooftops and people.')?.closest('[role=button]')"
+    wait_for(lambda: smoke.execute('return !!('+row+');'), 'name search finds flat Style')
+    smoke.execute('const row='+row+";row.scrollIntoView({block:'center'});row.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));return true;")
     hovered=smoke.stable_preview('preset-hover')
     if ImageChops.difference(smoke.crop(baseline),smoke.crop(hovered)).getbbox() is None:
         raise RuntimeError('Preset hover did not change photo')
-    smoke.execute("""const row=[...document.querySelectorAll('[role=button]')].find(e=>e.textContent.trim()==='Punch');
-      row.dispatchEvent(new MouseEvent('mouseout',{bubbles:true,relatedTarget:document.body}));return true;""")
+    smoke.execute('const row='+row+";row.dispatchEvent(new MouseEvent('mouseout',{bubbles:true,relatedTarget:document.body}));return true;")
     restored=smoke.stable_preview('preset-hover-cancel')
     if ImageChops.difference(smoke.crop(baseline),smoke.crop(restored)).getbbox() is not None:
         raise RuntimeError('Preset hover cancellation changed pixels')
-    smoke.step('group/name search and owned hover preview cancel exactly')
-    smoke.execute("""const row=[...document.querySelectorAll('[role=button]')].find(e=>e.textContent.trim()==='Punch');row.click();return true;""")
+    smoke.step('flat Style name/description search and owned hover preview cancel exactly')
+    smoke.execute('const row='+row+';row.click();return true;')
     applied=smoke.stable_preview('preset-applied')
     if ImageChops.difference(smoke.crop(baseline),smoke.crop(applied)).getbbox() is None:
         raise RuntimeError('Preset apply did not change pixels')
@@ -55,7 +58,7 @@ def run_preset_checks(smoke, wait_for, baseline):
     if ImageChops.difference(smoke.crop(baseline),smoke.crop(restored)).getbbox() is not None:
         raise RuntimeError('One Undo failed to restore preset pixels')
     smoke.step('preset click creates one Undo step restoring exact pixels')
-    smoke.execute("""const row=[...document.querySelectorAll('[role=button]')].find(e=>e.textContent.trim()==='Punch');row.click();return true;""")
+    smoke.execute('const row='+row+';row.click();return true;')
     wait_for(lambda: smoke.slider('Amount')['value']==100, 'preset Amount starts at100')
     smoke.drag('Amount',0)
     restored=smoke.stable_preview('preset-amount-zero')
@@ -64,3 +67,6 @@ def run_preset_checks(smoke, wait_for, baseline):
     smoke.step('preset Amount0 restores before-preset pixels')
     smoke.execute("""document.querySelector('[data-tab-id="layout-tab-adjustments"]').click();return true;""")
     wait_for(lambda: smoke.execute("return document.body.innerText.includes('Exposure');"), 'return to Develop controls')
+
+    from styles import run_styles_checks
+    run_styles_checks(smoke, wait_for, baseline)

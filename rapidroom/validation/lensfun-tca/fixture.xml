@@ -1,0 +1,16 @@
+<lensdatabase version="1">
+  <lens>
+    <maker>RapidRoom test fixture</maker>
+    <model>Polynomial TCA reference (synthetic)</model>
+    <mount>Sony E</mount>
+    <cropfactor>1</cropfactor>
+    <aspect-ratio>3:2</aspect-ratio>
+    <calibration>
+      <tca model="poly3" focal="20" vr="1.0008" vb="0.9994" cr="0.00013" cb="-0.00019" br="-0.0002" bb="0.0003"/>
+      <tca model="poly3" focal="35" vr="1.0003" vb="0.9999" cr="-0.00008" cb="0.00007" br="-0.0001" bb="0.00017"/>
+      <tca model="poly3" focal="70" vr="0.9997" vb="1.0002" cr="0.00011" cb="-0.00009" br="0.00015" bb="-0.00012"/>
+      <tca model="poly3" focal="135" vr="1.0001" vb="0.9998" cr="-0.00014" cb="0.00012" br="-0.00004" bb="0.00009"/>
+      <tca model="poly3" focal="200" vr="0.9998" vb="1.0003" cr="0.00005" cb="-0.00006" br="0.00007" bb="-0.00008"/>
+    </calibration>
+  </lens>
+</lensdatabase>

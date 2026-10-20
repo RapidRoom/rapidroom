@@ -1,0 +1,65 @@
+[
+  {
+    "id": "sony-a7cr-61mp-compressed",
+    "kind": "raw",
+    "license": "CC0-1.0",
+    "source": "https://raw.pixls.us/getfile.php/7035/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20Compressed%20%283%3A2%29.ARW",
+    "download": "https://raw.pixls.us/getfile.php/7035/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20Compressed%20%283%3A2%29.ARW",
+    "author": null,
+    "source_sha256": "f5096e8fbccf0842c8a57763cabd2836608f019eb7fd54f7b22260c2f5bc4da5"
+  },
+  {
+    "id": "sony-a7c2-15mp-uncompressed",
+    "kind": "raw",
+    "license": "CC0-1.0",
+    "source": "https://raw.pixls.us/getfile.php/6866/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW",
+    "download": "https://raw.pixls.us/getfile.php/6866/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW",
+    "author": null,
+    "source_sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6"
+  },
+  {
+    "id": "canon-r6m2-24mp-raw",
+    "kind": "raw",
+    "license": "CC0-1.0",
+    "source": "https://raw.pixls.us/getfile.php/6402/nice/Canon%20-%20EOS%20R6%20Mark%20II%20-%203%3A2.cr3",
+    "download": "https://raw.pixls.us/getfile.php/6402/nice/Canon%20-%20EOS%20R6%20Mark%20II%20-%203%3A2.cr3",
+    "author": null,
+    "source_sha256": "1a93f96556aabbc4a7260750ab0a191ec7926bb978fe8428bf3465121da730d6"
+  },
+  {
+    "id": "apple-iphone12pro-proraw",
+    "kind": "raw",
+    "license": "CC0-1.0",
+    "source": "https://raw.pixls.us/getfile.php/4264/nice/Apple%20-%20iPhone%2012%20Pro%20-%208bit%20%284%3A3%29.DNG",
+    "download": "https://raw.pixls.us/getfile.php/4264/nice/Apple%20-%20iPhone%2012%20Pro%20-%208bit%20%284%3A3%29.DNG",
+    "author": null,
+    "source_sha256": "e91e77a4533ed7cce551d83330676ea5c47dd5e55fb38adda7819366afdbdfc2"
+  },
+  {
+    "id": "nikon-zfc-21mp-lossless",
+    "kind": "raw",
+    "license": "CC0-1.0",
+    "source": "https://raw.pixls.us/getfile.php/4812/nice/Nikon%20-%20Z%20fc%20-%2014bit%2014bit%20compressed%20%28Lossless%29%20%283%3A2%29.nef",
+    "download": "https://raw.pixls.us/getfile.php/4812/nice/Nikon%20-%20Z%20fc%20-%2014bit%2014bit%20compressed%20%28Lossless%29%20%283%3A2%29.nef",
+    "author": null,
+    "source_sha256": "4099ecc46ebaca26e2a66a96a8313fed5e8c707b3836ccf0e77a134844b041c1"
+  },
+  {
+    "id": "cc0-shinjuku---shinjuku255",
+    "kind": "jpeg",
+    "license": "CC0-1.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Shinjuku_-_Shinjuku255.jpg",
+    "download": "https://upload.wikimedia.org/wikipedia/commons/d/d9/Shinjuku_-_Shinjuku255.jpg?utm_source=commons.wikimedia.org&amp;utm_campaign=index&amp;utm_content=original",
+    "author": "lumoplank",
+    "source_sha256": "b9e7082861a78b42c7632965b52147dd66d0d96d73df96fde44aa688412951d7"
+  },
+  {
+    "id": "cc0-woodland",
+    "kind": "raw",
+    "license": "CC0-1.0",
+    "source": "https://discuss.pixls.us/t/forest-with-cool-trees/60484",
+    "download": "https://discuss.pixls.us/uploads/short-url/vGmvXBAXMNK6FlFmkLDHaPLYRu2.ARW",
+    "author": "bestman8",
+    "source_sha256": "fa1fbb11dcb73780fcf0ffdaf0d856cb1648b149a43a1ded7fca564ee0f27780"
+  }
+]

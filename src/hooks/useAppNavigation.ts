@@ -1,7 +1,7 @@
-import { useCallback, type RefObject } from 'react';
+import { useCallback, useRef, type RefObject } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import { homeDir } from '@tauri-apps/api/path';
+import { dirname, homeDir, resolve } from '@tauri-apps/api/path';
 import { toast } from 'react-toastify';
 import i18n from 'i18next';
 import { useLibraryStore } from '../store/useLibraryStore';
@@ -22,6 +22,9 @@ import type { FolderTree } from '../components/ui/AppProperties';
 import { Adjustments, INITIAL_ADJUSTMENTS, normalizeLoadedAdjustments } from '../utils/adjustments';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { debouncedSave, debouncedSetHistory } from './useEditorActions';
+import { clearLibrarySelection } from './useLibraryActions';
+import { computeSortedLibrary } from './useSortedLibrary';
+import { isPathInCardRoot } from '../utils/cardMode';
 import type { ImageDimensions } from './useImageRenderSize';
 
 interface CachedEditorState {
@@ -58,6 +61,7 @@ interface PreviousAdjustments {
 }
 
 interface TransformWrapper {
+  getZoomIntent?(): number | null;
   resetTransform(duration?: number): void;
 }
 
@@ -81,9 +85,12 @@ const loadExifForImages = async (
   expectedFolderPath: string | null,
   sortKey: string,
   setLibrary: ReturnType<typeof useLibraryStore.getState>['setLibrary'],
+  canCommit = () => useLibraryStore.getState().currentFolderPath === expectedFolderPath,
 ) => {
   const exifSortKeys = ['date_taken', 'iso', 'shutter_speed', 'aperture', 'focal_length'];
   const isExifSortActive = exifSortKeys.includes(sortKey);
+
+  if (!canCommit()) return;
 
   if (files.length === 0) {
     setLibrary({ imageList: files });
@@ -108,6 +115,7 @@ const loadExifForImages = async (
       }
     }
 
+    if (!canCommit()) return;
     const finalImageList = files.map((image) => ({
       ...image,
       exif: combinedExifMap[image.path] || image.exif || null,
@@ -120,13 +128,14 @@ const loadExifForImages = async (
       const fetchExifInChunks = async () => {
         const chunkSize = 50;
         for (let i = 0; i < paths.length; i += chunkSize) {
-          if (useLibraryStore.getState().currentFolderPath !== expectedFolderPath) break;
+          if (!canCommit()) break;
 
           const chunk = paths.slice(i, i + chunkSize);
           try {
             const chunkExif = await invoke<Record<string, Record<string, string>>>(Invokes.ReadExifForPaths, {
               paths: chunk,
             });
+            if (!canCommit()) break;
             setLibrary((state) => ({
               imageList: state.imageList.map((image: ImageFile) => ({
                 ...image,
@@ -157,7 +166,12 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
     prevAdjustmentsRef,
   } = refs;
 
+  const externalOpenGenerationRef = useRef(0);
+  const libraryContextGenerationRef = useRef(0);
+
   const handleGoHome = useCallback(() => {
+    libraryContextGenerationRef.current += 1;
+    externalOpenGenerationRef.current += 1;
     void invoke(Invokes.SetCardBrowseRoot, { path: null });
     useLibraryStore.getState().setLibrary({
       rootPaths: [],
@@ -175,6 +189,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
   }, []);
 
   const handleBackToLibrary = useCallback(() => {
+    externalOpenGenerationRef.current += 1;
     const { selectedImage } = useEditorStore.getState();
     const { setLibrary } = useLibraryStore.getState();
     const { setUI } = useUIStore.getState();
@@ -195,13 +210,26 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
     debouncedSetHistory.cancel();
 
     const lastActivePath = selectedImage?.path ?? null;
+    const isStillVisible =
+      lastActivePath !== null &&
+      computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState()).some(
+        (img) => img.path === lastActivePath,
+      );
 
-    setLibrary({ libraryActivePath: lastActivePath });
+    if (isStillVisible) {
+      setLibrary({ libraryActivePath: lastActivePath });
+    } else {
+      clearLibrarySelection();
+    }
     setUI({ activeView: 'library', slideDirection: 1 });
   }, [refs]);
 
+  const imageSelectionGenerationRef = useRef(0);
+  const committedImageGenerationRef = useRef(0);
+
   const handleImageSelect = useCallback(
     async (path: string, openInEditor: boolean = true) => {
+      externalOpenGenerationRef.current += 1;
       const { selectedImage, isSliderDragging, resetHistory, setEditor } = useEditorStore.getState();
       const { setLibrary, multiSelectedPaths } = useLibraryStore.getState();
       const { setUI } = useUIStore.getState();
@@ -209,6 +237,16 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       if (openInEditor) {
         setUI({ activeView: 'editor' });
       }
+
+      const generation = ++imageSelectionGenerationRef.current;
+      // Keyboard navigation follows the requested photo even while its cache lookup awaits.
+      const newMultiSelectedPaths = multiSelectedPaths.includes(path) ? multiSelectedPaths : [path];
+
+      setLibrary({
+        multiSelectedPaths: newMultiSelectedPaths,
+        libraryActivePath: path,
+        selectionAnchorPath: path,
+      });
 
       if (selectedImage?.path === path) return;
 
@@ -229,6 +267,19 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
         ? await invoke<boolean>('is_image_cached', { path }).catch(() => false)
         : false;
 
+      // A cached selection can await the backend while later arrow presses overtake it.
+      if (generation !== imageSelectionGenerationRef.current) return;
+      const pendingZoom = useEditorStore.getState().zoomRequest;
+      const currentPath = useEditorStore.getState().selectedImage?.path;
+      const percent =
+        pendingZoom && pendingZoom.imagePath === currentPath
+          ? pendingZoom.percent
+          : (transformWrapperRef.current?.getZoomIntent?.() ?? null);
+      const zoomRequest = { imagePath: path, percent, resetPosition: true };
+      committedImageGenerationRef.current = generation;
+      const isCurrentSelection = () =>
+        committedImageGenerationRef.current === generation && selectedImagePathRef.current === path;
+
       const hasDifferentResolution =
         cached &&
         (useEditorStore.getState().originalSize.width !== cached.originalSize.width ||
@@ -240,14 +291,6 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
       selectedImagePathRef.current = path;
 
-      const newMultiSelectedPaths = multiSelectedPaths.includes(path) ? multiSelectedPaths : [path];
-
-      setLibrary({
-        multiSelectedPaths: newMultiSelectedPaths,
-        libraryActivePath: path,
-        selectionAnchorPath: path,
-      });
-
       setEditor({
         showOriginal: false,
         activeMaskId: null,
@@ -256,6 +299,8 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
         activeAiSubMaskId: null,
         isWbPickerActive: false,
         mixerPickerProperty: null,
+        isRelightPickerActive: false,
+        activeRelightLightId: null,
         previewOverride: null,
       });
 
@@ -266,6 +311,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
       if (isFrontendCached) {
         setEditor({
+          zoomRequest,
           selectedImage: {
             ...cached.selectedImage,
             thumbnailUrl: cachedMedium || cached.selectedImage.thumbnailUrl,
@@ -290,7 +336,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
         invoke<LoadedImageResult>(Invokes.LoadImage, { path })
           .then((_result) => {
-            if (selectedImagePathRef.current !== path) return;
+            if (!isCurrentSelection()) return;
             isBackendReadyRef.current = true;
             currentResRef.current = 0;
             setEditor((state) => {
@@ -305,7 +351,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
             });
           })
           .catch((err: unknown) => {
-            if (String(err).includes('cancelled')) return;
+            if (!isCurrentSelection() || String(err).includes('cancelled')) return;
             console.error('Background load_image failed on cache hit:', err);
             isBackendReadyRef.current = true;
             currentResRef.current = 0;
@@ -313,7 +359,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
         invoke<LoadedImageMetadata>(Invokes.LoadMetadata, { path })
           .then((metadata) => {
-            if (selectedImagePathRef.current !== path) return;
+            if (!isCurrentSelection()) return;
             let freshAdjustments: Adjustments;
             if (metadata.adjustments && !metadata.adjustments.is_null) {
               freshAdjustments = normalizeLoadedAdjustments(metadata.adjustments);
@@ -339,6 +385,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
 
       const imageFile = useLibraryStore.getState().imageList.find((img) => img.path === path);
       setEditor({
+        zoomRequest,
         selectedImage: {
           exif: null,
           group_id: imageFile?.group_id ?? null,
@@ -388,6 +435,8 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       preserveEditor = false,
       skipHistory = false,
     ) => {
+      libraryContextGenerationRef.current += 1;
+      externalOpenGenerationRef.current += 1;
       const { appSettings, handleSettingsChange } = useSettingsStore.getState();
       const { pinnedFolders } = appSettings || { pinnedFolders: [] };
       const { setLibrary, sortCriteria } = useLibraryStore.getState();
@@ -491,8 +540,88 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
     [clearThumbnailQueue, refs],
   );
 
+  // OS/CLI and MCP opens can arrive before Continue Session has loaded any library.
+  // Internal clicks/arrows keep their existing album, recursive view and selection semantics.
+  const handleOpenImage = useCallback(
+    async (inputPath: string, openInEditor = true) => {
+      const generation = ++externalOpenGenerationRef.current;
+      const current = () => generation === externalOpenGenerationRef.current;
+      const [inputBase, vcId] = inputPath.split('?vc=');
+      if (useSettingsStore.getState().osPlatform === 'android') {
+        await handleImageSelect(inputPath, openInEditor);
+        return;
+      }
+      const basePath = await resolve(inputBase);
+      if (!current()) return;
+      const path = vcId === undefined ? basePath : `${basePath}?vc=${vcId}`;
+      const library = useLibraryStore.getState();
+      if (library.cardBrowseRoot && !isPathInCardRoot(basePath, library.cardBrowseRoot)) {
+        throw new Error('Leave read-only card browsing before opening a photo outside the card.');
+      }
+      if (library.imageList.some((image) => image.path.split('?vc=')[0] === basePath)) {
+        await handleImageSelect(path, openInEditor);
+        return;
+      }
+      const folder = await dirname(basePath);
+      if (!current()) return;
+      const settings = useSettingsStore.getState().appSettings;
+      const command =
+        settings?.libraryViewMode === LibraryViewMode.Recursive ? Invokes.ListImagesRecursive : Invokes.ListImagesInDir;
+      const files = await invoke<ImageFile[]>(command, { path: folder });
+      if (!current()) return;
+      const state = useLibraryStore.getState();
+      const needsRoot = !state.rootPaths.some((root) => isPathInCardRoot(folder, root));
+      let tree: FolderTree | null = null;
+      if (needsRoot) {
+        tree = await invoke<FolderTree>(Invokes.GetFolderTree, {
+          path: folder,
+          expandedFolders: [folder],
+          showImageCounts: settings?.enableFolderImageCounts || settings?.folderTreeSort?.key === 'imageCount',
+        }).catch(() => null);
+        if (!current()) return;
+      }
+      let committed = false;
+      let handedOff = false;
+      let contextGeneration = 0;
+      const canCommit = () =>
+        (!committed || useLibraryStore.getState().currentFolderPath === folder) &&
+        (current() || (handedOff && contextGeneration === libraryContextGenerationRef.current));
+      const commitLibrary: ReturnType<typeof useLibraryStore.getState>['setLibrary'] = (updater) => {
+        if (!canCommit()) return;
+        if (committed) {
+          useLibraryStore.getState().setLibrary(updater);
+          return;
+        }
+        // Commit folder context and its EXIF-sorted filmstrip together, never a half-loaded old request.
+        committed = true;
+        contextGeneration = ++libraryContextGenerationRef.current;
+        useLibraryStore.getState().setLibrary((state) => ({
+          currentFolderPath: folder,
+          activeAlbumId: null,
+          rootPaths: needsRoot ? [...state.rootPaths, folder] : state.rootPaths,
+          folderTrees: tree ? [...state.folderTrees, tree] : state.folderTrees,
+          expandedFolders: new Set([...state.expandedFolders, folder]),
+          imageRatings: Object.fromEntries(
+            files.filter((file) => file.rating !== undefined).map((file) => [file.path, file.rating]),
+          ),
+          libraryScrollTop: 0,
+          ...(typeof updater === 'function' ? updater(state) : updater),
+        }));
+      };
+      // Session context only: an external open does not add a permanent configured root.
+      await loadExifForImages(files, folder, useLibraryStore.getState().sortCriteria.key, commitLibrary, canCommit);
+      if (!current() || useLibraryStore.getState().currentFolderPath !== folder) return;
+      // Delayed metadata may continue for this context after selection increments the image generation.
+      handedOff = true;
+      await handleImageSelect(path, openInEditor);
+    },
+    [handleImageSelect],
+  );
+
   const handleSelectAlbum = useCallback(
     async (albumId: string, albumName: string, imagePaths: string[], preserveEditor = false, skipHistory = false) => {
+      libraryContextGenerationRef.current += 1;
+      externalOpenGenerationRef.current += 1;
       const { setLibrary, sortCriteria } = useLibraryStore.getState();
       const { setUI } = useUIStore.getState();
 
@@ -790,6 +919,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
     handleGoHome,
     handleBackToLibrary,
     handleImageSelect,
+    handleOpenImage,
     handleSelectSubfolder,
     handleSelectAlbum,
     handleOpenFolder,

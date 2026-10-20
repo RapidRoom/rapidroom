@@ -19,12 +19,12 @@ const makeImage = (path: string, modified: number, flag: ImageFile['flag'] = nul
 
 const imageList = Object.keys(ratings).map((path, i) => makeImage(path, i));
 
-const filtered = (rating: number, ratingExact?: boolean) =>
+const filtered = (rating: number, ratingExact?: boolean, ratingOperator?: 'gte' | 'eq' | 'lte') =>
   computeSortedLibrary(
     {
       imageList,
       imageRatings: ratings,
-      filterCriteria: { colors: [], rating, ratingExact, rawStatus: RawStatus.All },
+      filterCriteria: { colors: [], rating, ratingExact, ratingOperator, rawStatus: RawStatus.All },
       searchCriteria: { tags: [], text: '', mode: 'AND' },
       sortCriteria: { key: 'name', order: 'asc' },
     },
@@ -32,6 +32,12 @@ const filtered = (rating: number, ratingExact?: boolean) =>
   ).map((image) => image.path);
 
 describe('rating filter', () => {
+  it('supports upstream operators while respecting old exact preferences unless explicitly overridden', () => {
+    expect(filtered(3, false, 'eq')).toEqual(['/c.raw']);
+    expect(filtered(3, false, 'lte')).toEqual(['/a.raw', '/b.raw', '/c.raw']);
+    expect(filtered(3, true, 'gte')).toEqual(['/c.raw', '/d.raw', '/e.raw']);
+  });
+
   it('shows the rating and higher by default', () => {
     expect(filtered(3)).toEqual(['/c.raw', '/d.raw', '/e.raw']);
     expect(filtered(5)).toEqual(['/e.raw']);
@@ -86,5 +92,30 @@ describe('flag filter and rating sort', () => {
       '/none.raw',
       '/reject.raw',
     ]);
+  });
+});
+
+describe('stacks under an Unrated filter', () => {
+  const stacked = (path: string, position: number) => ({
+    ...makeImage(path, position),
+    stack: { id: 'bracket', position },
+  });
+  const bracket = [stacked('/x/dark.raw', 1), stacked('/x/normal.raw', 0), stacked('/x/light.raw', 2)];
+  const unrated = (imageRatings: Record<string, number>) =>
+    computeSortedLibrary(
+      {
+        imageList: bracket,
+        imageRatings,
+        filterCriteria: { colors: [], rating: -1, rawStatus: RawStatus.All },
+        searchCriteria: { tags: [], text: '', mode: 'AND' },
+        sortCriteria: { key: 'name', order: 'asc' },
+        expandedStacks: new Set(),
+      },
+      { appSettings: {} },
+    ).map((image) => image.path);
+
+  it('shows the cover while unrated, and shows nothing (not a member) once the cover is rated', () => {
+    expect(unrated({})).toEqual(['/x/normal.raw']);
+    expect(unrated({ '/x/normal.raw': 3 })).toEqual([]);
   });
 });

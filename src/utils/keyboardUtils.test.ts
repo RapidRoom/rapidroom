@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KEYBIND_DEFINITIONS, getDefaultCombo } from './keyboardUtils';
+import { KEYBIND_DEFINITIONS, getDefaultCombo, normalizeCombo } from './keyboardUtils';
 
 describe('KEYBIND_DEFINITIONS', () => {
   it('has no two actions sharing a default shortcut', () => {
@@ -43,5 +43,76 @@ describe('flag shortcuts', () => {
         seen.set(combo, def.action);
       }
     }
+  });
+});
+
+const keyboardEvent = (parts: Partial<KeyboardEvent>): KeyboardEvent =>
+  ({ ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, isComposing: false, ...parts }) as KeyboardEvent;
+
+describe('layout-aware punctuation shortcuts', () => {
+  it('matches AZERTY Ctrl+- to the default Zoom out binding', () => {
+    const event = keyboardEvent({ code: 'Digit6', key: '-', ctrlKey: true });
+    expect(normalizeCombo(event, 'linux')).toEqual(defaultFor('zoom_out', 'linux'));
+    expect(normalizeCombo(event, 'windows')).toEqual(defaultFor('zoom_out', 'windows'));
+  });
+
+  it.each([
+    ['Digit1', '&', 'rate_1'],
+    ['Digit2', 'é', 'rate_2'],
+    ['Digit3', '"', 'rate_3'],
+    ['Digit4', "'", 'rate_4'],
+    ['Digit5', '(', 'rate_5'],
+    ['Digit0', 'à', 'rate_0'],
+  ])('matches unmodified French %s (%s) to %s', (code, key, action) => {
+    for (const os of ['linux', 'windows', 'macos']) {
+      expect(normalizeCombo(keyboardEvent({ code, key }), os)).toEqual(defaultFor(action, os));
+    }
+  });
+
+  it('keeps modified number-row punctuation and shifted colour labels', () => {
+    expect(normalizeCombo(keyboardEvent({ code: 'Digit4', key: "'", ctrlKey: true }))).toEqual(['ctrl', 'Quote']);
+    expect(normalizeCombo(keyboardEvent({ code: 'Digit6', key: '-', ctrlKey: true }))).toEqual(defaultFor('zoom_out'));
+    expect(normalizeCombo(keyboardEvent({ code: 'Digit4', key: '4', shiftKey: true }))).toEqual(
+      defaultFor('color_label_blue'),
+    );
+  });
+
+  it('records and matches relocated punctuation without changing modifiers', () => {
+    for (const [key, expected] of [
+      [';', 'Semicolon'],
+      [',', 'Comma'],
+      ['[', 'BracketLeft'],
+      [']', 'BracketRight'],
+      ['/', 'Slash'],
+      ["'", 'Quote'],
+      ['.', 'Period'],
+      ['=', 'Equal'],
+      ['`', 'Backquote'],
+      ['\\', 'Backslash'],
+    ]) {
+      expect(normalizeCombo(keyboardEvent({ code: 'KeyM', key, ctrlKey: true, shiftKey: true, altKey: true }))).toEqual(
+        ['ctrl', 'shift', 'alt', expected],
+      );
+    }
+    expect(normalizeCombo(keyboardEvent({ code: 'Semicolon', key: 'm' }))).toEqual(['KeyM']);
+    expect(normalizeCombo(keyboardEvent({ code: 'KeyW', key: 'z', ctrlKey: true }))).toEqual(['ctrl', 'KeyZ']);
+  });
+
+  it('preserves QWERTY, number-row ratings, numpad and macOS delete mappings', () => {
+    expect(normalizeCombo(keyboardEvent({ code: 'Minus', key: '-', ctrlKey: true }))).toEqual(['ctrl', 'Minus']);
+    expect(normalizeCombo(keyboardEvent({ code: 'Digit1', key: '&' }))).toEqual(['Digit1']);
+    expect(normalizeCombo(keyboardEvent({ code: 'Numpad1', key: '1' }))).toEqual(['Digit1']);
+    expect(normalizeCombo(keyboardEvent({ code: 'NumpadAdd', key: '+' }))).toEqual(['Equal']);
+    expect(normalizeCombo(keyboardEvent({ code: 'NumpadSubtract', key: '-' }))).toEqual(['Minus']);
+    expect(normalizeCombo(keyboardEvent({ code: 'NumpadDivide', key: '/' }))).toEqual(['NumpadDivide']);
+    expect(normalizeCombo(keyboardEvent({ code: 'Backspace', key: 'Backspace', metaKey: true }), 'macos')).toEqual([
+      'Delete',
+    ]);
+  });
+
+  it('ignores dead and composition events without falling back to their physical keys', () => {
+    expect(normalizeCombo(keyboardEvent({ code: 'KeyP', key: 'Dead' }))).toEqual([]);
+    expect(normalizeCombo(keyboardEvent({ code: 'KeyP', key: 'Process' }))).toEqual([]);
+    expect(normalizeCombo(keyboardEvent({ code: 'KeyP', key: 'p', isComposing: true }))).toEqual([]);
   });
 });

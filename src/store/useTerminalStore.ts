@@ -8,8 +8,10 @@ interface TerminalState {
   tabs: TerminalTab[];
   activeTab: string | null;
   errors: Record<string, string>;
+  introTabs: Record<string, boolean>;
+  dismissIntro: (id: string) => void;
   hydrate: () => void;
-  addTab: (path: string) => TerminalTab;
+  addTab: (path: string, showIntro?: boolean) => TerminalTab;
   selectTab: (id: string) => void;
   removeTab: (id: string) => void;
   updateDirectory: (id: string, path: string) => void;
@@ -35,12 +37,14 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   tabs: [],
   activeTab: null,
   errors: {},
+  introTabs: {},
+  dismissIntro: (id) => set((state) => ({ introTabs: { ...state.introTabs, [id]: false } })),
   hydrate: () => {
     if (get().hydrated) return;
     const settings = normalizeTerminalSettings(useSettingsStore.getState().appSettings?.terminalSettings);
     set({ hydrated: true, tabs: settings.tabs, activeTab: settings.activeTab });
   },
-  addTab: (path) => {
+  addTab: (path, showIntro = true) => {
     get().hydrate();
     if (get().tabs.length >= TERMINAL_TAB_LIMIT) throw new Error('Close a terminal tab before opening another');
     const tab = {
@@ -52,7 +56,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
           .pop() || 'Terminal',
       path,
     };
-    set({ tabs: [...get().tabs, tab], activeTab: tab.id });
+    set({ tabs: [...get().tabs, tab], activeTab: tab.id, introTabs: { ...get().introTabs, [tab.id]: showIntro } });
     persistTabs();
     return tab;
   },
@@ -65,7 +69,9 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     const tabs = get().tabs.filter((tab) => tab.id !== id);
     const errors = { ...get().errors };
     delete errors[id];
-    set({ tabs, errors, activeTab: get().activeTab === id ? (tabs.at(-1)?.id ?? null) : get().activeTab });
+    const introTabs = { ...get().introTabs };
+    delete introTabs[id];
+    set({ tabs, errors, introTabs, activeTab: get().activeTab === id ? (tabs.at(-1)?.id ?? null) : get().activeTab });
     persistTabs();
   },
   updateDirectory: (id, path) => {

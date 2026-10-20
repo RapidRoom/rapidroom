@@ -10,6 +10,7 @@ import {
   GroupingMode,
 } from '../components/ui/AppProperties';
 import { buildImageGroups, GroupBadgeInfo, GroupId } from '../utils/imageGrouping';
+import { collapseStacks } from '../utils/photoStacks';
 import { matchesFlagStatus } from '../utils/imageFlags';
 
 export const ADVANCED_QUERY_REGEX =
@@ -45,6 +46,7 @@ const parseFocalLength = (val: string | undefined): number => {
 
 export interface GroupedLibrary {
   displayList: ImageFile[];
+  matchingPhotoCount: number;
   badges: Map<GroupId, GroupBadgeInfo> | null;
 }
 
@@ -61,7 +63,11 @@ interface SearchCriteria {
 type LibrarySortState = Pick<
   ReturnType<typeof useLibraryStore.getState>,
   'imageList' | 'imageRatings' | 'filterCriteria' | 'sortCriteria'
-> & { searchCriteria: SearchCriteria };
+> & {
+  searchCriteria: SearchCriteria;
+  denoiseStatuses?: Record<string, { marked: boolean; denoised: boolean }>;
+  expandedStacks?: Set<string>;
+};
 
 type SettingsSortState = {
   appSettings: { grouping?: GroupingMode; groupEditedFiles?: boolean } | null;
@@ -75,13 +81,16 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
   const isGroupingActive = groupingMode !== 'off';
 
   const matchesFilter = (image: ImageFile): boolean => {
+    if (filterCriteria.denoiseStatus === 'marked' && !libraryState.denoiseStatuses?.[image.path]?.marked) return false;
+    if (filterCriteria.denoiseStatus === 'done' && !libraryState.denoiseStatuses?.[image.path]?.denoised) return false;
     if (filterCriteria.rating !== 0) {
       const rating = imageRatings[image.path] || 0;
       if (filterCriteria.rating === -1 && rating !== 0) return false;
       if (filterCriteria.rating > 0) {
-        if (filterCriteria.ratingExact || filterCriteria.rating === 5) {
-          if (rating !== filterCriteria.rating) return false;
-        } else if (rating < filterCriteria.rating) return false;
+        const op = filterCriteria.ratingOperator ?? (filterCriteria.ratingExact ? 'eq' : 'gte');
+        if (op === 'eq' && rating !== filterCriteria.rating) return false;
+        if (op === 'gte' && rating < filterCriteria.rating) return false;
+        if (op === 'lte' && rating > filterCriteria.rating) return false;
       }
     }
 
@@ -292,7 +301,11 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
     ? buildImageGroups(imageList, groupingMode, appSettings?.groupEditedFiles ?? true).badges
     : null;
 
-  return { displayList: list, badges };
+  return {
+    displayList: collapseStacks(list, libraryState.expandedStacks ?? new Set(), imageList),
+    badges,
+    matchingPhotoCount: imageList.filter((image) => matchesFilter(image) && matchesSearch(image)).length,
+  };
 }
 
 export function computeSortedLibrary(libraryState: LibrarySortState, settingsState: SettingsSortState): ImageFile[] {
@@ -300,8 +313,10 @@ export function computeSortedLibrary(libraryState: LibrarySortState, settingsSta
 }
 
 export function useSortedLibrary() {
+  const expandedStacks = useLibraryStore((state) => state.expandedStacks);
   const imageList = useLibraryStore((state) => state.imageList);
   const imageRatings = useLibraryStore((state) => state.imageRatings);
+  const denoiseStatuses = useLibraryStore((state) => state.denoiseStatuses);
   const filterCriteria = useLibraryStore((state) => state.filterCriteria);
   const searchCriteria = useLibraryStore((state) => state.searchCriteria);
   const sortCriteria = useLibraryStore((state) => state.sortCriteria);
@@ -310,10 +325,19 @@ export function useSortedLibrary() {
 
   const result = useMemo(() => {
     return computeGroupedLibrary(
-      { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria },
+      { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria, denoiseStatuses, expandedStacks },
       { appSettings },
     );
-  }, [imageList, sortCriteria, imageRatings, filterCriteria, searchCriteria, appSettings]);
+  }, [
+    expandedStacks,
+    imageList,
+    sortCriteria,
+    imageRatings,
+    filterCriteria,
+    searchCriteria,
+    appSettings,
+    denoiseStatuses,
+  ]);
 
   return result;
 }

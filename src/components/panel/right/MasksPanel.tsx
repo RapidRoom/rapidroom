@@ -76,9 +76,14 @@ import {
   MaskContainer,
   MaskAdjustments,
   ADJUSTMENT_SECTIONS,
+  getActiveTools,
   getVisibleAdjustmentSections,
-  showSectionAndTools,
+  isToolActive,
+  mergeActiveTools,
+  setToolActive,
+  toggleToolActive,
 } from '../../../utils/adjustments';
+import { ToolVisibilityContext } from '../../../context/ToolVisibilityContext';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import {
   OPTION_SEPARATOR,
@@ -99,7 +104,7 @@ import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useProcessStore } from '../../../store/useProcessStore';
 import { useAiMasking } from '../../../hooks/useAiMasking';
 import { useEditorActions } from '../../../hooks/useEditorActions';
-import { useUIStore } from '../../../store/useUIStore';
+import { isPanelVisible, useUIStore } from '../../../store/useUIStore';
 import { useWaveformControls } from '../../../hooks/useWaveformControls';
 
 interface DragData {
@@ -363,25 +368,15 @@ function MasksListRoot({ children, onClick }: { children: React.ReactNode; onCli
 export default function MasksPanel() {
   const { t } = useTranslation();
   const { setAdjustments } = useEditorActions();
+  const isAiFree = useSettingsStore((s) => s.appSettings?.aiProvider === 'ai-free');
   const { handleGenerateAiDepthMask, handleGenerateAiForegroundMask, handleGenerateAiSkyMask, handleCancelAiTask } =
     useAiMasking();
 
   const { setCustomEscapeHandler, isAdjustmentsPanelVisible } = useUIStore(
-    useShallow((state) => {
-      const leftVisible = state.uiVisibility.leftPanel;
-      const rightVisible = state.uiVisibility.rightPanel;
-
-      const isVisible =
-        (leftVisible && state.activePanels.leftTop === Panel.Adjustments) ||
-        (leftVisible && state.activePanels.leftBottom === Panel.Adjustments) ||
-        (rightVisible && state.activePanels.rightTop === Panel.Adjustments) ||
-        (rightVisible && state.activePanels.rightBottom === Panel.Adjustments);
-
-      return {
-        setCustomEscapeHandler: state.setCustomEscapeHandler,
-        isAdjustmentsPanelVisible: isVisible,
-      };
-    }),
+    useShallow((state) => ({
+      setCustomEscapeHandler: state.setCustomEscapeHandler,
+      isAdjustmentsPanelVisible: isPanelVisible(state, Panel.Adjustments),
+    })),
   );
 
   const { appSettings } = useSettingsStore(
@@ -577,14 +572,17 @@ export default function MasksPanel() {
       if (!subMask.parameters) subMask.parameters = {};
       subMask.parameters.isInitialDraw = true;
       if (type === Mask.Linear || type === Mask.Radial) {
-        subMask.parameters.startX = -10000;
-        subMask.parameters.startY = -10000;
-        subMask.parameters.endX = -10000;
-        subMask.parameters.endY = -10000;
-        subMask.parameters.centerX = -10000;
-        subMask.parameters.centerY = -10000;
-        subMask.parameters.radiusX = 0;
-        subMask.parameters.radiusY = 0;
+        if (type === Mask.Linear) {
+          subMask.parameters.startX = -10000;
+          subMask.parameters.startY = -10000;
+          subMask.parameters.endX = -10000;
+          subMask.parameters.endY = -10000;
+        } else {
+          subMask.parameters.centerX = -10000;
+          subMask.parameters.centerY = -10000;
+          subMask.parameters.radiusX = 0;
+          subMask.parameters.radiusY = 0;
+        }
       } else {
         subMask.parameters.targetX = -10000;
         subMask.parameters.targetY = -10000;
@@ -683,8 +681,7 @@ export default function MasksPanel() {
     const hasComponents = container && container.subMasks.length > 0;
 
     const buildFlatMenu = (mode: SubMaskMode) => [
-      ...buildMenu(MASK_AI_TYPES, mode),
-      { type: OPTION_SEPARATOR },
+      ...(isAiFree ? [] : [...buildMenu(MASK_AI_TYPES, mode), { type: OPTION_SEPARATOR }]),
       ...buildMenu(MASK_BASIC_TYPES, mode),
       { type: OPTION_SEPARATOR },
       ...buildMenu(MASK_RANGE_TYPES, mode),
@@ -1055,8 +1052,7 @@ export default function MasksPanel() {
       }));
 
     const newMaskSubMenu = [
-      ...buildMenu(MASK_AI_TYPES),
-      { type: OPTION_SEPARATOR },
+      ...(isAiFree ? [] : [...buildMenu(MASK_AI_TYPES), { type: OPTION_SEPARATOR }]),
       ...buildMenu(MASK_BASIC_TYPES),
       { type: OPTION_SEPARATOR },
       ...buildMenu(MASK_RANGE_TYPES),
@@ -1160,20 +1156,24 @@ export default function MasksPanel() {
                     className="z-10 shrink-0"
                     onClick={handleDeselect}
                   >
-                    <Text variant={TextVariants.heading} className="mb-2">
-                      {t('editor.masks.aiTitle', 'AI Selections')}
-                    </Text>
-                    <div className="grid grid-cols-3 gap-2 mb-6" onClick={(e) => e.stopPropagation()}>
-                      {MASK_AI_TYPES.map((maskType) => (
-                        <DraggableGridItem
-                          key={maskType.type}
-                          maskType={maskType}
-                          onClick={() => handleGridClick(maskType.type)}
-                          onRightClick={(e: React.MouseEvent) => handleGridRightClick(e, maskType.type)}
-                          activeMaskContainerId={activeMaskContainerId}
-                        />
-                      ))}
-                    </div>
+                    {!isAiFree && (
+                      <>
+                        <Text variant={TextVariants.heading} className="mb-2">
+                          {t('editor.masks.aiTitle', 'AI Selections')}
+                        </Text>
+                        <div className="grid grid-cols-3 gap-2 mb-6" onClick={(e) => e.stopPropagation()}>
+                          {MASK_AI_TYPES.map((maskType) => (
+                            <DraggableGridItem
+                              key={maskType.type}
+                              maskType={maskType}
+                              onClick={() => handleGridClick(maskType.type)}
+                              onRightClick={(e: React.MouseEvent) => handleGridRightClick(e, maskType.type)}
+                              activeMaskContainerId={activeMaskContainerId}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
                     <Text variant={TextVariants.heading} className="mb-2">
                       {t('editor.masks.basicTitle', 'Basic Tools')}
                     </Text>
@@ -1523,7 +1523,7 @@ function ContainerRow({
             label: ('name' in item ? item.name : undefined) || preset.name,
             onClick: () => {
               const newAdj = { ...container.adjustments, ...preset.adjustments };
-              newAdj.sectionVisibility = { ...container.adjustments.sectionVisibility, ...newAdj.sectionVisibility };
+              newAdj.activeTools = mergeActiveTools(container.adjustments, preset.adjustments);
               updateContainer(container.id, { adjustments: newAdj });
             },
           },
@@ -2038,10 +2038,7 @@ function SettingsPanel({
     const newMaskAdjustments = {
       ...currentAdjustments,
       ...presetAdjustments,
-      sectionVisibility: {
-        ...(currentAdjustments.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility),
-        ...(presetAdjustments.sectionVisibility || {}),
-      },
+      activeTools: mergeActiveTools(currentAdjustments, presetAdjustments),
     };
     updateContainer(container.id, { adjustments: newMaskAdjustments });
   };
@@ -2125,12 +2122,11 @@ function SettingsPanel({
     });
   };
 
-  const handleToggleVisibility = (sectionName: string) => {
+  const handleToggleVisibility = (id: string) => {
     if (!isActive) return;
     const cur = container.adjustments;
-    const vis = cur.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility;
     updateContainer(container.id, {
-      adjustments: { ...cur, sectionVisibility: { ...vis, [sectionName]: !(vis[sectionName] ?? true) } },
+      adjustments: { ...cur, activeTools: toggleToolActive(getActiveTools(cur), id) },
     });
   };
 
@@ -2158,10 +2154,7 @@ function SettingsPanel({
       setMaskContainerAdjustments((prev) => ({
         ...prev,
         ...copiedSectionAdjustments.values,
-        sectionVisibility: showSectionAndTools(
-          prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility,
-          sectionName,
-        ),
+        activeTools: setToolActive(getActiveTools(prev), sectionName, true),
       }));
     };
 
@@ -2175,10 +2168,7 @@ function SettingsPanel({
       setMaskContainerAdjustments((prev) => ({
         ...prev,
         ...resetValues,
-        sectionVisibility: showSectionAndTools(
-          prev.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility,
-          sectionName,
-        ),
+        activeTools: setToolActive(getActiveTools(prev), sectionName, true),
       }));
     };
 
@@ -2211,8 +2201,7 @@ function SettingsPanel({
     ]);
   };
 
-  const sectionVisibility =
-    displayContainer.adjustments.sectionVisibility || INITIAL_MASK_ADJUSTMENTS.sectionVisibility;
+  const activeTools = getActiveTools(displayContainer.adjustments);
   const visibleSections = getVisibleAdjustmentSections(appSettings?.adjustmentLayout) as MaskSection[];
 
   return (
@@ -2381,21 +2370,23 @@ function SettingsPanel({
               key={sectionName}
               title={title}
               isOpen={collapsibleState[sectionName]}
-              isContentVisible={sectionVisibility[sectionName]}
+              isContentVisible={isToolActive(activeTools, sectionName)}
               onToggle={() => handleToggleSection(sectionName)}
               onToggleVisibility={() => handleToggleVisibility(sectionName)}
               onContextMenu={(e: React.MouseEvent) => handleSectionContextMenu(e, sectionName)}
             >
-              <SectionComponent
-                adjustments={displayContainer.adjustments}
-                setAdjustments={setMaskContainerAdjustments}
-                histogram={histogram}
-                isForMask={true}
-                appSettings={appSettings}
-                onDragStateChange={onDragStateChange}
-                onToggleVisibility={handleToggleVisibility}
-                sectionVisibility={sectionVisibility}
-              />
+              <ToolVisibilityContext.Provider
+                value={{ activeTools, onToggleTool: handleToggleVisibility, section: sectionName }}
+              >
+                <SectionComponent
+                  adjustments={displayContainer.adjustments}
+                  setAdjustments={setMaskContainerAdjustments}
+                  histogram={histogram}
+                  isForMask={true}
+                  appSettings={appSettings}
+                  onDragStateChange={onDragStateChange}
+                />
+              </ToolVisibilityContext.Provider>
             </CollapsibleSection>
           );
         })}

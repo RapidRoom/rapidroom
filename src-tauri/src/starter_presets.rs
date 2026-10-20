@@ -1,7 +1,7 @@
 use crate::file_management::{PresetFolder, PresetItem};
 use std::collections::BTreeMap;
 
-pub fn library() -> Result<Vec<PresetItem>, String> {
+fn starter_library() -> Result<Vec<PresetItem>, String> {
     let mut groups: BTreeMap<&str, Vec<crate::file_management::Preset>> = BTreeMap::new();
     {
         let xmp = include_str!("../resources/starter-presets/BandW/Green Filter.xmp");
@@ -163,6 +163,83 @@ pub fn library() -> Result<Vec<PresetItem>, String> {
         .collect())
 }
 
+/// Add the built-in pack for existing libraries without replacing saved edits,
+/// favourites, order or renamed/moved presets. Stable IDs prevent duplicates.
+pub fn include_styles(library: &mut Vec<PresetItem>) -> Result<(), String> {
+    let ids: std::collections::HashSet<String> = library
+        .iter()
+        .flat_map(|item| match item {
+            PresetItem::Folder(folder) => folder
+                .children
+                .iter()
+                .map(|p| p.id.clone())
+                .collect::<Vec<_>>(),
+            PresetItem::Preset(preset) => vec![preset.id.clone()],
+        })
+        .collect();
+    let pack: crate::file_management::PresetFile =
+        serde_json::from_str(include_str!("../resources/styles/styles-v1.json"))
+            .map_err(|error| error.to_string())?;
+    for item in pack.presets.into_iter().rev() {
+        if let PresetItem::Preset(preset) = item
+            && !ids.contains(&preset.id)
+        {
+            library.insert(0, PresetItem::Preset(preset));
+        }
+    }
+    Ok(())
+}
+
+/// Retire only unmodified stock items in their original groups. Favourited,
+/// renamed, moved, edited and imported presets remain user-owned.
+pub fn retire_untouched_stock(library: &mut Vec<PresetItem>) -> Result<(), String> {
+    let stock = starter_library()?;
+    for item in library.iter_mut() {
+        let PresetItem::Folder(folder) = item else {
+            continue;
+        };
+        let Some(original) = stock.iter().find_map(|item| match item {
+            PresetItem::Folder(original)
+                if original.id == folder.id && original.name == folder.name =>
+            {
+                Some(original)
+            }
+            _ => None,
+        }) else {
+            continue;
+        };
+        folder.children.retain(|preset| {
+            if preset.favorite == Some(true) {
+                return true;
+            }
+            let Some(original) = original.children.iter().find(|p| p.id == preset.id) else {
+                return true;
+            };
+            // Toggling a favourite off can persist `false` rather than omit it.
+            let mut candidate = preset.clone();
+            candidate.favorite = original.favorite;
+            !matches!(
+                (serde_json::to_value(candidate), serde_json::to_value(original)),
+                (Ok(candidate), Ok(original)) if candidate == original
+            )
+        });
+    }
+    library.retain(|item| match item {
+        PresetItem::Folder(folder) if folder.children.is_empty() => !stock.iter().any(|item| {
+            matches!(item, PresetItem::Folder(original)
+                if original.id == folder.id && original.name == folder.name)
+        }),
+        _ => true,
+    });
+    Ok(())
+}
+
+pub fn library() -> Result<Vec<PresetItem>, String> {
+    let mut library = Vec::new();
+    include_styles(&mut library)?;
+    Ok(library)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,9 +253,9 @@ mod tests {
                 PresetItem::Preset(preset) => vec![preset],
             })
             .collect();
-        assert_eq!(presets.len(), 24);
+        assert_eq!(presets.len(), 20);
         let ids: std::collections::HashSet<_> = presets.iter().map(|p| &p.id).collect();
-        assert_eq!(ids.len(), 24);
+        assert_eq!(ids.len(), 20);
         for preset in presets {
             assert!(preset.unavailable_reason.is_none(), "{}", preset.name);
             assert!(

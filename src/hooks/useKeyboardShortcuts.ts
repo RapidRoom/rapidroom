@@ -1,15 +1,17 @@
+import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { ExifOverlay, ImageFile, ImageFlag, LibraryViewMode, Panel } from '../components/ui/AppProperties';
 import { ToolType } from '../components/panel/right/Masks';
-import { KEYBIND_DEFINITIONS, getDefaultCombo, normalizeCombo } from '../utils/keyboardUtils';
+import { resolveKeybindMap, normalizeCombo } from '../utils/keyboardUtils';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { debouncedSetHistory, useEditorActions } from './useEditorActions';
-import { createResetAdjustmentsForImage } from '../utils/adjustments';
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
+import { editStack } from '../utils/photoStacks';
 import { useLibraryActions } from './useLibraryActions';
 import { registerAppActions, executeAppAction } from '../utils/appActions';
 import { fitPercent as getFitPercent, getDpr, percentFromTransform, stepZoomIn, stepZoomOut } from '../utils/zoom';
@@ -55,8 +57,9 @@ export const useKeyboardShortcuts = ({
     toggleShowOriginal,
     handleAutoAdjustments,
     setAdjustments,
+    handleCropOrientationToggle,
   } = useEditorActions();
-  const { handleRate, handleSetFlag, handleSetColorLabel } = useLibraryActions();
+  const { handleRate, handleSetFlag, handleToggleFlag, handleSetColorLabel } = useLibraryActions();
 
   const sortedListRef = useRef(sortedImageList);
   useEffect(() => {
@@ -76,6 +79,8 @@ export const useKeyboardShortcuts = ({
     }
   }, []);
 
+  const keybindSettings = useSettingsStore((state) => state.appSettings?.keybinds);
+  const shortcutPlatform = useSettingsStore((state) => state.osPlatform);
   useEffect(() => {
     const getStoreState = () => ({
       editor: useEditorStore.getState(),
@@ -94,17 +99,8 @@ export const useKeyboardShortcuts = ({
       match(event: KeyboardEvent, state: StoreState): boolean;
       execute(event: KeyboardEvent, state: StoreState): void;
     }
-    const comboMap = new Map<string, string>();
     const { appSettings, osPlatform } = useSettingsStore.getState();
-    const keybinds = appSettings?.keybinds;
-
-    for (const def of KEYBIND_DEFINITIONS) {
-      const userCombo = keybinds?.[def.action];
-      const effective = userCombo && userCombo.length > 0 ? userCombo : getDefaultCombo(def, osPlatform);
-      if (effective) {
-        comboMap.set(effective.join('+'), def.action);
-      }
-    }
+    const comboMap = resolveKeybindMap(appSettings?.keybinds, osPlatform);
 
     const getImagePathsForCopy = (s: StoreState): Array<string> => {
       if (s.editor.selectedImage) {
@@ -142,13 +138,34 @@ export const useKeyboardShortcuts = ({
       }
     };
 
+    const getPreviewIndex = (s: StoreState) => {
+      const findIndex = (path: string | null | undefined) => {
+        if (!path) return -1;
+        const exactIndex = sortedListRef.current.findIndex((img) => img.path === path);
+        if (exactIndex >= 0 || path.includes('?vc=')) return exactIndex;
+        // An external open can select the original while only a virtual copy is visible.
+        return sortedListRef.current.findIndex((img) => img.path.split('?vc=')[0] === path);
+      };
+      const requestedIndex = findIndex(s.library.libraryActivePath);
+      return requestedIndex >= 0 ? requestedIndex : findIndex(s.editor.selectedImage?.path);
+    };
+
     const actions: Record<string, ShortcutAction> = {
       reset_adjustments: {
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
-        execute: (_event: unknown, s: StoreState) => {
-          debouncedSetHistory.flush();
-          setAdjustments(createResetAdjustmentsForImage(s.editor.selectedImage));
-          debouncedSetHistory.flush();
+        execute: async (_event: unknown, s: StoreState) => {
+          const image = s.editor.selectedImage;
+          const before = s.editor.adjustments;
+          try {
+            const reset = await createResetAdjustmentsWithLensDefaults(image);
+            const current = useEditorStore.getState();
+            if (current.selectedImage?.path !== image?.path || current.adjustments !== before) return;
+            debouncedSetHistory.flush();
+            setAdjustments(() => reset);
+            debouncedSetHistory.flush();
+          } catch (error) {
+            toast.error(`Failed to reset adjustments: ${error}`);
+          }
         },
       },
       auto_adjustments: {
@@ -241,7 +258,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage!.path);
+          const currentIndex = getPreviewIndex(s);
           if (currentIndex === -1) return;
           const nextIndex = currentIndex - 1 < 0 ? sortedListRef.current.length - 1 : currentIndex - 1;
           handleImageSelect(sortedListRef.current[nextIndex].path, true);
@@ -251,7 +268,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage!.path);
+          const currentIndex = getPreviewIndex(s);
           if (currentIndex === -1) return;
           const nextIndex = currentIndex + 1 >= sortedListRef.current.length ? 0 : currentIndex + 1;
           handleImageSelect(sortedListRef.current[nextIndex].path, true);
@@ -470,6 +487,14 @@ export const useKeyboardShortcuts = ({
           });
         },
       },
+      export_instagram: {
+        shouldFire: (s: StoreState) => !!s.editor.selectedImage || s.library.multiSelectedPaths.length > 0,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.ui.setUI({ instagramExportRequest: Date.now() });
+          s.ui.setPanel(Panel.Export);
+        },
+      },
       toggle_export: {
         shouldFire: () => true,
         execute: (e: KeyboardEvent, s: StoreState) => {
@@ -497,6 +522,13 @@ export const useKeyboardShortcuts = ({
             uiVisibility: { ...state.uiVisibility, rightPanel: isOpening },
             rightPanelWidth: isOpening && state.rightPanelWidth < 250 ? 350 : state.rightPanelWidth,
           }));
+        },
+      },
+      toggle_dock_height: {
+        shouldFire: (s: StoreState) => s.ui.panelLayout.bottom.length > 0,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.ui.toggleDockHeight();
         },
       },
       toggle_bottom_panel: {
@@ -590,6 +622,13 @@ export const useKeyboardShortcuts = ({
           rateAndAdvance(5);
         },
       },
+      toggle_denoise_mark: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          void setDenoiseMark();
+        },
+      },
       flag_pick: {
         shouldFire: () => true,
         execute: (e: KeyboardEvent) => {
@@ -602,6 +641,20 @@ export const useKeyboardShortcuts = ({
         execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleSetFlag(ImageFlag.Reject);
+        },
+      },
+      toggle_pick: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          handleToggleFlag(ImageFlag.Pick);
+        },
+      },
+      toggle_reject: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          handleToggleFlag(ImageFlag.Reject);
         },
       },
       unflag: {
@@ -697,6 +750,43 @@ export const useKeyboardShortcuts = ({
 
     const builtinShortcuts: BuiltinShortcut[] = [
       {
+        match: (e: KeyboardEvent, s: ReturnType<typeof getStoreState>) =>
+          (e.ctrlKey || e.metaKey) && !e.altKey && e.code === 'KeyG' && s.ui.activeView === 'library',
+        execute: (e: KeyboardEvent, s: ReturnType<typeof getStoreState>) => {
+          e.preventDefault();
+          void editStack(s.library.multiSelectedPaths, e.shiftKey ? 'unstack' : 'stack');
+        },
+      },
+      {
+        match: (e: KeyboardEvent, s: StoreState) =>
+          s.ui.activeView === 'editor' &&
+          s.ui.activePanel === Panel.Crop &&
+          !!s.editor.selectedImage?.isReady &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey &&
+          ['Enter', 'NumpadEnter', 'KeyX'].includes(e.code),
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          if (e.repeat) return;
+          // The slider drag owns its preview crop until it commits on release.
+          if (s.editor.isRotationActive || s.editor.liveRotation !== null) return;
+          if (e.code === 'KeyX') {
+            handleCropOrientationToggle();
+            return;
+          }
+          debouncedSetHistory.flush();
+          s.editor.setEditor({
+            isStraightenActive: false,
+            isGuidedPerspectiveActive: false,
+            liveRotation: null,
+            isRotationActive: false,
+          });
+          s.ui.setPanel(Panel.Adjustments);
+          handleZoomChange(0, true);
+        },
+      },
+      {
         match: (e: KeyboardEvent) => e.code === 'Escape',
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
@@ -756,8 +846,16 @@ export const useKeyboardShortcuts = ({
             ? sortedListRef.current.filter((img) => getParentFolder(img.path) === getParentFolder(activePath))
             : sortedListRef.current;
           const currentIndex = navigationList.findIndex((img) => img.path === activePath);
-          if (currentIndex === -1) return;
-          let nextIndex = isNext ? currentIndex + 1 : currentIndex - 1;
+          // A member hidden by collapsing its stack is not in the list:
+          // start from the first (next) or last (previous) visible photo.
+          let nextIndex =
+            currentIndex === -1
+              ? isNext
+                ? 0
+                : navigationList.length - 1
+              : isNext
+                ? currentIndex + 1
+                : currentIndex - 1;
           if (nextIndex >= navigationList.length) nextIndex = 0;
           if (nextIndex < 0) nextIndex = navigationList.length - 1;
           const nextImage = navigationList[nextIndex];
@@ -770,9 +868,11 @@ export const useKeyboardShortcuts = ({
     ];
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
       const state = getStoreState();
 
       const isModalOpen =
+        useDenoiseQueueStore.getState().setupOpen ||
         state.ui.isCreateFolderModalOpen ||
         state.ui.isRenameFolderModalOpen ||
         state.ui.isRenameFileModalOpen ||
@@ -785,7 +885,7 @@ export const useKeyboardShortcuts = ({
         state.ui.denoiseModalState.isOpen ||
         state.ui.negativeModalState.isOpen;
 
-      if (isModalOpen) return;
+      if (isModalOpen || state.library.stackPreviewOpen) return;
 
       if (state.ui.isSettingsOpen) {
         if (event.code === 'Escape') {
@@ -796,7 +896,9 @@ export const useKeyboardShortcuts = ({
       }
 
       const isInputFocused =
-        document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable);
       if (isInputFocused) return;
 
       for (const builtin of builtinShortcuts) {
@@ -823,6 +925,8 @@ export const useKeyboardShortcuts = ({
       unregisterActions();
     };
   }, [
+    keybindSettings,
+    shortcutPlatform,
     handleAutoAdjustments,
     setAdjustments,
     handleBackToLibrary,
@@ -832,12 +936,14 @@ export const useKeyboardShortcuts = ({
     handleImageSelect,
     handlePasteFiles,
     handleZoomChange,
+    handleCropOrientationToggle,
     handleRotate,
     handleCopyAdjustments,
     handleCopyImagePaths,
     handlePasteAdjustments,
     handleRate,
     handleSetFlag,
+    handleToggleFlag,
     handleSetColorLabel,
     toggleShowOriginal,
   ]);

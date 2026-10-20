@@ -1,0 +1,257 @@
+{
+  "sourceCommit": "a2e5f1f911c66d0ed5e33ea5df21d608c71b2a02",
+  "provenance": "Actual private-profile native XTest radial draw on public CC0 Sony ILCE-7CM2 fixture; no frontend injection",
+  "validationError": "unsupported field mask.subMasks[0].parameters.endX",
+  "mask": {
+    "adjustments": {
+      "activeTools": {},
+      "blacks": 0,
+      "brightness": 0,
+      "clarity": 0,
+      "colorGrading": {
+        "balance": 0,
+        "blending": 50,
+        "global": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        },
+        "highlights": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        },
+        "midtones": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        },
+        "shadows": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        }
+      },
+      "colorNoiseReduction": 0,
+      "contrast": 0,
+      "curveMode": "point",
+      "curves": {
+        "blue": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 255,
+            "y": 255
+          }
+        ],
+        "green": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 255,
+            "y": 255
+          }
+        ],
+        "luma": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 255,
+            "y": 255
+          }
+        ],
+        "red": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 255,
+            "y": 255
+          }
+        ]
+      },
+      "dehaze": 0,
+      "exposure": 0,
+      "flareAmount": 0,
+      "glowAmount": 0,
+      "halationAmount": 0,
+      "highlights": 0,
+      "hsl": {
+        "aquas": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        },
+        "blues": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        },
+        "greens": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        },
+        "magentas": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        },
+        "oranges": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        },
+        "purples": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        },
+        "reds": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        },
+        "yellows": {
+          "hue": 0,
+          "luminance": 0,
+          "saturation": 0
+        }
+      },
+      "hue": 0,
+      "lumaNoiseReduction": 0,
+      "parametricCurve": {
+        "blue": {
+          "blackLevel": 0,
+          "darks": 0,
+          "highlights": 0,
+          "lights": 0,
+          "shadows": 0,
+          "split1": 25,
+          "split2": 50,
+          "split3": 75,
+          "whiteLevel": 0
+        },
+        "green": {
+          "blackLevel": 0,
+          "darks": 0,
+          "highlights": 0,
+          "lights": 0,
+          "shadows": 0,
+          "split1": 25,
+          "split2": 50,
+          "split3": 75,
+          "whiteLevel": 0
+        },
+        "luma": {
+          "blackLevel": 0,
+          "darks": 0,
+          "highlights": 0,
+          "lights": 0,
+          "shadows": 0,
+          "split1": 25,
+          "split2": 50,
+          "split3": 75,
+          "whiteLevel": 0
+        },
+        "red": {
+          "blackLevel": 0,
+          "darks": 0,
+          "highlights": 0,
+          "lights": 0,
+          "shadows": 0,
+          "split1": 25,
+          "split2": 50,
+          "split3": 75,
+          "whiteLevel": 0
+        }
+      },
+      "pointCurves": {
+        "blue": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 255,
+            "y": 255
+          }
+        ],
+        "green": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 255,
+            "y": 255
+          }
+        ],
+        "luma": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 255,
+            "y": 255
+          }
+        ],
+        "red": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 255,
+            "y": 255
+          }
+        ]
+      },
+      "saturation": 0,
+      "shadows": 0,
+      "sharpness": 0,
+      "sharpnessThreshold": 15,
+      "structure": 0,
+      "temperature": 0,
+      "tint": 0,
+      "vibrance": 0,
+      "whites": 0
+    },
+    "id": "70526027-a757-429f-9480-3463cfec574e",
+    "invert": false,
+    "name": "Mask 1",
+    "opacity": 100,
+    "subMasks": [
+      {
+        "id": "b801f746-7697-49d7-b8bb-9a51931dde7e",
+        "invert": false,
+        "mode": "additive",
+        "name": "Radial",
+        "opacity": 100,
+        "parameters": {
+          "centerX": 1937.194029850746,
+          "centerY": 962.865671641791,
+          "endX": -10000,
+          "endY": -10000,
+          "feather": 0.5,
+          "radiusX": 917.0149253731342,
+          "radiusY": 1008.7164179104478,
+          "rotation": 0,
+          "startX": -10000,
+          "startY": -10000
+        },
+        "type": "radial",
+        "visible": true
+      }
+    ],
+    "visible": true
+  }
+}

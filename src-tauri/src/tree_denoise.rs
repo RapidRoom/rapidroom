@@ -22,7 +22,7 @@ use tauri::Manager;
 
 const TILE: usize = 256;
 const OVERLAP: usize = 64;
-const PIPELINE: &str = "rawforge-bayer-malvar-f16-cpu-v1";
+pub(crate) const PIPELINE: &str = "rawforge-bayer-malvar-f16-cpu-colour-cosine-v2";
 const CACHE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
 
 pub struct Model {
@@ -45,7 +45,82 @@ pub const SHARPEN: Model = Model {
     file: "Deblur_deep_24.onnx",
     sha256: "4b714af59026352990f5cc1b84af5dc01cf4a66abd0b5f8d845b0c43d99511a7",
 };
-pub type Models = Vec<Arc<Mutex<Session>>>;
+#[derive(Clone)]
+pub struct ModelSession {
+    pub session: Arc<Mutex<Session>>,
+    pub profile: String,
+}
+pub type Models = Vec<ModelSession>;
+
+#[cfg(all(
+    feature = "native-openvino",
+    target_os = "linux",
+    target_arch = "x86_64"
+))]
+fn force_cpu_probe() -> bool {
+    #[cfg(test)]
+    {
+        std::env::var_os("RAPIDROOM_OPENVINO_TEST_CPU").is_some()
+    }
+    #[cfg(not(test))]
+    {
+        false
+    }
+}
+
+fn session_profile(provider: &str) -> String {
+    #[cfg(all(
+        feature = "native-openvino",
+        target_os = "linux",
+        target_arch = "x86_64"
+    ))]
+    let bundle = crate::openvino_runtime::fingerprint().unwrap_or("stock");
+    #[cfg(not(all(
+        feature = "native-openvino",
+        target_os = "linux",
+        target_arch = "x86_64"
+    )))]
+    let bundle = "stock";
+    format!("{provider}:{bundle}:{}", ort::info())
+}
+
+fn model_session(path: &Path) -> Result<ModelSession> {
+    #[cfg(all(
+        feature = "native-openvino",
+        target_os = "linux",
+        target_arch = "x86_64"
+    ))]
+    if crate::openvino_runtime::selected() && !force_cpu_probe() {
+        let accelerated = (|| {
+            Session::builder()?
+                .with_execution_providers([
+                    ort::execution_providers::OpenVINOExecutionProvider::default()
+                        .with_device_type("CPU")
+                        .with_num_threads(cpu_threads())
+                        .with_num_streams(1)
+                        .build()
+                        .error_on_failure(),
+                ])?
+                .with_intra_threads(cpu_threads())?
+                .commit_from_file(path)
+        })();
+        match accelerated {
+            Ok(session) => {
+                return Ok(ModelSession {
+                    session: Arc::new(Mutex::new(session)),
+                    profile: session_profile("OpenVINO CPU"),
+                });
+            }
+            Err(error) => {
+                log::warn!("OpenVINO model initialization failed; using ORT CPU: {error}")
+            }
+        }
+    }
+    Ok(ModelSession {
+        session: Arc::new(Mutex::new(cpu_session(path)?)),
+        profile: session_profile("CPU"),
+    })
+}
 
 fn cpu_threads() -> usize {
     std::thread::available_parallelism()
@@ -67,6 +142,27 @@ pub async fn models(
     fast: bool,
     sharpen: bool,
     job: &DenoiseJob,
+) -> Result<Models> {
+    models_with_download(app, state, fast, sharpen, job, true).await
+}
+
+pub(crate) async fn cached_models(
+    app: &tauri::AppHandle,
+    state: &crate::app_state::AppState,
+    fast: bool,
+    sharpen: bool,
+    job: &DenoiseJob,
+) -> Result<Models> {
+    models_with_download(app, state, fast, sharpen, job, false).await
+}
+
+async fn models_with_download(
+    app: &tauri::AppHandle,
+    state: &crate::app_state::AppState,
+    fast: bool,
+    sharpen: bool,
+    job: &DenoiseJob,
+    allow_download: bool,
 ) -> Result<Models> {
     let wanted: Vec<&Model> = if sharpen {
         vec![if fast { &FAST } else { &BEST }, &SHARPEN]
@@ -96,26 +192,34 @@ pub async fn models(
             continue;
         }
         job.progress(format!("Preparing {} model…", model.name));
-        let url = format!(
-            "https://github.com/rymuelle/RawForge/releases/download/onnx_v1.0.0/{}",
-            model.file
-        );
-        let download = crate::ai_processing::download_and_verify_model(
-            app,
-            &dir,
-            model.file,
-            &url,
-            model.sha256,
-            model.name,
-        );
-        tokio::pin!(download);
-        loop {
-            tokio::select! {
-                r = &mut download => { r?; break; }
-                _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
-                    if let Err(e) = job.check() {
-                        let _ = app.emit("ai-model-download-finish", model.name);
-                        return Err(anyhow::Error::msg(e));
+        if !allow_download {
+            ensure!(
+                crate::ai_processing::verify_sha256(&dir.join(model.file), model.sha256)?,
+                "Required denoise model is missing or invalid: {}",
+                model.file
+            );
+        } else {
+            let url = format!(
+                "https://github.com/rymuelle/RawForge/releases/download/onnx_v1.0.0/{}",
+                model.file
+            );
+            let download = crate::ai_processing::download_and_verify_model(
+                app,
+                &dir,
+                model.file,
+                &url,
+                model.sha256,
+                model.name,
+            );
+            tokio::pin!(download);
+            loop {
+                tokio::select! {
+                    r = &mut download => { r?; break; }
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
+                        if let Err(e) = job.check() {
+                            let _ = app.emit("ai-model-download-finish", model.name);
+                            return Err(anyhow::Error::msg(e));
+                        }
                     }
                 }
             }
@@ -123,9 +227,8 @@ pub async fn models(
         job.check().map_err(anyhow::Error::msg)?;
         let _ = ort::init().with_name("AI-Raw-Denoise").commit();
         let path = dir.join(model.file);
-        let session = tokio::task::spawn_blocking(move || cpu_session(&path)).await??;
+        let session = tokio::task::spawn_blocking(move || model_session(&path)).await??;
         job.check().map_err(anyhow::Error::msg)?;
-        let session = Arc::new(Mutex::new(session));
         let mut ai = state.ai_state.lock().unwrap();
         ai.get_or_insert_with(crate::ai_processing::AiState::default)
             .tree_models
@@ -362,61 +465,6 @@ fn malvar(mosaic: &[f64], w: usize, h: usize, job: &DenoiseJob) -> Result<Vec<f1
     Ok(rgb)
 }
 
-#[derive(Debug)]
-struct Axis {
-    starts: Vec<usize>,
-    overlaps: Vec<(usize, usize)>,
-}
-fn axis(n: usize) -> Axis {
-    let mut starts = vec![0];
-    let mut overlaps = Vec::new();
-    let mut c = 1;
-    while starts.last().unwrap() + TILE < n {
-        let next = (TILE - OVERLAP) * c;
-        let last = next + TILE >= n;
-        let start = if last { n - TILE } else { next };
-        starts.push(start);
-        let mut zeros = if last {
-            starts[starts.len() - 2] + TILE - OVERLAP - start
-        } else {
-            0
-        };
-        let mut ramp = OVERLAP;
-        if last && c == 1 && TILE > n / 2 && TILE != n {
-            ramp += zeros;
-            zeros = 0;
-        }
-        if overlaps.is_empty() {
-            overlaps.push((zeros, ramp));
-        }
-        overlaps.push((zeros, ramp));
-        c += 1;
-    }
-    Axis { starts, overlaps }
-}
-fn weight(a: &Axis, tile: usize, pixel: usize) -> f16 {
-    if a.starts.len() == 1 {
-        return f16::ONE;
-    }
-    let (zeros, ramp) = a.overlaps[tile];
-    let rising = |p: usize| {
-        if p < zeros {
-            0.
-        } else if p < zeros + ramp {
-            (p - zeros) as f32 / (ramp - 1) as f32
-        } else {
-            1.
-        }
-    };
-    let mut v = f16::ONE;
-    if tile > 0 {
-        v = f16::from_f32(rising(pixel));
-    }
-    if tile + 1 < a.starts.len() {
-        v = f16::from_f32(v.to_f32() * f16::from_f32(rising(TILE - 1 - pixel)).to_f32());
-    }
-    v
-}
 fn infer(
     rgb: &[f16],
     w: usize,
@@ -426,8 +474,8 @@ fn infer(
     label: &str,
     job: &DenoiseJob,
 ) -> Result<Vec<f16>> {
-    let xs = axis(w);
-    let ys = axis(h);
+    let xs = crate::denoise_quality::Axis::new(w, TILE, OVERLAP).map_err(anyhow::Error::msg)?;
+    let ys = crate::denoise_quality::Axis::new(h, TILE, OVERLAP).map_err(anyhow::Error::msg)?;
     let total = xs.starts.len() * ys.starts.len();
     let options = Arc::new(RunOptions::new()?);
     job.attach_run_options(options.clone())
@@ -436,7 +484,7 @@ fn infer(
         [1usize, 1],
         vec![f16::from_f32(iso.min(65535) as f32 / 6400.)].into_boxed_slice(),
     ))?;
-    let mut output = vec![f16::ZERO; rgb.len()];
+    let mut output = vec![0.0f32; rgb.len()];
     for (yi, &y) in ys.starts.iter().enumerate() {
         for (xi, &x) in xs.starts.iter().enumerate() {
             job.check().map_err(anyhow::Error::msg)?;
@@ -474,14 +522,10 @@ fn infer(
             );
             for dy in 0..TILE {
                 for dx in 0..TILE {
-                    let mask =
-                        f16::from_f32(weight(&ys, yi, dy).to_f32() * weight(&xs, xi, dx).to_f32());
+                    let mask = ys.weights[yi][dy] * xs.weights[xi][dx];
                     for c in 0..3 {
                         let i = c * w * h + (y + dy) * w + x + dx;
-                        let prediction = f16::from_f32(
-                            tile[c * TILE * TILE + dy * TILE + dx].to_f32() * mask.to_f32(),
-                        );
-                        output[i] = f16::from_f32(output[i].to_f32() + prediction.to_f32());
+                        output[i] += tile[c * TILE * TILE + dy * TILE + dx].to_f32() * mask;
                     }
                 }
             }
@@ -493,7 +537,7 @@ fn infer(
             ));
         }
     }
-    Ok(output)
+    Ok(output.into_iter().map(f16::from_f32).collect())
 }
 fn restore(
     raw: &mut RawImage,
@@ -656,7 +700,7 @@ fn cached_sensor_at(
     let metadata = decoder.raw_metadata(&source, &RawDecodeParams::default())?;
     let a = area(&raw)?;
     let matrix = colour_matrix(&raw)?;
-    let identity = serde_json::json!({"pipeline":PIPELINE,"cpu_threads":cpu_threads(),"source":blake3::hash(bytes).to_hex().as_str(),"model":if fast {FAST.sha256} else {BEST.sha256},"sharpen":sharpen.then_some(SHARPEN.sha256),"shape":[raw.width,raw.height,a.x,a.y,a.w,a.h],"matrix":matrix.as_slice(),"black":raw.blacklevel.as_vec(),"white":raw.whitelevel.0});
+    let identity = serde_json::json!({"pipeline":PIPELINE,"providers":models.iter().map(|m|m.profile.as_str()).collect::<Vec<_>>(),"cpu_threads":cpu_threads(),"source":blake3::hash(bytes).to_hex().as_str(),"model":if fast {FAST.sha256} else {BEST.sha256},"sharpen":sharpen.then_some(SHARPEN.sha256),"shape":[raw.width,raw.height,a.x,a.y,a.w,a.h],"matrix":matrix.as_slice(),"black":raw.blacklevel.as_vec(),"white":raw.whitelevel.0});
     let key = blake3::hash(&serde_json::to_vec(&identity)?)
         .to_hex()
         .to_string();
@@ -690,11 +734,19 @@ fn cached_sensor_at(
             a.w,
             a.h,
             iso,
-            model,
+            &model.session,
             if i == 0 { "Denoising" } else { "Sharpening" },
             job,
         )?;
     }
+    job.progress("Restoring whole-image colour…");
+    let reference = malvar(&normalized_mosaic(&raw, a, &matrix, job)?, a.w, a.h, job)?;
+    let reference: Vec<f32> = reference.into_iter().map(f16::to_f32).collect();
+    let mut corrected: Vec<f32> = rgb.into_iter().map(f16::to_f32).collect();
+    crate::denoise_quality::restore_colour(&mut corrected, &reference, a.w, a.h, || job.check())
+        .map_err(anyhow::Error::msg)?;
+    drop(reference);
+    let rgb: Vec<f16> = corrected.into_iter().map(f16::from_f32).collect();
     restore(&mut raw, a, &matrix, &rgb, job)?;
     drop(rgb);
     job.check().map_err(anyhow::Error::msg)?;
@@ -801,22 +853,6 @@ mod tests {
             for c in 0..3 {
                 assert!((actual[c * 8 + i].to_f64() - pixel[c]).abs() < 0.0002);
             }
-        }
-    }
-    #[test]
-    fn irregular_last_tiles_blend_constant_data_without_seams() {
-        for n in [256, 258, 320, 448, 512, 7028] {
-            let a = axis(n);
-            let mut sums = vec![0.; n];
-            for (t, &start) in a.starts.iter().enumerate() {
-                for p in 0..TILE {
-                    sums[start + p] += weight(&a, t, p).to_f32();
-                }
-            }
-            assert!(
-                sums.iter().all(|v| (v - 1.).abs() < 0.001),
-                "{n}: uncovered or double-weighted edge"
-            );
         }
     }
     #[test]
@@ -993,6 +1029,17 @@ mod tests {
     #[test]
     #[ignore = "Local real-RAW/model integration; set RAPIDROOM_TREE_RAW and RAPIDROOM_TREE_MODELS, under flock"]
     fn real_raw_chain_cache_smoke() {
+        #[cfg(all(
+            feature = "native-openvino",
+            target_os = "linux",
+            target_arch = "x86_64"
+        ))]
+        if let Some(resources) = std::env::var_os("RAPIDROOM_OPENVINO_RESOURCES") {
+            let core = crate::openvino_runtime::configure(Path::new(&resources))
+                .expect("verified runtime");
+            ort::init_from(core.to_string_lossy()).commit().unwrap();
+        }
+
         let source = std::env::var("RAPIDROOM_TREE_RAW").unwrap();
         let root = PathBuf::from(std::env::var("RAPIDROOM_TREE_MODELS").unwrap());
         let bytes = fs::read(source).unwrap();
@@ -1010,7 +1057,7 @@ mod tests {
         }
         let models = wanted
             .into_iter()
-            .map(|m| Arc::new(Mutex::new(cpu_session(&root.join(m.file)).unwrap())))
+            .map(|m| model_session(&root.join(m.file)).unwrap())
             .collect();
         let job = DenoiseJob::testing();
         let started = std::time::Instant::now();
@@ -1018,7 +1065,7 @@ mod tests {
         let inference_seconds = started.elapsed().as_secs_f64();
         let started = std::time::Instant::now();
         let before = fs::metadata(&path).unwrap().modified().unwrap();
-        let hit = cached_sensor_at(&bytes, cache.path(), fast, sharpen, &Vec::new(), &job).unwrap();
+        let hit = cached_sensor_at(&bytes, cache.path(), fast, sharpen, &models, &job).unwrap();
         assert_eq!(hit, path);
         assert_eq!(fs::metadata(&hit).unwrap().modified().unwrap(), before);
         let cache_seconds = started.elapsed().as_secs_f64();
@@ -1056,7 +1103,13 @@ mod tests {
         assert_eq!(iso(&metadata), iso(&original_metadata));
         assert_eq!(metadata.make, original_metadata.make);
         assert_eq!(metadata.model, original_metadata.model);
-        assert_eq!(raw.orientation.to_u16(), original.orientation.to_u16());
+        assert_eq!(
+            raw.orientation.to_u16(),
+            original_metadata
+                .exif
+                .orientation
+                .unwrap_or(original.orientation.to_u16())
+        );
         assert_eq!((raw.width, raw.height), (original.width, original.height));
         assert_eq!(raw.active_area, original.active_area);
         assert_eq!(raw.crop_area, original.crop_area);

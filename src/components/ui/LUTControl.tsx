@@ -49,6 +49,8 @@ export default function LUTControl({
   const { showContextMenu } = useContextMenu();
   const selectedImagePath = useEditorStore((state) => state.selectedImage?.path ?? null);
   const isImageReady = useEditorStore((state) => state.selectedImage?.isReady ?? false);
+  const baselineExposure = useEditorStore((state) => state.adjustments.baselineExposure ?? false);
+  const cameraExposureCompensation = useEditorStore((state) => state.adjustments.cameraExposureCompensation ?? false);
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [entries, setEntries] = useState<LutEntry[]>([]);
@@ -106,7 +108,7 @@ export default function LUTControl({
     if (!isExpanded || !selectedImagePath || !isImageReady || entries.length === 0) {
       return;
     }
-    const cacheKey = `${selectedImagePath}|${entries
+    const cacheKey = `${selectedImagePath}|${baselineExposure}|${cameraExposureCompensation}|${entries
       .map((entry) => `${entry.path}:${entry.isBuiltIn ? 1 : 0}`)
       .join(',')}`;
     const cached = previewCache.current.get(cacheKey);
@@ -120,6 +122,7 @@ export default function LUTControl({
     invoke<LutPreview[]>('generate_lut_previews', {
       luts: entries.map((entry) => ({ path: entry.path, isBuiltIn: entry.isBuiltIn })),
       size: PREVIEW_SIZE,
+      jsAdjustments: { baselineExposure, cameraExposureCompensation },
     })
       .then((results) => {
         if (!isActive) return;
@@ -137,7 +140,7 @@ export default function LUTControl({
     return () => {
       isActive = false;
     };
-  }, [isExpanded, selectedImagePath, isImageReady, entries]);
+  }, [isExpanded, selectedImagePath, isImageReady, entries, baselineExposure, cameraExposureCompensation]);
 
   const handleImport = async () => {
     try {
