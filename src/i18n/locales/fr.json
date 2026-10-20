@@ -914,7 +914,10 @@
         "preset": "Paramètre prédéfini",
         "style": "Style",
         "tool": "Outil"
-      }
+      },
+      "appliedFolder": "Appliqués",
+      "bakedIn": "intégré",
+      "bakedInNotice": "Appliqué précédemment et intégré à la retouche. Le retirer conserve la retouche."
     },
     "referenceView": {
       "active": "Active",

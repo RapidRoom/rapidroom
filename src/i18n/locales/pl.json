@@ -937,7 +937,10 @@
         "preset": "Preset",
         "style": "Styl",
         "tool": "Narzędzie"
-      }
+      },
+      "appliedFolder": "Zastosowane",
+      "bakedIn": "trwale zastosowany",
+      "bakedInNotice": "Zastosowany wcześniej i utrwalony w edycji. Usunięcie zachowuje edycję."
     },
     "referenceView": {
       "active": "Aktywne",

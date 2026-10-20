@@ -1764,6 +1764,14 @@ pub(crate) fn write_file_atomically_unmerged(
 }
 
 pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), String> {
+    update_applied_preset_with_adjustments(path, record, None)
+}
+
+pub(crate) fn update_applied_preset_with_adjustments(
+    path: &Path,
+    record: Value,
+    adjustments: Option<Value>,
+) -> Result<(), String> {
     let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
     let mut metadata = match fs::read(path) {
         Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
@@ -1776,6 +1784,12 @@ pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), St
         .as_object_mut()
         .ok_or("Invalid photo metadata")?
         .insert("appliedPreset".into(), record);
+    if let Some(adjustments) = adjustments {
+        metadata
+            .as_object_mut()
+            .ok_or("Invalid photo metadata")?
+            .insert("adjustments".into(), adjustments);
+    }
     let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
     write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())
 }
@@ -3911,6 +3925,8 @@ pub async fn reset_adjustments_for_paths(
             if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
                 let _ = write_file_atomically(&sidecar_path, json_string);
             }
+            // Reset is an explicit removal of Styles, including on unopened photos.
+            let _ = update_applied_preset(&sidecar_path, serde_json::Value::Null);
 
             if enable_xmp_sync {
                 let source_path = parse_virtual_path(path).0;
@@ -4477,9 +4493,36 @@ pub async fn get_lens_correction_resolution(
     .map_err(|error| error.to_string())?
 }
 
+fn resolve_auto_lens_query(
+    source_path: &Path,
+    sidecar_path: &Path,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+    fresh_defaults: bool,
+) -> ImageMetadata {
+    let mut metadata = ImageMetadata {
+        exif: crate::exif_processing::read_exif_for_query(sidecar_path, source_path),
+        adjustments: if fresh_defaults {
+            default_adjustments()
+        } else {
+            serde_json::json!({})
+        },
+        ..Default::default()
+    };
+    metadata.adjustments["lensCorrectionMode"] = serde_json::json!("auto");
+    metadata.adjustments["cameraLensCorrectionVersion"] = serde_json::json!(1);
+    resolve_lens_params_in_adjustments(
+        &mut metadata.adjustments,
+        &metadata.exif,
+        lens_db,
+        source_path,
+    );
+    metadata
+}
+
 #[tauri::command]
 pub async fn get_default_raw_lens_adjustments(
     path: String,
+    force_auto: Option<bool>,
     app_handle: AppHandle,
 ) -> Result<Value, String> {
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
@@ -4491,14 +4534,17 @@ pub async fn get_default_raw_lens_adjustments(
         .clone();
     tauri::async_runtime::spawn_blocking(move || {
         let (source_path, sidecar_path) = parse_virtual_path(&path);
-        let mut metadata = ImageMetadata::default();
-        apply_default_raw_lens_policy(
-            &mut metadata,
-            &source_path,
-            &sidecar_path,
-            &settings,
-            lens_db.as_deref(),
-        );
+        let mut metadata = if force_auto.unwrap_or(false) {
+            // An explicit active-editor action resolves a patch without reading
+            // or writing the saved recipe. The GUI retains its captured draft.
+            resolve_auto_lens_query(&source_path, &sidecar_path, lens_db.as_deref(), false)
+        } else if crate::formats::is_raw_file(&source_path)
+            && settings.auto_lens_correction_on_new_raws.unwrap_or(true)
+        {
+            resolve_auto_lens_query(&source_path, &sidecar_path, lens_db.as_deref(), true)
+        } else {
+            ImageMetadata::default()
+        };
         if let Some(patch) = metadata.adjustments.as_object_mut() {
             patch.retain(|key, _| key.starts_with("lens") || key == "cameraLensCorrectionVersion");
             metadata.adjustments
@@ -8970,6 +9016,89 @@ mod photo_stack_virtual_copy_tests {
             let meta = crate::exif_processing::load_sidecar(&sidecar);
             assert_eq!(meta.rating, 4);
             assert_eq!(meta.flag, Some(ImageFlag::Reject));
+        }
+    }
+}
+
+#[cfg(test)]
+mod explicit_auto_lens_readonly_tests {
+    use super::*;
+    #[test]
+    fn explicit_lens_resolution_never_writes_the_saved_recipe_or_source() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("photo.png");
+        image::RgbImage::from_pixel(2, 1, image::Rgb([30, 60, 90]))
+            .save(&source)
+            .unwrap();
+        let (_, sidecar) = parse_virtual_path(source.to_str().unwrap());
+        let metadata = ImageMetadata {
+            adjustments: serde_json::json!({"exposure":0.7,"lensDistortionAmount":37}),
+            ..Default::default()
+        };
+        std::fs::write(&sidecar, serde_json::to_vec(&metadata).unwrap()).unwrap();
+        let source_bytes = std::fs::read(&source).unwrap();
+        let saved = std::fs::read(&sidecar).unwrap();
+        let source_modified = source.metadata().unwrap().modified().unwrap();
+        let sidecar_modified = sidecar.metadata().unwrap().modified().unwrap();
+        let patch = resolve_auto_lens_query(&source, &sidecar, None, false).adjustments;
+        assert_eq!(patch["lensCorrectionMode"], "auto");
+        assert_eq!(patch["cameraLensCorrectionVersion"], 1);
+        assert!(patch.get("exposure").is_none());
+        assert!(patch.get("lensDistortionAmount").is_none());
+        assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+        assert_eq!(std::fs::read(&sidecar).unwrap(), saved);
+        assert_eq!(
+            source.metadata().unwrap().modified().unwrap(),
+            source_modified
+        );
+        assert_eq!(
+            sidecar.metadata().unwrap().modified().unwrap(),
+            sidecar_modified
+        );
+    }
+    #[test]
+    fn query_default_lens_output_matches_existing_policy_without_healing_its_input() {
+        let directory = tempfile::tempdir().unwrap();
+        for exif in [
+            serde_json::json!({"Make":"Canon","LensModel":"test","LongField":"z".repeat(900)}),
+            Value::Null,
+        ] {
+            let old = directory.path().join("old.ARW");
+            let new = directory.path().join("new.ARW");
+            std::fs::write(&old, b"fixture").unwrap();
+            std::fs::write(&new, b"fixture").unwrap();
+            let (_, old_side) = parse_virtual_path(old.to_str().unwrap());
+            let (_, new_side) = parse_virtual_path(new.to_str().unwrap());
+            let bytes=serde_json::to_vec(&serde_json::json!({"version":1,"rating":0,"adjustments":{"exposure":0.7},"exif":exif,"future":"preserve"})).unwrap();
+            serde_json::from_slice::<ImageMetadata>(&bytes).unwrap();
+            std::fs::write(&old_side, &bytes).unwrap();
+            std::fs::write(&new_side, &bytes).unwrap();
+            let legacy = crate::exif_processing::get_rrexif_path(&new);
+            std::fs::write(&legacy, r#"{"Make":"Legacy"}"#).unwrap();
+            let old_legacy = crate::exif_processing::get_rrexif_path(&old);
+            std::fs::write(&old_legacy, r#"{"Make":"Legacy"}"#).unwrap();
+            let modified = new_side.metadata().unwrap().modified().unwrap();
+            let legacy_modified = legacy.metadata().unwrap().modified().unwrap();
+            let mut expected = ImageMetadata::default();
+            apply_default_raw_lens_policy(
+                &mut expected,
+                &old,
+                &old_side,
+                &AppSettings {
+                    auto_lens_correction_on_new_raws: Some(true),
+                    ..Default::default()
+                },
+                None,
+            );
+            let actual = resolve_auto_lens_query(&new, &new_side, None, true);
+            assert_eq!(actual.adjustments, expected.adjustments);
+            assert_eq!(std::fs::read(&new_side).unwrap(), bytes);
+            assert_eq!(new_side.metadata().unwrap().modified().unwrap(), modified);
+            assert_eq!(std::fs::read(&legacy).unwrap(), br#"{"Make":"Legacy"}"#);
+            assert_eq!(
+                legacy.metadata().unwrap().modified().unwrap(),
+                legacy_modified
+            );
         }
     }
 }

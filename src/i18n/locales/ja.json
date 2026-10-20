@@ -887,7 +887,10 @@
         "preset": "プリセット",
         "style": "スタイル",
         "tool": "ツール"
-      }
+      },
+      "appliedFolder": "適用済み",
+      "bakedIn": "編集に組み込み済み",
+      "bakedInNotice": "以前に適用され、編集に組み込まれています。削除しても編集結果は保持されます。"
     },
     "referenceView": {
       "active": "編集中",

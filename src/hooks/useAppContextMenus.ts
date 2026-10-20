@@ -1,3 +1,4 @@
+import { rememberAppliedStyleStack } from '../utils/appliedPreset';
 import { editStack, isStackedPhoto, stackKey, toggleStack } from '../utils/photoStacks';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
@@ -809,6 +810,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
                   const current = useEditorStore.getState();
                   if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before.adjustments)
                     return;
+                  void rememberAppliedStyleStack(selectedImage.path, null, reset);
                   resetHistory(reset);
                   setEditor({ adjustments: reset });
                 } catch (error) {
