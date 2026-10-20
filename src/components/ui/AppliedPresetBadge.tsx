@@ -19,9 +19,17 @@ export default function AppliedPresetBadge({ compact = false }: { compact?: bool
         data-applied-preset={record.id}
         data-applied-style-count={record.stack.entries.length}
         title={`${t('editor.presets.appliedFolder')}: ${label}`}
-        className="ml-2 min-w-0 max-w-80 truncate text-primary text-xs"
+        className={clsx(
+          'ml-2 flex items-center gap-1 min-w-0 text-primary text-xs',
+          compact
+            ? 'shrink-[999] max-w-28 @max-[14rem]/editor-info:ml-1 @max-[14rem]/editor-info:gap-0 @max-[14rem]/editor-info:shrink-0'
+            : 'max-w-80',
+        )}
       >
-        {t('editor.presets.appliedFolder')}: {label}
+        <Check size={12} className="shrink-0" aria-label={t('editor.presets.applied')} />
+        <span className={clsx('truncate', compact && '@max-[14rem]/editor-info:hidden')}>
+          {t('editor.presets.appliedFolder')}: {label}
+        </span>
       </span>
     );
   }
