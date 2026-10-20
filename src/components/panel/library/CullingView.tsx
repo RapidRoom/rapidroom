@@ -1,3 +1,4 @@
+import CaptureTime from '../../ui/CaptureTime';
 import { formatFocalLength, formatShutterSpeed } from '../../../utils/shootingInfo';
 import { DenoiseBadge } from '../DenoiseQueue';
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
@@ -520,6 +521,7 @@ export function CullingPreview({
             </div>
 
             <div className="flex flex-col gap-4">
+              <CaptureTime path={image.path} exif={image.exif} />
               {imageWidth && imageHeight && (
                 <div>
                   <Text

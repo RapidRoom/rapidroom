@@ -139,10 +139,15 @@ export const useKeyboardShortcuts = ({
     };
 
     const getPreviewIndex = (s: StoreState) => {
-      const requestedIndex = sortedListRef.current.findIndex((img) => img.path === s.library.libraryActivePath);
-      return requestedIndex >= 0
-        ? requestedIndex
-        : sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage?.path);
+      const findIndex = (path: string | null | undefined) => {
+        if (!path) return -1;
+        const exactIndex = sortedListRef.current.findIndex((img) => img.path === path);
+        if (exactIndex >= 0 || path.includes('?vc=')) return exactIndex;
+        // An external open can select the original while only a virtual copy is visible.
+        return sortedListRef.current.findIndex((img) => img.path.split('?vc=')[0] === path);
+      };
+      const requestedIndex = findIndex(s.library.libraryActivePath);
+      return requestedIndex >= 0 ? requestedIndex : findIndex(s.editor.selectedImage?.path);
     };
 
     const actions: Record<string, ShortcutAction> = {

@@ -244,6 +244,7 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         }
         definitions.push(json!({"name":name,"description":description,"inputSchema":schema}));
     }
+    definitions.extend(super::mask_tools::definitions());
     definitions.extend(super::measure::tool_definitions());
     for tool in &mut definitions {
         let property = match tool["name"].as_str() {
@@ -319,6 +320,9 @@ pub(super) async fn call_tool(
         "set_adjustments" => set_adjustments(app_handle, &arguments).await,
         "update_adjustments" => update_adjustments(app_handle, &arguments).await,
         "reset_adjustments" => reset_adjustments(app_handle, &arguments).await,
+        "generate_ai_mask" | "render_mask" | "convert_coordinates" | "upsert_masks" => {
+            super::mask_tools::call(app_handle, name, &arguments).await
+        }
         "upsert_mask" | "upsertMask" | "remove_mask" | "removeMask" => {
             mask_action(app_handle, name, &arguments).await
         }
@@ -562,7 +566,7 @@ async fn reset_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result<
     Ok(mutation_response(&before, response, verbose))
 }
 
-fn mutation_response(before: &Value, response: Value, verbose: bool) -> Value {
+pub(super) fn mutation_response(before: &Value, response: Value, verbose: bool) -> Value {
     if verbose {
         return response;
     }
