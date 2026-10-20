@@ -7,6 +7,7 @@ import { debouncedSave, debouncedSetHistory, useEditorActions } from './useEdito
 import { executeAppAction } from '../utils/appActions';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { INITIAL_ADJUSTMENTS } from '../utils/adjustments';
+import { activeStyleStack, commitPresetApplication, preparePresetApplication } from '../utils/presetApplication';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useUIStore } from '../store/useUIStore';
@@ -94,3 +95,37 @@ it.each(['edit', 'navigation'])('refuses a delayed palette Reset after a newer %
   expect(useEditorStore.getState().adjustments).toBe(current);
   expect(useEditorStore.getState().historyDetails.some((entry) => entry?.label === 'Reset adjustments')).toBe(false);
 });
+
+it.each(['shortcut', 'panel'])(
+  'clears applied Styles on %s Reset and restores them with the exact snapshot on Undo/Redo',
+  async (entry) => {
+    await act(async () => {
+      const plan = preparePresetApplication(
+        {
+          id: 'history-style',
+          name: 'Warm portrait',
+          presetType: 'style',
+          adjustments: { exposure: 1.2, contrast: 17 },
+        },
+        100,
+      );
+      commitPresetApplication(plan, (next) => actions.setAdjustments(() => next, plan.application.label));
+      debouncedSetHistory.flush();
+    });
+    const styled = useEditorStore.getState().adjustments;
+    expect(activeStyleStack()?.entries.map((style) => style.presetId)).toEqual(['history-style']);
+    await act(async () => {
+      if (entry === 'shortcut') expect(executeAppAction('reset_adjustments')).toBe(true);
+      else actions.handleResetAdjustments(['/history.raw']);
+    });
+    expect(useEditorStore.getState().adjustments.exposure).toBe(0);
+    expect(useEditorStore.getState().historyDetails.at(-1)?.label).toBe('Reset adjustments');
+    expect(activeStyleStack()).toBeNull();
+    await act(async () => useEditorStore.getState().undo());
+    expect(useEditorStore.getState().adjustments).toBe(styled);
+    expect(activeStyleStack()?.entries.map((style) => style.presetId)).toEqual(['history-style']);
+    await act(async () => useEditorStore.getState().redo());
+    expect(useEditorStore.getState().adjustments.exposure).toBe(0);
+    expect(activeStyleStack()).toBeNull();
+  },
+);

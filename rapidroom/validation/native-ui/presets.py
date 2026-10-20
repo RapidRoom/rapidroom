@@ -65,6 +65,7 @@ def run_preset_checks(smoke, wait_for, baseline):
     if ImageChops.difference(smoke.crop(baseline),smoke.crop(restored)).getbbox() is not None:
         raise RuntimeError('Preset Amount0 does not restore before-preset pixels')
     smoke.step('preset Amount0 restores before-preset pixels')
+    smoke.execute("document.querySelector('[data-applied-style=\"rapidroom-style:vivid-atlas\"] button[aria-label^=\"Remove Style\"]').click();return true;")
     smoke.execute("""document.querySelector('[data-tab-id="layout-tab-adjustments"]').click();return true;""")
     wait_for(lambda: smoke.execute("return document.body.innerText.includes('Exposure');"), 'return to Develop controls')
 

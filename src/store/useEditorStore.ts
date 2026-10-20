@@ -13,6 +13,8 @@ import {
   reduceReferenceView,
 } from '../utils/referenceView';
 
+export type CenterMarker = 'vignette' | 'centre';
+
 interface InteractivePatch {
   url: string;
   normX: number;
@@ -75,6 +77,7 @@ interface EditorState {
   mixerPickerProperty: HslMixerProperty | null;
   isRelightPickerActive: boolean;
   activeRelightLightId: string | null;
+  activeCenterMarker: CenterMarker | null;
   isGuidedPerspectiveActive: boolean;
   liveRotation: number | null;
   brushSettings: BrushSettings | null;
@@ -157,6 +160,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   mixerPickerProperty: null,
   isRelightPickerActive: false,
   activeRelightLightId: null,
+  activeCenterMarker: null,
   isGuidedPerspectiveActive: false,
   liveRotation: null,
 

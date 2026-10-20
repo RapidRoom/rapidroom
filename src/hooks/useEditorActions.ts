@@ -1,3 +1,4 @@
+import { rememberAppliedStyleStack } from '../utils/appliedPreset';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { captureAdjustments } from '../utils/adjustmentCapture';
 import { normalizeLensPolicyVersion } from '../utils/lensPolicyVersion';
@@ -26,6 +27,12 @@ import { Invokes } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
 import i18n from 'i18next';
+import {
+  queuePhotoWrite,
+  pausePhotoWrites,
+  waitForPhotoWrites,
+  pendingPhotoWriteDrafts,
+} from '../utils/photoWriteQueue';
 
 interface LoadedMetadata {
   adjustments: (Adjustments & { is_null?: boolean }) | null;
@@ -62,7 +69,9 @@ const saveDebounce = debounce((path: string, adjustmentsToSave: Adjustments) => 
     }
     return;
   }
-  const save = invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave });
+  const save = queuePhotoWrite(path, () =>
+    invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave }),
+  );
   pendingEditorSaves.add(save);
   void save.then(
     () => pendingEditorSaves.delete(save),
@@ -127,11 +136,13 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
   // Active snapshots supply import data; only pending edits need resuming.
   const queuedBeforePause = queuedEditorDraft;
   if (queuedBeforePause) captured.set(queuedBeforePause.path, queuedBeforePause);
+  for (const draft of pendingPhotoWriteDrafts()) captured.set(draft.path, draft);
   const before = captureEditorDraft();
   if (before) captured.set(before.path, before);
   // Pause new requests synchronously, before waiting for existing writes. Never
   // flush a queued autosave into the incoming XMP packet.
   importSavePause = buffered;
+  const resumePhotoWrites = pausePhotoWrites();
   debouncedSave.cancel();
   let finished = false;
   const finish = (consumedPaths: string[]) => {
@@ -147,6 +158,14 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
       writes.set(path, current?.path === path ? current : draft);
     }
     importSavePause = undefined;
+    resumePhotoWrites(
+      (path, snapshot) =>
+        !consumedPaths.includes(path) ||
+        !snapshot ||
+        (captured.has(path)
+          ? snapshot !== captured.get(path)!.adjustments
+          : buffered.get(path)?.adjustments === snapshot),
+    );
     const entries = [...writes.values()];
     entries.forEach((draft, index) => {
       debouncedSave(draft.path, draft.adjustments);
@@ -156,7 +175,9 @@ export async function prepareEditorDraftForXmpImport(targetPath?: string): Promi
   };
   try {
     await waitForPendingEditorSaves();
+    await waitForPhotoWrites();
     debouncedSetHistory.flush();
+    for (const draft of pendingPhotoWriteDrafts()) captured.set(draft.path, draft);
     for (const [path, bufferedDraft] of buffered) captured.set(path, bufferedDraft);
     const active = captureEditorDraft();
     if (active) captured.set(active.path, active);
@@ -353,7 +374,8 @@ export function useEditorActions() {
             const current = useEditorStore.getState();
             if (current.selectedImage !== active || !current.selectedImage.isReady || current.adjustments !== before)
               return;
-            setAdjustments(reset, 'Reset adjustments');
+            void rememberAppliedStyleStack(active.path, null, reset);
+            setAdjustments(() => reset, 'Reset adjustments');
             debouncedSetHistory.flush();
             if (useLibraryStore.getState().libraryActivePath === active.path)
               setLibrary({ libraryActiveAdjustments: reset });
