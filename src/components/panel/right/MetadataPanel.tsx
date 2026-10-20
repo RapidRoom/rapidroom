@@ -1,3 +1,4 @@
+import CaptureTime from '../../ui/CaptureTime';
 import { useState, useMemo, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Check, ChevronDown, ChevronRight, Plus, Star, Tag, X, User } from 'lucide-react';
@@ -457,9 +458,7 @@ export default function MetadataPanel() {
                         })
                       : t('editor.metadata.fileInfo.emptyDimensions')}
                   </Text>
-                  <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate drop-shadow-sm">
-                    {selectedImage.exif?.DateTimeOriginal || '-'}
-                  </Text>
+                  <CaptureTime path={selectedImage.path} exif={selectedImage.exif} editable />
                 </div>
               </div>
             </div>
