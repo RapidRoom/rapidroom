@@ -348,7 +348,7 @@ fn parse_hald(image: DynamicImage) -> anyhow::Result<Lut> {
     Ok(Lut { size, data })
 }
 
-pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
+pub(crate) fn validate_lut_path(path_str: &str) -> anyhow::Result<()> {
     let normalized_path_str = path_str.strip_prefix(r"\\?\").unwrap_or(path_str);
 
     if normalized_path_str.starts_with(r"\\") || normalized_path_str.starts_with("//") {
@@ -370,6 +370,27 @@ pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
             _ => {}
         }
     }
+    Ok(())
+}
+
+/// Parse the same supported formats from the bytes bound to a render recipe.
+pub(crate) fn parse_lut_bytes(path_str: &str, bytes: &[u8]) -> anyhow::Result<Lut> {
+    validate_lut_path(path_str)?;
+    let extension = Path::new(path_str)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    match extension.as_str() {
+        "cube" => parse_cube(BufReader::new(Cursor::new(bytes))),
+        "3dl" => parse_3dl(BufReader::new(Cursor::new(bytes))),
+        "png" | "jpg" | "jpeg" | "tiff" => parse_hald(image::load_from_memory(bytes)?),
+        _ => Err(anyhow!("Unsupported LUT file format: {}", extension)),
+    }
+}
+
+pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
+    validate_lut_path(path_str)?;
 
     let (extension, bytes): (String, Option<Vec<u8>>) =
         if cfg!(target_os = "android") && is_android_content_uri(path_str) {
