@@ -41,7 +41,15 @@ function mockPaste() {
   mockCommand(Invokes.ApplyAdjustmentsToPaths, (args) => {
     applied.push(args);
   });
-  useEditorStore.setState({ copiedAdjustments: { ...INITIAL_ADJUSTMENTS, exposure: 1, contrast: 20 } });
+  useEditorStore.setState({
+    copiedAdjustments: {
+      ...INITIAL_ADJUSTMENTS,
+      exposure: 1,
+      contrast: 20,
+      baselineExposure: false,
+      cameraExposureCompensation: false,
+    },
+  });
   return applied;
 }
 
@@ -58,6 +66,32 @@ describe('useEditorActions.handlePasteAdjustments', () => {
       { paths: ['/photos/a.raw'], adjustments: expect.objectContaining({ exposure: 1, contrast: 20 }) },
     ]);
     expect(useProcessStore.getState().isPasted).toBe(true);
+    await unmount();
+  });
+
+  it('freezes omitted legacy exposure policies when replacing exposure on a fresh target', async () => {
+    useSettingsStore.setState({
+      appSettings: {
+        lastRootPath: null,
+        theme: Theme.Dark,
+        copyPasteSettings: {
+          mode: PasteMode.Replace,
+          includedAdjustments: ['exposure'],
+          knownAdjustments: [],
+          autoSync: false,
+        },
+      },
+    });
+    const applied = mockPaste();
+    useEditorStore.setState({ copiedAdjustments: { exposure: 1 } });
+    const { actions, unmount } = await mountEditorActions();
+    actions.handlePasteAdjustments(['/photos/a.raw']);
+    expect(applied).toEqual([
+      {
+        paths: ['/photos/a.raw'],
+        adjustments: { exposure: 1, baselineExposure: false, cameraExposureCompensation: false },
+      },
+    ]);
     await unmount();
   });
 
@@ -79,7 +113,12 @@ describe('useEditorActions.handlePasteAdjustments', () => {
 
     actions.handlePasteAdjustments(['/photos/a.raw']);
 
-    expect(applied).toEqual([{ paths: ['/photos/a.raw'], adjustments: { exposure: 1 } }]);
+    expect(applied).toEqual([
+      {
+        paths: ['/photos/a.raw'],
+        adjustments: { exposure: 1, baselineExposure: false, cameraExposureCompensation: false },
+      },
+    ]);
     await unmount();
   });
 });

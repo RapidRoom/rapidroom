@@ -308,7 +308,7 @@ The zoom-only test injector (`native_wheel.c`) is compiled into the owned case
 and preloaded into the isolated app. It receives only scroll direction and
 viewport coordinates through an owned file, then calls the WebView GTK event
 handler. It is never bundled in the app. Physical devices remain untested.
-`--presets` checks Ctrl+Shift+N preset creation, grouped/name search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.
+`--presets` checks Ctrl+Shift+N preset creation, flat Style name/description search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. It also exercises built-in Styles description search, favourites, native export, Amount30/60/0, twenty flat top-level Styles, deletion through the preset menu followed by repeated native reloads, and marker-only migration of a pre-existing library without losing user folders, moved presets or saved order. Empty or missing saved libraries with the migration marker do not resurrect deleted Styles. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.
 
 ## Optional command palette scenario
 
@@ -350,9 +350,21 @@ makes a real model request; no user library or global client config is changed.
 
 ## Shipped skill/plugin acceptance (#118)
 
-`--mcp-skill --skill-source /path/to/matching/clean/checkout` runs a fresh Claude session with the shipped plugin and its stdio MCP configuration. It uses the owned CC0 NEX-6 copy, an approved 4:5 crop, three temporary look variants, a native detail check, GPS-stripped 1080×1350 export and a source-backed exposure explanation. The source checkout must match the pinned app's `sourceCommit`; the app and checkout must be clean. Named virtual-copy tools remain coming, so this test uses temporary comparisons.
+`--mcp-skill --skill-source /path/to/matching/clean/checkout` runs a fresh Claude session with the shipped plugin and its stdio MCP configuration. It uses the owned CC0 Sony A7C II APS-C RAW copy, an approved 4:5 crop, three temporary look variants, a native detail check, GPS-stripped 1080×1350 export and a source-backed exposure explanation. The source checkout must match the pinned app's `sourceCommit`; the app and checkout must be clean. Named virtual-copy tools remain coming, so this test uses temporary comparisons.
 
 Use a pinned `native-ui-test,mcp` build plus the adapter, and pass `--lock /tmp/rapidroom-gpu.lock` when running the native harness. The real client needs account access. Raw client transcripts, endpoint credentials and private source paths stay local; publish only allowlisted summaries and inspected CC0 panels. A pass proves workflow and source use, not the aesthetic quality of the grade.
+
+### Photo stacks (#86)
+
+Run `smoke.py --stacks` with a freshly pinned native engine. The harness creates
+three owned synthetic JPEGs with explicit sub-second capture times alongside
+the CC0 RAW. Native Ctrl+G, badges and context menus create a manual stack,
+choose a cover, expand grid and filmstrip, unstack, preview a 0.15-second auto
+stack without writing, apply it, and persist whole-stack stars. Captures and
+sidecar assertions are followed by the normal real-RAW edit/export smoke.
+Rust tests reopen saved sidecars to check disk persistence. This scenario
+does not test a full application restart. Physical keyboard/mouse and other platforms
+remain human checks.
 
 `--atomic-exports` keeps the ordinary RAW GUI export, then repeats it through the
 real Export panel with overwrite disabled and checks that the earlier JPEG is

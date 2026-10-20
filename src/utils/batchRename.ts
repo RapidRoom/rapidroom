@@ -1,4 +1,4 @@
-export type RenameGroupMode = 'selection' | 'auto';
+export type RenameGroupMode = 'selection' | 'auto' | 'stack';
 
 export interface RenameOptions {
   groupMode: RenameGroupMode;

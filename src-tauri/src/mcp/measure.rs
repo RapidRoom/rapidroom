@@ -1,6 +1,6 @@
 use ab_glyph::{Font, FontRef};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use image::{DynamicImage, GenericImageView, Rgb, RgbImage, imageops};
+use image::{DynamicImage, Rgb, RgbImage, imageops};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tauri::AppHandle;
@@ -146,7 +146,7 @@ fn png(image: &DynamicImage) -> Result<Vec<u8>, String> {
     Ok(bytes.into_inner())
 }
 
-fn content(images: &[DynamicImage]) -> Result<Value, String> {
+pub(super) fn content(images: &[DynamicImage]) -> Result<Value, String> {
     let mut total = 0_usize;
     let mut result = Vec::with_capacity(images.len());
     for image in images {
@@ -244,12 +244,23 @@ fn geometry(value: &Value) -> Value {
         "lensTcaAmount",
         "lensTcaEnabled",
     ];
-    Value::Object(
-        fields
-            .into_iter()
-            .map(|key| (key.to_string(), value[key].clone()))
-            .collect(),
-    )
+    let mut geometry: serde_json::Map<String, Value> = fields
+        .into_iter()
+        .map(|key| (key.to_string(), value[key].clone()))
+        .collect();
+    let mode = value["lensCorrectionMode"].as_str().unwrap_or("manual");
+    geometry.insert("lensCorrectionMode".into(), json!(mode));
+    geometry.insert(
+        "cameraLensCorrectionVersion".into(),
+        json!(
+            if mode == "auto" && value["cameraLensCorrectionVersion"].as_u64() == Some(1) {
+                1
+            } else {
+                0
+            }
+        ),
+    );
+    Value::Object(geometry)
 }
 
 fn same_geometry_value(left: &Value, right: &Value) -> bool {
@@ -301,7 +312,10 @@ pub(super) fn tool_definitions() -> Vec<Value> {
             properties["histogram"] = json!({"type":"boolean","default":false,"description":"Include four unsmoothed 256-bin pixel-count histograms."});
         }
         if name == "sample_region" {
-            required.push("region");
+            properties["regions"] = json!({"type":"array","minItems":1,"maxItems":16,"description":"Batch of labelled fractional rectangles, measured from ONE shared render. Use region OR regions.","items":{"type":"object","additionalProperties":false,"properties":{
+                "label":{"type":"string","minLength":1,"maxLength":80},
+                "x":{"type":"number","minimum":0,"maximum":1},"y":{"type":"number","minimum":0,"maximum":1},
+                "width":{"type":"number","exclusiveMinimum":0,"maximum":1},"height":{"type":"number","exclusiveMinimum":0,"maximum":1}},"required":["label","x","y","width","height"]}});
             properties["suggestWhiteBalance"] = json!({"type":"boolean","default":false});
         }
         if name == "render_region" {
@@ -315,9 +329,11 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         if name == "render_compare" {
             properties.as_object_mut().unwrap().remove("stage");
             properties["separateImages"] = json!({"type":"boolean","default":false});
+            properties["historyIndex"] = json!({"type":"integer","minimum":0,"description":"Use this active editor history snapshot as the base for variants; no undo or sidecar writes."});
             properties["variants"] = json!({"type":"array","minItems":2,"maxItems":6,"items":{
                 "type":"object","additionalProperties":false,"properties":{
                     "name":{"type":"string","minLength":1,"maxLength":80},"imagePath":{"type":"string"},
+                    "historyIndex":{"type":"integer","minimum":0,"description":"Read an active image history snapshot for this variant; cannot combine with imagePath."},
                     "changes":{"type":"object"}}}});
             required.push("variants");
         }
@@ -339,7 +355,7 @@ fn stage_adjustments(arguments: &Value, current: &Value) -> Result<Value, String
     match stage {
         "edited" => Ok(current.clone()),
         "original" => {
-            let mut neutral = tools::original_adjustments()?;
+            let mut neutral = tools::original_adjustments_for(current)?;
             for (key, value) in geometry(current).as_object().unwrap() {
                 neutral[key] = value.clone();
             }
@@ -366,12 +382,17 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
     } else {
         (dimension(arguments)?, None)
     };
+    let regions = if name == "sample_region" {
+        sample_regions(arguments)?
+    } else {
+        None
+    };
     let fraction = if native.is_none() {
         preview::region(arguments)?
     } else {
         None
     };
-    if name == "sample_region" && fraction.is_none() {
+    if name == "sample_region" && fraction.is_none() && regions.is_none() {
         return Err("region is required".into());
     }
     let image = crate::generate_measurement_pixels_for_path(
@@ -382,11 +403,13 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
         app.clone(),
     )
     .await?;
-    let image = preview::crop(image, fraction);
-    let mut value = if name == "render_region" {
+    let mut value = if let Some(regions) = regions {
+        sample_batch(&image, regions, histogram, suggest)?
+    } else if name == "render_region" {
         json!({"width":image.width(),"height":image.height(),"nativePixels":true,
             "coordinates":"pixels of the full rendered image after edit geometry/crop","content":content(&[image])?})
     } else {
+        let image = preview::crop(image, fraction);
         let mut value = statistics(&image, histogram)?;
         if suggest {
             value["whiteBalanceSuggestion"] = white_balance(&value);
@@ -408,11 +431,94 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct SampleRegion {
+    label: String,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+fn sample_regions(arguments: &Value) -> Result<Option<Vec<SampleRegion>>, String> {
+    let Some(regions) = arguments.get("regions") else {
+        return Ok(None);
+    };
+    if arguments.get("region").is_some() {
+        return Err("Use region or regions, not both".into());
+    }
+    let regions: Vec<SampleRegion> =
+        serde_json::from_value(regions.clone()).map_err(|e| e.to_string())?;
+    if regions.is_empty() || regions.len() > 16 {
+        return Err("regions must contain 1–16 rectangles".into());
+    }
+    for r in &regions {
+        if r.label.trim().is_empty()
+            || r.label.chars().count() > 80
+            || r.label.chars().any(char::is_control)
+        {
+            return Err("Region labels must be 1–80 printable characters".into());
+        }
+        preview::region(&json!({"region":{"x":r.x,"y":r.y,"width":r.width,"height":r.height}}))?;
+    }
+    Ok(Some(regions))
+}
+fn sample_batch(
+    image: &DynamicImage,
+    regions: Vec<SampleRegion>,
+    histogram: bool,
+    suggest: bool,
+) -> Result<Value, String> {
+    let mut total = 0u64;
+    let mut samples = Vec::with_capacity(regions.len());
+    let mut shared = json!({});
+    for r in regions {
+        let region = json!({"x":r.x,"y":r.y,"width":r.width,"height":r.height});
+        let crop = preview::crop(image.clone(), preview::region(&json!({"region":region}))?);
+        total += u64::from(crop.width()) * u64::from(crop.height());
+        if total > 32_000_000 {
+            return Err(
+                "Combined samples exceed 32 million pixels; reduce maxDimension or regions".into(),
+            );
+        }
+        let mut value = statistics(&crop, histogram)?;
+        for key in [
+            "rgbUnits",
+            "luminanceUnits",
+            "clippingDefinition",
+            "percentileMethod",
+        ] {
+            if let Some(field) = value.as_object_mut().unwrap().remove(key) {
+                shared[key] = field;
+            }
+        }
+        if suggest {
+            let mut suggestion = white_balance(&value);
+            for key in ["assumption", "warning"] {
+                if let Some(field) = suggestion.as_object_mut().unwrap().remove(key) {
+                    shared["whiteBalanceAdvice"][key] = field;
+                }
+            }
+            value["whiteBalanceSuggestion"] = suggestion;
+        }
+        value["label"] = json!(r.label);
+        value["region"] = region;
+        samples.push(value);
+    }
+    shared["samples"] = json!(samples);
+    shared["sharedRender"] = json!(true);
+    shared["renderWidth"] = json!(image.width());
+    shared["renderHeight"] = json!(image.height());
+    Ok(shared)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Variant {
     name: Option<String>,
     #[serde(rename = "imagePath")]
     path: Option<String>,
     changes: Option<Value>,
+    #[serde(rename = "historyIndex")]
+    history_index: Option<u64>,
 }
 
 fn copy_parameters(
@@ -457,7 +563,7 @@ fn copy_parameters(
             return Err("Virtual copy has no adjustment snapshot".into());
         }
         adjustments::merge_adjustments(
-            tools::original_adjustments()?,
+            tools::original_adjustments_for(&metadata["adjustments"])?,
             metadata["adjustments"].clone(),
         )?
     };
@@ -484,17 +590,47 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
     let bound = dimension(arguments)?;
     let fraction = preview::region(arguments)?;
     let separate = preview::option(arguments, "separateImages")?;
+    let base_history = if let Some(index) = tools::history_index(arguments)? {
+        Some(tools::history_snapshot(app, &path, index).await?)
+    } else {
+        None
+    };
+    let base = base_history
+        .as_ref()
+        .map_or(&state["adjustments"], |snapshot| &snapshot["adjustments"]);
     let mut prepared = Vec::new();
+    let mut receipts = Vec::new();
     for (index, variant) in variants.into_iter().enumerate() {
+        if variant.path.is_some() && variant.history_index.is_some() {
+            return Err("A comparison variant cannot combine imagePath with historyIndex".into());
+        }
+        let history_index = variant.history_index.or_else(|| {
+            base_history
+                .as_ref()
+                .and_then(|snapshot| snapshot["historyIndex"].as_u64())
+        });
+        let historical = variant.path.is_none() && history_index.is_some();
+        let mut history_revision = base_history
+            .as_ref()
+            .map(|snapshot| snapshot["historyRevision"].clone());
         let (mut parameters, label) = if let Some(copy) = variant.path {
             let (parameters, label) = copy_parameters(&path, &copy, &state["adjustments"])?;
             if variant.name.as_ref().is_some_and(|name| name != &label) {
                 return Err("Virtual-copy name must match its GUI label".into());
             }
             (parameters, label)
+        } else if let Some(history_index) = variant.history_index {
+            let history = tools::history_snapshot(app, &path, history_index).await?;
+            history_revision = Some(history["historyRevision"].clone());
+            (
+                history["adjustments"].clone(),
+                variant
+                    .name
+                    .unwrap_or_else(|| format!("History {history_index}")),
+            )
         } else {
             (
-                state["adjustments"].clone(),
+                base.clone(),
                 variant
                     .name
                     .unwrap_or_else(|| format!("Variant {}", (b'A' + index as u8) as char)),
@@ -511,9 +647,16 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
             parameters = adjustments::merge_adjustments(parameters, changes)?;
         }
         adjustments::validate_adjustments(&parameters)?;
-        if !same_geometry_value(&geometry(&parameters), &geometry(&state["adjustments"])) {
+        if !historical
+            && !same_geometry_value(&geometry(&parameters), &geometry(&state["adjustments"]))
+        {
             return Err("Variants must keep the active crop/orientation/lens geometry; color and tone patches are allowed".into());
         }
+        receipts.push(
+            json!({"renderRevision":adjustments::revision_for(&path, &parameters),
+            "historyIndex":if historical {history_index} else {None},
+            "historyRevision":if historical {history_revision} else {None}}),
+        );
         prepared.push((parameters, label));
     }
     let mut images = Vec::new();
@@ -528,12 +671,8 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
         )
         .await?;
         let image = preview::crop(image, fraction);
-        if images
-            .first()
-            .is_some_and(|first: &DynamicImage| first.dimensions() != image.dimensions())
-        {
-            return Err("Comparison render dimensions differ".into());
-        }
+        // Historical snapshots may have different crops. Contact-sheet cells
+        // already letterbox each tile; separate images keep their exact shape.
         images.push(image);
         labels.push(label);
     }
@@ -561,16 +700,17 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
     }
     tools::ensure_read_state(app, arguments, state).await?;
     Ok(
-        json!({"imagePath":path,"editRevision":state["editRevision"],"labels":labels,"variantDimensions":dimensions,
+        json!({"imagePath":path,"editRevision":state["editRevision"],"labels":labels,"variantDimensions":dimensions,"variants":receipts,
         "identifiers":(0..labels.len()).map(|i|((b'A'+i as u8) as char).to_string()).collect::<Vec<_>>(),
         "separateImages":separate,"width":output[0].width(),"height":output[0].height(),"content":encoded,
-        "readOnly":true,"geometry":"active rendered crop/orientation/lens geometry","mimeType":"image/png"}),
+        "readOnly":true,"geometry":"each variant rendered with its selected edit geometry","mimeType":"image/png"}),
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::GenericImageView;
 
     #[test]
     fn summary_keeps_exact_statistics_and_percentiles_without_histogram_echoes() {
@@ -610,6 +750,81 @@ mod tests {
     }
 
     #[test]
+    fn batched_samples_match_independent_regions_of_one_render() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_fn(20, 10, |x, _| {
+            if x < 10 {
+                Rgb([30, 60, 90])
+            } else {
+                Rgb([150, 180, 210])
+            }
+        }));
+        let args = json!({"regions":[{"label":"left","x":0,"y":0,"width":0.5,"height":1},{"label":"right","x":0.5,"y":0,"width":0.5,"height":1}]});
+        let samples =
+            sample_batch(&image, sample_regions(&args).unwrap().unwrap(), true, true).unwrap();
+        for (i, region) in args["regions"].as_array().unwrap().iter().enumerate() {
+            let mut rect = region.clone();
+            rect.as_object_mut().unwrap().remove("label");
+            let crop = preview::crop(
+                image.clone(),
+                preview::region(&json!({"region":rect})).unwrap(),
+            );
+            let single = statistics(&crop, true).unwrap();
+            assert_eq!(samples["samples"][i]["meanRGB"], single["meanRGB"]);
+            assert_eq!(samples["samples"][i]["histogram"], single["histogram"]);
+            assert_eq!(
+                samples["samples"][i]["whiteBalanceSuggestion"]["neutralRGBGainSuggestion"],
+                white_balance(&single)["neutralRGBGainSuggestion"]
+            );
+        }
+        assert_ne!(
+            samples["samples"][0]["meanRGB"],
+            samples["samples"][1]["meanRGB"]
+        );
+        assert!(sample_regions(&json!({"region":{},"regions":[]})).is_err());
+        assert!(
+            sample_regions(
+                &json!({"regions":[{"label":"outside","x":0.9,"y":0,"width":0.2,"height":1}]})
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn all_sixteen_batch_labels_and_protocol_fields_survive_projection() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(2, 2, Rgb([30, 60, 90])));
+        let regions = (0..16)
+            .map(|i| SampleRegion {
+                label: format!("Patch{i} {}", "z".repeat(65)),
+                x: 0.,
+                y: 0.,
+                width: 1.,
+                height: 1.,
+            })
+            .collect();
+        let raw = sample_batch(&image, regions, true, true).unwrap();
+        let projected = crate::assistant_text::project(&raw);
+        assert_eq!(projected["sharedRender"], true);
+        assert_eq!(projected["samples"].as_array().unwrap().len(), 16);
+        for (a, b) in raw["samples"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(projected["samples"].as_array().unwrap())
+        {
+            assert_eq!(a["label"], b["label"]);
+            assert_eq!(a["meanRGB"], b["meanRGB"]);
+            assert_eq!(a["whiteBalanceSuggestion"], b["whiteBalanceSuggestion"]);
+        }
+        let id = "a".repeat(64);
+        let projected = crate::assistant_text::project(
+            &json!({"caption":"x".repeat(9000),"maskId":id,"subMaskId":id,"coordinateSpace":"view","kind":"subject"}),
+        );
+        assert_eq!(projected["maskId"], id);
+        assert_eq!(projected["subMaskId"], id);
+        assert_eq!(projected["coordinateSpace"], "view");
+    }
+
+    #[test]
     fn red_pixels_keep_channel_identity_and_rec709_luminance() {
         let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(1, 1, Rgb([255, 0, 0])));
         let value = statistics(&image, true).unwrap();
@@ -634,6 +849,19 @@ mod tests {
             &geometry(&current),
             &geometry(&alternative)
         ));
+        let mut camera = current.clone();
+        camera["lensCorrectionMode"] = json!("auto");
+        camera["cameraLensCorrectionVersion"] = json!(1);
+        let original = stage_adjustments(&json!({"stage":"original"}), &camera).unwrap();
+        assert!(same_geometry_value(
+            &geometry(&camera),
+            &geometry(&original)
+        ));
+        camera["cameraLensCorrectionVersion"] = json!(0);
+        assert!(!same_geometry_value(
+            &geometry(&camera),
+            &geometry(&original)
+        ));
         for path in [
             "/not-a-photo?vc=../../secret",
             "/not-a-photo?vc=",
@@ -641,6 +869,68 @@ mod tests {
         ] {
             assert!(copy_parameters("/not-a-photo", path, &current).is_err());
         }
+    }
+
+    #[test]
+    fn saved_virtual_copy_and_original_preserve_legacy_or_explicit_exposure_policy() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("photo.png");
+        RgbImage::from_pixel(2, 1, Rgb([90, 30, 40]))
+            .save(&source)
+            .unwrap();
+        let active = source.to_str().unwrap();
+        let copy = format!("{active}?vc=saved");
+        let (_, sidecar) = crate::file_management::parse_virtual_path(&copy);
+        let source_bytes = std::fs::read(&source).unwrap();
+        let source_modified = source.metadata().unwrap().modified().unwrap();
+        for (saved_policy, baseline, camera) in [
+            (json!({}), false, false),
+            (json!({"baselineExposure":true}), true, false),
+            (
+                json!({"baselineExposure":false,"cameraExposureCompensation":true}),
+                false,
+                true,
+            ),
+            (
+                json!({"baselineExposure":true,"cameraExposureCompensation":false}),
+                true,
+                false,
+            ),
+            (
+                json!({"baselineExposure":true,"cameraExposureCompensation":true}),
+                true,
+                true,
+            ),
+        ] {
+            let mut saved = json!({"exposure":1.25,"rotation":90,"toneMapper":"linear"});
+            saved
+                .as_object_mut()
+                .unwrap()
+                .extend(saved_policy.as_object().unwrap().clone());
+            let bytes = serde_json::to_vec(&json!({"version":1,"adjustments":saved})).unwrap();
+            std::fs::write(&sidecar, &bytes).unwrap();
+            let modified = sidecar.metadata().unwrap().modified().unwrap();
+            let fresh_active = tools::original_adjustments().unwrap();
+            let (parameters, _) = copy_parameters(active, &copy, &fresh_active).unwrap();
+            assert_eq!(parameters["exposure"], json!(1.25));
+            assert_eq!(parameters["baselineExposure"], json!(baseline));
+            assert_eq!(parameters["cameraExposureCompensation"], json!(camera));
+            for selected in [&saved, &parameters] {
+                let original = stage_adjustments(&json!({"stage":"original"}), selected).unwrap();
+                assert_eq!(original["exposure"], json!(0));
+                assert_eq!(original["baselineExposure"], json!(baseline));
+                assert_eq!(original["cameraExposureCompensation"], json!(camera));
+                assert_eq!(geometry(&original), geometry(selected));
+                assert_eq!(original["toneMapper"], selected["toneMapper"]);
+            }
+            assert_eq!(std::fs::read(&sidecar).unwrap(), bytes);
+            assert_eq!(sidecar.metadata().unwrap().modified().unwrap(), modified);
+        }
+        assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+        assert_eq!(
+            source.metadata().unwrap().modified().unwrap(),
+            source_modified
+        );
     }
 
     #[test]

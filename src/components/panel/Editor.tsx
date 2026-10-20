@@ -164,7 +164,6 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const [isMaskHovered, setIsMaskHovered] = useState(false);
   const [isMaskTouchInteracting, setIsMaskTouchInteracting] = useState(false);
   const [isLoaderVisible, setIsLoaderVisible] = useState(false);
-  const [showExifDateView, setShowExifDateView] = useState(false);
   const [maskOverlayUrl, setMaskOverlayUrl] = useState<string | null>(null);
   const [transformState, setTransformState] = useState<TransformState>({ scale: 1, positionX: 0, positionY: 0 });
 
@@ -2410,7 +2409,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         className={clsx(
           'lights-out-chrome shrink-0 relative z-10',
           !isInstantTransition && 'transition-all duration-300 ease-in-out',
-          isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100 p-2',
+          isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100 px-2 py-1',
           toolbarOverflowVisible ? 'overflow-visible' : 'overflow-hidden',
         )}
       >
@@ -2429,8 +2428,6 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onUndo={undo}
           selectedImage={selectedImage}
           showOriginal={showOriginal}
-          showDateView={showExifDateView}
-          onToggleDateView={() => setShowExifDateView((prev) => !prev)}
           adjustmentsHistory={adjustmentsHistory}
           adjustmentsHistoryIndex={adjustmentsHistoryIndex}
           goToAdjustmentsHistoryIndex={goToHistoryIndex}

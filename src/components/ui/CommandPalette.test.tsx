@@ -6,6 +6,7 @@ import '../../i18n';
 import { mockCommand } from '../../test/tauriMock';
 import { Invokes } from './AppProperties';
 import CommandPalette from './CommandPalette';
+import { usePresetCatalog } from '../../store/usePresetCatalog';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
 import { INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
@@ -21,6 +22,7 @@ let root: Root;
 let container: HTMLDivElement;
 
 beforeEach(() => {
+  usePresetCatalog.setState({ presets: [], loaded: false, isLoading: true });
   vi.useFakeTimers();
   mockCommand(Invokes.LoadPresets, () => []);
   const adjustments = structuredClone(INITIAL_ADJUSTMENTS);

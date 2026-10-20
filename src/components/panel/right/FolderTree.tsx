@@ -37,6 +37,7 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { useDroppable } from '@dnd-kit/core';
 import Text from '../../ui/Text';
+import FolderPhotoCount from '../../ui/FolderPhotoCount';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useShallow } from 'zustand/react/shallow';
 import { useLibraryStore } from '../../../store/useLibraryStore';
@@ -603,19 +604,7 @@ function TreeNode({
           <span className="block truncate">{node.name}</span>
         </span>
 
-        {typeof node.imageCount === 'number' && node.imageCount > 0 && (
-          <Text
-            as="span"
-            variant={TextVariants.small}
-            color={TextColors.secondary}
-            className={clsx(
-              'ml-auto min-w-8 shrink-0 text-right tabular-nums transition-opacity ease-in-out duration-300',
-              showImageCounts ? 'opacity-100' : 'opacity-0',
-            )}
-          >
-            {node.imageCount}
-          </Text>
-        )}
+        <FolderPhotoCount path={node.path} modified={node.modified} />
 
         {hasChildren && (
           <Text

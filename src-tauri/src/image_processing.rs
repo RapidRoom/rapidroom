@@ -66,6 +66,16 @@ where
     Ok(serde_json::from_value(Value::deserialize(deserializer)?).unwrap_or(None))
 }
 
+// A malformed stack must not make the whole sidecar unreadable.
+fn deserialize_stack<'de, D>(
+    deserializer: D,
+) -> Result<Option<crate::photo_stacks::StackMember>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(serde_json::from_value(Value::deserialize(deserializer)?).unwrap_or(None))
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImageMetadata {
     pub version: u32,
@@ -82,6 +92,12 @@ pub struct ImageMetadata {
     pub flag: Option<ImageFlag>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub flag_is_explicit: bool,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_stack",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub stack: Option<crate::photo_stacks::StackMember>,
     #[serde(
         default,
         rename = "exportFraming",
@@ -104,6 +120,7 @@ impl Default for ImageMetadata {
             rating_is_explicit: false,
             flag: None,
             flag_is_explicit: false,
+            stack: None,
             export_framing: None,
             adjustments: Value::Null,
             tags: None,
@@ -113,6 +130,7 @@ impl Default for ImageMetadata {
 }
 
 const BASELINE_EXPOSURE_KEY: &str = "baselineExposure";
+const CAMERA_EXPOSURE_COMPENSATION_KEY: &str = "cameraExposureCompensation";
 
 pub fn mark_baseline_exposure(adjustments: &mut Value) {
     if let Some(object) = adjustments.as_object_mut() {
@@ -123,7 +141,16 @@ pub fn mark_baseline_exposure(adjustments: &mut Value) {
 pub fn default_adjustments() -> Value {
     let mut adjustments = json!({});
     mark_baseline_exposure(&mut adjustments);
+    adjustments[CAMERA_EXPOSURE_COMPENSATION_KEY] = Value::Bool(true);
     adjustments
+}
+
+pub fn copy_exposure_policy(source: &Value, target: &mut Value) {
+    for key in [BASELINE_EXPOSURE_KEY, CAMERA_EXPOSURE_COMPENSATION_KEY] {
+        target[key] = Value::Bool(
+            source.is_null() || source.get(key).and_then(Value::as_bool).unwrap_or(false),
+        );
+    }
 }
 
 fn uses_baseline_exposure(adjustments: &Value) -> bool {
@@ -140,7 +167,18 @@ pub fn effective_baseline_exposure(
     options: BaselineOptions,
 ) -> f32 {
     if uses_baseline_exposure(adjustments) {
-        as_shot.exposure.compensation(options)
+        let camera_compensation = adjustments.is_null()
+            || adjustments
+                .get(CAMERA_EXPOSURE_COMPENSATION_KEY)
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+        if camera_compensation {
+            as_shot
+                .exposure
+                .camera_compensation(options.compensate_highlight_preservation)
+        } else {
+            as_shot.exposure.compensation(options)
+        }
     } else {
         0.0
     }
@@ -159,6 +197,7 @@ mod baseline_eligibility_tests {
                 scene_referred: true,
                 dng_baseline: 0.25,
                 highlight_preservation: 0.66,
+                camera_baseline: None,
             },
         };
         let render = RenderOptions {
@@ -209,6 +248,10 @@ pub struct Crop {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GeometryParams {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera_data: Option<crate::camera_lens::SonyCameraData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lens_resolution: Option<serde_json::Value>,
     pub distortion: f32,
     pub vertical: f32,
     pub horizontal: f32,
@@ -248,6 +291,8 @@ pub struct GeometryParams {
 impl Default for GeometryParams {
     fn default() -> Self {
         Self {
+            camera_data: None,
+            lens_resolution: None,
             distortion: 0.0,
             vertical: 0.0,
             horizontal: 0.0,
@@ -295,6 +340,18 @@ pub fn get_geometry_params_from_json(adjustments: &serde_json::Value) -> Geometr
         .unwrap_or_default();
 
     GeometryParams {
+        camera_data: (adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)
+            && adjustments["lensCorrectionMode"].as_str() == Some("auto"))
+        .then(|| {
+            lens_params
+                .and_then(|p| p.get("camera_data"))
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+        })
+        .flatten(),
+        lens_resolution: (adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)
+            && adjustments["lensCorrectionMode"].as_str() == Some("auto"))
+        .then(|| lens_params.and_then(|p| p.get("resolution")).cloned())
+        .flatten(),
         distortion: adjustments["transformDistortion"].as_f64().unwrap_or(0.0) as f32,
         vertical: adjustments["transformVertical"].as_f64().unwrap_or(0.0) as f32,
         horizontal: adjustments["transformHorizontal"].as_f64().unwrap_or(0.0) as f32,
@@ -516,6 +573,36 @@ pub fn downscale_f32_image(image: &DynamicImage, nwidth: u32, nheight: u32) -> D
 }
 
 #[inline(always)]
+// Metadata-v1 clamps its source sample coordinates, including the final row
+// and column. Keep that rule local to camera correction without manual transforms.
+fn interpolate_camera_pixel(
+    raw: &[f32],
+    width: usize,
+    height: usize,
+    x: f32,
+    y: f32,
+    pixel: &mut [f32],
+) {
+    if width == 0 || height == 0 || !x.is_finite() || !y.is_finite() {
+        return;
+    }
+    let x = x.clamp(0.0, (width - 1) as f32);
+    let y = y.clamp(0.0, (height - 1) as f32);
+    let x0 = x.floor() as usize;
+    let y0 = y.floor() as usize;
+    let x1 = (x0 + 1).min(width - 1);
+    let y1 = (y0 + 1).min(height - 1);
+    let fx = x - x0 as f32;
+    let fy = y - y0 as f32;
+    for (channel, value) in pixel.iter_mut().enumerate().take(3) {
+        let top = raw[(y0 * width + x0) * 3 + channel] * (1.0 - fx)
+            + raw[(y0 * width + x1) * 3 + channel] * fx;
+        let bottom = raw[(y1 * width + x0) * 3 + channel] * (1.0 - fx)
+            + raw[(y1 * width + x1) * 3 + channel] * fx;
+        *value = top * (1.0 - fy) + bottom * fy;
+    }
+}
+
 fn interpolate_pixel(
     src_raw: &[f32],
     src_width: usize,
@@ -767,6 +854,7 @@ fn solve_generic_distortion_inv(r_target: f64, k_scaled: f64) -> f64 {
 
 /// Distortion values of a Lensfun profile, read from `lensDistortionParams`.
 struct LensDistortion {
+    camera: Option<[i16; crate::camera_lens::SONY_KNOTS]>,
     k1: f64,
     k2: f64,
     k3: f64,
@@ -779,11 +867,12 @@ struct LensDistortion {
 
 impl LensDistortion {
     fn new(params: &GeometryParams) -> Self {
+        let camera = params.camera_data.as_ref().and_then(|data| data.distortion);
         let k1 = params.lens_dist_k1 as f64;
         let k2 = params.lens_dist_k2 as f64;
         let k3 = params.lens_dist_k3 as f64;
         let radius_scale = params.lens_radius_scale as f64;
-        let amount = if radius_scale > 0.0 {
+        let amount = if camera.is_some() || radius_scale > 0.0 {
             params.lens_distortion_amount as f64
         } else {
             // Values from an older sidecar file keep the old behaviour, so
@@ -791,6 +880,7 @@ impl LensDistortion {
             (params.lens_distortion_amount as f64) * 2.5
         };
         Self {
+            camera,
             k1,
             k2,
             k3,
@@ -798,7 +888,11 @@ impl LensDistortion {
             radius_scale,
             amount,
             enabled: params.lens_distortion_enabled
-                && (k1.abs() > 1e-6 || k2.abs() > 1e-6 || k3.abs() > 1e-6),
+                && if let Some(table) = camera {
+                    table.iter().any(|sample| *sample != 0)
+                } else {
+                    k1.abs() > 1e-6 || k2.abs() > 1e-6 || k3.abs() > 1e-6
+                },
         }
     }
 
@@ -812,6 +906,9 @@ impl LensDistortion {
 
     /// The ratio and the derivative of the distorted radius.
     fn factor_and_slope(&self, ru_norm: f64) -> (f64, f64) {
+        if let Some(table) = self.camera.as_ref() {
+            return crate::camera_lens::SonyCameraData::distortion_factor_and_slope(table, ru_norm);
+        }
         let (k1, k2, k3) = (self.k1, self.k2, self.k3);
         if self.radius_scale > 0.0 {
             // Lensfun defines r = 1 at the middle of the long edge. The
@@ -859,6 +956,26 @@ fn lens_vignetting_factor(vk1: f64, vk2: f64, vk3: f64, ru_norm: f64) -> f64 {
 }
 
 fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32) -> f64 {
+    if params.distortion == 0.0
+        && params.lens_distortion_enabled
+        && let Some(table) = params
+            .camera_data
+            .as_ref()
+            .and_then(|data| data.distortion.as_ref())
+    {
+        // darktable metadata-v1 samples the outer half of the image radius.
+        // Keep the existing Lensfun/legacy auto-crop calculation below intact.
+        return (0..200)
+            .map(|i| {
+                let radius = 0.5 + 0.5 * f64::from(i) / 199.0;
+                let factor =
+                    crate::camera_lens::SonyCameraData::distortion_factor_and_slope(table, radius)
+                        .0;
+                1.0 + f64::from(params.lens_distortion_amount) * (factor - 1.0)
+            })
+            .fold(0.0, f64::max)
+            .max(f64::EPSILON);
+    }
     let cx = (width / 2.0) as f64;
     let cy = (height / 2.0) as f64;
     let half_diagonal = (cx * cx + cy * cy).sqrt();
@@ -924,8 +1041,43 @@ fn compute_lens_auto_crop_scale(params: &GeometryParams, width: f32, height: f32
 }
 
 pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> DynamicImage {
-    let src_img = image.to_rgb32f();
+    let mut src_img = image.to_rgb32f();
     let (width, height) = src_img.dimensions();
+    if params.lens_vignette_enabled
+        && params.lens_vignette_amount > 0.0
+        && let Some(table) = params
+            .camera_data
+            .as_ref()
+            .and_then(|data| data.vignetting.as_ref())
+    {
+        let cx = f64::from(width) / 2.0;
+        let cy = f64::from(height) / 2.0;
+        let diagonal = cx.hypot(cy).max(1.0);
+        src_img
+            .as_mut()
+            .par_chunks_exact_mut(3)
+            .enumerate()
+            .for_each(|(i, pixel)| {
+                let x = (i % width as usize) as f64;
+                let y = (i / width as usize) as f64;
+                let radius = (x - cx).hypot(y - cy) / diagonal;
+                let attenuation = crate::camera_lens::SonyCameraData::vignette_attenuation(
+                    table,
+                    radius,
+                    f64::from(params.lens_vignette_amount),
+                );
+                for channel in pixel {
+                    *channel /= attenuation.max(1e-4) as f32;
+                }
+            });
+        let mut geometry_only = params.clone();
+        geometry_only.lens_vignette_enabled = false;
+        if is_geometry_identity(&geometry_only) {
+            // A brightness-only correction needs no resampling, including at
+            // the last row/column where the bilinear sampler has no neighbour.
+            return DynamicImage::ImageRgb32F(src_img);
+        }
+    }
     let mut out_buffer = vec![0.0f32; (width * height * 3) as usize];
 
     let (forward_transform, cx, cy, half_diagonal) =
@@ -945,6 +1097,7 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
     let lens = LensDistortion::new(&params);
 
     let has_lens_correction = lens.enabled;
+    let clamp_camera_edges = lens.camera.is_some() && is_manual_geometry_identity(&params);
 
     let auto_crop_scale = if has_lens_correction || k_distortion.abs() > 1e-5 {
         compute_lens_auto_crop_scale(&params, width as f32, height as f32) as f32
@@ -981,6 +1134,10 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
     let vk3 = params.vig_k3 as f64;
     let lens_vig_amt = (params.lens_vignette_amount as f64) * 0.8;
     let has_vignetting = params.lens_vignette_enabled
+        && params
+            .camera_data
+            .as_ref()
+            .is_none_or(|data| data.vignetting.is_none())
         && (vk1.abs() > 1e-6 || vk2.abs() > 1e-6 || vk3.abs() > 1e-6)
         && lens_vig_amt > 0.01;
 
@@ -1023,7 +1180,7 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
                     let mut src_x = current_vec.x * inv_z;
                     let mut src_y = current_vec.y * inv_z;
 
-                    if auto_crop_scale > 1.0 {
+                    if auto_crop_scale > 1.0 && lens.camera.is_none() {
                         src_x = cx + (src_x - cx) / auto_crop_scale;
                         src_y = cy + (src_y - cy) / auto_crop_scale;
                     }
@@ -1034,7 +1191,13 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
                         let ru = (dx * dx + dy * dy).sqrt();
 
                         if ru > 1e-6 {
-                            let scale = lens.scale(ru / hd);
+                            let scale = if lens.camera.is_some() {
+                                // md-v1 divides the sampled factor by auto-scale;
+                                // it does not change the lookup radius.
+                                lens.scale(ru / hd) / f64::from(auto_crop_scale)
+                            } else {
+                                lens.scale(ru / hd)
+                            };
 
                             src_x = cx + (dx * scale) as f32;
                             src_y = cy + (dy * scale) as f32;
@@ -1053,6 +1216,15 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
 
                     if has_tca {
                         interpolate_pixel_with_tca(&tca_ctx, src_x, src_y, vr, vb, pixel);
+                    } else if clamp_camera_edges {
+                        interpolate_camera_pixel(
+                            src_raw,
+                            width_usize,
+                            height_usize,
+                            src_x,
+                            src_y,
+                            pixel,
+                        );
                     } else {
                         interpolate_pixel(src_raw, width_usize, height_usize, src_x, src_y, pixel);
                     }
@@ -1135,9 +1307,14 @@ pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams
                 if has_lens_correction {
                     let dx = (current_x - cx) as f64;
                     let dy = (current_y - cy) as f64;
-                    let rd = (dx * dx + dy * dy).sqrt();
+                    let observed_rd = (dx * dx + dy * dy).sqrt();
+                    let rd = if lens.camera.is_some() {
+                        observed_rd * f64::from(auto_crop_scale)
+                    } else {
+                        observed_rd
+                    };
 
-                    if rd > 1e-6 {
+                    if observed_rd > 1e-6 {
                         let mut ru = rd;
 
                         for _ in 0..8 {
@@ -1158,13 +1335,13 @@ pub fn unwarp_image_geometry(warped_image: &DynamicImage, params: GeometryParams
                             }
                         }
 
-                        let scale = ru / rd;
+                        let scale = ru / observed_rd;
                         current_x = cx + (dx * scale) as f32;
                         current_y = cy + (dy * scale) as f32;
                     }
                 }
 
-                if auto_crop_scale > 1.0 {
+                if auto_crop_scale > 1.0 && lens.camera.is_none() {
                     current_x = cx + (current_x - cx) * auto_crop_scale;
                     current_y = cy + (current_y - cy) * auto_crop_scale;
                 }
@@ -1304,7 +1481,7 @@ pub fn inverse_transform_point(
             1.0
         };
 
-        if auto_crop_scale > 1.0 {
+        if auto_crop_scale > 1.0 && lens.camera.is_none() {
             src_x = cx + (src_x - cx) / auto_crop_scale;
             src_y = cy + (src_y - cy) / auto_crop_scale;
         }
@@ -1315,7 +1492,11 @@ pub fn inverse_transform_point(
             let ru = (dx * dx + dy * dy).sqrt();
 
             if ru > 1e-6 {
-                let scale = lens.scale(ru / hd);
+                let scale = if lens.camera.is_some() {
+                    lens.scale(ru / hd) / auto_crop_scale
+                } else {
+                    lens.scale(ru / hd)
+                };
 
                 src_x = cx + (dx * scale);
                 src_y = cy + (dy * scale);
@@ -1536,18 +1717,40 @@ pub fn apply_flip<'a>(
     Cow::Owned(img)
 }
 
+fn is_manual_geometry_identity(params: &GeometryParams) -> bool {
+    !(params.guided_perspective_enabled && params.guided_lines.len() >= 2)
+        && params.distortion == 0.0
+        && params.vertical == 0.0
+        && params.horizontal == 0.0
+        && params.rotate == 0.0
+        && params.aspect == 0.0
+        && params.scale == 100.0
+        && params.x_offset == 0.0
+        && params.y_offset == 0.0
+}
+
 pub fn is_geometry_identity(params: &GeometryParams) -> bool {
-    if params.guided_perspective_enabled && params.guided_lines.len() >= 2 {
+    if !is_manual_geometry_identity(params) {
         return false;
     }
 
     let dist_identity = !params.lens_distortion_enabled
-        || ((params.lens_distortion_amount - 1.0).abs() < 1e-4
-            && params.lens_dist_k1.abs() < 1e-6
-            && params.lens_dist_k2.abs() < 1e-6
-            && params.lens_dist_k3.abs() < 1e-6);
+        || if let Some(table) = params
+            .camera_data
+            .as_ref()
+            .and_then(|data| data.distortion.as_ref())
+        {
+            params.lens_distortion_amount == 0.0 || table.iter().all(|sample| *sample == 0)
+        } else {
+            params.lens_distortion_amount == 0.0
+                || ((params.lens_distortion_amount - 1.0).abs() < 1e-4
+                    && params.lens_dist_k1.abs() < 1e-6
+                    && params.lens_dist_k2.abs() < 1e-6
+                    && params.lens_dist_k3.abs() < 1e-6)
+        };
 
     let tca_identity = !params.lens_tca_enabled
+        || params.lens_tca_amount == 0.0
         || if let Some(p) = &params.tca_poly3 {
             params.lens_tca_amount == 0.0
                 || (params.tca_vr == 1.0
@@ -1563,22 +1766,21 @@ pub fn is_geometry_identity(params: &GeometryParams) -> bool {
         };
 
     let vig_identity = !params.lens_vignette_enabled
-        || ((params.lens_vignette_amount - 1.0).abs() < 1e-4
-            && params.vig_k1.abs() < 1e-6
-            && params.vig_k2.abs() < 1e-6
-            && params.vig_k3.abs() < 1e-6);
+        || if let Some(table) = params
+            .camera_data
+            .as_ref()
+            .and_then(|data| data.vignetting.as_ref())
+        {
+            params.lens_vignette_amount == 0.0 || table.iter().all(|sample| *sample == 0)
+        } else {
+            params.lens_vignette_amount == 0.0
+                || ((params.lens_vignette_amount - 1.0).abs() < 1e-4
+                    && params.vig_k1.abs() < 1e-6
+                    && params.vig_k2.abs() < 1e-6
+                    && params.vig_k3.abs() < 1e-6)
+        };
 
-    params.distortion == 0.0
-        && params.vertical == 0.0
-        && params.horizontal == 0.0
-        && params.rotate == 0.0
-        && params.aspect == 0.0
-        && params.scale == 100.0
-        && params.x_offset == 0.0
-        && params.y_offset == 0.0
-        && dist_identity
-        && tca_identity
-        && vig_identity
+    dist_identity && tca_identity && vig_identity
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -4097,6 +4299,34 @@ mod white_balance_sample_tests {
 #[cfg(test)]
 mod lens_tests {
     use super::*;
+
+    #[test]
+    fn zero_strength_lensfun_controls_preserve_every_source_pixel_like_disabled_controls() {
+        let image = DynamicImage::ImageRgb32F(image::ImageBuffer::from_fn(17, 13, |x, y| {
+            image::Rgb([x as f32 / 17.0, y as f32 / 13.0, 0.25])
+        }));
+        let base = serde_json::json!({"lensDistortionParams":{
+            "k1":0.03,"k2":-0.02,"k3":0.005,"model":1,"radius_scale":1.5,
+            "tca_vr":1.0002,"tca_vb":0.9998,"vig_k1":0.1,"vig_k2":-0.02,"vig_k3":0.005}});
+        for component in ["lensDistortion", "lensTca", "lensVignette", "all"] {
+            let mut disabled = base.clone();
+            for key in ["lensDistortion", "lensTca", "lensVignette"] {
+                disabled[format!("{key}Enabled")] = serde_json::json!(false);
+            }
+            let mut zero = disabled.clone();
+            for key in ["lensDistortion", "lensTca", "lensVignette"] {
+                if component == "all" || component == key {
+                    zero[format!("{key}Enabled")] = serde_json::json!(true);
+                    zero[format!("{key}Amount")] = serde_json::json!(0);
+                }
+            }
+            assert_eq!(
+                apply_geometry_warp(&image, &zero).to_rgb32f(),
+                apply_geometry_warp(&image, &disabled).to_rgb32f(),
+                "Zero-strength {component} must preserve the last row and column too"
+            );
+        }
+    }
 
     fn base_params() -> GeometryParams {
         GeometryParams {

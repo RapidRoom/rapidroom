@@ -95,6 +95,7 @@ interface EditorState {
   copiedSectionAdjustments: any | null;
   copiedMask: MaskContainer | null;
   copiedAdjustments: Partial<Adjustments> | null;
+  copiedAdjustmentDefaults: { adjustments: Partial<Adjustments>; defaults: Adjustments } | null;
 
   // Actions
   setEditor: (updater: Partial<EditorState> | ((state: EditorState) => Partial<EditorState>)) => void;
@@ -163,6 +164,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   copiedMask: null,
   brushSettings: { size: 50, feather: 50, tool: ToolType.Brush },
   copiedAdjustments: null,
+  copiedAdjustmentDefaults: null,
 
   isGeneratingAiMask: false,
   isAIConnectorConnected: false,

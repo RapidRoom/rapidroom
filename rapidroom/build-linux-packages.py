@@ -3,6 +3,7 @@
 import argparse
 import fcntl
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,11 @@ import subprocess
 import sys
 import struct
 import tempfile
+
+
+SPEC = importlib.util.spec_from_file_location('package_runtime', Path(__file__).parent / 'openvino/package_runtime.py')
+OPENVINO = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(OPENVINO)
 
 
 def sha(path):
@@ -107,7 +113,8 @@ def verify_packages(root, target, kinds, adapter):
                 copies = list(contents.rglob(notice.name))
                 if not any(copy.is_file() and sha(copy) == sha(notice) for copy in copies):
                     raise RuntimeError(kind + ' is missing retained notice ' + notice.name)
-            artifacts[kind] = {'path': str(package), 'sha256': sha(package),
+            runtime = OPENVINO.verify_tree(root, contents)
+            artifacts[kind] = {'openvino_runtime': runtime, 'path': str(package), 'sha256': sha(package),
                                'adapter_sha256': sha(installed), 'adapter_executable': True, 'adapter_payload_verified': True,
                                'existing_font_notices_retained': True}
     return artifacts
@@ -117,6 +124,7 @@ def main():
     parser.add_argument('--bundles', default='deb,appimage')
     parser.add_argument('--version')
     parser.add_argument('--record', type=Path)
+    parser.add_argument('--artifacts-dir', type=Path, help='pin verified binaries/packages before releasing the build lock (new directory)')
     parser.add_argument('--lock', type=Path, default=Path('/tmp/rapidroom-build.lock'))
     args = parser.parse_args()
     if sys.platform != 'linux' or set(args.bundles.split(',')) - {'deb', 'appimage'}:
@@ -126,12 +134,20 @@ def main():
     root = Path(__file__).resolve().parent.parent
     env = os.environ.copy()
     target = Path(env.get('CARGO_TARGET_DIR', str(root / 'src-tauri/target'))).resolve()
-    env.update(CARGO_TARGET_DIR=str(target), CARGO_BUILD_JOBS='4', NO_STRIP='true')
+    env.update(CARGO_TARGET_DIR=str(target), CARGO_BUILD_JOBS='4', CARGO_INCREMENTAL='0', NO_STRIP='true')
+    OPENVINO.staged(root)  # Shipping packages must not silently use the stock fallback.
+    if 'appimage' in args.bundles.split(','):
+        OPENVINO.appimagetool()
+    def disk_guard():
+        if shutil.disk_usage(target.parent if target.parent.exists() else root).free < 25 * 1024**3:
+            raise RuntimeError('Linux packaging requires at least 25 GiB free')
+    disk_guard()
     def run(command):
         subprocess.run(['nice', '-n', '10', *command], cwd=root, env=env, check=True)
     with args.lock.open('a') as lock:
         print('Waiting for Linux package build lock', flush=True)
         fcntl.flock(lock, fcntl.LOCK_EX)
+        disk_guard()
         before = source(root)
         triple = next(line.split(': ', 1)[1] for line in subprocess.check_output(['rustc', '-vV'], text=True).splitlines() if line.startswith('host: '))
         if triple != 'x86_64-unknown-linux-gnu':
@@ -149,10 +165,30 @@ def main():
         run(command)
         if source(root) != before or sha(staged) != sha(adapter):
             raise RuntimeError('Source or staged adapter changed during packaging')
+        OPENVINO.finalize(root, target, args.bundles.split(','))
         artifacts = verify_packages(root, target, args.bundles.split(','), adapter)
+        if source(root) != before:
+            raise RuntimeError('Source changed during package finalization')
+        disk_guard()
         record = {'source': before, 'features': ['terminal', 'mcp'], 'mcp_default_enabled': False,
                   'adapter_sha256': sha(adapter), 'engine_sha256': sha(target / 'release/rapidroom'),
                   'bundles': args.bundles.split(','), 'verified_artifacts': artifacts, 'cargo_locked': True, 'jobs': 4, 'target': triple}
+        if args.artifacts_dir:
+            pinned = args.artifacts_dir.resolve()
+            pinned.mkdir(parents=True, exist_ok=False)
+            for binary in ['rapidroom', 'rapidroom-mcp-stdio']:
+                shutil.copy2(target / 'release' / binary, pinned / binary)
+                if sha(pinned / binary) != sha(target / 'release' / binary):
+                    raise RuntimeError('Pinned binary differs from verified build: ' + binary)
+            for kind, artifact in artifacts.items():
+                destination = pinned / kind / Path(artifact['path']).name
+                destination.parent.mkdir()
+                shutil.copy2(artifact['path'], destination)
+                if sha(destination) != artifact['sha256']:
+                    raise RuntimeError('Pinned package differs from verified archive: ' + kind)
+                artifact['path'] = str(destination)
+            record['pinned_directory'] = str(pinned)
+            disk_guard()
         output = args.record or target / 'release/bundle/mcp-build.json'
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(record, indent=2) + '\n')

@@ -10,7 +10,7 @@ use crate::file_management;
 use crate::formats::is_raw_file;
 use crate::image_processing::ImageMetadata;
 use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
-use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, FixedOffset, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use exif::{Exif, In, Value};
 use image::ImageDecoder;
 use little_exif::exif_tag::ExifTag;
@@ -251,6 +251,13 @@ pub fn truncate_large_exif(value: &str) -> String {
 }
 
 pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
+    let _lock = crate::file_management::SIDECAR_METADATA_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    load_sidecar_unlocked(sidecar_path)
+}
+
+pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
     if !sidecar_path.exists() {
         return ImageMetadata::default();
     }
@@ -404,12 +411,64 @@ fn creation_datetime_to_utc(dt: NaiveDateTime) -> DateTime<Utc> {
     }
 }
 
-fn parse_creation_field(field: &exif::Field) -> Option<DateTime<Utc>> {
-    parse_creation_datetime(&field.display_value().to_string()).map(creation_datetime_to_utc)
+pub(crate) fn parse_capture_offset(value: &str) -> Option<FixedOffset> {
+    let value = clean_creation_datetime_str(value);
+    if value == "Z" {
+        return FixedOffset::east_opt(0);
+    }
+    let bytes = value.as_bytes();
+    if bytes.len() != 6
+        || !matches!(bytes[0], b'+' | b'-')
+        || bytes[3] != b':'
+        || ![bytes[1], bytes[2], bytes[4], bytes[5]]
+            .iter()
+            .all(u8::is_ascii_digit)
+    {
+        return None;
+    }
+    let hours = value[1..3].parse::<i32>().ok()?;
+    let minutes = value[4..6].parse::<i32>().ok()?;
+    if hours > 23 || minutes > 59 {
+        return None;
+    }
+    let seconds = (hours * 60 + minutes) * 60 * if bytes[0] == b'-' { -1 } else { 1 };
+    FixedOffset::east_opt(seconds)
 }
 
-fn parse_raw_creation_date(date_str: Option<&str>) -> Option<DateTime<Utc>> {
-    parse_creation_datetime(date_str?).map(creation_datetime_to_utc)
+pub(crate) fn recorded_capture_offset(exif: &HashMap<String, String>) -> Option<FixedOffset> {
+    ["OffsetTimeOriginal", "OffsetTime"]
+        .iter()
+        .filter_map(|key| exif.get(*key))
+        .find_map(|value| parse_capture_offset(value))
+}
+
+fn creation_datetime_with_offset(dt: NaiveDateTime, offset: Option<FixedOffset>) -> DateTime<Utc> {
+    offset
+        .and_then(|zone| zone.from_local_datetime(&dt).single())
+        .map(|date| date.with_timezone(&Utc))
+        .unwrap_or_else(|| creation_datetime_to_utc(dt))
+}
+
+fn parse_creation_field(
+    field: &exif::Field,
+    exif: &Exif,
+    offset_tag: exif::Tag,
+) -> Option<DateTime<Utc>> {
+    let offset = [offset_tag, exif::Tag::OffsetTime].iter().find_map(|tag| {
+        exif.get_field(*tag, In::PRIMARY)
+            .and_then(|field| clean_ascii_value(&field.value))
+            .and_then(|value| parse_capture_offset(&value))
+    });
+    parse_creation_datetime(&field.display_value().to_string())
+        .map(|date| creation_datetime_with_offset(date, offset))
+}
+
+fn parse_raw_creation_date(
+    date_str: Option<&str>,
+    offsets: [Option<&str>; 2],
+) -> Option<DateTime<Utc>> {
+    let offset = offsets.into_iter().flatten().find_map(parse_capture_offset);
+    parse_creation_datetime(date_str?).map(|date| creation_datetime_with_offset(date, offset))
 }
 
 fn clean_ascii_value(value: &exif::Value) -> Option<String> {
@@ -978,6 +1037,7 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
         {
             insert_missing_lens_fields(&mut map, &lens);
         }
+        insert_sony_correction_metadata(&mut map, file_bytes);
         return Some(map);
     }
 
@@ -1227,6 +1287,8 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
         insert_missing_lens_fields(&mut map, lens);
     }
 
+    insert_sony_correction_metadata(&mut map, file_bytes);
+
     Some(map)
 }
 
@@ -1247,7 +1309,16 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
         && let Some(dt_str) = map.get("DateTimeOriginal").or(map.get("CreateDate"))
         && let Some(dt) = parse_creation_datetime(dt_str)
     {
-        return Some(creation_datetime_to_utc(dt));
+        let specific_offset = if map.contains_key("DateTimeOriginal") {
+            "OffsetTimeOriginal"
+        } else {
+            "OffsetTimeDigitized"
+        };
+        let offset = [specific_offset, "OffsetTime"]
+            .iter()
+            .filter_map(|key| map.get(*key))
+            .find_map(|value| parse_capture_offset(value));
+        return Some(creation_datetime_with_offset(dt, offset));
     }
 
     if let Ok(file) = std::fs::File::open(path) {
@@ -1257,7 +1328,15 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
         if let Ok(exif_obj) = exifreader.read_from_container(&mut bufreader) {
             for tag in [exif::Tag::DateTimeOriginal, exif::Tag::DateTime] {
                 if let Some(field) = exif_obj.get_field(tag, exif::In::PRIMARY)
-                    && let Some(dt) = parse_creation_field(field)
+                    && let Some(dt) = parse_creation_field(
+                        field,
+                        &exif_obj,
+                        if tag == exif::Tag::DateTimeOriginal {
+                            exif::Tag::OffsetTimeOriginal
+                        } else {
+                            exif::Tag::OffsetTime
+                        },
+                    )
                 {
                     return Some(dt);
                 }
@@ -1271,10 +1350,22 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
             && let Ok(decoder) = loader.get_decoder(&raw_source)
             && let Ok(metadata) = decoder.raw_metadata(&raw_source, &Default::default())
         {
-            if let Some(dt) = parse_raw_creation_date(metadata.exif.date_time_original.as_deref()) {
+            if let Some(dt) = parse_raw_creation_date(
+                metadata.exif.date_time_original.as_deref(),
+                [
+                    metadata.exif.offset_time_original.as_deref(),
+                    metadata.exif.offset_time.as_deref(),
+                ],
+            ) {
                 return Some(dt);
             }
-            if let Some(dt) = parse_raw_creation_date(metadata.exif.create_date.as_deref()) {
+            if let Some(dt) = parse_raw_creation_date(
+                metadata.exif.create_date.as_deref(),
+                [
+                    metadata.exif.offset_time_digitized.as_deref(),
+                    metadata.exif.offset_time.as_deref(),
+                ],
+            ) {
                 return Some(dt);
             }
         }
@@ -1288,7 +1379,15 @@ pub fn get_creation_date_from_bytes(path_hint: &str, file_bytes: &[u8]) -> DateT
     if let Some(exif_obj) = read_exif(file_bytes) {
         for tag in [exif::Tag::DateTimeOriginal, exif::Tag::DateTime] {
             if let Some(field) = exif_obj.get_field(tag, exif::In::PRIMARY)
-                && let Some(dt) = parse_creation_field(field)
+                && let Some(dt) = parse_creation_field(
+                    field,
+                    &exif_obj,
+                    if tag == exif::Tag::DateTimeOriginal {
+                        exif::Tag::OffsetTimeOriginal
+                    } else {
+                        exif::Tag::OffsetTime
+                    },
+                )
             {
                 return dt;
             }
@@ -1298,10 +1397,22 @@ pub fn get_creation_date_from_bytes(path_hint: &str, file_bytes: &[u8]) -> DateT
     if is_raw_file(path_hint)
         && let Some(metadata) = read_raw_metadata(file_bytes)
     {
-        if let Some(dt) = parse_raw_creation_date(metadata.exif.date_time_original.as_deref()) {
+        if let Some(dt) = parse_raw_creation_date(
+            metadata.exif.date_time_original.as_deref(),
+            [
+                metadata.exif.offset_time_original.as_deref(),
+                metadata.exif.offset_time.as_deref(),
+            ],
+        ) {
             return dt;
         }
-        if let Some(dt) = parse_raw_creation_date(metadata.exif.create_date.as_deref()) {
+        if let Some(dt) = parse_raw_creation_date(
+            metadata.exif.create_date.as_deref(),
+            [
+                metadata.exif.offset_time_digitized.as_deref(),
+                metadata.exif.offset_time.as_deref(),
+            ],
+        ) {
             return dt;
         }
     }
@@ -2223,8 +2334,9 @@ fn load_primary_metadata(image_path: &Path) -> ImageMetadata {
 
 fn save_primary_metadata(image_path: &Path, metadata: &ImageMetadata) -> std::io::Result<()> {
     let primary = get_primary_sidecar_path(image_path);
-    let json = serde_json::to_string_pretty(metadata).map_err(std::io::Error::other)?;
-    crate::file_management::write_file_atomically(&primary, json)
+    crate::file_management::update_sidecar(&primary, |current| current.exif = metadata.exif.clone())
+        .map(|_| ())
+        .map_err(std::io::Error::other)
 }
 
 pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>> {
@@ -2254,6 +2366,148 @@ pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>>
     }
 
     None
+}
+
+/// Reads the Sony correction tables stored in ARW SubIFDs.
+///
+/// The values are intentionally preserved as metadata only. Their physical
+/// units and interpolation are not documented by Sony, so rendering must not
+/// infer a correction from this raw table.
+pub(crate) fn sony_correction_metadata(file_bytes: &[u8]) -> HashMap<&'static str, Vec<i16>> {
+    const MAX_IFDS: usize = 32;
+    const SUB_IFDS: u16 = 0x014a;
+    const VIGNETTING: u16 = 0x7032;
+    const CA: u16 = 0x7035;
+    const DISTORTION: u16 = 0x7037;
+
+    let Some(endian) = file_bytes.get(..2) else {
+        return HashMap::new();
+    };
+    let little = match endian {
+        b"II" => true,
+        b"MM" => false,
+        _ => return HashMap::new(),
+    };
+    let u16_at = |at: usize| -> Option<u16> {
+        let bytes: [u8; 2] = file_bytes.get(at..at.checked_add(2)?)?.try_into().ok()?;
+        Some(if little {
+            u16::from_le_bytes(bytes)
+        } else {
+            u16::from_be_bytes(bytes)
+        })
+    };
+    let u32_at = |at: usize| -> Option<u32> {
+        let bytes: [u8; 4] = file_bytes.get(at..at.checked_add(4)?)?.try_into().ok()?;
+        Some(if little {
+            u32::from_le_bytes(bytes)
+        } else {
+            u32::from_be_bytes(bytes)
+        })
+    };
+    if u16_at(2) != Some(42) {
+        return HashMap::new();
+    }
+    let Some(first_ifd) = u32_at(4).and_then(|offset| usize::try_from(offset).ok()) else {
+        return HashMap::new();
+    };
+
+    let mut result = HashMap::new();
+    let mut pending = vec![first_ifd];
+    // Bound both processed and queued IFDs. An untrusted IFD can name up to
+    // 32 SubIFDs, so limiting only the pop loop would still allow a crafted
+    // file to grow `pending` without bound before those offsets are visited.
+    let mut queued = std::collections::HashSet::from([first_ifd]);
+    let mut seen = std::collections::HashSet::new();
+    while let Some(ifd) = pending.pop() {
+        if !seen.insert(ifd) || seen.len() > MAX_IFDS {
+            continue;
+        }
+        let Some(count) = u16_at(ifd).map(usize::from) else {
+            continue;
+        };
+        let Some(entries_end) = ifd
+            .checked_add(2)
+            .and_then(|n| n.checked_add(count.checked_mul(12)?))
+        else {
+            continue;
+        };
+        if entries_end > file_bytes.len() {
+            continue;
+        }
+        for entry in 0..count {
+            let at = ifd + 2 + entry * 12;
+            let (Some(tag), Some(kind), Some(values)) =
+                (u16_at(at), u16_at(at + 2), u32_at(at + 4))
+            else {
+                continue;
+            };
+            // Sony's correction arrays are signed SHORTs. Refuse any type or
+            // count change instead of accidentally treating offsets as values.
+            let expected = match tag {
+                VIGNETTING | DISTORTION => Some(17),
+                CA => Some(33),
+                _ => None,
+            };
+            if let Some(expected) = expected {
+                if kind != 8 || values != expected {
+                    continue;
+                }
+                let Some(start) = u32_at(at + 8).and_then(|offset| usize::try_from(offset).ok())
+                else {
+                    continue;
+                };
+                let Some(end) = start.checked_add(expected as usize * 2) else {
+                    continue;
+                };
+                if end > file_bytes.len() {
+                    continue;
+                }
+                let values: Option<Vec<i16>> = (0..expected as usize)
+                    .map(|index| u16_at(start + index * 2).map(|n| n as i16))
+                    .collect();
+                let Some(values) = values else { continue };
+                let key = match tag {
+                    VIGNETTING => "SonyVignettingCorrParams",
+                    CA => "SonyChromaticAberrationCorrParams",
+                    DISTORTION => "SonyDistortionCorrParams",
+                    _ => unreachable!(),
+                };
+                result.insert(key, values);
+            } else if tag == SUB_IFDS && (kind == 4 || kind == 13) {
+                let count = values.min(MAX_IFDS as u32) as usize;
+                let start = if count == 1 {
+                    at + 8
+                } else if let Some(offset) = u32_at(at + 8).and_then(|n| usize::try_from(n).ok()) {
+                    offset
+                } else {
+                    continue;
+                };
+                for index in 0..count {
+                    if let Some(offset) =
+                        u32_at(start + index * 4).and_then(|n| usize::try_from(n).ok())
+                        && queued.len() < MAX_IFDS
+                        && queued.insert(offset)
+                    {
+                        pending.push(offset);
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+
+fn insert_sony_correction_metadata(map: &mut HashMap<String, String>, file_bytes: &[u8]) {
+    for (key, values) in sony_correction_metadata(file_bytes) {
+        map.insert(
+            key.to_string(),
+            values
+                .into_iter()
+                .map(|value| value.to_string())
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+    }
 }
 
 pub fn read_exif_data_from_bytes(path: &str, file_bytes: &[u8]) -> HashMap<String, String> {
@@ -2895,7 +3149,9 @@ pub(crate) mod rating_samples {
 #[cfg(test)]
 mod tests {
     use super::rating_samples::*;
-    use super::{XMP_UUID, parse_xmp_rating, read_image_rating, xmp_rating};
+    use super::{
+        XMP_UUID, parse_xmp_rating, read_image_rating, sony_correction_metadata, xmp_rating,
+    };
     use std::io::Cursor;
 
     fn rating(bytes: &[u8]) -> Option<u8> {
@@ -2963,6 +3219,24 @@ mod tests {
         bytes.extend([0x46, 0x47, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
         bytes.extend(0u32.to_le_bytes());
         assert_eq!(rating(&bytes), Some(2));
+    }
+
+    #[test]
+    fn sony_correction_parser_bounds_malformed_subifd_fanout() {
+        let mut bytes = b"II*\0\x08\0\0\0".to_vec();
+        bytes.extend(1u16.to_le_bytes());
+        // IFD0 points at 32 otherwise-empty IFDs. The parser must dedupe and
+        // bound this graph before queueing more offsets from untrusted input.
+        bytes.extend([0x4a, 0x01, 4, 0, 32, 0, 0, 0, 26, 0, 0, 0]);
+        bytes.extend(0u32.to_le_bytes());
+        bytes.resize(26 + 32 * 4, 0);
+        for index in 0..32 {
+            let offset = 154 + index * 2;
+            bytes[26 + index * 4..30 + index * 4].copy_from_slice(&(offset as u32).to_le_bytes());
+        }
+        bytes.resize(218, 0); // each referenced IFD has a zero entry count
+
+        assert!(sony_correction_metadata(&bytes).is_empty());
     }
 
     #[test]
@@ -3087,5 +3361,69 @@ mod tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod capture_offset_tests {
+    use super::*;
+
+    #[test]
+    fn real_jpeg_capture_offset_is_read_without_rewriting_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("hawaii.jpg");
+        image::RgbImage::from_pixel(8, 6, image::Rgb([40, 90, 120]))
+            .save(&path)
+            .unwrap();
+        let mut metadata = Metadata::new();
+        metadata.set_tag(ExifTag::DateTimeOriginal("2026:10:19 23:30:00".into()));
+        metadata.set_tag(ExifTag::OffsetTimeOriginal("-10:00".into()));
+        metadata.write_to_file(&path).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let expected = DateTime::parse_from_rfc3339("2026-10-20T09:30:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        assert_eq!(try_get_exif_creation_date(&path), Some(expected));
+        let decoded = extract_metadata(&before).unwrap();
+        assert_eq!(
+            decoded.get("OffsetTimeOriginal").map(String::as_str),
+            Some("-10:00")
+        );
+        assert_eq!(std::fs::read(path).unwrap(), before);
+    }
+
+    #[test]
+    fn raw_offsets_cover_rollovers_fractional_zones_and_invalid_fallbacks() {
+        for (date, offset, expected) in [
+            ("2026:10:19 23:30:00", "-10:00", "2026-10-20T09:30:00Z"),
+            ("2026-10-20 18:30:00", "+09:00", "2026-10-20T09:30:00Z"),
+            ("2026:01:01 00:15:00", "+05:45", "2025-12-31T18:30:00Z"),
+            ("2026:01:01 00:00:00", "Z", "2026-01-01T00:00:00Z"),
+        ] {
+            let actual = parse_raw_creation_date(Some(date), [Some(offset), None]);
+            assert_eq!(
+                actual,
+                Some(
+                    DateTime::parse_from_rfc3339(expected)
+                        .unwrap()
+                        .with_timezone(&Utc)
+                )
+            );
+        }
+        for bad in ["+24:00", "-10:60", "9:00", "no zone", "+é:00"] {
+            assert!(parse_capture_offset(bad).is_none());
+        }
+        let date = "2026:10:19 23:30:00";
+        let legacy = creation_datetime_to_utc(
+            NaiveDateTime::parse_from_str(date, EXIF_DATETIME_FORMAT).unwrap(),
+        );
+        assert_eq!(
+            parse_raw_creation_date(Some(date), [Some("invalid"), None]),
+            Some(legacy)
+        );
+        assert_eq!(
+            parse_raw_creation_date(Some(date), [Some("invalid"), Some("-10:00")]),
+            parse_raw_creation_date(Some(date), [Some("-10:00"), None])
+        );
     }
 }

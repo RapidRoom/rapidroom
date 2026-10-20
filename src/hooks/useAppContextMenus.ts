@@ -1,3 +1,5 @@
+import { editStack, isStackedPhoto, stackKey, toggleStack } from '../utils/photoStacks';
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
 import { copyFilesWithSummary } from '../utils/fileTransfers';
 import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
@@ -77,13 +79,7 @@ import {
   FolderTree,
 } from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
-import {
-  Color,
-  COLOR_LABELS,
-  INITIAL_ADJUSTMENTS,
-  normalizeLoadedAdjustments,
-  type Adjustments,
-} from '../utils/adjustments';
+import { Color, COLOR_LABELS, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
 import TaggingSubMenu from '../context/TaggingSubMenu';
 import {
   prepareEditorDraftForXmpImport,
@@ -805,15 +801,19 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               label: t('contextMenus.editor.confirmReset'),
               icon: Check,
               isDestructive: true,
-              onClick: () => {
-                const originalAspectRatio =
-                  selectedImage.width && selectedImage.height ? selectedImage.width / selectedImage.height : null;
-                resetHistory({
-                  ...INITIAL_ADJUSTMENTS,
-                  aspectRatio: originalAspectRatio,
-                  aiPatches: [],
-                });
-                setEditor({ adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: originalAspectRatio, aiPatches: [] } });
+              onClick: async () => {
+                const before = useEditorStore.getState();
+                if (before.selectedImage?.path !== selectedImage.path) return;
+                try {
+                  const reset = await createResetAdjustmentsWithLensDefaults(selectedImage);
+                  const current = useEditorStore.getState();
+                  if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before.adjustments)
+                    return;
+                  resetHistory(reset);
+                  setEditor({ adjustments: reset });
+                } catch (error) {
+                  toast.error(`Failed to reset adjustments: ${error}`);
+                }
               },
             },
           ],
@@ -1048,7 +1048,42 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         }
       };
 
+      const targetImage = imageList.find((i) => i.path === path);
+      const targetStack = targetImage && isStackedPhoto(targetImage) ? targetImage.stack : null;
       const options = [
+        {
+          label: t('stacks.menu'),
+          icon: Layers,
+          submenu: [
+            {
+              label: t('stacks.create'),
+              disabled: finalSelection.length < 2,
+              onClick: () => void editStack(finalSelection, 'stack'),
+            },
+            {
+              label: t('stacks.unstack'),
+              disabled: !finalSelection.some((p) => imageList.find((i) => i.path === p)?.stack),
+              onClick: () => void editStack(finalSelection, 'unstack'),
+            },
+            { label: t('stacks.cover'), disabled: !targetStack, onClick: () => void editStack([path], 'cover') },
+            {
+              label: t('stacks.expandCollapse'),
+              disabled: !targetStack,
+              onClick: () => targetStack && toggleStack(stackKey(imageList.find((i) => i.path === path)!)),
+            },
+            { label: t('stacks.auto'), onClick: () => setLibrary({ stackPreviewOpen: true }) },
+            {
+              label: t('stacks.wholeMetadata'),
+              icon: useLibraryStore.getState().applyMetadataToStack ? Check : undefined,
+              onClick: () => setLibrary((s) => ({ applyMetadataToStack: !s.applyMetadataToStack })),
+            },
+            {
+              label: t('stacks.mergedResults'),
+              icon: useLibraryStore.getState().stackMergedResults ? Check : undefined,
+              onClick: () => setLibrary((s) => ({ stackMergedResults: !s.stackMergedResults })),
+            },
+          ],
+        },
         { label: t('denoiseQueue.mark'), icon: Grip, onClick: () => void setDenoiseMark(true, finalSelection) },
         { label: t('denoiseQueue.unmark'), icon: Grip, onClick: () => void setDenoiseMark(false, finalSelection) },
         {

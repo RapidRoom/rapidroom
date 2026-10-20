@@ -94,3 +94,55 @@ describe('flag filter and rating sort', () => {
     ]);
   });
 });
+
+describe('stacks under an Unrated filter', () => {
+  const stacked = (path: string, position: number) => ({
+    ...makeImage(path, position),
+    stack: { id: 'bracket', position },
+  });
+  const bracket = [stacked('/x/dark.raw', 1), stacked('/x/normal.raw', 0), stacked('/x/light.raw', 2)];
+  const unrated = (imageRatings: Record<string, number>) =>
+    computeSortedLibrary(
+      {
+        imageList: bracket,
+        imageRatings,
+        filterCriteria: { colors: [], rating: -1, rawStatus: RawStatus.All },
+        searchCriteria: { tags: [], text: '', mode: 'AND' },
+        sortCriteria: { key: 'name', order: 'asc' },
+        expandedStacks: new Set(),
+      },
+      { appSettings: {} },
+    ).map((image) => image.path);
+
+  it('shows the cover while unrated, and shows nothing (not a member) once the cover is rated', () => {
+    expect(unrated({})).toEqual(['/x/normal.raw']);
+    expect(unrated({ '/x/normal.raw': 3 })).toEqual([]);
+  });
+});
+
+describe('capture-date ordering', () => {
+  it('uses recorded UTC instants and ignores folder display shifts', () => {
+    const photos: ImageFile[] = [
+      {
+        ...makeImage('/trip/hawaii.jpg', 1),
+        exif: { DateTimeOriginal: '2026:10:19 23:30:00', OffsetTimeOriginal: '-10:00' },
+      },
+      {
+        ...makeImage('/trip/japan.jpg', 2),
+        exif: { DateTimeOriginal: '2026:10:20 12:00:00', OffsetTimeOriginal: '+09:00' },
+      },
+    ];
+    const appSettings = { grouping: 'off' as const, folderCaptureTimeShiftMinutes: { '/trip': 1140 } };
+    const result = computeSortedLibrary(
+      {
+        imageList: photos,
+        imageRatings: {},
+        filterCriteria: { colors: [], rating: 0, rawStatus: RawStatus.All },
+        searchCriteria: { tags: [], text: '', mode: 'AND' },
+        sortCriteria: { key: 'date_taken', order: 'asc' },
+      },
+      { appSettings },
+    );
+    expect(result.map((image) => image.path)).toEqual(['/trip/japan.jpg', '/trip/hawaii.jpg']);
+  });
+});

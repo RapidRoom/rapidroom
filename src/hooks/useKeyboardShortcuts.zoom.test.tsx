@@ -176,3 +176,168 @@ it('advances rapid editor arrows from the pending photo while the displayed phot
     callbacks.handleImageSelect.mockReset();
   }
 });
+
+it('opens Instagram through the rebindable action while respecting text and modal focus', async () => {
+  const key = () =>
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'i',
+        code: 'KeyI',
+        ctrlKey: true,
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  const input = document.createElement('input');
+  node.append(input);
+  input.focus();
+  await act(async () => {
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).toBeNull();
+  input.blur();
+  await act(async () => {
+    useUIStore.setState({ confirmModalState: { ...ui.confirmModalState, isOpen: true } });
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).toBeNull();
+  await act(async () => {
+    useUIStore.setState({ confirmModalState: { ...ui.confirmModalState, isOpen: false } });
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).not.toBeNull();
+  await act(async () => {
+    useUIStore.setState({ instagramExportRequest: null });
+    useSettingsStore.setState({
+      appSettings: {
+        ...(settings.appSettings ?? { lastRootPath: null, theme: Theme.Dark }),
+        keybinds: { export_instagram: ['ctrl', 'shift', 'KeyJ'] },
+      },
+    });
+  });
+  await act(async () => {
+    key();
+  });
+  expect(useUIStore.getState().instagramExportRequest).toBeNull();
+  await act(async () => {
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'J',
+        code: 'KeyJ',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+  expect(useUIStore.getState().instagramExportRequest).not.toBeNull();
+});
+
+it.each([
+  {
+    name: 'next',
+    code: 'ArrowRight',
+    paths: ['/A.ARW?vc=first', '/B.ARW', '/C.ARW'],
+    active: '/A.ARW',
+    selected: '/A.ARW',
+    expected: '/B.ARW',
+  },
+  {
+    name: 'previous wraps',
+    code: 'ArrowLeft',
+    paths: ['/A.ARW?vc=first', '/B.ARW', '/C.ARW'],
+    active: '/A.ARW',
+    selected: '/A.ARW',
+    expected: '/C.ARW',
+  },
+  {
+    name: 'selected original without pending path',
+    code: 'ArrowRight',
+    paths: ['/A.ARW?vc=first', '/B.ARW'],
+    active: null,
+    selected: '/A.ARW',
+    expected: '/B.ARW',
+  },
+  {
+    name: 'pending original before stale displayed photo',
+    code: 'ArrowRight',
+    paths: ['/A.ARW?vc=first', '/B.ARW', '/C.ARW'],
+    active: '/A.ARW',
+    selected: '/C.ARW',
+    expected: '/B.ARW',
+  },
+  {
+    name: 'exact original before its virtual copy',
+    code: 'ArrowRight',
+    paths: ['/A.ARW?vc=first', '/A.ARW', '/B.ARW'],
+    active: '/A.ARW',
+    selected: '/A.ARW',
+    expected: '/B.ARW',
+  },
+  {
+    name: 'exact virtual copy before another representation',
+    code: 'ArrowRight',
+    paths: ['/A.ARW?vc=first', '/B.ARW', '/A.ARW?vc=second', '/C.ARW'],
+    active: '/A.ARW?vc=second',
+    selected: '/A.ARW?vc=second',
+    expected: '/C.ARW',
+  },
+  {
+    name: 'first visible representation of an original',
+    code: 'ArrowRight',
+    paths: ['/A.ARW?vc=first', '/B.ARW', '/A.ARW?vc=second'],
+    active: '/A.ARW',
+    selected: '/A.ARW',
+    expected: '/B.ARW',
+  },
+  {
+    name: 'unrelated path remains unavailable',
+    code: 'ArrowRight',
+    paths: ['/A.ARW?vc=first', '/B.ARW'],
+    active: '/AA.ARW',
+    selected: '/AA.ARW',
+    expected: null,
+  },
+  {
+    name: 'missing virtual copy does not impersonate another',
+    code: 'ArrowRight',
+    paths: ['/A.ARW?vc=first', '/B.ARW'],
+    active: '/A.ARW?vc=missing',
+    selected: '/A.ARW?vc=missing',
+    expected: null,
+  },
+  {
+    name: 'empty filmstrip remains unavailable',
+    code: 'ArrowRight',
+    paths: [],
+    active: '/A.ARW',
+    selected: '/A.ARW',
+    expected: null,
+  },
+])('navigates an externally reopened original: $name', async ({ code, paths, active, selected, expected }) => {
+  callbacks.sortedImageList = paths.map((path) => ({ path }) as ImageFile);
+  await act(async () => {
+    useEditorStore
+      .getState()
+      .setEditor({ selectedImage: { ...useEditorStore.getState().selectedImage!, path: selected } });
+    useLibraryStore.getState().setLibrary({
+      libraryActivePath: active,
+      currentFolderPath: '/existing-album',
+      activeAlbumId: 'album',
+      multiSelectedPaths: [selected],
+    });
+    root.render(<Harness />);
+  });
+  const originalEditor = useEditorStore.getState();
+  const originalLibrary = useLibraryStore.getState();
+  await act(async () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code, key: code, bubbles: true }));
+  });
+  if (expected) expect(callbacks.handleImageSelect).toHaveBeenCalledExactlyOnceWith(expected, true);
+  else expect(callbacks.handleImageSelect).not.toHaveBeenCalled();
+  expect(useEditorStore.getState()).toBe(originalEditor);
+  expect(useLibraryStore.getState()).toBe(originalLibrary);
+  expect(callbacks.sortedImageList.map(({ path }) => path)).toEqual(paths);
+});

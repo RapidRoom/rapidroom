@@ -18,7 +18,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::AppState;
 use crate::cache_utils::calculate_transform_hash;
 use crate::image_processing::{
-    RenderRequest, get_all_adjustments_from_json, mark_baseline_exposure,
+    RenderRequest, copy_exposure_policy, get_all_adjustments_from_json,
     process_and_get_dynamic_image, resolve_render_options_from_handle,
 };
 
@@ -414,7 +414,7 @@ fn parse_hald(image: DynamicImage) -> anyhow::Result<Lut> {
     })
 }
 
-pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
+pub(crate) fn validate_lut_path(path_str: &str) -> anyhow::Result<()> {
     let normalized_path_str = path_str.strip_prefix(r"\\?\").unwrap_or(path_str);
 
     if normalized_path_str.starts_with(r"\\") || normalized_path_str.starts_with("//") {
@@ -436,6 +436,27 @@ pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
             _ => {}
         }
     }
+    Ok(())
+}
+
+/// Parse the same supported formats from the bytes bound to a render recipe.
+pub(crate) fn parse_lut_bytes(path_str: &str, bytes: &[u8]) -> anyhow::Result<Lut> {
+    validate_lut_path(path_str)?;
+    let extension = Path::new(path_str)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    match extension.as_str() {
+        "cube" => parse_cube(BufReader::new(Cursor::new(bytes))),
+        "3dl" => parse_3dl(BufReader::new(Cursor::new(bytes))),
+        "png" | "jpg" | "jpeg" | "tiff" => parse_hald(image::load_from_memory(bytes)?),
+        _ => Err(anyhow!("Unsupported LUT file format: {}", extension)),
+    }
+}
+
+pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
+    validate_lut_path(path_str)?;
 
     let (extension, bytes): (String, Option<Vec<u8>>) =
         if cfg!(target_os = "android") && is_android_content_uri(path_str) {
@@ -728,6 +749,7 @@ fn render_lut_swatch(
 pub fn generate_lut_previews(
     luts: Vec<LutPreviewRequest>,
     size: u32,
+    js_adjustments: Option<serde_json::Value>,
     state: State<AppState>,
     app_handle: AppHandle,
 ) -> Result<Vec<LutPreview>, String> {
@@ -739,6 +761,10 @@ pub fn generate_lut_previews(
         .clone()
         .ok_or("No original image loaded for LUT previews")?;
     let is_raw = loaded_image.is_raw;
+    let source_adjustments = js_adjustments.unwrap_or_else(|| {
+        let (_, sidecar) = crate::file_management::parse_virtual_path(&loaded_image.path);
+        crate::exif_processing::load_sidecar(&sidecar).adjustments
+    });
 
     let base_json = serde_json::json!({});
     let (base_image, _scale, _offset) =
@@ -756,7 +782,7 @@ pub fn generate_lut_previews(
                 "lutIsSceneReferred": request.is_built_in,
                 "sectionVisibility": { "effects": true }
             });
-            mark_baseline_exposure(&mut swatch_lut_json);
+            copy_exposure_policy(&source_adjustments, &mut swatch_lut_json);
             let swatch_adjustments = get_all_adjustments_from_json(
                 &swatch_lut_json,
                 is_raw,

@@ -13,6 +13,12 @@ The 2026-10-12 refresh retains baseline exposure and export metadata work by mar
 
 The 2026-10-15 daily refresh retains upstream contributions by Timon Käch, marclaliberte, cl1x, Max (waxm134) and Yojen in normal merge history. Per-tool visibility, capture-time timezone, auto-lens sidecar completion, headless exit codes, mask-drop insertion and layout-aware shortcuts are integrated while preserving RapidRoom additions. Conflict resolution and compatibility work is by yojen7 with Codex.
 
+Batch Auto Adjust completion is adapted from marclaliberte’s [RapidRAW commit 7fb5fadd](https://github.com/CyberTimon/RapidRAW/commit/7fb5fadd7cb0ad04393e7246548fcac71aa12d6a). Yojen adapted the wait to RapidRoom’s existing atomic sidecar, Card and XMP paths.
+
+## Bounded assistant judge policy
+
+The offline nondecreasing-score and bounded-round policy is adapted from skymanbp’s [autoshade@a1f3507808d1a9d61c44593244a5e6ee2c38cae3](https://github.com/skymanbp/autoshade/tree/a1f3507808d1a9d61c44593244a5e6ee2c38cae3), `src/pipeline.rs` and `src/advisor/judge.rs`, MIT copyright 2026 skymanbp. The notice is retained in `rapidroom/plugin/LICENSES/autoshade-MIT.txt`. Yojen adapted the policy with Codex; the closed move catalogue, generated RapidRoom range projection and local CLI are original integration. No remote model client or external dependency is imported.
+
 ## Individual MCP mask editing
 
 The typed mask/crop schemas, single-id edit tools and nested local-default normalization are original work for RapidRoom by yojen7 with Codex. They use RapidRoom’s existing renderer and editor history. No fork implementation or additional AI engine is included.
@@ -220,3 +226,15 @@ The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/hi
   [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba)
   (MIT), adapted by Yojen with Codex/kano. The complete notice remains in
   `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.
+
+## Public MCP reproduction package
+
+The reproduction package is original RapidRoom work by yojen7 with Codex. It
+imports the native evidence harness and PNG helpers from the separately checked
+out [sheldonxxxx/RapidRAW@4494beb9](https://github.com/sheldonxxxx/RapidRAW/commit/4494beb9bae0ee57f420a8292c4f4f6e1dba4bd2),
+retaining their AGPL-3.0 licence and original authorship. No fork implementation
+is vendored into RapidRoom's application. The genuine fixture is CC0 from
+raw.pixls.us; generated pixels and real captures are labelled separately in
+the [fixture manifest](rapidroom/validation/mcp-gap-repro/fixtures.json).
+
+Sony ARW radial metadata correction formulae and knot conventions: independently reimplemented in Rust by yojen7 with Codex from darktable's `src/iop/lens.cc` (`_init_coeffs_md_v1`) and `src/common/exif.cc`. Copyright (C) 2019–2026 darktable developers, GPL-3.0-or-later. See `rapidroom/validation/camera-data/README.md` for pinned reference sources and validation limits.

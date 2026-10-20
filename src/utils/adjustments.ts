@@ -245,6 +245,7 @@ export interface Adjustments {
   aiPatches: Array<AiPatch>;
   aspectRatio: number | null;
   baselineExposure: boolean;
+  cameraExposureCompensation: boolean;
   blacks: number;
   brightness: number;
   centré: number;
@@ -302,6 +303,7 @@ export interface Adjustments {
   fogTemperature: number;
   fogTint: number;
   lensCorrectionMode: 'auto' | 'manual';
+  cameraLensCorrectionVersion?: 0 | 1;
   lensDistortionAmount: number;
   lensVignetteAmount: number;
   lensTcaAmount: number;
@@ -514,6 +516,7 @@ export interface MaskAdjustments {
 }
 
 export interface MaskContainer {
+  relativeToImage?: boolean;
   adjustments: MaskAdjustments;
   id?: any;
   invert: boolean;
@@ -656,6 +659,7 @@ export const INITIAL_ADJUSTMENTS: Adjustments = {
   aiPatches: [],
   aspectRatio: null,
   baselineExposure: true,
+  cameraExposureCompensation: true,
   blacks: 0,
   brightness: 0,
   centré: 0,
@@ -832,6 +836,22 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
       if (!VALID_SUB_MASK_MODES.includes(normalized.mode)) {
         normalized.mode = SubMaskMode.Additive;
       }
+      // Old GUI drawing setup seeded both radial and linear geometry. These
+      // unused placeholders must not invalidate an otherwise ordinary edit.
+      if (normalized.parameters && ['radial', 'linear'].includes(normalized.type ?? '')) {
+        normalized.parameters = { ...normalized.parameters };
+        const obsolete = normalized.type === 'radial' ? ['startX', 'startY', 'endX', 'endY'] : ['centerX', 'centerY'];
+        for (const key of obsolete) {
+          if (normalized.parameters[key as keyof typeof normalized.parameters] === -10000) {
+            delete normalized.parameters[key as keyof typeof normalized.parameters];
+          }
+        }
+        if (normalized.type === 'linear') {
+          for (const key of ['radiusX', 'radiusY'] as const) {
+            if (normalized.parameters[key] === 0) delete normalized.parameters[key];
+          }
+        }
+      }
       return normalized;
     });
   };
@@ -895,6 +915,7 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
       autoCrop: loadedAdjustments.guidedPerspective?.autoCrop ?? true,
     },
     baselineExposure: loadedAdjustments.baselineExposure ?? false,
+    cameraExposureCompensation: loadedAdjustments.cameraExposureCompensation ?? false,
     lutIsSceneReferred: loadedAdjustments.lutIsSceneReferred ?? false,
     flareAmount: loadedAdjustments.flareAmount ?? INITIAL_ADJUSTMENTS.flareAmount,
     glowAmount: loadedAdjustments.glowAmount ?? INITIAL_ADJUSTMENTS.glowAmount,
@@ -971,7 +992,7 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
   basic: [
     {
       label: 'modals.copyPaste.groups.exposureToneMapper',
-      keys: [BasicAdjustment.Exposure, 'toneMapper'],
+      keys: [BasicAdjustment.Exposure, 'toneMapper', 'baselineExposure', 'cameraExposureCompensation'],
     },
     {
       label: 'modals.copyPaste.groups.tone',
@@ -1102,6 +1123,8 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     BasicAdjustment.Whites,
     BasicAdjustment.Blacks,
     BasicAdjustment.Exposure,
+    'baselineExposure',
+    'cameraExposureCompensation',
     'toneMapper',
   ],
   curves: ['curves', 'pointCurves', 'parametricCurve', 'curveMode'],

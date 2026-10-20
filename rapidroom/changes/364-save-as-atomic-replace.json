@@ -1,0 +1,13 @@
+{
+  "id": "save-as-atomic-replace",
+  "title": "Honor confirmed Save-As replacement while publishing atomically",
+  "category": "fix",
+  "landed": "2026-10-17",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Single-photo desktop Save-As can replace the exact path confirmed by the system dialog. Automatic batch and original-folder filenames keep rename/no-clobber defaults; the atomic writer and source-photo protection are unchanged."
+}

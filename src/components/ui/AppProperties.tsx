@@ -48,6 +48,7 @@ export enum Invokes {
   ClearAllSidecars = 'clear_all_sidecars',
   ClearAiTags = 'clear_ai_tags',
   ClearAllTags = 'clear_all_tags',
+  GetThumbnailCacheUsage = 'get_thumbnail_cache_usage',
   ClearThumbnailCache = 'clear_thumbnail_cache',
   CopyFiles = 'copy_files',
   CreateDenoiseJob = 'create_denoise_job',
@@ -86,9 +87,12 @@ export enum Invokes {
   IsTetheringSupported = 'is_tethering_supported',
   IsRaw9Available = 'is_raw9_available',
   ListImagesInDir = 'list_images_in_dir',
+  CountUnshownVideos = 'count_unshown_videos',
   ListImagesRecursive = 'list_images_recursive',
   LoadImage = 'load_image',
   LoadMetadata = 'load_metadata',
+  GetDefaultRawLensAdjustments = 'get_default_raw_lens_adjustments',
+  GetLensCorrectionResolution = 'get_lens_correction_resolution',
   LoadPresets = 'load_presets',
   LoadSettings = 'load_settings',
   PreviewRenameFiles = 'preview_rename_files',
@@ -121,6 +125,9 @@ export enum Invokes {
   SetColorLabelForPaths = 'set_color_label_for_paths',
   SetRatingForPaths = 'set_rating_for_paths',
   SetFlagForPaths = 'set_flag_for_paths',
+  EditPhotoStack = 'edit_photo_stack',
+  PreviewPhotoStacks = 'preview_photo_stacks',
+  ApplyPhotoStacks = 'apply_photo_stacks',
   ShowInFinder = 'show_in_finder',
   StartBackgroundIndexing = 'start_background_indexing',
   StitchPanorama = 'stitch_panorama',
@@ -275,6 +282,8 @@ export interface AppSettings {
   exportPresets?: ExportPreset[];
   lastSelectedExportPresetId?: string | null;
   lastInstagramExportPresetId?: string | null;
+  instagramExportFolder?: string | null;
+  showInstagramGuide?: boolean;
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
   adjustmentLayout?: AdjustmentLayout;
@@ -295,6 +304,7 @@ export interface AppSettings {
   zoomPhotoToPixelClick?: boolean;
   keybinds?: { [action: string]: string[] };
   enableBaselineExposure?: boolean;
+  autoLensCorrectionOnNewRaws?: boolean;
   baselineExposure?: number;
   compensateHighlightPreservation?: boolean;
   tonemapperOverrideEnabled?: boolean;
@@ -306,7 +316,9 @@ export interface AppSettings {
   autoAdvanceOnRate?: boolean;
   openTreeSections?: string[];
   folderIcons?: Record<string, string>;
+  folderCaptureTimeShiftMinutes?: Record<string, number>;
   exifOverlay?: ExifOverlay;
+  shootingInfoVisibility?: 'always' | 'hover' | 'off';
   language?: string;
   fontFamily?: string;
   folderTreeSort?: FolderTreeSort;
@@ -413,7 +425,13 @@ export interface Folder {
   imageCount?: number;
 }
 
+export interface StackMember {
+  id: string;
+  position: number;
+}
+
 export interface ImageFile {
+  stack?: StackMember | null;
   is_edited: boolean;
   modified: number;
   path: string;
@@ -445,6 +463,7 @@ export enum Orientation {
 }
 
 export interface Preset {
+  description?: string;
   adjustments: Partial<Adjustments>;
   folder?: Folder;
   id: string;

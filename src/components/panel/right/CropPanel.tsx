@@ -45,6 +45,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useUIStore } from '../../../store/useUIStore';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import { useSettingsStore } from '../../../store/useSettingsStore';
+import { useLensCorrectionResolution, type LensCorrectionSource } from '../../../hooks/useLensCorrectionResolution';
 
 const BASE_RATIO = 1.618;
 const ORIGINAL_RATIO = 0;
@@ -135,6 +136,20 @@ export default function CropPanel() {
 
   const isTransformExpanded = cropSectionsState.transform;
   const isLensExpanded = cropSectionsState.lens;
+  const { resolution: lensResolution, failed: lensResolutionFailed } = useLensCorrectionResolution(
+    selectedImage?.path,
+    adjustments,
+    isLensExpanded,
+  );
+  const hasAvailableAutoCorrection = Object.values(lensResolution?.components ?? {}).some(
+    (component) => component.available_source !== null,
+  );
+  const sourceName = (source: LensCorrectionSource) =>
+    source === 'lensfun'
+      ? 'Lensfun'
+      : source === 'camera_data'
+        ? t('modals.lensCorrection.sourceCameraData')
+        : t('modals.lensCorrection.sourceExistingRecipe');
 
   const toggleSection = (section: 'transform' | 'lens') => {
     setUI((state) => ({
@@ -665,6 +680,7 @@ export default function CropPanel() {
           lensModel: detectedModel,
           lensDistortionParams: distParams,
           lensCorrectionMode: 'auto',
+          cameraLensCorrectionVersion: 1,
         }));
 
         setDetectionStatus('success');
@@ -725,16 +741,20 @@ export default function CropPanel() {
   );
 
   const hasDistortion =
+    !!lensResolution?.components.distortion.available_source ||
     Math.abs(adjustments.lensDistortionParams?.k1 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.k2 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.k3 || 0) > 1e-6;
   const tcaParams = adjustments.lensDistortionParams;
-  const hasTca = tcaParams?.tca_poly3
-    ? tcaParams.tca_vr !== 1 ||
-      tcaParams.tca_vb !== 1 ||
-      Object.entries(tcaParams.tca_poly3).some(([key, value]) => key !== 'radius_scale' && value !== 0)
-    : Math.abs((tcaParams?.tca_vr || 1) - 1) > 1e-5 || Math.abs((tcaParams?.tca_vb || 1) - 1) > 1e-5;
+  const hasTca =
+    !!lensResolution?.components.tca.available_source ||
+    (tcaParams?.tca_poly3
+      ? tcaParams.tca_vr !== 1 ||
+        tcaParams.tca_vb !== 1 ||
+        Object.entries(tcaParams.tca_poly3).some(([key, value]) => key !== 'radius_scale' && value !== 0)
+      : Math.abs((tcaParams?.tca_vr || 1) - 1) > 1e-5 || Math.abs((tcaParams?.tca_vb || 1) - 1) > 1e-5);
   const hasVignetting =
+    !!lensResolution?.components.vignetting.available_source ||
     Math.abs(adjustments.lensDistortionParams?.vig_k1 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.vig_k2 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.vig_k3 || 0) > 1e-6;
@@ -771,7 +791,11 @@ export default function CropPanel() {
 
   const handleModeChange = useCallback(
     (mode: 'auto' | 'manual') => {
-      setAdjustments((prev) => ({ ...prev, lensCorrectionMode: mode }));
+      setAdjustments((prev) => ({
+        ...prev,
+        lensCorrectionMode: mode,
+        ...(mode === 'auto' ? { cameraLensCorrectionVersion: 1 as const } : {}),
+      }));
       if (mode === 'auto') {
         handleAutoDetectLens();
       }
@@ -1442,9 +1466,9 @@ export default function CropPanel() {
                           <div
                             className={clsx(
                               'w-full flex items-center justify-center gap-2 p-3 text-sm rounded-md border transition-colors',
-                              detectionStatus === 'not_found'
+                              detectionStatus === 'not_found' && !hasAvailableAutoCorrection
                                 ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                                : adjustments.lensMaker
+                                : adjustments.lensMaker || hasAvailableAutoCorrection
                                   ? 'bg-green-500/10 text-green-400 border-green-500/20'
                                   : 'bg-bg-primary border-surface text-text-secondary',
                             )}
@@ -1453,11 +1477,16 @@ export default function CropPanel() {
                               <>
                                 <Loader size={16} className="animate-spin" /> {t('modals.lensCorrection.detectingExif')}
                               </>
-                            ) : detectionStatus === 'not_found' ? (
+                            ) : detectionStatus === 'not_found' && !hasAvailableAutoCorrection ? (
                               t('modals.lensCorrection.lensProfileNotFound')
                             ) : adjustments.lensMaker && adjustments.lensModel ? (
                               <>
                                 <Check size={16} /> {adjustments.lensMaker} - {adjustments.lensModel}
+                              </>
+                            ) : hasAvailableAutoCorrection ? (
+                              <>
+                                <Check size={16} />{' '}
+                                {selectedImage?.exif?.LensModel || t('modals.lensCorrection.modeAuto')}
                               </>
                             ) : (
                               <>
@@ -1488,6 +1517,38 @@ export default function CropPanel() {
                               />
                             )}
                           </>
+                        )}
+
+                        {lensMode === 'auto' && (
+                          <div role="status" className="text-xs text-text-secondary space-y-1">
+                            {lensResolution
+                              ? (
+                                  [
+                                    ['distortion', 'distortion'],
+                                    ['tca', 'chromaticAberration'],
+                                    ['vignetting', 'vignetting'],
+                                  ] as const
+                                ).map(([component, label]) => {
+                                  const status = lensResolution.components[component];
+                                  return (
+                                    <div key={component}>
+                                      {t(`modals.lensCorrection.${label}`)}:{' '}
+                                      {status.applied_source
+                                        ? t('modals.lensCorrection.sourceApplied', {
+                                            source: sourceName(status.applied_source),
+                                          })
+                                        : status.available_source
+                                          ? t('modals.lensCorrection.sourceAvailable', {
+                                              source: sourceName(status.available_source),
+                                            })
+                                          : t('modals.lensCorrection.sourceNoData')}
+                                    </div>
+                                  );
+                                })
+                              : lensResolutionFailed
+                                ? t('modals.lensCorrection.sourceUnavailable')
+                                : t('modals.lensCorrection.sourceChecking')}
+                          </div>
                         )}
 
                         <div className="flex flex-col gap-3 mt-2">

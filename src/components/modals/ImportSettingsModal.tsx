@@ -98,6 +98,7 @@ export default function ImportSettingsModal({ fileCount, isOpen, onClose, onSave
         <Text variant={TextVariants.title} className="mb-4">
           {t('modals.importSettings.title')}
         </Text>
+        <p className="mb-4 text-xs text-text-secondary">{t('modals.importSettings.photosOnly')}</p>
 
         <div className="space-y-8 text-sm">
           <div>

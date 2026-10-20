@@ -225,6 +225,17 @@ struct DenoiseOptions {
     intensity: f32,
     method: String,
     sharpen: bool,
+    exposure_policies: HashMap<String, serde_json::Value>,
+}
+
+fn selected_exposure_policy(
+    path: &str,
+    overrides: &HashMap<String, serde_json::Value>,
+) -> serde_json::Value {
+    overrides.get(path).cloned().unwrap_or_else(|| {
+        let (_, sidecar) = parse_virtual_path(path);
+        crate::exif_processing::load_sidecar(&sidecar).adjustments
+    })
 }
 
 async fn denoise_session(
@@ -284,12 +295,14 @@ pub fn cancel_denoise(job_id: u64, state: tauri::State<'_, AppState>) {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn apply_denoising(
     job_id: u64,
     path: String,
     intensity: f32,
     method: String,
     sharpen: Option<bool>,
+    exposure_policies: Option<HashMap<String, serde_json::Value>>,
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -306,6 +319,7 @@ pub async fn apply_denoising(
             intensity,
             method,
             sharpen: sharpen.unwrap_or(true),
+            exposure_policies: exposure_policies.unwrap_or_default(),
         },
         app_handle,
         &state,
@@ -332,7 +346,7 @@ async fn run_single_denoise(
     let denoise_result_handle = state.denoise_result.clone();
 
     tokio::task::spawn_blocking(move || {
-        let outcome = denoise_image(&path_str, &options, &app_handle, ai_session, &job).and_then(
+        let outcome = denoise_image(&path, &options, &app_handle, ai_session, &job).and_then(
             |(image, original, raw)| {
                 let payload = build_previews(
                     &image,
@@ -360,12 +374,14 @@ async fn run_single_denoise(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn batch_denoise_images(
     job_id: u64,
     paths: Vec<String>,
     intensity: f32,
     method: String,
     sharpen: Option<bool>,
+    exposure_policies: Option<HashMap<String, serde_json::Value>>,
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
@@ -382,6 +398,7 @@ pub async fn batch_denoise_images(
             intensity,
             method,
             sharpen: sharpen.unwrap_or(true),
+            exposure_policies: exposure_policies.unwrap_or_default(),
         },
         app_handle,
         &state,
@@ -443,7 +460,7 @@ fn run_batch(
         let (source_path, source_sidecar_path) = parse_virtual_path(path_str);
         let real_path = source_path.to_string_lossy().to_string();
 
-        let image = match denoise(&real_path) {
+        let image = match denoise(path_str) {
             Ok(image) => image,
             Err(e) if e == DENOISE_CANCELLED => break,
             Err(e) => {
@@ -673,31 +690,19 @@ fn uses_default_raw_tone(is_raw: bool, method: &str) -> bool {
     is_raw && method != "ai"
 }
 
-fn nind_raw_view(
-    path: &str,
-    image: &DynamicImage,
-    settings: &crate::app_settings::AppSettings,
-    app_handle: &AppHandle,
-    job: &DenoiseJob,
-) -> Result<DynamicImage, String> {
-    nind_raw_view_with_baseline(path, image, settings, app_handle, job, None)
-}
-
-fn nind_raw_defaults(baseline_eligible: Option<bool>) -> serde_json::Value {
+fn nind_raw_defaults(source_adjustments: &serde_json::Value) -> serde_json::Value {
     let mut defaults = crate::image_processing::default_adjustments();
-    if let Some(eligible) = baseline_eligible {
-        defaults["baselineExposure"] = eligible.into();
-    }
+    crate::image_processing::copy_exposure_policy(source_adjustments, &mut defaults);
     defaults
 }
 
-fn nind_raw_view_with_baseline(
+fn nind_raw_view(
     path: &str,
+    source_adjustments: &serde_json::Value,
     image: &DynamicImage,
     settings: &crate::app_settings::AppSettings,
     app_handle: &AppHandle,
     job: &DenoiseJob,
-    baseline_eligible: Option<bool>,
 ) -> Result<DynamicImage, String> {
     use crate::gpu_processing::{RenderOutputPrecision, RenderRequest};
 
@@ -722,8 +727,9 @@ fn nind_raw_view_with_baseline(
     // Reuse the RAW renderer rather than approximating its display curve in
     // the save path. NIND receives the same encoded, default-developed look
     // that the original photo displays; its TIFF needs no second tone curve.
+    let default_adjustments = nind_raw_defaults(source_adjustments);
     let mut adjustments = crate::image_processing::get_all_adjustments_from_json(
-        &nind_raw_defaults(baseline_eligible),
+        &default_adjustments,
         true,
         crate::as_shot::as_shot(path),
         crate::image_processing::resolve_render_options(settings, true),
@@ -731,9 +737,7 @@ fn nind_raw_view_with_baseline(
     adjustments.global.show_clipping = 0;
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     "nind-default-raw-view".hash(&mut hash);
-    if let Some(eligible) = baseline_eligible {
-        eligible.hash(&mut hash);
-    }
+    default_adjustments.to_string().hash(&mut hash);
     job.id.hash(&mut hash);
     image.as_bytes().hash(&mut hash);
     let developed = crate::gpu_processing::process_and_get_dynamic_image_with_precision(
@@ -755,14 +759,14 @@ fn nind_raw_view_with_baseline(
 }
 
 fn denoise_image(
-    path_str: &str,
+    image_path: &str,
     options: &DenoiseOptions,
     app_handle: &AppHandle,
     ai_session: DenoiseModels,
     job: &DenoiseJob,
 ) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
     denoise_image_with_settings(
-        path_str,
+        image_path,
         options,
         app_handle,
         ai_session,
@@ -773,17 +777,20 @@ fn denoise_image(
 }
 
 fn denoise_image_with_settings(
-    path_str: &str,
+    image_path: &str,
     options: &DenoiseOptions,
     app_handle: &AppHandle,
     ai_session: DenoiseModels,
     job: &DenoiseJob,
     settings: crate::app_settings::AppSettings,
-    nind_baseline_eligible: Option<bool>,
+    source_recipe: Option<&queue::RenderedRecipe>,
 ) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
     let method = options.method.as_str();
     let intensity = options.intensity;
-    let path = Path::new(path_str);
+    let (source_path, _) = parse_virtual_path(image_path);
+    let path = source_path.as_path();
+    let path_string = source_path.to_string_lossy();
+    let path_str = path_string.as_ref();
     if !path.exists() {
         return Err("File not found".to_string());
     }
@@ -811,17 +818,19 @@ fn denoise_image_with_settings(
 
     let rgb_img_for_denoiser = if method == "ai" {
         let encoded = if is_raw {
-            if nind_baseline_eligible.is_some() {
-                nind_raw_view_with_baseline(
+            if let Some(recipe) = source_recipe {
+                recipe.render(path_str, &dynamic_img, &original_settings, app_handle, job)?
+            } else {
+                let source_adjustments =
+                    selected_exposure_policy(image_path, &options.exposure_policies);
+                nind_raw_view(
                     path_str,
+                    &source_adjustments,
                     &dynamic_img,
                     &original_settings,
                     app_handle,
                     job,
-                    nind_baseline_eligible,
                 )?
-            } else {
-                nind_raw_view(path_str, &dynamic_img, &original_settings, app_handle, job)?
             }
         } else {
             dynamic_img
@@ -887,7 +896,14 @@ fn denoise_image_with_settings(
     };
     job.check()?;
 
-    if uses_default_raw_tone(is_raw, method) {
+    if is_raw
+        && method != "ai"
+        && let Some(recipe) = source_recipe
+    {
+        // BM3D keeps linear RGB input; RAW9 keeps sensor input. Develop their
+        // linear result with the source recipe only after the native denoiser.
+        out_dynamic = recipe.render(path_str, &out_dynamic, &original_settings, app_handle, job)?;
+    } else if uses_default_raw_tone(is_raw, method) {
         apply_cpu_default_raw_processing(&mut out_dynamic);
     }
 
@@ -1911,6 +1927,66 @@ mod tests {
             .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
             .filter(|name| name.ends_with(".partial"))
             .collect()
+    }
+
+    #[test]
+    fn virtual_copy_batch_keeps_its_sidecar_and_pending_exposure_policy() {
+        let (dir, paths) = batch_dir();
+        let original_pixels = fs::read(&paths[0]).unwrap();
+        let selected = format!("{}?vc=legacy-look", paths[0]);
+        let (_, base_sidecar) = parse_virtual_path(&paths[0]);
+        let (_, selected_sidecar) = parse_virtual_path(&selected);
+        let base = crate::image_processing::ImageMetadata {
+            adjustments: serde_json::json!({
+                "baselineExposure": true, "cameraExposureCompensation": true,
+            }),
+            ..Default::default()
+        };
+        let virtual_copy = crate::image_processing::ImageMetadata {
+            adjustments: serde_json::json!({
+                "exposure": 1.25, "baselineExposure": true,
+                "cameraExposureCompensation": false,
+            }),
+            ..Default::default()
+        };
+        let base_bytes = serde_json::to_vec(&base).unwrap();
+        let copy_bytes = serde_json::to_vec(&virtual_copy).unwrap();
+        fs::write(&base_sidecar, &base_bytes).unwrap();
+        fs::write(&selected_sidecar, &copy_bytes).unwrap();
+        let pending_reset = HashMap::from([(
+            selected.clone(),
+            serde_json::json!({
+                "baselineExposure": true, "cameraExposureCompensation": true,
+            }),
+        )]);
+        let jobs = Arc::new(DenoiseJobs::default());
+        let (job, _) = job_with_events(&jobs, |_, _| false);
+        let saved = run_batch(&job, std::slice::from_ref(&selected), |path| {
+            assert_eq!(
+                selected_exposure_policy(path, &HashMap::new()),
+                virtual_copy.adjustments
+            );
+            assert_eq!(
+                selected_exposure_policy(path, &pending_reset),
+                pending_reset[&selected]
+            );
+            assert_eq!(
+                selected_exposure_policy(&paths[0], &pending_reset),
+                base.adjustments
+            );
+            Ok(DenoisedOutput::Image(image::open(&paths[0]).unwrap()))
+        });
+        let output = dir.path().join("a_Denoised.png");
+        assert_eq!(saved, vec![output.to_string_lossy().to_string()]);
+        assert_eq!(
+            image::open(output).unwrap().to_rgb8(),
+            image::open(&paths[0]).unwrap().to_rgb8()
+        );
+        let (_, output_sidecar) = parse_virtual_path(&saved[0]);
+        assert_eq!(fs::read(output_sidecar).unwrap(), copy_bytes);
+        assert_eq!(fs::read(&base_sidecar).unwrap(), base_bytes);
+        assert_eq!(fs::read(&selected_sidecar).unwrap(), copy_bytes);
+        assert_eq!(fs::read(&paths[0]).unwrap(), original_pixels);
     }
 
     #[test]
