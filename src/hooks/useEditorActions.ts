@@ -6,6 +6,7 @@ import { useCallback, type SyntheticEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import debounce from 'lodash.debounce';
 import { toast } from 'react-toastify';
+import { convertToPixelCrop } from 'react-image-crop';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
@@ -196,6 +197,12 @@ const waitForImageReady = (path: string) =>
   });
 
 export const withRotation = (adjustments: Adjustments, image: SelectedImage | null, rotation: number): Adjustments => {
+  if (rotation === adjustments.rotation) return adjustments;
+  const oriented = image && getOrientedDimensions(image.width, image.height, adjustments.orientationSteps || 0);
+  const pixelCrop =
+    adjustments.crop?.unit === '%' && oriented
+      ? convertToPixelCrop(adjustments.crop, oriented.width, oriented.height)
+      : adjustments.crop;
   const nextCrop =
     image?.width && image.height
       ? calculateAutoCropForRotation(
@@ -204,24 +211,15 @@ export const withRotation = (adjustments: Adjustments, image: SelectedImage | nu
           adjustments.orientationSteps || 0,
           adjustments.aspectRatio,
           rotation,
-          adjustments.crop,
+          pixelCrop,
           rotation - (adjustments.rotation || 0),
         )
       : adjustments.crop;
   const crop =
     image?.width && image.height
-      ? normalizeCropChange(
-          adjustments.crop,
-          nextCrop,
-          image.width,
-          image.height,
-          adjustments.orientationSteps || 0,
-          rotation,
-        )
+      ? normalizeCropChange(pixelCrop, nextCrop, image.width, image.height, adjustments.orientationSteps || 0, rotation)
       : nextCrop;
-  return rotation === adjustments.rotation && crop === adjustments.crop
-    ? adjustments
-    : { ...adjustments, rotation, crop };
+  return { ...adjustments, rotation, crop: crop === pixelCrop ? adjustments.crop : crop };
 };
 
 export const reloadAdjustmentsForPaths = async (

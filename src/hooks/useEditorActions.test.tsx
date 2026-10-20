@@ -118,6 +118,24 @@ describe('auto straighten keeps current photo edits and crop history safe', () =
     expect(withRotation(adjustments, image, 0)).toBe(adjustments);
   });
 
+  it.each([0, 1, 2, 3])('rotates a saved percent ROI like its pixel frame at orientation %i', (orientationSteps) => {
+    const width = orientationSteps % 2 ? image.height : image.width;
+    const height = orientationSteps % 2 ? image.width : image.height;
+    const percent = {
+      ...INITIAL_ADJUSTMENTS,
+      orientationSteps,
+      aspectRatio: (width * 0.3) / (height * 0.6),
+      crop: { unit: '%' as const, x: 10, y: 20, width: 30, height: 60 },
+    };
+    const pixels = {
+      ...percent,
+      crop: { unit: 'px' as const, x: width * 0.1, y: height * 0.2, width: width * 0.3, height: height * 0.6 },
+    };
+    expect(withRotation(percent, image, 1).crop).toEqual(withRotation(pixels, image, 1).crop);
+    expect(withRotation(percent, image, 1).crop?.width).toBeGreaterThan(1000);
+    expect(withRotation(percent, image, percent.rotation)).toBe(percent);
+  });
+
   it('does not apply a result to another photo', async () => {
     const actions = setup();
     let resolve!: (value: number) => void;

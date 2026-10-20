@@ -4003,6 +4003,73 @@ pub async fn apply_auto_lens_correction_to_paths(
 
 const FULL_DECODE_WORKER_THREADS: usize = 2;
 
+fn read_analysis_sidecar(path: &Path) -> Result<Value, String> {
+    let value = match fs::read(path) {
+        Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| e.to_string())?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            serde_json::to_value(ImageMetadata::default()).map_err(|e| e.to_string())?
+        }
+        Err(error) => return Err(error.to_string()),
+    };
+    if !value.is_object() {
+        return Err("Invalid photo metadata".into());
+    }
+    Ok(value)
+}
+
+fn snapshot_analysis_sidecar(path: &Path) -> Result<Value, String> {
+    let _metadata = SIDECAR_METADATA_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
+    read_analysis_sidecar(path)
+}
+
+fn publish_analyzed_adjustments(
+    sidecar: &Path,
+    source: &Path,
+    source_hash: blake3::Hash,
+    snapshot: &Value,
+    analyzed: ImageMetadata,
+) -> Result<ImageMetadata, String> {
+    let _metadata = SIDECAR_METADATA_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let _guard = lock_sidecar(sidecar).map_err(|e| e.to_string())?;
+    let mut latest = read_analysis_sidecar(sidecar)?;
+    // Analysis runs without either lock. Recheck its inputs before publishing,
+    // and change only adjustments in the latest document, never a stale copy.
+    if ["adjustments", "exif", "denoise"]
+        .iter()
+        .any(|key| latest.get(*key) != snapshot.get(*key))
+    {
+        return Err("Skipped analysis because the photo recipe changed".into());
+    }
+    let mut file = fs::File::open(source).map_err(|e| e.to_string())?;
+    let mut hasher = blake3::Hasher::new();
+    let mut buffer = [0; 128 * 1024];
+    loop {
+        let count = file.read(&mut buffer).map_err(|e| e.to_string())?;
+        if count == 0 {
+            break;
+        }
+        hasher.update(&buffer[..count]);
+    }
+    if hasher.finalize() != source_hash {
+        return Err("Skipped analysis because the source image changed".into());
+    }
+    latest["adjustments"] = analyzed.adjustments;
+    if latest.get("exif").is_none_or(Value::is_null)
+        && let Some(exif) = analyzed.exif
+    {
+        latest["exif"] = serde_json::to_value(exif).map_err(|e| e.to_string())?;
+    }
+    let metadata = serde_json::from_value(latest.clone()).map_err(|e| e.to_string())?;
+    let bytes = serde_json::to_vec_pretty(&latest).map_err(|e| e.to_string())?;
+    write_file_atomically_unmerged(sidecar, bytes).map_err(|e| e.to_string())?;
+    Ok(metadata)
+}
+
 async fn update_sidecars_from_images(
     paths: Vec<String>,
     app_handle: AppHandle,
@@ -4043,7 +4110,9 @@ async fn update_sidecars_from_images(
                     let (source_path, sidecar_path) = parse_virtual_path(path);
                     let source_path_str = source_path.to_string_lossy().to_string();
 
+                    let snapshot = snapshot_analysis_sidecar(&sidecar_path)?;
                     let file_bytes = fs::read(&source_path).map_err(|e| e.to_string())?;
+                    let source_hash = blake3::hash(&file_bytes);
                     let image = image_loader::load_base_image_from_bytes(
                         &file_bytes,
                         &source_path_str,
@@ -4053,7 +4122,8 @@ async fn update_sidecars_from_images(
                     )
                     .map_err(|e| e.to_string())?;
 
-                    let mut existing_metadata = crate::exif_processing::load_sidecar(&sidecar_path);
+                    let mut existing_metadata: ImageMetadata =
+                        serde_json::from_value(snapshot.clone()).map_err(|e| e.to_string())?;
 
                     if existing_metadata.adjustments.is_null() {
                         existing_metadata.adjustments = default_adjustments();
@@ -4077,9 +4147,13 @@ async fn update_sidecars_from_images(
                         &mut existing_metadata.adjustments,
                     );
 
-                    if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
-                        let _ = write_file_atomically(&sidecar_path, json_string);
-                    }
+                    let existing_metadata = publish_analyzed_adjustments(
+                        &sidecar_path,
+                        &source_path,
+                        source_hash,
+                        &snapshot,
+                        existing_metadata,
+                    )?;
 
                     if enable_xmp_sync {
                         sync_metadata_to_xmp(
@@ -6889,6 +6963,116 @@ mod card_mode_tests {
         let target = f.library.join("presets.rrpreset");
         handle_export_presets_to_file(Vec::new(), path_str(&target)).unwrap();
         assert!(target.is_file());
+    }
+}
+
+#[cfg(test)]
+mod batch_analysis_publication_tests {
+    use super::*;
+    use serde_json::json;
+    use std::sync::mpsc;
+
+    #[test]
+    fn publication_preserves_metadata_written_during_analysis() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("photo.png");
+        let sidecar = directory.path().join("photo.rrdata");
+        fs::write(&source, b"source bytes").unwrap();
+        let mut initial = serde_json::to_value(ImageMetadata::default()).unwrap();
+        initial["adjustments"] = json!({"rotation": 0, "exposure": 0.5});
+        initial["futureMetadata"] = json!({"preserve": true});
+        write_file_atomically(&sidecar, serde_json::to_vec(&initial).unwrap()).unwrap();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (publish_tx, publish_rx) = mpsc::channel();
+        let source_copy = source.clone();
+        let sidecar_copy = sidecar.clone();
+        let worker = thread::spawn(move || {
+            let snapshot = snapshot_analysis_sidecar(&sidecar_copy).unwrap();
+            let source_hash = blake3::hash(&fs::read(&source_copy).unwrap());
+            let mut analyzed: ImageMetadata = serde_json::from_value(snapshot.clone()).unwrap();
+            analyzed.adjustments["rotation"] = json!(2);
+            // Pause the actual publication boundary while a normal writer runs.
+            ready_tx.send(()).unwrap();
+            publish_rx.recv().unwrap();
+            publish_analyzed_adjustments(
+                &sidecar_copy,
+                &source_copy,
+                source_hash,
+                &snapshot,
+                analyzed,
+            )
+        });
+        ready_rx.recv().unwrap();
+        update_sidecar(&sidecar, |metadata| {
+            metadata.rating = 4;
+            metadata.rating_is_explicit = true;
+            metadata.tags = Some(vec!["concurrent-tag".into()]);
+        })
+        .unwrap();
+        // The ordinary writer intentionally serializes known fields only.
+        // Insert an unrelated future field under the same shared guard.
+        {
+            let _guard = lock_sidecar(&sidecar).unwrap();
+            let mut latest = read_analysis_sidecar(&sidecar).unwrap();
+            latest["futureMetadata"] = json!({"preserve": "latest"});
+            latest["exportFraming"] = json!({"aspect": "4:5"});
+            write_file_atomically_unmerged(&sidecar, serde_json::to_vec(&latest).unwrap()).unwrap();
+        }
+        publish_tx.send(()).unwrap();
+        let metadata = worker.join().unwrap().unwrap();
+        assert_eq!(metadata.rating, 4);
+        assert_eq!(metadata.tags, Some(vec!["concurrent-tag".into()]));
+        let latest = read_analysis_sidecar(&sidecar).unwrap();
+        assert_eq!(
+            latest["adjustments"],
+            json!({"rotation": 2, "exposure": 0.5})
+        );
+        assert_eq!(latest["futureMetadata"], json!({"preserve": "latest"}));
+        assert_eq!(latest["exportFraming"], json!({"aspect": "4:5"}));
+    }
+
+    #[test]
+    fn publication_refuses_concurrent_recipe_and_source_changes() {
+        for change in ["adjustments", "source", "denoise", "exif"] {
+            let directory = tempfile::tempdir().unwrap();
+            let source = directory.path().join("photo.png");
+            let sidecar = directory.path().join("photo.rrdata");
+            fs::write(&source, b"original").unwrap();
+            update_sidecar(&sidecar, |metadata| {
+                metadata.adjustments = json!({"rotation": 0, "exposure": 0.5});
+            })
+            .unwrap();
+            let snapshot = snapshot_analysis_sidecar(&sidecar).unwrap();
+            let source_hash = blake3::hash(&fs::read(&source).unwrap());
+            let mut analyzed: ImageMetadata = serde_json::from_value(snapshot.clone()).unwrap();
+            analyzed.adjustments["rotation"] = json!(2);
+            match change {
+                "source" => fs::write(&source, b"replaced").unwrap(),
+                _ => {
+                    update_sidecar(&sidecar, |metadata| {
+                        metadata.rating = 5;
+                        metadata.tags = Some(vec!["keep-new-edit".into()]);
+                        match change {
+                            "adjustments" => metadata.adjustments["exposure"] = json!(1.25),
+                            "denoise" => metadata.denoise = Some(json!({"marked": true})),
+                            "exif" => {
+                                metadata.exif =
+                                    Some(HashMap::from([("Orientation".into(), "6".into())]))
+                            }
+                            _ => unreachable!(),
+                        }
+                    })
+                    .unwrap();
+                }
+            }
+            let before = fs::read(&sidecar).unwrap();
+            assert!(
+                publish_analyzed_adjustments(&sidecar, &source, source_hash, &snapshot, analyzed)
+                    .is_err(),
+                "{change}"
+            );
+            assert_eq!(fs::read(&sidecar).unwrap(), before, "{change}");
+        }
     }
 }
 
