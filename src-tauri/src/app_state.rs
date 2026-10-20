@@ -180,6 +180,7 @@ impl PreviewSource {
 }
 
 pub struct AnalyticsJob {
+    pub generation: usize,
     pub path: String,
     pub image: Arc<DynamicImage>,
     pub compute_waveform: bool,
@@ -187,6 +188,7 @@ pub struct AnalyticsJob {
 }
 
 pub struct AnalyticsConfig {
+    pub generation: usize,
     pub path: String,
     pub compute_waveform: bool,
     pub active_waveform_channel: Option<String>,

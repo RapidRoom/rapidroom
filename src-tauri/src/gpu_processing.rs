@@ -2603,6 +2603,7 @@ fn process_and_get_dynamic_image_inner(
                     {
                         let dynamic_img = DynamicImage::ImageRgba8(img_buf);
                         let _ = analytics.sender.send(crate::AnalyticsJob {
+                            generation: analytics.generation,
                             path: analytics.path,
                             image: std::sync::Arc::new(dynamic_img),
                             compute_waveform: analytics.compute_waveform,
@@ -2620,6 +2621,7 @@ fn process_and_get_dynamic_image_inner(
                     {
                         let dynamic_img = DynamicImage::ImageRgba8(img_buf);
                         let _ = analytics.sender.send(crate::AnalyticsJob {
+                            generation: analytics.generation,
                             path: analytics.path,
                             image: std::sync::Arc::new(dynamic_img),
                             compute_waveform: analytics.compute_waveform,

@@ -792,6 +792,7 @@ fn process_preview_job(
             .unwrap()
             .clone()
             .map(|tx| crate::AnalyticsConfig {
+                generation: loaded_image.generation,
                 path: loaded_image.path.clone(),
                 compute_waveform,
                 active_waveform_channel: channel_filter,
@@ -822,10 +823,10 @@ fn process_preview_job(
             analytics_config,
         );
 
+    if source.is_some_and(|source| !source.is_current(&state)) {
+        return Ok(Vec::new());
+    }
     if let Ok(final_processed_image) = final_processed_image_result {
-        if source.is_some_and(|source| !source.is_current(&state)) {
-            return Ok(Vec::new());
-        }
         if use_wgpu_renderer {
             let _ = context.device.poll(wgpu::PollType::Wait {
                 submission_index: None,
@@ -833,7 +834,7 @@ fn process_preview_job(
             });
             let _ = app_handle.emit(
                 "wgpu-frame-ready",
-                serde_json::json!({ "path": loaded_image.path }),
+                serde_json::json!({ "path": loaded_image.path, "loadGeneration": loaded_image.generation }),
             );
             return Ok(b"WGPU_RENDER".to_vec());
         }
@@ -923,6 +924,14 @@ fn start_analytics_worker(app_handle: tauri::AppHandle) {
                 job = latest;
             }
 
+            let source = PreviewSource {
+                path: job.path.clone(),
+                generation: job.generation,
+            };
+            if !source.is_current(&app_handle.state::<AppState>()) {
+                continue;
+            }
+
             let histogram_data = image_processing::calculate_histogram_from_image(&job.image).ok();
 
             let waveform_data = if job.compute_waveform {
@@ -935,11 +944,14 @@ fn start_analytics_worker(app_handle: tauri::AppHandle) {
                 None
             };
 
-            if histogram_data.is_some() || waveform_data.is_some() {
+            if (histogram_data.is_some() || waveform_data.is_some())
+                && source.is_current(&app_handle.state::<AppState>())
+            {
                 let _ = app_handle.emit(
                     "analytics-update",
                     serde_json::json!({
                         "path": job.path,
+                        "loadGeneration": job.generation,
                         "histogram": histogram_data,
                         "waveform": waveform_data,
                     }),
