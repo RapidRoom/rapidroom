@@ -1,0 +1,13 @@
+{
+  "id": "batch-auto-completion",
+  "title": "Wait for batch Auto Adjust sidecar writes before reloading",
+  "category": "fix",
+  "landed": "2026-10-19",
+  "authors": ["marclaliberte", "yojen7"],
+  "source": "Adapted from RapidRAW 7fb5fadd7cb0ad04393e7246548fcac71aa12d6a",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/7fb5fadd7cb0ad04393e7246548fcac71aa12d6a"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "The command waits for its existing worker, including atomic sidecar writes, XMP sync and thumbnail progress, before the frontend reloads. Card checks and per-photo processing remain unchanged; worker join failures reach the caller."
+}

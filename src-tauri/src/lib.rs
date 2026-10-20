@@ -45,6 +45,7 @@ mod culling;
 mod culling_preview;
 mod dcp;
 mod denoise_quality;
+mod denoise_selective;
 mod denoising;
 mod effect_maps;
 mod exif_processing;
@@ -1675,6 +1676,8 @@ async fn generate_culling_preview_for_path(
 #[derive(Default)]
 struct PreviewRenderOptions {
     reuse_decoded: bool,
+    #[cfg(feature = "mcp")]
+    mask_id: Option<String>,
     native_region: Option<(u32, u32, u32, u32)>,
     raw_pixels: bool,
     cancel_token: Option<culling_preview::CancelToken>,
@@ -1727,6 +1730,32 @@ pub(crate) async fn generate_preview_with_geometry_for_path(
 }
 
 #[cfg(feature = "mcp")]
+pub(crate) async fn generate_mask_pixels_for_path(
+    path: String,
+    js_adjustments: Value,
+    mask_id: String,
+    target_resolution: u32,
+    app_handle: tauri::AppHandle,
+) -> Result<DynamicImage, String> {
+    match render_preview_for_path(
+        path,
+        js_adjustments,
+        target_resolution,
+        PreviewRenderOptions {
+            mask_id: Some(mask_id),
+            raw_pixels: true,
+            ..Default::default()
+        },
+        app_handle,
+    )
+    .await?
+    {
+        RenderedPreview::Pixels(image) => Ok(image),
+        _ => Err("Expected mask pixels".into()),
+    }
+}
+
+#[cfg(feature = "mcp")]
 pub(crate) async fn generate_measurement_pixels_for_path(
     path: String,
     js_adjustments: Value,
@@ -1764,6 +1793,8 @@ async fn render_preview_for_path(
         native_region,
         raw_pixels,
         cancel_token,
+        #[cfg(feature = "mcp")]
+        mask_id,
     } = options;
     // Keep one full decode in flight, cancelling superseded culling requests
     // before they acquire the permit. Otherwise navigation stacks up images — each
@@ -1782,6 +1813,10 @@ async fn render_preview_for_path(
         let (source_path, _) = parse_virtual_path(&path);
         let source_path_str = source_path.to_string_lossy().to_string();
         crate::camera_lens::resolve_snapshot(&mut js_adjustments, &source_path_str, &state);
+        #[cfg(feature = "mcp")]
+        if mask_id.is_some() {
+            crate::adjustment_utils::hydrate_adjustments(&state, &mut js_adjustments);
+        }
         let is_raw = is_raw_file(&source_path_str);
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
@@ -1869,6 +1904,36 @@ async fn render_preview_for_path(
         let mask_definitions: Vec<MaskDefinition> =
             mask_generation::parse_mask_definitions(&js_adjustments);
 
+        #[cfg(feature = "mcp")]
+        if let Some(mask_id) = mask_id {
+            let definition = mask_definitions
+                .iter()
+                .find(|m| m.id == mask_id)
+                .ok_or("Mask id not found")?;
+            let warped = build_warped_image_for_masks(
+                &base_image,
+                is_raw,
+                &js_adjustments,
+                std::slice::from_ref(definition),
+            );
+            let matte = generate_mask_bitmap(
+                definition,
+                img_w,
+                img_h,
+                1.0,
+                unscaled_crop_offset,
+                warped.as_deref(),
+            )
+            .unwrap_or_else(|| image::GrayImage::new(img_w, img_h));
+            let matte = DynamicImage::ImageLuma8(matte);
+            return Ok(RenderedPreview::Pixels(
+                if img_w > target_resolution || img_h > target_resolution {
+                    matte.thumbnail(target_resolution, target_resolution)
+                } else {
+                    matte
+                },
+            ));
+        }
         let warped_image =
             build_warped_image_for_masks(&base_image, is_raw, &js_adjustments, &mask_definitions);
         let mask_bitmaps: Vec<ImageBuffer<Luma<u8>, Vec<u8>>> = mask_definitions
@@ -2194,6 +2259,9 @@ fn frontend_ready(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("denoise-selective") {
+        std::process::exit(denoise_selective::run_cli(&args[1..]));
+    }
     #[cfg(unix)]
     if args.first().map(String::as_str) == Some("denoise") {
         unsafe {
@@ -2203,7 +2271,10 @@ pub fn run() {
     let _ = rayon::ThreadPoolBuilder::new()
         .stack_size(8 * 1024 * 1024)
         .build_global();
-    let launch_req = parse_launch_args(&args);
+    let launch_req = resolve_gui_launch_paths(
+        parse_launch_args(&args),
+        &std::env::current_dir().unwrap_or_default(),
+    );
     if let LaunchRequest::InvalidHeadless(error) = &launch_req {
         eprintln!("Headless export failed: {}", error);
         std::process::exit(2);
@@ -2268,7 +2339,7 @@ pub fn run() {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
         if !is_headless {
-            let focus_main = |app: &tauri::AppHandle, argv: Vec<String>, _cwd: String| {
+            let focus_main = |app: &tauri::AppHandle, argv: Vec<String>, cwd: String| {
                 log::info!(
                     "New instance launched with args: {:?}. Focusing main window.",
                     argv
@@ -2283,7 +2354,13 @@ pub fn run() {
                 }
 
                 let forwarded_args = argv.get(1..).unwrap_or(&[]);
-                emit_launch_request(app, parse_launch_args(forwarded_args));
+                emit_launch_request(
+                    app,
+                    resolve_gui_launch_paths(
+                        parse_launch_args(forwarded_args),
+                        std::path::Path::new(&cwd),
+                    ),
+                );
             };
             // The default D-Bus name comes from the identifier, which RapidRoom still shares with RapidRAW.
             builder = builder.plugin(
