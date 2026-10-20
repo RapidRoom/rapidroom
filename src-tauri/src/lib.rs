@@ -45,6 +45,7 @@ mod culling;
 mod culling_preview;
 mod dcp;
 mod denoise_quality;
+mod denoise_selective;
 mod denoising;
 mod effect_maps;
 mod exif_processing;
@@ -2172,6 +2173,9 @@ fn frontend_ready(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("denoise-selective") {
+        std::process::exit(denoise_selective::run_cli(&args[1..]));
+    }
     #[cfg(unix)]
     if args.first().map(String::as_str) == Some("denoise") {
         unsafe {
