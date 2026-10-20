@@ -637,6 +637,7 @@ mod effect_map_source_tests {
 
     fn loaded(path: &str, color: [u8; 3]) -> crate::LoadedImage {
         crate::LoadedImage {
+            generation: 0,
             path: path.to_string(),
             image: Arc::new(image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
                 2,

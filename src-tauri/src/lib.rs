@@ -233,6 +233,7 @@ pub fn generate_transformed_preview(
     let adjustments = resolved.as_ref();
     let mut hasher = DefaultHasher::new();
     loaded_image.path.hash(&mut hasher);
+    loaded_image.generation.hash(&mut hasher);
     calculate_transform_hash(adjustments).hash(&mut hasher);
     preview_dim.hash(&mut hasher);
     let cache_key = hasher.finish();
@@ -286,6 +287,7 @@ fn compute_transformed_preview(
 ) -> Result<TransformedPreview, String> {
     let mut hasher = DefaultHasher::new();
     loaded_image.path.hash(&mut hasher);
+    loaded_image.generation.hash(&mut hasher);
     calculate_geometry_hash(adjustments).hash(&mut hasher);
     let warped_key = hasher.finish();
 
@@ -387,6 +389,7 @@ fn compute_patched_and_warped(
 ) -> Result<Arc<DynamicImage>, String> {
     let mut hasher = DefaultHasher::new();
     loaded_image.path.hash(&mut hasher);
+    loaded_image.generation.hash(&mut hasher);
     crate::cache_utils::calculate_patch_hash(adjustments).hash(&mut hasher);
 
     let patched = get_or_compute_stage(&state.patched_cache, hasher.finish(), || {
@@ -467,10 +470,17 @@ pub fn get_cached_full_warped_image_for_path(
         return Err(format!("'{}' is not the loaded image", path));
     }
 
+    get_cached_full_warped_image_for_loaded(state, &loaded_image, js_adjustments)
+}
+
+pub(crate) fn get_cached_full_warped_image_for_loaded(
+    state: &tauri::State<AppState>,
+    loaded_image: &LoadedImage,
+    js_adjustments: &serde_json::Value,
+) -> Result<Arc<DynamicImage>, String> {
     let resolved = crate::camera_lens::resolved_snapshot(js_adjustments, &loaded_image.path, state);
     let js_adjustments = resolved.as_ref();
-    let cache_key =
-        calculate_image_cache_hash(&loaded_image.path, calculate_geometry_hash(js_adjustments));
+    let cache_key = loaded_image_cache_hash(loaded_image, calculate_geometry_hash(js_adjustments));
 
     {
         let cache_lock = state
@@ -566,6 +576,13 @@ async fn sample_display_area(
     .map_err(|e| format!("Task panicked: {}", e))?
 }
 
+fn loaded_image_cache_hash(image: &LoadedImage, adjustments_hash: u64) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    calculate_image_cache_hash(&image.path, adjustments_hash).hash(&mut hasher);
+    image.generation.hash(&mut hasher);
+    hasher.finish()
+}
+
 #[allow(clippy::too_many_arguments)]
 fn process_preview_job(
     app_handle: &tauri::AppHandle,
@@ -577,26 +594,35 @@ fn process_preview_job(
     request_analytics: bool,
     compute_waveform: bool,
     active_waveform_channel: Option<&str>,
+    source: Option<&PreviewSource>,
 ) -> Result<Vec<u8>, String> {
     let fn_start = std::time::Instant::now();
+    let loaded_image = {
+        // Pair identity and generation while load_image cannot invalidate the source.
+        let image = state
+            .original_image
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if source.is_some_and(|source| {
+            !source.matches(
+                state.load_image_generation.load(Ordering::SeqCst),
+                image.as_ref(),
+            )
+        }) {
+            return Ok(Vec::new());
+        }
+        let loaded = image.as_ref().ok_or("No original image loaded")?.clone();
+        let hydrate_span = perf_trace::span("job.hydrate_adjustments");
+        hydrate_adjustments(&state, &mut adjustments_json);
+        drop(hydrate_span);
+        loaded
+    };
     let context = get_or_init_gpu_context(&state, app_handle)?;
-    let hydrate_span = perf_trace::span("job.hydrate_adjustments");
-    hydrate_adjustments(&state, &mut adjustments_json);
-    drop(hydrate_span);
     let mut adjustments_clone = adjustments_json;
-
-    let loaded_image_guard = state.original_image.lock().unwrap();
-    let loaded_image = loaded_image_guard
-        .as_ref()
-        .ok_or("No original image loaded")?
-        .clone();
-    drop(loaded_image_guard);
     crate::camera_lens::resolve_snapshot(&mut adjustments_clone, &loaded_image.path, &state);
 
-    let new_transform_hash = calculate_image_cache_hash(
-        &loaded_image.path,
-        calculate_transform_hash(&adjustments_clone),
-    );
+    let new_transform_hash =
+        loaded_image_cache_hash(&loaded_image, calculate_transform_hash(&adjustments_clone));
     let settings_span = perf_trace::span("job.load_settings");
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
     drop(settings_span);
@@ -728,9 +754,9 @@ fn process_preview_job(
     let mask_bitmaps: Vec<ImageBuffer<Luma<u8>, Vec<u8>>> = mask_definitions
         .iter()
         .filter_map(|def| {
-            get_cached_or_generate_mask(
+            mask_generation::get_cached_or_generate_mask_for_loaded(
                 &state,
-                &loaded_image.path,
+                &loaded_image,
                 def,
                 preview_width,
                 preview_height,
@@ -766,6 +792,7 @@ fn process_preview_job(
             .unwrap()
             .clone()
             .map(|tx| crate::AnalyticsConfig {
+                generation: loaded_image.generation,
                 path: loaded_image.path.clone(),
                 compute_waveform,
                 active_waveform_channel: channel_filter,
@@ -774,6 +801,10 @@ fn process_preview_job(
     } else {
         None
     };
+
+    if source.is_some_and(|source| !source.is_current(&state)) {
+        return Ok(Vec::new());
+    }
 
     let final_processed_image_result =
         crate::image_processing::process_and_get_dynamic_image_with_analytics(
@@ -792,6 +823,9 @@ fn process_preview_job(
             analytics_config,
         );
 
+    if source.is_some_and(|source| !source.is_current(&state)) {
+        return Ok(Vec::new());
+    }
     if let Ok(final_processed_image) = final_processed_image_result {
         if use_wgpu_renderer {
             let _ = context.device.poll(wgpu::PollType::Wait {
@@ -800,7 +834,7 @@ fn process_preview_job(
             });
             let _ = app_handle.emit(
                 "wgpu-frame-ready",
-                serde_json::json!({ "path": loaded_image.path }),
+                serde_json::json!({ "path": loaded_image.path, "loadGeneration": loaded_image.generation }),
             );
             return Ok(b"WGPU_RENDER".to_vec());
         }
@@ -890,6 +924,14 @@ fn start_analytics_worker(app_handle: tauri::AppHandle) {
                 job = latest;
             }
 
+            let source = PreviewSource {
+                path: job.path.clone(),
+                generation: job.generation,
+            };
+            if !source.is_current(&app_handle.state::<AppState>()) {
+                continue;
+            }
+
             let histogram_data = image_processing::calculate_histogram_from_image(&job.image).ok();
 
             let waveform_data = if job.compute_waveform {
@@ -902,11 +944,14 @@ fn start_analytics_worker(app_handle: tauri::AppHandle) {
                 None
             };
 
-            if histogram_data.is_some() || waveform_data.is_some() {
+            if (histogram_data.is_some() || waveform_data.is_some())
+                && source.is_current(&app_handle.state::<AppState>())
+            {
                 let _ = app_handle.emit(
                     "analytics-update",
                     serde_json::json!({
                         "path": job.path,
+                        "loadGeneration": job.generation,
                         "histogram": histogram_data,
                         "waveform": waveform_data,
                     }),
@@ -925,12 +970,13 @@ fn start_preview_worker(app_handle: tauri::AppHandle) {
     std::thread::spawn(move || {
         while let Ok(mut job) = rx.recv() {
             while let Ok(latest_job) = rx.try_recv() {
+                let _ = job.responder.send(Ok(Vec::new()));
                 job = latest_job;
             }
 
             let state = app_handle.state::<AppState>();
             let responder = job.responder;
-            match process_preview_job(
+            let result = process_preview_job(
                 &app_handle,
                 state,
                 job.adjustments,
@@ -940,14 +986,17 @@ fn start_preview_worker(app_handle: tauri::AppHandle) {
                 job.request_analytics,
                 job.compute_waveform,
                 job.active_waveform_channel.as_deref(),
-            ) {
-                Ok(bytes) => {
-                    let _ = responder.send(bytes);
+                Some(&job.source),
+            );
+            let result = if job.source.is_current(&app_handle.state::<AppState>()) {
+                if let Err(error) = &result {
+                    log::error!("Preview worker error: {}", error);
                 }
-                Err(e) => {
-                    log::error!("Preview worker error: {}", e);
-                }
-            }
+                result
+            } else {
+                Ok(Vec::new())
+            };
+            let _ = responder.send(result);
         }
     });
 }
@@ -955,6 +1004,8 @@ fn start_preview_worker(app_handle: tauri::AppHandle) {
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
 async fn apply_adjustments(
+    image_path: String,
+    load_generation: usize,
     js_adjustments: serde_json::Value,
     is_interactive: bool,
     target_resolution: Option<u32>,
@@ -964,12 +1015,28 @@ async fn apply_adjustments(
     active_waveform_channel: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Response, String> {
+    let source = {
+        let image = state
+            .original_image
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let generation = state.load_image_generation.load(Ordering::SeqCst);
+        let source = PreviewSource {
+            path: image_path,
+            generation: load_generation,
+        };
+        if !source.matches(generation, image.as_ref()) {
+            return Ok(Response::new(Vec::<u8>::new()));
+        }
+        source
+    };
     let (tx, rx) = tokio::sync::oneshot::channel();
 
     {
         let tx_guard = state.preview_worker_tx.lock().unwrap();
         if let Some(worker_tx) = tx_guard.as_ref() {
             let job = PreviewJob {
+                source,
                 adjustments: js_adjustments,
                 is_interactive,
                 target_resolution,
@@ -988,8 +1055,8 @@ async fn apply_adjustments(
     }
 
     match rx.await {
-        Ok(bytes) => Ok(Response::new(bytes)),
-        Err(_) => Err("Superseded or worker failed".to_string()),
+        Ok(result) => result.map(Response::new),
+        Err(_) => Err("Preview worker failed".to_string()),
     }
 }
 
@@ -1605,6 +1672,7 @@ async fn generate_culling_preview_for_path(
         0,
         PreviewRenderOptions {
             cancel_token: Some(culling_preview::token(generation)),
+            reuse_decoded: true,
             ..PreviewRenderOptions::default()
         },
         app_handle,
@@ -1619,6 +1687,7 @@ async fn generate_culling_preview_for_path(
 
 #[derive(Default)]
 struct PreviewRenderOptions {
+    reuse_decoded: bool,
     #[cfg(feature = "mcp")]
     mask_id: Option<String>,
     native_region: Option<(u32, u32, u32, u32)>,
@@ -1732,6 +1801,7 @@ async fn render_preview_for_path(
     app_handle: tauri::AppHandle,
 ) -> Result<RenderedPreview, String> {
     let PreviewRenderOptions {
+        reuse_decoded,
         native_region,
         raw_pixels,
         cancel_token,
@@ -1763,40 +1833,68 @@ async fn render_preview_for_path(
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
         let load_span = perf_trace::span("full.decode_raw");
-        let base_image = match read_file_mapped(&source_path) {
-            Ok(mmap) => load_and_composite(
-                &mmap,
-                &source_path_str,
-                &js_adjustments,
-                false,
-                &settings,
-                cancel_token.clone(),
+        let decoded = if reuse_decoded {
+            Some(
+                image_loader::load_cached_base_image(
+                    &state.decoded_image_cache,
+                    &source_path_str,
+                    &settings,
+                    cancel_token.clone(),
+                )?
+                .0,
             )
-            .map_err(|e| e.to_string())?,
-            Err(e) => {
-                log::warn!(
-                    "Failed to memory-map file '{}': {}. Falling back to standard read.",
-                    source_path_str,
-                    e
-                );
-                let bytes = fs::read(&source_path).map_err(|io_err| io_err.to_string())?;
-                load_and_composite(
-                    &bytes,
+        } else {
+            None
+        };
+        let base_image = if let Some(decoded) = &decoded {
+            if js_adjustments
+                .get("aiPatches")
+                .and_then(Value::as_array)
+                .is_some_and(|patches| !patches.is_empty())
+            {
+                Cow::Owned(
+                    composite_patches_on_image(decoded, &js_adjustments)
+                        .map_err(|e| e.to_string())?,
+                )
+            } else {
+                Cow::Borrowed(decoded.as_ref())
+            }
+        } else {
+            Cow::Owned(match read_file_mapped(&source_path) {
+                Ok(mmap) => load_and_composite(
+                    &mmap,
                     &source_path_str,
                     &js_adjustments,
                     false,
                     &settings,
                     cancel_token.clone(),
                 )
-                .map_err(|e| e.to_string())?
-            }
+                .map_err(|e| e.to_string())?,
+                Err(e) => {
+                    log::warn!(
+                        "Failed to memory-map file '{}': {}. Falling back to standard read.",
+                        source_path_str,
+                        e
+                    );
+                    let bytes = fs::read(&source_path).map_err(|io_err| io_err.to_string())?;
+                    load_and_composite(
+                        &bytes,
+                        &source_path_str,
+                        &js_adjustments,
+                        false,
+                        &settings,
+                        cancel_token.clone(),
+                    )
+                    .map_err(|e| e.to_string())?
+                }
+            })
         };
 
         culling_preview::ensure_current(&cancel_token)?;
         drop(load_span);
         let transform_span = perf_trace::span("full.transform");
         let (transformed_image, unscaled_crop_offset) =
-            apply_all_transformations(Cow::Borrowed(&base_image), &js_adjustments);
+            apply_all_transformations(Cow::Borrowed(base_image.as_ref()), &js_adjustments);
         drop(transform_span);
         let (img_w, img_h) = transformed_image.dimensions();
         if raw_pixels && u64::from(img_w) * u64::from(img_h) > 100_000_000 {

@@ -29,6 +29,7 @@ interface TauriEventPayloads {
   'ai-model-download-finish': string;
   'ai-model-download-start': string;
   'analytics-update': {
+    loadGeneration: number;
     histogram: HistogramData | null;
     path: string;
     waveform: WaveformData | null;
@@ -82,7 +83,7 @@ interface TauriEventPayloads {
   };
   'thumbnail-generation-complete': boolean;
   'thumbnail-progress': Progress;
-  'wgpu-frame-ready': { path: string };
+  'wgpu-frame-ready': { path: string; loadGeneration: number };
 }
 
 function listen<T extends keyof TauriEventPayloads>(
@@ -176,7 +177,12 @@ export function useTauriListeners({
         if (isEffectActive) useEditorStore.getState().setEditor({ uncroppedAdjustedPreviewUrl: event.payload });
       }),
       listen('analytics-update', (event) => {
-        if (isEffectActive && event.payload.path === useEditorStore.getState().selectedImage?.path) {
+        const selected = useEditorStore.getState().selectedImage;
+        if (
+          isEffectActive &&
+          event.payload.path === selected?.path &&
+          event.payload.loadGeneration === selected?.loadGeneration
+        ) {
           const update: { histogram?: HistogramData; waveform?: WaveformData } = {};
           if (event.payload.histogram != null) update.histogram = event.payload.histogram;
           if (event.payload.waveform != null) update.waveform = event.payload.waveform;
@@ -355,7 +361,12 @@ export function useTauriListeners({
         }
       }),
       listen('wgpu-frame-ready', (event) => {
-        if (isEffectActive && event.payload?.path === useEditorStore.getState().selectedImage?.path) {
+        const selected = useEditorStore.getState().selectedImage;
+        if (
+          isEffectActive &&
+          event.payload?.path === selected?.path &&
+          event.payload.loadGeneration === selected?.loadGeneration
+        ) {
           useEditorStore.getState().setEditor({ hasRenderedFirstFrame: true });
         }
       }),

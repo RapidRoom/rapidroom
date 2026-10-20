@@ -2,6 +2,7 @@ use crate::Cursor;
 use crate::app_settings::{AppSettings, load_settings};
 use crate::app_state::{AppState, LoadedImage};
 use crate::baseline_exposure::BaselineOptions;
+use crate::cache_utils::DecodedImageCache;
 use crate::exif_processing;
 use crate::file_management::{parse_virtual_path, read_file_mapped};
 use crate::formats::{has_non_raw_image_signature, is_raw_file};
@@ -24,15 +25,17 @@ use std::collections::HashMap;
 use std::fs;
 use std::panic;
 use std::path::Path;
-use std::sync::OnceLock;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
+use tauri::Manager;
 
 #[derive(serde::Serialize)]
 pub struct LoadImageResult {
+    pub load_generation: usize,
     pub width: u32,
     pub height: u32,
     pub metadata: ImageMetadata,
@@ -964,16 +967,130 @@ pub fn composite_patches_on_image(
     Ok(composited_image)
 }
 
+type CachedBaseImage = (Arc<DynamicImage>, HashMap<String, String>, bool);
+
+fn decoded_cache_key(path: &str, settings: &AppSettings) -> Option<String> {
+    let metadata = fs::metadata(path).ok()?;
+    let modified = metadata
+        .modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?;
+    #[cfg(unix)]
+    let identity = {
+        use std::os::unix::fs::MetadataExt;
+        (
+            metadata.dev(),
+            metadata.ino(),
+            metadata.ctime(),
+            metadata.ctime_nsec(),
+        )
+    };
+    #[cfg(not(unix))]
+    let identity = ();
+    Some(
+        serde_json::json!([
+            path,
+            metadata.len(),
+            modified.as_nanos().to_string(),
+            identity,
+            settings.raw_highlight_compression,
+            settings.linear_raw_mode,
+            settings.raw_preprocessing_color_nr,
+            settings.raw_preprocessing_sharpening,
+            settings.apply_preprocessing_to_non_raws,
+            settings.use_apple_raw9,
+        ])
+        .to_string(),
+    )
+}
+
+fn cached_base_image(
+    cache: &Mutex<DecodedImageCache>,
+    path: &str,
+    settings: &AppSettings,
+) -> Option<CachedBaseImage> {
+    let key = decoded_cache_key(path, settings)?;
+    cache.lock().unwrap().get(&key)
+}
+
+// Call with the shared decode permit held; recheck after waiting so Editor and
+// Culling adopt each other's pristine full-resolution decode, never its edits.
+pub(crate) fn load_cached_base_image(
+    cache: &Mutex<DecodedImageCache>,
+    path: &str,
+    settings: &AppSettings,
+    cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+) -> Result<CachedBaseImage, String> {
+    let check_current = || {
+        if cancel_token
+            .as_ref()
+            .is_some_and(|(counter, generation)| counter.load(Ordering::SeqCst) != *generation)
+        {
+            Err("Load cancelled".to_string())
+        } else {
+            Ok(())
+        }
+    };
+    check_current()?;
+    let key = decoded_cache_key(path, settings);
+    if let Some(key) = &key
+        && let Some(cached) = cache.lock().unwrap().get(key)
+    {
+        check_current()?;
+        return Ok(cached);
+    }
+    let decode = |bytes: &[u8]| -> Result<CachedBaseImage, String> {
+        check_current()?;
+        let loaded = load_base_image_with_proxy_outcome(
+            bytes,
+            path,
+            false,
+            settings,
+            cancel_token.clone(),
+            None,
+        )
+        .map_err(|e| e.to_string())?;
+        let exif = exif_processing::read_exif_data(path, bytes);
+        Ok((Arc::new(loaded.image), exif, loaded.used_embedded_preview))
+    };
+    let result = match read_file_mapped(Path::new(path)) {
+        Ok(bytes) => decode(&bytes)?,
+        Err(error) => {
+            log::warn!(
+                "Failed to memory-map file '{}': {}. Falling back to standard read.",
+                path,
+                error
+            );
+            decode(&fs::read(path).map_err(|e| e.to_string())?)?
+        }
+    };
+    check_current()?;
+    if let Some(key) = key
+        && decoded_cache_key(path, settings).as_ref() == Some(&key)
+    {
+        cache
+            .lock()
+            .unwrap()
+            .insert(key, result.0.clone(), result.1.clone(), result.2);
+    }
+    Ok(result)
+}
+
 #[tauri::command]
-pub fn is_image_cached(path: String, state: tauri::State<'_, AppState>) -> bool {
+pub fn is_image_cached(
+    path: String,
+    state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> bool {
     let (source_path, _) = parse_virtual_path(&path);
-    let source_path_str = source_path.to_string_lossy().to_string();
-    state
-        .decoded_image_cache
-        .lock()
-        .unwrap()
-        .get(&source_path_str)
-        .is_some()
+    let settings = load_settings(app_handle).unwrap_or_default();
+    cached_base_image(
+        &state.decoded_image_cache,
+        &source_path.to_string_lossy(),
+        &settings,
+    )
+    .is_some()
 }
 
 #[tauri::command]
@@ -982,15 +1099,19 @@ pub async fn load_image(
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<LoadImageResult, String> {
-    let my_generation = state.load_image_generation.fetch_add(1, Ordering::SeqCst) + 1;
+    let my_generation = {
+        let mut image = state
+            .original_image
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let generation = state.load_image_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        *image = None;
+        generation
+    };
     let generation_tracker = state.load_image_generation.clone();
     let cancel_token = Some((generation_tracker.clone(), my_generation));
 
     {
-        *state
-            .original_image
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = None;
         *state
             .cached_preview
             .lock()
@@ -1041,21 +1162,9 @@ pub async fn load_image(
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
     let baseline_options = BaselineOptions::from_settings(&settings);
 
-    let path_clone = source_path_str.clone();
-
-    let cached_data = state
-        .decoded_image_cache
-        .lock()
-        .unwrap()
-        .get(&source_path_str);
-
-    let (pristine_arc, exif_data, used_embedded_preview) = if let Some((
-        cached_img,
-        cached_exif,
-        cached_preview,
-    )) = cached_data
-    {
-        (cached_img, cached_exif, cached_preview)
+    let cached_data = cached_base_image(&state.decoded_image_cache, &source_path_str, &settings);
+    let (pristine_arc, exif_data, used_embedded_preview) = if let Some(cached) = cached_data {
+        cached
     } else {
         if crate::file_management::is_cloud_placeholder(&source_path) {
             return Err(format!(
@@ -1063,8 +1172,6 @@ pub async fn load_image(
                 source_path_str
             ));
         }
-
-        // Serialise full-resolution decodes and skip superseded waiters.
         let decode_permit = state
             .decode_permit
             .clone()
@@ -1074,75 +1181,19 @@ pub async fn load_image(
         if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
             return Err("Load cancelled".to_string());
         }
-
-        let (pristine_img, exif_data_loaded, used_embedded_preview) =
-            tokio::task::spawn_blocking(move || {
-            let _decode_permit = decode_permit;
-            if generation_tracker.load(Ordering::SeqCst) != my_generation {
-                return Err("Load cancelled".to_string());
-            }
-
-            let result: Result<(DynamicImage, HashMap<String, String>, bool), String> =
-                (|| match read_file_mapped(Path::new(&path_clone)) {
-                    Ok(mmap) => {
-                        if generation_tracker.load(Ordering::SeqCst) != my_generation {
-                            return Err("Load cancelled".to_string());
-                        }
-
-                        let loaded = load_base_image_with_proxy_outcome(
-                            &mmap,
-                            &path_clone,
-                            false,
-                            &settings,
-                            cancel_token.clone(),
-                            None,
-                        )
-                        .map_err(|e| e.to_string())?;
-                        let exif = exif_processing::read_exif_data(&path_clone, &mmap);
-                        Ok((loaded.image, exif, loaded.used_embedded_preview))
-                    }
-                    Err(e) => {
-                        log::warn!(
-                            "Failed to memory-map file '{}': {}. Falling back to standard read.",
-                            path_clone,
-                            e
-                        );
-                        let bytes = fs::read(&path_clone).map_err(|io_err| {
-                            format!("Fallback read failed for {}: {}", path_clone, io_err)
-                        })?;
-
-                        if generation_tracker.load(Ordering::SeqCst) != my_generation {
-                            return Err("Load cancelled".to_string());
-                        }
-
-                        let loaded = load_base_image_with_proxy_outcome(
-                            &bytes,
-                            &path_clone,
-                            false,
-                            &settings,
-                            cancel_token.clone(),
-                            None,
-                        )
-                        .map_err(|e| e.to_string())?;
-                        let exif = exif_processing::read_exif_data(&path_clone, &bytes);
-                        Ok((loaded.image, exif, loaded.used_embedded_preview))
-                    }
-                })();
-            result
-            })
-            .await
-            .map_err(|e| e.to_string())??;
-
-        let arc_img = Arc::new(pristine_img);
-
-        state.decoded_image_cache.lock().unwrap().insert(
-            source_path_str.clone(),
-            arc_img.clone(),
-            exif_data_loaded.clone(),
-            used_embedded_preview,
-        );
-
-        (arc_img, exif_data_loaded, used_embedded_preview)
+        let path = source_path_str.clone();
+        let handle = app_handle.clone();
+        tokio::task::spawn_blocking(move || {
+            let _permit = decode_permit;
+            load_cached_base_image(
+                &handle.state::<AppState>().decoded_image_cache,
+                &path,
+                &settings,
+                cancel_token,
+            )
+        })
+        .await
+        .map_err(|e| e.to_string())??
     };
 
     if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
@@ -1167,7 +1218,15 @@ pub async fn load_image(
         );
     }
 
-    *state.original_image.lock().unwrap() = Some(LoadedImage {
+    let mut image = state
+        .original_image
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+        return Err("Load cancelled".to_string());
+    }
+    *image = Some(LoadedImage {
+        generation: my_generation,
         path,
         image: pristine_arc,
         is_raw,
@@ -1175,6 +1234,7 @@ pub async fn load_image(
     });
 
     Ok(LoadImageResult {
+        load_generation: my_generation,
         width: orig_width,
         height: orig_height,
         metadata,
@@ -1183,6 +1243,51 @@ pub async fn load_image(
         as_shot_white_balance: as_shot.white_balance,
         used_embedded_preview,
     })
+}
+
+#[cfg(test)]
+mod decoded_preview_cache_tests {
+    use super::*;
+
+    #[test]
+    fn shared_decode_preserves_pixels_and_invalidates_replaced_source_and_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("photo.png");
+        let path_str = path.to_str().unwrap();
+        let write =
+            |color: [u8; 3], seconds| {
+                image::RgbImage::from_pixel(12, 8, image::Rgb(color))
+                    .save(&path)
+                    .unwrap();
+                fs::File::options()
+                    .write(true)
+                    .open(&path)
+                    .unwrap()
+                    .set_times(fs::FileTimes::new().set_modified(
+                        std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds),
+                    ))
+                    .unwrap();
+            };
+        let cache = Mutex::new(DecodedImageCache::new(2));
+        let mut settings = AppSettings::default();
+        write([255, 0, 0], 1000);
+        let first = load_cached_base_image(&cache, path_str, &settings, None).unwrap();
+        let adopted = load_cached_base_image(&cache, path_str, &settings, None).unwrap();
+        assert!(Arc::ptr_eq(&first.0, &adopted.0));
+        assert_eq!(first.0.to_rgb8().get_pixel(5, 4).0, [255, 0, 0]);
+
+        write([0, 0, 255], 1001);
+        let replaced = load_cached_base_image(&cache, path_str, &settings, None).unwrap();
+        assert!(!Arc::ptr_eq(&first.0, &replaced.0));
+        assert_eq!(replaced.0.to_rgb8().get_pixel(5, 4).0, [0, 0, 255]);
+
+        settings.raw_preprocessing_sharpening = Some(0.0);
+        let changed = load_cached_base_image(&cache, path_str, &settings, None).unwrap();
+        assert!(!Arc::ptr_eq(&replaced.0, &changed.0));
+        assert_eq!(replaced.0.to_rgb32f(), changed.0.to_rgb32f());
+        let cancelled = Some((Arc::new(AtomicUsize::new(2)), 1));
+        assert!(load_cached_base_image(&cache, path_str, &settings, cancelled).is_err());
+    }
 }
 
 #[cfg(test)]

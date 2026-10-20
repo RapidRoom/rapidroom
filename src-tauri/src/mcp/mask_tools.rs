@@ -449,6 +449,7 @@ mod tests {
     #[test]
     fn virtual_copy_canvas_requires_the_exact_loaded_session() {
         let image = crate::LoadedImage {
+            generation: 0,
             path: "/photo.ARW?vc=abcdef".into(),
             image: std::sync::Arc::new(image::DynamicImage::ImageRgb8(image::RgbImage::new(
                 64, 32,
