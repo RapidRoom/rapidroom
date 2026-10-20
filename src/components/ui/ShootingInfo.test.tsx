@@ -21,9 +21,9 @@ it('defaults existing settings to Always and reacts to hover/off without alterin
   });
   try {
     await act(async () => root.render(<ShootingInfo exif={exif} />));
-    expect(host.textContent).toBe('FE 35mm F1.4 GM·35 mm · f/1.4 · 1/125 s · ISO 1600');
+    expect(host.textContent).toBe('Sony 35mm f1.4 GM·35mm · f/1.4 · 1/125 · ISO 1600');
     expect(host.querySelector('[data-shooting-info]')?.getAttribute('title')).toBe(
-      'FE 35mm F1.4 GM · 35 mm · f/1.4 · 1/125 s · ISO 1600',
+      'Sony 35mm f1.4 GM · 35mm · f/1.4 · 1/125 · ISO 1600',
     );
     await act(async () =>
       useSettingsStore.setState({ appSettings: { shootingInfoVisibility: 'hover' } as AppSettings }),
