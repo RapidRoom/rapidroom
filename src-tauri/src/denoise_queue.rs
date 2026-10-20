@@ -2038,9 +2038,59 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn resolved_recipe_publication_completes_after_destination_lock_release() {
-        use std::os::unix::fs::MetadataExt;
         let dir = tempfile::tempdir().unwrap();
-        let raw = dir.path().join("context.ARW");
+        let log_path = dir.path().join("child.log");
+        let log = fs::File::create(&log_path).unwrap();
+        // A regressed WRITE reentry must never keep the suite's own global
+        // mutex locked. Only this owned child contains the actual lock probe.
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "denoising::queue::tests::resolved_recipe_publication_child",
+                "--ignored",
+                "--nocapture",
+            ])
+            .env("RAPIDROOM_RECIPE_LOCK_TEST_DIR", dir.path())
+            .stdin(std::process::Stdio::null())
+            .stdout(log.try_clone().unwrap())
+            .stderr(log)
+            .spawn()
+            .unwrap();
+        let child_pid = child.id();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                assert!(
+                    status.success(),
+                    "child {child_pid}: {}",
+                    fs::read_to_string(&log_path).unwrap()
+                );
+                break;
+            }
+            if std::time::Instant::now() >= deadline {
+                // The handle and PID were captured at spawn; never select a
+                // process by name or search, and reap it before fixture cleanup.
+                let _ = child.kill();
+                child.wait().unwrap();
+                panic!(
+                    "recipe lock child {child_pid} exceeded 15 seconds: {}",
+                    fs::read_to_string(&log_path).unwrap()
+                );
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "Subprocess-only recipe lock probe, run by the bounded parent test"]
+    fn resolved_recipe_publication_child() {
+        use std::os::unix::fs::MetadataExt;
+        let dir = PathBuf::from(
+            std::env::var_os("RAPIDROOM_RECIPE_LOCK_TEST_DIR")
+                .expect("owned subprocess fixture directory"),
+        );
+        let raw = dir.join("context.ARW");
         // Real sidecar/lock/publication protocol; camera bytes are synthetic here.
         fs::write(&raw, b"context protocol RAW").unwrap();
         let path = raw.to_string_lossy().into_owned();
@@ -2117,15 +2167,15 @@ mod tests {
         // The old separate metadata mutex no longer exists. Completion after
         // releasing the external lock still detects reentry into WRITE.
         drop(external);
-        let completed = receive.recv_timeout(std::time::Duration::from_secs(2));
+        let completed = receive
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("context recheck reentered the sidecar transaction");
         worker.join().unwrap();
         assert!(
             waiting_for_destination,
             "publication never reached the destination transaction"
         );
-        completed
-            .expect("context recheck reentered the sidecar transaction")
-            .unwrap();
+        completed.unwrap();
         crate::file_management::update_sidecar(&sidecar, |metadata| metadata.rating = 5).unwrap();
         assert_eq!(strict_json(&sidecar).unwrap()["rating"], 5);
         assert_eq!(
