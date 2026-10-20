@@ -114,6 +114,12 @@ def run_style_stack_checks(smoke, wait_for, baseline):
     assert state()['adjustments'] == removed['adjustments']
     panel()
     wait_for(lambda: len(gui_entries()) == 2, 'Applied folder after restart')
+    # Reopening first displays an asset thumbnail, which is not canvas-readable.
+    # Compare the processed preview once its fresh document-owned blob arrives.
+    wait_for(lambda: smoke.execute('''return [...document.querySelectorAll('svg image')].some(e=>{
+      const r=e.getBoundingClientRect();return r.width>500&&r.height>300&&
+        Number(getComputedStyle(e).opacity)>.99&&e.getAttribute('href')?.startsWith('blob:');});'''),
+      'processed preview after frontend restart')
     reloaded = smoke.stable_preview('stack-reopened')
     assert ImageChops.difference(smoke.crop(removed_pixels), smoke.crop(reloaded)).getbbox() is None
     smoke.step('fresh frontend reload restores actual sidecar stack, manual values and exact preview')
