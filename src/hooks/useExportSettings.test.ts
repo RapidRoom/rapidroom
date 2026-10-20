@@ -49,3 +49,29 @@ describe('useExportSettings output sharpening', () => {
     expect(settings.current.outputSharpening).toEqual(sharpening);
   });
 });
+
+describe('useExportSettings print resolution', () => {
+  it('defaults to 300 and preserves named and last-used preset values', async () => {
+    const settings = await mountSettings();
+    expect(settings.current.dpi).toBe(300);
+    await act(async () => settings.current.setDpi(240));
+    const saved = { ...settings.current.currentSettingsObject, id: 'print', name: 'Print' } as ExportPreset;
+    expect(saved.dpi).toBe(240);
+    await act(async () => settings.current.handleApplyPreset({ ...saved, id: '__last_used__', dpi: 600 }));
+    expect(settings.current.dpi).toBe(600);
+    await act(async () => settings.current.handleApplyPreset(saved));
+    expect(settings.current.dpi).toBe(240);
+    const { dpi: _omitted, ...legacy } = saved;
+    await act(async () => settings.current.handleApplyPreset(legacy as ExportPreset));
+    expect(settings.current.dpi).toBe(300);
+  });
+
+  it('recovers from invalid stored preset values', async () => {
+    const settings = await mountSettings();
+    const preset = { ...settings.current.currentSettingsObject, id: 'print', name: 'Print' } as ExportPreset;
+    for (const dpi of [0, -1, 300.5, 65536, NaN]) {
+      await act(async () => settings.current.handleApplyPreset({ ...preset, dpi }));
+      expect(settings.current.dpi).toBe(300);
+    }
+  });
+});

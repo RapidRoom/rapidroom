@@ -1,26 +1,36 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'react-toastify';
-import { Loader2, Circle, Hexagon, Octagon, Aperture } from 'lucide-react';
+import { Loader2, Circle, Hexagon, Octagon, Aperture, Plus, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import Slider from '../ui/Slider';
+import Slider, { SliderChangeEvent } from '../ui/Slider';
 import Switch from '../ui/Switch';
+import VisibilityToggle, { HIDDEN_CONTENT_CLASS } from '../ui/VisibilityToggle';
 import {
   Adjustments,
   Effect,
   CreativeAdjustment,
+  RelightLight,
   getAdjustmentToolOrder,
   getHiddenAdjustmentTools,
+  createRelightLight,
+  getRelightLightColor,
 } from '../../utils/adjustments';
+import Dropdown from '../ui/Dropdown';
 import LUTControl from '../ui/LUTControl';
+import ColorField, { normalizeHexColor, useParsedTextField } from '../ui/ColorField';
+import { ColorSwatch } from './Color';
 import { AppSettings } from '../ui/AppProperties';
 import Text from '../ui/Text';
 import AdjustmentSubSection from './AdjustmentSubSection';
 import { TextVariants } from '../../types/typography';
 import { DepthRangePicker } from '../ui/DepthRangePicker';
 import { useProcessStore } from '../../store/useProcessStore';
+import { useSettingsStore } from '../../store/useSettingsStore';
+import { useEditorStore } from '../../store/useEditorStore';
+import { useToolVisibility } from '../../context/ToolVisibilityContext';
 
 interface EffectsPanelProps {
   adjustments: Adjustments;
@@ -143,6 +153,46 @@ const BokehShapeSwitch = ({ selectedShape, onShapeChange }: BokehShapeSwitchProp
   );
 };
 
+interface SpatialEffectProps {
+  children: ReactNode;
+  enabled: boolean;
+  id: string;
+  label: string;
+  onToggle(enabled: boolean): void;
+}
+
+const SpatialEffect = ({ children, enabled, id, label, onToggle }: SpatialEffectProps) => {
+  const visibility = useToolVisibility(id, 'spatial');
+
+  return (
+    <div>
+      <div className="group/visibility flex items-center gap-2">
+        <Switch className="grow" label={label} checked={enabled} onChange={onToggle} />
+        {enabled && visibility && (
+          <VisibilityToggle isVisible={visibility.isVisible} onToggle={visibility.toggle} revealOnHover />
+        )}
+      </div>
+
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${
+          enabled ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div
+            className={clsx(
+              'space-y-4 mt-4 mb-1 pl-2 border-l-2 border-card-active transition-opacity duration-300',
+              visibility?.isDimmed && HIDDEN_CONTENT_CLASS,
+            )}
+          >
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function EffectsPanel({
   adjustments,
   setAdjustments,
@@ -154,24 +204,72 @@ export default function EffectsPanel({
 }: EffectsPanelProps) {
   const { t } = useTranslation();
   const [isGeneratingDepth, setIsGeneratingDepth] = useState(false);
+  const [isGeneratingNormals, setIsGeneratingNormals] = useState(false);
+  const [isGeneratingFogDepth, setIsGeneratingFogDepth] = useState(false);
+  const [hoveredLightId, setHoveredLightId] = useState<string | null>(null);
   const aiModelDownloadStatus = useProcessStore((state) => state.aiModelDownloadStatus);
+  const isRelightPickerActive = useEditorStore((state) => state.isRelightPickerActive);
+  const activeRelightLightId = useEditorStore((state) => state.activeRelightLightId);
+  const setEditor = useEditorStore((state) => state.setEditor);
 
-  const handleGenerateLensBlurDepthMap = async () => {
-    setIsGeneratingDepth(true);
+  const mapRequests = useRef(new Map<string, symbol>());
+
+  useEffect(() => {
+    const requests = mapRequests.current;
+    const unsubscribe = useEditorStore.subscribe((state, previous) => {
+      if (
+        state.selectedImage?.path !== previous.selectedImage?.path ||
+        state.selectedImage?.isReady !== previous.selectedImage?.isReady
+      ) {
+        requests.clear();
+        setIsGeneratingDepth(false);
+        setIsGeneratingNormals(false);
+        setIsGeneratingFogDepth(false);
+      }
+    });
+    return () => {
+      unsubscribe();
+      requests.clear();
+    };
+  }, []);
+
+  const generateMap = async (
+    mapKey: 'lensBlurDepthMap' | 'relightNormalMap' | 'fogDepthMap',
+    enabledKey: 'lensBlurEnabled' | 'relightEnabled' | 'fogEnabled',
+    command: 'generate_full_image_depth_map' | 'generate_relight_normal_map',
+    setGenerating: (value: boolean) => void,
+    label: string,
+  ) => {
+    const selectedImage = useEditorStore.getState().selectedImage;
+    if (!selectedImage?.isReady) return;
+    const imagePath = selectedImage.path;
+    const request = Symbol();
+    mapRequests.current.set(mapKey, request);
+    const isCurrent = () =>
+      mapRequests.current.get(mapKey) === request && useEditorStore.getState().selectedImage?.path === imagePath;
+    setGenerating(true);
     try {
-      const b64: string = await invoke('generate_full_image_depth_map', { jsAdjustments: adjustments });
-      setAdjustments((prev: Adjustments) => ({
-        ...prev,
-        lensBlurDepthMap: b64,
-      }));
-    } catch (error: unknown) {
-      const message = error instanceof Error && error.message ? error.message : String(error);
-      toast.error(`Failed to generate depth map: ${message}`);
-      setAdjustments((prev: Adjustments) => ({ ...prev, lensBlurEnabled: false }));
+      const result = await invoke<{ imagePath: string; dataUrl: string }>(command, { imagePath });
+      if (!isCurrent() || result.imagePath !== imagePath) return;
+      setAdjustments((prev) => (isCurrent() ? { ...prev, [mapKey]: result.dataUrl } : prev));
+    } catch (e: unknown) {
+      if (!isCurrent()) return;
+      toast.error(`Failed to generate ${label} map: ${e}`);
+      setAdjustments((prev) => (isCurrent() ? { ...prev, [enabledKey]: false } : prev));
     } finally {
-      setIsGeneratingDepth(false);
+      if (isCurrent()) {
+        mapRequests.current.delete(mapKey);
+        setGenerating(false);
+      }
     }
   };
+
+  const handleGenerateLensBlurDepthMap = () =>
+    generateMap('lensBlurDepthMap', 'lensBlurEnabled', 'generate_full_image_depth_map', setIsGeneratingDepth, 'depth');
+  const handleGenerateRelightNormalMap = () =>
+    generateMap('relightNormalMap', 'relightEnabled', 'generate_relight_normal_map', setIsGeneratingNormals, 'normal');
+  const handleGenerateFogDepthMap = () =>
+    generateMap('fogDepthMap', 'fogEnabled', 'generate_full_image_depth_map', setIsGeneratingFogDepth, 'depth');
 
   const handleAdjustmentChange = (key: string, value: number | string | boolean) => {
     const numericValue = typeof value === 'boolean' ? value : parseInt(String(value), 10);
@@ -201,6 +299,84 @@ export default function EffectsPanel({
     }
   };
 
+  const handleFogToggle = (enabled: boolean) => {
+    handleAdjustmentChange(Effect.FogEnabled, enabled);
+    if (enabled && !adjustments.fogDepthMap) {
+      handleGenerateFogDepthMap();
+    }
+  };
+
+  const handleRelightToggle = (enabled: boolean) => {
+    handleAdjustmentChange(Effect.RelightEnabled, enabled);
+    if (!enabled) {
+      setEditor({ isRelightPickerActive: false });
+    }
+    if (enabled && !adjustments.relightNormalMap) {
+      handleGenerateRelightNormalMap();
+    }
+  };
+
+  const relightLights: Array<RelightLight> = adjustments.relightLights || [];
+  const activeLight = relightLights.find((light) => light.id === activeRelightLightId);
+
+  const handleSelectLight = (id: string) => {
+    if (activeLight?.id === id && isRelightPickerActive) {
+      setEditor({ isRelightPickerActive: false });
+      return;
+    }
+    setEditor({
+      activeRelightLightId: id,
+      isRelightPickerActive: true,
+      isWbPickerActive: false,
+      mixerPickerProperty: null,
+      activeCenterMarker: null,
+    });
+  };
+
+  const handleAddLight = () => {
+    const light = createRelightLight(0.5, 0.5);
+    setAdjustments((prev: Partial<Adjustments>) => ({
+      ...prev,
+      relightLights: [...(prev.relightLights || []), light],
+    }));
+    setEditor({
+      activeRelightLightId: light.id,
+      isRelightPickerActive: true,
+      isWbPickerActive: false,
+      mixerPickerProperty: null,
+      activeCenterMarker: null,
+    });
+  };
+
+  const handleLightChange = (key: keyof RelightLight, value: number | string) => {
+    setAdjustments((prev: Partial<Adjustments>) => ({
+      ...prev,
+      relightLights: (prev.relightLights || []).map((light: RelightLight) =>
+        light.id === activeRelightLightId ? { ...light, [key]: value } : light,
+      ),
+    }));
+  };
+
+  const handleLightSliderChange = (key: keyof RelightLight) => (e: SliderChangeEvent) =>
+    handleLightChange(key, parseInt(String(e.target.value), 10));
+
+  const lightColorField = useParsedTextField(
+    activeLight?.color ?? '#ffffff',
+    (color) => handleLightChange('color', color),
+    normalizeHexColor,
+  );
+
+  const handleRemoveLight = (id: string) => {
+    setAdjustments((prev: Partial<Adjustments>) => ({
+      ...prev,
+      relightLights: (prev.relightLights || []).filter((light: RelightLight) => light.id !== id),
+    }));
+    if (id === activeRelightLightId) {
+      setEditor({ activeRelightLightId: null, isRelightPickerActive: false });
+    }
+  };
+
+  const isAiFree = useSettingsStore((s) => s.appSettings?.aiProvider === 'ai-free');
   const hiddenTools = getHiddenAdjustmentTools(appSettings?.adjustmentLayout);
   const toolOrder = getAdjustmentToolOrder('effects', appSettings?.adjustmentLayout?.toolOrder);
 
@@ -216,7 +392,7 @@ export default function EffectsPanel({
             label={t('adjustments.effects.glow')}
             max={100}
             min={0}
-            onChange={(e) => handleAdjustmentChange(CreativeAdjustment.GlowAmount, e.target.value)}
+            onChange={(e: SliderChangeEvent) => handleAdjustmentChange(CreativeAdjustment.GlowAmount, e.target.value)}
             step={1}
             value={adjustments.glowAmount}
             onDragStateChange={onDragStateChange}
@@ -226,7 +402,9 @@ export default function EffectsPanel({
             label={t('adjustments.effects.halation')}
             max={100}
             min={0}
-            onChange={(e) => handleAdjustmentChange(CreativeAdjustment.HalationAmount, e.target.value)}
+            onChange={(e: SliderChangeEvent) =>
+              handleAdjustmentChange(CreativeAdjustment.HalationAmount, e.target.value)
+            }
             step={1}
             value={adjustments.halationAmount}
             onDragStateChange={onDragStateChange}
@@ -237,7 +415,9 @@ export default function EffectsPanel({
               label={t('adjustments.effects.lightFlares')}
               max={100}
               min={0}
-              onChange={(e) => handleAdjustmentChange(CreativeAdjustment.FlareAmount, e.target.value)}
+              onChange={(e: SliderChangeEvent) =>
+                handleAdjustmentChange(CreativeAdjustment.FlareAmount, e.target.value)
+              }
               step={1}
               value={adjustments.flareAmount}
               onDragStateChange={onDragStateChange}
@@ -248,33 +428,117 @@ export default function EffectsPanel({
 
       {!isForMask && (
         <>
-          {!hiddenTools.includes('lensBlur') && (
+          {!isAiFree && !hiddenTools.includes('spatial') && (
             <AdjustmentSubSection
-              id="lensBlur"
-              order={toolOrder.indexOf('lensBlur')}
-              title={t('adjustments.effects.lensBlur')}
+              id="spatial"
+              order={toolOrder.indexOf('spatial')}
+              title={t('adjustments.effects.spatial')}
             >
-              <Switch
-                label={t('adjustments.effects.lensBlur')}
-                checked={!!adjustments.lensBlurEnabled}
-                onChange={handleLensBlurToggle}
-              />
+              <div className="space-y-3">
+                <SpatialEffect
+                  enabled={!!adjustments.lensBlurEnabled}
+                  id="lensBlur"
+                  label={t('adjustments.effects.lensBlur')}
+                  onToggle={handleLensBlurToggle}
+                >
+                  {isGeneratingDepth ? (
+                    <div className="flex flex-col items-center justify-center gap-1 p-4 text-text-secondary text-center">
+                      <div className="flex items-center gap-2">
+                        <Loader2 size={16} className="animate-spin shrink-0" />
+                        <Text variant={TextVariants.label}>
+                          {aiModelDownloadStatus
+                            ? t('editor.masks.settings.aiModelDownloading')
+                            : t('editor.ai.generatingDepthMap')}
+                        </Text>
+                      </div>
+                      {aiModelDownloadStatus && (
+                        <Text variant={TextVariants.small} className="text-accent">
+                          {aiModelDownloadStatus}
+                        </Text>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <Slider
+                        label={t('adjustments.effects.amount')}
+                        max={100}
+                        min={0}
+                        defaultValue={40}
+                        onChange={(e: SliderChangeEvent) =>
+                          handleAdjustmentChange(Effect.LensBlurAmount, e.target.value)
+                        }
+                        step={1}
+                        value={adjustments.lensBlurAmount ?? 50}
+                        onDragStateChange={onDragStateChange}
+                        fillOrigin="min"
+                      />
 
-              <div
-                className={`grid transition-all duration-300 ease-in-out ${
-                  adjustments.lensBlurEnabled ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                }`}
-              >
-                <div className="overflow-hidden">
-                  <div className="space-y-4 pt-4 pb-1">
-                    {isGeneratingDepth ? (
+                      <Slider
+                        label={t('adjustments.effects.lensDiffusion')}
+                        max={100}
+                        min={0}
+                        defaultValue={0}
+                        onChange={(e: SliderChangeEvent) =>
+                          handleAdjustmentChange(Effect.lensBlurDiffusion, e.target.value)
+                        }
+                        step={1}
+                        value={adjustments.lensBlurDiffusion ?? 0}
+                        onDragStateChange={onDragStateChange}
+                      />
+
+                      <BokehShapeSwitch
+                        selectedShape={adjustments.lensBlurShape || 'circle'}
+                        onShapeChange={(shapeId) =>
+                          setAdjustments((prev: Partial<Adjustments>) => ({
+                            ...prev,
+                            [Effect.LensBlurShape]: shapeId,
+                          }))
+                        }
+                      />
+
+                      <DepthRangePicker
+                        minDepth={100 - (adjustments.lensBlurMaxDepth ?? 100)}
+                        maxDepth={100 - (adjustments.lensBlurMinDepth ?? 20)}
+                        minFade={adjustments.lensBlurMaxFade ?? 20}
+                        maxFade={adjustments.lensBlurMinFade ?? 20}
+                        defaultMinDepth={0}
+                        defaultMaxDepth={80}
+                        defaultMinFade={20}
+                        defaultMaxFade={20}
+                        onChange={(values: {
+                          minDepth: number;
+                          maxDepth: number;
+                          minFade: number;
+                          maxFade: number;
+                        }) => {
+                          setAdjustments((prev: Partial<Adjustments>) => ({
+                            ...prev,
+                            lensBlurMinDepth: 100 - values.maxDepth,
+                            lensBlurMaxDepth: 100 - values.minDepth,
+                            lensBlurMinFade: values.maxFade,
+                            lensBlurMaxFade: values.minFade,
+                          }));
+                        }}
+                        onDragStateChange={onDragStateChange}
+                      />
+                    </>
+                  )}
+                </SpatialEffect>
+                <SpatialEffect
+                  enabled={!!adjustments.relightEnabled}
+                  id="relight"
+                  label={t('adjustments.effects.relight')}
+                  onToggle={handleRelightToggle}
+                >
+                  <div className="space-y-4" data-relight-lights>
+                    {isGeneratingNormals ? (
                       <div className="flex flex-col items-center justify-center gap-1 p-4 text-text-secondary text-center">
                         <div className="flex items-center gap-2">
                           <Loader2 size={16} className="animate-spin shrink-0" />
                           <Text variant={TextVariants.label}>
                             {aiModelDownloadStatus
                               ? t('editor.masks.settings.aiModelDownloading')
-                              : t('editor.ai.generatingDepthMap')}
+                              : t('editor.ai.generatingNormalMap')}
                           </Text>
                         </div>
                         {aiModelDownloadStatus && (
@@ -286,67 +550,384 @@ export default function EffectsPanel({
                     ) : (
                       <>
                         <Slider
-                          label={t('adjustments.effects.amount')}
+                          label={t('adjustments.effects.relightAmbient')}
+                          max={100}
+                          min={-100}
+                          onChange={(e: SliderChangeEvent) =>
+                            handleAdjustmentChange(Effect.RelightAmbient, e.target.value)
+                          }
+                          step={1}
+                          value={adjustments.relightAmbient ?? 0}
+                          onDragStateChange={onDragStateChange}
+                        />
+
+                        <Slider
+                          label={t('adjustments.effects.relightSoftness')}
                           max={100}
                           min={0}
-                          defaultValue={40}
-                          onChange={(e) => handleAdjustmentChange(Effect.LensBlurAmount, e.target.value)}
+                          defaultValue={25}
+                          onChange={(e: SliderChangeEvent) =>
+                            handleAdjustmentChange(Effect.RelightSoftness, e.target.value)
+                          }
                           step={1}
-                          value={adjustments.lensBlurAmount ?? 50}
+                          value={adjustments.relightSoftness ?? 25}
                           onDragStateChange={onDragStateChange}
                           fillOrigin="min"
                         />
 
                         <Slider
-                          label={t('adjustments.effects.lensDiffusion')}
+                          label={t('adjustments.effects.relightShine')}
                           max={100}
                           min={0}
-                          defaultValue={0}
-                          onChange={(e) => handleAdjustmentChange(Effect.lensBlurDiffusion, e.target.value)}
-                          step={1}
-                          value={adjustments.lensBlurDiffusion ?? 0}
-                          onDragStateChange={onDragStateChange}
-                        />
-
-                        <BokehShapeSwitch
-                          selectedShape={adjustments.lensBlurShape || 'circle'}
-                          onShapeChange={(shapeId) =>
-                            setAdjustments((prev: Adjustments) => ({
-                              ...prev,
-                              [Effect.LensBlurShape]: shapeId,
-                            }))
+                          onChange={(e: SliderChangeEvent) =>
+                            handleAdjustmentChange(Effect.RelightShine, e.target.value)
                           }
-                        />
-
-                        <DepthRangePicker
-                          minDepth={100 - (adjustments.lensBlurMaxDepth ?? 100)}
-                          maxDepth={100 - (adjustments.lensBlurMinDepth ?? 20)}
-                          minFade={adjustments.lensBlurMaxFade ?? 20}
-                          maxFade={adjustments.lensBlurMinFade ?? 20}
-                          defaultMinDepth={0}
-                          defaultMaxDepth={80}
-                          defaultMinFade={20}
-                          defaultMaxFade={20}
-                          onChange={(values: {
-                            minDepth: number;
-                            maxDepth: number;
-                            minFade: number;
-                            maxFade: number;
-                          }) => {
-                            setAdjustments((prev: Adjustments) => ({
-                              ...prev,
-                              lensBlurMinDepth: 100 - values.maxDepth,
-                              lensBlurMaxDepth: 100 - values.minDepth,
-                              lensBlurMinFade: values.maxFade,
-                              lensBlurMaxFade: values.minFade,
-                            }));
-                          }}
+                          step={1}
+                          value={adjustments.relightShine ?? 0}
                           onDragStateChange={onDragStateChange}
                         />
+
+                        <Switch
+                          label={t('adjustments.effects.relightShadows')}
+                          checked={!!adjustments.relightShadows}
+                          onChange={(enabled: boolean) => handleAdjustmentChange(Effect.RelightShadows, enabled)}
+                        />
+
+                        {adjustments.relightShadows && (
+                          <Slider
+                            label={t('adjustments.effects.relightShadowSoftness')}
+                            max={100}
+                            min={0}
+                            defaultValue={15}
+                            onChange={(e: SliderChangeEvent) =>
+                              handleAdjustmentChange(Effect.RelightShadowSoftness, e.target.value)
+                            }
+                            step={1}
+                            value={adjustments.relightShadowSoftness ?? 15}
+                            onDragStateChange={onDragStateChange}
+                            fillOrigin="min"
+                          />
+                        )}
+
+                        <div className="p-3 rounded-md bg-bg-primary space-y-4">
+                          <div className="flex flex-wrap items-center gap-3 px-1">
+                            {relightLights.map((light, index) => (
+                              <div
+                                className="relative flex"
+                                key={light.id}
+                                onMouseEnter={() => setHoveredLightId(light.id)}
+                                onMouseLeave={() => setHoveredLightId(null)}
+                              >
+                                <ColorSwatch
+                                  color={getRelightLightColor(light)}
+                                  isActive={activeLight?.id === light.id}
+                                  name={light.id}
+                                  onClick={handleSelectLight}
+                                  ariaLabel={t('adjustments.effects.relightLight', { index: index + 1 })}
+                                />
+                                {hoveredLightId === light.id && (
+                                  <button
+                                    className="absolute -top-1 -right-1 z-10 p-0.5 rounded-full bg-card-active text-text-secondary hover:bg-red-500/20 hover:text-red-500 transition-all"
+                                    onClick={(e: React.MouseEvent) => {
+                                      e.stopPropagation();
+                                      handleRemoveLight(light.id);
+                                    }}
+                                    data-tooltip={t('adjustments.effects.relightRemoveLight')}
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              aria-label={t('adjustments.effects.relightAddLight')}
+                              data-tooltip={t('adjustments.effects.relightAddLight')}
+                              onClick={handleAddLight}
+                              className="w-6 h-6 flex items-center justify-center rounded-full border-2 border-dashed border-text-secondary text-text-secondary hover:border-text-primary hover:text-text-primary transition-colors"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+
+                          {activeLight ? (
+                            <>
+                              <div>
+                                <Text variant={TextVariants.label} className="mb-2 block">
+                                  {t('adjustments.effects.relightType')}
+                                </Text>
+                                <Dropdown
+                                  options={[
+                                    { label: t('adjustments.effects.relightTypes.point'), value: 'point' },
+                                    { label: t('adjustments.effects.relightTypes.spot'), value: 'spot' },
+                                    {
+                                      label: t('adjustments.effects.relightTypes.directional'),
+                                      value: 'directional',
+                                    },
+                                  ]}
+                                  value={activeLight.type}
+                                  onChange={(val) => handleLightChange('type', val)}
+                                />
+                              </div>
+
+                              <ColorField
+                                color={activeLight.color || '#ffffff'}
+                                disabled={false}
+                                field={lightColorField}
+                                label={t('adjustments.effects.relightColor')}
+                                onColorChange={(color) => handleLightChange('color', color)}
+                              />
+
+                              <Slider
+                                label={t('adjustments.effects.relightIntensity')}
+                                max={100}
+                                min={0}
+                                defaultValue={60}
+                                onChange={handleLightSliderChange('intensity')}
+                                step={1}
+                                value={activeLight.intensity}
+                                onDragStateChange={onDragStateChange}
+                                fillOrigin="min"
+                              />
+
+                              {activeLight.type !== 'directional' && (
+                                <>
+                                  <Slider
+                                    label={t('adjustments.effects.relightDepth')}
+                                    max={100}
+                                    min={0}
+                                    defaultValue={0}
+                                    onChange={handleLightSliderChange('depth')}
+                                    step={1}
+                                    value={activeLight.depth}
+                                    onDragStateChange={onDragStateChange}
+                                    fillOrigin="min"
+                                  />
+
+                                  <Slider
+                                    label={t('adjustments.effects.relightFalloff')}
+                                    max={100}
+                                    min={0}
+                                    defaultValue={30}
+                                    onChange={handleLightSliderChange('radius')}
+                                    step={1}
+                                    value={activeLight.radius}
+                                    onDragStateChange={onDragStateChange}
+                                    fillOrigin="min"
+                                  />
+                                </>
+                              )}
+
+                              {activeLight.type !== 'point' && (
+                                <>
+                                  <Slider
+                                    label={t('adjustments.effects.relightAngle')}
+                                    max={360}
+                                    min={0}
+                                    defaultValue={135}
+                                    onChange={handleLightSliderChange('angle')}
+                                    step={1}
+                                    suffix="°"
+                                    value={activeLight.angle}
+                                    onDragStateChange={onDragStateChange}
+                                    fillOrigin="min"
+                                  />
+
+                                  <Slider
+                                    label={t('adjustments.effects.relightElevation')}
+                                    max={180}
+                                    min={-180}
+                                    defaultValue={60}
+                                    onChange={handleLightSliderChange('elevation')}
+                                    step={1}
+                                    suffix="°"
+                                    value={activeLight.elevation}
+                                    onDragStateChange={onDragStateChange}
+                                  />
+                                </>
+                              )}
+
+                              {activeLight.type === 'spot' && (
+                                <>
+                                  <Slider
+                                    label={t('adjustments.effects.relightCone')}
+                                    max={100}
+                                    min={0}
+                                    defaultValue={40}
+                                    onChange={handleLightSliderChange('cone')}
+                                    step={1}
+                                    value={activeLight.cone}
+                                    onDragStateChange={onDragStateChange}
+                                    fillOrigin="min"
+                                  />
+
+                                  <Slider
+                                    label={t('adjustments.effects.feather')}
+                                    max={100}
+                                    min={0}
+                                    defaultValue={50}
+                                    onChange={handleLightSliderChange('feather')}
+                                    step={1}
+                                    value={activeLight.feather}
+                                    onDragStateChange={onDragStateChange}
+                                    fillOrigin="min"
+                                  />
+                                </>
+                              )}
+
+                              <Slider
+                                label={t('adjustments.color.temperature')}
+                                max={100}
+                                min={-100}
+                                onChange={handleLightSliderChange('temperature')}
+                                step={1}
+                                value={activeLight.temperature}
+                                trackClassName="temperature-gradient-track"
+                                onDragStateChange={onDragStateChange}
+                              />
+
+                              <Slider
+                                label={t('adjustments.color.tint')}
+                                max={100}
+                                min={-100}
+                                onChange={handleLightSliderChange('tint')}
+                                step={1}
+                                value={activeLight.tint}
+                                trackClassName="tint-gradient-track"
+                                onDragStateChange={onDragStateChange}
+                              />
+                            </>
+                          ) : (
+                            <Text variant={TextVariants.small} className="text-text-secondary">
+                              {t('adjustments.effects.relightHint')}
+                            </Text>
+                          )}
+                        </div>
                       </>
                     )}
                   </div>
-                </div>
+                </SpatialEffect>
+                <SpatialEffect
+                  enabled={!!adjustments.fogEnabled}
+                  id="fog"
+                  label={t('adjustments.effects.fog')}
+                  onToggle={handleFogToggle}
+                >
+                  {isGeneratingFogDepth ? (
+                    <div className="flex flex-col items-center justify-center gap-1 p-4 text-text-secondary text-center">
+                      <div className="flex items-center gap-2">
+                        <Loader2 size={16} className="animate-spin shrink-0" />
+                        <Text variant={TextVariants.label}>
+                          {aiModelDownloadStatus
+                            ? t('editor.masks.settings.aiModelDownloading')
+                            : t('editor.ai.generatingDepthMap')}
+                        </Text>
+                      </div>
+                      {aiModelDownloadStatus && (
+                        <Text variant={TextVariants.small} className="text-accent">
+                          {aiModelDownloadStatus}
+                        </Text>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <Slider
+                        label={t('adjustments.effects.amount')}
+                        max={100}
+                        min={0}
+                        defaultValue={50}
+                        onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogAmount, e.target.value)}
+                        step={1}
+                        value={adjustments.fogAmount ?? 50}
+                        onDragStateChange={onDragStateChange}
+                        fillOrigin="min"
+                      />
+
+                      <Slider
+                        label={t('adjustments.effects.fogStart')}
+                        max={100}
+                        min={0}
+                        defaultValue={0}
+                        onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogStart, e.target.value)}
+                        step={1}
+                        value={adjustments.fogStart ?? 0}
+                        onDragStateChange={onDragStateChange}
+                        fillOrigin="min"
+                      />
+
+                      <Slider
+                        label={t('adjustments.effects.fogDensity')}
+                        max={100}
+                        min={0}
+                        defaultValue={50}
+                        onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogDensity, e.target.value)}
+                        step={1}
+                        value={adjustments.fogDensity ?? 50}
+                        onDragStateChange={onDragStateChange}
+                        fillOrigin="min"
+                      />
+
+                      <Slider
+                        label={t('adjustments.effects.fogHeight')}
+                        max={100}
+                        min={0}
+                        defaultValue={0}
+                        onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogHeight, e.target.value)}
+                        step={1}
+                        value={adjustments.fogHeight ?? 0}
+                        onDragStateChange={onDragStateChange}
+                        fillOrigin="min"
+                      />
+
+                      <Slider
+                        label={t('adjustments.effects.fogVariation')}
+                        max={100}
+                        min={0}
+                        defaultValue={25}
+                        onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogVariation, e.target.value)}
+                        step={1}
+                        value={adjustments.fogVariation ?? 25}
+                        onDragStateChange={onDragStateChange}
+                        fillOrigin="min"
+                      />
+
+                      <Slider
+                        label={t('adjustments.effects.glow')}
+                        max={100}
+                        min={0}
+                        defaultValue={25}
+                        onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogGlow, e.target.value)}
+                        step={1}
+                        value={adjustments.fogGlow ?? 25}
+                        onDragStateChange={onDragStateChange}
+                        fillOrigin="min"
+                      />
+
+                      <Slider
+                        label={t('adjustments.color.temperature')}
+                        max={100}
+                        min={-100}
+                        onChange={(e: SliderChangeEvent) =>
+                          handleAdjustmentChange(Effect.FogTemperature, e.target.value)
+                        }
+                        step={1}
+                        value={adjustments.fogTemperature ?? 0}
+                        trackClassName="temperature-gradient-track"
+                        onDragStateChange={onDragStateChange}
+                      />
+
+                      <Slider
+                        label={t('adjustments.color.tint')}
+                        max={100}
+                        min={-100}
+                        onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogTint, e.target.value)}
+                        step={1}
+                        value={adjustments.fogTint ?? 0}
+                        trackClassName="tint-gradient-track"
+                        onDragStateChange={onDragStateChange}
+                      />
+                    </>
+                  )}
+                </SpatialEffect>
               </div>
             </AdjustmentSubSection>
           )}
@@ -372,46 +953,58 @@ export default function EffectsPanel({
               order={toolOrder.indexOf('vignette')}
               title={t('adjustments.effects.vignette')}
             >
-              <Slider
-                label={t('adjustments.effects.amount')}
-                max={100}
-                min={-100}
-                onChange={(e) => handleAdjustmentChange(Effect.VignetteAmount, e.target.value)}
-                step={1}
-                value={adjustments.vignetteAmount}
-                onDragStateChange={onDragStateChange}
-              />
-              <Slider
-                defaultValue={50}
-                label={t('adjustments.effects.midpoint')}
-                max={100}
-                min={0}
-                onChange={(e) => handleAdjustmentChange(Effect.VignetteMidpoint, e.target.value)}
-                step={1}
-                value={adjustments.vignetteMidpoint}
-                onDragStateChange={onDragStateChange}
-                fillOrigin="min"
-              />
-              <Slider
-                label={t('adjustments.effects.roundness')}
-                max={100}
-                min={-100}
-                onChange={(e) => handleAdjustmentChange(Effect.VignetteRoundness, e.target.value)}
-                step={1}
-                value={adjustments.vignetteRoundness}
-                onDragStateChange={onDragStateChange}
-              />
-              <Slider
-                defaultValue={50}
-                label={t('adjustments.effects.feather')}
-                max={100}
-                min={0}
-                onChange={(e) => handleAdjustmentChange(Effect.VignetteFeather, e.target.value)}
-                step={1}
-                value={adjustments.vignetteFeather}
-                onDragStateChange={onDragStateChange}
-                fillOrigin="min"
-              />
+              <div
+                data-center-marker-controls="vignette"
+                onPointerDown={() =>
+                  setEditor({
+                    activeCenterMarker: 'vignette',
+                    isRelightPickerActive: false,
+                    isWbPickerActive: false,
+                    mixerPickerProperty: null,
+                  })
+                }
+              >
+                <Slider
+                  label={t('adjustments.effects.amount')}
+                  max={100}
+                  min={-100}
+                  onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.VignetteAmount, e.target.value)}
+                  step={1}
+                  value={adjustments.vignetteAmount}
+                  onDragStateChange={onDragStateChange}
+                />
+                <Slider
+                  defaultValue={50}
+                  label={t('adjustments.effects.midpoint')}
+                  max={100}
+                  min={0}
+                  onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.VignetteMidpoint, e.target.value)}
+                  step={1}
+                  value={adjustments.vignetteMidpoint}
+                  onDragStateChange={onDragStateChange}
+                  fillOrigin="min"
+                />
+                <Slider
+                  label={t('adjustments.effects.roundness')}
+                  max={100}
+                  min={-100}
+                  onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.VignetteRoundness, e.target.value)}
+                  step={1}
+                  value={adjustments.vignetteRoundness}
+                  onDragStateChange={onDragStateChange}
+                />
+                <Slider
+                  defaultValue={50}
+                  label={t('adjustments.effects.feather')}
+                  max={100}
+                  min={0}
+                  onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.VignetteFeather, e.target.value)}
+                  step={1}
+                  value={adjustments.vignetteFeather}
+                  onDragStateChange={onDragStateChange}
+                  fillOrigin="min"
+                />
+              </div>
             </AdjustmentSubSection>
           )}
 
@@ -421,7 +1014,7 @@ export default function EffectsPanel({
                 label={t('adjustments.effects.amount')}
                 max={100}
                 min={0}
-                onChange={(e) => handleAdjustmentChange(Effect.GrainAmount, e.target.value)}
+                onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.GrainAmount, e.target.value)}
                 step={1}
                 value={adjustments.grainAmount}
                 onDragStateChange={onDragStateChange}
@@ -431,7 +1024,7 @@ export default function EffectsPanel({
                 label={t('adjustments.effects.size')}
                 max={100}
                 min={0}
-                onChange={(e) => handleAdjustmentChange(Effect.GrainSize, e.target.value)}
+                onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.GrainSize, e.target.value)}
                 step={1}
                 value={adjustments.grainSize}
                 onDragStateChange={onDragStateChange}
@@ -442,7 +1035,7 @@ export default function EffectsPanel({
                 label={t('adjustments.effects.roughness')}
                 max={100}
                 min={0}
-                onChange={(e) => handleAdjustmentChange(Effect.GrainRoughness, e.target.value)}
+                onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.GrainRoughness, e.target.value)}
                 step={1}
                 value={adjustments.grainRoughness}
                 onDragStateChange={onDragStateChange}

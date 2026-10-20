@@ -1,3 +1,8 @@
+import { rememberAppliedStyleStack } from '../utils/appliedPreset';
+import { editStack, isStackedPhoto, stackKey, toggleStack } from '../utils/photoStacks';
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
+import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
+import { copyFilesWithSummary } from '../utils/fileTransfers';
 import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -75,15 +80,15 @@ import {
   FolderTree,
 } from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
-import {
-  Color,
-  COLOR_LABELS,
-  INITIAL_ADJUSTMENTS,
-  normalizeLoadedAdjustments,
-  type Adjustments,
-} from '../utils/adjustments';
+import { Color, COLOR_LABELS, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
 import TaggingSubMenu from '../context/TaggingSubMenu';
-import { debouncedSave, debouncedSetHistory, useEditorActions } from './useEditorActions';
+import {
+  prepareEditorDraftForXmpImport,
+  markEditorDraftPersisted,
+  type XmpImportSavePause,
+  type XmpEditorDraft,
+  useEditorActions,
+} from './useEditorActions';
 import { useLibraryActions } from './useLibraryActions';
 import { globalImageCache } from '../utils/ImageLRUCache';
 
@@ -100,10 +105,38 @@ interface DeleteOptions {
 }
 
 type XmpNotTransferredItem =
-  'whiteBalance' | 'profileLook' | 'aiDenoise' | 'aiMasks' | 'masks' | 'localAdjustments' | 'pointColor';
+  | 'whiteBalance'
+  | 'profileLook'
+  | 'aiDenoise'
+  | 'aiMasks'
+  | 'maskBrushTable'
+  | 'masks'
+  | 'localAdjustments'
+  | 'pointColor';
+
+interface BrushTableRefusal {
+  name: string;
+  reason: string;
+}
+
+interface XmpMaskFailure {
+  correction: string;
+  component: string;
+  maskType: string;
+  reason: string;
+}
+
+function describeMaskFailure(failure: XmpMaskFailure): string {
+  return `${failure.correction} / ${failure.component} (${failure.maskType}): ${failure.reason}`;
+}
 
 interface ImportedXmpAdjustments extends ImportedXmpMetadata {
   notTransferred?: XmpNotTransferredItem[];
+  brushTableRefusals?: BrushTableRefusal[];
+  maskFailures?: XmpMaskFailure[];
+  adjustmentsApplied: boolean;
+  alreadyApplied: boolean;
+  draftPreserved: boolean;
   settingsReport?: LightroomSettingReport;
   unchanged?: boolean;
 }
@@ -111,6 +144,8 @@ interface ImportedXmpAdjustments extends ImportedXmpMetadata {
 interface XmpNotTransferred {
   path: string;
   items: XmpNotTransferredItem[];
+  brushTableRefusals?: BrushTableRefusal[];
+  maskFailures?: XmpMaskFailure[];
   settingsReport?: LightroomSettingReport;
 }
 
@@ -122,6 +157,9 @@ interface MatchingXmpSidecarImportResult {
   failed: number;
   failures: string[];
   importedPaths: string[];
+  adjustmentsImportedPaths: string[];
+  alreadyAppliedPaths: string[];
+  preservedDraftPaths: string[];
   unchangedPaths: string[];
   notTransferred: XmpNotTransferred[];
 }
@@ -150,17 +188,23 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   const { showContextMenu } = useContextMenu();
 
   const describeNotTransferred = useCallback(
-    (items: XmpNotTransferredItem[]) => {
+    (items: XmpNotTransferredItem[], brushTableRefusals: BrushTableRefusal[] = []) => {
       const labels: Record<XmpNotTransferredItem, string> = {
         aiDenoise: t('contextMenus.xmpImportReport.notTransferredItems.aiDenoise'),
         aiMasks: t('contextMenus.xmpImportReport.notTransferredItems.aiMasks'),
         localAdjustments: t('contextMenus.xmpImportReport.notTransferredItems.localAdjustments'),
+        maskBrushTable: t('contextMenus.xmpImportReport.notTransferredItems.maskBrushTable'),
         masks: t('contextMenus.xmpImportReport.notTransferredItems.masks'),
         pointColor: t('contextMenus.xmpImportReport.notTransferredItems.pointColor'),
         profileLook: t('contextMenus.xmpImportReport.notTransferredItems.profileLook'),
         whiteBalance: t('contextMenus.xmpImportReport.notTransferredItems.whiteBalance'),
       };
-      return items.map((item) => labels[item] ?? item).join(', ');
+      return [
+        items.map((item) => labels[item] ?? item).join(', '),
+        ...brushTableRefusals.map(({ name, reason }) =>
+          t('contextMenus.xmpImportReport.brushTableGroup', { name, reason }),
+        ),
+      ].join('\n');
     },
     [t],
   );
@@ -270,24 +314,29 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
     [albumIcons, t],
   );
 
-  const applyImportedXmpMetadata = useCallback((targetPath: string, metadata: ImportedXmpMetadata) => {
-    if (!metadata.adjustments || metadata.adjustments.is_null) return;
+  const applyImportedXmpMetadata = useCallback(
+    (targetPath: string, metadata: ImportedXmpMetadata, pause?: XmpImportSavePause) => {
+      if (!metadata.adjustments || metadata.adjustments.is_null) return;
 
-    const normalized = normalizeLoadedAdjustments(metadata.adjustments as Adjustments);
-    const editorState = useEditorStore.getState();
-    if (editorState.selectedImage?.path === targetPath) {
-      editorState.setEditor({ adjustments: normalized });
-      editorState.resetHistory(normalized);
-    }
+      const normalized = normalizeLoadedAdjustments(metadata.adjustments as Adjustments);
+      const editorState = useEditorStore.getState();
+      if (pause?.hasNewerDraft(targetPath)) return;
+      if (editorState.selectedImage?.path === targetPath) {
+        markEditorDraftPersisted(targetPath, normalized);
+        editorState.setEditor({ adjustments: normalized });
+        editorState.resetHistory(normalized);
+      }
 
-    const libraryState = useLibraryStore.getState();
-    if (libraryState.libraryActivePath === targetPath) {
-      libraryState.setLibrary({ libraryActiveAdjustments: normalized });
-    }
-  }, []);
+      const libraryState = useLibraryStore.getState();
+      if (libraryState.libraryActivePath === targetPath) {
+        libraryState.setLibrary({ libraryActiveAdjustments: normalized });
+      }
+    },
+    [],
+  );
 
   const refreshImportedXmpPaths = useCallback(
-    async (importedPaths: string[]) => {
+    async (importedPaths: string[], pause?: XmpImportSavePause) => {
       importedPaths.forEach((path) => globalImageCache.delete(path));
 
       const editorState = useEditorStore.getState();
@@ -303,7 +352,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       await Promise.all(
         [...pathsToRefresh].map(async (path) => {
           const metadata = await invoke<ImportedXmpMetadata>(Invokes.LoadMetadata, { path });
-          applyImportedXmpMetadata(path, metadata);
+          applyImportedXmpMetadata(path, metadata, pause);
         }),
       );
     },
@@ -312,16 +361,20 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
 
   const importXmpAdjustmentsForImage = useCallback(
     async (targetPath: string) => {
+      let pause: XmpImportSavePause | undefined;
+      let draft: XmpEditorDraft | undefined;
+      let consumedPaths: string[] = [];
       try {
-        // A pending editor save would otherwise overwrite the newly imported sidecar.
-        debouncedSave.cancel();
-        debouncedSetHistory.cancel();
+        const prepared = await prepareEditorDraftForXmpImport(targetPath);
+        pause = prepared;
+        draft = prepared.draft;
         globalImageCache.delete(targetPath);
 
         let metadata: ImportedXmpAdjustments;
         try {
           metadata = await invoke<ImportedXmpAdjustments>(Invokes.ImportXmpAdjustmentsForImage, {
             path: targetPath,
+            pendingAdjustments: draft?.path === targetPath ? draft.adjustments : undefined,
           });
         } catch (automaticImportError) {
           if (!String(automaticImportError).includes('No matching XMP sidecar')) {
@@ -338,27 +391,47 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           metadata = await invoke<ImportedXmpAdjustments>(Invokes.ImportXmpAdjustmentsForImage, {
             path: targetPath,
             xmpPath: selectedPath,
+            pendingAdjustments: draft?.path === targetPath ? draft.adjustments : undefined,
           });
         }
 
+        const newerDraft = pause.hasNewerDraft(targetPath);
+        if (!newerDraft && (metadata.adjustmentsApplied || metadata.draftPreserved)) consumedPaths = [targetPath];
+        if (metadata.draftPreserved && draft?.path === targetPath && !newerDraft)
+          markEditorDraftPersisted(targetPath, draft.adjustments);
+        if (metadata.adjustmentsApplied) applyImportedXmpMetadata(targetPath, metadata, pause);
         if (!metadata.unchanged) {
-          applyImportedXmpMetadata(targetPath, metadata);
           await props.refreshImageList();
+          toast.success(
+            t(
+              metadata.adjustmentsApplied
+                ? 'contextMenus.toasts.importedXmpAdjustments'
+                : 'contextMenus.xmpImportReport.metadataOnly',
+            ),
+          );
         }
-        if (metadata.unchanged) {
-          toast.info(t('contextMenus.xmpImportReport.unchanged', { total: 1 }));
-        } else {
-          toast.success(t('contextMenus.toasts.importedXmpAdjustments'));
+        if (newerDraft) toast.info(t('contextMenus.xmpImportReport.concurrentEditsPreserved'));
+        if (metadata.alreadyApplied)
+          toast.info(t('contextMenus.xmpImportReport.alreadyAppliedPhoto'), { autoClose: false });
+        if (metadata.adjustmentsApplied)
           toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), { autoClose: false });
-        }
+        if (metadata.unchanged)
+          toast.info(
+            metadata.brushTableRefusals?.length
+              ? t('contextMenus.xmpImportReport.unchangedForImage')
+              : t('contextMenus.xmpImportReport.unchanged', { total: 1 }),
+          );
         const reportParts: string[] = [];
         if (metadata.settingsReport?.settings.length) {
           reportParts.push(describeLightroomSettings(metadata.settingsReport, t));
         }
+        for (const failure of metadata.maskFailures ?? []) {
+          toast.info(describeMaskFailure(failure), { autoClose: false });
+        }
         if (metadata.notTransferred?.length) {
           reportParts.push(
             t('contextMenus.xmpImportReport.notTransferredForImage', {
-              items: describeNotTransferred(metadata.notTransferred),
+              items: describeNotTransferred(metadata.notTransferred, metadata.brushTableRefusals),
             }),
           );
         }
@@ -392,6 +465,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       } catch (err) {
         console.error('Failed to import XMP adjustments:', err);
         toast.error(t('contextMenus.toasts.failedImportXmpAdjustments', { err }));
+      } finally {
+        pause?.finish(consumedPaths);
       }
     },
     [applyImportedXmpMetadata, describeNotTransferred, props, t],
@@ -408,10 +483,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       });
       const progressToastId = toast.loading(t('contextMenus.toasts.importingMatchingXmpSidecars'));
       let stopListening: (() => void) | undefined;
+      let pause: XmpImportSavePause | undefined;
+      let draft: XmpEditorDraft | undefined;
+      let consumedPaths: string[] = [];
 
       try {
-        debouncedSave.cancel();
-        debouncedSetHistory.cancel();
+        const prepared = await prepareEditorDraftForXmpImport();
+        pause = prepared;
+        draft = prepared.draft;
         stopListening = await listen<MatchingXmpSidecarImportProgress>('xmp-sidecar-import-progress', ({ payload }) => {
           if (payload.folderPath !== targetPath) return;
           useProcessStore.getState().setImportState({
@@ -422,9 +501,15 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
 
         const result = await invoke<MatchingXmpSidecarImportResult>(Invokes.ImportMatchingXmpSidecarsInFolder, {
           folderPath: targetPath,
+          pendingDraft: draft,
         });
-
-        await refreshImportedXmpPaths(result.importedPaths);
+        consumedPaths = [...result.adjustmentsImportedPaths, ...result.preservedDraftPaths].filter(
+          (path) => !prepared.hasNewerDraft(path),
+        );
+        if (draft && result.preservedDraftPaths.includes(draft.path) && consumedPaths.includes(draft.path))
+          markEditorDraftPersisted(draft.path, draft.adjustments);
+        result.importedPaths.forEach((path) => globalImageCache.delete(path));
+        await refreshImportedXmpPaths(result.adjustmentsImportedPaths, pause);
 
         const { currentFolderPath, imageList } = useLibraryStore.getState();
         const importedVisibleImage = imageList.some((image) => result.importedPaths.includes(image.path));
@@ -451,10 +536,18 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         const relativeToImportedFolder = (path: string) =>
           path.startsWith(`${targetPath}/`) ? path.slice(targetPath.length + 1) : path;
         const reportLines = [
-          t('contextMenus.xmpImportReport.calibrationWarning'),
-          '',
+          ...(result.adjustmentsImportedPaths.length > 0
+            ? [t('contextMenus.xmpImportReport.calibrationWarning'), '']
+            : []),
           t('contextMenus.xmpImportReport.folder', { folder: targetPath }),
         ];
+        if (result.alreadyAppliedPaths.length > 0) {
+          reportLines.push(
+            '',
+            t('contextMenus.xmpImportReport.alreadyAppliedPhoto'),
+            ...result.alreadyAppliedPaths.map(relativeToImportedFolder),
+          );
+        }
         if (result.unchangedPaths.length > 0) {
           reportLines.push(
             '',
@@ -473,10 +566,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           reportLines.push(
             '',
             t('contextMenus.xmpImportReport.notTransferred', { total: result.notTransferred.length }),
-            ...result.notTransferred.map(({ path, items, settingsReport }) =>
+            ...result.notTransferred.map(({ path, items, brushTableRefusals, maskFailures, settingsReport }) =>
               [
                 path.replace(/\\/g, '/').split('/').pop(),
-                items.length ? describeNotTransferred(items) : '',
+                ...(maskFailures ?? []).map(describeMaskFailure),
+                items.length ? describeNotTransferred(items, brushTableRefusals) : '',
                 settingsReport?.settings.length ? describeLightroomSettings(settingsReport, t) : '',
               ]
                 .filter(Boolean)
@@ -503,14 +597,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           });
         };
 
-        if (result.imported > 0) {
+        if (result.adjustmentsImportedPaths.length > 0) {
           toast.info(t('contextMenus.xmpImportReport.calibrationWarning'), {
             autoClose: false,
             onClick: showImportReport,
           });
         }
 
-        if (result.unchanged > 0 || result.failed > 0) {
+        if (result.unchanged > 0 || result.failed > 0 || result.alreadyAppliedPaths.length > 0) {
           const notify = result.failed > 0 ? toast.error : toast.info;
           notify(
             t('contextMenus.xmpImportReport.available', {
@@ -544,6 +638,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           type: 'error',
         });
       } finally {
+        pause?.finish(consumedPaths);
         stopListening?.();
       }
     },
@@ -571,6 +666,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           label: t('contextMenus.editor.exportImage'),
           icon: FileInput,
           onClick: () => setPanel(Panel.Export),
+        },
+        {
+          label: t('contextMenus.editor.exportInstagram'),
+          icon: FileInput,
+          onClick: () => {
+            setUI({ instagramExportRequest: Date.now() });
+            setPanel(Panel.Export);
+          },
         },
         { type: OPTION_SEPARATOR },
         { label: t('contextMenus.editor.undo'), icon: Undo, onClick: undo, disabled: !canUndo },
@@ -607,6 +710,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               icon: Aperture,
               onClick: () => handleAutoLensCorrection([selectedImage.path]),
               disabled: !selectedImage?.isReady,
+            },
+            {
+              label: t('denoiseQueue.toggle'),
+              icon: Grip,
+              onClick: () => void setDenoiseMark(undefined, [selectedImage.path]),
             },
             {
               label: t('contextMenus.editor.denoise'),
@@ -694,15 +802,20 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               label: t('contextMenus.editor.confirmReset'),
               icon: Check,
               isDestructive: true,
-              onClick: () => {
-                const originalAspectRatio =
-                  selectedImage.width && selectedImage.height ? selectedImage.width / selectedImage.height : null;
-                resetHistory({
-                  ...INITIAL_ADJUSTMENTS,
-                  aspectRatio: originalAspectRatio,
-                  aiPatches: [],
-                });
-                setEditor({ adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: originalAspectRatio, aiPatches: [] } });
+              onClick: async () => {
+                const before = useEditorStore.getState();
+                if (before.selectedImage?.path !== selectedImage.path) return;
+                try {
+                  const reset = await createResetAdjustmentsWithLensDefaults(selectedImage);
+                  const current = useEditorStore.getState();
+                  if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before.adjustments)
+                    return;
+                  void rememberAppliedStyleStack(selectedImage.path, null, reset);
+                  resetHistory(reset);
+                  setEditor({ adjustments: reset });
+                } catch (error) {
+                  toast.error(`Failed to reset adjustments: ${error}`);
+                }
               },
             },
           ],
@@ -849,12 +962,17 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       };
 
       const handleApplyAutoAdjustmentsToSelection = () => {
-        if (finalSelection.length === 0) return;
-        finalSelection.forEach((p) => globalImageCache.delete(p));
+        const editingPath = activeView === 'editor' ? selectedImage?.path : undefined;
+        const batchPaths = finalSelection.filter((p) => p !== editingPath);
+        if (batchPaths.length < finalSelection.length) {
+          handleAutoAdjustments();
+        }
+        if (batchPaths.length === 0) return;
+        batchPaths.forEach((p) => globalImageCache.delete(p));
 
-        invoke(Invokes.ApplyAutoAdjustmentsToPaths, { paths: finalSelection })
+        invoke(Invokes.ApplyAutoAdjustmentsToPaths, { paths: batchPaths })
           .then(async () => {
-            if (selectedImage && finalSelection.includes(selectedImage.path)) {
+            if (selectedImage && batchPaths.includes(selectedImage.path)) {
               const metadata = await invoke<LoadedImageMetadata>(Invokes.LoadMetadata, { path: selectedImage.path });
               if (metadata.adjustments && !metadata.adjustments.is_null) {
                 const normalized = normalizeLoadedAdjustments(metadata.adjustments);
@@ -862,7 +980,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
                 useEditorStore.getState().resetHistory(normalized);
               }
             }
-            if (libraryActivePath && finalSelection.includes(libraryActivePath)) {
+            if (libraryActivePath && batchPaths.includes(libraryActivePath)) {
               const metadata = await invoke<LoadedImageMetadata>(Invokes.LoadMetadata, { path: libraryActivePath });
               if (metadata.adjustments && !metadata.adjustments.is_null) {
                 const normalized = normalizeLoadedAdjustments(metadata.adjustments);
@@ -882,6 +1000,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           props.handleImageSelect(path);
         }
         setPanel(Panel.Export);
+      };
+
+      const onInstagramExportClick = () => {
+        setUI({ instagramExportRequest: Date.now() });
+        onExportClick();
       };
 
       const handleRemoveFromAlbum = async () => {
@@ -927,7 +1050,49 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         }
       };
 
+      const targetImage = imageList.find((i) => i.path === path);
+      const targetStack = targetImage && isStackedPhoto(targetImage) ? targetImage.stack : null;
       const options = [
+        {
+          label: t('stacks.menu'),
+          icon: Layers,
+          submenu: [
+            {
+              label: t('stacks.create'),
+              disabled: finalSelection.length < 2,
+              onClick: () => void editStack(finalSelection, 'stack'),
+            },
+            {
+              label: t('stacks.unstack'),
+              disabled: !finalSelection.some((p) => imageList.find((i) => i.path === p)?.stack),
+              onClick: () => void editStack(finalSelection, 'unstack'),
+            },
+            { label: t('stacks.cover'), disabled: !targetStack, onClick: () => void editStack([path], 'cover') },
+            {
+              label: t('stacks.expandCollapse'),
+              disabled: !targetStack,
+              onClick: () => targetStack && toggleStack(stackKey(imageList.find((i) => i.path === path)!)),
+            },
+            { label: t('stacks.auto'), onClick: () => setLibrary({ stackPreviewOpen: true }) },
+            {
+              label: t('stacks.wholeMetadata'),
+              icon: useLibraryStore.getState().applyMetadataToStack ? Check : undefined,
+              onClick: () => setLibrary((s) => ({ applyMetadataToStack: !s.applyMetadataToStack })),
+            },
+            {
+              label: t('stacks.mergedResults'),
+              icon: useLibraryStore.getState().stackMergedResults ? Check : undefined,
+              onClick: () => setLibrary((s) => ({ stackMergedResults: !s.stackMergedResults })),
+            },
+          ],
+        },
+        { label: t('denoiseQueue.mark'), icon: Grip, onClick: () => void setDenoiseMark(true, finalSelection) },
+        { label: t('denoiseQueue.unmark'), icon: Grip, onClick: () => void setDenoiseMark(false, finalSelection) },
+        {
+          label: t('denoiseQueue.title'),
+          icon: Grip,
+          onClick: () => useDenoiseQueueStore.setState({ setupOpen: true }),
+        },
         ...(!isEditingThisImage
           ? [
               {
@@ -937,9 +1102,14 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
                 onClick: () => props.handleImageSelect(finalSelection[0]),
               },
               { icon: FileInput, label: exportLabel, onClick: onExportClick },
+              { icon: FileInput, label: t('contextMenus.editor.exportInstagram'), onClick: onInstagramExportClick },
               { type: OPTION_SEPARATOR },
             ]
-          : [{ icon: FileInput, label: exportLabel, onClick: onExportClick }, { type: OPTION_SEPARATOR }]),
+          : [
+              { icon: FileInput, label: exportLabel, onClick: onExportClick },
+              { icon: FileInput, label: t('contextMenus.editor.exportInstagram'), onClick: onInstagramExportClick },
+              { type: OPTION_SEPARATOR },
+            ]),
         {
           disabled: !isSingleSelection,
           icon: Copy,
@@ -1208,6 +1378,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       handleCopyAdjustments,
       handlePasteAdjustments,
       importXmpAdjustmentsForImage,
+      handleAutoAdjustments,
       handleRate,
       buildFlagMenu,
       handleSetColorLabel,
@@ -1355,7 +1526,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               label: copyPastedLabel,
               onClick: async () => {
                 try {
-                  await invoke(Invokes.CopyFiles, { sourcePaths: copiedFilePaths, destinationFolder: targetPath });
+                  await copyFilesWithSummary(copiedFilePaths, targetPath);
                   if (targetPath === currentFolderPath) props.handleLibraryRefresh();
                 } catch (err) {
                   toast.error(t('contextMenus.toasts.failedCopy', { err }));
@@ -1755,12 +1926,11 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             submenu: [
               {
                 label: copyPastedLabel,
+                disabled: !currentFolderPath,
                 onClick: async () => {
+                  if (!currentFolderPath) return;
                   try {
-                    await invoke(Invokes.CopyFiles, {
-                      sourcePaths: copiedFilePaths,
-                      destinationFolder: currentFolderPath,
-                    });
+                    await copyFilesWithSummary(copiedFilePaths, currentFolderPath);
                     props.handleLibraryRefresh();
                   } catch (err) {
                     toast.error(t('contextMenus.toasts.failedCopy', { err }));

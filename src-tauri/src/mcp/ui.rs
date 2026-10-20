@@ -142,3 +142,35 @@ pub(super) fn ensure_path_exists(path: &str, directory: bool) -> Result<(), Stri
         Err(format!("path does not exist or has the wrong type: {path}"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn actual_javascript_style_coordinates_survive_rpc_state_roundtrips() {
+        // Captured from the production Amount200 failure. Browser-generated
+        // curve coordinates must keep their IEEE-754 values through IPC/RPC;
+        // otherwise an unchanged editor is falsely rejected as a stale base.
+        let coordinates = [
+            183.00000000000006_f64,
+            217.00000000000006,
+            238.00000000000006,
+            239.00000000000006,
+        ];
+        let mut state = json!({"curves":{"blue":[{"x":192,"y":coordinates[0]}],"green":[{"x":192,"y":coordinates[1]}],"luma":[{"x":192,"y":coordinates[2]}],"red":[{"x":192,"y":coordinates[3]}]}});
+        for _ in 0..8 {
+            state = serde_json::from_str(&serde_json::to_string(&state).unwrap()).unwrap();
+            for (channel, expected) in ["blue", "green", "luma", "red"]
+                .into_iter()
+                .zip(coordinates)
+            {
+                assert_eq!(
+                    state["curves"][channel][0]["y"].as_f64().unwrap().to_bits(),
+                    expected.to_bits(),
+                    "{channel}"
+                );
+            }
+        }
+    }
+}

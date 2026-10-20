@@ -65,7 +65,8 @@
       "vibrance": "Jaskrawość",
       "wbPickerTooltip": "Próbnik balansu bieli",
       "wbPickerWgpuDisabled": "Próbnik BB: Wyłącz WGPU w Ustawieniach.",
-      "whiteBalance": "Balans bieli"
+      "whiteBalance": "Balans bieli",
+      "kelvinModeTooltip": "Pokaż temperaturę w kelwinach"
     },
     "curves": {
       "channelTitle": "Kanał {{channel}}",
@@ -123,6 +124,11 @@
       "bokehShape": "Kształt bokeh",
       "creative": "Kreatywne",
       "feather": "Wtapianie",
+      "fog": "Mgła",
+      "fogDensity": "Gęstość",
+      "fogHeight": "Mgła przyziemna",
+      "fogStart": "Początek",
+      "fogVariation": "Zmienność",
       "glow": "Poświata",
       "grain": "Ziarno",
       "halation": "Halacja",
@@ -131,9 +137,33 @@
       "lightFlares": "Flary świetlne",
       "lut": "LUT",
       "midpoint": "Punkt środkowy",
+      "relight": "Ponowne oświetlenie",
+      "relightAddLight": "Dodaj światło",
+      "relightAmbient": "Światło otoczenia",
+      "relightAngle": "Kąt",
+      "relightColor": "Kolor światła",
+      "relightCone": "Stożek",
+      "relightDepth": "Głębia",
+      "relightElevation": "Wysokość",
+      "relightFalloff": "Spadek",
+      "relightHint": "Dodaj lub wybierz światło, a następnie kliknij lub przeciągnij na obrazie, aby je umieścić.",
+      "relightIntensity": "Intensywność",
+      "relightLight": "Światło {{index}}",
+      "relightRemoveLight": "Usuń światło",
+      "relightShadows": "Cienie",
+      "relightShadowSoftness": "Miękkość cieni",
+      "relightShine": "Połysk",
+      "relightSoftness": "Miękkość",
+      "relightType": "Typ światła",
+      "relightTypes": {
+        "directional": "Kierunkowe",
+        "point": "Punktowe",
+        "spot": "Reflektor"
+      },
       "roughness": "Szorstkość",
       "roundness": "Zaokrąglenie",
       "size": "Rozmiar",
+      "spatial": "Przestrzenne",
       "vignette": "Winieta"
     }
   },
@@ -338,6 +368,7 @@
       "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
+        "maskBrushTable": "Niezaimportowane tabele pędzla",
         "aiDenoise": "AI Denoise",
         "aiMasks": "AI masks (subject, sky, people, objects)",
         "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
@@ -387,9 +418,15 @@
           "cropGeometry": "Converted to native crop geometry",
           "unsupported": "No supported mapping for this CRS setting",
           "superseded": "The newer process-version setting takes precedence",
-          "inactive": "This setting is inactive in the source conversion mode"
+          "inactive": "This setting is inactive in the source conversion mode",
+          "alreadyApplied": "The photo marks development settings AlreadyApplied; existing native edits are preserved"
         }
-      }
+      },
+      "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
+      "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved.",
+      "brushTableGroup": "Grupa pędzla „{{name}}”: {{reason}}",
+      "unchangedForImage": "Zachowano istniejące edycje; nie zaimportowano obsługiwanych ustawień."
     },
     "toasts": {
       "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
@@ -504,6 +541,7 @@
       "editSettingsTitle": "Ustawienia edycji",
       "editsTitle": "Edycje",
       "generatingDepthMap": "Obliczanie mapy głębi AI...",
+      "generatingNormalMap": "Obliczanie mapy normalnych AI...",
       "generativeEditTitle": "Edycja generatywna",
       "inpaintingTitle": "Inpainting",
       "liquify": {
@@ -899,7 +937,10 @@
         "preset": "Preset",
         "style": "Styl",
         "tool": "Narzędzie"
-      }
+      },
+      "appliedFolder": "Zastosowane",
+      "bakedIn": "trwale zastosowany",
+      "bakedInNotice": "Zastosowany wcześniej i utrwalony w edycji. Usunięcie zachowuje edycję."
     },
     "referenceView": {
       "active": "Aktywne",
@@ -986,8 +1027,10 @@
       "selectFolderTitle_other": "Wybierz folder do eksportu {{count}} obrazów"
     },
     "file": {
+      "dpi": "DPI",
       "quality": "Jakość",
       "qualityLossless": "Jakość (Bezstratna)",
+      "resolution": "Rozdzielczość",
       "tiffBitDepth": "Głębia bitowa TIFF",
       "tiffBitDepth16": "16 bitów",
       "tiffBitDepth8": "8 bitów"
@@ -1149,7 +1192,8 @@
         "threeOnly": "tylko 3",
         "twoAndUp": "2 i więcej",
         "twoOnly": "tylko 2",
-        "unrated": "Tylko bez oceny"
+        "unrated": "Tylko bez oceny",
+        "andDownSuffix": "i mniej"
       },
       "raw": {
         "all": "Wszystkie typy",
@@ -1239,7 +1283,12 @@
         "sortDescending": "Sortuj malejąco",
         "thumbnailFit": "Dopasowanie miniatury",
         "thumbnailSize": "Rozmiar miniatury",
-        "title": "Opcje widoku"
+        "title": "Opcje widoku",
+        "ratingOperator": {
+          "eq": "Dokładnie ta ocena",
+          "gte": "Ta ocena lub wyższa",
+          "lte": "Ta ocena lub niższa"
+        }
       }
     },
     "import": {
@@ -1334,6 +1383,33 @@
       "communityPresets": "Presety społeczności",
       "goHome": "Przejdź do strony głównej",
       "importImages": "Importuj obrazy"
+    },
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again.",
+      "descendants_few": "{{count}} photos in subfolders.",
+      "descendants_many": "{{count}} photos in subfolders.",
+      "descendantsPartial_few": "At least {{count}} photos in subfolders.",
+      "descendantsPartial_many": "At least {{count}} photos in subfolders.",
+      "total_few": "{{count}} photos",
+      "total_many": "{{count}} photos",
+      "filtered_few": "{{count}} of {{total}} photos",
+      "filtered_many": "{{count}} of {{total}} photos"
     }
   },
   "masks": {
@@ -1576,12 +1652,20 @@
       "deleteWarning": "Pliki zostaną przeniesione do systemowego kosza.",
       "fileNaming": "Nazewnictwo plików",
       "folderOrganization": "Organizacja folderów",
+      "notUniqueWarning": "Bez {original_filename}, {original_filename_number} lub {sequence} pliki mogą otrzymać tę samą nazwę. Takie pliki nie zostaną zaimportowane.",
       "organizeByDate": "Organizuj w podfolderach według daty",
       "sourceFiles": "Pliki źródłowe",
       "startImport": "Rozpocznij import",
       "title": "Ustawienia importu"
     },
     "lensCorrection": {
+      "sourceApplied": "Zastosowano: {{source}}",
+      "sourceAvailable": "Dostępne: {{source}}",
+      "sourceCameraData": "Dane aparatu",
+      "sourceExistingRecipe": "zapisane ustawienia",
+      "sourceNoData": "Brak danych korekcji",
+      "sourceUnavailable": "Źródła korekcji są niedostępne",
+      "sourceChecking": "Sprawdzanie źródeł korekcji…",
       "amount": "Ilość",
       "apply": "Zastosuj",
       "autoDetectLens": "Automatyczne wykrywanie obiektywu",
@@ -1707,6 +1791,7 @@
       "groupSelection": "Całe zaznaczenie to jedna grupa",
       "groups": "Grupy dla {group} i {member}",
       "newName": "Nowa nazwa",
+      "notUniqueWarning": "Bez {original_filename}, {original_filename_number} lub {sequence} pliki mogą otrzymać tę samą nazwę. Wtedy żaden plik nie zostanie przemianowany.",
       "preview": "Podgląd",
       "renamed_few": "Zmieniono nazwy {{count}} plików",
       "renamed_many": "Zmieniono nazwy {{count}} plików",
@@ -1799,6 +1884,8 @@
       "clearThumbnail": "Wyczyść pamięć podręczną miniatur",
       "clearThumbnailButton": "Wyczyść",
       "clearThumbnailDesc": "Zostaną usunięte wszystkie zbuforowane miniatury. Zostaną wygenerowane na nowo w trakcie przeglądania biblioteki.",
+      "cacheUsage": "Miniatury i podglądy: {{size}} · Pliki: {{files}}",
+      "cacheUsageError": "Nie można odczytać wykorzystania pamięci podręcznej.",
       "loading": "Wczytywanie...",
       "logs": "Wyświetl logi aplikacji",
       "logsButton": "Otwórz",
@@ -1952,7 +2039,10 @@
         "zoom_in": "Przybliż",
         "zoom_in_step": "Przybliż (krokowo)",
         "zoom_out": "Oddal",
-        "zoom_out_step": "Oddal (krokowo)"
+        "zoom_out_step": "Oddal (krokowo)",
+        "toggle_pick": "Przełącz oznaczenie wybrania",
+        "toggle_reject": "Przełącz oznaczenie odrzucenia",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "Edycja",
@@ -1996,6 +2086,11 @@
             "upgradeBtn": "Ulepsz na stronie",
             "upgradeDesc": "Aby użyć funkcji AI w chmurze, potrzebujesz subskrypcji."
           },
+          "statuses": {
+            "connecting": "Łączenie…",
+            "retry": "Ponów próbę połączenia",
+            "unsupported": "Logowanie w chmurze jest obecnie dostępne tylko na komputerach."
+          },
           "title": "Usługa w chmurze"
         },
         "connector": {
@@ -2018,9 +2113,17 @@
           "feature3": "Proste zastępowanie generatywne oparte na CPU",
           "title": "Wbudowane AI (CPU)"
         },
+        "aiFree": {
+          "description": "Wyłącza wszystkie funkcje AI. Wszystkie elementy sterujące związane z AI są ukryte w interfejsie, dzięki czemu RapidRAW działa jak czysto tradycyjny edytor RAW.",
+          "feature1": "Brak masek AI, rozmycia obiektywu i edycji generatywnych w interfejsie",
+          "feature2": "Istniejące edycje AI nadal są normalnie renderowane",
+          "feature3": "Czytelniejszy, bardziej skoncentrowany interfejs",
+          "title": "Bez AI"
+        },
         "description": "AI w RapidRAW została zbudowana z myślą o elastyczności. Wybierz swój idealny przepływ pracy, od szybkich lokalnych narzędzi po potężne rozwiązania serwerowe.",
         "providers": {
           "aiConnector": "Złącze AI",
+          "aiFree": "Bez AI",
           "cloud": "Chmura",
           "cpu": "CPU"
         },
@@ -2061,10 +2164,17 @@
       },
       "nativeDpi": "Renderuj w natywnym DPI",
       "preprocessing": {
+        "autoLensCorrection": "Automatyczna korekcja obiektywu dla nowych RAW",
+        "autoLensCorrectionDesc": "Stosuje dostępne korekcje przy pierwszym otwarciu lub resetowaniu zdjęcia RAW. Zapisane edycje zachowują ustawienia.",
+        "enableAutoLensCorrection": "Domyślnie używaj automatycznej korekcji obiektywu",
         "appleRaw9": "Silnik Apple RAW 9",
         "appleRaw9Desc": "Wywołuj pliki RAW za pomocą dekodera RAW 9 w Core Image od Apple, który przeprowadza demozaikowanie i odszumianie w jednym kroku w silniku Neural Engine. Wymaga systemu macOS 27 lub nowszego oraz obsługiwanego aparatu; nieobsługiwane pliki automatycznie korzystają z wbudowanego dekodera. Wolniejszy niż domyślny dekoder. Nie wpływa na miniatury.",
         "applyPreprocessing": "Zastosuj wstępne przetwarzanie do formatów innych niż RAW",
         "applyPreprocessingDesc": "Jeśli włączone, redukcja szumu kolorów i wstępne wyostrzanie powyżej zostaną również zastosowane do standardowych formatów.",
+        "baselineExposure": "Ekspozycja bazowa",
+        "baselineExposureAmount": "Wartość bazowa",
+        "baselineExposureAmountDesc": "Ekspozycja dodawana do plików RAW. darktable używa +0,7 EV.",
+        "baselineExposureDesc": "Stosuje stałe rozjaśnienie do starszych edycji korzystających z ekspozycji bazowej. Nowe i zresetowane edycje RAW używają zamiast tego kompensacji ekspozycji aparatu lub DNG.",
         "colorNr": "Bazowa redukcja szumu koloru",
         "colorNrDesc": "Stosuje filtr na wczesnym etapie w celu usunięcia szumu koloru (Chroma). Wyższa wartość = Silniejsza redukcja szumów.",
         "defaultNonRawTonemapper": "Domyślne mapowanie tonów (Non-RAW)",
@@ -2072,8 +2182,12 @@
         "defaultRawTonemapper": "Domyślne mapowanie tonów (RAW)",
         "defaultRawTonemapperDesc": "Mapowanie tonów aplikowane do obrazów RAW.",
         "enableAppleRaw9": "Używaj Apple RAW 9 dla plików RAW",
+        "enableBaselineExposure": "Stosuj ekspozycję bazową do plików RAW",
+        "enableHighlightPreservation": "Kompensuj tryby ochrony świateł aparatu",
         "enablePreprocessingNonRaws": "Włącz dla innych niż RAW",
         "enableTonemapperOverride": "Włącz nadpisywanie mapowania tonów",
+        "highlightPreservation": "Kompensacja ochrony świateł",
+        "highlightPreservationDesc": "Przywraca ekspozycję, którą aparat ograniczył w trybach ochrony świateł, odczytaną z pliku RAW (Fujifilm DR200/DR400, Canon Priorytet jasnych partii obrazu i Auto Lighting Optimizer, Nikon Aktywna funkcja D-Lighting, gradacja Olympus, rozszerzenie zakresu dynamiki Pentax). Nie wpływa na zdjęcia edytowane przed wprowadzeniem tej opcji.",
         "highlightRecovery": "Odzyskiwanie świateł w RAW",
         "highlightRecoveryDesc": "Decyduje o tym, ile detali zostanie odzyskanych z obciętych świateł w plikach RAW. Wyższe wartości odzyskują więcej, ale mogą wprowadzać fioletowe artefakty.",
         "linearOptions": {
@@ -2327,5 +2441,44 @@
         "vectorscope": "Wektroskop"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
+  },
+  "captureTime": {
+    "folderShift": "Folder display time shift…",
+    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
+    "hours": "Hours to add",
+    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
+    "cameraZone": "Camera zone: {{zone}}",
+    "shifted": "{{shift}} display shift",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

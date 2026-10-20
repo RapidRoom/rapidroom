@@ -30,7 +30,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { Adjustments, INITIAL_ADJUSTMENTS } from '../../../utils/adjustments';
 import clsx from 'clsx';
-import { CustomAspectRatio, Orientation } from '../../ui/AppProperties';
+import { CustomAspectRatio } from '../../ui/AppProperties';
 import { motion, AnimatePresence } from 'framer-motion';
 import Text from '../../ui/Text';
 import Slider from '../../ui/Slider';
@@ -45,6 +45,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useUIStore } from '../../../store/useUIStore';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import { useSettingsStore } from '../../../store/useSettingsStore';
+import { useLensCorrectionResolution, type LensCorrectionSource } from '../../../hooks/useLensCorrectionResolution';
 
 const BASE_RATIO = 1.618;
 const ORIGINAL_RATIO = 0;
@@ -57,6 +58,7 @@ interface CropPreset {
   name: string;
   value: number | null;
   tooltip: string;
+  instagram?: boolean;
 }
 
 interface OverlayOption {
@@ -105,7 +107,7 @@ export default function CropPanel() {
   const isGuidedPerspectiveActive = useEditorStore((s) => s.isGuidedPerspectiveActive);
   const activeOverlay = useEditorStore((s) => s.overlayMode);
   const setEditor = useEditorStore((s) => s.setEditor);
-  const { setAdjustments, handleRotate } = useEditorActions();
+  const { setAdjustments, handleRotate, handleCropOrientationToggle } = useEditorActions();
 
   const [customW, setCustomW] = useState('');
   const [customH, setCustomH] = useState('');
@@ -134,6 +136,20 @@ export default function CropPanel() {
 
   const isTransformExpanded = cropSectionsState.transform;
   const isLensExpanded = cropSectionsState.lens;
+  const { resolution: lensResolution, failed: lensResolutionFailed } = useLensCorrectionResolution(
+    selectedImage?.path,
+    adjustments,
+    isLensExpanded,
+  );
+  const hasAvailableAutoCorrection = Object.values(lensResolution?.components ?? {}).some(
+    (component) => component.available_source !== null,
+  );
+  const sourceName = (source: LensCorrectionSource) =>
+    source === 'lensfun'
+      ? 'Lensfun'
+      : source === 'camera_data'
+        ? t('modals.lensCorrection.sourceCameraData')
+        : t('modals.lensCorrection.sourceExistingRecipe');
 
   const toggleSection = (section: 'transform' | 'lens') => {
     setUI((state) => ({
@@ -153,6 +169,24 @@ export default function CropPanel() {
         tooltip: t('editor.crop.presets.original.desc'),
       },
       { name: t('editor.crop.presets.sq.name'), value: 1, tooltip: t('editor.crop.presets.sq.desc') },
+      {
+        name: t('editor.crop.presets.instagramPortrait.name'),
+        value: 4 / 5,
+        tooltip: t('editor.crop.presets.instagramPortrait.desc'),
+        instagram: true,
+      },
+      {
+        name: t('editor.crop.presets.instagramGrid.name'),
+        value: 3 / 4,
+        tooltip: t('editor.crop.presets.instagramGrid.desc'),
+        instagram: true,
+      },
+      {
+        name: t('editor.crop.presets.instagramStories.name'),
+        value: 9 / 16,
+        tooltip: t('editor.crop.presets.instagramStories.desc'),
+        instagram: true,
+      },
       { name: t('editor.crop.presets.r54.name'), value: 5 / 4, tooltip: t('editor.crop.presets.r54.desc') },
       { name: t('editor.crop.presets.r43.name'), value: 4 / 3, tooltip: t('editor.crop.presets.r43.desc') },
       { name: t('editor.crop.presets.r32.name'), value: 3 / 2, tooltip: t('editor.crop.presets.r32.desc') },
@@ -317,16 +351,7 @@ export default function CropPanel() {
     return null;
   }, [aspectRatio, getEffectiveOriginalRatio, PRESETS, ALL_PRESETS]);
 
-  let orientation = Orientation.Horizontal;
-  if (activePreset && activePreset.value && activePreset.value !== 1) {
-    let baseRatio: number | null = activePreset.value;
-    if (activePreset.value === ORIGINAL_RATIO) {
-      baseRatio = getEffectiveOriginalRatio();
-    }
-    if (baseRatio && aspectRatio && Math.abs(aspectRatio - baseRatio) > RATIO_TOLERANCE) {
-      orientation = Orientation.Vertical;
-    }
-  }
+  const isPortrait = !!aspectRatio && aspectRatio < 1;
 
   const isCustomActive = aspectRatio !== null && (isCustomMode || !activePreset);
   const selectedPreset = isCustomActive ? null : activePreset;
@@ -470,6 +495,11 @@ export default function CropPanel() {
 
   const handlePresetClick = (preset: CropPreset) => {
     setIsCustomMode(false);
+    if (preset.instagram) {
+      setPreferPortrait(true);
+      applyAspectRatio(preset.value);
+      return;
+    }
 
     if (preset.value === ORIGINAL_RATIO) {
       applyAspectRatio(getEffectiveOriginalRatio());
@@ -478,9 +508,7 @@ export default function CropPanel() {
 
     const targetRatio = preset.value;
     if (selectedPreset === preset && targetRatio && targetRatio !== 1) {
-      const newRatio = 1 / (adjustments.aspectRatio ? adjustments.aspectRatio : 1);
-      setPreferPortrait(newRatio < 1);
-      applyAspectRatio(newRatio);
+      handleCropOrientationToggle();
       return;
     }
 
@@ -489,20 +517,12 @@ export default function CropPanel() {
       if (preferPortrait) {
         newAspectRatio = targetRatio > 1 ? 1 / targetRatio : targetRatio;
       } else {
-        newAspectRatio = targetRatio > 1 ? targetRatio : targetRatio;
+        newAspectRatio = targetRatio > 1 ? targetRatio : 1 / targetRatio;
       }
     }
 
     applyAspectRatio(newAspectRatio);
   };
-
-  const handleOrientationToggle = useCallback(() => {
-    if (aspectRatio && aspectRatio !== 1) {
-      const newRatio = 1 / aspectRatio;
-      setPreferPortrait(newRatio < 1);
-      applyAspectRatio(newRatio);
-    }
-  }, [aspectRatio, applyAspectRatio]);
 
   const handleReset = () => {
     const originalAspectRatio =
@@ -547,7 +567,7 @@ export default function CropPanel() {
   };
 
   const isPresetActive = (preset: CropPreset) => preset === selectedPreset;
-  const isOrientationToggleDisabled = !aspectRatio || aspectRatio === 1 || selectedPreset?.value === ORIGINAL_RATIO;
+  const isOrientationToggleDisabled = !aspectRatio || aspectRatio === 1;
 
   const fineRotation = useMemo(() => {
     return rotation || 0;
@@ -587,9 +607,7 @@ export default function CropPanel() {
     if (isOrientationToggleDisabled) {
       return t('editor.crop.tooltips.switchOrientation');
     }
-    return orientation === Orientation.Vertical
-      ? t('editor.crop.tooltips.switchToLandscape')
-      : t('editor.crop.tooltips.switchToPortrait');
+    return isPortrait ? t('editor.crop.tooltips.switchToLandscape') : t('editor.crop.tooltips.switchToPortrait');
   };
 
   const handleDragStateChange = useCallback(
@@ -662,6 +680,7 @@ export default function CropPanel() {
           lensModel: detectedModel,
           lensDistortionParams: distParams,
           lensCorrectionMode: 'auto',
+          cameraLensCorrectionVersion: 1,
         }));
 
         setDetectionStatus('success');
@@ -722,13 +741,20 @@ export default function CropPanel() {
   );
 
   const hasDistortion =
+    !!lensResolution?.components.distortion.available_source ||
     Math.abs(adjustments.lensDistortionParams?.k1 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.k2 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.k3 || 0) > 1e-6;
+  const tcaParams = adjustments.lensDistortionParams;
   const hasTca =
-    Math.abs((adjustments.lensDistortionParams?.tca_vr || 1) - 1) > 1e-5 ||
-    Math.abs((adjustments.lensDistortionParams?.tca_vb || 1) - 1) > 1e-5;
+    !!lensResolution?.components.tca.available_source ||
+    (tcaParams?.tca_poly3
+      ? tcaParams.tca_vr !== 1 ||
+        tcaParams.tca_vb !== 1 ||
+        Object.entries(tcaParams.tca_poly3).some(([key, value]) => key !== 'radius_scale' && value !== 0)
+      : Math.abs((tcaParams?.tca_vr || 1) - 1) > 1e-5 || Math.abs((tcaParams?.tca_vb || 1) - 1) > 1e-5);
   const hasVignetting =
+    !!lensResolution?.components.vignetting.available_source ||
     Math.abs(adjustments.lensDistortionParams?.vig_k1 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.vig_k2 || 0) > 1e-6 ||
     Math.abs(adjustments.lensDistortionParams?.vig_k3 || 0) > 1e-6;
@@ -765,7 +791,11 @@ export default function CropPanel() {
 
   const handleModeChange = useCallback(
     (mode: 'auto' | 'manual') => {
-      setAdjustments((prev) => ({ ...prev, lensCorrectionMode: mode }));
+      setAdjustments((prev) => ({
+        ...prev,
+        lensCorrectionMode: mode,
+        ...(mode === 'auto' ? { cameraLensCorrectionVersion: 1 as const } : {}),
+      }));
       if (mode === 'auto') {
         handleAutoDetectLens();
       }
@@ -865,22 +895,24 @@ export default function CropPanel() {
                     <Grid3x3 size={16} />
                   </button>
                   <button
-                    className="p-1.5 rounded-md hover:bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1.5 rounded-md flex items-center gap-1 hover:bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isOrientationToggleDisabled}
-                    onClick={handleOrientationToggle}
-                    data-tooltip={getOrientationTooltip()}
+                    onClick={handleCropOrientationToggle}
+                    aria-label={getOrientationTooltip()}
+                    aria-keyshortcuts="X"
+                    data-tooltip={`${getOrientationTooltip()} (X)`}
                   >
-                    {orientation === Orientation.Vertical ? (
-                      <RectangleVertical size={16} />
-                    ) : (
-                      <RectangleHorizontal size={16} />
-                    )}
+                    {isPortrait ? <RectangleVertical size={16} /> : <RectangleHorizontal size={16} />}
+                    <kbd className="text-xs">X</kbd>
                   </button>
                 </div>
               </Text>
               <div className="grid grid-cols-3 gap-2">
                 {ALL_PRESETS.map((preset: CropPreset, index: number) => {
                   const savedIndex = index - PRESETS.length;
+                  const flipLabel = preset.instagram
+                    ? isPresetActive(preset) && !!aspectRatio && aspectRatio > 1
+                    : !!preset.value && preset.value !== 1 && preset.value < 1 !== preferPortrait;
                   return (
                     <motion.div
                       className={clsx(
@@ -894,7 +926,7 @@ export default function CropPanel() {
                       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                     >
                       <Text color={isPresetActive(preset) ? TextColors.button : TextColors.secondary}>
-                        {preset.name}
+                        {flipLabel ? preset.name.replace(/(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)/, '$2:$1') : preset.name}
                       </Text>
                       {savedIndex >= 0 && (
                         <button
@@ -1434,9 +1466,9 @@ export default function CropPanel() {
                           <div
                             className={clsx(
                               'w-full flex items-center justify-center gap-2 p-3 text-sm rounded-md border transition-colors',
-                              detectionStatus === 'not_found'
+                              detectionStatus === 'not_found' && !hasAvailableAutoCorrection
                                 ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                                : adjustments.lensMaker
+                                : adjustments.lensMaker || hasAvailableAutoCorrection
                                   ? 'bg-green-500/10 text-green-400 border-green-500/20'
                                   : 'bg-bg-primary border-surface text-text-secondary',
                             )}
@@ -1445,11 +1477,16 @@ export default function CropPanel() {
                               <>
                                 <Loader size={16} className="animate-spin" /> {t('modals.lensCorrection.detectingExif')}
                               </>
-                            ) : detectionStatus === 'not_found' ? (
+                            ) : detectionStatus === 'not_found' && !hasAvailableAutoCorrection ? (
                               t('modals.lensCorrection.lensProfileNotFound')
                             ) : adjustments.lensMaker && adjustments.lensModel ? (
                               <>
                                 <Check size={16} /> {adjustments.lensMaker} - {adjustments.lensModel}
+                              </>
+                            ) : hasAvailableAutoCorrection ? (
+                              <>
+                                <Check size={16} />{' '}
+                                {selectedImage?.exif?.LensModel || t('modals.lensCorrection.modeAuto')}
                               </>
                             ) : (
                               <>
@@ -1480,6 +1517,38 @@ export default function CropPanel() {
                               />
                             )}
                           </>
+                        )}
+
+                        {lensMode === 'auto' && (
+                          <div role="status" className="text-xs text-text-secondary space-y-1">
+                            {lensResolution
+                              ? (
+                                  [
+                                    ['distortion', 'distortion'],
+                                    ['tca', 'chromaticAberration'],
+                                    ['vignetting', 'vignetting'],
+                                  ] as const
+                                ).map(([component, label]) => {
+                                  const status = lensResolution.components[component];
+                                  return (
+                                    <div key={component}>
+                                      {t(`modals.lensCorrection.${label}`)}:{' '}
+                                      {status.applied_source
+                                        ? t('modals.lensCorrection.sourceApplied', {
+                                            source: sourceName(status.applied_source),
+                                          })
+                                        : status.available_source
+                                          ? t('modals.lensCorrection.sourceAvailable', {
+                                              source: sourceName(status.available_source),
+                                            })
+                                          : t('modals.lensCorrection.sourceNoData')}
+                                    </div>
+                                  );
+                                })
+                              : lensResolutionFailed
+                                ? t('modals.lensCorrection.sourceUnavailable')
+                                : t('modals.lensCorrection.sourceChecking')}
+                          </div>
                         )}
 
                         <div className="flex flex-col gap-3 mt-2">

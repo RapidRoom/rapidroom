@@ -1,0 +1,175 @@
+{
+  "tested_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+  "upstream": "74597d066685283588502edbecd747bfe80404cf",
+  "incoming_upstream_commits": 85,
+  "prior_candidate": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+  "main_integration": "b78d3061b8543f7fefde1e88a255570f27e4f551",
+  "control_main": "f30d0e87cc8e2165c52582a9929a713ee07ac3d7",
+  "scope": "Control main was pinned at refresh start; later main merge churn is not relabeled as a new measurement.",
+  "application_tree_objects": {
+    "src": "b15d92fed1c5c494f0e88137b0c3369de3683b5e",
+    "src-tauri": "79b9f467655fa301c523e17904e21bf3e4c5308b",
+    "public": "f948ad9b6e4b9ee76ae645a5f0f71c133c8b92ce",
+    "package.json": "cd254f889bf51c044f6d8c23ac0ee0d9bba7c1fe",
+    "package-lock.json": "35129713df8095c7e17d230b4af0456236ac95e2"
+  },
+  "engines": {
+    "default": {
+      "sha256": "571ba1e9b994b6febdb689cdfce93356a8d0db193f12e15e264eac78db592722",
+      "profile": "release",
+      "source": "dcff286122e8f384044dd44fc3dae2bbad3e30fc"
+    },
+    "combined": {
+      "sha256": "847fff6c7e9923a86083b8b27b2ec212217038b73223d589bd4d483d8b34b25f",
+      "profile": "release",
+      "source": "dcff286122e8f384044dd44fc3dae2bbad3e30fc"
+    },
+    "native": {
+      "sha256": "484cc824f616a171681cd76aa19799c8b5aa57a5b91d912e0f469bbe7c11dcf9",
+      "profile": "release",
+      "source": "dcff286122e8f384044dd44fc3dae2bbad3e30fc"
+    },
+    "main-control": {
+      "sha256": "98b52965f14328f953ea4a7cba8e84f368f831f901b3bd3d217f8daf0b1a3195",
+      "profile": "release",
+      "source": "f30d0e87cc8e2165c52582a9929a713ee07ac3d7"
+    },
+    "main-native": {
+      "sha256": "cbf2b3deb38dd1aa08ee0da3539c50fc6a7bebb622ef67bf02157b3a62b8ad43",
+      "profile": "release",
+      "source": "f30d0e87cc8e2165c52582a9929a713ee07ac3d7"
+    }
+  },
+  "checks": {
+    "schema": {
+      "exit": 0,
+      "finished": "2026-10-13T05:40:00.987465+00:00"
+    },
+    "status": {
+      "exit": 0,
+      "finished": "2026-10-13T05:40:01.473283+00:00"
+    },
+    "clippy": {
+      "exit": 0,
+      "finished": "2026-10-13T06:19:31.282759+00:00"
+    },
+    "fmt": {
+      "exit": 0,
+      "finished": "2026-10-13T06:18:52.883640+00:00"
+    },
+    "tests-default": {
+      "exit": 0,
+      "finished": "2026-10-13T06:31:52.261014+00:00",
+      "passed": 378,
+      "failed": 0,
+      "ignored": 8
+    },
+    "tests-combined": {
+      "exit": 0,
+      "finished": "2026-10-13T06:35:33.019705+00:00",
+      "passed": 429,
+      "failed": 0,
+      "ignored": 8
+    },
+    "vitest": {
+      "exit": 0,
+      "finished": "2026-10-13T06:39:21.801293+00:00",
+      "passed": 373,
+      "test_files": 44,
+      "failed": 0
+    },
+    "release-default": {
+      "exit": 0,
+      "finished": "2026-10-13T06:48:23.167856+00:00"
+    },
+    "render-full60": {
+      "exit": 0,
+      "finished": "2026-10-13T06:52:24.506944+00:00"
+    },
+    "compare-int7": {
+      "exit": 1,
+      "finished": "2026-10-13T06:53:40.239218+00:00",
+      "interpretation": "Intentional rendering-change diagnostic against still-frozen reference; not a passing pixel-exact reference gate."
+    },
+    "native-build": {
+      "exit": 0,
+      "finished": "2026-10-13T07:04:01.339877+00:00"
+    },
+    "native-masks": {
+      "exit": 0,
+      "finished": "2026-10-13T07:04:49.778821+00:00"
+    }
+  },
+  "measured_followup_stages": {
+    "sony-probes": {
+      "exit": 0,
+      "finished": "2026-10-13T09:26:25.502536+00:00"
+    },
+    "release-combined": {
+      "exit": 0,
+      "finished": "2026-10-13T09:37:37.813476+00:00"
+    },
+    "render-combined": {
+      "exit": 0,
+      "finished": "2026-10-13T09:41:24.139476+00:00"
+    },
+    "compare-configs": {
+      "exit": 0,
+      "finished": "2026-10-13T09:41:35.893142+00:00"
+    },
+    "release-main": {
+      "exit": 0,
+      "finished": "2026-10-13T09:49:34.591683+00:00"
+    },
+    "baseline-probes": {
+      "exit": 0,
+      "finished": "2026-10-13T09:55:12.521041+00:00"
+    },
+    "csp-default": {
+      "exit": 0,
+      "finished": "2026-10-13T09:55:19.711724+00:00"
+    },
+    "csp-cloud": {
+      "exit": 0,
+      "finished": "2026-10-13T09:55:26.612611+00:00"
+    },
+    "native-network": {
+      "exit": 0,
+      "finished": "2026-10-13T09:55:40.847237+00:00"
+    }
+  },
+  "native_preview_stages": {
+    "main-native-build": {
+      "exit": 0,
+      "finished": "2026-10-13T10:06:27.426007+00:00"
+    },
+    "candidate-preview-fuji-xh2-40mp-compressed": {
+      "exit": 0,
+      "finished": "2026-10-13T21:52:22.888871+00:00"
+    },
+    "candidate-preview-fuji-xt4-26mp-lossless": {
+      "exit": 0,
+      "finished": "2026-10-13T22:02:20.174334+00:00"
+    },
+    "candidate-preview-sony-a7c2-15mp-uncompressed": {
+      "exit": 0,
+      "finished": "2026-10-13T22:11:18.812124+00:00"
+    },
+    "main-preview-fuji-xh2-40mp-compressed": {
+      "exit": 0,
+      "finished": "2026-10-13T22:20:45.051097+00:00"
+    },
+    "main-preview-fuji-xt4-26mp-lossless": {
+      "exit": 0,
+      "finished": "2026-10-13T22:31:20.800026+00:00"
+    },
+    "main-preview-sony-a7c2-15mp-uncompressed": {
+      "exit": 0,
+      "finished": "2026-10-13T22:33:22.399138+00:00"
+    }
+  },
+  "original_guards_unchanged": true,
+  "reference_updated": false,
+  "source_review": "https://github.com/RapidRoom/rapidroom/pull/179#issuecomment-6101744763",
+  "josh_approval": false
+}

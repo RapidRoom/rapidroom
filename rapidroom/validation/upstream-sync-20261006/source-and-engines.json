@@ -1,0 +1,39 @@
+{
+  "upstream_pin": "8387fc12097a541093d796bf216c6e831f9ba5c0",
+  "base_main": "99934b66d17ebe459befffcac4f692930ab8d371",
+  "tested_application_head": "4bea590bbd66b074877cad96626b427783c6d9a0",
+  "configs": {
+    "default": {
+      "engine_sha256": "de59b7fccf62d77c7db80fc8f196ec63c2c6eeec0d49e2ee2d4bbd263cea2915",
+      "source_head": "4bea590bbd66b074877cad96626b427783c6d9a0",
+      "source_trees": {
+        "src-tauri": "5b0abeb27c66aaeccb821c11025e824a72d94b8e",
+        "src": "8d4925d6ec53acf3f245074c29295a582d53690c",
+        "package.json": "cd254f889bf51c044f6d8c23ac0ee0d9bba7c1fe",
+        "package-lock.json": "35129713df8095c7e17d230b4af0456236ac95e2"
+      },
+      "complete": true,
+      "original_guards_unchanged": true
+    },
+    "combined": {
+      "engine_sha256": "7f31c40d467ad18fbe8d6c42988178435e056f1b135649d914c5fd989f687fac",
+      "source_head": "4bea590bbd66b074877cad96626b427783c6d9a0",
+      "source_trees": {
+        "src-tauri": "5b0abeb27c66aaeccb821c11025e824a72d94b8e",
+        "src": "8d4925d6ec53acf3f245074c29295a582d53690c",
+        "package.json": "cd254f889bf51c044f6d8c23ac0ee0d9bba7c1fe",
+        "package-lock.json": "35129713df8095c7e17d230b4af0456236ac95e2"
+      },
+      "complete": true,
+      "original_guards_unchanged": true
+    }
+  },
+  "rust_source_equivalence": {
+    "tested_head": "113a9514426bff93314e3cfe7588c90303a4a01b",
+    "final_application_head": "4bea590bbd66b074877cad96626b427783c6d9a0",
+    "src_tauri_tree": "5b0abeb27c66aaeccb821c11025e824a72d94b8e",
+    "identical": true,
+    "clippy_fmt_tests_reused_because_entire_rust_tree_unchanged": true
+  },
+  "reference_updated": false
+}

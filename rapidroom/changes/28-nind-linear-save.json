@@ -1,0 +1,20 @@
+{
+  "id": "nind-encoding-neutral-save",
+  "title": "Preserve the default RAW look in NIND and save denoised TIFFs without a second curve",
+  "category": "fix",
+  "landed": "2026-10-12",
+  "authors": [
+    "yojen7"
+  ],
+  "source": "rapidroom (original implementation with Codex; shared RAW GPU renderer)",
+  "commits": [],
+  "upstream_issues": [
+    "CyberTimon/RapidRAW#1513",
+    "CyberTimon/RapidRAW#1070",
+    "CyberTimon/RapidRAW#1680",
+    "CyberTimon/RapidRAW#1311"
+  ],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Legacy RGB NIND receives encoded RGB consistently: RAWs first use the actual default RAW GPU view, including its display tone mapping, and normal RGB files pass through once. Saved RAW-derived TIFFs preserve that default look without the former gamma 2.38/contrast 1.28 approximation or a second curve. Every quality setting retains a halo and overlap; higher quality uses a larger discarded border. Other denoise methods are unchanged. Seam geometry and whole-image colour restoration are tracked separately under issue 172."
+}

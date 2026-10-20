@@ -1,3 +1,7 @@
+import { rememberAppliedStyleStack } from '../utils/appliedPreset';
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
+import { captureAdjustments } from '../utils/adjustmentCapture';
+import { normalizeLensPolicyVersion } from '../utils/lensPolicyVersion';
 import { getDpr, transformFromPercent } from '../utils/zoom';
 import { useCallback, type SyntheticEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -13,25 +17,55 @@ import {
   COPYABLE_ADJUSTMENT_KEYS,
   PasteMode,
   LensAdjustment,
+  getActiveTools,
+  mergeActiveTools,
   normalizeLoadedAdjustments,
+  setToolActive,
 } from '../utils/adjustments';
-import { calculateCenteredCrop } from '../utils/cropUtils';
+import { calculateCenteredCrop, getOrientedDimensions } from '../utils/cropUtils';
 import { Invokes } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
 import i18n from 'i18next';
+import {
+  queuePhotoWrite,
+  pausePhotoWrites,
+  waitForPhotoWrites,
+  pendingPhotoWriteDrafts,
+} from '../utils/photoWriteQueue';
+import { describeHistoryChange } from '../utils/editHistory';
 
 interface LoadedMetadata {
   adjustments: (Adjustments & { is_null?: boolean }) | null;
 }
 
-export const debouncedSetHistory = debounce((newAdj: Adjustments) => {
-  useEditorStore.getState().pushHistory(newAdj);
+let copyRequest = 0;
+
+export const debouncedSetHistory = debounce((newAdj: Adjustments, label?: string) => {
+  const editor = useEditorStore.getState();
+  const details = label
+    ? { ...describeHistoryChange(editor.history[editor.historyIndex], newAdj, 'user'), label }
+    : undefined;
+  if (details) editor.pushHistory(newAdj, details);
+  else editor.pushHistory(newAdj);
 }, 500);
 
 let cardEditNoticeShownFor: string | null = null;
+const pendingEditorSaves = new Set<Promise<unknown>>();
+export interface XmpEditorDraft {
+  path: string;
+  adjustments: Adjustments;
+}
+let queuedEditorDraft: XmpEditorDraft | undefined;
+let persistedEditorDraft: XmpEditorDraft | undefined;
 
-export const debouncedSave = debounce((path: string, adjustmentsToSave: Adjustments) => {
+export function markEditorDraftPersisted(path: string, adjustments: Adjustments): void {
+  persistedEditorDraft = { path, adjustments };
+}
+let importSavePause: Map<string, XmpEditorDraft> | undefined;
+
+const saveDebounce = debounce((path: string, adjustmentsToSave: Adjustments) => {
+  queuedEditorDraft = undefined;
   const cardRoot = useLibraryStore.getState().cardBrowseRoot;
   if (isPathInCardRoot(path, cardRoot)) {
     if (cardEditNoticeShownFor !== cardRoot) {
@@ -40,23 +74,148 @@ export const debouncedSave = debounce((path: string, adjustmentsToSave: Adjustme
     }
     return;
   }
-
-  invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave }).catch((err) => {
-    console.error('Auto-save failed:', err);
-    toast.error(`Failed to save changes: ${err}`);
-  });
+  const save = queuePhotoWrite(path, () =>
+    invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave }),
+  );
+  pendingEditorSaves.add(save);
+  void save.then(
+    () => pendingEditorSaves.delete(save),
+    (err) => {
+      pendingEditorSaves.delete(save);
+      console.error('Auto-save failed:', err);
+      toast.error(`Failed to save changes: ${err}`);
+    },
+  );
+  return save;
 }, 300);
+
+export const debouncedSave = Object.assign(
+  (path: string, adjustments: Adjustments) => {
+    const draft = { path, adjustments };
+    if (persistedEditorDraft?.path === path) {
+      if (persistedEditorDraft.adjustments === adjustments) return;
+      persistedEditorDraft = undefined;
+    }
+    if (importSavePause) {
+      importSavePause.set(path, draft);
+      return;
+    }
+    queuedEditorDraft = draft;
+    return saveDebounce(path, adjustments);
+  },
+  {
+    cancel: () => {
+      queuedEditorDraft = undefined;
+      saveDebounce.cancel();
+    },
+    flush: () => saveDebounce.flush(),
+  },
+);
+
+export async function waitForPendingEditorSaves(): Promise<void> {
+  let failure: PromiseRejectedResult | undefined;
+  while (pendingEditorSaves.size) {
+    const results = await Promise.allSettled([...pendingEditorSaves]);
+    for (const result of results) {
+      if (result.status === 'rejected') failure ??= result;
+    }
+  }
+  if (failure) throw failure.reason;
+}
+
+function captureEditorDraft(): XmpEditorDraft | undefined {
+  const state = useEditorStore.getState();
+  return state.selectedImage ? { path: state.selectedImage.path, adjustments: state.adjustments } : undefined;
+}
+
+export interface XmpImportSavePause {
+  draft?: XmpEditorDraft;
+  hasNewerDraft(path: string): boolean;
+  finish(consumedPaths: string[]): void;
+}
+
+export async function prepareEditorDraftForXmpImport(targetPath?: string): Promise<XmpImportSavePause> {
+  if (importSavePause) throw new Error('An XMP import is already in progress');
+  const buffered = new Map<string, XmpEditorDraft>();
+  const captured = new Map<string, XmpEditorDraft>();
+  // Active snapshots supply import data; only pending edits need resuming.
+  const queuedBeforePause = queuedEditorDraft;
+  if (queuedBeforePause) captured.set(queuedBeforePause.path, queuedBeforePause);
+  for (const draft of pendingPhotoWriteDrafts()) captured.set(draft.path, draft);
+  const before = captureEditorDraft();
+  if (before) captured.set(before.path, before);
+  // Pause new requests synchronously, before waiting for existing writes. Never
+  // flush a queued autosave into the incoming XMP packet.
+  importSavePause = buffered;
+  const resumePhotoWrites = pausePhotoWrites();
+  debouncedSave.cancel();
+  let finished = false;
+  const finish = (consumedPaths: string[]) => {
+    if (finished) return;
+    finished = true;
+    const current = captureEditorDraft();
+    const writes = new Map<string, XmpEditorDraft>();
+    if (queuedBeforePause && !consumedPaths.includes(queuedBeforePause.path)) {
+      writes.set(queuedBeforePause.path, current?.path === queuedBeforePause.path ? current : queuedBeforePause);
+    }
+    for (const [path, draft] of buffered) {
+      if (consumedPaths.includes(path) && draft.adjustments === captured.get(path)?.adjustments) continue;
+      writes.set(path, current?.path === path ? current : draft);
+    }
+    importSavePause = undefined;
+    resumePhotoWrites(
+      (path, snapshot) =>
+        !consumedPaths.includes(path) ||
+        !snapshot ||
+        (captured.has(path)
+          ? snapshot !== captured.get(path)!.adjustments
+          : buffered.get(path)?.adjustments === snapshot),
+    );
+    const entries = [...writes.values()];
+    entries.forEach((draft, index) => {
+      debouncedSave(draft.path, draft.adjustments);
+      // The ordinary debounce has one slot; retain buffered writes to other photos.
+      if (index < entries.length - 1) debouncedSave.flush();
+    });
+  };
+  try {
+    await waitForPendingEditorSaves();
+    await waitForPhotoWrites();
+    debouncedSetHistory.flush();
+    for (const draft of pendingPhotoWriteDrafts()) captured.set(draft.path, draft);
+    for (const [path, bufferedDraft] of buffered) captured.set(path, bufferedDraft);
+    const active = captureEditorDraft();
+    if (active) captured.set(active.path, active);
+    const draft = targetPath ? captured.get(targetPath) : active;
+    const hasNewerDraft = (path: string) => {
+      const active = captureEditorDraft();
+      const snapshot = captured.get(path);
+      if (active?.path === path && snapshot && active.adjustments !== snapshot.adjustments) return true;
+      return buffered.has(path) && buffered.get(path)?.adjustments !== snapshot?.adjustments;
+    };
+    return { draft, hasNewerDraft, finish };
+  } catch (error) {
+    finish([]);
+    throw error;
+  }
+}
 
 export function useEditorActions() {
   const setEditor = useEditorStore((s) => s.setEditor);
 
   const setAdjustments = useCallback(
-    (value: Partial<Adjustments> | ((prev: Adjustments) => Adjustments)) => {
+    (value: Partial<Adjustments> | ((prev: Adjustments) => Adjustments), label?: string) => {
       setEditor((state) => {
         const prev = state.adjustments;
         const newAdjustments = typeof value === 'function' ? value(prev) : { ...prev, ...value };
         if (newAdjustments === prev) return state;
-        debouncedSetHistory(newAdjustments);
+        if (importSavePause && state.selectedImage) {
+          importSavePause.set(state.selectedImage.path, {
+            path: state.selectedImage.path,
+            adjustments: newAdjustments,
+          });
+        }
+        debouncedSetHistory(newAdjustments, label);
         return {
           adjustments: newAdjustments,
           ...(state.showOriginal ? { showOriginal: false, previewOverride: null } : {}),
@@ -93,11 +252,13 @@ export function useEditorActions() {
     const selectedImage = useEditorStore.getState().selectedImage;
     if (!selectedImage?.isReady) return;
     try {
-      const autoAdjustments: Adjustments = await invoke(Invokes.CalculateAutoAdjustments);
+      const autoAdjustments: Adjustments = await invoke(Invokes.CalculateAutoAdjustments, {
+        jsAdjustments: useEditorStore.getState().adjustments,
+      });
       setAdjustments((prev: Adjustments) => ({
         ...prev,
         ...autoAdjustments,
-        sectionVisibility: { ...prev.sectionVisibility, ...autoAdjustments.sectionVisibility },
+        activeTools: mergeActiveTools(prev, autoAdjustments),
       }));
     } catch (err) {
       toast.error(`Failed to apply auto adjustments: ${err}`);
@@ -110,7 +271,9 @@ export function useEditorActions() {
 
       if (isShowing) {
         const override: Adjustments = { ...INITIAL_ADJUSTMENTS };
-        const geometryKeys: Array<keyof Adjustments> = [
+        const preservedKeys: Array<keyof Adjustments> = [
+          'baselineExposure',
+          'cameraExposureCompensation',
           'crop',
           'rotation',
           'flipHorizontal',
@@ -136,7 +299,7 @@ export function useEditorActions() {
           'lensVignetteEnabled',
         ];
 
-        geometryKeys.forEach((key) => {
+        preservedKeys.forEach((key) => {
           override[key] = state.adjustments[key];
         });
 
@@ -163,10 +326,7 @@ export function useEditorActions() {
           lutSize: result.size,
           lutIntensity: 100,
           lutIsSceneReferred: isBuiltIn,
-          sectionVisibility: {
-            ...(prev.sectionVisibility || INITIAL_ADJUSTMENTS.sectionVisibility),
-            effects: true,
-          },
+          activeTools: setToolActive(getActiveTools(prev), 'lut', true),
         }));
       } catch (err) {
         toast.error(`Failed to load LUT: ${err}`);
@@ -204,14 +364,23 @@ export function useEditorActions() {
       pathsToReset.forEach((p) => globalImageCache.delete(p));
       debouncedSetHistory.cancel();
 
+      const before = useEditorStore.getState().adjustments;
       invoke(Invokes.ResetAdjustmentsForPaths, { paths: pathsToReset })
-        .then(() => {
-          if (libraryActivePath && pathsToReset.includes(libraryActivePath))
-            setLibrary({ libraryActiveAdjustments: { ...INITIAL_ADJUSTMENTS } });
+        .then(async () => {
+          if (libraryActivePath && pathsToReset.includes(libraryActivePath)) {
+            const reset = await createResetAdjustmentsWithLensDefaults({
+              path: libraryActivePath,
+              width: 0,
+              height: 0,
+            });
+            if (useLibraryStore.getState().libraryActivePath === libraryActivePath)
+              setLibrary({ libraryActiveAdjustments: reset });
+          }
           if (selectedImage && pathsToReset.includes(selectedImage.path)) {
-            const aspect =
-              selectedImage.width && selectedImage.height ? selectedImage.width / selectedImage.height : null;
-            const resetData = { ...INITIAL_ADJUSTMENTS, aspectRatio: aspect, aiPatches: [] };
+            const resetData = await createResetAdjustmentsWithLensDefaults(selectedImage);
+            const current = useEditorStore.getState();
+            if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before) return;
+            void rememberAppliedStyleStack(selectedImage.path, null, resetData);
             resetHistory(resetData);
             setEditor({ adjustments: resetData });
           }
@@ -262,46 +431,82 @@ export function useEditorActions() {
   );
 
   const handleCopyAdjustments = useCallback(async (pathOrEvent?: string | SyntheticEvent) => {
+    const request = ++copyRequest;
     const pathOverride = typeof pathOrEvent === 'string' ? pathOrEvent : undefined;
     const { selectedImage, adjustments } = useEditorStore.getState();
-    const { libraryActivePath, multiSelectedPaths } = useLibraryStore.getState();
+    const library = useLibraryStore.getState();
+    const { libraryActivePath, multiSelectedPaths } = library;
+    const settings = useSettingsStore.getState().appSettings;
     let sourceAdjustments: Adjustments | null = null;
 
     const pathToCopyFrom =
       pathOverride || (selectedImage ? selectedImage.path : libraryActivePath || multiSelectedPaths[0]);
+    if (!pathToCopyFrom) return;
+    const editorSource = selectedImage?.path === pathToCopyFrom;
+    const editorSnapshot = editorSource ? JSON.stringify(adjustments) : null;
+    const isCurrent = () => {
+      const current = useEditorStore.getState();
+      const activeLibrary = useLibraryStore.getState();
+      return (
+        request === copyRequest &&
+        current.selectedImage === selectedImage &&
+        useSettingsStore.getState().appSettings === settings &&
+        (editorSource
+          ? current.adjustments === adjustments && JSON.stringify(current.adjustments) === editorSnapshot
+          : activeLibrary.libraryActivePath === libraryActivePath &&
+            activeLibrary.multiSelectedPaths === multiSelectedPaths &&
+            activeLibrary.currentFolderPath === library.currentFolderPath &&
+            activeLibrary.libraryActiveAdjustments === library.libraryActiveAdjustments)
+      );
+    };
 
     if (selectedImage && pathToCopyFrom === selectedImage.path) {
-      sourceAdjustments = adjustments;
+      sourceAdjustments = structuredClone(adjustments);
     } else if (pathToCopyFrom) {
       try {
         const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: pathToCopyFrom });
         if (meta?.adjustments && !meta.adjustments.is_null) {
           sourceAdjustments = normalizeLoadedAdjustments(meta.adjustments);
-        } else {
-          sourceAdjustments = INITIAL_ADJUSTMENTS;
         }
       } catch (err) {
-        toast.error(`Failed to load metadata for copying: ${err}`);
+        if (isCurrent()) toast.error(`Failed to load metadata for copying: ${err}`);
         return;
       }
     }
 
-    if (!sourceAdjustments) return;
-
-    const adjustmentsToCopy: Partial<Adjustments> = {};
-
-    for (const key of COPYABLE_ADJUSTMENT_KEYS) {
-      if (Object.prototype.hasOwnProperty.call(sourceAdjustments, key)) {
-        adjustmentsToCopy[key] = structuredClone(sourceAdjustments[key]);
-      }
+    if (!isCurrent()) return;
+    const source = sourceAdjustments ? structuredClone(sourceAdjustments) : null;
+    const file = library.imageList.find((item) => item.path === pathToCopyFrom);
+    let defaults: Adjustments;
+    try {
+      defaults = await createResetAdjustmentsWithLensDefaults(
+        editorSource
+          ? selectedImage
+          : {
+              path: pathToCopyFrom,
+              width: 0,
+              height: 0,
+              isRaw: file?.is_raw,
+            },
+      );
+    } catch (err) {
+      if (isCurrent()) toast.error(`Failed to load metadata for copying: ${err}`);
+      return;
     }
-    useEditorStore.getState().setEditor({ copiedAdjustments: adjustmentsToCopy });
+    if (!isCurrent()) return;
+    // Unopened photos with no saved recipe use the same resolved fresh defaults
+    // as their comparison baseline; saved objects keep their own interpretation.
+    const adjustmentsToCopy = captureAdjustments(source ?? defaults, COPYABLE_ADJUSTMENT_KEYS);
+    useEditorStore.getState().setEditor({
+      copiedAdjustments: adjustmentsToCopy,
+      copiedAdjustmentDefaults: { adjustments: adjustmentsToCopy, defaults: structuredClone(defaults) },
+    });
     useProcessStore.getState().setProcess({ isCopied: true });
   }, []);
 
   const handlePasteAdjustments = useCallback(
     (paths?: string[]) => {
-      const { copiedAdjustments, selectedImage, adjustments } = useEditorStore.getState();
+      const { copiedAdjustments, copiedAdjustmentDefaults, selectedImage, adjustments } = useEditorStore.getState();
       const { multiSelectedPaths } = useLibraryStore.getState();
       const { appSettings } = useSettingsStore.getState();
       const { setProcess } = useProcessStore.getState();
@@ -310,22 +515,24 @@ export function useEditorActions() {
 
       const mode = appSettings.copyPasteSettings?.mode ?? PasteMode.Merge;
       const includedAdjustments = appSettings.copyPasteSettings?.includedAdjustments ?? COPYABLE_ADJUSTMENT_KEYS;
-      const adjustmentsToApply: Partial<Adjustments> = {};
+      // Old/programmatically supplied clipboards have no source provenance;
+      // retain their previous baseline instead of borrowing the target photo's.
+      const defaults =
+        copiedAdjustmentDefaults?.adjustments === copiedAdjustments
+          ? copiedAdjustmentDefaults.defaults
+          : INITIAL_ADJUSTMENTS;
+      const adjustmentsToApply = captureAdjustments(
+        copiedAdjustments,
+        includedAdjustments,
+        mode === PasteMode.Merge ? defaults : undefined,
+      );
 
-      for (const key of includedAdjustments) {
-        if (Object.prototype.hasOwnProperty.call(copiedAdjustments, key)) {
-          const value = copiedAdjustments[key as keyof Adjustments];
-          if (mode === PasteMode.Merge) {
-            const defaultValue = INITIAL_ADJUSTMENTS[key as keyof Adjustments];
-            if (JSON.stringify(value) !== JSON.stringify(defaultValue))
-              adjustmentsToApply[key as keyof Adjustments] = value;
-          } else {
-            adjustmentsToApply[key as keyof Adjustments] = value;
-          }
-        }
+      if (adjustmentsToApply.exposure !== undefined) {
+        adjustmentsToApply.baselineExposure = copiedAdjustments.baselineExposure ?? false;
+        adjustmentsToApply.cameraExposureCompensation = copiedAdjustments.cameraExposureCompensation ?? false;
       }
 
-      if (includedAdjustments.includes(LensAdjustment.LensMaker)) {
+      if (Object.prototype.hasOwnProperty.call(adjustmentsToApply, LensAdjustment.LensMaker)) {
         if (!adjustmentsToApply.lensMaker) {
           adjustmentsToApply.lensDistortionParams = null;
         }
@@ -343,7 +550,13 @@ export function useEditorActions() {
       pathsToUpdate.forEach((p) => globalImageCache.delete(p));
 
       if (selectedImage && pathsToUpdate.includes(selectedImage.path)) {
-        setAdjustments({ ...adjustments, ...adjustmentsToApply });
+        setAdjustments(
+          normalizeLensPolicyVersion(
+            { ...adjustments, ...adjustmentsToApply },
+            adjustmentsToApply,
+            adjustments,
+          ) as Adjustments,
+        );
       }
 
       invoke(Invokes.ApplyAdjustmentsToPaths, { paths: pathsToUpdate, adjustments: adjustmentsToApply })
@@ -369,13 +582,49 @@ export function useEditorActions() {
     [setAdjustments],
   );
 
+  const handleCropOrientationToggle = useCallback(() => {
+    const { selectedImage } = useEditorStore.getState();
+    if (!selectedImage?.width || !selectedImage.height) return;
+    setAdjustments((prev) => {
+      if (!prev.aspectRatio || !Number.isFinite(prev.aspectRatio) || prev.aspectRatio <= 0 || prev.aspectRatio === 1) {
+        return prev;
+      }
+      const aspectRatio = 1 / prev.aspectRatio;
+      const steps = prev.orientationSteps || 0;
+      const { width, height } = getOrientedDimensions(selectedImage.width, selectedImage.height, steps);
+      const crop = prev.crop;
+      const center = crop
+        ? {
+            x: (crop.x + crop.width / 2) * (crop.unit === '%' ? width / 100 : 1),
+            y: (crop.y + crop.height / 2) * (crop.unit === '%' ? height / 100 : 1),
+          }
+        : undefined;
+      return {
+        ...prev,
+        aspectRatio,
+        crop: calculateCenteredCrop(
+          selectedImage.width,
+          selectedImage.height,
+          steps,
+          aspectRatio,
+          prev.rotation || 0,
+          center,
+        ),
+      };
+    });
+  }, [setAdjustments]);
+
   const handleZoomChange = useCallback((zoomValue: number, fitToWindow: boolean = false) => {
-    const { renderScale } = useEditorStore.getState().baseRenderSize;
-    let transformZoom = 1.0;
-    if (!fitToWindow && renderScale > 0) {
-      transformZoom = transformFromPercent(zoomValue, renderScale, getDpr());
-    }
-    useEditorStore.getState().setEditor({ zoom: transformZoom });
+    const { selectedImage, baseRenderSize, setEditor } = useEditorStore.getState();
+    if (!selectedImage) return;
+    const zoom =
+      !fitToWindow && baseRenderSize.renderScale > 0
+        ? transformFromPercent(zoomValue, baseRenderSize.renderScale, getDpr())
+        : 1;
+    setEditor({
+      zoom,
+      zoomRequest: { imagePath: selectedImage.path, percent: fitToWindow ? null : zoomValue },
+    });
   }, []);
 
   return {
@@ -389,6 +638,7 @@ export function useEditorActions() {
     handleCopyAdjustments,
     handlePasteAdjustments,
     handleZoomChange,
+    handleCropOrientationToggle,
     toggleShowOriginal,
   };
 }

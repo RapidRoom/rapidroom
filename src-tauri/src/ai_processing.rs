@@ -49,8 +49,9 @@ const CLIP_TOKENIZER_FILENAME: &str = "clip_tokenizer.json";
 const CLIP_MODEL_SHA256: &str = "57879bb1c23cdeb350d23569dd251ed4b740a96d747c529e94a2bb8040ac5d00";
 
 const DENOISE_URL: &str = "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/nind_denoise_utnet_684.onnx?download=true";
-const DENOISE_FILENAME: &str = "nind_denoise_utnet_684.onnx";
-const DENOISE_SHA256: &str = "ee3586279d514df557ff3f7dec6df37fafc51ba5d3a3435b2cc9ac2d9017e7fe";
+pub(crate) const DENOISE_FILENAME: &str = "nind_denoise_utnet_684.onnx";
+pub(crate) const DENOISE_SHA256: &str =
+    "ee3586279d514df557ff3f7dec6df37fafc51ba5d3a3435b2cc9ac2d9017e7fe";
 
 const LAMA_URL: &str =
     "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/lama_fp16.onnx?download=true";
@@ -61,6 +62,12 @@ const DEPTH_URL: &str = "https://huggingface.co/CyberTimon/RapidRAW-Models/resol
 const DEPTH_FILENAME: &str = "depth_anything_v2_vits.onnx";
 const DEPTH_INPUT_SIZE: u32 = 518;
 const DEPTH_SHA256: &str = "d2b11a11c1d4a12b47608fa65a17ee9a4c605b55ee1730c8e3b526304f2562be";
+
+const NORMAL_URL: &str = "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/moge-2-vits-normal-onnx.onnx?download=true";
+const NORMAL_FILENAME: &str = "moge-2-vits-normal-onnx.onnx";
+const NORMAL_MAX_SIZE: u32 = 768;
+const NORMAL_NUM_TOKENS: i64 = 2500;
+const NORMAL_SHA256: &str = "24eacb5dc7a2c54c7bc98f7de085ffbed79ad006ea5b664c2c2cdc02ff3a52f0";
 
 pub struct AiModels {
     pub sam_encoder: Mutex<Session>,
@@ -91,11 +98,12 @@ pub struct CachedDepthMap {
 
 #[derive(Default)]
 pub struct AiState {
-    pub tree_models: std::collections::HashMap<&'static str, Arc<Mutex<Session>>>,
+    pub tree_models: std::collections::HashMap<&'static str, crate::tree_denoise::ModelSession>,
     pub models: Option<Arc<AiModels>>,
     pub denoise_model: Option<Arc<Mutex<Session>>>,
     pub clip_models: Option<Arc<ClipModels>>,
     pub lama_model: Option<Arc<Mutex<Session>>>,
+    pub normal_model: Option<Arc<Mutex<Session>>>,
     pub embeddings: Option<ImageEmbeddings>,
     pub depth_map: Option<CachedDepthMap>,
 }
@@ -364,7 +372,7 @@ async fn download_model(url: &str, dest: &Path) -> Result<()> {
     persist_downloaded_asset(dest, &bytes)
 }
 
-fn verify_sha256(path: &Path, expected_hash: &str) -> Result<bool> {
+pub(crate) fn verify_sha256(path: &Path, expected_hash: &str) -> Result<bool> {
     if !path.exists() {
         return Ok(false);
     }
@@ -555,6 +563,7 @@ pub async fn get_or_init_ai_models(
             denoise_model: None,
             clip_models: None,
             lama_model: None,
+            normal_model: None,
             embeddings: None,
             depth_map: None,
         });
@@ -567,6 +576,23 @@ pub async fn get_or_init_denoise_model(
     app_handle: &tauri::AppHandle,
     ai_state_mutex: &Mutex<Option<AiState>>,
     ai_init_lock: &TokioMutex<()>,
+) -> Result<Arc<Mutex<Session>>> {
+    denoise_model(app_handle, ai_state_mutex, ai_init_lock, true).await
+}
+
+pub(crate) async fn cached_denoise_model(
+    app_handle: &tauri::AppHandle,
+    ai_state_mutex: &Mutex<Option<AiState>>,
+    ai_init_lock: &TokioMutex<()>,
+) -> Result<Arc<Mutex<Session>>> {
+    denoise_model(app_handle, ai_state_mutex, ai_init_lock, false).await
+}
+
+async fn denoise_model(
+    app_handle: &tauri::AppHandle,
+    ai_state_mutex: &Mutex<Option<AiState>>,
+    ai_init_lock: &TokioMutex<()>,
+    allow_download: bool,
 ) -> Result<Arc<Mutex<Session>>> {
     if let Some(denoise_model) = ai_state_mutex
         .lock()
@@ -589,16 +615,22 @@ pub async fn get_or_init_denoise_model(
     }
 
     let models_dir = get_models_dir(app_handle)?;
-    download_and_verify_model(
-        app_handle,
-        &models_dir,
-        DENOISE_FILENAME,
-        DENOISE_URL,
-        DENOISE_SHA256,
-        "NIND Denoise Model",
-    )
-    .await?;
-
+    if !allow_download {
+        anyhow::ensure!(
+            verify_sha256(&models_dir.join(DENOISE_FILENAME), DENOISE_SHA256)?,
+            "Required NIND model is missing or invalid"
+        );
+    } else {
+        download_and_verify_model(
+            app_handle,
+            &models_dir,
+            DENOISE_FILENAME,
+            DENOISE_URL,
+            DENOISE_SHA256,
+            "NIND Denoise Model",
+        )
+        .await?;
+    }
     let _ = ort::init().with_name("AI-Denoise").commit();
     let model_path = models_dir.join(DENOISE_FILENAME);
     let session = Session::builder()?.commit_from_file(model_path)?;
@@ -616,6 +648,7 @@ pub async fn get_or_init_denoise_model(
             denoise_model: Some(denoise_model.clone()),
             clip_models: None,
             lama_model: None,
+            normal_model: None,
             embeddings: None,
             depth_map: None,
         });
@@ -689,6 +722,7 @@ pub async fn get_or_init_clip_models(
             denoise_model: None,
             clip_models: Some(clip_models.clone()),
             lama_model: None,
+            normal_model: None,
             embeddings: None,
             depth_map: None,
         });
@@ -750,12 +784,75 @@ pub async fn get_or_init_lama_model(
             denoise_model: None,
             clip_models: None,
             lama_model: Some(lama_model.clone()),
+            normal_model: None,
             embeddings: None,
             depth_map: None,
         });
     }
 
     Ok(lama_model)
+}
+
+pub async fn get_or_init_normal_model(
+    app_handle: &tauri::AppHandle,
+    ai_state_mutex: &Mutex<Option<AiState>>,
+    ai_init_lock: &TokioMutex<()>,
+) -> Result<Arc<Mutex<Session>>> {
+    if let Some(normal_model) = ai_state_mutex
+        .lock()
+        .unwrap()
+        .as_ref()
+        .and_then(|state| state.normal_model.clone())
+    {
+        return Ok(normal_model);
+    }
+
+    let _guard = ai_init_lock.lock().await;
+
+    if let Some(normal_model) = ai_state_mutex
+        .lock()
+        .unwrap()
+        .as_ref()
+        .and_then(|state| state.normal_model.clone())
+    {
+        return Ok(normal_model);
+    }
+
+    let models_dir = get_models_dir(app_handle)?;
+    download_and_verify_model(
+        app_handle,
+        &models_dir,
+        NORMAL_FILENAME,
+        NORMAL_URL,
+        NORMAL_SHA256,
+        "Normal Model",
+    )
+    .await?;
+
+    let _ = ort::init().with_name("AI-Normal").commit();
+    let model_path = models_dir.join(NORMAL_FILENAME);
+    let session = Session::builder()?.commit_from_file(model_path)?;
+    let normal_model = Arc::new(Mutex::new(session));
+
+    crate::register_exit_handler();
+
+    let mut ai_state_lock = ai_state_mutex.lock().unwrap();
+    if let Some(state) = ai_state_lock.as_mut() {
+        state.normal_model = Some(normal_model.clone());
+    } else {
+        *ai_state_lock = Some(AiState {
+            tree_models: Default::default(),
+            models: None,
+            denoise_model: None,
+            clip_models: None,
+            lama_model: None,
+            normal_model: Some(normal_model.clone()),
+            embeddings: None,
+            depth_map: None,
+        });
+    }
+
+    Ok(normal_model)
 }
 
 #[derive(Clone, Copy)]
@@ -777,9 +874,9 @@ impl TileParams {
     }
 }
 
-const TILE_BALANCED: TileParams = TileParams::new(504, 480, 6);
-const TILE_FASTER: TileParams = TileParams::new(504, 504, 0);
-const TILE_HIGHER_QUALITY: TileParams = TileParams::new(504, 448, 12);
+const TILE_BALANCED: TileParams = TileParams::new(504, 448, 32);
+const TILE_FASTER: TileParams = TileParams::new(504, 480, 24);
+const TILE_HIGHER_QUALITY: TileParams = TileParams::new(504, 376, 64);
 
 fn select_tile_params(quality_0_1: f32) -> TileParams {
     let q = quality_0_1.clamp(0.0, 1.0);
@@ -792,24 +889,13 @@ fn select_tile_params(quality_0_1: f32) -> TileParams {
     }
 }
 
-#[inline]
-fn mirror_coord(c: i32, size: i32) -> i32 {
-    if c < 0 {
-        (-c).min(size - 1)
-    } else if c >= size {
-        (2 * size - 1 - c).max(0)
-    } else {
-        c
-    }
-}
-
 fn extract_tile_mirror(img: &Rgb32FImage, x0: i32, y0: i32, cs: usize) -> Array4<f32> {
     let (w, h) = (img.width() as i32, img.height() as i32);
     let mut arr = Array4::zeros((1, 3, cs, cs));
     for dy in 0..cs as i32 {
         for dx in 0..cs as i32 {
-            let sx = mirror_coord(x0 + dx, w);
-            let sy = mirror_coord(y0 + dy, h);
+            let sx = crate::denoise_quality::reflect_index((x0 + dx) as i64, w as usize) as i32;
+            let sy = crate::denoise_quality::reflect_index((y0 + dy) as i64, h as usize) as i32;
             let px = img.get_pixel(sx as u32, sy as u32);
             arr[[0, 0, dy as usize, dx as usize]] = px[0];
             arr[[0, 1, dy as usize, dx as usize]] = px[1];
@@ -817,71 +903,6 @@ fn extract_tile_mirror(img: &Rgb32FImage, x0: i32, y0: i32, cs: usize) -> Array4
         }
     }
     arr
-}
-
-struct SeamlessBlend {
-    ud0: usize,
-    ud1: usize,
-    ud2: usize,
-    ud3: usize,
-    absx0: usize,
-    absy0: usize,
-    fswidth: usize,
-    fsheight: usize,
-    overlap: usize,
-}
-
-fn apply_seamless(tile: &mut Array4<f32>, blend: &SeamlessBlend) {
-    let SeamlessBlend {
-        ud0,
-        ud1,
-        ud2,
-        ud3,
-        absx0,
-        absy0,
-        fswidth,
-        fsheight,
-        overlap,
-    } = *blend;
-    let ol = overlap;
-    if absx0 > 0 {
-        for c in 0..3 {
-            for y in ud1..ud3 {
-                for x in ud0..(ud0 + ol).min(ud2) {
-                    tile[[0, c, y, x]] *= 0.5;
-                }
-            }
-        }
-    }
-    if absy0 > 0 {
-        for c in 0..3 {
-            for y in ud1..(ud1 + ol).min(ud3) {
-                for x in ud0..ud2 {
-                    tile[[0, c, y, x]] *= 0.5;
-                }
-            }
-        }
-    }
-    if absx0 + (ud2 - ud0) < fswidth && ol > 0 {
-        let right_start = (ud2 as i32 - ol as i32).max(ud0 as i32) as usize;
-        for c in 0..3 {
-            for y in ud1..ud3 {
-                for x in right_start..ud2 {
-                    tile[[0, c, y, x]] *= 0.5;
-                }
-            }
-        }
-    }
-    if absy0 + (ud3 - ud1) < fsheight && ol > 0 {
-        let bottom_start = (ud3 as i32 - ol as i32).max(ud1 as i32) as usize;
-        for c in 0..3 {
-            for y in bottom_start..ud3 {
-                for x in ud0..ud2 {
-                    tile[[0, c, y, x]] *= 0.5;
-                }
-            }
-        }
-    }
 }
 
 fn run_native_denoise(
@@ -896,21 +917,18 @@ fn run_native_denoise(
     let run_options = Arc::new(RunOptions::new().map_err(|e| e.to_string())?);
     job.attach_run_options(run_options.clone())?;
 
-    let w = width as i32;
-    let h = height as i32;
-    let step = params.ucs.saturating_sub(params.overlap).max(1);
-    let iperhl = (width.saturating_sub(params.ucs) as f64 / step as f64).ceil() as usize;
-    let ipervl = (height.saturating_sub(params.ucs) as f64 / step as f64).ceil() as usize;
-    let total = (iperhl + 1) * (ipervl + 1);
+    let xs = crate::denoise_quality::Axis::new(width, params.ucs, params.overlap)?;
+    let ys = crate::denoise_quality::Axis::new(height, params.ucs, params.overlap)?;
+    let total = xs.starts.len() * ys.starts.len();
 
     for i in 0..total {
         job.check()?;
-        let yi = i / (iperhl + 1);
-        let xi = i % (iperhl + 1);
-        let x0 =
-            params.ucs as i32 * xi as i32 - params.overlap as i32 * xi as i32 - params.pad as i32;
-        let y0 =
-            params.ucs as i32 * yi as i32 - params.overlap as i32 * yi as i32 - params.pad as i32;
+        let yi = i / xs.starts.len();
+        let xi = i % xs.starts.len();
+        let x = xs.starts[xi];
+        let y = ys.starts[yi];
+        let x0 = x as i32 - params.pad as i32;
+        let y0 = y as i32 - params.pad as i32;
 
         if i % 10 == 0 {
             let pct = (i as f32 / total as f32) * 100.0;
@@ -938,58 +956,23 @@ fn run_native_denoise(
                 .map_err(|e| format!("Unexpected output shape: {}", e))?
         };
 
-        let x1pad = (0i32).max(x0 + params.cs as i32 - w) as usize;
-        let y1pad = (0i32).max(y0 + params.cs as i32 - h) as usize;
-        let ud0 = params.pad;
-        let ud1 = params.pad;
-        let ud2 = params.cs - params.pad.max(x1pad);
-        let ud3 = params.cs - params.pad.max(y1pad);
-        let absx0 = (x0 + params.pad as i32).max(0) as usize;
-        let absy0 = (y0 + params.pad as i32).max(0) as usize;
-
-        let mut tile = out;
-        apply_seamless(
-            &mut tile,
-            &SeamlessBlend {
-                ud0,
-                ud1,
-                ud2,
-                ud3,
-                absx0,
-                absy0,
-                fswidth: width,
-                fsheight: height,
-                overlap: params.overlap,
-            },
-        );
-
-        for cy in 0..(ud3 - ud1) {
-            for cx in 0..(ud2 - ud0) {
-                let gx = absx0 + cx;
-                let gy = absy0 + cy;
-                if gx < width && gy < height {
-                    let base = (gy * width + gx) * 3;
-                    accumulator[base] += tile[[0, 0, ud1 + cy, ud0 + cx]].clamp(0.0, 1.0);
-                    accumulator[base + 1] += tile[[0, 1, ud1 + cy, ud0 + cx]].clamp(0.0, 1.0);
-                    accumulator[base + 2] += tile[[0, 2, ud1 + cy, ud0 + cx]].clamp(0.0, 1.0);
+        if out.shape() != [1, 3, params.cs, params.cs] {
+            return Err("Unexpected NIND output shape".into());
+        }
+        if out.iter().any(|p| !p.is_finite()) {
+            return Err("NIND returned nonfinite pixels".into());
+        }
+        for (cy, &wy) in ys.weights[yi].iter().enumerate() {
+            for (cx, &wx) in xs.weights[xi].iter().enumerate() {
+                let pixel = (y + cy) * width + x + cx;
+                for c in 0..3 {
+                    accumulator[c * width * height + pixel] +=
+                        out[[0, c, params.pad + cy, params.pad + cx]] * wx * wy;
                 }
             }
         }
     }
     Ok(())
-}
-
-fn accumulator_to_rgb32f(acc: &[f32], width: u32, height: u32) -> Rgb32FImage {
-    let mut out = Rgb32FImage::new(width, height);
-    for (i, p) in out.pixels_mut().enumerate() {
-        let i3 = i * 3;
-        *p = Rgb([
-            acc[i3].clamp(0.0, 1.0),
-            acc[i3 + 1].clamp(0.0, 1.0),
-            acc[i3 + 2].clamp(0.0, 1.0),
-        ]);
-    }
-    out
 }
 
 pub fn run_ai_denoise(
@@ -1013,8 +996,26 @@ pub fn run_ai_denoise(
         params,
     )?;
 
-    let out_img_buffer = accumulator_to_rgb32f(&accumulator, width, height);
-    Ok(DynamicImage::ImageRgb32F(out_img_buffer))
+    job.progress("Restoring whole-image colour…");
+    let plane = width as usize * height as usize;
+    let mut reference = vec![0.0; 3 * plane];
+    for (i, pixel) in rgb_img.pixels().enumerate() {
+        for c in 0..3 {
+            reference[c * plane + i] = pixel[c];
+        }
+    }
+    crate::denoise_quality::restore_colour(
+        &mut accumulator,
+        &reference,
+        width as usize,
+        height as usize,
+        || job.check(),
+    )?;
+    let out = Rgb32FImage::from_fn(width, height, |x, y| {
+        let i = y as usize * width as usize + x as usize;
+        Rgb(std::array::from_fn(|c| accumulator[c * plane + i]))
+    });
+    Ok(DynamicImage::ImageRgb32F(out))
 }
 
 pub fn run_lama_inpainting(
@@ -1705,6 +1706,120 @@ pub fn run_depth_anything_model(
     Ok(depth_map)
 }
 
+fn build_normal_depth(points: &[f32], mask: &[f32]) -> Vec<u8> {
+    let valid = |point: &[f32; 3], m: f32| {
+        m >= 0.5 && point.iter().all(|v| v.is_finite()) && point[2] > 0.0
+    };
+
+    let mut depths: Vec<f32> = points
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .zip(mask)
+        .filter(|(point, m)| valid(point, **m))
+        .map(|(point, _)| point[2])
+        .collect();
+
+    if depths.len() < 16 {
+        return vec![255; mask.len()];
+    }
+
+    depths.sort_unstable_by(|a, b| a.total_cmp(b));
+    let percentile = |p: f32| depths[((depths.len() - 1) as f32 * p) as usize];
+    let near = percentile(0.005);
+    let range = (percentile(0.995) - near).max(1e-6);
+
+    points
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .zip(mask)
+        .map(|(point, m)| {
+            if valid(point, *m) {
+                (((point[2] - near) / range).clamp(0.0, 1.0) * 255.0).round() as u8
+            } else {
+                255
+            }
+        })
+        .collect()
+}
+
+pub fn run_normal_model(
+    image: &DynamicImage,
+    normal_session: &Mutex<Session>,
+) -> Result<RgbaImage> {
+    let resized_image = if image.width().max(image.height()) > NORMAL_MAX_SIZE {
+        image.resize(NORMAL_MAX_SIZE, NORMAL_MAX_SIZE, FilterType::Triangle)
+    } else {
+        image.clone()
+    };
+    let (resized_w, resized_h) = resized_image.dimensions();
+    let resized_rgb = resized_image.into_rgb8();
+    let raw_pixels = resized_rgb.as_raw();
+
+    let rw = resized_w as usize;
+    let rh = resized_h as usize;
+
+    let mut input_tensor: Array<f32, _> = Array::zeros((1, 3, rh, rw));
+    for y in 0..rh {
+        for x in 0..rw {
+            let idx = (y * rw + x) * 3;
+            input_tensor[[0, 0, y, x]] = raw_pixels[idx] as f32 / 255.0;
+            input_tensor[[0, 1, y, x]] = raw_pixels[idx + 1] as f32 / 255.0;
+            input_tensor[[0, 2, y, x]] = raw_pixels[idx + 2] as f32 / 255.0;
+        }
+    }
+
+    let t_image = Tensor::from_array(input_tensor.into_dyn())?;
+    let t_num_tokens = Tensor::from_array(ndarray::arr0(NORMAL_NUM_TOKENS))?;
+
+    let mut session = normal_session.lock().unwrap();
+    let outputs = session.run(ort::inputs![
+        "image" => t_image,
+        "num_tokens" => t_num_tokens,
+    ])?;
+
+    let normal_tensor = outputs["normal"].try_extract_array::<f32>()?;
+    let mask_tensor = outputs["mask"].try_extract_array::<f32>()?;
+    let points_tensor = outputs["points"].try_extract_array::<f32>()?;
+
+    if normal_tensor.shape() != [1, rh, rw, 3]
+        || mask_tensor.shape() != [1, rh, rw]
+        || points_tensor.shape() != [1, rh, rw, 3]
+    {
+        return Err(anyhow::anyhow!(
+            "Unexpected normal model output shape: {:?} / {:?} / {:?}",
+            normal_tensor.shape(),
+            mask_tensor.shape(),
+            points_tensor.shape()
+        ));
+    }
+
+    let normals = normal_tensor.as_standard_layout();
+    let normals = normals.as_slice().unwrap();
+    let mask = mask_tensor.as_standard_layout();
+    let mask = mask.as_slice().unwrap();
+    let points = points_tensor.as_standard_layout();
+    let depth = build_normal_depth(points.as_slice().unwrap(), mask);
+
+    let pack = |v: f32| ((v * 0.5 + 0.5).clamp(0.0, 1.0) * 255.0).round() as u8;
+
+    let mut normal_data = Vec::with_capacity(rw * rh * 4);
+    for (n, d) in normals.as_chunks::<3>().0.iter().zip(depth) {
+        let (nx, ny, nz) = (n[0], -n[1], -n[2]);
+        let len = (nx * nx + ny * ny + nz * nz).sqrt();
+        if len.is_finite() && len > 1e-6 {
+            normal_data.extend_from_slice(&[pack(nx / len), pack(ny / len), pack(nz / len)]);
+        } else {
+            normal_data.extend_from_slice(&[128, 128, 255]);
+        }
+        normal_data.push(d);
+    }
+
+    RgbaImage::from_raw(resized_w, resized_h, normal_data)
+        .ok_or_else(|| anyhow::anyhow!("Failed to create normal map from model output"))
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AiSubjectMaskParameters {
@@ -1777,6 +1892,252 @@ pub struct AiDepthMaskParameters {
     pub flip_vertical: Option<bool>,
     #[serde(default)]
     pub orientation_steps: Option<u8>,
+}
+
+#[cfg(test)]
+mod runtime_compatibility_tests {
+    use super::*;
+    use image::{ImageBuffer, Luma, Rgb};
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+    use std::path::PathBuf;
+
+    fn checksum(path: &std::path::Path) -> String {
+        let mut file = std::fs::File::open(path).unwrap();
+        let mut digest = Sha256::new();
+        let mut chunk = [0; 65536];
+        loop {
+            let count = file.read(&mut chunk).unwrap();
+            if count == 0 {
+                break;
+            }
+            digest.update(&chunk[..count]);
+        }
+        hex::encode(digest.finalize())
+    }
+
+    #[test]
+    #[ignore = "Local original-checkpoint AI feature compatibility; set RAPIDROOM_AI_COMPAT_MODELS/OUT and ORT_DYLIB_PATH, under flock"]
+    fn real_other_ai_features_on_selected_runtime() {
+        let root = PathBuf::from(std::env::var("RAPIDROOM_AI_COMPAT_MODELS").unwrap());
+        let out = PathBuf::from(std::env::var("RAPIDROOM_AI_COMPAT_OUT").unwrap());
+        std::fs::create_dir_all(&out).unwrap();
+        let session = |file: &str, hash: &str| {
+            let path = root.join(file);
+            assert_eq!(
+                checksum(&path),
+                hash,
+                "original checkpoint required: {file}"
+            );
+            Mutex::new(
+                Session::builder()
+                    .unwrap()
+                    .with_intra_threads(4)
+                    .unwrap()
+                    .with_execution_providers([
+                        ort::execution_providers::CPUExecutionProvider::default()
+                            .build()
+                            .error_on_failure(),
+                    ])
+                    .unwrap()
+                    .commit_from_file(path)
+                    .unwrap(),
+            )
+        };
+        let image = DynamicImage::ImageRgb8(ImageBuffer::from_fn(320, 240, |x, y| {
+            let checker = if (x / 16 + y / 16) % 2 == 0 { 25 } else { 0 };
+            if (110..210).contains(&x) && (80..200).contains(&y) {
+                Rgb([190, 45 + checker, 40])
+            } else if y < 100 {
+                Rgb([60, 100, 160 + checker])
+            } else {
+                Rgb([60 + checker, 95 + checker, 50])
+            }
+        }));
+        image.save(out.join("input.png")).unwrap();
+        let mut rows = Vec::new();
+        {
+            let started = std::time::Instant::now();
+            let encoder = session(ENCODER_FILENAME, ENCODER_SHA256);
+            let embeddings = generate_image_embeddings(&image, &encoder).unwrap();
+            assert!(embeddings.embeddings.iter().all(|v| v.is_finite()));
+            drop(encoder);
+            let decoder = session(DECODER_FILENAME, DECODER_SHA256);
+            let mask = run_sam_decoder(
+                &decoder,
+                &embeddings,
+                (150., 120.),
+                (150., 120.),
+                Some(&image),
+            )
+            .unwrap();
+            assert_eq!(mask.dimensions(), image.dimensions());
+            mask.save(out.join("sam.png")).unwrap();
+            rows.push(serde_json::json!({"feature":"SAM encoder/point decoder","seconds":started.elapsed().as_secs_f64(),"shape":mask.dimensions()}));
+        }
+        for (name, file, hash, run) in [
+            (
+                "sky",
+                SKYSEG_FILENAME,
+                SKYSEG_SHA256,
+                run_sky_seg_model as fn(&DynamicImage, &Mutex<Session>) -> Result<GrayImage>,
+            ),
+            ("subject", U2NETP_FILENAME, U2NETP_SHA256, run_u2netp_model),
+            (
+                "depth",
+                DEPTH_FILENAME,
+                DEPTH_SHA256,
+                run_depth_anything_model,
+            ),
+        ] {
+            let started = std::time::Instant::now();
+            let model = session(file, hash);
+            let mask = run(&image, &model).unwrap();
+            // Depth returns its unpadded inference-size map; the command rescales it.
+            let expected = if name == "depth" {
+                (518, 389)
+            } else {
+                image.dimensions()
+            };
+            assert_eq!(mask.dimensions(), expected);
+            mask.save(out.join(format!("{name}.png"))).unwrap();
+            rows.push(serde_json::json!({"feature":name,"seconds":started.elapsed().as_secs_f64(),"shape":mask.dimensions()}));
+        }
+        {
+            let started = std::time::Instant::now();
+            let model = session(LAMA_FILENAME, LAMA_SHA256);
+            let mask = GrayImage::from_fn(320, 240, |x, y| {
+                Luma([if (140..170).contains(&x) && (110..140).contains(&y) {
+                    255
+                } else {
+                    0
+                }])
+            });
+            let filled = run_lama_inpainting(&image, &mask, &model).unwrap();
+            assert_eq!(filled.dimensions(), image.dimensions());
+            filled.save(out.join("remove.png")).unwrap();
+            rows.push(serde_json::json!({"feature":"LaMa remove","seconds":started.elapsed().as_secs_f64(),"shape":filled.dimensions()}));
+        }
+        {
+            let started = std::time::Instant::now();
+            let model = session(DENOISE_FILENAME, DENOISE_SHA256);
+            let result =
+                run_ai_denoise(&image.to_rgb32f(), 0.5, &model, &DenoiseJob::testing()).unwrap();
+            assert_eq!(result.dimensions(), image.dimensions());
+            assert!(result.to_rgb32f().as_raw().iter().all(|v| v.is_finite()));
+            result.to_rgb8().save(out.join("legacy-nind.png")).unwrap();
+            rows.push(serde_json::json!({"feature":"legacy NIND","seconds":started.elapsed().as_secs_f64(),"shape":result.dimensions()}));
+        }
+        {
+            let started = std::time::Instant::now();
+            let model = session(CLIP_MODEL_FILENAME, CLIP_MODEL_SHA256);
+            let tokenizer =
+                tokenizers::Tokenizer::from_file(root.join(CLIP_TOKENIZER_FILENAME)).unwrap();
+            let tags = crate::tagging::generate_tags_with_clip(
+                &image,
+                &model,
+                &tokenizer,
+                Some(vec![
+                    "a red object".into(),
+                    "a landscape".into(),
+                    "a cat".into(),
+                    "a building".into(),
+                ]),
+                3,
+            )
+            .unwrap();
+            assert!(!tags.is_empty());
+            rows.push(serde_json::json!({"feature":"CLIP tags","seconds":started.elapsed().as_secs_f64(),"tags":tags}));
+        }
+        let report = serde_json::json!({"runtime":ort::info(),"fixtures":"deterministic RGB only; no camera-quality claim","rows":rows});
+        std::fs::write(
+            out.join("features.json"),
+            serde_json::to_vec_pretty(&report).unwrap(),
+        )
+        .unwrap();
+        println!("{report}");
+    }
+}
+
+#[cfg(test)]
+mod nind_margin_tests {
+    use super::*;
+
+    #[test]
+    fn every_nind_quality_uses_a_context_halo_and_overlap() {
+        let mut previous_halo = 0;
+        for quality in [0.0, 0.25, 0.5, 0.75, 1.0] {
+            let params = select_tile_params(quality);
+            assert_eq!(params.cs, 504);
+            assert!(params.overlap > 0 && params.overlap < params.ucs);
+            assert!(params.pad >= 12 && params.pad >= previous_halo);
+            assert_eq!(params.ucs + 2 * params.pad, params.cs);
+            previous_halo = params.pad;
+        }
+    }
+}
+
+#[cfg(test)]
+mod denoise_quality_tests {
+    use super::*;
+
+    #[test]
+    fn extraction_reflects_repeatedly_on_tiny_images() {
+        let input = Rgb32FImage::from_fn(3, 2, |x, y| Rgb([x as f32, y as f32, 0.0]));
+        let tile = extract_tile_mirror(&input, -32, -32, 504);
+        assert!(tile.iter().all(|p| p.is_finite()));
+        for y in 0..504 {
+            for x in 0..504 {
+                assert_eq!(
+                    tile[[0, 0, y, x]],
+                    crate::denoise_quality::reflect_index(x as i64 - 32, 3) as f32
+                );
+                assert_eq!(
+                    tile[[0, 1, y, x]],
+                    crate::denoise_quality::reflect_index(y as i64 - 32, 2) as f32
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "Local real NIND checkpoint integration; set RAPIDROOM_NIND_MODEL and RAPIDROOM_NIND_OUTPUT, under flock"]
+    fn real_nind_irregular_image_smoke() {
+        let model = std::env::var("RAPIDROOM_NIND_MODEL").unwrap();
+        let session = Session::builder()
+            .unwrap()
+            .with_intra_threads(4)
+            .unwrap()
+            .commit_from_file(model)
+            .unwrap();
+        let session = Mutex::new(session);
+        let input = Rgb32FImage::from_fn(513, 257, |x, y| {
+            let spot = if (x as i32 - 448).pow(2) + (y as i32 - 192).pow(2) < 5 {
+                0.05
+            } else {
+                0.0
+            };
+            Rgb([
+                0.03 + x as f32 / 5130.0 + spot,
+                0.04 + y as f32 / 2570.0 + spot,
+                0.08 + spot,
+            ])
+        });
+        for intensity in [0.1, 0.5, 0.9] {
+            let result = run_ai_denoise(&input, intensity, &session, &DenoiseJob::testing())
+                .unwrap()
+                .to_rgb32f();
+            assert_eq!(result.dimensions(), input.dimensions());
+            assert!(result.pixels().all(|p| p.0.iter().all(|v| v.is_finite())));
+            let name = format!("nind-{}.tiff", (intensity * 100.0) as u32);
+            DynamicImage::ImageRgb16(DynamicImage::ImageRgb32F(result).to_rgb16())
+                .save(
+                    std::path::Path::new(&std::env::var("RAPIDROOM_NIND_OUTPUT").unwrap())
+                        .join(name),
+                )
+                .unwrap();
+        }
+    }
 }
 
 #[cfg(test)]

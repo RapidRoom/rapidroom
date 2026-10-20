@@ -15,6 +15,14 @@ Connect, establish the destination and look, agree the crop, inspect, edit, comp
 - Read what's already there. A photo can arrive with an edit (the user's, a preset, a Lightroom import). Build on it unless the user asks for a fresh start; never reset without asking.
 - Write a two-line brief before changing anything: what the photo is about, what's in the way, and the direction (the user's words come first). See [direction.md](direction.md).
 
+## Protect existing work before proposing changes
+
+When the user asks for ideas or an alternative edit, call `assess_edits` with the current path/revision before the first mutation. If it recommends a virtual copy (masks, curves, grading or substantial settings), automatically call `create_virtual_copy`, tell the user you preserved their version, then open the **returned** copy path and read its current revision. Edit and export that copy. An untouched photo, or only crop plus a few Basic sliders, can be edited in place. The user's explicit instruction to edit the original takes precedence; don't silently reset it. If the installed build lacks assessment/copy tools, explain the missing protection and ask before overwriting existing work.
+
+For a requested Style/look, use `list_presets` and `apply_preset`, preferably by the returned stable ID. Inspect availability, masks and geometry first. Use the native Amount control and verify `get_editor_context.appliedPreset`. Don't manually translate a bundled XMP recipe or invent a missing preset. Compare before and after, preserve a suitable existing crop and adjust this image rather than apply one grade blindly to a series.
+
+To compare with the user's version, open the AI copy as active and use `open_reference_view` with the base as reference. The user sees the existing side-by-side view. `render_compare` remains for the assistant's own inspection under the installed schema; no wipe feature is promised. “Keep both” stays available. Retain the original's `sourceEditRevision` when creating a copy. For “keep the AI version,” open the AI copy, refresh its revision, and call `adopt_virtual_copy` with that copy revision plus the original revision. This applies the AI recipe onto the original as one labelled undoable step, then requests GUI confirmation to delete only the AI copy. If the original changed meanwhile, inspect it and obtain the user's choice before supplying a newly reviewed revision; never silently override the conflict. For “keep mine,” open the AI copy, refresh its revision, request deletion of that copy only, and let the user confirm in the GUI. **Never delete the original RAW to finalize an alternative edit**: an original deletion also removes associated virtual copies. A pending confirmation is not a completed deletion.
+
 ## 3. Change, one decision at a time
 
 Typical order. Skip what the photo doesn't need.
@@ -53,6 +61,8 @@ Render and look after each meaningful decision. Measure when it resolves a clipp
 - Alternatives: one `render_compare` round per decision, usually two or three named temporary `changes` variants ("Warm", "Clean", "Muted") at about 800 px. This shows one labelled choice without applying it. Explain the difference, then apply only the chosen patch. Recompare if the user changes the brief or the result needs a correction, rather than repeating an accepted choice. Tools in older builds may require matching crop geometry; follow their input schema and errors.
 - At the end, make one small native `render_region` check for noise, sharpness and mask edges. Use its discovered coordinate schema: existing builds use native integer pixels; builds offering fractions/`regionUnits` also accept normalized selections. Native pixel coordinates are after rendered geometry, unlike original-image mask coordinates. Do not estimate them from an 800 px preview without mapping dimensions.
 - When the user is moving sliders too, use `history_list` actor and changed keys to see what they changed. Fetch the latest state when its revision or changed values are needed for a mutation; preserve their work and keep strict `expectedRevision` guards. Assistant changes keep their normal visible notifications.
+
+For a scored, strength-aware correction with hard round caps and nondecreasing-score retention, see [bounded render review](judge.md). This optional offline helper returns proposals only; render and inspect every candidate through the existing tools, and keep the normal user/revision guards.
 
 ## 6. Save
 

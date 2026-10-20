@@ -65,7 +65,8 @@
       "vibrance": "鲜艳度",
       "wbPickerTooltip": "白平衡选取器",
       "wbPickerWgpuDisabled": "白平衡选取器：请在设置中禁用 WGPU。",
-      "whiteBalance": "白平衡"
+      "whiteBalance": "白平衡",
+      "kelvinModeTooltip": "以开尔文显示色温"
     },
     "curves": {
       "channelTitle": "{{channel}} 通道",
@@ -123,6 +124,11 @@
       "bokehShape": "散景形状",
       "creative": "创意",
       "feather": "羽化",
+      "fog": "雾",
+      "fogDensity": "密度",
+      "fogHeight": "地面雾",
+      "fogStart": "起始距离",
+      "fogVariation": "变化",
       "glow": "发光",
       "grain": "颗粒",
       "halation": "光晕",
@@ -131,9 +137,33 @@
       "lightFlares": "光线耀斑",
       "lut": "LUT",
       "midpoint": "中点",
+      "relight": "重新打光",
+      "relightAddLight": "添加灯光",
+      "relightAmbient": "环境光",
+      "relightAngle": "角度",
+      "relightColor": "灯光颜色",
+      "relightCone": "光锥",
+      "relightDepth": "深度",
+      "relightElevation": "仰角",
+      "relightFalloff": "衰减",
+      "relightHint": "添加或选择一个灯光，然后在图像上点击或拖动以放置。",
+      "relightIntensity": "强度",
+      "relightLight": "灯光 {{index}}",
+      "relightRemoveLight": "移除灯光",
+      "relightShadows": "阴影",
+      "relightShadowSoftness": "阴影柔和度",
+      "relightShine": "光泽",
+      "relightSoftness": "柔和度",
+      "relightType": "灯光类型",
+      "relightTypes": {
+        "directional": "平行光",
+        "point": "点光源",
+        "spot": "聚光灯"
+      },
       "roughness": "粗糙度",
       "roundness": "圆度",
       "size": "大小",
+      "spatial": "空间",
       "vignette": "暗角"
     }
   },
@@ -306,6 +336,7 @@
       "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
+        "maskBrushTable": "未导入的画笔表",
         "aiDenoise": "AI Denoise",
         "aiMasks": "AI masks (subject, sky, people, objects)",
         "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
@@ -355,9 +386,15 @@
           "cropGeometry": "Converted to native crop geometry",
           "unsupported": "No supported mapping for this CRS setting",
           "superseded": "The newer process-version setting takes precedence",
-          "inactive": "This setting is inactive in the source conversion mode"
+          "inactive": "This setting is inactive in the source conversion mode",
+          "alreadyApplied": "The photo marks development settings AlreadyApplied; existing native edits are preserved"
         }
-      }
+      },
+      "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
+      "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved.",
+      "brushTableGroup": "画笔组“{{name}}”：{{reason}}",
+      "unchangedForImage": "已保留现有编辑；未导入受支持的调整。"
     },
     "toasts": {
       "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
@@ -466,6 +503,7 @@
       "editSettingsTitle": "编辑设置",
       "editsTitle": "编辑",
       "generatingDepthMap": "正在计算 AI 深度图...",
+      "generatingNormalMap": "正在计算 AI 法线贴图...",
       "generativeEditTitle": "生成式编辑",
       "inpaintingTitle": "图像修复",
       "liquify": {
@@ -849,7 +887,10 @@
         "preset": "预设",
         "style": "风格",
         "tool": "工具"
-      }
+      },
+      "appliedFolder": "已应用",
+      "bakedIn": "已固化",
+      "bakedInNotice": "此前已应用并固化到编辑结果中。移除后仍会保留编辑效果。"
     },
     "referenceView": {
       "active": "当前",
@@ -934,8 +975,10 @@
       "selectFolderTitle_other": "选择文件夹以导出 {{count}} 张图像"
     },
     "file": {
+      "dpi": "DPI",
       "quality": "质量",
       "qualityLossless": "质量（无损）",
+      "resolution": "分辨率",
       "tiffBitDepth": "TIFF 位深",
       "tiffBitDepth16": "16 位",
       "tiffBitDepth8": "8 位"
@@ -1095,7 +1138,8 @@
         "threeOnly": "仅 3 星",
         "twoAndUp": "2 星及以上",
         "twoOnly": "仅 2 星",
-        "unrated": "仅未评分"
+        "unrated": "仅未评分",
+        "andDownSuffix": "及以下"
       },
       "raw": {
         "all": "所有类型",
@@ -1185,7 +1229,12 @@
         "sortDescending": "降序排列",
         "thumbnailFit": "缩略图适应",
         "thumbnailSize": "缩略图大小",
-        "title": "视图选项"
+        "title": "视图选项",
+        "ratingOperator": {
+          "eq": "仅此评分",
+          "gte": "此评分及以上",
+          "lte": "此评分及以下"
+        }
       }
     },
     "import": {
@@ -1274,6 +1323,25 @@
       "communityPresets": "社区预设",
       "goHome": "返回首页",
       "importImages": "导入图像"
+    },
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again."
     }
   },
   "masks": {
@@ -1508,12 +1576,20 @@
       "deleteWarning": "文件将被移至系统回收站。",
       "fileNaming": "文件命名",
       "folderOrganization": "文件夹组织",
+      "notUniqueWarning": "如果不包含 {original_filename}、{original_filename_number} 或 {sequence}，文件可能会重名。重名的文件不会被导入。",
       "organizeByDate": "按日期组织到子文件夹",
       "sourceFiles": "源文件",
       "startImport": "开始导入",
       "title": "导入设置"
     },
     "lensCorrection": {
+      "sourceApplied": "已应用：{{source}}",
+      "sourceAvailable": "可用：{{source}}",
+      "sourceCameraData": "相机数据",
+      "sourceExistingRecipe": "已保存的编辑设置",
+      "sourceNoData": "无校正数据",
+      "sourceUnavailable": "无法获取校正来源",
+      "sourceChecking": "正在检查校正来源…",
       "amount": "数量",
       "apply": "应用",
       "autoDetectLens": "自动检测镜头",
@@ -1633,6 +1709,7 @@
       "groupSelection": "整个选择为一组",
       "groups": "{group} 和 {member} 的分组",
       "newName": "新名称",
+      "notUniqueWarning": "如果不包含 {original_filename}、{original_filename_number} 或 {sequence}，文件可能会重名。此时不会重命名任何文件。",
       "preview": "预览",
       "renamed_one": "已重命名 {{count}} 个文件",
       "renamed_other": "已重命名 {{count}} 个文件",
@@ -1719,6 +1796,8 @@
       "clearThumbnail": "清除缩略图缓存",
       "clearThumbnailButton": "清除",
       "clearThumbnailDesc": "这将删除所有缓存的缩略图。在您浏览图库时，它们会自动重新生成。",
+      "cacheUsage": "缩略图和预览：{{size}} · 文件数：{{files}}",
+      "cacheUsageError": "无法读取缓存用量。",
       "loading": "加载中...",
       "logs": "查看应用日志",
       "logsButton": "打开",
@@ -1866,7 +1945,10 @@
         "zoom_in": "放大",
         "zoom_in_step": "放大（步进）",
         "zoom_out": "缩小",
-        "zoom_out_step": "缩小（步进）"
+        "zoom_out_step": "缩小（步进）",
+        "toggle_pick": "切换留用标记",
+        "toggle_reject": "切换拒绝标记",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "编辑",
@@ -1910,6 +1992,11 @@
             "upgradeBtn": "在网站上升级",
             "upgradeDesc": "要使用云端 AI 功能，您需要订阅云端服务。"
           },
+          "statuses": {
+            "connecting": "正在连接…",
+            "retry": "重试连接",
+            "unsupported": "云端登录目前仅在桌面设备上可用。"
+          },
           "title": "云端服务"
         },
         "connector": {
@@ -1932,9 +2019,17 @@
           "feature3": "简单的 CPU 生成式替换",
           "title": "内置 AI（CPU）"
         },
+        "aiFree": {
+          "description": "关闭所有 AI 功能。所有与 AI 相关的控件都会从界面中隐藏，RapidRAW 将作为纯传统的 RAW 编辑器运行。",
+          "feature1": "界面中不显示 AI 蒙版、镜头模糊或生成式编辑",
+          "feature2": "现有的 AI 编辑仍会正常渲染",
+          "feature3": "更简洁、更专注的界面",
+          "title": "无 AI"
+        },
         "description": "RapidRAW 的 AI 专为灵活性而设计。选择您理想的工作流程，从快速的本地工具到强大的自托管。",
         "providers": {
           "aiConnector": "AI 连接器",
+          "aiFree": "无 AI",
           "cloud": "云端",
           "cpu": "CPU"
         },
@@ -1975,10 +2070,17 @@
       },
       "nativeDpi": "以原生 DPI 渲染",
       "preprocessing": {
+        "autoLensCorrection": "新 RAW 的自动镜头校正",
+        "autoLensCorrectionDesc": "首次打开或重置 RAW 照片时应用可用的镜头校正。已保存的编辑设置保持不变。",
+        "enableAutoLensCorrection": "默认使用自动镜头校正",
         "appleRaw9": "Apple RAW 9 引擎",
         "appleRaw9Desc": "使用 Apple 的 Core Image RAW 9 解码器冲洗 RAW 文件。它在神经网络引擎 (Neural Engine) 上一步完成去马赛克和降噪。需要 macOS 27 或更高版本以及支持的相机；不支持的文件将自动使用内置解码器。比默认解码器慢。缩略图不受影响。",
         "applyPreprocessing": "对非 RAW 图像应用预处理",
         "applyPreprocessingDesc": "如果启用，上述基础颜色降噪和预锐化也将应用于标准格式。",
+        "baselineExposure": "基础曝光",
+        "baselineExposureAmount": "基础量",
+        "baselineExposureAmountDesc": "添加到 RAW 文件的曝光量。darktable 使用 +0.7 EV。",
+        "baselineExposureDesc": "为使用基础曝光的旧编辑增加固定曝光量。新建或重置的 RAW 编辑改用相机或 DNG 曝光补偿，不再使用此固定增量。",
         "colorNr": "基础颜色降噪",
         "colorNrDesc": "在管线早期应用交叉双边滤波器以去除彩色噪点。值越高 = 降噪越强。",
         "defaultNonRawTonemapper": "默认非 RAW 色调映射",
@@ -1986,8 +2088,12 @@
         "defaultRawTonemapper": "默认 RAW 色调映射",
         "defaultRawTonemapperDesc": "应用于 RAW 图像的色调映射器。",
         "enableAppleRaw9": "对 RAW 文件使用 Apple RAW 9",
+        "enableBaselineExposure": "对 RAW 文件应用基础曝光",
+        "enableHighlightPreservation": "补偿相机的高光保护模式",
         "enablePreprocessingNonRaws": "对非 RAW 图像启用",
         "enableTonemapperOverride": "启用色调映射覆盖",
+        "highlightPreservation": "高光保护补偿",
+        "highlightPreservationDesc": "从 RAW 文件读取相机在高光保护模式下保留的曝光并予以恢复（富士 DR200/DR400、佳能高光色调优先和自动亮度优化、尼康动态 D-Lighting、奥林巴斯层次、宾得动态范围扩展）。在此选项推出之前编辑的图像不受影响。",
         "highlightRecovery": "RAW 高光恢复",
         "highlightRecoveryDesc": "控制从 RAW 文件的裁剪高光中恢复细节的程度。较高的值可恢复更多细节，但可能引入紫色伪影。",
         "linearOptions": {
@@ -2239,5 +2345,44 @@
         "vectorscope": "矢量示波器"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
+  },
+  "captureTime": {
+    "folderShift": "Folder display time shift…",
+    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
+    "hours": "Hours to add",
+    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
+    "cameraZone": "Camera zone: {{zone}}",
+    "shifted": "{{shift}} display shift",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

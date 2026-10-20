@@ -1,0 +1,13 @@
+{
+  "id": "ai-dock-intro",
+  "title": "Explain connected assistants in new terminal tabs",
+  "category": "feature",
+  "landed": "2026-10-17",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "New tabs show localized guidance before a plain shell. Connected-agent buttons remain the supported path; no wrappers or global config changes."
+}
