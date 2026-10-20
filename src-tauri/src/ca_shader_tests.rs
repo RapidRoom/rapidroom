@@ -145,7 +145,7 @@ fn manual_ca_samples_fractional_positions_and_preserves_unshifted_channels() {
     });
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
-        bind_group_layouts: &[&layout],
+        bind_group_layouts: &[Some(&layout)],
         immediate_size: 0,
     });
     let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
