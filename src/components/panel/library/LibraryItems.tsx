@@ -1,3 +1,4 @@
+import { formatFocalLength, formatShutterSpeed } from '../../../utils/shootingInfo';
 import { DenoiseBadge } from '../DenoiseQueue';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
@@ -91,10 +92,10 @@ const ThumbnailComponent = ({
     let fNum = e.FNumber ? String(e.FNumber) : '';
     if (fNum && !fNum.toLowerCase().startsWith('f')) fNum = `f/${fNum}`;
     return {
-      shutter: e.ExposureTime || '',
+      shutter: formatShutterSpeed(e.ExposureTime),
       fNumber: fNum,
       iso: e.PhotographicSensitivity || e.ISOSpeedRatings || '',
-      focal: e.FocalLengthIn35mmFilm || e.FocalLength || '',
+      focal: formatFocalLength(e.FocalLengthIn35mmFilm || e.FocalLength),
     };
   }, [exif]);
 
@@ -539,10 +540,10 @@ const ListItemComponent = ({
     let fNum = e.FNumber ? String(e.FNumber) : '';
     if (fNum && !fNum.toLowerCase().startsWith('f')) fNum = `f/${fNum}`;
     return {
-      shutter: e.ExposureTime || '',
+      shutter: formatShutterSpeed(e.ExposureTime),
       fNumber: fNum,
       iso: e.PhotographicSensitivity || e.ISOSpeedRatings || '',
-      focal: e.FocalLengthIn35mmFilm || e.FocalLength || '',
+      focal: formatFocalLength(e.FocalLengthIn35mmFilm || e.FocalLength),
     };
   }, [exif]);
 
