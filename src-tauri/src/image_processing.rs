@@ -1708,17 +1708,15 @@ pub fn apply_crop<'a>(image: impl IntoCowImage<'a>, crop_value: &Value) -> Cow<'
         let width = crop.width.round() as u32;
         let height = crop.height.round() as u32;
 
-        if width > 0 && height > 0 {
-            if x < img_w && y < img_h {
-                let new_width = (img_w - x).min(width);
-                let new_height = (img_h - y).min(height);
+        if width > 0 && height > 0 && x < img_w && y < img_h {
+            let new_width = (img_w - x).min(width);
+            let new_height = (img_h - y).min(height);
 
-                if new_width > 0 && new_height > 0 {
-                    if x == 0 && y == 0 && new_width == img_w && new_height == img_h {
-                        return image;
-                    }
-                    return Cow::Owned(image.crop_imm(x, y, new_width, new_height));
+            if new_width > 0 && new_height > 0 {
+                if x == 0 && y == 0 && new_width == img_w && new_height == img_h {
+                    return image;
                 }
+                return Cow::Owned(image.crop_imm(x, y, new_width, new_height));
             }
         }
     }
