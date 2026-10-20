@@ -5,6 +5,7 @@ import { Grid, useGridCallbackRef } from 'react-window';
 import { useTranslation } from 'react-i18next';
 import { ImageFile, ImageFlag, SelectedImage, ThumbnailAspectRatio, GroupingMode } from '../ui/AppProperties';
 import FlagBadges from '../ui/FlagBadges';
+import StackBadge from '../ui/StackBadge';
 import { Color, COLOR_LABELS } from '../../utils/adjustments';
 import Text from '../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
@@ -98,7 +99,7 @@ const FilmstripThumbnail = memo(
     const hasColorLabel = !!colorLabel;
     const isRejected = flag === ImageFlag.Reject;
     const hasRating = rating > 0 && !isRejected;
-    const hasAnyOverlay = hasEditIcon || hasColorLabel || hasRating || !!flag;
+    const hasAnyOverlay = hasEditIcon || hasColorLabel || hasRating || !!flag || !!imageFile.stack;
 
     const cleanPath = path.split('?')[0];
     const filename = cleanPath.split(/[\\/]/).pop() || '';
@@ -189,6 +190,7 @@ const FilmstripThumbnail = memo(
           e.stopPropagation();
           onImageSelect?.(path, e);
         }}
+        data-image-path={path}
         onContextMenu={(e: any) => onContextMenu?.(e, path)}
         style={{
           zIndex: isDragging ? 50 : isActive ? 2 : isSelected ? 1 : 'auto',
@@ -285,7 +287,11 @@ const FilmstripThumbnail = memo(
               <Star size={12} className="text-white fill-white" />
             </div>
 
-            <FlagBadges flag={flag} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating} />
+            <StackBadge path={path} hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating} />
+            <FlagBadges
+              flag={flag}
+              hasPrecedingBadge={hasEditIcon || hasColorLabel || hasRating || !!imageFile.stack}
+            />
           </div>
         </div>
 

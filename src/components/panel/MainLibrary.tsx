@@ -45,9 +45,11 @@ import { useUIStore } from '../../store/useUIStore';
 import SettingsPanel from './SettingsPanel';
 
 import LibraryGrid from './library/LibraryGrid';
+import EmptyFolderPhotos from '../ui/EmptyFolderPhotos';
 import { SearchInput, ViewOptionsDropdown } from './library/LibraryHeader';
-import { RAPIDRAW_BASE_VERSION, RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
+import { RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
 import { isPathInCardRoot } from '../../utils/cardMode';
+import HiddenVideoNotice from '../ui/HiddenVideoNotice';
 
 export interface ColumnWidths {
   thumbnail: number;
@@ -69,6 +71,7 @@ interface MainLibraryProps {
   cardBrowseRoot: string | null;
   groupBadgeInfo: Map<GroupId, GroupBadgeInfo> | null;
   imageList: Array<ImageFile>;
+  matchingPhotoCount?: number;
   imageRatings: Record<string, number>;
   importState: ImportState;
   indexingProgress: Progress;
@@ -192,6 +195,19 @@ export default function MainLibrary(props: MainLibraryProps) {
   };
 
   const searchCriteria = useLibraryStore((state) => state.searchCriteria);
+  const totalPhotos = useLibraryStore((state) => state.imageList.length);
+  const filterCriteria = useLibraryStore((state) => state.filterCriteria);
+  const hasFilters =
+    searchCriteria.tags.length > 0 ||
+    searchCriteria.text.trim() !== '' ||
+    filterCriteria.rating !== 0 ||
+    (filterCriteria.colors?.length ?? 0) > 0 ||
+    (!!filterCriteria.rawStatus && filterCriteria.rawStatus !== RawStatus.All) ||
+    (!!filterCriteria.editedStatus && filterCriteria.editedStatus !== EditedStatus.All) ||
+    (!!filterCriteria.flagStatus && filterCriteria.flagStatus !== FlagStatus.All) ||
+    (!!filterCriteria.denoiseStatus && filterCriteria.denoiseStatus !== 'all');
+  const activeAlbumId = useLibraryStore((state) => state.activeAlbumId);
+  const matchingPhotos = props.matchingPhotoCount ?? props.imageList.length;
 
   const translatedRatingFilterOptions = useMemo(
     () => [
@@ -511,7 +527,7 @@ export default function MainLibrary(props: MainLibraryProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            RapidRAW {RAPIDRAW_BASE_VERSION}
+                            RapidRAW
                           </a>{' '}
                           {t('library.splash.upstreamBy')}{' '}
                           <a
@@ -568,6 +584,13 @@ export default function MainLibrary(props: MainLibraryProps) {
       >
         <div className="min-w-0">
           <Text variant={TextVariants.headline}>{t('library.header.title')}</Text>
+          <p className="text-sm text-text-secondary tabular-nums" data-testid="library-photo-count">
+            {t(hasFilters ? 'library.photoCounts.filtered' : 'library.photoCounts.total', {
+              count: matchingPhotos,
+              total: totalPhotos,
+            })}
+            {props.libraryViewMode === LibraryViewMode.Recursive && ` ${t('library.photoCounts.recursive')}`}
+          </p>
           {isCardFolder && (
             <div
               className="mt-1 flex items-center gap-1 text-xs min-w-0"
@@ -611,6 +634,12 @@ export default function MainLibrary(props: MainLibraryProps) {
               </div>
             </div>
           )}
+          <HiddenVideoNotice
+            path={isCardFolder ? props.cardBrowseRoot : props.currentFolderPath}
+            recursive={isCardFolder || props.libraryViewMode === LibraryViewMode.Recursive}
+            refreshing={props.isLoading}
+            card={isCardFolder}
+          />
         </div>
         <div className="flex items-center gap-4 shrink-0">
           {props.importState.status === Status.Importing && (
@@ -716,6 +745,18 @@ export default function MainLibrary(props: MainLibraryProps) {
                   : t('library.status.processing')}
           </Text>
           <Text className="mt-2">{t('library.status.moment')}</Text>
+        </div>
+      ) : totalPhotos === 0 &&
+        !props.isLoading &&
+        props.currentFolderPath &&
+        !activeAlbumId &&
+        props.libraryViewMode === LibraryViewMode.Flat ? (
+        <div className="flex-1 flex items-center justify-center p-8" onContextMenu={props.onEmptyAreaContextMenu}>
+          <EmptyFolderPhotos
+            key={props.currentFolderPath}
+            path={props.currentFolderPath}
+            onShowSubfolders={() => props.setLibraryViewMode(LibraryViewMode.Recursive)}
+          />
         </div>
       ) : searchCriteria.tags.length > 0 || searchCriteria.text ? (
         <div

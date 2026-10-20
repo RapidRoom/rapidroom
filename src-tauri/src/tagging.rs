@@ -344,7 +344,7 @@ pub async fn start_background_indexing(
                     let path_str = path.to_string_lossy().to_string();
                     let (_, sidecar_path) = parse_virtual_path(&path_str);
 
-                    let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
+                    let metadata = crate::exif_processing::load_sidecar(&sidecar_path);
 
                     let should_generate_tags = match &metadata.tags {
                         None => true,
@@ -369,25 +369,23 @@ pub async fn start_background_indexing(
                                 ) {
                                     println!("Found AI tags for {}: {:?}", path_str, ai_tags);
 
-                                    let mut existing_tags: HashSet<String> =
-                                        metadata.tags.unwrap_or_default().into_iter().collect();
-
-                                    for tag in ai_tags {
-                                        existing_tags.insert(tag);
-                                    }
-
-                                    let mut final_tags: Vec<String> =
-                                        existing_tags.into_iter().collect();
-                                    final_tags.sort_unstable();
-
-                                    metadata.tags = Some(final_tags);
-
-                                    if let Ok(json_string) = serde_json::to_string_pretty(&metadata)
-                                    {
-                                        let _ = crate::file_management::write_file_atomically(
-                                            sidecar_path,
-                                            json_string,
-                                        );
+                                    if let Err(error) = crate::file_management::update_sidecar(
+                                        &sidecar_path,
+                                        |current| {
+                                            let mut tags: HashSet<String> = current
+                                                .tags
+                                                .clone()
+                                                .unwrap_or_default()
+                                                .into_iter()
+                                                .collect();
+                                            tags.extend(ai_tags.iter().cloned());
+                                            let mut final_tags: Vec<String> =
+                                                tags.into_iter().collect();
+                                            final_tags.sort_unstable();
+                                            current.tags = Some(final_tags);
+                                        },
+                                    ) {
+                                        log::error!("Failed to save generated tags: {error}");
                                     }
                                 }
                             }
@@ -445,23 +443,13 @@ fn modify_tags_for_path(
     let (source_path, sidecar_path) = parse_virtual_path(path_str);
     file_management::ensure_card_writable(&source_path)?;
 
-    let mut metadata = crate::exif_processing::load_sidecar(&sidecar_path);
-
-    let mut tags = metadata.tags.unwrap_or_default();
-    modify_fn(&mut tags);
-
-    tags.sort_unstable();
-    tags.dedup();
-
-    if tags.is_empty() {
-        metadata.tags = None;
-    } else {
-        metadata.tags = Some(tags);
-    }
-
-    let json_string = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
-    crate::file_management::write_file_atomically(&sidecar_path, json_string)
-        .map_err(|e| e.to_string())?;
+    let metadata = crate::file_management::update_sidecar(&sidecar_path, |current| {
+        let mut tags = current.tags.clone().unwrap_or_default();
+        modify_fn(&mut tags);
+        tags.sort_unstable();
+        tags.dedup();
+        current.tags = if tags.is_empty() { None } else { Some(tags) };
+    })?;
 
     if let Some(create_if_missing) = xmp_sync {
         file_management::sync_metadata_to_xmp(
@@ -573,15 +561,18 @@ fn clear_tags_in_tree(
 
     for entry in walker.filter_map(|e| e.ok()) {
         let path = entry.path();
-        if path.is_file()
-            && path.extension().and_then(|s| s.to_str()) == Some("rrdata")
-            && let Ok(content) = fs::read_to_string(path)
+        if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("rrdata") {
+            continue;
+        }
+        let metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if let Ok(content) = fs::read_to_string(path)
             && let Ok(mut metadata) = serde_json::from_str::<ImageMetadata>(&content)
             && let Some(tags) = &mut metadata.tags
         {
             let original_len = tags.len();
             tags.retain(|tag| keep(tag));
-
             if tags.len() < original_len {
                 if tags.is_empty() {
                     metadata.tags = None;
@@ -590,6 +581,7 @@ fn clear_tags_in_tree(
                     && crate::file_management::write_file_atomically(path, json_string).is_ok()
                 {
                     updated_count += 1;
+                    drop(metadata_lock);
                     if let Some(create_if_missing) = xmp_sync {
                         sync_xmp_for_rrdata(path, &metadata, create_if_missing);
                     }
@@ -597,6 +589,7 @@ fn clear_tags_in_tree(
             }
         }
     }
+
     Ok(updated_count)
 }
 

@@ -46,6 +46,31 @@ const savedWorkspace = (overrides: Partial<WorkspaceState>): WorkspaceState => (
 });
 
 describe('reconcileWorkspace', () => {
+  it('starts a saved open bottom dock collapsed without changing its panel layout', () => {
+    const saved = savedWorkspace({
+      panelLayout: {
+        leftTop: [Panel.FolderTree],
+        leftBottom: [],
+        rightTop: [Panel.Adjustments],
+        rightBottom: [],
+        bottom: [Panel.Terminal, Panel.Metadata],
+      },
+      activePanels: {
+        leftTop: Panel.FolderTree,
+        leftBottom: null,
+        rightTop: Panel.Adjustments,
+        rightBottom: null,
+        bottom: Panel.Terminal,
+      },
+      bottomDockHeight: 99999,
+    });
+    const workspace = reconcileWorkspace(saved, false, true);
+    expect(workspace.activePanels.bottom).toBeNull();
+    expect(workspace.panelLayout.bottom).toEqual([Panel.Terminal, Panel.Metadata]);
+    expect(workspace.bottomDockHeight).toBe(840);
+    expect(saved.activePanels?.bottom).toBe(Panel.Terminal);
+    expect(saved.bottomDockHeight).toBe(99999);
+  });
   it('adds a collapsed terminal dock to legacy workspaces only in supported builds', () => {
     const legacy = savedWorkspace({ layoutVersion: WORKSPACE_LAYOUT_VERSION });
     const enabled = reconcileWorkspace(legacy, false, true);

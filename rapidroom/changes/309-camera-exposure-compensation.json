@@ -1,0 +1,13 @@
+{
+  "id": "309-camera-exposure-compensation",
+  "title": "Apply camera exposure compensation to fresh and reset RAW edits",
+  "category": "fix",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "RapidRoom",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "rapidroom_only": true,
+  "notes": "New/reset recipes persist a separate camera compensation marker: explicit DNG baseline metadata, including zero, takes precedence; otherwise Sony A7C II and A7R V receive +0.35 EV. Existing recipes retain their original baseline path. Saved/imported exposure values, preset configuration and type changes, before views, MCP Original/measurement comparisons, LUT previews and legacy NIND development retain their selected policy, including pending editor changes and virtual copies. Default render changes require maintainer review."
+}

@@ -78,7 +78,7 @@ describe('copy adjustments', () => {
 
     await actions!.handleCopyAdjustments({} as SyntheticEvent);
 
-    expect(invoke).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledWith('get_default_raw_lens_adjustments', { path: '/photos/selected.raw' });
     expect(useEditorStore.getState().copiedAdjustments?.exposure).toBe(0.75);
     expect(useProcessStore.getState().isCopied).toBe(true);
   });

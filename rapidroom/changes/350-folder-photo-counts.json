@@ -1,0 +1,13 @@
+{
+  "id": "folder-photo-counts",
+  "title": "Find photos in subfolders and see folder counts",
+  "category": "feature",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#350"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Empty current folders offer Show photos in subfolders using the existing persisted Recursive display mode. Folder rows lazily show direct supported-photo counts with a bounded cache; partial scans show a + suffix. The library header shows matching/total photo counts before grouping and labels recursive views. Counts run off the UI thread with two workers and bounded scans; the old folder-count setting now only controls album totals. New labels use English fallback wording."
+}

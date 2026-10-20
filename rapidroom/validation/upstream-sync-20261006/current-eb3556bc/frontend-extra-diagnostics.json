@@ -1,0 +1,7 @@
+{
+  "scope": "Whole-tree ESLint adds one literal-string warning in unchanged compact-slider harness, outside the src-only parent comparison.",
+  "path": "rapidroom/validation/compact-sliders/harness.tsx",
+  "main_object": "c2f5fafe22537112481c18502fe7d0f3a7252dab",
+  "candidate_object": "c2f5fafe22537112481c18502fe7d0f3a7252dab",
+  "message": "disallow literal string: <span>Composite label</span>"
+}

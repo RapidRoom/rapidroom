@@ -1,0 +1,46 @@
+{
+  "application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "application_changed_for_harness": false,
+  "mask_reload_readiness": {
+    "application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+    "application_changed": false,
+    "reason": "WebDriver read-only readiness after deliberate location.reload timed out; failure DOM/capture show enabled Continue Session and no frontend errors. Same bounded one-read retry as application smoke startup; no mutation retries or relaxed assertions.",
+    "original_application_harness": {
+      "smoke.py": "c76e6204099b34f380354c6f558b202594d9edc22ae27d13228d16a75b9bcb6e",
+      "mcp_masks.py": "5e40731e011daa5828f45bf9b1571973c03d2b3d2dd384cd136ded121a488e9a"
+    },
+    "private_adaptations": {
+      "smoke.py": "35a3759d64488fcfcc8bcf6b28dc95bae4edc8ab7cabb4d688dacb2146832800",
+      "mcp_masks.py": "4104b62d1d244b7767c83bcb613caa6bc2fdedc0ad0c806ef2a24dc08b35ae2f"
+    }
+  },
+  "preview_control_readiness": {
+    "source": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+    "reason": "Old private preview harness waited for React root/errors array, not actual enabled Continue Session. Failed XT4 started before control mounted; failure DOM later has enabled control and zero frontend errors. Match current application harness read-only control readiness before single click.",
+    "application_changed": false,
+    "previous_private_smoke_sha256": "13722d0f2307e53eb72f21acbea75031262cc8e020d4c58dd8549b9fbd673a4e",
+    "updated_private_smoke_sha256": "84ca4023a23cdea15f6601b5408ca8d192aaf7eacd142b1c8d6f53157ff32a04",
+    "per_case_smoke_sha256": {
+      "native-preview-fuji-xh2-40mp-compressed": "13722d0f2307e53eb72f21acbea75031262cc8e020d4c58dd8549b9fbd673a4e",
+      "native-preview-fuji-xt4-26mp-lossless": "84ca4023a23cdea15f6601b5408ca8d192aaf7eacd142b1c8d6f53157ff32a04",
+      "native-preview-sony-a7c2-15mp-uncompressed": "84ca4023a23cdea15f6601b5408ca8d192aaf7eacd142b1c8d6f53157ff32a04"
+    }
+  },
+  "settled100": {
+    "application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+    "base_harness_sha256": "84ca4023a23cdea15f6601b5408ca8d192aaf7eacd142b1c8d6f53157ff32a04",
+    "targeted_harness_sha256": "677fa9d5d3312e1b5f55f8d697b9676ee20da6cada34084b98a335d6e00eebe8",
+    "change": "Supplementary probe retains actual isolated native startup, public neutral Exposure edit/reset, source guards and clean-exit checks. Runs only typed100, waits for single displayed full-resolution SVG resource before screenshot, checks same resource and dimensions afterward. Earlier full native wheel/repeated-edit/Undo/export gates retained, not rerun or relabeled.",
+    "reason": "Original capture_100 took screenshot before decoding resources, which could bind a stable low-resolution screenshot to a later full-resolution resource.",
+    "settled_checks_sha256": "f13cf935c2a140a33df9aa6484d76800a86abde6e6174e05a3df6658fd08451f",
+    "disk_guard_sha256": "c87c12984350014fed5206c036d9d85fec71dd76a2461604c476106b4e9c1d9b",
+    "initial_probe_failure": "The WebDriver wrapper treats any returned object with key error as a protocol error, including false. Renamed this private read-only field decode_failed; original failed probe retained, no product edits or successful stage reruns."
+  },
+  "preview_helpers_sha256": {
+    "preview_checks.py": "d1b071f7e17aa20117f401e04742f3942684933c9752f8b81bf19483651994cc",
+    "zoom.py": "617e3cb36b2c40ecdbc13bdd108cbc39093dbff3caf1daf8a9c5e6197aecf543",
+    "settled100_checks.py": "f13cf935c2a140a33df9aa6484d76800a86abde6e6174e05a3df6658fd08451f",
+    "prepare-settled-panels.py": "660b4b6a53b0482ac3483cf582385e1c4a6003b51befec20b017593cf8825eb2"
+  },
+  "resources": "Binaries copied and hash-pinned; native helper used frozen application resource/lensfun symlinks throughout owned validation; no AI operation. Git src-tauri tree object recorded; no claim of isolated copied resource directories."
+}

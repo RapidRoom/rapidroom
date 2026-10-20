@@ -11,6 +11,7 @@ import { Invokes, Panel } from '../components/ui/AppProperties';
 import { debouncedSave } from './useEditorActions';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import type { SubMask } from '../components/panel/right/Masks';
+import { copyLensPolicyVersion } from '../utils/lensPolicyVersion';
 
 interface TransformWrapper {
   instance: {
@@ -480,9 +481,18 @@ export function useImageProcessing(
                 }
               }
             }
+            if (
+              includedKeys.includes('lensCorrectionMode') &&
+              adjustments.cameraLensCorrectionVersion !== prev.adjustments.cameraLensCorrectionVersion
+            ) {
+              delta.lensCorrectionMode = adjustments.lensCorrectionMode;
+            }
             if (Object.keys(delta).length > 0) {
               otherPaths.forEach((p) => globalImageCache.delete(p));
-              invoke(Invokes.ApplyAdjustmentsToPaths, { paths: otherPaths, adjustments: delta }).catch((err) => {
+              invoke(Invokes.ApplyAdjustmentsToPaths, {
+                paths: otherPaths,
+                adjustments: copyLensPolicyVersion(adjustments, delta),
+              }).catch((err) => {
                 console.error('Failed to apply adjustments to multi-selection:', err);
               });
             }
@@ -505,6 +515,9 @@ export function useImageProcessing(
     isSliderDragging,
     multiSelectedPaths,
     appSettings?.enableLivePreviews,
+    appSettings?.enableBaselineExposure,
+    appSettings?.baselineExposure,
+    appSettings?.compensateHighlightPreservation,
     appSettings?.copyPasteSettings?.includedAdjustments,
     appSettings?.copyPasteSettings?.autoSync,
     isWaveformVisible,
