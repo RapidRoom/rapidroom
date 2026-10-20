@@ -31,3 +31,11 @@ Use [Lensfun's calibration instructions](https://lensfun.github.io/calibration/)
 Matcher regression cases: exact Sony alias; harmless outer quotes/space/case; Nikon canonical and display spelling; A043; unknown/partial A058; unknown/incompatible camera; duplicate eligible candidates; known existing Sony lens. Test both import/open Auto and reopened cached corrections. Run full60 against the blessed reference, plus before/after panels from the selected Sony files. A human panel look does not replace the calibration measurements.
 
 No upstream submission, lens-database edit, matcher change, calibration claim, or reference update has been made by this draft. #184 remains open until the Sony automatic-correction requirement is supported or its scope is explicitly reduced.
+
+## 2.3.0 identity-only implementation
+
+The exact Sony EXIF spelling now resolves to the unique compatible A058 identity for a known Sony E camera. Unknown bodies, incompatible mounts, missing profiles and duplicate eligible profiles refuse the alias without fuzzy fallback. The database and Nikon Z8 attribution remain unchanged.
+
+Identity does not authorize those coefficients on Sony. New Auto/v1 recipes continue to use valid physical Sony ARW distortion tables, and the Nikon-derived A058 Lensfun calibration is explicitly ineligible. This also holds when a physical table is missing: Auto cannot silently switch to Nikon geometry or shading. Existing legacy Auto recipes retain their previous matching behavior, and an explicitly chosen manual profile retains its existing controls.
+
+This is partial scope for #184. Camera-data vignetting and TCA still require independent validation; neither is enabled here. Real-app evidence and a full60 pixel comparison must bind the implementation before acceptance.

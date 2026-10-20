@@ -385,6 +385,69 @@ mod tests {
     }
 
     #[test]
+    fn a058_identity_keeps_auto_on_physical_camera_data_and_leaves_nikon_shading_unavailable() {
+        let dir = std::env::temp_dir().join(format!("rapidroom-a058-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("source.ARW");
+        std::fs::write(&path, raw([1024; SONY_KNOTS])).unwrap();
+        let db = crate::lens_correction::load_bundled_db();
+        let exif = Some(HashMap::from([
+            ("Make".into(), "SONY".into()),
+            ("Model".into(), "ILCE-7RM5".into()),
+            ("LensModel".into(), "E 35-150mm F2.0-F2.8 A058".into()),
+            ("FocalLength".into(), "35 mm".into()),
+            ("FNumber".into(), "2".into()),
+        ]));
+        let mut modern = json!({"lensCorrectionMode":"auto","cameraLensCorrectionVersion":1});
+        crate::file_management::resolve_lens_params_in_adjustments(
+            &mut modern,
+            &exif,
+            Some(&db),
+            &path,
+        );
+        assert_eq!(modern["lensMaker"], "Tamron");
+        let params = &modern["lensDistortionParams"];
+        assert_eq!(
+            params["camera_data"]["distortion"],
+            json!(vec![1024; SONY_KNOTS])
+        );
+        let components = &params["resolution"]["components"];
+        assert_eq!(components["distortion"]["available_source"], "camera_data");
+        for component in ["tca", "vignetting"] {
+            assert!(components[component]["available_source"].is_null());
+            assert!(components[component]["payload"].is_null());
+        }
+        assert_eq!(params["vig_k1"], 0.0);
+        let mut legacy = json!({"lensCorrectionMode":"auto"});
+        crate::file_management::resolve_lens_params_in_adjustments(
+            &mut legacy,
+            &exif,
+            Some(&db),
+            &path,
+        );
+        assert!(legacy["lensMaker"].is_null());
+        assert!(legacy["lensDistortionParams"].is_null());
+        let mut manual = json!({"lensCorrectionMode":"manual","lensMaker":modern["lensMaker"],"lensModel":modern["lensModel"]});
+        crate::file_management::resolve_lens_params_in_adjustments(
+            &mut manual,
+            &exif,
+            Some(&db),
+            &path,
+        );
+        assert_ne!(manual["lensDistortionParams"]["vig_k1"], 0.0);
+        std::fs::remove_file(&path).unwrap();
+        // Identity without a physical table must not turn into Nikon geometry.
+        crate::file_management::resolve_lens_params_in_adjustments(
+            &mut modern,
+            &exif,
+            Some(&db),
+            &path,
+        );
+        assert!(modern["lensDistortionParams"]["resolution"]["components"]["distortion"]["available_source"].is_null());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn source_tables_replace_old_metadata_cache_and_bind_real_geometry_cache_payloads() {
         let dir =
             std::env::temp_dir().join(format!("rapidroom-camera-lens-{}", uuid::Uuid::new_v4()));
