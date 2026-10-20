@@ -1615,6 +1615,55 @@ pub fn get_cached_or_generate_mask(
     crop_offset: (f32, f32),
     adjustments: &serde_json::Value,
 ) -> Option<GrayImage> {
+    cached_or_generate_mask(
+        state,
+        path,
+        None,
+        def,
+        width,
+        height,
+        scale,
+        crop_offset,
+        adjustments,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn get_cached_or_generate_mask_for_loaded(
+    state: &tauri::State<AppState>,
+    image: &crate::app_state::LoadedImage,
+    def: &MaskDefinition,
+    width: u32,
+    height: u32,
+    scale: f32,
+    crop_offset: (f32, f32),
+    adjustments: &serde_json::Value,
+) -> Option<GrayImage> {
+    cached_or_generate_mask(
+        state,
+        &image.path,
+        Some(image),
+        def,
+        width,
+        height,
+        scale,
+        crop_offset,
+        adjustments,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn cached_or_generate_mask(
+    state: &tauri::State<AppState>,
+    path: &str,
+    image: Option<&crate::app_state::LoadedImage>,
+    def: &MaskDefinition,
+    width: u32,
+    height: u32,
+    scale: f32,
+    crop_offset: (f32, f32),
+    adjustments: &serde_json::Value,
+) -> Option<GrayImage> {
     let mut hasher = DefaultHasher::new();
 
     let mut def_for_hash = def.clone();
@@ -1622,6 +1671,7 @@ pub fn get_cached_or_generate_mask(
     let def_json = serde_json::to_string(&def_for_hash).unwrap_or_default();
     def_json.hash(&mut hasher);
     path.hash(&mut hasher);
+    image.map(|image| image.generation).hash(&mut hasher);
 
     if def.requires_warped_image() {
         crate::cache_utils::calculate_geometry_hash(adjustments).hash(&mut hasher);
@@ -1643,7 +1693,11 @@ pub fn get_cached_or_generate_mask(
     }
 
     let warped_image = if def.requires_warped_image() {
-        get_cached_full_warped_image_for_path(state, Some(path), adjustments).ok()
+        if let Some(image) = image {
+            crate::get_cached_full_warped_image_for_loaded(state, image, adjustments).ok()
+        } else {
+            get_cached_full_warped_image_for_path(state, Some(path), adjustments).ok()
+        }
     } else {
         None
     };

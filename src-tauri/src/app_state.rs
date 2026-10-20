@@ -108,6 +108,7 @@ pub struct WindowState {
 
 #[derive(Clone)]
 pub struct LoadedImage {
+    pub generation: usize,
     pub path: String,
     pub image: Arc<DynamicImage>,
     pub is_raw: bool,
@@ -143,6 +144,7 @@ pub struct GpuProcessorState {
 }
 
 pub struct PreviewJob {
+    pub source: PreviewSource,
     pub adjustments: serde_json::Value,
     pub is_interactive: bool,
     pub target_resolution: Option<u32>,
@@ -150,7 +152,31 @@ pub struct PreviewJob {
     pub request_analytics: bool,
     pub compute_waveform: bool,
     pub active_waveform_channel: Option<String>,
-    pub responder: tokio::sync::oneshot::Sender<Vec<u8>>,
+    pub responder: tokio::sync::oneshot::Sender<Result<Vec<u8>, String>>,
+}
+
+#[derive(Clone)]
+pub struct PreviewSource {
+    pub path: String,
+    pub generation: usize,
+}
+
+impl PreviewSource {
+    pub fn matches(&self, generation: usize, image: Option<&LoadedImage>) -> bool {
+        self.generation == generation
+            && image.is_some_and(|image| image.path == self.path && image.generation == generation)
+    }
+
+    pub fn is_current(&self, state: &AppState) -> bool {
+        let image = state
+            .original_image
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        self.matches(
+            state.load_image_generation.load(Ordering::SeqCst),
+            image.as_ref(),
+        )
+    }
 }
 
 pub struct AnalyticsJob {

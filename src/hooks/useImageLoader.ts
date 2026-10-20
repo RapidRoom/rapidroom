@@ -12,6 +12,7 @@ interface LoadedMetadata {
 }
 
 interface LoadedImageData {
+  load_generation: number;
   as_shot_white_balance: { temperature: number; tint: number };
   exif: SelectedImage['exif'];
   height: number;
@@ -95,6 +96,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
               return {
                 selectedImage: {
                   ...state.selectedImage,
+                  loadGeneration: loadImageResult.load_generation,
                   asShotWhiteBalance: loadImageResult.as_shot_white_balance,
                   exif: loadImageResult.exif,
                   height: loadImageResult.height,

@@ -49,6 +49,7 @@ interface LoadedImageMetadata {
 }
 
 interface LoadedImageResult {
+  load_generation: number;
   height: number;
   used_embedded_preview: boolean;
   width: number;
@@ -301,6 +302,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
           zoomRequest,
           selectedImage: {
             ...cached.selectedImage,
+            loadGeneration: undefined,
             thumbnailUrl: cachedMedium || cached.selectedImage.thumbnailUrl,
           },
           originalSize: cached.originalSize,
@@ -332,6 +334,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
                 originalSize: { width: _result.width, height: _result.height },
                 selectedImage: {
                   ...state.selectedImage,
+                  loadGeneration: _result.load_generation,
                   usedEmbeddedPreview: _result.used_embedded_preview,
                 },
               };
