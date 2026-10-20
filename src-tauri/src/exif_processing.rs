@@ -3424,7 +3424,70 @@ mod tests {
 }
 
 #[cfg(test)]
-<<<<<<< HEAD
+mod capture_offset_tests {
+    use super::*;
+
+    #[test]
+    fn real_jpeg_capture_offset_is_read_without_rewriting_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("hawaii.jpg");
+        image::RgbImage::from_pixel(8, 6, image::Rgb([40, 90, 120]))
+            .save(&path)
+            .unwrap();
+        let mut metadata = Metadata::new();
+        metadata.set_tag(ExifTag::DateTimeOriginal("2026:10:19 23:30:00".into()));
+        metadata.set_tag(ExifTag::OffsetTimeOriginal("-10:00".into()));
+        metadata.write_to_file(&path).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let expected = DateTime::parse_from_rfc3339("2026-10-20T09:30:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        assert_eq!(try_get_exif_creation_date(&path), Some(expected));
+        let decoded = extract_metadata(&before).unwrap();
+        assert_eq!(
+            decoded.get("OffsetTimeOriginal").map(String::as_str),
+            Some("-10:00")
+        );
+        assert_eq!(std::fs::read(path).unwrap(), before);
+    }
+
+    #[test]
+    fn raw_offsets_cover_rollovers_fractional_zones_and_invalid_fallbacks() {
+        for (date, offset, expected) in [
+            ("2026:10:19 23:30:00", "-10:00", "2026-10-20T09:30:00Z"),
+            ("2026-10-20 18:30:00", "+09:00", "2026-10-20T09:30:00Z"),
+            ("2026:01:01 00:15:00", "+05:45", "2025-12-31T18:30:00Z"),
+            ("2026:01:01 00:00:00", "Z", "2026-01-01T00:00:00Z"),
+        ] {
+            let actual = parse_raw_creation_date(Some(date), [Some(offset), None]);
+            assert_eq!(
+                actual,
+                Some(
+                    DateTime::parse_from_rfc3339(expected)
+                        .unwrap()
+                        .with_timezone(&Utc)
+                )
+            );
+        }
+        for bad in ["+24:00", "-10:60", "9:00", "no zone", "+é:00"] {
+            assert!(parse_capture_offset(bad).is_none());
+        }
+        let date = "2026:10:19 23:30:00";
+        let legacy = creation_datetime_to_utc(
+            NaiveDateTime::parse_from_str(date, EXIF_DATETIME_FORMAT).unwrap(),
+        );
+        assert_eq!(
+            parse_raw_creation_date(Some(date), [Some("invalid"), None]),
+            Some(legacy)
+        );
+        assert_eq!(
+            parse_raw_creation_date(Some(date), [Some("invalid"), Some("-10:00")]),
+            parse_raw_creation_date(Some(date), [Some("-10:00"), None])
+        );
+    }
+}
+
+#[cfg(test)]
 mod readonly_query_tests {
     use super::*;
     fn snapshot(paths: &[&Path]) -> Vec<(Vec<u8>, std::time::SystemTime)> {
@@ -3511,67 +3574,5 @@ mod readonly_query_tests {
             "Physical primary"
         );
         assert_eq!(snapshot(&paths), before);
-=======
-mod capture_offset_tests {
-    use super::*;
-
-    #[test]
-    fn real_jpeg_capture_offset_is_read_without_rewriting_the_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("hawaii.jpg");
-        image::RgbImage::from_pixel(8, 6, image::Rgb([40, 90, 120]))
-            .save(&path)
-            .unwrap();
-        let mut metadata = Metadata::new();
-        metadata.set_tag(ExifTag::DateTimeOriginal("2026:10:19 23:30:00".into()));
-        metadata.set_tag(ExifTag::OffsetTimeOriginal("-10:00".into()));
-        metadata.write_to_file(&path).unwrap();
-        let before = std::fs::read(&path).unwrap();
-        let expected = DateTime::parse_from_rfc3339("2026-10-20T09:30:00Z")
-            .unwrap()
-            .with_timezone(&Utc);
-        assert_eq!(try_get_exif_creation_date(&path), Some(expected));
-        let decoded = extract_metadata(&before).unwrap();
-        assert_eq!(
-            decoded.get("OffsetTimeOriginal").map(String::as_str),
-            Some("-10:00")
-        );
-        assert_eq!(std::fs::read(path).unwrap(), before);
-    }
-
-    #[test]
-    fn raw_offsets_cover_rollovers_fractional_zones_and_invalid_fallbacks() {
-        for (date, offset, expected) in [
-            ("2026:10:19 23:30:00", "-10:00", "2026-10-20T09:30:00Z"),
-            ("2026-10-20 18:30:00", "+09:00", "2026-10-20T09:30:00Z"),
-            ("2026:01:01 00:15:00", "+05:45", "2025-12-31T18:30:00Z"),
-            ("2026:01:01 00:00:00", "Z", "2026-01-01T00:00:00Z"),
-        ] {
-            let actual = parse_raw_creation_date(Some(date), [Some(offset), None]);
-            assert_eq!(
-                actual,
-                Some(
-                    DateTime::parse_from_rfc3339(expected)
-                        .unwrap()
-                        .with_timezone(&Utc)
-                )
-            );
-        }
-        for bad in ["+24:00", "-10:60", "9:00", "no zone", "+é:00"] {
-            assert!(parse_capture_offset(bad).is_none());
-        }
-        let date = "2026:10:19 23:30:00";
-        let legacy = creation_datetime_to_utc(
-            NaiveDateTime::parse_from_str(date, EXIF_DATETIME_FORMAT).unwrap(),
-        );
-        assert_eq!(
-            parse_raw_creation_date(Some(date), [Some("invalid"), None]),
-            Some(legacy)
-        );
-        assert_eq!(
-            parse_raw_creation_date(Some(date), [Some("invalid"), Some("-10:00")]),
-            parse_raw_creation_date(Some(date), [Some("-10:00"), None])
-        );
->>>>>>> rapidroom/main
     }
 }
