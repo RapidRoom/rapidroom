@@ -67,7 +67,6 @@ const EditorToolbar = memo(
     const historyButtonRef = useRef<HTMLDivElement>(null);
 
     const showResolution = !isAndroid && selectedImage.width > 0 && selectedImage.height > 0;
-    const [displayedResolution, setDisplayedResolution] = useState('');
 
     const imageList = useLibraryStore((s) => s.imageList);
     const appSettings = useSettingsStore((s) => s.appSettings);
@@ -91,12 +90,6 @@ const EditorToolbar = memo(
         vcId: parts.length > 1 ? parts[1] : null,
       };
     }, [selectedImage.path]);
-
-    useEffect(() => {
-      if (showResolution) {
-        setDisplayedResolution(` - ${selectedImage.width} × ${selectedImage.height}`);
-      }
-    }, [showResolution, selectedImage.width, selectedImage.height]);
 
     useEffect(() => {
       const wasLoadingResolution = prevIsLoadingRef.current && !isLoading;
@@ -332,8 +325,8 @@ const EditorToolbar = memo(
     };
 
     return (
-      <div className="group/shooting-info relative shrink-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center px-3 min-h-10 py-1 gap-x-3 z-40">
-        <div className="flex items-center gap-2 shrink-0 z-40">
+      <div className="@container/editor-toolbar group/shooting-info relative shrink-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center px-3 min-h-10 py-1 gap-x-3 z-40">
+        <div className="flex items-center gap-2 shrink-0 z-40 @max-[32rem]/editor-toolbar:gap-1">
           <button
             className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors shrink-0"
             onClick={onBackToLibrary}
@@ -360,19 +353,20 @@ const EditorToolbar = memo(
           </div>
         </div>
 
-        <div className="flex-1 flex justify-center min-w-0 relative">
-          <div className="bg-surface flex flex-col items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-4 py-1">
-            <div className="flex items-center justify-center max-w-full h-5 shrink-0">
+        <div className="@container/editor-info flex-1 flex justify-center min-w-0 relative">
+          <div className="bg-surface flex items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-3 py-1 @max-[14rem]/editor-info:px-1">
+            <div className="flex items-center justify-center min-w-0 max-w-full h-5" data-editor-info-line>
               <Text
                 as="span"
                 variant={TextVariants.small}
                 color={TextColors.primary}
                 weight={TextWeights.medium}
                 className="truncate min-w-0 shrink"
+                title={showResolution ? `${baseName} - ${selectedImage.width} × ${selectedImage.height}` : baseName}
               >
                 {baseName}
               </Text>
-              <AppliedPresetBadge />
+              <AppliedPresetBadge compact />
 
               {isVirtualCopy && (
                 <Text
@@ -380,14 +374,14 @@ const EditorToolbar = memo(
                   variant={TextVariants.small}
                   color={TextColors.accent}
                   weight={TextWeights.bold}
-                  className="ml-2 shrink-0 bg-accent/20 px-2 py-0.5 rounded-full flex items-center overflow-hidden cursor-default"
+                  className="ml-2 shrink-0 bg-accent/20 px-2 py-0.5 rounded-full flex items-center overflow-hidden cursor-default @max-[14rem]/editor-info:ml-1 @max-[14rem]/editor-info:px-1"
                   onMouseEnter={() => setIsVcHovered(true)}
                   onMouseLeave={() => setIsVcHovered(false)}
                 >
                   <span>{t('editor.toolbar.vc')}</span>
                   <div
                     className={clsx(
-                      'transition-all duration-300 ease-out overflow-hidden whitespace-nowrap',
+                      'transition-all duration-300 ease-out overflow-hidden whitespace-nowrap @max-[14rem]/editor-info:hidden',
                       isVcHovered ? 'max-w-20 opacity-100' : 'max-w-0 opacity-0',
                     )}
                   >
@@ -419,23 +413,7 @@ const EditorToolbar = memo(
                 </div>
               )}
 
-              <div
-                className={clsx(
-                  'transition-all duration-300 ease-out overflow-hidden whitespace-nowrap shrink-0',
-                  showResolution ? 'max-w-40 opacity-100 ml-2' : 'max-w-0 opacity-0 ml-0',
-                )}
-              >
-                <Text
-                  as="span"
-                  variant={TextVariants.small}
-                  className={clsx(
-                    'block transition-transform duration-200 delay-100',
-                    showResolution ? 'scale-100' : 'scale-95',
-                  )}
-                >
-                  {displayedResolution}
-                </Text>
-              </div>
+              <ShootingInfo exif={selectedImage.exif} inline />
 
               <div
                 className={clsx(
@@ -455,8 +433,8 @@ const EditorToolbar = memo(
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 z-40">
-          <div className="relative flex items-center gap-2" ref={historyButtonRef}>
+        <div className="flex items-center gap-2 shrink-0 z-40 @max-[32rem]/editor-toolbar:gap-1">
+          <div className="relative flex items-center gap-2 @max-[32rem]/editor-toolbar:gap-1" ref={historyButtonRef}>
             <button
               className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canUndo}
@@ -605,7 +583,6 @@ const EditorToolbar = memo(
             </div>
           </button>
         </div>
-        <ShootingInfo exif={selectedImage.exif} className="col-span-3 pb-1" />
       </div>
     );
   },
