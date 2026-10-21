@@ -162,7 +162,7 @@ class Smoke:
         for attempt in range(12):
             time.sleep(0.5)
             path = self.capture(name + "-" + str(attempt))
-            if (self.case / "presets-test.json").exists():
+            if (self.case / "presets-test.json").exists() or (self.case / "style-stack-test.json").exists():
                 frame=request(self.url+'/execute/async',{'script':"""const done=arguments[arguments.length-1];
                   const images=[...document.querySelectorAll('svg image')].filter(e=>{const r=e.getBoundingClientRect();return r.width>500&&r.height>300&&Number(getComputedStyle(e).opacity)>.99});
                   const image=images.at(-1);if(!image){done({error:'Native preview missing'});return;}
@@ -417,6 +417,9 @@ class Smoke:
             wait_for(lambda: self.slider("Exposure")["value"] == 0, "neutral fit-resolution preview")
             baseline = self.stable_preview("post-zoom-fit")
             self.step("post-zoom fit preview", {"capture": str(baseline.relative_to(self.case))})
+        if (self.case / "style-stack-test.json").exists():
+            from style_stack import run_style_stack_checks
+            run_style_stack_checks(self, wait_for, baseline)
         if (self.case / "presets-test.json").exists():
             from presets import run_preset_checks
             run_preset_checks(self, wait_for, baseline)
@@ -663,6 +666,8 @@ def launch(args):
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_packaging:
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
+    if args.style_stack:
+        save(case / "style-stack-test.json", {"issue": 378, "io_mocked": False})
     if args.presets:
         save(case / "presets-test.json", {"issue": 169})
     if args.lightroom_ai_masks:
@@ -690,7 +695,7 @@ def launch(args):
     save(settings / "settings.json", {"rootFolders": [str(case / "input")],
          "lastRootPath": str(case / "input"), "language": "en", "useWgpuRenderer": False,
          "editorPreviewResolution": 1280, "decorations": False,
-         "mcpEnabled": args.mcp_clients and not args.mcp_packaging})
+         "mcpEnabled": args.style_stack or (args.mcp_clients and not args.mcp_packaging)})
     if args.mcp_packaging:
         initial = json.loads((settings / "settings.json").read_text())
         initial.pop("mcpEnabled")
@@ -802,6 +807,7 @@ def main():
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
+    parser.add_argument("--style-stack", action="store_true", help="Check ordered Style stack, manual edits, shared MCP, Undo and reload")
     parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
     parser.add_argument("--lightroom-ai-masks", type=Path, help="Import an authored synthetic ACR fixture and verify named refusals without model requests")
     parser.add_argument("--xmp-photo-policy", action="store_true", help="Synthetic photo AlreadyApplied, pending draft/history and reusable preset checks")

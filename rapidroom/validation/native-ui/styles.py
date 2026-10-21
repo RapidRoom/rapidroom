@@ -47,6 +47,7 @@ def run_styles_checks(smoke, wait_for, baseline):
         current=smoke.stable_preview('styles-teal-'+str(amount))
         if amount==0:assert ImageChops.difference(smoke.crop(baseline),smoke.crop(current)).getbbox() is None
     smoke.step('native Styles apply/Amount60/30 changes preview; Amount0 restores exact original pixels')
+    smoke.execute("document.querySelector('[data-applied-style=\"rapidroom-style:teal-orange\"] button[aria-label^=\"Remove Style\"]').click();return true;")
     exported=smoke.case/'style-roundtrip.rrpreset'
     ipc('handle_export_presets_to_file',{'presetsToExport':[{'preset':teal}],'filePath':str(exported)})
     data=json.loads(exported.read_text());assert data['presets'][0]['preset']['description']==teal['description']
@@ -75,7 +76,7 @@ def run_styles_checks(smoke, wait_for, baseline):
         actual=smoke.slider('Amount')['value']
         current=smoke.stable_preview('styles-gothic-'+str(amount))
         if actual==0:
-            wait_for(lambda:edit().get('masks',[])==original.get('masks',[]),'Amount0 removes only new beam')
+            wait_for(lambda:len(edit().get('masks',[]))==len(original.get('masks',[]))+1 and edit()['masks'][-1]['opacity']==0,'Amount0 mutes only the Style beam')
             assert ImageChops.difference(smoke.crop(baseline),smoke.crop(current)).getbbox() is None
         else:
             def faded():
@@ -128,6 +129,10 @@ def run_styles_checks(smoke, wait_for, baseline):
     first_pixels=smoke.stable_preview('styles-gothic-edited-mask')
     first=edit()
     smoke.step('Dark Forest beam is editable through ordinary native mask controls',{'opacity':actual})
+    # Clicking an applied Style removes it. The edited beam becomes user-owned.
+    apply_beam()
+    retained_pixels=smoke.stable_preview('styles-gothic-removed-edited-mask')
+    wait_for(lambda:edit().get('masks',[])==first['masks'],'removing Style preserves manually edited beam')
     apply_beam()
     smoke.stable_preview('styles-gothic-second-mask')
     second=wait_for(lambda:edit() if len(edit().get('masks',[]))==len(first['masks'])+1 else None,'second style preserves existing local mask')
@@ -136,15 +141,15 @@ def run_styles_checks(smoke, wait_for, baseline):
     assert len(set(ids))==len(ids)
     smoke.drag('Amount',0)
     restored=smoke.stable_preview('styles-gothic-existing-restored')
-    wait_for(lambda:edit().get('masks',[])==first['masks'],'Amount0 restores prior mask exactly')
-    assert ImageChops.difference(smoke.crop(first_pixels),smoke.crop(restored)).getbbox() is None
+    wait_for(lambda:edit().get('masks',[])[:-1]==first['masks'] and edit()['masks'][-1]['opacity']==0,'Amount0 preserves prior mask and mutes new beam')
+    assert ImageChops.difference(smoke.crop(retained_pixels),smoke.crop(restored)).getbbox() is None
     mask_export=smoke.case/'beam-style-roundtrip.rrpreset'
     ipc('handle_export_presets_to_file',{'presetsToExport':[{'preset':gothic}],'filePath':str(mask_export)})
     roundtrip=json.loads(mask_export.read_text())['presets'][0]['preset']
     assert roundtrip['includeMasks'] and roundtrip['adjustments']['masks']==gothic['adjustments']['masks']
     smoke.step('native Gothic beam uses pixel geometry, fades at60/30/0, preserves existing mask and exports reusable template')
     # Restore through ordinary shared Undo before continuing the library checks.
-    for attempt in range(14):
+    for attempt in range(24):
         smoke.execute("document.querySelector('button[data-tooltip^=\"Undo (\"]').click();return true;")
         current=smoke.stable_preview('styles-beam-undo-'+str(attempt))
         if ImageChops.difference(smoke.crop(baseline),smoke.crop(current)).getbbox() is None:

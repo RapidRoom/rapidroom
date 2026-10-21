@@ -402,3 +402,15 @@ and supplies the owned JPEG for at most one exact stock-image fallback request.
 The request and its real temp-file IPC are counted and bounded; no external
 image is downloaded. Search/navigation and the final frontend/native error
 checks remain real and unfiltered.
+
+
+## Ordered Styles (#378)
+
+Build with the `mcp,native-ui-test` features and run `smoke.py --style-stack`.
+This uses only the copied CC0 fixture, the real public GUI controls and the
+private authenticated MCP endpoint; it makes no model requests. It checks the
+pinned Applied folder, ordered maximum of three entries, independent Amount,
+fourth-Style refusal without history changes, manual Exposure/Contrast through
+middle removal, the surviving editable mask, shared Undo/Redo, a fresh frontend
+reload from the actual paired sidecar, and exact preview restoration. Captures
+and per-step receipts remain in the owned output directory.

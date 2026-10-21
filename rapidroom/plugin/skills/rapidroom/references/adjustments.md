@@ -117,6 +117,8 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 | `structure` | number | `0`     | -100 to 100  | 1    | yes   | Like clarity at a larger scale (shapes, not texture).                                                                               |
 | `dehaze`    | number | `0`     | -100 to 100  | 1    | yes   | + removes haze and adds saturation; − adds a bluish haze. Mild per unit.                                                            |
 | `centré`    | number | `0`     | -100 to 100  | 1    |       | Centre emphasis: + adds contrast, about 0.2 EV and colour in a central ellipse and quietens the edges; − the reverse. Not in masks. |
+| `centréX`   | number | `0.5`   |              |      |       | Normalized horizontal centre position for Centré (0–1); default 0.5.                                                                |
+| `centréY`   | number | `0.5`   |              |      |       | Normalized vertical centre position for Centré (0–1); default 0.5.                                                                  |
 
 ### Sharpness
 
@@ -149,6 +151,8 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 | `vignetteFeather`   | number | `50`    | 0 to 100     | 1    |       | Width of the transition: higher is softer.                                  |
 | `vignetteMidpoint`  | number | `50`    | 0 to 100     | 1    |       | Where the transition sits: higher pushes it towards the corners.            |
 | `vignetteRoundness` | number | `0`     | -100 to 100  | 1    |       | Changes the shape between rectangular and round.                            |
+| `vignetteCenterX`   | number | `0.5`   |              |      |       | Normalized horizontal vignette centre (0–1); default 0.5.                   |
+| `vignetteCenterY`   | number | `0.5`   |              |      |       | Normalized vertical vignette centre (0–1); default 0.5.                     |
 
 ### Grain
 

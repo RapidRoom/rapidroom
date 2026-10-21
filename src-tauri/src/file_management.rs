@@ -9,9 +9,8 @@ use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, LazyLock, Mutex, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
-pub(crate) static SIDECAR_METADATA_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 use std::thread;
 
 use anyhow::Result;
@@ -222,19 +221,23 @@ fn resolve_image_metadata(
     enable_xmp_sync: bool,
     settings: &AppSettings,
 ) -> ImageFileMetadata {
-    let _metadata_lock = SIDECAR_METADATA_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    // Atomic replacement makes ordinary listing reads safe without a global
+    // metadata mutex. Only XMP read/modify/write needs a write transaction.
     let mut metadata = crate::exif_processing::load_sidecar_unlocked(sidecar_path);
-
-    if enable_xmp_sync
-        && sync_metadata_from_xmp(image_path, sidecar_path, &mut metadata)
-        && let Ok(json) = serde_json::to_string_pretty(&metadata)
-    {
-        let _ = write_file_atomically(sidecar_path, json);
+    if enable_xmp_sync {
+        if let Ok(_guard) = lock_sidecar(sidecar_path) {
+            metadata = crate::exif_processing::load_sidecar_unlocked(sidecar_path);
+            if sync_metadata_from_xmp(image_path, sidecar_path, &mut metadata)
+                && let Ok(bytes) = metadata_bytes_preserving_owned(sidecar_path, &metadata)
+            {
+                let _ = write_file_atomically_unmerged(sidecar_path, bytes);
+            }
+        } else {
+            // Card mode (and an unwritable directory) can still read XMP.
+            sync_metadata_from_xmp(image_path, sidecar_path, &mut metadata);
+        }
     }
 
-    drop(_metadata_lock);
     let is_raw = crate::formats::is_raw_file(image_path);
     let tm_override = crate::image_processing::resolve_tonemapper_override(settings, is_raw);
     let is_edited =
@@ -1662,7 +1665,8 @@ pub fn write_file_atomically(
     write_file_atomically_unmerged(path, bytes)
 }
 
-pub(crate) const SIDECAR_OWNED_FIELDS: [&str; 3] = ["denoise", "appliedPreset", "exportFraming"];
+pub(crate) const SIDECAR_OWNED_FIELDS: [&str; 4] =
+    ["denoise", "appliedPreset", "exportFraming", "stack"];
 
 pub(crate) fn preserve_sidecar_owned_fields(
     current: &Value,
@@ -1678,22 +1682,45 @@ pub(crate) fn preserve_sidecar_owned_fields(
 static SIDECAR_WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 pub(crate) struct SidecarWriteGuard {
-    _file: fs::File,
+    _files: Vec<fs::File>,
     _mutex: std::sync::MutexGuard<'static, ()>,
 }
 
 // All ordinary and dedicated writers acquire in this order. The file guard also
 // coordinates the headless CLI with a GUI running in another process.
 pub(crate) fn lock_sidecar(path: &Path) -> std::io::Result<SidecarWriteGuard> {
-    if is_card_read_only_path(path) {
-        return Err(card_read_only_io_error());
+    lock_sidecars(&[path.to_path_buf()])
+}
+
+// Stack batches keep every destination stable through preflight, publication
+// and rollback. Sort physical identities so another process takes OS locks in
+// the same order, including paths reached through symlinks.
+pub(crate) fn lock_sidecars(paths: &[PathBuf]) -> std::io::Result<SidecarWriteGuard> {
+    let mut targets = Vec::with_capacity(paths.len());
+    for path in paths {
+        if is_card_read_only_path(path) {
+            return Err(card_read_only_io_error());
+        }
+        targets.push(if path.is_symlink() {
+            fs::canonicalize(path)?
+        } else {
+            path.parent()
+                .and_then(|p| p.canonicalize().ok())
+                .map(|p| p.join(path.file_name().unwrap_or_default()))
+                .unwrap_or_else(|| path.clone())
+        });
     }
+    targets.sort();
+    targets.dedup();
     let mutex = SIDECAR_WRITE_LOCK
         .lock()
         .map_err(|_| std::io::Error::other("Sidecar write lock poisoned"))?;
-    let file = lock_sidecar_file(path)?;
+    let files = targets
+        .iter()
+        .map(|p| lock_sidecar_file(p))
+        .collect::<std::io::Result<Vec<_>>>()?;
     Ok(SidecarWriteGuard {
-        _file: file,
+        _files: files,
         _mutex: mutex,
     })
 }
@@ -1737,6 +1764,14 @@ pub(crate) fn write_file_atomically_unmerged(
 }
 
 pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), String> {
+    update_applied_preset_with_adjustments(path, record, None)
+}
+
+pub(crate) fn update_applied_preset_with_adjustments(
+    path: &Path,
+    record: Value,
+    adjustments: Option<Value>,
+) -> Result<(), String> {
     let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
     let mut metadata = match fs::read(path) {
         Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
@@ -1749,6 +1784,12 @@ pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), St
         .as_object_mut()
         .ok_or("Invalid photo metadata")?
         .insert("appliedPreset".into(), record);
+    if let Some(adjustments) = adjustments {
+        metadata
+            .as_object_mut()
+            .ok_or("Invalid photo metadata")?
+            .insert("adjustments".into(), adjustments);
+    }
     let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
     write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())
 }
@@ -2958,7 +2999,9 @@ fn duplicate_file_on_disk(path: &str) -> Result<String, String> {
         && let Some(dest_str) = dest_path.to_str()
     {
         let (_, dest_sidecar_path) = parse_virtual_path(dest_str);
-        fs::copy(&source_sidecar_path, &dest_sidecar_path).map_err(|e| e.to_string())?;
+        let bytes =
+            copied_sidecar_without_stack(&source_sidecar_path).map_err(|e| e.to_string())?;
+        write_file_atomically(&dest_sidecar_path, bytes).map_err(|e| e.to_string())?;
     }
 
     let mut source_rrexif_name = source_path.file_name().unwrap().to_os_string();
@@ -2973,6 +3016,20 @@ fn duplicate_file_on_disk(path: &str) -> Result<String, String> {
     }
 
     Ok(dest_path.to_string_lossy().into_owned())
+}
+
+pub(crate) fn copied_sidecar_without_stack(source: &Path) -> std::io::Result<Vec<u8>> {
+    let bytes = fs::read(source)?;
+    match serde_json::from_slice::<Value>(&bytes) {
+        Ok(Value::Object(mut metadata)) => {
+            if metadata.remove("stack").is_some() {
+                serde_json::to_vec_pretty(&metadata).map_err(std::io::Error::other)
+            } else {
+                Ok(bytes)
+            }
+        }
+        _ => Ok(bytes),
+    }
 }
 
 fn find_all_associated_files(source_image_path: &Path) -> Result<Vec<PathBuf>, String> {
@@ -3868,6 +3925,8 @@ pub async fn reset_adjustments_for_paths(
             if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
                 let _ = write_file_atomically(&sidecar_path, json_string);
             }
+            // Reset is an explicit removal of Styles, including on unopened photos.
+            let _ = update_applied_preset(&sidecar_path, serde_json::Value::Null);
 
             if enable_xmp_sync {
                 let source_path = parse_virtual_path(path).0;
@@ -4146,17 +4205,29 @@ pub async fn apply_auto_adjustments_to_paths(
     .map_err(|e| e.to_string())
 }
 
+fn metadata_bytes_preserving_owned(
+    path: &Path,
+    metadata: &ImageMetadata,
+) -> std::io::Result<Vec<u8>> {
+    let mut value = serde_json::to_value(metadata).map_err(std::io::Error::other)?;
+    if let Ok(bytes) = fs::read(path)
+        && let Ok(current) = serde_json::from_slice::<Value>(&bytes)
+    {
+        preserve_sidecar_owned_fields(&current, value.as_object_mut().unwrap());
+    }
+    serde_json::to_vec_pretty(&value).map_err(std::io::Error::other)
+}
+
 pub(crate) fn update_sidecar(
     sidecar_path: &Path,
     update: impl Fn(&mut ImageMetadata),
 ) -> Result<ImageMetadata, String> {
-    let _lock = SIDECAR_METADATA_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    let _guard = lock_sidecar(sidecar_path).map_err(|e| e.to_string())?;
     let mut metadata = crate::exif_processing::load_sidecar_unlocked(sidecar_path);
     update(&mut metadata);
-    let json_string = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
-    write_file_atomically(sidecar_path, json_string).map_err(|error| {
+    let bytes =
+        metadata_bytes_preserving_owned(sidecar_path, &metadata).map_err(|e| e.to_string())?;
+    write_file_atomically_unmerged(sidecar_path, bytes).map_err(|error| {
         format!(
             "Failed to save metadata to {}: {error}",
             sidecar_path.display()
@@ -4246,37 +4317,45 @@ fn store_user_rating(sidecar_path: &Path, rating: u8) -> ImageMetadata {
 }
 
 #[tauri::command]
-pub fn set_rating_for_paths(
+pub async fn set_rating_for_paths(
     paths: Vec<String>,
     rating: u8,
     apply_to_stack: Option<bool>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    let paths = if apply_to_stack.unwrap_or(false) {
-        crate::photo_stacks::metadata_paths(&paths)?
-    } else {
-        paths
-    };
-    update_metadata_for_paths(&paths, &app_handle, |metadata| {
-        apply_user_rating(metadata, rating)
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths = if apply_to_stack.unwrap_or(false) {
+            crate::photo_stacks::metadata_paths(&paths)?
+        } else {
+            paths
+        };
+        update_metadata_for_paths(&paths, &app_handle, |metadata| {
+            apply_user_rating(metadata, rating)
+        })
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn set_flag_for_paths(
+pub async fn set_flag_for_paths(
     paths: Vec<String>,
     flag: Option<ImageFlag>,
     apply_to_stack: Option<bool>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    let paths = if apply_to_stack.unwrap_or(false) {
-        crate::photo_stacks::metadata_paths(&paths)?
-    } else {
-        paths
-    };
-    update_metadata_for_paths(&paths, &app_handle, |metadata| {
-        apply_user_flag(metadata, flag)
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths = if apply_to_stack.unwrap_or(false) {
+            crate::photo_stacks::metadata_paths(&paths)?
+        } else {
+            paths
+        };
+        update_metadata_for_paths(&paths, &app_handle, |metadata| {
+            apply_user_flag(metadata, flag)
+        })
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 pub(crate) fn normalize_lens_policy_version(
@@ -4414,9 +4493,36 @@ pub async fn get_lens_correction_resolution(
     .map_err(|error| error.to_string())?
 }
 
+fn resolve_auto_lens_query(
+    source_path: &Path,
+    sidecar_path: &Path,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+    fresh_defaults: bool,
+) -> ImageMetadata {
+    let mut metadata = ImageMetadata {
+        exif: crate::exif_processing::read_exif_for_query(sidecar_path, source_path),
+        adjustments: if fresh_defaults {
+            default_adjustments()
+        } else {
+            serde_json::json!({})
+        },
+        ..Default::default()
+    };
+    metadata.adjustments["lensCorrectionMode"] = serde_json::json!("auto");
+    metadata.adjustments["cameraLensCorrectionVersion"] = serde_json::json!(1);
+    resolve_lens_params_in_adjustments(
+        &mut metadata.adjustments,
+        &metadata.exif,
+        lens_db,
+        source_path,
+    );
+    metadata
+}
+
 #[tauri::command]
 pub async fn get_default_raw_lens_adjustments(
     path: String,
+    force_auto: Option<bool>,
     app_handle: AppHandle,
 ) -> Result<Value, String> {
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
@@ -4428,14 +4534,17 @@ pub async fn get_default_raw_lens_adjustments(
         .clone();
     tauri::async_runtime::spawn_blocking(move || {
         let (source_path, sidecar_path) = parse_virtual_path(&path);
-        let mut metadata = ImageMetadata::default();
-        apply_default_raw_lens_policy(
-            &mut metadata,
-            &source_path,
-            &sidecar_path,
-            &settings,
-            lens_db.as_deref(),
-        );
+        let mut metadata = if force_auto.unwrap_or(false) {
+            // An explicit active-editor action resolves a patch without reading
+            // or writing the saved recipe. The GUI retains its captured draft.
+            resolve_auto_lens_query(&source_path, &sidecar_path, lens_db.as_deref(), false)
+        } else if crate::formats::is_raw_file(&source_path)
+            && settings.auto_lens_correction_on_new_raws.unwrap_or(true)
+        {
+            resolve_auto_lens_query(&source_path, &sidecar_path, lens_db.as_deref(), true)
+        } else {
+            ImageMetadata::default()
+        };
         if let Some(patch) = metadata.adjustments.as_object_mut() {
             patch.retain(|key, _| key.starts_with("lens") || key == "cameraLensCorrectionVersion");
             metadata.adjustments
@@ -5789,9 +5898,8 @@ fn create_virtual_copy_on_disk(source_virtual_path: &str) -> Result<String, Stri
     let new_virtual_path = format!("{}?vc={}", source_path.to_string_lossy(), new_copy_id);
     let (_, new_sidecar_path) = parse_virtual_path(&new_virtual_path);
 
-    let _metadata_lock = SIDECAR_METADATA_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    // A virtual copy takes one complete atomic snapshot and writes a new
+    // destination; it does not modify or need a write lock on the source.
     let mut value = if source_sidecar_path.exists() {
         let bytes = fs::read(&source_sidecar_path).map_err(|e| e.to_string())?;
         serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?
@@ -8865,6 +8973,39 @@ mod photo_stack_virtual_copy_tests {
     use super::*;
 
     #[test]
+    fn duplicate_copies_edits_but_never_joins_the_source_stack() {
+        let _mode = CardMode::off();
+        let f = folders();
+        let a = f.library.join("one.jpg");
+        let b = f.library.join("two.jpg");
+        fs::write(&a, b"fixture").unwrap();
+        fs::write(&b, b"fixture").unwrap();
+        crate::photo_stacks::edit_photo_stack_on_disk(
+            vec![
+                a.to_string_lossy().into_owned(),
+                b.to_string_lossy().into_owned(),
+            ],
+            crate::photo_stacks::StackAction::Stack,
+        )
+        .unwrap();
+        let (_, sidecar) = parse_virtual_path(&a.to_string_lossy());
+        update_sidecar(&sidecar, |m| {
+            m.rating = 4;
+            m.adjustments = serde_json::json!({"exposure":1.25});
+        })
+        .unwrap();
+        let before = fs::read(&sidecar).unwrap();
+        let copy = duplicate_file_on_disk(a.to_str().unwrap()).unwrap();
+        let (_, destination) = parse_virtual_path(&copy);
+        let value: Value = serde_json::from_slice(&fs::read(destination).unwrap()).unwrap();
+        assert!(value.get("stack").is_none());
+        assert_eq!(value["rating"], 4);
+        assert_eq!(value["adjustments"]["exposure"], 1.25);
+        assert_eq!(fs::read(sidecar).unwrap(), before);
+        assert_eq!(fs::read(copy).unwrap(), b"fixture");
+    }
+
+    #[test]
     fn creating_virtual_copy_clears_stack_but_preserves_other_metadata() {
         let _mode = CardMode::off();
         let f = folders();
@@ -8876,7 +9017,7 @@ mod photo_stack_virtual_copy_tests {
             .iter()
             .map(|p| p.to_string_lossy().into_owned())
             .collect();
-        crate::photo_stacks::edit_photo_stack(
+        crate::photo_stacks::edit_photo_stack_on_disk(
             paths.clone(),
             crate::photo_stacks::StackAction::Stack,
         )
@@ -8913,7 +9054,7 @@ mod photo_stack_virtual_copy_tests {
             .iter()
             .map(|p| p.to_string_lossy().into_owned())
             .collect();
-        crate::photo_stacks::edit_photo_stack(
+        crate::photo_stacks::edit_photo_stack_on_disk(
             paths.clone(),
             crate::photo_stacks::StackAction::Stack,
         )
@@ -9107,5 +9248,88 @@ mod stock_folder_upgrade_tests {
                 .exists()
         );
         assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 3);
+    }
+}
+
+#[cfg(test)]
+mod explicit_auto_lens_readonly_tests {
+    use super::*;
+    #[test]
+    fn explicit_lens_resolution_never_writes_the_saved_recipe_or_source() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("photo.png");
+        image::RgbImage::from_pixel(2, 1, image::Rgb([30, 60, 90]))
+            .save(&source)
+            .unwrap();
+        let (_, sidecar) = parse_virtual_path(source.to_str().unwrap());
+        let metadata = ImageMetadata {
+            adjustments: serde_json::json!({"exposure":0.7,"lensDistortionAmount":37}),
+            ..Default::default()
+        };
+        std::fs::write(&sidecar, serde_json::to_vec(&metadata).unwrap()).unwrap();
+        let source_bytes = std::fs::read(&source).unwrap();
+        let saved = std::fs::read(&sidecar).unwrap();
+        let source_modified = source.metadata().unwrap().modified().unwrap();
+        let sidecar_modified = sidecar.metadata().unwrap().modified().unwrap();
+        let patch = resolve_auto_lens_query(&source, &sidecar, None, false).adjustments;
+        assert_eq!(patch["lensCorrectionMode"], "auto");
+        assert_eq!(patch["cameraLensCorrectionVersion"], 1);
+        assert!(patch.get("exposure").is_none());
+        assert!(patch.get("lensDistortionAmount").is_none());
+        assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+        assert_eq!(std::fs::read(&sidecar).unwrap(), saved);
+        assert_eq!(
+            source.metadata().unwrap().modified().unwrap(),
+            source_modified
+        );
+        assert_eq!(
+            sidecar.metadata().unwrap().modified().unwrap(),
+            sidecar_modified
+        );
+    }
+    #[test]
+    fn query_default_lens_output_matches_existing_policy_without_healing_its_input() {
+        let directory = tempfile::tempdir().unwrap();
+        for exif in [
+            serde_json::json!({"Make":"Canon","LensModel":"test","LongField":"z".repeat(900)}),
+            Value::Null,
+        ] {
+            let old = directory.path().join("old.ARW");
+            let new = directory.path().join("new.ARW");
+            std::fs::write(&old, b"fixture").unwrap();
+            std::fs::write(&new, b"fixture").unwrap();
+            let (_, old_side) = parse_virtual_path(old.to_str().unwrap());
+            let (_, new_side) = parse_virtual_path(new.to_str().unwrap());
+            let bytes=serde_json::to_vec(&serde_json::json!({"version":1,"rating":0,"adjustments":{"exposure":0.7},"exif":exif,"future":"preserve"})).unwrap();
+            serde_json::from_slice::<ImageMetadata>(&bytes).unwrap();
+            std::fs::write(&old_side, &bytes).unwrap();
+            std::fs::write(&new_side, &bytes).unwrap();
+            let legacy = crate::exif_processing::get_rrexif_path(&new);
+            std::fs::write(&legacy, r#"{"Make":"Legacy"}"#).unwrap();
+            let old_legacy = crate::exif_processing::get_rrexif_path(&old);
+            std::fs::write(&old_legacy, r#"{"Make":"Legacy"}"#).unwrap();
+            let modified = new_side.metadata().unwrap().modified().unwrap();
+            let legacy_modified = legacy.metadata().unwrap().modified().unwrap();
+            let mut expected = ImageMetadata::default();
+            apply_default_raw_lens_policy(
+                &mut expected,
+                &old,
+                &old_side,
+                &AppSettings {
+                    auto_lens_correction_on_new_raws: Some(true),
+                    ..Default::default()
+                },
+                None,
+            );
+            let actual = resolve_auto_lens_query(&new, &new_side, None, true);
+            assert_eq!(actual.adjustments, expected.adjustments);
+            assert_eq!(std::fs::read(&new_side).unwrap(), bytes);
+            assert_eq!(new_side.metadata().unwrap().modified().unwrap(), modified);
+            assert_eq!(std::fs::read(&legacy).unwrap(), br#"{"Make":"Legacy"}"#);
+            assert_eq!(
+                legacy.metadata().unwrap().modified().unwrap(),
+                legacy_modified
+            );
+        }
     }
 }
