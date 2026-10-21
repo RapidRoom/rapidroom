@@ -2714,7 +2714,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 239,
+      "line": 240,
       "valueExpression": "adjustments.chromaticAberrationRedCyan",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.ChromaticAberrationRedCyan, e.target.value)",
       "labelExpression": "t('adjustments.details.redCyan')",
@@ -2725,7 +2725,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 248,
+      "line": 249,
       "valueExpression": "adjustments.chromaticAberrationBlueYellow",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.ChromaticAberrationBlueYellow, e.target.value)",
       "labelExpression": "t('adjustments.details.blueYellow')",
@@ -2736,7 +2736,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 273,
+      "line": 274,
       "valueExpression": "adjustments.negativeRedWeight ?? 1",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleFloatAdjustmentChange(DetailsAdjustment.NegativeRedWeight, String(e.target.value))",
       "labelExpression": "t('adjustments.details.negativeRed')",
@@ -2747,7 +2747,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 286,
+      "line": 287,
       "valueExpression": "adjustments.negativeGreenWeight ?? 1",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleFloatAdjustmentChange(DetailsAdjustment.NegativeGreenWeight, String(e.target.value))",
       "labelExpression": "t('adjustments.details.negativeGreen')",
@@ -2758,7 +2758,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 299,
+      "line": 300,
       "valueExpression": "adjustments.negativeBlueWeight ?? 1",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleFloatAdjustmentChange(DetailsAdjustment.NegativeBlueWeight, String(e.target.value))",
       "labelExpression": "t('adjustments.details.negativeBlue')",
@@ -2769,7 +2769,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 312,
+      "line": 313,
       "valueExpression": "adjustments.negativeExposure ?? 0",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleFloatAdjustmentChange(DetailsAdjustment.NegativeExposure, String(e.target.value))",
       "labelExpression": "t('adjustments.details.negativeExposure')",
@@ -2780,7 +2780,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 323,
+      "line": 324,
       "valueExpression": "adjustments.negativeContrast ?? 1",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleFloatAdjustmentChange(DetailsAdjustment.NegativeContrast, String(e.target.value))",
       "labelExpression": "t('adjustments.details.negativeContrast')",
