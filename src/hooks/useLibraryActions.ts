@@ -73,6 +73,7 @@ export const clearLibrarySelection = () => {
     mixerPickerProperty: null,
     isRelightPickerActive: false,
     activeRelightLightId: null,
+    activeCenterMarker: null,
   });
 };
 

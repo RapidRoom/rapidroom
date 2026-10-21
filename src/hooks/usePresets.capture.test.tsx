@@ -193,45 +193,48 @@ it('Merge uses the copied source defaults after navigation/settings changes and 
   });
 });
 
-it('default-off manual source Merge does not clear target lens parameters when only its curve changed', async () => {
-  mockCommand(Invokes.GetDefaultRawLensAdjustments, () => ({}));
-  useEditorStore.setState({
-    selectedImage: image('/manual.ARW'),
-    adjustments: {
-      ...INITIAL_ADJUSTMENTS,
-      aspectRatio: 1.5,
-      curves: curve(145),
-    },
-  });
-  await mount();
-  await act(async () => {
-    await actions.handleCopyAdjustments();
-  });
-  await act(async () => {
+it.each([0, 1.5])(
+  'default-off manual source Merge retains target lens parameters and fixed source ratio%s',
+  async (aspectRatio) => {
+    mockCommand(Invokes.GetDefaultRawLensAdjustments, () => ({}));
     useEditorStore.setState({
-      selectedImage: image('/target.ARW'),
+      selectedImage: image('/manual.ARW'),
       adjustments: {
         ...INITIAL_ADJUSTMENTS,
-        lensCorrectionMode: 'auto',
-        cameraLensCorrectionVersion: 1,
-        lensDistortionParams: {
-          k1: 0.25,
-          k2: 0,
-          k3: 0,
-          model: 0,
-          tca_vr: 1,
-          tca_vb: 1,
-          vig_k1: 0,
-          vig_k2: 0,
-          vig_k3: 0,
-        },
-      } as Adjustments,
+        aspectRatio,
+        curves: curve(145),
+      },
     });
-    actions.handlePasteAdjustments(['/target.ARW']);
-  });
-  expect(applied.at(-1)?.adjustments).toEqual({ curves: curve(145) });
-  expect(useEditorStore.getState().adjustments.lensDistortionParams?.k1).toBe(0.25);
-});
+    await mount();
+    await act(async () => {
+      await actions.handleCopyAdjustments();
+    });
+    await act(async () => {
+      useEditorStore.setState({
+        selectedImage: image('/target.ARW'),
+        adjustments: {
+          ...INITIAL_ADJUSTMENTS,
+          lensCorrectionMode: 'auto',
+          cameraLensCorrectionVersion: 1,
+          lensDistortionParams: {
+            k1: 0.25,
+            k2: 0,
+            k3: 0,
+            model: 0,
+            tca_vr: 1,
+            tca_vb: 1,
+            vig_k1: 0,
+            vig_k2: 0,
+            vig_k3: 0,
+          },
+        } as Adjustments,
+      });
+      actions.handlePasteAdjustments(['/target.ARW']);
+    });
+    expect(applied.at(-1)?.adjustments).toEqual({ curves: curve(145), ...(aspectRatio === 0 ? {} : { aspectRatio }) });
+    expect(useEditorStore.getState().adjustments.lensDistortionParams?.k1).toBe(0.25);
+  },
+);
 
 it('intentional lens amount and zero-Exposure policy edits retain their policy interpretation', async () => {
   await resetAndCurve();

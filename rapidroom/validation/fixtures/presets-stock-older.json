@@ -1,0 +1,132 @@
+[
+  {
+    "folder": {
+      "id": "rapidroom-starter:BandW",
+      "name": "BandW",
+      "children": [
+        {
+          "id": "rapidroom-starter:BandW/Neutral.xmp",
+          "name": "Neutral",
+          "adjustments": {
+            "monochrome": true,
+            "contrast": 17
+          }
+        }
+      ]
+    }
+  },
+  {
+    "folder": {
+      "id": "rapidroom-starter:Color",
+      "name": "Color",
+      "children": [
+        {
+          "id": "rapidroom-starter:Color/Cool.xmp",
+          "name": "Cool",
+          "favorite": true,
+          "adjustments": {
+            "contrast": 31,
+            "temperature": -12
+          }
+        },
+        {
+          "id": "rapidroom-starter:Color/Warm.xmp",
+          "name": "Warm",
+          "adjustments": {
+            "temperature": 23
+          }
+        }
+      ]
+    }
+  },
+  {
+    "folder": {
+      "id": "rapidroom-starter:Grain",
+      "name": "Grain",
+      "children": [
+        {
+          "id": "rapidroom-starter:Grain/Light.xmp",
+          "name": "Earlier light grain",
+          "adjustments": {
+            "grainAmount": 11
+          }
+        }
+      ]
+    }
+  },
+  {
+    "folder": {
+      "id": "rapidroom-starter:Curve",
+      "name": "Curve",
+      "futureFolderField": "keep",
+      "children": [
+        {
+          "id": "rapidroom-starter:Curve/Linear.xmp",
+          "name": "Linear",
+          "adjustments": {
+            "contrast": 7
+          }
+        },
+        {
+          "id": "user:curve",
+          "name": "My contrast",
+          "adjustments": {
+            "contrast": 19
+          },
+          "futurePresetField": {
+            "keep": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "folder": {
+      "id": "user:color",
+      "name": "Color",
+      "children": [
+        {
+          "id": "rapidroom-starter:Color/Cool.xmp",
+          "name": "Cool",
+          "adjustments": {
+            "contrast": 31
+          }
+        }
+      ]
+    }
+  },
+  {
+    "folder": {
+      "id": "rapidroom-starter:Vignetting",
+      "name": "My finishing",
+      "children": [
+        {
+          "id": "rapidroom-starter:Vignetting/Light.xmp",
+          "name": "Light",
+          "adjustments": {
+            "vignetteAmount": -17
+          }
+        }
+      ]
+    }
+  },
+  {
+    "preset": {
+      "id": "user:everyday",
+      "name": "My everyday",
+      "adjustments": {
+        "exposure": 0.3
+      },
+      "favorite": true
+    }
+  },
+  {
+    "preset": {
+      "id": "rapidroom-styles-v1:neon-night",
+      "name": "Renamed Style",
+      "adjustments": {
+        "contrast": 26
+      }
+    }
+  }
+]

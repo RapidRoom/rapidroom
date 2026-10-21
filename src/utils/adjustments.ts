@@ -67,6 +67,8 @@ export enum DetailsAdjustment {
   Dehaze = 'dehaze',
   Structure = 'structure',
   Centré = 'centré',
+  CentréX = 'centréX',
+  CentréY = 'centréY',
   ColorNoiseReduction = 'colorNoiseReduction',
   LumaNoiseReduction = 'lumaNoiseReduction',
   Sharpness = 'sharpness',
@@ -86,6 +88,8 @@ export enum Effect {
   LutSize = 'lutSize',
   LutIsSceneReferred = 'lutIsSceneReferred',
   VignetteAmount = 'vignetteAmount',
+  VignetteCenterX = 'vignetteCenterX',
+  VignetteCenterY = 'vignetteCenterY',
   VignetteFeather = 'vignetteFeather',
   VignetteMidpoint = 'vignetteMidpoint',
   VignetteRoundness = 'vignetteRoundness',
@@ -249,6 +253,8 @@ export interface Adjustments {
   blacks: number;
   brightness: number;
   centré: number;
+  centréX: number;
+  centréY: number;
   clarity: number;
   chromaticAberrationBlueYellow: number;
   chromaticAberrationRedCyan: number;
@@ -354,6 +360,8 @@ export interface Adjustments {
   transformYOffset: number;
   vibrance: number;
   vignetteAmount: number;
+  vignetteCenterX: number;
+  vignetteCenterY: number;
   vignetteFeather: number;
   vignetteMidpoint: number;
   vignetteRoundness: number;
@@ -657,12 +665,14 @@ export const INITIAL_MASK_CONTAINER: MaskContainer = {
 export const INITIAL_ADJUSTMENTS: Adjustments = {
   activeTools: {},
   aiPatches: [],
-  aspectRatio: null,
+  aspectRatio: 0,
   baselineExposure: true,
   cameraExposureCompensation: true,
   blacks: 0,
   brightness: 0,
   centré: 0,
+  centréX: 0.5,
+  centréY: 0.5,
   clarity: 0,
   chromaticAberrationBlueYellow: 0,
   chromaticAberrationRedCyan: 0,
@@ -764,6 +774,8 @@ export const INITIAL_ADJUSTMENTS: Adjustments = {
   transformYOffset: 0,
   vibrance: 0,
   vignetteAmount: 0,
+  vignetteCenterX: 0.5,
+  vignetteCenterY: 0.5,
   vignetteFeather: 50,
   vignetteMidpoint: 50,
   vignetteRoundness: 0,
@@ -1032,6 +1044,8 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
         DetailsAdjustment.Structure,
         DetailsAdjustment.Dehaze,
         DetailsAdjustment.Centré,
+        DetailsAdjustment.CentréX,
+        DetailsAdjustment.CentréY,
       ],
     },
     {
@@ -1050,7 +1064,14 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
   effects: [
     {
       label: 'modals.copyPaste.groups.vignette',
-      keys: [Effect.VignetteAmount, Effect.VignetteFeather, Effect.VignetteMidpoint, Effect.VignetteRoundness],
+      keys: [
+        Effect.VignetteAmount,
+        Effect.VignetteFeather,
+        Effect.VignetteMidpoint,
+        Effect.VignetteRoundness,
+        Effect.VignetteCenterX,
+        Effect.VignetteCenterY,
+      ],
     },
     { label: 'modals.copyPaste.groups.grain', keys: [Effect.GrainAmount, Effect.GrainRoughness, Effect.GrainSize] },
     {
@@ -1144,6 +1165,8 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     DetailsAdjustment.Dehaze,
     DetailsAdjustment.Structure,
     DetailsAdjustment.Centré,
+    DetailsAdjustment.CentréX,
+    DetailsAdjustment.CentréY,
     DetailsAdjustment.Sharpness,
     DetailsAdjustment.SharpnessThreshold,
     DetailsAdjustment.LumaNoiseReduction,
@@ -1167,6 +1190,8 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     Effect.VignetteFeather,
     Effect.VignetteMidpoint,
     Effect.VignetteRoundness,
+    Effect.VignetteCenterX,
+    Effect.VignetteCenterY,
     Effect.LensBlurEnabled,
     Effect.LensBlurAmount,
     Effect.lensBlurDiffusion,
@@ -1302,7 +1327,6 @@ export const mergeActiveTools = (base: ToolStateSource, overrides: ToolStateSour
 export const getAdjustmentToolOrder = (section: string, toolOrder?: Record<string, string[]>): string[] =>
   reconcileOrder(getAdjustmentSectionToolIds(section), toolOrder?.[section]);
 
-export function createResetAdjustmentsForImage(image: { width: number; height: number } | null): Adjustments {
-  const aspectRatio = image && image.width > 0 && image.height > 0 ? image.width / image.height : null;
-  return { ...INITIAL_ADJUSTMENTS, aspectRatio, aiPatches: [] };
+export function createResetAdjustmentsForImage(_image: { width: number; height: number } | null): Adjustments {
+  return { ...INITIAL_ADJUSTMENTS, aiPatches: [] };
 }

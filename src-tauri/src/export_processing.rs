@@ -35,7 +35,7 @@ use crate::image_loader::{
     composite_patches_on_image, load_and_composite, load_base_image_from_bytes,
 };
 use crate::image_processing::{
-    AllAdjustments, Crop, GpuContext, RenderOptions, RenderOutputPrecision, RenderRequest,
+    AllAdjustments, GpuContext, RenderOptions, RenderOutputPrecision, RenderRequest,
     downscale_f32_image, get_all_adjustments_from_json, get_or_init_gpu_context,
     process_and_get_dynamic_image, process_and_get_dynamic_image_with_precision,
     resolve_render_options_from_handle,
@@ -2854,16 +2854,9 @@ pub async fn estimate_export_sizes(
             1.0
         };
 
-        if let Some(crop_val) = js_adjustments.get_mut("crop")
-            && let Ok(c) = serde_json::from_value::<Crop>(crop_val.clone())
-        {
-            *crop_val = serde_json::to_value(Crop {
-                x: c.x * raw_scale_factor as f64,
-                y: c.y * raw_scale_factor as f64,
-                width: c.width * raw_scale_factor as f64,
-                height: c.height * raw_scale_factor as f64,
-            })
-            .unwrap_or(serde_json::Value::Null);
+        if let Some(crop_val) = js_adjustments.get_mut("crop") {
+            *crop_val =
+                crate::image_processing::scale_crop_value(crop_val, raw_scale_factor as f64);
         }
 
         let (transformed_shrunk_res, unscaled_crop_offset) =

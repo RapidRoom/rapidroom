@@ -13,7 +13,15 @@ The 2026-10-12 refresh retains baseline exposure and export metadata work by mar
 
 The 2026-10-15 daily refresh retains upstream contributions by Timon Käch, marclaliberte, cl1x, Max (waxm134) and Yojen in normal merge history. Per-tool visibility, capture-time timezone, auto-lens sidecar completion, headless exit codes, mask-drop insertion and layout-aware shortcuts are integrated while preserving RapidRoom additions. Conflict resolution and compatibility work is by yojen7 with Codex.
 
+The Original crop-ratio sentinel is adapted from [apweisskopf’s RapidRAW commit 2fb1ce0d](https://github.com/CyberTimon/RapidRAW/commit/2fb1ce0dccdba88de5923e41056928925615d3b4), with tooltip follow-up by CyberTimon. Yojen adapted it to RapidRoom’s Instagram crop, lens-aware reset and typed MCP paths.
+
+Auto straighten is adapted from marclaliberte’s [RapidRAW series ending at 3daf49e4](https://github.com/CyberTimon/RapidRAW/commit/3daf49e47f7c0c45645d6aa5de5c0d24509de342). The line detector and original regression tests are retained; Yojen adapted crop, async and batch handling to RapidRoom.
+
+Auto Straighten uses [lsdetect 0.3.0 by Patrick Zwerschke](https://github.com/p5k369/lsdetect), under its MIT option. Its [copyright and permission notice](src-tauri/resources/licenses/lsdetect-0.3.0-MIT.txt) ships with the app resources.
+
 Batch Auto Adjust completion is adapted from marclaliberte’s [RapidRAW commit 7fb5fadd](https://github.com/CyberTimon/RapidRAW/commit/7fb5fadd7cb0ad04393e7246548fcac71aa12d6a). Yojen adapted the wait to RapidRoom’s existing atomic sidecar, Card and XMP paths.
+
+Movable vignette and centré centres are adapted from [CyberTimon’s RapidRAW commit b39884b3](https://github.com/CyberTimon/RapidRAW/commit/b39884b38d8f148caef6fd0d52afd264951be329). Yojen adapted the overlay to RapidRoom’s mixer/WB tools, defaults, typed MCP and renderer layout.
 
 ## Bounded assistant judge policy
 

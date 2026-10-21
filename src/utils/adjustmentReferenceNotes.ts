@@ -72,6 +72,8 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   dehaze: '+ removes haze and adds saturation; − adds a bluish haze. Mild per unit.',
   centré:
     'Centre emphasis: + adds contrast, about 0.2 EV and colour in a central ellipse and quietens the edges; − the reverse. Not in masks.',
+  centréX: 'Normalized horizontal centre position for Centré (0–1); default 0.5.',
+  centréY: 'Normalized vertical centre position for Centré (0–1); default 0.5.',
   sharpness: '+ sharpens with halo limiting; − softens. Sharpen the subject, not the background.',
   sharpnessThreshold: 'Higher sharpens only stronger edges (keeps skies and noise clean).',
   lumaNoiseReduction:
@@ -84,6 +86,8 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   vignetteFeather: 'Width of the transition: higher is softer.',
   vignetteMidpoint: 'Where the transition sits: higher pushes it towards the corners.',
   vignetteRoundness: 'Changes the shape between rectangular and round.',
+  vignetteCenterX: 'Normalized horizontal vignette centre (0–1); default 0.5.',
+  vignetteCenterY: 'Normalized vertical vignette centre (0–1); default 0.5.',
   grainAmount: '+ more film grain, mostly in the midtones. Applied last, after the LUT.',
   grainRoughness: 'Higher mixes in a coarser, less even grain.',
   grainSize: 'Higher is coarser grain.',
@@ -99,7 +103,8 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   lutIsSceneReferred:
     '`true` applies the LUT before tone mapping (built-in film looks use this), `false` after the curves.',
   crop: '`{"unit": "px", "x", "y", "width", "height"}` in full-resolution pixels after rotation and flips; `null` for none.',
-  aspectRatio: 'Crop width / height (for example 0.8 for 4:5), or `null` for free.',
+  aspectRatio:
+    '`0` follows the oriented image (Original); `null` is Free; positive numbers are fixed crop width / height (for example 0.8 for 4:5).',
   rotation: 'Fine straightening in degrees; + turns the image clockwise.',
   flipHorizontal: 'Mirror left–right.',
   flipVertical: 'Mirror top–bottom.',

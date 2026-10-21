@@ -31,7 +31,8 @@ import { isPanelVisible, useUIStore } from '../../../store/useUIStore';
 import type { OverlayMode } from '../right/CropPanel';
 import CompositionOverlays from './overlays/CompositionOverlays';
 import RelightLightShape, { RelightBasis } from './overlays/RelightLightShape';
-import { calculateStraightenAngle } from '../../../utils/cropUtils';
+import CenterMarkerShape, { CENTER_MARKERS } from './overlays/CenterMarkerShape';
+import { calculateStraightenAngle, resolveAspectRatio } from '../../../utils/cropUtils';
 import { toast } from 'react-toastify';
 import {
   getWhiteBalanceMode,
@@ -1532,6 +1533,13 @@ const ImageCanvas = memo(
     const isGuidedPerspectiveActive = useEditorStore((state) => state.isGuidedPerspectiveActive);
     const isRelightPickerActive = useEditorStore((state) => state.isRelightPickerActive);
     const activeRelightLightId = useEditorStore((state) => state.activeRelightLightId);
+    const activeCenterMarker = useEditorStore((state) => state.activeCenterMarker);
+    const isCenterMarkerSectionOpen = useUIStore(
+      (state) =>
+        !!activeCenterMarker &&
+        isPanelVisible(state, Panel.Adjustments) &&
+        state.collapsibleSectionsState[CENTER_MARKERS[activeCenterMarker].section],
+    );
     const isRelightToolOpen = useUIStore(
       (state) => isPanelVisible(state, Panel.Adjustments) && state.collapsibleSectionsState.effects,
     );
@@ -2321,6 +2329,65 @@ const ImageCanvas = memo(
       window.addEventListener('pointerdown', handlePointerDown, true);
       return () => window.removeEventListener('pointerdown', handlePointerDown, true);
     }, [isRelightPickerActive, setEditor]);
+
+    const centerMarkerConfig = activeCenterMarker ? CENTER_MARKERS[activeCenterMarker] : null;
+
+    const showCenterMarker =
+      !!centerMarkerConfig &&
+      isCenterMarkerSectionOpen &&
+      !isMasking &&
+      !isAiEditing &&
+      !isCropping &&
+      !showOriginal &&
+      !isWbPickerActive &&
+      !isMixerPickerActive &&
+      !isRelightPickerActive;
+
+    const centerMarkerPos = useMemo((): Coord => {
+      if (!centerMarkerConfig) return { x: 0, y: 0 };
+      const [keyX, keyY] = centerMarkerConfig.keys;
+      return {
+        x: ((adjustments[keyX] as number | undefined) ?? 0.5) * imageRenderSize.width,
+        y: ((adjustments[keyY] as number | undefined) ?? 0.5) * imageRenderSize.height,
+      };
+    }, [centerMarkerConfig, adjustments, imageRenderSize.width, imageRenderSize.height]);
+
+    const setCenterMarker = useCallback(
+      (pos: Coord | null) => {
+        if (!centerMarkerConfig || !imageRenderSize.width || !imageRenderSize.height) return;
+        const [keyX, keyY] = centerMarkerConfig.keys;
+        const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+        setAdjustments((prev: Adjustments) => ({
+          ...prev,
+          [keyX]: pos ? clamp01(pos.x / imageRenderSize.width) : 0.5,
+          [keyY]: pos ? clamp01(pos.y / imageRenderSize.height) : 0.5,
+        }));
+      },
+      [centerMarkerConfig, imageRenderSize.width, imageRenderSize.height, setAdjustments],
+    );
+
+    useEffect(() => {
+      if (activeCenterMarker && !isCenterMarkerSectionOpen) {
+        setEditor({ activeCenterMarker: null });
+      }
+    }, [activeCenterMarker, isCenterMarkerSectionOpen, setEditor]);
+
+    useEffect(() => {
+      if (!activeCenterMarker) return;
+
+      const handlePointerDown = (e: PointerEvent) => {
+        const target = e.target as HTMLElement;
+        if (
+          target.closest('.konvajs-content') ||
+          target.closest(`[data-center-marker-controls="${activeCenterMarker}"]`)
+        )
+          return;
+        setEditor({ activeCenterMarker: null });
+      };
+
+      window.addEventListener('pointerdown', handlePointerDown, true);
+      return () => window.removeEventListener('pointerdown', handlePointerDown, true);
+    }, [activeCenterMarker, setEditor]);
 
     const getWbCorners = useCallback(
       (x0: number, y0: number, x1: number, y1: number): Coord[] => {
@@ -3678,7 +3745,12 @@ const ImageCanvas = memo(
             </div>
           </div>
 
-          {(isMasking || isAiEditing || isWbPickerActive || isMixerPickerActive || showRelightLights) &&
+          {(isMasking ||
+            isAiEditing ||
+            isWbPickerActive ||
+            isMixerPickerActive ||
+            showRelightLights ||
+            showCenterMarker) &&
             stageWidth > 0 &&
             stageHeight > 0 && (
               <div
@@ -3817,6 +3889,20 @@ const ImageCanvas = memo(
                               onTouchInteraction={() => setIsMaskTouchInteracting(true)}
                             />
                           ))}
+                        {showCenterMarker && centerMarkerConfig && (
+                          <CenterMarkerShape
+                            pos={centerMarkerPos}
+                            imageWidth={imageRenderSize.width}
+                            imageHeight={imageRenderSize.height}
+                            {...centerMarkerConfig.getContour(adjustments)}
+                            zoomScale={effectiveZoomScale}
+                            onMove={setCenterMarker}
+                            onReset={() => setCenterMarker(null)}
+                            onDragStateChange={(isDragging) => setEditor({ isSliderDragging: isDragging })}
+                            onHoverChange={setIsMaskHovered}
+                            onTouchInteraction={() => setIsMaskTouchInteracting(true)}
+                          />
+                        )}
                         {isBrushActive &&
                           cursorPreview.visible &&
                           (!isCloneOrHealActive ||
@@ -3907,7 +3993,10 @@ const ImageCanvas = memo(
               }}
             >
               <ReactCrop
-                aspect={adjustments.aspectRatio ?? undefined}
+                aspect={
+                  resolveAspectRatio(adjustments.aspectRatio, selectedImage, adjustments.orientationSteps || 0) ??
+                  undefined
+                }
                 crop={crop ?? undefined}
                 onChange={setCrop}
                 onComplete={handleCropComplete}
