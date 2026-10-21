@@ -7674,7 +7674,7 @@ mod tests {
         fs::write(&source, b"not a raw image").unwrap();
         let huge = "x".repeat(700);
         let original = format!(
-            r#"{{"adjustments":{{"exposure":1}},"exif":{{"Comment":"{huge}"}},"unknown":"keep"}}"#
+            r#"{{"version":1,"rating":0,"adjustments":{{"exposure":1}},"exif":{{"Comment":"{huge}"}},"unknown":"keep"}}"#
         );
         fs::write(&sidecar, &original).unwrap();
         let before = fs::metadata(&sidecar).unwrap().modified().unwrap();
@@ -7708,7 +7708,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let source = dir.path().join("empty.jpg");
         let sidecar = dir.path().join("empty.jpg.rrdata");
-        let original = r#"{ "adjustments": {}, "unknown": "keep" }"#;
+        let original = r#"{ "version": 1, "rating": 0, "adjustments": {}, "unknown": "keep" }"#;
         fs::write(&source, b"not a raw image").unwrap();
         fs::write(&sidecar, original).unwrap();
         let before = fs::metadata(&sidecar).unwrap().modified().unwrap();
