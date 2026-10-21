@@ -246,6 +246,34 @@ pub struct Crop {
     pub height: f64,
 }
 
+pub fn crop_in_pixels(value: &Value, width: f64, height: f64) -> Option<Crop> {
+    let mut crop = serde_json::from_value::<Crop>(value.clone()).ok()?;
+    if value["unit"].as_str() == Some("%") {
+        crop.x *= width / 100.0;
+        crop.y *= height / 100.0;
+        crop.width *= width / 100.0;
+        crop.height *= height / 100.0;
+    }
+    Some(crop)
+}
+
+// Percentages already describe the resized image; only pixel coordinates scale.
+pub fn scale_crop_value(value: &Value, scale: f64) -> Value {
+    if value["unit"].as_str() == Some("%") {
+        return value.clone();
+    }
+    let Ok(crop) = serde_json::from_value::<Crop>(value.clone()) else {
+        return value.clone();
+    };
+    serde_json::to_value(Crop {
+        x: crop.x * scale,
+        y: crop.y * scale,
+        width: crop.width * scale,
+        height: crop.height * scale,
+    })
+    .unwrap_or(Value::Null)
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GeometryParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1673,24 +1701,22 @@ pub fn apply_crop<'a>(image: impl IntoCowImage<'a>, crop_value: &Value) -> Cow<'
         return image;
     }
 
-    if let Ok(crop) = serde_json::from_value::<Crop>(crop_value.clone()) {
+    let (img_w, img_h) = image.dimensions();
+    if let Some(crop) = crop_in_pixels(crop_value, img_w as f64, img_h as f64) {
         let x = crop.x.round() as u32;
         let y = crop.y.round() as u32;
         let width = crop.width.round() as u32;
         let height = crop.height.round() as u32;
 
-        if width > 0 && height > 0 {
-            let (img_w, img_h) = image.dimensions();
-            if x < img_w && y < img_h {
-                let new_width = (img_w - x).min(width);
-                let new_height = (img_h - y).min(height);
+        if width > 0 && height > 0 && x < img_w && y < img_h {
+            let new_width = (img_w - x).min(width);
+            let new_height = (img_h - y).min(height);
 
-                if new_width > 0 && new_height > 0 {
-                    if x == 0 && y == 0 && new_width == img_w && new_height == img_h {
-                        return image;
-                    }
-                    return Cow::Owned(image.crop_imm(x, y, new_width, new_height));
+            if new_width > 0 && new_height > 0 {
+                if x == 0 && y == 0 && new_width == img_w && new_height == img_h {
+                    return image;
                 }
+                return Cow::Owned(image.crop_imm(x, y, new_width, new_height));
             }
         }
     }
