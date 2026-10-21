@@ -3383,7 +3383,15 @@ pub(crate) fn read_sidecar_report_snapshot(path: &Path) -> Result<ImageMetadata,
     if bytes.len() > MAX_REPORT_SIDECAR_BYTES {
         return Err("Native sidecar exceeds the import report size limit".into());
     }
-    serde_json::from_slice(&bytes)
+    // Older or hand-written sidecars may lack the bookkeeping fields the editor
+    // fills in when it next saves; reading them must not require a write.
+    let mut value: Value = serde_json::from_slice(&bytes)
+        .map_err(|_| "Could not parse native edits for the import report".to_string())?;
+    if let Some(object) = value.as_object_mut() {
+        object.entry("version").or_insert(serde_json::json!(1));
+        object.entry("rating").or_insert(serde_json::json!(0));
+    }
+    serde_json::from_value(value)
         .map_err(|_| "Could not parse native edits for the import report".into())
 }
 
@@ -7674,7 +7682,7 @@ mod tests {
         fs::write(&source, b"not a raw image").unwrap();
         let huge = "x".repeat(700);
         let original = format!(
-            r#"{{"version":1,"rating":0,"adjustments":{{"exposure":1}},"exif":{{"Comment":"{huge}"}},"unknown":"keep"}}"#
+            r#"{{"adjustments":{{"exposure":1}},"exif":{{"Comment":"{huge}"}},"unknown":"keep"}}"#
         );
         fs::write(&sidecar, &original).unwrap();
         let before = fs::metadata(&sidecar).unwrap().modified().unwrap();
@@ -7708,7 +7716,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let source = dir.path().join("empty.jpg");
         let sidecar = dir.path().join("empty.jpg.rrdata");
-        let original = r#"{ "version": 1, "rating": 0, "adjustments": {}, "unknown": "keep" }"#;
+        let original = r#"{ "adjustments": {}, "unknown": "keep" }"#;
         fs::write(&source, b"not a raw image").unwrap();
         fs::write(&sidecar, original).unwrap();
         let before = fs::metadata(&sidecar).unwrap().modified().unwrap();
