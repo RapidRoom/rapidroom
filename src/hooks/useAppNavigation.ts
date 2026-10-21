@@ -367,9 +367,6 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
             } else {
               freshAdjustments = { ...INITIAL_ADJUSTMENTS };
             }
-            if (freshAdjustments.aspectRatio == null && cached.adjustments.aspectRatio != null) {
-              freshAdjustments.aspectRatio = cached.adjustments.aspectRatio;
-            }
             if (!isSliderDragging && JSON.stringify(cached.adjustments) !== JSON.stringify(freshAdjustments)) {
               setEditor({ adjustments: freshAdjustments });
               resetHistory(freshAdjustments);

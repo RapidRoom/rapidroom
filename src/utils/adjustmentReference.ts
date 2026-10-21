@@ -187,10 +187,10 @@ interface Row {
 }
 
 const typeOf = (value: unknown, path: string): string => {
+  if (path === 'aspectRatio') return 'number | null';
   if (value === null) {
     if (/^(lutPath|lutName|lutData|lensMaker|lensModel|lensBlurDepthMap|relightNormalMap|fogDepthMap)$/.test(path))
       return 'string | null';
-    if (path === 'aspectRatio') return 'number | null';
     return 'object | null';
   }
   if (Array.isArray(value)) return 'array';
@@ -296,7 +296,7 @@ const maskSection = (maskConfig: Record<string, MaskPanelConfig>): string[] => {
     '- `render_mask` returns the actual grayscale composite matte without changing history. `convert_coordinates` maps view fractions to mask pixels before crop on the same corrected/oriented canvas (not uncorrected sensor pixels). Use its returned revision for placement. `upsert_masks` validates every entry before one atomic history step; `sample_region` can measure a labelled `regions` array from one shared render.',
     '- Discovery validates each container/component and local adjustment. `upsert_mask` creates or deep-updates one id while preserving siblings; `remove_mask` removes only that id. A supplied `subMasks` replaces only its container’s component array. Full `masks` arrays in set/update replace every container. Read the latest revision before each mutation.',
     '- IDs contain 1–128 ASCII letters, digits, underscore, colon, dot or hyphen. Sparse local settings receive defaults, including nested HSL/grading channels. Parametric `split1 < split2 < split3` is checked after existing-value merge or defaults 25/50/75. Echoed display names retain stored names; intentional new names use the existing bounded text policy.',
-    '- Radial/brush feather is 0–1; colour/luminance/AI feather is 0–100. Coordinates are full-resolution image pixels before crop, independent of display/preview size. `crop` is `{x,y,width,height,unit:"px"}`, or null; set `aspectRatio` separately to width ÷ height. Use `convert_coordinates` for view fractions or `generate_ai_mask` to run a model. Editing existing bitmap parameters with upsert_mask does not run inference.',
+    '- Radial/brush feather is 0–1; colour/luminance/AI feather is 0–100. Coordinates are full-resolution image pixels before crop, independent of display/preview size. `crop` is `{x,y,width,height,unit:"px"}`, or null; set `aspectRatio` separately to `0` for Original, `null` for Free, or a positive fixed width ÷ height. Use `convert_coordinates` for view fractions or `generate_ai_mask` to run a model. Editing existing bitmap parameters with upsert_mask does not run inference.',
     '',
     'A new container looks like this (`id` can be a UUID):',
     '',

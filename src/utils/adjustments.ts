@@ -665,7 +665,7 @@ export const INITIAL_MASK_CONTAINER: MaskContainer = {
 export const INITIAL_ADJUSTMENTS: Adjustments = {
   activeTools: {},
   aiPatches: [],
-  aspectRatio: null,
+  aspectRatio: 0,
   baselineExposure: true,
   cameraExposureCompensation: true,
   blacks: 0,
@@ -1327,7 +1327,6 @@ export const mergeActiveTools = (base: ToolStateSource, overrides: ToolStateSour
 export const getAdjustmentToolOrder = (section: string, toolOrder?: Record<string, string[]>): string[] =>
   reconcileOrder(getAdjustmentSectionToolIds(section), toolOrder?.[section]);
 
-export function createResetAdjustmentsForImage(image: { width: number; height: number } | null): Adjustments {
-  const aspectRatio = image && image.width > 0 && image.height > 0 ? image.width / image.height : null;
-  return { ...INITIAL_ADJUSTMENTS, aspectRatio, aiPatches: [] };
+export function createResetAdjustmentsForImage(_image: { width: number; height: number } | null): Adjustments {
+  return { ...INITIAL_ADJUSTMENTS, aiPatches: [] };
 }

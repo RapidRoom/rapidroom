@@ -96,9 +96,9 @@ it('application actions share guards and dispose safely across re-registration',
   expect(executeAppAction('redo')).toBe(false);
 });
 
-it('reset uses current-photo geometry and does not reuse mutable default arrays', () => {
+it('reset keeps the Original ratio sentinel and does not reuse mutable default arrays', () => {
   const reset = createResetAdjustmentsForImage({ width: 6000, height: 4000 });
-  expect(reset.aspectRatio).toBe(1.5);
+  expect(reset.aspectRatio).toBe(0);
   expect(reset.exposure).toBe(0);
   expect(reset.aiPatches).toEqual([]);
   expect(reset.aiPatches).not.toBe(INITIAL_ADJUSTMENTS.aiPatches);

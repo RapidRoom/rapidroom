@@ -286,7 +286,7 @@ describe('MCP editor bridge review', () => {
     expect(useEditorStore.getState().adjustments).toMatchObject({
       contrast: 0,
       crop: null,
-      aspectRatio: 1.5,
+      aspectRatio: 0,
       lensCorrectionMode: 'auto',
       cameraLensCorrectionVersion: 1,
     });

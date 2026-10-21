@@ -378,3 +378,71 @@ describe('labelled async editor actions', () => {
     expect(useEditorStore.getState().historyDetails.some((entry) => entry?.label === 'Reset adjustments')).toBe(false);
   });
 });
+
+describe('Original crop orientation compatibility', () => {
+  it('flips a saved percentage ROI around the same image-space centre as pixels', () => {
+    let actions: ReturnType<typeof useEditorActions> | undefined;
+    function Probe() {
+      actions = useEditorActions();
+      return null;
+    }
+    renderToStaticMarkup(createElement(Probe));
+    const selectedImage = {
+      exif: {},
+      height: 4000,
+      isRaw: true,
+      isReady: true,
+      path: '/photos/percent.raw',
+      thumbnailUrl: '',
+      width: 6000,
+    };
+    const frames = [
+      { unit: '%' as const, x: 10, y: 20, width: 30, height: 60 },
+      { unit: 'px' as const, x: 600, y: 800, width: 1800, height: 2400 },
+    ];
+    const outputs = frames.map((crop) => {
+      useEditorStore
+        .getState()
+        .setEditor({ selectedImage, adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: 0.75, crop } });
+      actions!.handleCropOrientationToggle();
+      return useEditorStore.getState().adjustments;
+    });
+    expect(outputs[0].crop).toEqual(outputs[1].crop);
+    expect(outputs[0].aspectRatio).toBeCloseTo(4 / 3);
+    expect(outputs[0].crop!.width).toBeGreaterThan(1000);
+  });
+
+  it('keeps Original during image rotation and flips its resolved ratio with X', () => {
+    const selectedImage = {
+      exif: {},
+      height: 4000,
+      isRaw: true,
+      isReady: true,
+      path: '/photos/original.raw',
+      thumbnailUrl: '',
+      width: 6000,
+    };
+    let actions: ReturnType<typeof useEditorActions> | undefined;
+    function Probe() {
+      actions = useEditorActions();
+      return null;
+    }
+    renderToStaticMarkup(createElement(Probe));
+    useEditorStore
+      .getState()
+      .setEditor({ selectedImage, adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: 0, crop: null } });
+    actions!.handleRotate(90);
+    expect(useEditorStore.getState().adjustments.aspectRatio).toBe(0);
+    expect(useEditorStore.getState().adjustments.orientationSteps).toBe(1);
+
+    useEditorStore.getState().setEditor({ adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: 0, crop: null } });
+    actions!.handleCropOrientationToggle();
+    const flipped = useEditorStore.getState().adjustments;
+    expect(flipped.aspectRatio).toBeCloseTo(2 / 3);
+    expect(flipped.crop!.width / flipped.crop!.height).toBeCloseTo(2 / 3, 2);
+
+    useEditorStore.getState().setEditor({ adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: 0.75, crop: null } });
+    actions!.handleCropOrientationToggle();
+    expect(useEditorStore.getState().adjustments.aspectRatio).toBeCloseTo(4 / 3);
+  });
+});

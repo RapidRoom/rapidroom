@@ -355,7 +355,7 @@ pub(super) fn adjustments_schema() -> Value {
     );
     properties.insert(
         "aspectRatio".to_string(),
-        json!({ "type": ["number", "null"], "exclusiveMinimum": 0 }),
+        json!({ "type": ["number", "null"], "minimum": 0, "description": "0 locks to the oriented image ratio (Original), null is Free, and positive numbers are fixed width/height ratios." }),
     );
     properties.insert(
         "activeTools".to_string(),
@@ -767,6 +767,15 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                         .is_some_and(|map| map.values().all(Value::is_boolean))
                     {
                         return Err(format!("adjustment {key} must be a boolean map"));
+                    }
+                }
+                "aspectRatio" => {
+                    if !value.is_null()
+                        && !value
+                            .as_f64()
+                            .is_some_and(|ratio| ratio.is_finite() && ratio >= 0.0)
+                    {
+                        return Err("aspectRatio must be null, 0 (Original), or a positive width/height ratio".into());
                     }
                 }
                 "crop" => super::masks::validate_crop(value)?,
@@ -1255,6 +1264,31 @@ pub(super) fn merge_adjustments(current: Value, changes: Value) -> Result<Value,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn original_ratio_and_instagram_crop_survive_typed_updates() {
+        let schema = adjustments_schema();
+        assert_eq!(schema["properties"]["aspectRatio"]["minimum"], 0);
+        assert!(
+            schema["properties"]["aspectRatio"]
+                .get("exclusiveMinimum")
+                .is_none()
+        );
+        for ratio in [json!(null), json!(0), json!(0.75), json!(1.5)] {
+            assert!(validate_adjustments(&json!({"aspectRatio": ratio})).is_ok());
+        }
+        for ratio in [json!(-1), json!(false), json!("Original")] {
+            assert!(validate_adjustments(&json!({"aspectRatio": ratio})).is_err());
+        }
+        let original = super::super::tools::original_adjustments().unwrap();
+        assert_eq!(original["aspectRatio"], 0);
+        let crop = json!({"unit":"px", "x":1000, "y":100, "width":2700, "height":3600});
+        let instagram =
+            merge_adjustments(original, json!({"aspectRatio":0.75, "crop":crop})).unwrap();
+        let edited = merge_adjustments(instagram, json!({"exposure":0.5})).unwrap();
+        assert_eq!(edited["aspectRatio"], 0.75);
+        assert_eq!(edited["crop"], crop);
+    }
 
     #[test]
     fn centre_positions_have_bounded_typed_discovery_and_updates() {
