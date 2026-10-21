@@ -19,6 +19,8 @@ Auto Straighten uses [lsdetect 0.3.0 by Patrick Zwerschke](https://github.com/p5
 
 Batch Auto Adjust completion is adapted from marclaliberte’s [RapidRAW commit 7fb5fadd](https://github.com/CyberTimon/RapidRAW/commit/7fb5fadd7cb0ad04393e7246548fcac71aa12d6a). Yojen adapted the wait to RapidRoom’s existing atomic sidecar, Card and XMP paths.
 
+Movable vignette and centré centres are adapted from [CyberTimon’s RapidRAW commit b39884b3](https://github.com/CyberTimon/RapidRAW/commit/b39884b38d8f148caef6fd0d52afd264951be329). Yojen adapted the overlay to RapidRoom’s mixer/WB tools, defaults, typed MCP and renderer layout.
+
 ## Bounded assistant judge policy
 
 The offline nondecreasing-score and bounded-round policy is adapted from skymanbp’s [autoshade@a1f3507808d1a9d61c44593244a5e6ee2c38cae3](https://github.com/skymanbp/autoshade/tree/a1f3507808d1a9d61c44593244a5e6ee2c38cae3), `src/pipeline.rs` and `src/advisor/judge.rs`, MIT copyright 2026 skymanbp. The notice is retained in `rapidroom/plugin/LICENSES/autoshade-MIT.txt`. Yojen adapted the policy with Codex; the closed move catalogue, generated RapidRoom range projection and local CLI are original integration. No remote model client or external dependency is imported.

@@ -897,7 +897,10 @@
         "preset": "Vorgabe",
         "style": "Stil",
         "tool": "Werkzeug"
-      }
+      },
+      "appliedFolder": "Angewendet",
+      "bakedIn": "fest übernommen",
+      "bakedInNotice": "Früher angewendet und fest in die Bearbeitung übernommen. Entfernen behält die Bearbeitung bei."
     },
     "referenceView": {
       "active": "Aktiv",

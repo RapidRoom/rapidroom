@@ -47,6 +47,7 @@ def run_styles_checks(smoke, wait_for, baseline):
         current=smoke.stable_preview('styles-teal-'+str(amount))
         if amount==0:assert ImageChops.difference(smoke.crop(baseline),smoke.crop(current)).getbbox() is None
     smoke.step('native Styles apply/Amount60/30 changes preview; Amount0 restores exact original pixels')
+    smoke.execute("document.querySelector('[data-applied-style=\"rapidroom-style:teal-orange\"] button[aria-label^=\"Remove Style\"]').click();return true;")
     exported=smoke.case/'style-roundtrip.rrpreset'
     ipc('handle_export_presets_to_file',{'presetsToExport':[{'preset':teal}],'filePath':str(exported)})
     data=json.loads(exported.read_text());assert data['presets'][0]['preset']['description']==teal['description']
@@ -75,7 +76,7 @@ def run_styles_checks(smoke, wait_for, baseline):
         actual=smoke.slider('Amount')['value']
         current=smoke.stable_preview('styles-gothic-'+str(amount))
         if actual==0:
-            wait_for(lambda:edit().get('masks',[])==original.get('masks',[]),'Amount0 removes only new beam')
+            wait_for(lambda:len(edit().get('masks',[]))==len(original.get('masks',[]))+1 and edit()['masks'][-1]['opacity']==0,'Amount0 mutes only the Style beam')
             assert ImageChops.difference(smoke.crop(baseline),smoke.crop(current)).getbbox() is None
         else:
             def faded():
@@ -128,6 +129,10 @@ def run_styles_checks(smoke, wait_for, baseline):
     first_pixels=smoke.stable_preview('styles-gothic-edited-mask')
     first=edit()
     smoke.step('Dark Forest beam is editable through ordinary native mask controls',{'opacity':actual})
+    # Clicking an applied Style removes it. The edited beam becomes user-owned.
+    apply_beam()
+    retained_pixels=smoke.stable_preview('styles-gothic-removed-edited-mask')
+    wait_for(lambda:edit().get('masks',[])==first['masks'],'removing Style preserves manually edited beam')
     apply_beam()
     smoke.stable_preview('styles-gothic-second-mask')
     second=wait_for(lambda:edit() if len(edit().get('masks',[]))==len(first['masks'])+1 else None,'second style preserves existing local mask')
@@ -136,15 +141,15 @@ def run_styles_checks(smoke, wait_for, baseline):
     assert len(set(ids))==len(ids)
     smoke.drag('Amount',0)
     restored=smoke.stable_preview('styles-gothic-existing-restored')
-    wait_for(lambda:edit().get('masks',[])==first['masks'],'Amount0 restores prior mask exactly')
-    assert ImageChops.difference(smoke.crop(first_pixels),smoke.crop(restored)).getbbox() is None
+    wait_for(lambda:edit().get('masks',[])[:-1]==first['masks'] and edit()['masks'][-1]['opacity']==0,'Amount0 preserves prior mask and mutes new beam')
+    assert ImageChops.difference(smoke.crop(retained_pixels),smoke.crop(restored)).getbbox() is None
     mask_export=smoke.case/'beam-style-roundtrip.rrpreset'
     ipc('handle_export_presets_to_file',{'presetsToExport':[{'preset':gothic}],'filePath':str(mask_export)})
     roundtrip=json.loads(mask_export.read_text())['presets'][0]['preset']
     assert roundtrip['includeMasks'] and roundtrip['adjustments']['masks']==gothic['adjustments']['masks']
     smoke.step('native Gothic beam uses pixel geometry, fades at60/30/0, preserves existing mask and exports reusable template')
     # Restore through ordinary shared Undo before continuing the library checks.
-    for attempt in range(14):
+    for attempt in range(24):
         smoke.execute("document.querySelector('button[data-tooltip^=\"Undo (\"]').click();return true;")
         current=smoke.stable_preview('styles-beam-undo-'+str(attempt))
         if ImageChops.difference(smoke.crop(baseline),smoke.crop(current)).getbbox() is None:
@@ -185,60 +190,54 @@ def run_styles_checks(smoke, wait_for, baseline):
     ipc('save_presets',{'presets':[]});assert ipc('load_presets')==[]
     presetfile.unlink();assert ipc('load_presets')==[]
     smoke.step('native marker-only flat seeding preserves user folders, moved/favourite/imported presets and order; empty/missing saved library does not resurrect Styles')
-    # Import the actual bundled legacy XMP files through the real native
-    # converter, then reconstruct their pre-upgrade stock IDs and groups.
-    stock_root = Path(__file__).resolve().parents[3] / 'src-tauri/resources/starter-presets'
-    originals = []
-    for relative in ['Color/Cool.xmp', 'Color/Warm.xmp', 'Color/Matte.xmp',
-                     'Color/Muted.xmp', 'Color/Punch.xmp', 'Curve/Linear.xmp',
-                     'Vignetting/Light.xmp']:
-        ipc('save_presets', {'presets': []})
-        imported = ipc('handle_import_legacy_presets_from_file', {'filePath': str(stock_root / relative)})
-        converted = [p for item in imported for p in
-                     (item['folder']['children'] if 'folder' in item else [item['preset']])]
-        assert len(converted) == 1
-        preset = converted[0]
-        preset['id'] = 'rapidroom-starter:' + relative
-        originals.append(preset)
-    untouched, favourite, edited, renamed, moved, linear, renamed_group = deepcopy(originals)
-    favourite['favorite'] = True
-    edited['adjustments']['contrast'] = 13
-    renamed['name'] = 'My muted colour'
-    custom = dict(deepcopy(untouched), id='user:cool')
-    imported_copy = dict(deepcopy(linear), id='imported:linear')
-    old_library = [
-        {'preset': custom},
-        {'folder': {'id': 'rapidroom-starter:Color', 'name': 'Color',
-                    'children': [untouched, favourite, edited, renamed]}},
-        {'folder': {'id': 'my-moved', 'name': 'My group', 'children': [moved, imported_copy]}},
-        {'folder': {'id': 'rapidroom-starter:Curve', 'name': 'Curve', 'children': [linear]}},
-        {'folder': {'id': 'rapidroom-starter:Vignetting', 'name': 'My renamed stock group',
-                    'children': [renamed_group]}},
-    ]
-    expected = deepcopy(old_library)
-    expected[1]['folder']['children'].pop(0)
-    expected.pop(3)
+    # The sanitized fixture represents an older converter, whose stock values
+    # differ from the current bundle. Exercise the actual upgrade on disk.
+    fixture = Path(__file__).resolve().parents[3] / 'rapidroom/validation/fixtures/presets-stock-older.json'
+    older_bytes = fixture.read_bytes()
+    old_library = json.loads(older_bytes)
+    expected = old_library[3:]
     replacement_marker = presetfile.with_name('.rapidroom-styles-replacement-v1')
-    ipc('save_presets', {'presets': old_library})
-    replacement_marker.unlink()
-    # Keep the earlier Styles marker: a previously deleted pack stays deleted.
+    replacement_v2 = presetfile.with_name('.rapidroom-styles-replacement-v2')
+    before_backups = set(presetfile.parent.glob('presets.json.bak-*'))
+    presetfile.write_bytes(older_bytes)
+    replacement_v2.unlink()
     migrated = ipc('load_presets')
-    assert migrated == expected
-    assert marker.exists() and replacement_marker.exists()
+    # Unknown fields intentionally remain in the file even though the public
+    # typed IPC response contains the app's current schema only.
+    assert [item.get('folder', item.get('preset'))['id'] for item in migrated] == [
+        item.get('folder', item.get('preset'))['id'] for item in expected]
     assert json.loads(presetfile.read_text()) == expected
-    assert ipc('load_presets') == expected
-    smoke.step('native stock replacement preserves favourites, edits, names, moved/imported presets, order and prior Styles deletion')
-    ipc('save_presets', {'presets': old_library})
+    assert marker.exists() and replacement_marker.exists() and replacement_v2.exists()
+    backups = set(presetfile.parent.glob('presets.json.bak-*')) - before_backups
+    assert len(backups) == 1 and next(iter(backups)).read_bytes() == older_bytes
+    assert ipc('load_presets') == migrated
+    assert set(presetfile.parent.glob('presets.json.bak-*')) - before_backups == backups
+    smoke.step('native v2 upgrade backs up exact older-library bytes, removes whole stock folders, preserves mixed/moved/renamed/user items and prior Styles deletion')
+    # A normal GUI-created UUID preset can have the same name as stock.
+    mixed = deepcopy(old_library)
+    mixed[1]['folder']['children'].append({
+        'id': '8f9ab237-4a89-49a2-9baa-c84c482f65c3', 'name': 'Cool',
+        'adjustments': {'contrast': 42}, 'favorite': True})
+    mixed_bytes = json.dumps(mixed, indent=2).encode()
+    presetfile.write_bytes(mixed_bytes)
+    replacement_v2.unlink()
+    ipc('load_presets')
+    assert json.loads(presetfile.read_text()) == [mixed[1]] + mixed[3:]
+    smoke.step('native v2 keeps the whole mixed stock folder when a user UUID preset shares the name Cool')
+    presetfile.write_bytes(older_bytes)
     marker.unlink()
     replacement_marker.unlink()
+    replacement_v2.unlink()
     first_upgrade = ipc('load_presets')
-    assert len(first_upgrade[:expected_count]) == expected_count
+    assert len(first_upgrade) == expected_count + len(expected)
     assert all('preset' in item for item in first_upgrade[:expected_count])
-    assert first_upgrade[expected_count:] == expected
+    assert json.loads(presetfile.read_text())[expected_count:] == expected
     assert ipc('load_presets') == first_upgrade
     ipc('save_presets', {'presets': []})
     assert ipc('load_presets') == []
-    smoke.step('native first upgrade replaces untouched stock with Styles exactly once; deleting all presets persists')
+    presetfile.unlink()
+    assert ipc('load_presets') == []
+    smoke.step('native first upgrade seeds twenty colour Styles once; deleting all presets or the saved file stays empty')
     ipc('save_presets',{'presets':saved})
     search('')
     smoke.execute("document.querySelector('[data-tab-id=\"layout-tab-adjustments\"]').click();return true;")

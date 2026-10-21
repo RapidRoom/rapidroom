@@ -921,7 +921,10 @@
         "preset": "Ajuste preestablecido",
         "style": "Estilo",
         "tool": "Herramienta"
-      }
+      },
+      "appliedFolder": "Aplicados",
+      "bakedIn": "integrado",
+      "bakedInNotice": "Aplicado anteriormente e integrado en la edición. Al quitarlo se conserva la edición."
     },
     "referenceView": {
       "active": "Activa",

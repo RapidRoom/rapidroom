@@ -68,6 +68,8 @@
       ],
       "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
     },
+    "centréX": { "defaultType": "number", "default": 0.5 },
+    "centréY": { "defaultType": "number", "default": 0.5 },
     "clarity": {
       "defaultType": "number",
       "default": 0,
@@ -2095,6 +2097,8 @@
       ],
       "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
     },
+    "vignetteCenterX": { "defaultType": "number", "default": 0.5 },
+    "vignetteCenterY": { "defaultType": "number", "default": 0.5 },
     "vignetteFeather": {
       "defaultType": "number",
       "default": 50,
@@ -2498,7 +2502,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 45,
+      "line": 47,
       "valueExpression": "adjustments.sharpness",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.Sharpness, e.target.value)",
       "labelExpression": "t('adjustments.details.sharpness')",
@@ -2509,7 +2513,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 55,
+      "line": 57,
       "valueExpression": "adjustments.sharpnessThreshold ?? 15",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.SharpnessThreshold, e.target.value)",
       "labelExpression": "t('adjustments.details.threshold')",
@@ -2520,7 +2524,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 76,
+      "line": 78,
       "valueExpression": "adjustments.clarity",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.Clarity, e.target.value)",
       "labelExpression": "t('adjustments.details.clarity')",
@@ -2531,7 +2535,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 85,
+      "line": 87,
       "valueExpression": "adjustments.dehaze",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.Dehaze, e.target.value)",
       "labelExpression": "t('adjustments.details.dehaze')",
@@ -2542,7 +2546,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 94,
+      "line": 96,
       "valueExpression": "adjustments.structure",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.Structure, e.target.value)",
       "labelExpression": "t('adjustments.details.structure')",
@@ -2553,7 +2557,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 104,
+      "line": 117,
       "valueExpression": "adjustments.centré",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.Centré, e.target.value)",
       "labelExpression": "t('adjustments.details.centre')",
@@ -2564,7 +2568,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 125,
+      "line": 139,
       "valueExpression": "adjustments.lumaNoiseReduction",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.LumaNoiseReduction, e.target.value)",
       "labelExpression": "t('adjustments.details.luminance')",
@@ -2575,7 +2579,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 134,
+      "line": 148,
       "valueExpression": "adjustments.colorNoiseReduction",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.ColorNoiseReduction, e.target.value)",
       "labelExpression": "t('adjustments.details.color')",
@@ -2586,7 +2590,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 152,
+      "line": 166,
       "valueExpression": "adjustments.chromaticAberrationRedCyan",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.ChromaticAberrationRedCyan, e.target.value)",
       "labelExpression": "t('adjustments.details.redCyan')",
@@ -2597,7 +2601,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 161,
+      "line": 175,
       "valueExpression": "adjustments.chromaticAberrationBlueYellow",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.ChromaticAberrationBlueYellow, e.target.value)",
       "labelExpression": "t('adjustments.details.blueYellow')",
@@ -2608,7 +2612,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 389,
+      "line": 391,
       "valueExpression": "adjustments.glowAmount",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(CreativeAdjustment.GlowAmount, e.target.value)",
       "labelExpression": "t('adjustments.effects.glow')",
@@ -2619,7 +2623,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 399,
+      "line": 401,
       "valueExpression": "adjustments.halationAmount",
       "changeExpression": "(e: SliderChangeEvent) =>\n              handleAdjustmentChange(CreativeAdjustment.HalationAmount, e.target.value)",
       "labelExpression": "t('adjustments.effects.halation')",
@@ -2630,7 +2634,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 412,
+      "line": 414,
       "valueExpression": "adjustments.flareAmount",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleAdjustmentChange(CreativeAdjustment.FlareAmount, e.target.value)",
       "labelExpression": "t('adjustments.effects.lightFlares')",
@@ -2641,7 +2645,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 460,
+      "line": 462,
       "valueExpression": "adjustments.lensBlurAmount ?? 50",
       "changeExpression": "(e: SliderChangeEvent) =>\n                          handleAdjustmentChange(Effect.LensBlurAmount, e.target.value)",
       "labelExpression": "t('adjustments.effects.amount')",
@@ -2652,7 +2656,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 474,
+      "line": 476,
       "valueExpression": "adjustments.lensBlurDiffusion ?? 0",
       "changeExpression": "(e: SliderChangeEvent) =>\n                          handleAdjustmentChange(Effect.lensBlurDiffusion, e.target.value)",
       "labelExpression": "t('adjustments.effects.lensDiffusion')",
@@ -2663,7 +2667,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 550,
+      "line": 552,
       "valueExpression": "adjustments.relightAmbient ?? 0",
       "changeExpression": "(e: SliderChangeEvent) =>\n                            handleAdjustmentChange(Effect.RelightAmbient, e.target.value)",
       "labelExpression": "t('adjustments.effects.relightAmbient')",
@@ -2674,7 +2678,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 562,
+      "line": 564,
       "valueExpression": "adjustments.relightSoftness ?? 25",
       "changeExpression": "(e: SliderChangeEvent) =>\n                            handleAdjustmentChange(Effect.RelightSoftness, e.target.value)",
       "labelExpression": "t('adjustments.effects.relightSoftness')",
@@ -2685,7 +2689,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 576,
+      "line": 578,
       "valueExpression": "adjustments.relightShine ?? 0",
       "changeExpression": "(e: SliderChangeEvent) =>\n                            handleAdjustmentChange(Effect.RelightShine, e.target.value)",
       "labelExpression": "t('adjustments.effects.relightShine')",
@@ -2696,7 +2700,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 595,
+      "line": 597,
       "valueExpression": "adjustments.relightShadowSoftness ?? 15",
       "changeExpression": "(e: SliderChangeEvent) =>\n                              handleAdjustmentChange(Effect.RelightShadowSoftness, e.target.value)",
       "labelExpression": "t('adjustments.effects.relightShadowSoftness')",
@@ -2707,7 +2711,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 678,
+      "line": 680,
       "valueExpression": "activeLight.intensity",
       "changeExpression": "handleLightSliderChange('intensity')",
       "labelExpression": "t('adjustments.effects.relightIntensity')",
@@ -2719,7 +2723,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 692,
+      "line": 694,
       "valueExpression": "activeLight.depth",
       "changeExpression": "handleLightSliderChange('depth')",
       "labelExpression": "t('adjustments.effects.relightDepth')",
@@ -2731,7 +2735,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 704,
+      "line": 706,
       "valueExpression": "activeLight.radius",
       "changeExpression": "handleLightSliderChange('radius')",
       "labelExpression": "t('adjustments.effects.relightFalloff')",
@@ -2743,7 +2747,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 720,
+      "line": 722,
       "valueExpression": "activeLight.angle",
       "changeExpression": "handleLightSliderChange('angle')",
       "labelExpression": "t('adjustments.effects.relightAngle')",
@@ -2755,7 +2759,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 733,
+      "line": 735,
       "valueExpression": "activeLight.elevation",
       "changeExpression": "handleLightSliderChange('elevation')",
       "labelExpression": "t('adjustments.effects.relightElevation')",
@@ -2767,7 +2771,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 749,
+      "line": 751,
       "valueExpression": "activeLight.cone",
       "changeExpression": "handleLightSliderChange('cone')",
       "labelExpression": "t('adjustments.effects.relightCone')",
@@ -2779,7 +2783,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 761,
+      "line": 763,
       "valueExpression": "activeLight.feather",
       "changeExpression": "handleLightSliderChange('feather')",
       "labelExpression": "t('adjustments.effects.feather')",
@@ -2791,7 +2795,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 775,
+      "line": 777,
       "valueExpression": "activeLight.temperature",
       "changeExpression": "handleLightSliderChange('temperature')",
       "labelExpression": "t('adjustments.color.temperature')",
@@ -2803,7 +2807,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 786,
+      "line": 788,
       "valueExpression": "activeLight.tint",
       "changeExpression": "handleLightSliderChange('tint')",
       "labelExpression": "t('adjustments.color.tint')",
@@ -2815,7 +2819,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 831,
+      "line": 833,
       "valueExpression": "adjustments.fogAmount ?? 50",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogAmount, e.target.value)",
       "labelExpression": "t('adjustments.effects.amount')",
@@ -2826,7 +2830,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 843,
+      "line": 845,
       "valueExpression": "adjustments.fogStart ?? 0",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogStart, e.target.value)",
       "labelExpression": "t('adjustments.effects.fogStart')",
@@ -2837,7 +2841,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 855,
+      "line": 857,
       "valueExpression": "adjustments.fogDensity ?? 50",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogDensity, e.target.value)",
       "labelExpression": "t('adjustments.effects.fogDensity')",
@@ -2848,7 +2852,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 867,
+      "line": 869,
       "valueExpression": "adjustments.fogHeight ?? 0",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogHeight, e.target.value)",
       "labelExpression": "t('adjustments.effects.fogHeight')",
@@ -2859,7 +2863,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 879,
+      "line": 881,
       "valueExpression": "adjustments.fogVariation ?? 25",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogVariation, e.target.value)",
       "labelExpression": "t('adjustments.effects.fogVariation')",
@@ -2870,7 +2874,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 891,
+      "line": 893,
       "valueExpression": "adjustments.fogGlow ?? 25",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogGlow, e.target.value)",
       "labelExpression": "t('adjustments.effects.glow')",
@@ -2881,7 +2885,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 903,
+      "line": 905,
       "valueExpression": "adjustments.fogTemperature ?? 0",
       "changeExpression": "(e: SliderChangeEvent) =>\n                          handleAdjustmentChange(Effect.FogTemperature, e.target.value)",
       "labelExpression": "t('adjustments.color.temperature')",
@@ -2892,7 +2896,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 916,
+      "line": 918,
       "valueExpression": "adjustments.fogTint ?? 0",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.FogTint, e.target.value)",
       "labelExpression": "t('adjustments.color.tint')",
@@ -2903,7 +2907,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 954,
+      "line": 967,
       "valueExpression": "adjustments.vignetteAmount",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.VignetteAmount, e.target.value)",
       "labelExpression": "t('adjustments.effects.amount')",
@@ -2914,7 +2918,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 963,
+      "line": 976,
       "valueExpression": "adjustments.vignetteMidpoint",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.VignetteMidpoint, e.target.value)",
       "labelExpression": "t('adjustments.effects.midpoint')",
@@ -2925,7 +2929,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 974,
+      "line": 987,
       "valueExpression": "adjustments.vignetteRoundness",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.VignetteRoundness, e.target.value)",
       "labelExpression": "t('adjustments.effects.roundness')",
@@ -2936,7 +2940,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 983,
+      "line": 996,
       "valueExpression": "adjustments.vignetteFeather",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.VignetteFeather, e.target.value)",
       "labelExpression": "t('adjustments.effects.feather')",
@@ -2947,7 +2951,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 999,
+      "line": 1013,
       "valueExpression": "adjustments.grainAmount",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.GrainAmount, e.target.value)",
       "labelExpression": "t('adjustments.effects.amount')",
@@ -2958,7 +2962,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 1008,
+      "line": 1022,
       "valueExpression": "adjustments.grainSize",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.GrainSize, e.target.value)",
       "labelExpression": "t('adjustments.effects.size')",
@@ -2969,7 +2973,7 @@
     },
     {
       "source": "src/components/adjustments/Effects.tsx",
-      "line": 1019,
+      "line": 1033,
       "valueExpression": "adjustments.grainRoughness",
       "changeExpression": "(e: SliderChangeEvent) => handleAdjustmentChange(Effect.GrainRoughness, e.target.value)",
       "labelExpression": "t('adjustments.effects.roughness')",

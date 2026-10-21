@@ -11,6 +11,7 @@ import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { debouncedSetHistory, useEditorActions } from './useEditorActions';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
+import { rememberAppliedStyleStack } from '../utils/appliedPreset';
 import { editStack } from '../utils/photoStacks';
 import { useLibraryActions } from './useLibraryActions';
 import { registerAppActions, executeAppAction } from '../utils/appActions';
@@ -159,9 +160,11 @@ export const useKeyboardShortcuts = ({
           try {
             const reset = await createResetAdjustmentsWithLensDefaults(image);
             const current = useEditorStore.getState();
-            if (current.selectedImage?.path !== image?.path || current.adjustments !== before) return;
+            if (current.selectedImage !== image || !current.selectedImage?.isReady || current.adjustments !== before)
+              return;
             debouncedSetHistory.flush();
-            setAdjustments(() => reset);
+            void rememberAppliedStyleStack(current.selectedImage.path, null, reset);
+            setAdjustments(() => reset, 'Reset adjustments');
             debouncedSetHistory.flush();
           } catch (error) {
             toast.error(`Failed to reset adjustments: ${error}`);

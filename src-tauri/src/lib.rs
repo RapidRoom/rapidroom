@@ -302,7 +302,7 @@ fn compute_transformed_preview(
         (warped_w as f64, warped_h as f64)
     };
 
-    let crop: Option<Crop> = serde_json::from_value(adjustments["crop"].clone()).ok();
+    let crop = image_processing::crop_in_pixels(&adjustments["crop"], oriented_w, oriented_h);
     let (full_w, full_h) = crop
         .as_ref()
         .and_then(|c| {
@@ -1321,16 +1321,8 @@ async fn generate_all_community_previews(
         {
             let mut scaled_adjustments = js_adjustments.clone();
             crate::camera_lens::resolve_snapshot(&mut scaled_adjustments, source_path, &state);
-            if let Some(crop_val) = scaled_adjustments.get_mut("crop")
-                && let Ok(c) = serde_json::from_value::<Crop>(crop_val.clone())
-            {
-                *crop_val = serde_json::to_value(Crop {
-                    x: c.x * (*base_scale as f64),
-                    y: c.y * (*base_scale as f64),
-                    width: c.width * (*base_scale as f64),
-                    height: c.height * (*base_scale as f64),
-                })
-                .unwrap_or(serde_json::Value::Null);
+            if let Some(crop_val) = scaled_adjustments.get_mut("crop") {
+                *crop_val = image_processing::scale_crop_value(crop_val, *base_scale as f64);
             }
 
             let (transformed_image, _scaled_crop_offset) =
@@ -1344,10 +1336,15 @@ async fn generate_all_community_previews(
                 .get("crop")
                 .and_then(|c| serde_json::from_value::<Crop>(c.clone()).ok())
                 .map_or((0.0, 0.0), |c| (c.x as f32, c.y as f32));
-            let actual_scaled_crop_offset = (
-                unscaled_crop_offset.0 * base_scale,
-                unscaled_crop_offset.1 * base_scale,
-            );
+            let actual_scaled_crop_offset = if js_adjustments["crop"]["unit"].as_str() == Some("%")
+            {
+                _scaled_crop_offset
+            } else {
+                (
+                    unscaled_crop_offset.0 * base_scale,
+                    unscaled_crop_offset.1 * base_scale,
+                )
+            };
 
             let mask_bitmaps: Vec<ImageBuffer<Luma<u8>, Vec<u8>>> = mask_definitions
                 .iter()

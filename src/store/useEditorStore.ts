@@ -1,4 +1,4 @@
-import type { HistoryDetails } from '../utils/editHistory';
+import { describeHistoryChange, type HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import { Adjustments, INITIAL_ADJUSTMENTS, MaskContainer, AiPatch } from '../utils/adjustments';
 import { SelectedImage, WaveformData, BrushSettings, HistogramData } from '../components/ui/AppProperties';
@@ -12,6 +12,8 @@ import {
   ReferenceViewState,
   reduceReferenceView,
 } from '../utils/referenceView';
+
+export type CenterMarker = 'vignette' | 'centre';
 
 interface InteractivePatch {
   url: string;
@@ -76,6 +78,7 @@ interface EditorState {
   mixerPickerProperty: HslMixerProperty | null;
   isRelightPickerActive: boolean;
   activeRelightLightId: string | null;
+  activeCenterMarker: CenterMarker | null;
   isGuidedPerspectiveActive: boolean;
   liveRotation: number | null;
   brushSettings: BrushSettings | null;
@@ -100,7 +103,7 @@ interface EditorState {
 
   // Actions
   setEditor: (updater: Partial<EditorState> | ((state: EditorState) => Partial<EditorState>)) => void;
-  pushHistory: (newAdjustments: Adjustments, details?: HistoryDetails) => void;
+  pushHistory: (newAdjustments: Adjustments, details?: HistoryDetails | string) => void;
   undo: () => void;
   redo: () => void;
   resetHistory: (initialState: Adjustments) => void;
@@ -159,6 +162,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   mixerPickerProperty: null,
   isRelightPickerActive: false,
   activeRelightLightId: null,
+  activeCenterMarker: null,
   isGuidedPerspectiveActive: false,
   liveRotation: null,
 
@@ -184,7 +188,18 @@ export const useEditorStore = create<EditorState>((set) => ({
         .slice(0, state.historyIndex + 1)
         .map((_, index) => state.historyDetails[index] ?? null);
       newHistory.push(newAdj);
-      historyDetails.push(details ?? null);
+      const recorded =
+        details && typeof details === 'object'
+          ? details
+          : {
+              ...describeHistoryChange(
+                state.history[state.historyIndex] ?? INITIAL_ADJUSTMENTS,
+                newAdj,
+                typeof details === 'string' && details.startsWith('AI:') ? 'assistant' : 'user',
+              ),
+              ...(typeof details === 'string' && details.trim() ? { label: details } : {}),
+            };
+      historyDetails.push(recorded);
       if (newHistory.length > 50) {
         newHistory.shift();
         historyDetails.shift();

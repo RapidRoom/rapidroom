@@ -4,8 +4,8 @@ use std::collections::HashMap;
 
 use crate::app_state::AppState;
 use crate::image_processing::{
-    Crop, IntoCowImage, apply_coarse_rotation, apply_crop, apply_flip, apply_geometry_warp,
-    apply_rotation,
+    IntoCowImage, apply_coarse_rotation, apply_crop, apply_flip, apply_geometry_warp,
+    apply_rotation, crop_in_pixels,
 };
 
 pub fn hydrate_sub_masks(
@@ -111,7 +111,11 @@ pub fn apply_spatial_transformations<'a, I: IntoCowImage<'a>>(
     let flipped_image = apply_orientation_and_flip(image, adjustments);
     let rotated_image = apply_rotation(flipped_image, rotation_degrees);
 
-    let crop_data: Option<Crop> = serde_json::from_value(adjustments["crop"].clone()).ok();
+    let crop_data = crop_in_pixels(
+        &adjustments["crop"],
+        rotated_image.width() as f64,
+        rotated_image.height() as f64,
+    );
     let crop_json = serde_json::to_value(crop_data).unwrap_or(serde_json::Value::Null);
     let cropped_image = apply_crop(rotated_image, &crop_json);
 
@@ -139,4 +143,72 @@ pub fn apply_all_transformations<'a, I: IntoCowImage<'a>>(
     log::info!("apply_all_transformations took {:.2?}", total_duration);
 
     (cropped_image, unscaled_crop_offset)
+}
+
+#[cfg(test)]
+mod percent_crop_tests {
+    use super::*;
+    use image::{ImageBuffer, Rgb};
+    use serde_json::json;
+
+    #[test]
+    fn saved_percent_crop_matches_oriented_pixel_image_and_mask_offset() {
+        let source = DynamicImage::ImageRgb8(ImageBuffer::from_fn(80, 60, |x, y| {
+            Rgb([x as u8, y as u8, (x + y) as u8])
+        }));
+        for steps in 0..4 {
+            let (width, height) = if steps % 2 == 1 {
+                (60.0, 80.0)
+            } else {
+                (80.0, 60.0)
+            };
+            for rotation in [0.0, 5.0, -5.0] {
+                let percent = json!({
+                    "orientationSteps": steps, "rotation": rotation,
+                    "flipHorizontal": true,
+                    "crop": {"unit":"%", "x":10, "y":20, "width":50, "height":40}
+                });
+                let mut pixel = percent.clone();
+                pixel["crop"] = json!({"unit":"px", "x":width/10.0, "y":height/5.0, "width":width/2.0, "height":height*0.4});
+                let (actual, offset) = apply_spatial_transformations(&source, &percent);
+                let (expected, expected_offset) = apply_spatial_transformations(&source, &pixel);
+                assert_eq!(
+                    actual.to_rgb8(),
+                    expected.to_rgb8(),
+                    "steps={steps} rotation={rotation}"
+                );
+                assert_eq!(offset, expected_offset);
+                assert_eq!(actual.width(), (width / 2.0) as u32);
+                assert_eq!(actual.height(), (height * 0.4) as u32);
+                let mut implicit = pixel;
+                implicit["crop"].as_object_mut().unwrap().remove("unit");
+                assert_eq!(
+                    apply_spatial_transformations(&source, &implicit)
+                        .0
+                        .to_rgb8(),
+                    expected.to_rgb8()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn resized_render_retains_percent_coordinates_until_image_dimensions_are_known() {
+        let source = DynamicImage::new_rgb8(40, 30);
+        let percent = json!({"unit":"%", "x":10, "y":20, "width":50, "height":40});
+        let pixel = json!({"unit":"px", "x":8, "y":12, "width":40, "height":24});
+        let percent_scaled = crate::image_processing::scale_crop_value(&percent, 0.5);
+        let pixel_scaled = crate::image_processing::scale_crop_value(&pixel, 0.5);
+        let (actual, offset) =
+            apply_spatial_transformations(&source, &json!({"crop":percent_scaled}));
+        let (expected, expected_offset) =
+            apply_spatial_transformations(&source, &json!({"crop":pixel_scaled}));
+        assert_eq!(actual.to_rgb8(), expected.to_rgb8());
+        assert_eq!((actual.width(), actual.height()), (20, 12));
+        assert_eq!(offset, expected_offset);
+        assert_eq!(
+            percent,
+            json!({"unit":"%", "x":10, "y":20, "width":50, "height":40})
+        );
+    }
 }

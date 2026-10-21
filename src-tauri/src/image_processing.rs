@@ -246,6 +246,34 @@ pub struct Crop {
     pub height: f64,
 }
 
+pub fn crop_in_pixels(value: &Value, width: f64, height: f64) -> Option<Crop> {
+    let mut crop = serde_json::from_value::<Crop>(value.clone()).ok()?;
+    if value["unit"].as_str() == Some("%") {
+        crop.x *= width / 100.0;
+        crop.y *= height / 100.0;
+        crop.width *= width / 100.0;
+        crop.height *= height / 100.0;
+    }
+    Some(crop)
+}
+
+// Percentages already describe the resized image; only pixel coordinates scale.
+pub fn scale_crop_value(value: &Value, scale: f64) -> Value {
+    if value["unit"].as_str() == Some("%") {
+        return value.clone();
+    }
+    let Ok(crop) = serde_json::from_value::<Crop>(value.clone()) else {
+        return value.clone();
+    };
+    serde_json::to_value(Crop {
+        x: crop.x * scale,
+        y: crop.y * scale,
+        width: crop.width * scale,
+        height: crop.height * scale,
+    })
+    .unwrap_or(Value::Null)
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GeometryParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1673,24 +1701,22 @@ pub fn apply_crop<'a>(image: impl IntoCowImage<'a>, crop_value: &Value) -> Cow<'
         return image;
     }
 
-    if let Ok(crop) = serde_json::from_value::<Crop>(crop_value.clone()) {
+    let (img_w, img_h) = image.dimensions();
+    if let Some(crop) = crop_in_pixels(crop_value, img_w as f64, img_h as f64) {
         let x = crop.x.round() as u32;
         let y = crop.y.round() as u32;
         let width = crop.width.round() as u32;
         let height = crop.height.round() as u32;
 
-        if width > 0 && height > 0 {
-            let (img_w, img_h) = image.dimensions();
-            if x < img_w && y < img_h {
-                let new_width = (img_w - x).min(width);
-                let new_height = (img_h - y).min(height);
+        if width > 0 && height > 0 && x < img_w && y < img_h {
+            let new_width = (img_w - x).min(width);
+            let new_height = (img_h - y).min(height);
 
-                if new_width > 0 && new_height > 0 {
-                    if x == 0 && y == 0 && new_width == img_w && new_height == img_h {
-                        return image;
-                    }
-                    return Cow::Owned(image.crop_imm(x, y, new_width, new_height));
+            if new_width > 0 && new_height > 0 {
+                if x == 0 && y == 0 && new_width == img_w && new_height == img_h {
+                    return image;
                 }
+                return Cow::Owned(image.crop_imm(x, y, new_width, new_height));
             }
         }
     }
@@ -1875,8 +1901,8 @@ pub struct GlobalAdjustments {
     pub wb_log_gain_l: f32,
     pub wb_log_gain_m: f32,
     pub wb_log_gain_s: f32,
-    _pad_color1: f32,
-    _pad_color2: f32,
+    pub centre_x: f32,
+    pub centre_y: f32,
 
     pub sharpness: f32,
     pub luma_noise_reduction: f32,
@@ -1903,8 +1929,8 @@ pub struct GlobalAdjustments {
     pub lut_intensity: f32,
     pub tonemapper_mode: u32,
     pub lut_is_scene_referred: u32,
-    _pad_lut3: f32,
-    _pad_lut4: f32,
+    pub vignette_center_x: f32,
+    pub vignette_center_y: f32,
     _pad_lut5: f32,
 
     _pad_agx1: f32,
@@ -1948,6 +1974,8 @@ pub struct GlobalAdjustments {
     pub halation_amount: f32,
     pub flare_amount: f32,
     pub sharpness_threshold: f32,
+    pub lut_domain_min: [f32; 4],
+    pub lut_domain_max: [f32; 4],
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Pod, Zeroable, Default)]
@@ -2716,6 +2744,8 @@ fn get_global_adjustments_from_json(
     };
 
     GlobalAdjustments {
+        lut_domain_min: [0.0; 4],
+        lut_domain_max: [1.0, 1.0, 1.0, 0.0],
         exposure: get_val("basic", "exposure", SCALES.exposure, None) + baseline_exposure,
         brightness: get_val("basic", "brightness", SCALES.brightness, None),
         contrast: get_val("basic", "contrast", SCALES.contrast, None),
@@ -2730,8 +2760,8 @@ fn get_global_adjustments_from_json(
         wb_log_gain_l: white_balance_gains[0],
         wb_log_gain_m: white_balance_gains[1],
         wb_log_gain_s: white_balance_gains[2],
-        _pad_color1: 0.0,
-        _pad_color2: 0.0,
+        centre_x: get_val("presence", "centréX", 1.0, Some(0.5)),
+        centre_y: get_val("presence", "centréY", 1.0, Some(0.5)),
 
         sharpness: get_val("sharpening", "sharpness", SCALES.sharpness, None),
         luma_noise_reduction: get_val(
@@ -2805,8 +2835,8 @@ fn get_global_adjustments_from_json(
         tonemapper_mode: tonemapper_override
             .unwrap_or_else(|| if tone_mapper == "agx" { 1 } else { 0 }),
         lut_is_scene_referred,
-        _pad_lut3: 0.0,
-        _pad_lut4: 0.0,
+        vignette_center_x: get_val("vignette", "vignetteCenterX", 1.0, Some(0.5)),
+        vignette_center_y: get_val("vignette", "vignetteCenterY", 1.0, Some(0.5)),
         _pad_lut5: 0.0,
 
         _pad_agx1: 0.0,
@@ -4968,5 +4998,63 @@ mod polynomial_tca_tests {
             serde_json::to_vec_pretty(&rows).unwrap(),
         )
         .unwrap();
+    }
+}
+
+#[cfg(test)]
+mod movable_centre_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn global(value: &serde_json::Value) -> GlobalAdjustments {
+        get_global_adjustments_from_json(value, true, [0.0; 3], 0.0, None)
+    }
+
+    #[test]
+    fn omitted_legacy_centres_equal_explicit_midpoints() {
+        let old = global(&json!({"centré":40,"vignetteAmount":-50}));
+        let centered = global(
+            &json!({"centré":40,"vignetteAmount":-50,"centréX":0.5,"centréY":0.5,
+            "vignetteCenterX":0.5,"vignetteCenterY":0.5}),
+        );
+        assert_eq!(bytemuck::bytes_of(&old), bytemuck::bytes_of(&centered));
+        assert_eq!(
+            [
+                old.centre_x,
+                old.centre_y,
+                old.vignette_center_x,
+                old.vignette_center_y
+            ],
+            [0.5; 4]
+        );
+    }
+
+    #[test]
+    fn independent_centres_reach_the_renderer_and_respect_tool_visibility() {
+        let mut value = json!({"centré":40,"vignetteAmount":-50,"centréX":0.2,"centréY":0.3,
+            "vignetteCenterX":0.7,"vignetteCenterY":0.8});
+        let changed = global(&value);
+        assert_eq!(
+            [
+                changed.centre_x,
+                changed.centre_y,
+                changed.vignette_center_x,
+                changed.vignette_center_y
+            ],
+            [0.2, 0.3, 0.7, 0.8]
+        );
+        value["activeTools"] = json!({"presence":false,"vignette":false});
+        let hidden = global(&value);
+        assert_eq!(
+            [
+                hidden.centre_x,
+                hidden.centre_y,
+                hidden.vignette_center_x,
+                hidden.vignette_center_y
+            ],
+            [0.5; 4]
+        );
+        assert_eq!(hidden.centré, 0.0);
+        assert_eq!(hidden.vignette_amount, 0.0);
     }
 }

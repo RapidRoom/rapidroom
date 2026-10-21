@@ -900,7 +900,10 @@
         "preset": "Ajust preestablert",
         "style": "Estil",
         "tool": "Eina"
-      }
+      },
+      "appliedFolder": "Aplicats",
+      "bakedIn": "integrat",
+      "bakedInNotice": "Aplicat anteriorment i integrat a l’edició. En eliminar-lo es conserva l’edició."
     },
     "referenceView": {
       "active": "Activa",
