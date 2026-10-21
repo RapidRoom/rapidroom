@@ -33,7 +33,6 @@ import {
   waitForPhotoWrites,
   pendingPhotoWriteDrafts,
 } from '../utils/photoWriteQueue';
-import { describeHistoryChange } from '../utils/editHistory';
 
 interface LoadedMetadata {
   adjustments: (Adjustments & { is_null?: boolean }) | null;
@@ -42,12 +41,8 @@ interface LoadedMetadata {
 let copyRequest = 0;
 
 export const debouncedSetHistory = debounce((newAdj: Adjustments, label?: string) => {
-  const editor = useEditorStore.getState();
-  const details = label
-    ? { ...describeHistoryChange(editor.history[editor.historyIndex], newAdj, 'user'), label }
-    : undefined;
-  if (details) editor.pushHistory(newAdj, details);
-  else editor.pushHistory(newAdj);
+  if (label) useEditorStore.getState().pushHistory(newAdj, label);
+  else useEditorStore.getState().pushHistory(newAdj);
 }, 500);
 
 let cardEditNoticeShownFor: string | null = null;
@@ -249,17 +244,24 @@ export function useEditorActions() {
   );
 
   const handleAutoAdjustments = useCallback(async () => {
-    const selectedImage = useEditorStore.getState().selectedImage;
+    const { selectedImage, adjustments: before } = useEditorStore.getState();
     if (!selectedImage?.isReady) return;
+    debouncedSetHistory.flush();
     try {
       const autoAdjustments: Adjustments = await invoke(Invokes.CalculateAutoAdjustments, {
-        jsAdjustments: useEditorStore.getState().adjustments,
+        jsAdjustments: before,
       });
-      setAdjustments((prev: Adjustments) => ({
-        ...prev,
-        ...autoAdjustments,
-        activeTools: mergeActiveTools(prev, autoAdjustments),
-      }));
+      const current = useEditorStore.getState();
+      if (current.selectedImage !== selectedImage || !current.selectedImage.isReady || current.adjustments !== before)
+        return;
+      setAdjustments(
+        (prev: Adjustments) => ({
+          ...prev,
+          ...autoAdjustments,
+          activeTools: mergeActiveTools(prev, autoAdjustments),
+        }),
+        'Auto adjustments',
+      );
     } catch (err) {
       toast.error(`Failed to apply auto adjustments: ${err}`);
     }
@@ -357,77 +359,115 @@ export function useEditorActions() {
   const handleResetAdjustments = useCallback(
     (paths?: string[]) => {
       const { multiSelectedPaths, libraryActivePath, setLibrary } = useLibraryStore.getState();
-      const { selectedImage, resetHistory } = useEditorStore.getState();
+      const { selectedImage } = useEditorStore.getState();
       const pathsToReset = paths || multiSelectedPaths;
-      if (pathsToReset.length === 0) return;
-
-      pathsToReset.forEach((p) => globalImageCache.delete(p));
-      debouncedSetHistory.cancel();
-
+      if (!pathsToReset.length) return;
+      pathsToReset.forEach((path) => globalImageCache.delete(path));
+      debouncedSetHistory.flush();
       const before = useEditorStore.getState().adjustments;
-      invoke(Invokes.ResetAdjustmentsForPaths, { paths: pathsToReset })
-        .then(async () => {
-          if (libraryActivePath && pathsToReset.includes(libraryActivePath)) {
-            const reset = await createResetAdjustmentsWithLensDefaults({
-              path: libraryActivePath,
-              width: 0,
-              height: 0,
-            });
-            if (useLibraryStore.getState().libraryActivePath === libraryActivePath)
-              setLibrary({ libraryActiveAdjustments: reset });
-          }
-          if (selectedImage && pathsToReset.includes(selectedImage.path)) {
-            const resetData = await createResetAdjustmentsWithLensDefaults(selectedImage);
+      const active = selectedImage?.isReady && pathsToReset.includes(selectedImage.path) ? selectedImage : null;
+      const otherPaths = pathsToReset.filter((path) => path !== active?.path);
+      const operations: Promise<void>[] = [];
+      if (active) {
+        operations.push(
+          createResetAdjustmentsWithLensDefaults(active).then((reset) => {
             const current = useEditorStore.getState();
-            if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before) return;
-            void rememberAppliedStyleStack(selectedImage.path, null, resetData);
-            resetHistory(resetData);
-            setEditor({ adjustments: resetData });
-          }
-        })
-        .catch((err) => toast.error(`Failed to reset adjustments: ${err}`));
+            if (current.selectedImage !== active || !current.selectedImage.isReady || current.adjustments !== before)
+              return;
+            void rememberAppliedStyleStack(active.path, null, reset);
+            setAdjustments(() => reset, 'Reset adjustments');
+            debouncedSetHistory.flush();
+            if (useLibraryStore.getState().libraryActivePath === active.path)
+              setLibrary({ libraryActiveAdjustments: reset });
+          }),
+        );
+      }
+      if (otherPaths.length) {
+        operations.push(
+          invoke(Invokes.ResetAdjustmentsForPaths, { paths: otherPaths }).then(async () => {
+            if (libraryActivePath && otherPaths.includes(libraryActivePath)) {
+              const reset = await createResetAdjustmentsWithLensDefaults({
+                path: libraryActivePath,
+                width: 0,
+                height: 0,
+              });
+              if (useLibraryStore.getState().libraryActivePath === libraryActivePath)
+                setLibrary({ libraryActiveAdjustments: reset });
+            }
+          }),
+        );
+      }
+      void Promise.all(operations).catch((error) => toast.error(`Failed to reset adjustments: ${error}`));
     },
-    [setEditor],
+    [setAdjustments],
   );
 
   const handleAutoLensCorrection = useCallback(
     (paths?: string[]) => {
       const { multiSelectedPaths, libraryActivePath, setLibrary } = useLibraryStore.getState();
-      const { selectedImage, resetHistory } = useEditorStore.getState();
-
-      const pathsToUpdate =
-        paths && paths.length > 0
-          ? paths
-          : multiSelectedPaths.length > 0
-            ? multiSelectedPaths
-            : selectedImage
-              ? [selectedImage.path]
-              : [];
-
-      if (pathsToUpdate.length === 0) return;
-
-      pathsToUpdate.forEach((p) => globalImageCache.delete(p));
-
-      invoke('apply_auto_lens_correction_to_paths', { paths: pathsToUpdate })
-        .then(async () => {
-          if (selectedImage && pathsToUpdate.includes(selectedImage.path)) {
-            const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: selectedImage.path });
-            if (meta.adjustments && !meta.adjustments.is_null) {
-              const normalized = normalizeLoadedAdjustments(meta.adjustments);
-              setEditor({ adjustments: normalized });
-              resetHistory(normalized);
+      const { selectedImage } = useEditorStore.getState();
+      const pathsToUpdate = paths?.length
+        ? paths
+        : multiSelectedPaths.length
+          ? multiSelectedPaths
+          : selectedImage
+            ? [selectedImage.path]
+            : [];
+      if (!pathsToUpdate.length) return;
+      pathsToUpdate.forEach((path) => globalImageCache.delete(path));
+      debouncedSetHistory.flush();
+      const before = useEditorStore.getState().adjustments;
+      const active = selectedImage?.isReady && pathsToUpdate.includes(selectedImage.path) ? selectedImage : null;
+      const otherPaths = pathsToUpdate.filter((path) => path !== active?.path);
+      const operations: Promise<void>[] = [];
+      if (active) {
+        // The bulk writer reads saved recipes. Resolve the editor's lens patch
+        // without writing that path, so neither a draft nor a later autosave
+        // can be replaced by an older on-disk recipe.
+        operations.push(
+          invoke<Partial<Adjustments>>(Invokes.GetDefaultRawLensAdjustments, {
+            path: active.path,
+            forceAuto: true,
+          }).then((lens) => {
+            const current = useEditorStore.getState();
+            if (current.selectedImage !== active || !current.selectedImage.isReady || current.adjustments !== before)
+              return;
+            const next: Adjustments = {
+              ...before,
+              lensCorrectionMode: 'auto',
+              cameraLensCorrectionVersion: 1,
+              lensDistortionEnabled: true,
+              lensTcaEnabled: true,
+              lensVignetteEnabled: true,
+              lensMaker: lens.lensMaker ?? null,
+              lensModel: lens.lensModel ?? null,
+              lensDistortionParams: lens.lensDistortionParams ?? null,
+            };
+            setAdjustments(next, 'Auto lens correction');
+            debouncedSetHistory.flush();
+            if (useLibraryStore.getState().libraryActivePath === active.path)
+              setLibrary({ libraryActiveAdjustments: next });
+          }),
+        );
+      }
+      if (otherPaths.length) {
+        operations.push(
+          invoke('apply_auto_lens_correction_to_paths', { paths: otherPaths }).then(async () => {
+            if (libraryActivePath && otherPaths.includes(libraryActivePath)) {
+              const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: libraryActivePath });
+              if (
+                useLibraryStore.getState().libraryActivePath === libraryActivePath &&
+                meta.adjustments &&
+                !meta.adjustments.is_null
+              )
+                setLibrary({ libraryActiveAdjustments: normalizeLoadedAdjustments(meta.adjustments) });
             }
-          }
-          if (libraryActivePath && pathsToUpdate.includes(libraryActivePath)) {
-            const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: libraryActivePath });
-            if (meta.adjustments && !meta.adjustments.is_null) {
-              setLibrary({ libraryActiveAdjustments: normalizeLoadedAdjustments(meta.adjustments) });
-            }
-          }
-        })
-        .catch((err) => toast.error(`Failed to apply auto lens correction: ${err}`));
+          }),
+        );
+      }
+      void Promise.all(operations).catch((error) => toast.error(`Failed to apply auto lens correction: ${error}`));
     },
-    [setEditor],
+    [setAdjustments],
   );
 
   const handleCopyAdjustments = useCallback(async (pathOrEvent?: string | SyntheticEvent) => {
@@ -556,6 +596,7 @@ export function useEditorActions() {
             adjustmentsToApply,
             adjustments,
           ) as Adjustments,
+          'Paste adjustments',
         );
       }
 

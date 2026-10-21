@@ -440,7 +440,7 @@ export function useMcpBridge(
               command.path,
               next,
               before.adjustments,
-              plan.application.label,
+              command.label ?? `AI: ${plan.application.label}`,
               !!plan.application.stackChanged,
             );
           });

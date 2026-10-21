@@ -569,7 +569,10 @@ describe('protected editing workflow', () => {
       shadows: 0,
       clarity: 12,
     });
-    expect(useEditorStore.getState().historyDetails.at(-1)?.label).toBe('Style 2 removed: two');
+    expect(useEditorStore.getState().historyDetails.at(-1)).toMatchObject({
+      actor: 'assistant',
+      label: 'AI: Style 2 removed: two',
+    });
     const remaining = await stackCommand('list-applied-styles');
     expect(remaining).toMatchObject({
       response: {
