@@ -117,6 +117,8 @@ struct GlobalAdjustments {
     halation_amount: f32,
     flare_amount: f32,
     sharpness_threshold: f32,
+    lut_domain_min: vec4<f32>,
+    lut_domain_max: vec4<f32>,
 }
 
 struct MaskAdjustments {
@@ -1475,10 +1477,19 @@ fn get_mask_influence(mask_index: u32, coords: vec2<u32>) -> f32 {
     return textureLoad(mask_textures, vec2<i32>(coords), i32(mask_index), 0).r;
 }
 
-fn sample_lut_tetrahedral(uv: vec3<f32>) -> vec3<f32> {
+fn lut_domain_coordinates(uv: vec3<f32>, domain_min: vec3<f32>, domain_max: vec3<f32>) -> vec3<f32> {
+    // Preserve the existing unit-domain lookup, including its rounding.
+    if (all(domain_min == vec3<f32>(0.0)) && all(domain_max == vec3<f32>(1.0))) {
+        return uv;
+    }
+    return (uv - domain_min) / (domain_max - domain_min);
+}
+
+fn sample_lut_tetrahedral(uv: vec3<f32>, domain_min: vec3<f32>, domain_max: vec3<f32>) -> vec3<f32> {
     let dims = vec3<f32>(textureDimensions(lut_texture));
     let size = dims - vec3<f32>(1.0);
-    let scaled = clamp(uv, vec3<f32>(0.0), vec3<f32>(1.0)) * size;
+    let normalized = lut_domain_coordinates(uv, domain_min, domain_max);
+    let scaled = clamp(normalized, vec3<f32>(0.0), vec3<f32>(1.0)) * size;
     let i_base = floor(scaled);
     let f = scaled - i_base;
     let coord0 = vec3<i32>(i_base);
@@ -1934,7 +1945,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
     if (is_scene_lut) {
         let vlog_encoded = linear_to_vlog(composite_rgb_linear);
-        let lut_color = sample_lut_tetrahedral(vlog_encoded);
+        let lut_color = sample_lut_tetrahedral(vlog_encoded, adjustments.global.lut_domain_min.xyz, adjustments.global.lut_domain_max.xyz);
         base_srgb = mix(default_tonemapped, lut_color, adjustments.global.lut_intensity);
     } else {
         base_srgb = default_tonemapped;
@@ -1964,7 +1975,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     }
 
     if (adjustments.global.has_lut == 1u && adjustments.global.lut_is_scene_referred == 0u) {
-        let lut_color = sample_lut_tetrahedral(final_rgb);
+        let lut_color = sample_lut_tetrahedral(final_rgb, adjustments.global.lut_domain_min.xyz, adjustments.global.lut_domain_max.xyz);
         final_rgb = mix(final_rgb, lut_color, adjustments.global.lut_intensity);
     }
 
