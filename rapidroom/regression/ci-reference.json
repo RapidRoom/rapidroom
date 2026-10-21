@@ -1,9 +1,9 @@
 {
   "_comment": "Per-image pixel hashes for the CI regression check (.github/workflows/regression.yml), recorded on a GitHub Actions runner with Mesa lavapipe. pixel_sha256 is the SHA-256 of the decoded 16-bit RGB pixels (little-endian), so TIFF container changes don't matter. Updating this file is a rendering decision that needs a maintainer's sign-off (see GOVERNANCE).",
   "kind": "rapidraw-ci-reference",
-  "created": "2026-10-17T23:30:38+00:00",
+  "created": "2026-10-21T03:09:31+00:00",
   "recorded_by": "GitHub Actions (workflow_dispatch, record)",
-  "source": "https://github.com/RapidRoom/rapidroom/actions/runs/39076134636 at 61c6660cfe1b110266ebfa03b985719e82e79c63",
+  "source": "https://github.com/RapidRoom/rapidroom/actions/runs/39531797138 at 900c69c22c4a7a7e8bf2f681d7ce5653bbaa2e22",
   "environment": {
     "kernel": "6.17.0-1022-azure",
     "cpu_count": 4,
@@ -20,7 +20,7 @@
       "mesa-vulkan-drivers 25.2.8-0ubuntu0.24.04.4"
     ]
   },
-  "engine_sha256": "acfa2e8cd7799fe6afda6844386e83a514e17a913a46818cfd8495a2d0088398",
+  "engine_sha256": "6b19f8ef3f507d2b96eff14bc925c51ca2195e2d07cebc525a43c6aa3bfd0258",
   "corpus_sha256": "09d42ceaf831e7b7cebbb85d3a6f6deabe8d37814dc19968e004b3caf522b724",
   "adjustment_sets": {
     "busy-agx-lut-effects": "7017a74e8bcee5c10f84e254b926c7fa19140985041bc96db8bd5c6a27e4df01",
@@ -34,42 +34,42 @@
       "id": "canon-r50-24mp-craw",
       "width": 6000,
       "height": 4000,
-      "pixel_sha256": "07921dd719f20c54f3d54bfe9ad0d347c14593af976cb1a3d61f4a2a374bb4a9"
+      "pixel_sha256": "c1ca30c98fbe4d7c7054bdc11dd70464384b98ccab578c2b1232d0a9fbb7add1"
     },
     {
       "set": "busy-agx-lut-effects",
       "id": "fuji-xt4-26mp-lossless",
       "width": 6240,
       "height": 4160,
-      "pixel_sha256": "f9f853d9c1c12c7b9413f1d3379adafdb4343bea73210e7d9262593968d15f8c"
+      "pixel_sha256": "8ca891330fa096a97e6c7c1f63652ec2b7cc24ab65cbba8b6514f2cacb10f1e4"
     },
     {
       "set": "busy-agx-lut-effects",
       "id": "google-pixel7pro-dng",
       "width": 3866,
       "height": 2908,
-      "pixel_sha256": "48b115c7912d7bd8bc224c439ba753c4b162cb16da721d1e5b03cccc6eba8846"
+      "pixel_sha256": "df650f2225ed2bb2db87834188775d8f75af26a0ac3777cffc6b21dc860f17f3"
     },
     {
       "set": "busy-agx-lut-effects",
       "id": "nikon-zfc-21mp-lossless",
       "width": 5568,
       "height": 3712,
-      "pixel_sha256": "bb34c37c3c80f8ecd1c374e9224b231e1b25a613e9664a7685a746aa6ae49072"
+      "pixel_sha256": "aba94aaed6bdec5273c98793e0d7fd7a9f8fd1fa0dfc51892b061c85f0b0e1c9"
     },
     {
       "set": "busy-agx-lut-effects",
       "id": "sony-a7c2-15mp-compressed",
       "width": 4608,
       "height": 3072,
-      "pixel_sha256": "066c1f294c6cde0251695d62ba6337a0ae5dad674cc24ec058378f0984826f3c"
+      "pixel_sha256": "9825589aa23e2d6d573f851d3e76949600291deb1e4dd39b2c09aa0081f7878f"
     },
     {
       "set": "busy-agx-lut-effects",
       "id": "sony-a7cr-18mp-lossless-s",
       "width": 4752,
       "height": 3168,
-      "pixel_sha256": "e62b827762fab9ef71cc78a86e5eb48f0497deffdbbba9bef44dc7a0e47d1603"
+      "pixel_sha256": "0d5f74376d3a8ae052c600a6bde50e4be704e2e6801c6f2d75cc2857bffe970e"
     },
     {
       "set": "busy-tone-color-detail",
