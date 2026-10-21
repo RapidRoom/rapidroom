@@ -274,16 +274,103 @@ pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
     read_sidecar(sidecar_path).0
 }
 
+/// Sidecars whose bytes the editor could not parse, keyed by physical path with
+/// the blake3 of the unreadable bytes. Callers that read a sidecar get defaults
+/// back, so any later write would silently replace the user's recipe; the write
+/// path consults this registry and refuses until the bytes change.
+static UNREADABLE_SIDECARS: OnceLock<Mutex<HashMap<PathBuf, blake3::Hash>>> = OnceLock::new();
+
+fn unreadable_key(path: &Path) -> PathBuf {
+    fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+fn mark_unreadable(path: &Path, content: &[u8], reason: &str) {
+    log::warn!(
+        "Sidecar {} cannot be read ({reason}); it will not be overwritten",
+        path.display()
+    );
+    UNREADABLE_SIDECARS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(unreadable_key(path), blake3::hash(content));
+}
+
+fn mark_readable(path: &Path) {
+    if let Some(registry) = UNREADABLE_SIDECARS.get() {
+        let mut registry = registry.lock().unwrap_or_else(|e| e.into_inner());
+        if !registry.is_empty() {
+            registry.remove(&unreadable_key(path));
+        }
+    }
+}
+
+/// Called by every sidecar writer while it holds the sidecar lock.
+pub(crate) fn refuse_unreadable_overwrite(path: &Path) -> std::io::Result<()> {
+    let Some(registry) = UNREADABLE_SIDECARS.get() else {
+        return Ok(());
+    };
+    let mut registry = registry.lock().unwrap_or_else(|e| e.into_inner());
+    if registry.is_empty() {
+        return Ok(());
+    }
+    let key = unreadable_key(path);
+    let Some(hash) = registry.get(&key).copied() else {
+        return Ok(());
+    };
+    match fs::read(path) {
+        Ok(bytes) if blake3::hash(&bytes) == hash => Err(std::io::Error::other(format!(
+            "The edits in {} could not be read, so they were not overwritten. Fix or move the file and try again.",
+            path.display()
+        ))),
+        _ => {
+            registry.remove(&key);
+            Ok(())
+        }
+    }
+}
+
+/// Parse a sidecar the way the editor does. Older or hand-written files may lack
+/// the bookkeeping fields (`version`, `rating`) that the next save fills in.
+/// `None` means the bytes are not a usable sidecar.
+pub(crate) fn parse_sidecar_metadata(content: &str) -> Option<ImageMetadata> {
+    let mut value: serde_json::Value = serde_json::from_str(content).ok()?;
+    let object = value.as_object_mut()?;
+    object.entry("version").or_insert(serde_json::json!(1));
+    object.entry("rating").or_insert(serde_json::json!(0));
+    serde_json::from_value(value).ok()
+}
+
 fn read_sidecar(sidecar_path: &Path) -> (ImageMetadata, bool) {
     if !sidecar_path.exists() {
         return (ImageMetadata::default(), false);
     }
 
-    let Ok(content) = fs::read_to_string(sidecar_path) else {
+    let Ok(bytes) = fs::read(sidecar_path) else {
+        return (ImageMetadata::default(), false);
+    };
+    let Ok(content) = String::from_utf8(bytes) else {
+        mark_unreadable(
+            sidecar_path,
+            &fs::read(sidecar_path).unwrap_or_default(),
+            "not UTF-8",
+        );
         return (ImageMetadata::default(), false);
     };
 
-    let mut meta = serde_json::from_str::<ImageMetadata>(&content).unwrap_or_default();
+    let mut meta = if content.trim().is_empty() {
+        ImageMetadata::default()
+    } else if let Some(meta) = parse_sidecar_metadata(&content) {
+        mark_readable(sidecar_path);
+        meta
+    } else {
+        mark_unreadable(
+            sidecar_path,
+            content.as_bytes(),
+            "invalid or mistyped fields",
+        );
+        return (ImageMetadata::default(), false);
+    };
     let mut healed = false;
 
     if let Some(ref mut exif_map) = meta.exif {
