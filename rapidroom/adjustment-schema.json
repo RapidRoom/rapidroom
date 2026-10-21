@@ -54,7 +54,7 @@
     },
     "aiDenoiseEnabled": { "defaultType": "boolean", "default": false },
     "aiPatches": { "defaultType": "array", "default": [] },
-    "aspectRatio": { "defaultType": "null", "default": null },
+    "aspectRatio": { "defaultType": "number", "default": 0 },
     "baselineExposure": { "defaultType": "boolean", "default": true },
     "cameraExposureCompensation": { "defaultType": "boolean", "default": true },
     "blacks": {

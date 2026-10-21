@@ -247,6 +247,34 @@ pub struct Crop {
     pub height: f64,
 }
 
+pub fn crop_in_pixels(value: &Value, width: f64, height: f64) -> Option<Crop> {
+    let mut crop = serde_json::from_value::<Crop>(value.clone()).ok()?;
+    if value["unit"].as_str() == Some("%") {
+        crop.x *= width / 100.0;
+        crop.y *= height / 100.0;
+        crop.width *= width / 100.0;
+        crop.height *= height / 100.0;
+    }
+    Some(crop)
+}
+
+// Percentages already describe the resized image; only pixel coordinates scale.
+pub fn scale_crop_value(value: &Value, scale: f64) -> Value {
+    if value["unit"].as_str() == Some("%") {
+        return value.clone();
+    }
+    let Ok(crop) = serde_json::from_value::<Crop>(value.clone()) else {
+        return value.clone();
+    };
+    serde_json::to_value(Crop {
+        x: crop.x * scale,
+        y: crop.y * scale,
+        width: crop.width * scale,
+        height: crop.height * scale,
+    })
+    .unwrap_or(Value::Null)
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GeometryParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -866,15 +894,16 @@ fn interpolate_pixel_with_tca(
 
         let stride = src_width * 3;
         let idx_row0 = y0 * stride;
-        let idx_row1 = idx_row0 + stride;
+        let idx_row1 = (y0 + 1).min(src_height - 1) * stride;
+        let x1 = (x0 + 1).min(src_width - 1);
 
         let idx_p00 = idx_row0 + x0 * 3 + channel_idx;
 
         unsafe {
             let p00 = *src_raw.get_unchecked(idx_p00);
-            let p10 = *src_raw.get_unchecked(idx_p00 + 3);
+            let p10 = *src_raw.get_unchecked(idx_row0 + x1 * 3 + channel_idx);
             let p01 = *src_raw.get_unchecked(idx_row1 + x0 * 3 + channel_idx);
-            let p11 = *src_raw.get_unchecked(idx_row1 + x0 * 3 + 3 + channel_idx);
+            let p11 = *src_raw.get_unchecked(idx_row1 + x1 * 3 + channel_idx);
 
             let top = p00 * one_minus_wx + p10 * wx;
             let bot = p01 * one_minus_wx + p11 * wx;
@@ -1164,12 +1193,12 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
     };
 
     let polynomial = params.tca_poly3.as_ref();
-    let vr = if polynomial.is_some() || (params.tca_vr - 1.0).abs() > 1e-5 {
+    let vr = if params.tca_vr != 1.0 {
         params.tca_vr + (1.0 - params.tca_vr) * (1.0 - params.lens_tca_amount)
     } else {
         1.0
     };
-    let vb = if polynomial.is_some() || (params.tca_vb - 1.0).abs() > 1e-5 {
+    let vb = if params.tca_vb != 1.0 {
         params.tca_vb + (1.0 - params.tca_vb) * (1.0 - params.lens_tca_amount)
     } else {
         1.0
@@ -1184,7 +1213,7 @@ pub fn warp_image_geometry(image: &DynamicImage, params: GeometryParams) -> Dyna
                     || p.br != 0.0
                     || p.bb != 0.0)
         } else {
-            (vr - 1.0).abs() > 1e-5 || (vb - 1.0).abs() > 1e-5
+            params.lens_tca_amount != 0.0 && (vr != 1.0 || vb != 1.0)
         };
 
     let vk1 = params.vig_k1 as f64;
@@ -1801,24 +1830,22 @@ pub fn apply_crop<'a>(image: impl IntoCowImage<'a>, crop_value: &Value) -> Cow<'
         return image;
     }
 
-    if let Ok(crop) = serde_json::from_value::<Crop>(crop_value.clone()) {
+    let (img_w, img_h) = image.dimensions();
+    if let Some(crop) = crop_in_pixels(crop_value, img_w as f64, img_h as f64) {
         let x = crop.x.round() as u32;
         let y = crop.y.round() as u32;
         let width = crop.width.round() as u32;
         let height = crop.height.round() as u32;
 
-        if width > 0 && height > 0 {
-            let (img_w, img_h) = image.dimensions();
-            if x < img_w && y < img_h {
-                let new_width = (img_w - x).min(width);
-                let new_height = (img_h - y).min(height);
+        if width > 0 && height > 0 && x < img_w && y < img_h {
+            let new_width = (img_w - x).min(width);
+            let new_height = (img_h - y).min(height);
 
-                if new_width > 0 && new_height > 0 {
-                    if x == 0 && y == 0 && new_width == img_w && new_height == img_h {
-                        return image;
-                    }
-                    return Cow::Owned(image.crop_imm(x, y, new_width, new_height));
+            if new_width > 0 && new_height > 0 {
+                if x == 0 && y == 0 && new_width == img_w && new_height == img_h {
+                    return image;
                 }
+                return Cow::Owned(image.crop_imm(x, y, new_width, new_height));
             }
         }
     }
@@ -1889,8 +1916,8 @@ pub fn is_geometry_identity(params: &GeometryParams) -> bool {
                     && p.bb == 0.0)
         } else {
             (params.lens_tca_amount - 1.0).abs() < 1e-4
-                && (params.tca_vr - 1.0).abs() < 1e-6
-                && (params.tca_vb - 1.0).abs() < 1e-6
+                && params.tca_vr == 1.0
+                && params.tca_vb == 1.0
         };
 
     let vig_identity = !params.lens_vignette_enabled
@@ -4943,10 +4970,72 @@ mod tests {
 }
 
 #[cfg(test)]
+#[path = "ca_shader_tests.rs"]
+mod ca_shader_tests;
+
+#[cfg(test)]
 mod polynomial_tca_tests {
     use super::*;
     use crate::lens_correction::LensDatabase;
     use serde_json::{Value, json};
+
+    #[test]
+    fn small_legacy_tca_uses_fractional_coordinates_without_a_dead_band() {
+        let (w, h) = (160, 120);
+        let source = DynamicImage::ImageRgb32F(image::Rgb32FImage::from_fn(w, h, |x, y| {
+            image::Rgb([
+                x as f32 / (w - 1) as f32,
+                y as f32 / (h - 1) as f32,
+                (x + y) as f32 / (w + h - 2) as f32,
+            ])
+        }));
+        for coefficient in [1.000008, 1.0000005] {
+            for amount in [0.0, 25.0, 50.0, 100.0] {
+                let adjustments = json!({"lensDistortionParams":{
+                    "tca_vr":coefficient,"tca_vb":2.0-coefficient},"lensTcaAmount":amount});
+                let params = get_geometry_params_from_json(&adjustments);
+                assert_eq!(is_geometry_identity(&params), amount == 0.0);
+                let result = apply_geometry_warp(&source, &adjustments).to_rgb32f();
+                if amount == 0.0 {
+                    assert_eq!(result.as_raw(), source.to_rgb32f().as_raw());
+                    continue;
+                }
+                let (x, y) = (139, 99);
+                // Bilinear sampling reproduces an affine colour ramp exactly.
+                let scale = |v: f32| v + (1.0 - v) * (1.0 - params.lens_tca_amount);
+                let rx = 80.0 + (x as f64 - 80.0) * f64::from(scale(params.tca_vr));
+                let bx = 80.0 + (x as f64 - 80.0) * f64::from(scale(params.tca_vb));
+                let by = 60.0 + (y as f64 - 60.0) * f64::from(scale(params.tca_vb));
+                let expected = [rx / 159.0, y as f64 / 119.0, (bx + by) / 278.0];
+                let actual = result.get_pixel(x, y).0;
+                for i in 0..3 {
+                    assert!((f64::from(actual[i]) - expected[i]).abs() < 1.6e-7);
+                }
+                if amount == 100.0 {
+                    assert_ne!(actual[0], source.to_rgb32f().get_pixel(x, y).0[0]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn fractional_tca_clamps_single_pixel_axes() {
+        for (w, h) in [(1, 1), (1, 3), (3, 1)] {
+            let source = DynamicImage::ImageRgb32F(image::Rgb32FImage::from_pixel(
+                w,
+                h,
+                image::Rgb([0.25, 0.5, 1.0]),
+            ));
+            let adjustments = json!({"lensDistortionParams":{
+                "tca_vr":1.000008,"tca_vb":0.999992}});
+            let result = apply_geometry_warp(&source, &adjustments).to_rgb32f();
+            for pixel in result.pixels() {
+                for (actual, expected) in pixel.0.iter().zip([0.25, 0.5, 1.0]) {
+                    assert!((actual - expected).abs() < 1e-7);
+                }
+            }
+        }
+    }
 
     fn fixture() -> (LensDatabase, Value) {
         let db = quick_xml::de::from_str(include_str!(

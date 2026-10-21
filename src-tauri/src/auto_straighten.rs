@@ -337,7 +337,15 @@ pub fn straighten_adjustments(image: &DynamicImage, source_path: &str, adjustmen
         _ => (image_width, image_height),
     };
     let previous_rotation = adjustments["rotation"].as_f64().unwrap_or(0.0);
-    let current_crop: Option<Crop> = serde_json::from_value(adjustments["crop"].clone()).ok();
+    let mut current_crop: Option<Crop> = serde_json::from_value(adjustments["crop"].clone()).ok();
+    if adjustments["crop"]["unit"].as_str() == Some("%")
+        && let Some(current) = current_crop.as_mut()
+    {
+        current.x *= width / 100.0;
+        current.y *= height / 100.0;
+        current.width *= width / 100.0;
+        current.height *= height / 100.0;
+    }
     let crop = crop_for_rotation(
         width,
         height,
@@ -370,4 +378,173 @@ pub fn calculate_auto_straighten(
         (loaded.image.clone(), loaded.is_raw)
     };
     Ok(rotation_for_image(&image, is_raw, &js_adjustments))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::Luma;
+    use imageproc::geometric_transformations::{Border, Interpolation, rotate_about_center};
+
+    const WIDTH: u32 = 1000;
+    const HEIGHT: u32 = 700;
+
+    fn coverage(distance: f32, half_width: f32) -> f32 {
+        (half_width + 0.5 - distance).clamp(0.0, 1.0)
+    }
+
+    fn render(distances: impl Fn(f32, f32) -> f32) -> GrayImage {
+        GrayImage::from_fn(WIDTH, HEIGHT, |x, y| {
+            let ink = coverage(distances(x as f32, y as f32), 3.0);
+            Luma([(200.0 - 140.0 * ink).round() as u8])
+        })
+    }
+
+    fn level_scene() -> GrayImage {
+        render(|x, y| {
+            let horizontal = [150.0, 300.0, 450.0, 600.0]
+                .iter()
+                .map(|row| (y - row).abs())
+                .fold(f32::MAX, f32::min);
+            let vertical = [200.0, 500.0, 800.0]
+                .iter()
+                .map(|column| (x - column).abs())
+                .fold(f32::MAX, f32::min);
+            horizontal.min(vertical)
+        })
+    }
+
+    fn rotated(scene: &GrayImage, degrees: f64) -> GrayImage {
+        rotate_about_center(
+            scene,
+            degrees.to_radians() as f32,
+            Interpolation::Bilinear,
+            Border::Constant(Luma([200])),
+        )
+    }
+
+    fn assert_rotation(detected: Option<f64>, expected: f64) {
+        let rotation = detected.expect("no rotation detected");
+        assert!(
+            (rotation - expected).abs() < 0.2,
+            "expected {expected}, detected {rotation}"
+        );
+    }
+
+    #[test]
+    fn keeps_level_scene() {
+        assert_rotation(detect_rotation(&level_scene()), 0.0);
+    }
+
+    #[test]
+    fn undoes_clockwise_roll() {
+        assert_rotation(detect_rotation(&rotated(&level_scene(), 3.0)), -3.0);
+    }
+
+    #[test]
+    fn undoes_counter_clockwise_roll() {
+        assert_rotation(detect_rotation(&rotated(&level_scene(), -6.0)), 6.0);
+    }
+
+    #[test]
+    fn levels_from_verticals_alone() {
+        let posts = render(|x, _| {
+            [150.0, 400.0, 650.0, 900.0]
+                .iter()
+                .map(|column| (x - column).abs())
+                .fold(f32::MAX, f32::min)
+        });
+        assert_rotation(detect_rotation(&rotated(&posts, 2.5)), -2.5);
+    }
+
+    #[test]
+    fn detected_rotation_levels_the_render() {
+        let tilted = rotated(&level_scene(), 4.5);
+        let rotation = detect_rotation(&tilted).expect("no rotation detected");
+        assert_rotation(detect_rotation(&rotated(&tilted, rotation)), 0.0);
+    }
+
+    #[test]
+    fn ignores_converging_perspective_lines() {
+        let vanishing = (-400.0f32, 350.0f32);
+        let fan = render(|x, y| {
+            [60.0f32, 220.0, 480.0, 640.0]
+                .iter()
+                .map(|end_y| {
+                    let (dx, dy) = (WIDTH as f32 - vanishing.0, end_y - vanishing.1);
+                    ((x - vanishing.0) * dy - (y - vanishing.1) * dx).abs() / dx.hypot(dy)
+                })
+                .fold(f32::MAX, f32::min)
+        });
+        assert!(detect_rotation(&fan).is_none());
+    }
+
+    #[test]
+    fn batch_straightening_preserves_percentage_roi_at_image_scale() {
+        let image = DynamicImage::ImageLuma8(rotated(&level_scene(), 3.0));
+        let mut percent = json!({
+            "rotation": 0, "aspectRatio": 0.75,
+            "crop": {"unit": "%", "x": 20, "y": 20, "width": 31.5, "height": 60}
+        });
+        let mut pixels = percent.clone();
+        pixels["crop"] = json!({"unit": "px", "x": 200, "y": 140, "width": 315, "height": 420});
+        straighten_adjustments(&image, "fixture.png", &mut percent);
+        straighten_adjustments(&image, "fixture.png", &mut pixels);
+        assert_eq!(percent, pixels);
+        assert!((percent["rotation"].as_f64().unwrap() + 3.0).abs() < 0.2);
+        assert!(percent["crop"]["width"].as_f64().unwrap() > 300.0);
+        assert!(percent["crop"]["height"].as_f64().unwrap() > 400.0);
+    }
+
+    #[test]
+    fn missing_crop_becomes_centered_crop_inside_rotation() {
+        let crop = crop_for_rotation(6000.0, 4000.0, None, 3.0, None, 3.0);
+        assert!(crop_within_bounds(&crop, 6000.0, 4000.0, 3.0));
+        assert!((crop.width / crop.height - 1.5).abs() < 0.01);
+        assert!((crop.x + crop.width / 2.0 - 3000.0).abs() <= 1.0);
+    }
+
+    #[test]
+    fn crop_that_still_fits_is_kept() {
+        let small = Crop {
+            x: 2000.0,
+            y: 1500.0,
+            width: 2000.0,
+            height: 1000.0,
+        };
+        let crop = crop_for_rotation(6000.0, 4000.0, None, 2.0, Some(small), 2.0);
+        assert_eq!(
+            (crop.x, crop.y, crop.width, crop.height),
+            (2000.0, 1500.0, 2000.0, 1000.0)
+        );
+    }
+
+    #[test]
+    fn full_frame_crop_shrinks_to_fit_rotation() {
+        let full = Crop {
+            x: 0.0,
+            y: 0.0,
+            width: 6000.0,
+            height: 4000.0,
+        };
+        let crop = crop_for_rotation(6000.0, 4000.0, None, -5.0, Some(full), -5.0);
+        assert!(crop_within_bounds(&crop, 6000.0, 4000.0, -5.0));
+        assert!(crop.width < 6000.0 && crop.width > 4000.0);
+    }
+
+    #[test]
+    fn ignores_flat_image() {
+        let flat = GrayImage::from_pixel(WIDTH, HEIGHT, Luma([128]));
+        assert!(detect_rotation(&flat).is_none());
+    }
+
+    #[test]
+    fn ignores_noise() {
+        let mut state: u32 = 0x1234_5678;
+        let noise = GrayImage::from_fn(WIDTH, HEIGHT, |_, _| {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            Luma([(state >> 24) as u8])
+        });
+        assert!(detect_rotation(&noise).is_none());
+    }
 }

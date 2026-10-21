@@ -5,6 +5,7 @@ import { buildImageGroups } from './imageGrouping';
 import { collapseStacks, expandStackPaths, stackKey, toggleStack } from './photoStacks';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useUIStore } from '../store/useUIStore';
+import { useEditorStore } from '../store/useEditorStore';
 
 const image = (path: string, position?: number, id = 'burst'): ImageFile =>
   ({
@@ -78,4 +79,35 @@ it('moves the selection to the cover when the active member is hidden by collaps
   expect(state.expandedStacks.has(key)).toBe(false);
   expect(state.libraryActivePath).toBe(cover.path);
   expect(state.multiSelectedPaths).toEqual([cover.path]);
+});
+
+it('uses normal editor navigation when a filmstrip collapse hides the loaded member', () => {
+  const cover = image('/photos/cover.jpg', 0);
+  const member = image('/photos/member.jpg', 1);
+  const key = stackKey(cover);
+  const navigate = vi.fn();
+  useUIStore.setState({ activeView: 'editor', imageSelectHandler: navigate });
+  useEditorStore.setState({
+    selectedImage: {
+      path: member.path,
+      exif: {},
+      width: 960,
+      height: 640,
+      isRaw: false,
+      isReady: true,
+      thumbnailUrl: '',
+    },
+  });
+  useLibraryStore.setState({
+    imageList: [cover, member],
+    expandedStacks: new Set([key]),
+    libraryActivePath: member.path,
+    multiSelectedPaths: [member.path],
+  });
+  toggleStack(key);
+  expect(navigate).toHaveBeenCalledWith(cover.path, true);
+  expect(useLibraryStore.getState().multiSelectedPaths).toEqual([cover.path]);
+  expect(useLibraryStore.getState().expandedStacks.has(key)).toBe(false);
+  useUIStore.setState({ activeView: 'library', imageSelectHandler: null });
+  useEditorStore.setState({ selectedImage: null });
 });

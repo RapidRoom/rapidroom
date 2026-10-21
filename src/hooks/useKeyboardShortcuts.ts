@@ -91,8 +91,6 @@ export const useKeyboardShortcuts = ({
       settings: useSettingsStore.getState(),
       process: useProcessStore.getState(),
     });
-    type ShortcutState = ReturnType<typeof getStoreState>;
-
     type StoreState = ReturnType<typeof getStoreState>;
     interface ShortcutAction {
       shouldFire?: (state: StoreState) => boolean;
@@ -586,8 +584,8 @@ export const useKeyboardShortcuts = ({
         },
       },
       auto_straighten: {
-        shouldFire: (s: ShortcutState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: KeyboardEvent, s: ShortcutState) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           if (s.ui.activePanel !== Panel.Crop) {
             s.ui.setPanel(Panel.Crop);

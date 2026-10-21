@@ -115,7 +115,8 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   lutIsSceneReferred:
     '`true` applies the LUT before tone mapping (built-in film looks use this), `false` after the curves.',
   crop: '`{"unit": "px", "x", "y", "width", "height"}` in full-resolution pixels after rotation and flips; `null` for none.',
-  aspectRatio: 'Crop width / height (for example 0.8 for 4:5), or `null` for free.',
+  aspectRatio:
+    '`0` follows the oriented image (Original); `null` is Free; positive numbers are fixed crop width / height (for example 0.8 for 4:5).',
   rotation: 'Fine straightening in degrees; + turns the image clockwise.',
   flipHorizontal: 'Mirror left–right.',
   flipVertical: 'Mirror top–bottom.',

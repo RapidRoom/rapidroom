@@ -1430,6 +1430,19 @@ fn apply_noise_reduction(
     return vec3<f32>(new_luma) + new_chroma;
 }
 
+fn sample_ca_bilinear(position: vec2<f32>) -> vec3<f32> {
+    let max_coords = vec2<i32>(textureDimensions(input_texture)) - vec2<i32>(1);
+    let p = clamp(position, vec2<f32>(0.0), vec2<f32>(max_coords));
+    let lo = vec2<i32>(floor(p));
+    let hi = min(lo + vec2<i32>(1), max_coords);
+    let weight = p - vec2<f32>(lo);
+    let top = mix(textureLoad(input_texture, lo, 0).rgb,
+                  textureLoad(input_texture, vec2<i32>(hi.x, lo.y), 0).rgb, weight.x);
+    let bottom = mix(textureLoad(input_texture, vec2<i32>(lo.x, hi.y), 0).rgb,
+                     textureLoad(input_texture, hi, 0).rgb, weight.x);
+    return mix(top, bottom, weight.y);
+}
+
 fn apply_ca_correction(coords: vec2<u32>, ca_rc: f32, ca_by: f32) -> vec3<f32> {
     let dims = vec2<f32>(textureDimensions(input_texture));
     let center = dims / 2.0;
@@ -1447,15 +1460,9 @@ fn apply_ca_correction(coords: vec2<u32>, ca_rc: f32, ca_by: f32) -> vec3<f32> {
     let red_shift = dir * dist * ca_rc;
     let blue_shift = dir * dist * ca_by;
 
-    let red_coords = vec2<i32>(round(current_pos - red_shift));
-    let blue_coords = vec2<i32>(round(current_pos - blue_shift));
-    let green_coords = vec2<i32>(current_pos);
-
-    let max_coords = vec2<i32>(dims - 1.0);
-
-    let r = textureLoad(input_texture, vec2<u32>(clamp(red_coords, vec2<i32>(0), max_coords)), 0).r;
-    let g = textureLoad(input_texture, vec2<u32>(clamp(green_coords, vec2<i32>(0), max_coords)), 0).g;
-    let b = textureLoad(input_texture, vec2<u32>(clamp(blue_coords, vec2<i32>(0), max_coords)), 0).b;
+    let r = sample_ca_bilinear(current_pos - red_shift).r;
+    let g = textureLoad(input_texture, coords, 0).g;
+    let b = sample_ca_bilinear(current_pos - blue_shift).b;
 
     return vec3<f32>(r, g, b);
 }
@@ -1818,7 +1825,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let ca_rc = adjustments.global.chromatic_aberration_red_cyan;
     let ca_by = adjustments.global.chromatic_aberration_blue_yellow;
     var color_from_texture = textureLoad(input_texture, absolute_coord, 0).rgb;
-    if (has_feature(F_CA) && (abs(ca_rc) > 0.000001 || abs(ca_by) > 0.000001)) {
+    if (has_feature(F_CA) && (ca_rc != 0.0 || ca_by != 0.0)) {
         color_from_texture = apply_ca_correction(absolute_coord, ca_rc, ca_by);
     }
     let original_alpha = textureLoad(input_texture, absolute_coord, 0).a;

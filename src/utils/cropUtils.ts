@@ -1,4 +1,4 @@
-import { Crop } from 'react-image-crop';
+import { Crop, PixelCrop } from 'react-image-crop';
 
 // aspectRatio 0 locks the crop to the image's own ratio, null leaves it free.
 // 0 is the default, because the image ratio differs per image and cannot be stored as one number.
@@ -10,9 +10,28 @@ export function resolveAspectRatio(
   orientationSteps: number,
 ): number | null {
   if (aspectRatio !== ORIGINAL_RATIO) return aspectRatio;
-  if (!image?.width || !image?.height) return null;
+  if (
+    !image ||
+    !Number.isFinite(image.width) ||
+    !Number.isFinite(image.height) ||
+    image.width <= 0 ||
+    image.height <= 0
+  )
+    return null;
   const { width, height } = getOrientedDimensions(image.width, image.height, orientationSteps);
   return width / height;
+}
+
+export function toPixelCrop(crop: Crop, imageWidth: number, imageHeight: number): PixelCrop {
+  return crop.unit === '%'
+    ? {
+        unit: 'px',
+        x: (crop.x * imageWidth) / 100,
+        y: (crop.y * imageHeight) / 100,
+        width: (crop.width * imageWidth) / 100,
+        height: (crop.height * imageHeight) / 100,
+      }
+    : { ...crop, unit: 'px' };
 }
 
 export function getOrientedDimensions(
@@ -36,6 +55,19 @@ export function normalizeCropChange(
   rotation: number = 0,
 ): Crop | null {
   const { width, height } = getOrientedDimensions(imageWidth, imageHeight, orientationSteps);
+  // ReactCrop completes its initial display crop without a user gesture.
+  // Preserve a saved percentage payload when that callback only rounds it to pixels.
+  if (
+    current?.unit === '%' &&
+    next &&
+    (next.unit ?? 'px') === 'px' &&
+    next.x === Math.ceil((current.x / 100) * width) &&
+    next.y === Math.ceil((current.y / 100) * height) &&
+    next.width === Math.floor((current.width / 100) * width) &&
+    next.height === Math.floor((current.height / 100) * height)
+  ) {
+    return current;
+  }
   const normalize = (crop: Crop | null): Crop | null =>
     crop &&
     (crop.unit === 'px' || crop.unit === undefined) &&
@@ -156,6 +188,7 @@ export function calculateAreaPreservingCrop(
 
   const { width: W, height: H } = getOrientedDimensions(imageWidth, imageHeight, orientationSteps);
 
+  currentCrop = toPixelCrop(currentCrop, W, H);
   const area = currentCrop.width * currentCrop.height;
   const newH = Math.sqrt(area / aspectRatio);
   const newW = aspectRatio * newH;
@@ -208,6 +241,7 @@ export function calculateAutoCropForRotation(
     return calculateCenteredCrop(imageWidth, imageHeight, orientationSteps, A, newRotation);
   }
 
+  currentCrop = toPixelCrop(currentCrop, W, H);
   const followedCrop = rotationDelta !== 0 ? rotateCropCenter(currentCrop, W, H, rotationDelta) : currentCrop;
 
   if (isCropWithinBounds(followedCrop, W, H, newRotation)) {
@@ -400,7 +434,9 @@ export function zoomCrop(
   mouseX?: number,
   mouseY?: number,
 ): Crop {
-  const A = aspectRatio || (crop.height > 0 ? crop.width / crop.height : 1);
+  const A =
+    (aspectRatio === ORIGINAL_RATIO ? imageW / imageH : aspectRatio) ||
+    (crop.height > 0 ? crop.width / crop.height : 1);
   const MIN_SIZE = 64;
 
   let targetW = crop.width * scaleFactor;

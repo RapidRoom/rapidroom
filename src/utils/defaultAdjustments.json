@@ -4,7 +4,7 @@
   "aiDenoiseDetail": 0,
   "aiDenoiseEnabled": false,
   "aiPatches": [],
-  "aspectRatio": null,
+  "aspectRatio": 0,
   "baselineExposure": true,
   "cameraExposureCompensation": true,
   "blacks": 0,

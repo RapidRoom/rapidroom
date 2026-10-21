@@ -95,6 +95,7 @@ export enum Invokes {
   ListImagesRecursive = 'list_images_recursive',
   LoadImage = 'load_image',
   LoadMetadata = 'load_metadata',
+  ReadCompareAdjustments = 'read_compare_adjustments',
   GetDefaultRawLensAdjustments = 'get_default_raw_lens_adjustments',
   GetLensCorrectionResolution = 'get_lens_correction_resolution',
   LoadPresets = 'load_presets',

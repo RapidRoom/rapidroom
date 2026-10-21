@@ -105,10 +105,6 @@ interface ImportedXmpMetadata {
   adjustments?: (Partial<Adjustments> & { is_null?: boolean }) | null;
 }
 
-interface LoadedImageMetadata {
-  adjustments: (Adjustments & { is_null?: boolean }) | null;
-}
-
 interface DeleteOptions {
   includeAssociated: boolean;
 }
@@ -741,6 +737,12 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
               disabled: !selectedImage?.isReady,
             },
             {
+              label: t('contextMenus.editor.autoStraighten'),
+              icon: Wand2,
+              onClick: handleAutoStraighten,
+              disabled: !selectedImage?.isReady,
+            },
+            {
               label: t('denoiseQueue.toggle'),
               icon: Grip,
               onClick: () => void setDenoiseMark(undefined, [selectedImage.path]),
@@ -1001,8 +1003,14 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
         if (batchPaths.length === 0) return;
         batchPaths.forEach((p) => globalImageCache.delete(p));
 
+        const beforeBatch = useEditorStore.getState();
         invoke(Invokes.ApplyAutoAdjustmentsToPaths, { paths: batchPaths, mode })
-          .then(() => reloadAdjustmentsForPaths(batchPaths))
+          .then(() =>
+            reloadAdjustmentsForPaths(batchPaths, {
+              path: beforeBatch.selectedImage?.path,
+              adjustments: beforeBatch.adjustments,
+            }),
+          )
           .catch((err) => {
             console.error('Failed to apply auto adjustments to paths:', err);
             toast.error(t('contextMenus.toasts.failedApplyAuto', { err }));
