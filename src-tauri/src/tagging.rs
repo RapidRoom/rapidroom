@@ -564,11 +564,12 @@ fn clear_tags_in_tree(
         if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("rrdata") {
             continue;
         }
-        let metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let Ok(guard) = crate::file_management::lock_sidecar(path) else {
+            continue;
+        };
         if let Ok(content) = fs::read_to_string(path)
-            && let Ok(mut metadata) = serde_json::from_str::<ImageMetadata>(&content)
+            && let Ok(mut document) = serde_json::from_str::<serde_json::Value>(&content)
+            && let Ok(mut metadata) = serde_json::from_value::<ImageMetadata>(document.clone())
             && let Some(tags) = &mut metadata.tags
         {
             let original_len = tags.len();
@@ -577,11 +578,12 @@ fn clear_tags_in_tree(
                 if tags.is_empty() {
                     metadata.tags = None;
                 }
-                if let Ok(json_string) = serde_json::to_string_pretty(&metadata)
-                    && crate::file_management::write_file_atomically(path, json_string).is_ok()
+                document["tags"] = serde_json::json!(metadata.tags);
+                if let Ok(bytes) = serde_json::to_vec_pretty(&document)
+                    && crate::file_management::write_file_atomically_unmerged(path, bytes).is_ok()
                 {
                     updated_count += 1;
-                    drop(metadata_lock);
+                    drop(guard);
                     if let Some(create_if_missing) = xmp_sync {
                         sync_xmp_for_rrdata(path, &metadata, create_if_missing);
                     }
@@ -603,6 +605,73 @@ mod card_mode_tests {
         crate::exif_processing::load_sidecar(sidecar)
             .tags
             .unwrap_or_default()
+    }
+
+    #[test]
+    fn tag_cleanup_and_user_edits_share_one_sidecar_transaction() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            mpsc,
+        };
+        use std::time::Duration;
+        let _mode = CardMode::off();
+        let f = folders();
+        let sidecar = f.library.join("IMG_0001.jpg.rrdata");
+        let mut original: serde_json::Value =
+            serde_json::from_slice(&fs::read(&sidecar).unwrap()).unwrap();
+        original["stack"] = serde_json::json!({"id":"burst", "position":0});
+        original["appliedPreset"] = serde_json::json!({"id":"preset"});
+        original["exportFraming"] = serde_json::json!({"version":1});
+        original["denoise"] = serde_json::json!({"version":1});
+        fs::write(&sidecar, serde_json::to_vec(&original).unwrap()).unwrap();
+        let root = path_str(&f.library);
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (allow_tx, allow_rx) = mpsc::channel();
+        let allow_rx = Mutex::new(allow_rx);
+        let cleaner = std::thread::spawn(move || {
+            let first = AtomicBool::new(true);
+            clear_tags_in_tree(&root, None, |tag| {
+                if first.swap(false, Ordering::SeqCst) {
+                    entered_tx.send(()).unwrap();
+                    allow_rx.lock().unwrap().recv().unwrap();
+                }
+                tag.starts_with(USER_TAG_PREFIX) || tag.starts_with(COLOR_TAG_PREFIX)
+            })
+            .unwrap()
+        });
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let target = sidecar.clone();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let writer = std::thread::spawn(move || {
+            ready_tx.send(()).unwrap();
+            file_management::update_sidecar(&target, |m| {
+                m.rating = 5;
+                m.adjustments = serde_json::json!({"exposure":1.25});
+                m.tags.get_or_insert_with(Vec::new).push("user:new".into());
+            })
+            .unwrap();
+            done_tx.send(()).unwrap();
+        });
+        ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let premature = done_rx.recv_timeout(Duration::from_millis(150));
+        allow_tx.send(()).unwrap();
+        assert_eq!(cleaner.join().unwrap(), 1);
+        writer.join().unwrap();
+        assert!(
+            premature.is_err(),
+            "rating writer entered during tag transaction"
+        );
+        let saved: serde_json::Value = serde_json::from_slice(&fs::read(sidecar).unwrap()).unwrap();
+        assert_eq!(saved["rating"], 5);
+        assert_eq!(saved["adjustments"]["exposure"], 1.25);
+        assert_eq!(
+            saved["tags"],
+            serde_json::json!(["user:keep", "color:red", "user:new"])
+        );
+        for key in file_management::SIDECAR_OWNED_FIELDS {
+            assert_eq!(saved[key], original[key]);
+        }
     }
 
     #[test]
