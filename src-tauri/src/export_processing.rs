@@ -1500,9 +1500,6 @@ fn encode_image_to_bytes(
             image_to_encode
                 .write_with_encoder(encoder)
                 .map_err(|e| e.to_string())?;
-            if let Some(dpi) = export_settings.dpi {
-                insert_png_phys_chunk(&mut image_bytes, dpi);
-            }
         }
         "tif" | "tiff" => {
             if let Some(dpi) = dpi {
