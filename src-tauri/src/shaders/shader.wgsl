@@ -44,8 +44,8 @@ struct GlobalAdjustments {
     wb_log_gain_l: f32,
     wb_log_gain_m: f32,
     wb_log_gain_s: f32,
-    _pad_color1: f32,
-    _pad_color2: f32,
+    centre_x: f32,
+    centre_y: f32,
 
     sharpness: f32,
     luma_noise_reduction: f32,
@@ -72,8 +72,8 @@ struct GlobalAdjustments {
     lut_intensity: f32,
     tonemapper_mode: u32,
     lut_is_scene_referred: u32,
-    _pad_lut3: f32,
-    _pad_lut4: f32,
+    vignette_center_x: f32,
+    vignette_center_y: f32,
     _pad_lut5: f32,
 
     _pad_agx1: f32,
@@ -117,6 +117,8 @@ struct GlobalAdjustments {
     halation_amount: f32,
     flare_amount: f32,
     sharpness_threshold: f32,
+    lut_domain_min: vec4<f32>,
+    lut_domain_max: vec4<f32>,
 }
 
 struct MaskAdjustments {
@@ -868,7 +870,7 @@ fn shape_detail_gf(d: f32) -> f32 {
     return shape_detail(d, select(GF_DETAIL_SIGMA, GF_BRIGHT_SIGMA, d > 0.0));
 }
 
-fn centre_clarity_strength(centre_amount: f32, coords_i: vec2<i32>) -> f32 {
+fn centre_clarity_strength(centre_amount: f32, centre_pos: vec2<f32>, coords_i: vec2<i32>) -> f32 {
     if (centre_amount == 0.0) {
         return 0.0;
     }
@@ -877,7 +879,7 @@ fn centre_clarity_strength(centre_amount: f32, coords_i: vec2<i32>) -> f32 {
     let midpoint = 0.4;
     let feather = 0.375;
     let aspect = full_dims_f.y / full_dims_f.x;
-    let uv_centered = (coord_f / full_dims_f - 0.5) * 2.0;
+    let uv_centered = (coord_f / full_dims_f - centre_pos) * 2.0;
     let d = length(uv_centered * vec2<f32>(1.0, aspect)) * 0.5;
     let vignette_mask = smoothstep(midpoint - feather, midpoint + feather, d);
     let centre_mask = 1.0 - vignette_mask;
@@ -1047,6 +1049,7 @@ fn apply_sharpen(
 fn apply_centre_tonal_and_color(
     color_in: vec3<f32>,
     centre_amount: f32,
+    centre_pos: vec2<f32>,
     coords_i: vec2<i32>
 ) -> vec3<f32> {
     if (centre_amount == 0.0) {
@@ -1057,7 +1060,7 @@ fn apply_centre_tonal_and_color(
     let midpoint = 0.4;
     let feather = 0.375;
     let aspect = full_dims_f.y / full_dims_f.x;
-    let uv_centered = (coord_f / full_dims_f - 0.5) * 2.0;
+    let uv_centered = (coord_f / full_dims_f - centre_pos) * 2.0;
     let d = length(uv_centered * vec2<f32>(1.0, aspect)) * 0.5;
     let vignette_mask = smoothstep(midpoint - feather, midpoint + feather, d);
     let centre_mask = 1.0 - vignette_mask;
@@ -1305,6 +1308,19 @@ fn apply_noise_reduction(
     return vec3<f32>(new_luma) + new_chroma;
 }
 
+fn sample_ca_bilinear(position: vec2<f32>) -> vec3<f32> {
+    let max_coords = vec2<i32>(textureDimensions(input_texture)) - vec2<i32>(1);
+    let p = clamp(position, vec2<f32>(0.0), vec2<f32>(max_coords));
+    let lo = vec2<i32>(floor(p));
+    let hi = min(lo + vec2<i32>(1), max_coords);
+    let weight = p - vec2<f32>(lo);
+    let top = mix(textureLoad(input_texture, lo, 0).rgb,
+                  textureLoad(input_texture, vec2<i32>(hi.x, lo.y), 0).rgb, weight.x);
+    let bottom = mix(textureLoad(input_texture, vec2<i32>(lo.x, hi.y), 0).rgb,
+                     textureLoad(input_texture, hi, 0).rgb, weight.x);
+    return mix(top, bottom, weight.y);
+}
+
 fn apply_ca_correction(coords: vec2<u32>, ca_rc: f32, ca_by: f32) -> vec3<f32> {
     let dims = vec2<f32>(textureDimensions(input_texture));
     let center = dims / 2.0;
@@ -1322,15 +1338,9 @@ fn apply_ca_correction(coords: vec2<u32>, ca_rc: f32, ca_by: f32) -> vec3<f32> {
     let red_shift = dir * dist * ca_rc;
     let blue_shift = dir * dist * ca_by;
 
-    let red_coords = vec2<i32>(round(current_pos - red_shift));
-    let blue_coords = vec2<i32>(round(current_pos - blue_shift));
-    let green_coords = vec2<i32>(current_pos);
-
-    let max_coords = vec2<i32>(dims - 1.0);
-
-    let r = textureLoad(input_texture, vec2<u32>(clamp(red_coords, vec2<i32>(0), max_coords)), 0).r;
-    let g = textureLoad(input_texture, vec2<u32>(clamp(green_coords, vec2<i32>(0), max_coords)), 0).g;
-    let b = textureLoad(input_texture, vec2<u32>(clamp(blue_coords, vec2<i32>(0), max_coords)), 0).b;
+    let r = sample_ca_bilinear(current_pos - red_shift).r;
+    let g = textureLoad(input_texture, coords, 0).g;
+    let b = sample_ca_bilinear(current_pos - blue_shift).b;
 
     return vec3<f32>(r, g, b);
 }
@@ -1474,10 +1484,19 @@ fn get_mask_influence(mask_index: u32, coords: vec2<u32>) -> f32 {
     return textureLoad(mask_textures, vec2<i32>(coords), i32(mask_index), 0).r;
 }
 
-fn sample_lut_tetrahedral(uv: vec3<f32>) -> vec3<f32> {
+fn lut_domain_coordinates(uv: vec3<f32>, domain_min: vec3<f32>, domain_max: vec3<f32>) -> vec3<f32> {
+    // Preserve the existing unit-domain lookup, including its rounding.
+    if (all(domain_min == vec3<f32>(0.0)) && all(domain_max == vec3<f32>(1.0))) {
+        return uv;
+    }
+    return (uv - domain_min) / (domain_max - domain_min);
+}
+
+fn sample_lut_tetrahedral(uv: vec3<f32>, domain_min: vec3<f32>, domain_max: vec3<f32>) -> vec3<f32> {
     let dims = vec3<f32>(textureDimensions(lut_texture));
     let size = dims - vec3<f32>(1.0);
-    let scaled = clamp(uv, vec3<f32>(0.0), vec3<f32>(1.0)) * size;
+    let normalized = lut_domain_coordinates(uv, domain_min, domain_max);
+    let scaled = clamp(normalized, vec3<f32>(0.0), vec3<f32>(1.0)) * size;
     let i_base = floor(scaled);
     let f = scaled - i_base;
     let coord0 = vec3<i32>(i_base);
@@ -1685,7 +1704,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let ca_rc = adjustments.global.chromatic_aberration_red_cyan;
     let ca_by = adjustments.global.chromatic_aberration_blue_yellow;
     var color_from_texture = textureLoad(input_texture, absolute_coord, 0).rgb;
-    if (abs(ca_rc) > 0.000001 || abs(ca_by) > 0.000001) {
+    if (ca_rc != 0.0 || ca_by != 0.0) {
         color_from_texture = apply_ca_correction(absolute_coord, ca_rc, ca_by);
     }
     let original_alpha = textureLoad(input_texture, absolute_coord, 0).a;
@@ -1809,7 +1828,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         lc_gate *= 1.0 - smoothstep(0.9, 1.0, gf_luma);
     }
 
-    let clarity_total = t_clarity + centre_clarity_strength(adjustments.global.centre, absolute_coord_i);
+    let clarity_total = t_clarity + centre_clarity_strength(adjustments.global.centre, vec2<f32>(adjustments.global.centre_x, adjustments.global.centre_y), absolute_coord_i);
     let structure_smooth = clamp(-t_structure, 0.0, 1.0);
     let clarity_overlap = select(1.0, 1.0 - structure_smooth, clarity_total < 0.0);
     let clarity_term = shape_detail_gf(detail_clarity)
@@ -1858,7 +1877,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     }
     var composite_rgb_linear = apply_dehaze(processed_rgb, structure_blurred, dehaze_dark, is_raw, t_dehaze);
     composite_rgb_linear = apply_white_balance(composite_rgb_linear, t_wb_log_gains);
-    composite_rgb_linear = apply_centre_tonal_and_color(composite_rgb_linear, adjustments.global.centre, absolute_coord_i);
+    composite_rgb_linear = apply_centre_tonal_and_color(composite_rgb_linear, adjustments.global.centre, vec2<f32>(adjustments.global.centre_x, adjustments.global.centre_y), absolute_coord_i);
     var tonal_log_detail = 0.0;
     var tonal_mid_detail = 0.0;
     if (t_shadows != 0.0 || t_blacks != 0.0 || t_highlights != 0.0 || t_whites != 0.0) {
@@ -1903,7 +1922,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         let v_round = 1.0 - adjustments.global.vignette_roundness;
         let v_feather = adjustments.global.vignette_feather * 0.5;
         let aspect = full_dims_f.y / full_dims_f.x;
-        let uv_centered = (coord_f / full_dims_f - 0.5) * 2.0;
+        let v_center = vec2<f32>(adjustments.global.vignette_center_x, adjustments.global.vignette_center_y);
+        let uv_centered = (coord_f / full_dims_f - v_center) * 2.0;
         let uv_round = sign(uv_centered) * pow(abs(uv_centered), vec2<f32>(v_round, v_round));
         let d = length(uv_round * vec2<f32>(1.0, aspect)) * 0.5;
         let vignette_mask = smoothstep(v_mid - v_feather, v_mid + v_feather, d);
@@ -1932,7 +1952,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
     if (is_scene_lut) {
         let vlog_encoded = linear_to_vlog(composite_rgb_linear);
-        let lut_color = sample_lut_tetrahedral(vlog_encoded);
+        let lut_color = sample_lut_tetrahedral(vlog_encoded, adjustments.global.lut_domain_min.xyz, adjustments.global.lut_domain_max.xyz);
         base_srgb = mix(default_tonemapped, lut_color, adjustments.global.lut_intensity);
     } else {
         base_srgb = default_tonemapped;
@@ -1962,7 +1982,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     }
 
     if (adjustments.global.has_lut == 1u && adjustments.global.lut_is_scene_referred == 0u) {
-        let lut_color = sample_lut_tetrahedral(final_rgb);
+        let lut_color = sample_lut_tetrahedral(final_rgb, adjustments.global.lut_domain_min.xyz, adjustments.global.lut_domain_max.xyz);
         final_rgb = mix(final_rgb, lut_color, adjustments.global.lut_intensity);
     }
 

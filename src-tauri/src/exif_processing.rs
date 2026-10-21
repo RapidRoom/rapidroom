@@ -10,7 +10,7 @@ use crate::file_management;
 use crate::formats::is_raw_file;
 use crate::image_processing::ImageMetadata;
 use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
-use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, FixedOffset, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use exif::{Exif, In, Value};
 use image::ImageDecoder;
 use little_exif::exif_tag::ExifTag;
@@ -47,8 +47,9 @@ impl ExifCacheState {
     }
 }
 
+static EXIF_CACHE: OnceLock<Mutex<ExifCacheState>> = OnceLock::new();
+
 fn get_exif_cache() -> &'static Mutex<ExifCacheState> {
-    static EXIF_CACHE: OnceLock<Mutex<ExifCacheState>> = OnceLock::new();
     EXIF_CACHE.get_or_init(|| {
         std::thread::spawn(|| {
             loop {
@@ -251,19 +252,35 @@ pub fn truncate_large_exif(value: &str) -> String {
 }
 
 pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
-    let _lock = crate::file_management::SIDECAR_METADATA_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    load_sidecar_unlocked(sidecar_path)
+    // Each sidecar is atomically replaced; readers see a complete old or new
+    // document and need not serialize a whole folder behind metadata writes.
+    let (meta, healed) = read_sidecar(sidecar_path);
+    if healed {
+        // Reload under the shared write guard before persisting normalization:
+        // a read snapshot must not overwrite a concurrent edit.
+        if crate::file_management::update_sidecar(sidecar_path, |_| {}).is_ok() {
+            log::info!(
+                "Auto-healed bloated sidecar for: {}",
+                sidecar_path.display()
+            );
+        }
+    }
+    meta
 }
 
+// Safe inside a sidecar transaction: normalization here never acquires a
+// second write guard. The transaction's caller publishes the normalized data.
 pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
+    read_sidecar(sidecar_path).0
+}
+
+fn read_sidecar(sidecar_path: &Path) -> (ImageMetadata, bool) {
     if !sidecar_path.exists() {
-        return ImageMetadata::default();
+        return (ImageMetadata::default(), false);
     }
 
     let Ok(content) = fs::read_to_string(sidecar_path) else {
-        return ImageMetadata::default();
+        return (ImageMetadata::default(), false);
     };
 
     let mut meta = serde_json::from_str::<ImageMetadata>(&content).unwrap_or_default();
@@ -278,15 +295,7 @@ pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
         }
     }
 
-    if healed && let Ok(json) = serde_json::to_string_pretty(&meta) {
-        let _ = crate::file_management::write_file_atomically(sidecar_path, json);
-        log::info!(
-            "Auto-healed bloated sidecar for: {}",
-            sidecar_path.display()
-        );
-    }
-
-    meta
+    (meta, healed)
 }
 
 /// Seed only an unedited image; existing sidecar framing stays in the original
@@ -411,12 +420,64 @@ fn creation_datetime_to_utc(dt: NaiveDateTime) -> DateTime<Utc> {
     }
 }
 
-fn parse_creation_field(field: &exif::Field) -> Option<DateTime<Utc>> {
-    parse_creation_datetime(&field.display_value().to_string()).map(creation_datetime_to_utc)
+pub(crate) fn parse_capture_offset(value: &str) -> Option<FixedOffset> {
+    let value = clean_creation_datetime_str(value);
+    if value == "Z" {
+        return FixedOffset::east_opt(0);
+    }
+    let bytes = value.as_bytes();
+    if bytes.len() != 6
+        || !matches!(bytes[0], b'+' | b'-')
+        || bytes[3] != b':'
+        || ![bytes[1], bytes[2], bytes[4], bytes[5]]
+            .iter()
+            .all(u8::is_ascii_digit)
+    {
+        return None;
+    }
+    let hours = value[1..3].parse::<i32>().ok()?;
+    let minutes = value[4..6].parse::<i32>().ok()?;
+    if hours > 23 || minutes > 59 {
+        return None;
+    }
+    let seconds = (hours * 60 + minutes) * 60 * if bytes[0] == b'-' { -1 } else { 1 };
+    FixedOffset::east_opt(seconds)
 }
 
-fn parse_raw_creation_date(date_str: Option<&str>) -> Option<DateTime<Utc>> {
-    parse_creation_datetime(date_str?).map(creation_datetime_to_utc)
+pub(crate) fn recorded_capture_offset(exif: &HashMap<String, String>) -> Option<FixedOffset> {
+    ["OffsetTimeOriginal", "OffsetTime"]
+        .iter()
+        .filter_map(|key| exif.get(*key))
+        .find_map(|value| parse_capture_offset(value))
+}
+
+fn creation_datetime_with_offset(dt: NaiveDateTime, offset: Option<FixedOffset>) -> DateTime<Utc> {
+    offset
+        .and_then(|zone| zone.from_local_datetime(&dt).single())
+        .map(|date| date.with_timezone(&Utc))
+        .unwrap_or_else(|| creation_datetime_to_utc(dt))
+}
+
+fn parse_creation_field(
+    field: &exif::Field,
+    exif: &Exif,
+    offset_tag: exif::Tag,
+) -> Option<DateTime<Utc>> {
+    let offset = [offset_tag, exif::Tag::OffsetTime].iter().find_map(|tag| {
+        exif.get_field(*tag, In::PRIMARY)
+            .and_then(|field| clean_ascii_value(&field.value))
+            .and_then(|value| parse_capture_offset(&value))
+    });
+    parse_creation_datetime(&field.display_value().to_string())
+        .map(|date| creation_datetime_with_offset(date, offset))
+}
+
+fn parse_raw_creation_date(
+    date_str: Option<&str>,
+    offsets: [Option<&str>; 2],
+) -> Option<DateTime<Utc>> {
+    let offset = offsets.into_iter().flatten().find_map(parse_capture_offset);
+    parse_creation_datetime(date_str?).map(|date| creation_datetime_with_offset(date, offset))
 }
 
 fn clean_ascii_value(value: &exif::Value) -> Option<String> {
@@ -1257,7 +1318,16 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
         && let Some(dt_str) = map.get("DateTimeOriginal").or(map.get("CreateDate"))
         && let Some(dt) = parse_creation_datetime(dt_str)
     {
-        return Some(creation_datetime_to_utc(dt));
+        let specific_offset = if map.contains_key("DateTimeOriginal") {
+            "OffsetTimeOriginal"
+        } else {
+            "OffsetTimeDigitized"
+        };
+        let offset = [specific_offset, "OffsetTime"]
+            .iter()
+            .filter_map(|key| map.get(*key))
+            .find_map(|value| parse_capture_offset(value));
+        return Some(creation_datetime_with_offset(dt, offset));
     }
 
     if let Ok(file) = std::fs::File::open(path) {
@@ -1267,7 +1337,15 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
         if let Ok(exif_obj) = exifreader.read_from_container(&mut bufreader) {
             for tag in [exif::Tag::DateTimeOriginal, exif::Tag::DateTime] {
                 if let Some(field) = exif_obj.get_field(tag, exif::In::PRIMARY)
-                    && let Some(dt) = parse_creation_field(field)
+                    && let Some(dt) = parse_creation_field(
+                        field,
+                        &exif_obj,
+                        if tag == exif::Tag::DateTimeOriginal {
+                            exif::Tag::OffsetTimeOriginal
+                        } else {
+                            exif::Tag::OffsetTime
+                        },
+                    )
                 {
                     return Some(dt);
                 }
@@ -1281,10 +1359,22 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
             && let Ok(decoder) = loader.get_decoder(&raw_source)
             && let Ok(metadata) = decoder.raw_metadata(&raw_source, &Default::default())
         {
-            if let Some(dt) = parse_raw_creation_date(metadata.exif.date_time_original.as_deref()) {
+            if let Some(dt) = parse_raw_creation_date(
+                metadata.exif.date_time_original.as_deref(),
+                [
+                    metadata.exif.offset_time_original.as_deref(),
+                    metadata.exif.offset_time.as_deref(),
+                ],
+            ) {
                 return Some(dt);
             }
-            if let Some(dt) = parse_raw_creation_date(metadata.exif.create_date.as_deref()) {
+            if let Some(dt) = parse_raw_creation_date(
+                metadata.exif.create_date.as_deref(),
+                [
+                    metadata.exif.offset_time_digitized.as_deref(),
+                    metadata.exif.offset_time.as_deref(),
+                ],
+            ) {
                 return Some(dt);
             }
         }
@@ -1298,7 +1388,15 @@ pub fn get_creation_date_from_bytes(path_hint: &str, file_bytes: &[u8]) -> DateT
     if let Some(exif_obj) = read_exif(file_bytes) {
         for tag in [exif::Tag::DateTimeOriginal, exif::Tag::DateTime] {
             if let Some(field) = exif_obj.get_field(tag, exif::In::PRIMARY)
-                && let Some(dt) = parse_creation_field(field)
+                && let Some(dt) = parse_creation_field(
+                    field,
+                    &exif_obj,
+                    if tag == exif::Tag::DateTimeOriginal {
+                        exif::Tag::OffsetTimeOriginal
+                    } else {
+                        exif::Tag::OffsetTime
+                    },
+                )
             {
                 return dt;
             }
@@ -1308,10 +1406,22 @@ pub fn get_creation_date_from_bytes(path_hint: &str, file_bytes: &[u8]) -> DateT
     if is_raw_file(path_hint)
         && let Some(metadata) = read_raw_metadata(file_bytes)
     {
-        if let Some(dt) = parse_raw_creation_date(metadata.exif.date_time_original.as_deref()) {
+        if let Some(dt) = parse_raw_creation_date(
+            metadata.exif.date_time_original.as_deref(),
+            [
+                metadata.exif.offset_time_original.as_deref(),
+                metadata.exif.offset_time.as_deref(),
+            ],
+        ) {
             return dt;
         }
-        if let Some(dt) = parse_raw_creation_date(metadata.exif.create_date.as_deref()) {
+        if let Some(dt) = parse_raw_creation_date(
+            metadata.exif.create_date.as_deref(),
+            [
+                metadata.exif.offset_time_digitized.as_deref(),
+                metadata.exif.offset_time.as_deref(),
+            ],
+        ) {
             return dt;
         }
     }
@@ -2236,6 +2346,64 @@ fn save_primary_metadata(image_path: &Path, metadata: &ImageMetadata) -> std::io
     crate::file_management::update_sidecar(&primary, |current| current.exif = metadata.exif.clone())
         .map(|_| ())
         .map_err(std::io::Error::other)
+}
+
+// Query variants deliberately do not heal primary metadata, migrate legacy
+// files, invalidate dirty cache entries or initialize a cache-writer thread.
+fn query_primary_exif(path: &Path) -> Option<HashMap<String, String>> {
+    let bytes = fs::read(path).ok()?;
+    let metadata: ImageMetadata = serde_json::from_slice(&bytes).ok()?;
+    metadata.exif.map(|map| {
+        map.into_iter()
+            .map(|(key, value)| (key, truncate_large_exif(&value)))
+            .collect()
+    })
+}
+fn query_cache_file(image_path: &Path, cache_path: &Path) -> Option<HashMap<String, String>> {
+    let (mtime, size) = get_file_stamp(image_path)?;
+    let cache: HashMap<String, CachedExifEntry> =
+        serde_json::from_slice(&fs::read(cache_path).ok()?).ok()?;
+    cache
+        .get(image_path.file_name()?.to_str()?)
+        .filter(|entry| entry.mtime_ns == mtime && entry.size == size)
+        .map(|entry| entry.data.clone())
+}
+fn query_cached_exif(image_path: &Path) -> Option<HashMap<String, String>> {
+    let folder = image_path.parent()?;
+    let (mtime, size) = get_file_stamp(image_path)?;
+    let state = EXIF_CACHE.get()?.lock().ok()?;
+    if let Some(entries) = state.cache.get(folder) {
+        return entries
+            .get(image_path.file_name()?.to_str()?)
+            .filter(|entry| entry.mtime_ns == mtime && entry.size == size)
+            .map(|entry| entry.data.clone());
+    }
+    let cache_path = state.get_cache_file_path(folder)?;
+    drop(state);
+    query_cache_file(image_path, &cache_path)
+}
+pub(crate) fn read_exif_for_query(
+    sidecar_path: &Path,
+    source_path: &Path,
+) -> Option<HashMap<String, String>> {
+    if let Some(exif) = query_primary_exif(sidecar_path)
+        .or_else(|| query_primary_exif(&get_primary_sidecar_path(source_path)))
+        .or_else(|| query_cached_exif(source_path))
+        .or_else(|| {
+            fs::read(get_rrexif_path(source_path))
+                .ok()
+                .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        })
+    {
+        return Some(exif);
+    }
+    let path = source_path.to_string_lossy();
+    let exif = if let Ok(bytes) = file_management::read_file_mapped(source_path) {
+        read_exif_data_from_bytes(&path, &bytes)
+    } else {
+        read_exif_data_from_bytes(&path, &fs::read(source_path).ok()?)
+    };
+    (!exif.is_empty()).then_some(exif)
 }
 
 pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>> {
@@ -3260,5 +3428,159 @@ mod tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod capture_offset_tests {
+    use super::*;
+
+    #[test]
+    fn real_jpeg_capture_offset_is_read_without_rewriting_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("hawaii.jpg");
+        image::RgbImage::from_pixel(8, 6, image::Rgb([40, 90, 120]))
+            .save(&path)
+            .unwrap();
+        let mut metadata = Metadata::new();
+        metadata.set_tag(ExifTag::DateTimeOriginal("2026:10:19 23:30:00".into()));
+        metadata.set_tag(ExifTag::OffsetTimeOriginal("-10:00".into()));
+        metadata.write_to_file(&path).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let expected = DateTime::parse_from_rfc3339("2026-10-20T09:30:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        assert_eq!(try_get_exif_creation_date(&path), Some(expected));
+        let decoded = extract_metadata(&before).unwrap();
+        assert_eq!(
+            decoded.get("OffsetTimeOriginal").map(String::as_str),
+            Some("-10:00")
+        );
+        assert_eq!(std::fs::read(path).unwrap(), before);
+    }
+
+    #[test]
+    fn raw_offsets_cover_rollovers_fractional_zones_and_invalid_fallbacks() {
+        for (date, offset, expected) in [
+            ("2026:10:19 23:30:00", "-10:00", "2026-10-20T09:30:00Z"),
+            ("2026-10-20 18:30:00", "+09:00", "2026-10-20T09:30:00Z"),
+            ("2026:01:01 00:15:00", "+05:45", "2025-12-31T18:30:00Z"),
+            ("2026:01:01 00:00:00", "Z", "2026-01-01T00:00:00Z"),
+        ] {
+            let actual = parse_raw_creation_date(Some(date), [Some(offset), None]);
+            assert_eq!(
+                actual,
+                Some(
+                    DateTime::parse_from_rfc3339(expected)
+                        .unwrap()
+                        .with_timezone(&Utc)
+                )
+            );
+        }
+        for bad in ["+24:00", "-10:60", "9:00", "no zone", "+é:00"] {
+            assert!(parse_capture_offset(bad).is_none());
+        }
+        let date = "2026:10:19 23:30:00";
+        let legacy = creation_datetime_to_utc(
+            NaiveDateTime::parse_from_str(date, EXIF_DATETIME_FORMAT).unwrap(),
+        );
+        assert_eq!(
+            parse_raw_creation_date(Some(date), [Some("invalid"), None]),
+            Some(legacy)
+        );
+        assert_eq!(
+            parse_raw_creation_date(Some(date), [Some("invalid"), Some("-10:00")]),
+            parse_raw_creation_date(Some(date), [Some("-10:00"), None])
+        );
+    }
+}
+
+#[cfg(test)]
+mod readonly_query_tests {
+    use super::*;
+    fn snapshot(paths: &[&Path]) -> Vec<(Vec<u8>, std::time::SystemTime)> {
+        paths
+            .iter()
+            .map(|p| {
+                (
+                    fs::read(p).unwrap(),
+                    p.metadata().unwrap().modified().unwrap(),
+                )
+            })
+            .collect()
+    }
+    #[test]
+    fn queries_preserve_long_primary_legacy_physical_exif_and_cache_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source.jpg");
+        let mut encoded = Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(2, 1, image::Rgb([30, 60, 90])))
+            .write_to(&mut encoded, image::ImageFormat::Jpeg)
+            .unwrap();
+        let mut bytes = encoded.into_inner();
+        let mut tags = Metadata::new();
+        tags.set_tag(ExifTag::Make("Canon".into()));
+        tags.write_to_vec(&mut bytes, FileExtension::JPEG).unwrap();
+        fs::write(&source, &bytes).unwrap();
+        let primary = get_primary_sidecar_path(&source);
+        let legacy = get_rrexif_path(&source);
+        let cache = directory.path().join("exif-cache.json");
+        fs::write(&legacy, r#"{"Make":"Legacy","unknown":"keep"}"#).unwrap();
+        let (mtime, size) = get_file_stamp(&source).unwrap();
+        fs::write(&cache,serde_json::to_vec(&serde_json::json!({"source.jpg":{"mtime_ns":mtime,"size":size,"data":{"Make":"Cache"},"future":42}})).unwrap()).unwrap();
+        for primary_exif in [
+            serde_json::json!({"Make":"Primary","LongField":"z".repeat(900)}),
+            serde_json::Value::Null,
+        ] {
+            fs::write(&primary,serde_json::to_vec(&serde_json::json!({"version":1,"rating":0,"exif":primary_exif,"adjustments":{"exposure":0.7},"future_owner_field":{"keep":true}})).unwrap()).unwrap();
+            serde_json::from_slice::<ImageMetadata>(&fs::read(&primary).unwrap()).unwrap();
+            let paths = [
+                source.as_path(),
+                primary.as_path(),
+                legacy.as_path(),
+                cache.as_path(),
+            ];
+            let before = snapshot(&paths);
+            let exif = read_exif_for_query(&primary, &source).unwrap();
+            if primary_exif.is_null() {
+                assert_eq!(exif["Make"], "Legacy");
+            } else {
+                assert_eq!(exif["Make"], "Primary");
+                assert!(exif["LongField"].len() < 500);
+            }
+            assert_eq!(query_cache_file(&source, &cache).unwrap()["Make"], "Cache");
+            assert_eq!(snapshot(&paths), before);
+        }
+        fs::remove_file(&legacy).unwrap();
+        let paths = [source.as_path(), primary.as_path(), cache.as_path()];
+        let before = snapshot(&paths);
+        assert_eq!(
+            read_exif_for_query(&primary, &source).unwrap()["Make"],
+            "Canon"
+        );
+        assert_eq!(snapshot(&paths), before);
+        let virtual_sidecar = directory.path().join("source-copy.rrdata");
+        fs::write(
+            &virtual_sidecar,
+            r#"{"version":1,"rating":0,"adjustments":{"exposure":1},"future":"keep"}"#,
+        )
+        .unwrap();
+        fs::write(
+            &primary,
+            r#"{"version":1,"rating":0,"adjustments":null,"exif":{"Make":"Physical primary"},"future":"keep"}"#,
+        )
+        .unwrap();
+        let paths = [
+            source.as_path(),
+            primary.as_path(),
+            virtual_sidecar.as_path(),
+            cache.as_path(),
+        ];
+        let before = snapshot(&paths);
+        assert_eq!(
+            read_exif_for_query(&virtual_sidecar, &source).unwrap()["Make"],
+            "Physical primary"
+        );
+        assert_eq!(snapshot(&paths), before);
     }
 }

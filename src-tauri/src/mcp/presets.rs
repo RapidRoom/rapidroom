@@ -18,7 +18,7 @@ pub(super) fn definitions() -> Vec<Value> {
         }),
         json!({
             "name":"apply_preset",
-            "description":"Apply a live catalog Style/preset to the ready active image as one undoable assistant edit. Supply exactly one stable presetId from list_presets or an exact name (groupId disambiguates). Amount 0–200 recomputes from the original baseline until another edit/image/undo invalidates it. Uses the real GUI mixer and applied indicator; can change masks/geometry only when included by that preset. Read current state/revision first.",
+            "description":"Apply a live catalog Style/preset to the ready active image as one undoable assistant edit. Supply exactly one stable presetId from list_presets or an exact name (groupId disambiguates). Styles use the shared ordered maximum-three stack, with per-entry Amount 0–200 and manual edits preserved. Applying an already-applied Style changes its Amount in place; use remove_style to remove it. Older baked-in entries cannot change Amount. Uses the real GUI mixer and applied indicator; can change masks/geometry only when included by that preset. Read current state/revision first.",
             "inputSchema":{"type":"object","additionalProperties":false,"properties":{
                 "imagePath":{"type":"string"},
                 "expectedRevision":{"type":"string","minLength":1,"maxLength":128},
@@ -27,6 +27,16 @@ pub(super) fn definitions() -> Vec<Value> {
                 "groupId":{"type":"string","minLength":1,"maxLength":128},
                 "amount":{"type":"integer","minimum":0,"maximum":200,"default":100}
             },"required":["imagePath","expectedRevision"],"oneOf":[{"required":["presetId"],"not":{"required":["name"]}},{"required":["name"],"not":{"required":["presetId"]}}]}
+        }),
+        json!({
+            "name":"list_applied_styles",
+            "description":"Read the ready active photo's applied Styles in stack order, including stable presetId, position, Amount and whether an older entry is baked in. Returns no recipes or baseline adjustments.",
+            "inputSchema":{"type":"object","additionalProperties":false,"properties":{"imagePath":{"type":"string"}},"required":["imagePath"]}
+        }),
+        json!({
+            "name":"remove_style",
+            "description":"Remove one applied Style by the presetId returned by list_applied_styles. Recomputes the remaining ordered stack with manual edits preserved, as one undoable edit. Removing an old baked-in entry clears only its marker and keeps its pixels.",
+            "inputSchema":{"type":"object","additionalProperties":false,"properties":{"imagePath":{"type":"string"},"expectedRevision":{"type":"string","minLength":1,"maxLength":128},"presetId":{"type":"string","minLength":1,"maxLength":128}},"required":["imagePath","expectedRevision","presetId"]}
         }),
     ]
 }
@@ -49,7 +59,13 @@ fn validate(name: &str, arguments: &Value) -> Result<(), String> {
         .as_object()
         .ok_or("Tool arguments must be an object")?;
     let apply = name == "apply_preset";
-    let allowed: &[&str] = if apply {
+    let stack_read = name == "list_applied_styles";
+    let stack_remove = name == "remove_style";
+    let allowed: &[&str] = if stack_read {
+        &["imagePath"]
+    } else if stack_remove {
+        &["imagePath", "expectedRevision", "presetId"]
+    } else if apply {
         &[
             "imagePath",
             "expectedRevision",
@@ -65,7 +81,19 @@ fn validate(name: &str, arguments: &Value) -> Result<(), String> {
         return Err("Unknown preset tool argument".into());
     }
     bounded_string(arguments, "groupId", 128)?;
-    if apply {
+    if stack_read || stack_remove {
+        bounded_string(arguments, "imagePath", 8192)?;
+        if !object.contains_key("imagePath") {
+            return Err("imagePath is required".into());
+        }
+    }
+    if stack_remove {
+        bounded_string(arguments, "expectedRevision", 128)?;
+        bounded_string(arguments, "presetId", 128)?;
+        if !object.contains_key("expectedRevision") || !object.contains_key("presetId") {
+            return Err("expectedRevision and presetId are required".into());
+        }
+    } else if apply {
         bounded_string(arguments, "expectedRevision", 128)?;
         if !object.contains_key("expectedRevision") {
             return Err("expectedRevision is required".into());
@@ -115,11 +143,17 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
         .filter(|s| !s.is_empty())
         .ok_or("imagePath is required")?;
     ui::ensure_path_exists(path, false)?;
-    tools::check_expected_revision(app, path, arguments.get("expectedRevision")).await?;
+    if name != "list_applied_styles" {
+        tools::check_expected_revision(app, path, arguments.get("expectedRevision")).await?;
+    }
     let state = ui::require_active_session(app, Some(path))?;
     ui::request_ui(
         app,
-        "apply-preset",
+        match name {
+            "list_applied_styles" => "list-applied-styles",
+            "remove_style" => "remove-style",
+            _ => "apply-preset",
+        },
         json!({"path":path, "baseAdjustments":state.adjustments, "options":arguments}),
     )
     .await

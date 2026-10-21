@@ -117,6 +117,8 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 | `structure` | number | `0`     | -100 to 100  | 1    | yes   | Like clarity at a larger scale (shapes, not texture).                                                                               |
 | `dehaze`    | number | `0`     | -100 to 100  | 1    | yes   | + removes haze and adds saturation; − adds a bluish haze. Mild per unit.                                                            |
 | `centré`    | number | `0`     | -100 to 100  | 1    |       | Centre emphasis: + adds contrast, about 0.2 EV and colour in a central ellipse and quietens the edges; − the reverse. Not in masks. |
+| `centréX`   | number | `0.5`   |              |      |       | Normalized horizontal centre position for Centré (0–1); default 0.5.                                                                |
+| `centréY`   | number | `0.5`   |              |      |       | Normalized vertical centre position for Centré (0–1); default 0.5.                                                                  |
 
 ### Sharpness
 
@@ -149,6 +151,8 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 | `vignetteFeather`   | number | `50`    | 0 to 100     | 1    |       | Width of the transition: higher is softer.                                  |
 | `vignetteMidpoint`  | number | `50`    | 0 to 100     | 1    |       | Where the transition sits: higher pushes it towards the corners.            |
 | `vignetteRoundness` | number | `0`     | -100 to 100  | 1    |       | Changes the shape between rectangular and round.                            |
+| `vignetteCenterX`   | number | `0.5`   |              |      |       | Normalized horizontal vignette centre (0–1); default 0.5.                   |
+| `vignetteCenterY`   | number | `0.5`   |              |      |       | Normalized vertical vignette centre (0–1); default 0.5.                     |
 
 ### Grain
 
@@ -284,9 +288,11 @@ Masks live in the `masks` array. Each entry is a mask container with its own adj
 
 - Sub-masks are combined in order: each is inverted if set and scaled by its opacity, then `additive` takes the maximum, `subtractive` subtracts and `intersect` takes the minimum. The container’s `invert` and `opacity` apply last.
 - Positions and sizes are in full-resolution pixels of the image after rotation and flips, before the crop.
+- `generate_ai_mask` runs the existing local subject/foreground/sky models, preserving sibling components and committing one labelled history step only if the edit remains unchanged. Subject point/box defaults to `coordinateSpace: "view"`; fractions describe the cropped, lens-corrected view. First use may download the same verified weights as the GUI.
+- `render_mask` returns the actual grayscale composite matte without changing history. `convert_coordinates` maps view fractions to mask pixels before crop on the same corrected/oriented canvas (not uncorrected sensor pixels). Use its returned revision for placement. `upsert_masks` validates every entry before one atomic history step; `sample_region` can measure a labelled `regions` array from one shared render.
 - Discovery validates each container/component and local adjustment. `upsert_mask` creates or deep-updates one id while preserving siblings; `remove_mask` removes only that id. A supplied `subMasks` replaces only its container’s component array. Full `masks` arrays in set/update replace every container. Read the latest revision before each mutation.
 - IDs contain 1–128 ASCII letters, digits, underscore, colon, dot or hyphen. Sparse local settings receive defaults, including nested HSL/grading channels. Parametric `split1 < split2 < split3` is checked after existing-value merge or defaults 25/50/75. Echoed display names retain stored names; intentional new names use the existing bounded text policy.
-- Radial/brush feather is 0–1; colour/luminance/AI feather is 0–100. Coordinates are full-resolution image pixels before crop, independent of display/preview size. `crop` is `{x,y,width,height,unit:"px"}`, or null; set `aspectRatio` separately to `0` for Original, `null` for Free, or a positive fixed width ÷ height. Last-preview coordinate conversion and AI generation remain #120 follow-ups. Editing a stored AI bitmap does not run a model.
+- Radial/brush feather is 0–1; colour/luminance/AI feather is 0–100. Coordinates are full-resolution image pixels before crop, independent of display/preview size. `crop` is `{x,y,width,height,unit:"px"}`, or null; set `aspectRatio` separately to `0` for Original, `null` for Free, or a positive fixed width ÷ height. Use `convert_coordinates` for view fractions or `generate_ai_mask` to run a model. Editing existing bitmap parameters with upsert_mask does not run inference.
 
 A new container looks like this (`id` can be a UUID):
 

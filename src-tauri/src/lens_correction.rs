@@ -1052,6 +1052,63 @@ fn lens_result(db: &LensDatabase, lens: &Lens) -> (String, String) {
     (lens_maker, lens.get_display_name(&maker_lenses))
 }
 
+const SONY_A058_EXIF_ALIAS: &str = "E 35-150mm F2.0-F2.8 A058";
+const A058_CANONICAL_MODEL: &str = "Tamron E 35-150mm f/2-2.8 2.0-2.8 Di III VXD A058Z";
+
+pub(crate) fn is_sony_a058_alias(model: &str) -> bool {
+    model
+        .trim()
+        .trim_matches('"')
+        .trim()
+        .eq_ignore_ascii_case(SONY_A058_EXIF_ALIAS)
+}
+
+fn find_sony_a058_alias(
+    db: &LensDatabase,
+    camera_maker: &str,
+    camera_model: &str,
+) -> Option<(String, String)> {
+    let camera = find_camera(db, camera_maker, camera_model)?;
+    if !any_name_matches(&camera.maker, "Sony")
+        || !camera.mount.trim().eq_ignore_ascii_case("Sony E")
+    {
+        return None;
+    }
+    let mut candidates = db.lenses.iter().filter(|lens| {
+        lens.get_maker().eq_ignore_ascii_case("Tamron")
+            && lens.get_canonical_model_name() == A058_CANONICAL_MODEL
+            && lens
+                .mount
+                .iter()
+                .any(|mount| mount.trim().eq_ignore_ascii_case("Sony E"))
+    });
+    let candidate = candidates.next()?;
+    // Refuse ambiguity rather than falling through to an arbitrary fuzzy hit.
+    if candidates.next().is_some() {
+        return None;
+    }
+    Some(lens_result(db, candidate))
+}
+
+/// Identity is not calibration eligibility: the bundled A058 coefficients
+/// were measured on a Nikon Z8. Sony Auto can still use its physical ARW
+/// distortion table, without newly applying Nikon-derived shading or geometry.
+pub(crate) fn automatic_calibration_eligible(
+    db: &LensDatabase,
+    maker: &str,
+    model: &str,
+    camera_maker: &str,
+) -> bool {
+    !camera_maker
+        .trim()
+        .trim_matches('"')
+        .eq_ignore_ascii_case("Sony")
+        || find_lens(db, maker, model).is_none_or(|lens| {
+            !lens.get_maker().eq_ignore_ascii_case("Tamron")
+                || lens.get_canonical_model_name() != A058_CANONICAL_MODEL
+        })
+}
+
 pub fn find_best_lens_match(
     db: &LensDatabase,
     maker: &str,
@@ -1059,6 +1116,10 @@ pub fn find_best_lens_match(
     camera_model: &str,
 ) -> Option<(String, String)> {
     let clean_model = model.trim().trim_matches('"');
+
+    if is_sony_a058_alias(clean_model) {
+        return find_sony_a058_alias(db, maker, camera_model);
+    }
 
     if !clean_model.is_empty()
         && let Some(hit) = find_lens_by_fuzzy_model(db, maker, clean_model)
@@ -1411,6 +1472,74 @@ pub fn load_bundled_db() -> LensDatabase {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bundled_a058_alias_requires_sony_e_and_a_unique_identity_without_calibration_approval() {
+        let db = load_bundled_db();
+        let expected = find_sony_a058_alias(&db, "SONY", "ILCE-7RM5").unwrap();
+        assert_eq!(expected.0, "Tamron");
+        for alias in [SONY_A058_EXIF_ALIAS, "  \"e 35-150mm f2.0-f2.8 a058\"  "] {
+            assert_eq!(
+                find_best_lens_match(&db, "SONY", alias, "ILCE-7RM5"),
+                Some(expected.clone())
+            );
+        }
+        assert!(!automatic_calibration_eligible(
+            &db,
+            &expected.0,
+            &expected.1,
+            "SONY"
+        ));
+        assert!(automatic_calibration_eligible(
+            &db,
+            &expected.0,
+            &expected.1,
+            "NIKON CORPORATION"
+        ));
+        assert!(find_best_lens_match(&db, "SONY", SONY_A058_EXIF_ALIAS, "unknown").is_none());
+        assert!(
+            find_best_lens_match(&db, "NIKON CORPORATION", SONY_A058_EXIF_ALIAS, "NIKON Z 8")
+                .is_none()
+        );
+        assert_eq!(
+            find_best_lens_match(&db, "Tamron", A058_CANONICAL_MODEL, ""),
+            Some(expected)
+        );
+        for unrelated in [
+            "A058",
+            "E 35-150mm F2.8-F4 A043",
+            "E 35-150mm F2.0-F2.8 A058-unknown",
+        ] {
+            assert!(!is_sony_a058_alias(unrelated));
+        }
+        let target = db
+            .lenses
+            .iter()
+            .find(|lens| lens.get_canonical_model_name() == A058_CANONICAL_MODEL)
+            .unwrap()
+            .clone();
+        let mut ambiguous = db.clone();
+        ambiguous.lenses.push(target);
+        assert!(
+            find_best_lens_match(&ambiguous, "SONY", SONY_A058_EXIF_ALIAS, "ILCE-7RM5").is_none()
+        );
+        let mut absent = db.clone();
+        absent
+            .lenses
+            .retain(|lens| lens.get_canonical_model_name() != A058_CANONICAL_MODEL);
+        assert!(find_best_lens_match(&absent, "SONY", SONY_A058_EXIF_ALIAS, "ILCE-7RM5").is_none());
+        let mut incompatible = db.clone();
+        for lens in &mut incompatible.lenses {
+            if lens.get_canonical_model_name() == A058_CANONICAL_MODEL {
+                lens.mount = vec!["Nikon Z".into()];
+            }
+        }
+        assert!(
+            find_best_lens_match(&incompatible, "SONY", SONY_A058_EXIF_ALIAS, "ILCE-7RM5")
+                .is_none()
+        );
+        assert!(find_best_lens_match(&db, "SONY", "FE 35mm F1.4 GM", "ILCE-7CM2").is_some());
+    }
 
     fn distortion(model: &str, focal: f32) -> Distortion {
         Distortion {

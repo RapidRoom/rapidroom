@@ -210,6 +210,7 @@
     "editor": {
       "autoAdjust": "Autom. aanpassen",
       "autoLensCorrection": "Autom. lenscorrectie",
+      "autoStraighten": "Automatisch rechtzetten",
       "cancel": "Annuleren",
       "colorLabel": "Kleurlabel",
       "confirmReset": "Herstellen bevestigen",
@@ -274,6 +275,8 @@
       "autoAdjust_other": "Autom. aanpassen",
       "autoLensCorrection_one": "Autom. lenscorrectie",
       "autoLensCorrection_other": "Autom. lenscorrectie",
+      "autoStraighten_one": "Afbeelding automatisch rechtzetten",
+      "autoStraighten_other": "Afbeeldingen automatisch rechtzetten",
       "collage_one": "Afbeelding inkaderen",
       "collage_other": "Collage maken",
       "confirmDelete": "Verwijderen bevestigen",
@@ -516,6 +519,8 @@
     },
     "crop": {
       "aspectRatioHeading": "Beeldverhouding",
+      "autoStraightenFailed": "Automatisch rechtzetten mislukt: {{error}}",
+      "autoStraightenNoLines": "Geen rechte lijnen gevonden om recht te zetten",
       "custom": {
         "hPlaceholder": "H",
         "hTooltip": "Hoogte",
@@ -615,6 +620,7 @@
       "rotationHeading": "Rotatie",
       "title": "Bijsnijden & transformeren",
       "tooltips": {
+        "autoStraighten": "Automatisch rechtzetten (Shift+S)",
         "compositionOverlay": "Compositie-overlay",
         "flipHoriz": "Afbeelding horizontaal spiegelen",
         "flipVert": "Afbeelding verticaal spiegelen",
@@ -838,7 +844,10 @@
         "preset": "Voorinstelling",
         "style": "Stijl",
         "tool": "Gereedschap"
-      }
+      },
+      "appliedFolder": "Toegepast",
+      "bakedIn": "ingebakken",
+      "bakedInNotice": "Eerder toegepast en in de bewerking opgenomen. Verwijderen behoudt de bewerking."
     },
     "referenceView": {
       "active": "Actief",
@@ -1759,6 +1768,7 @@
     },
     "keybinds": {
       "actions": {
+        "auto_straighten": "Automatisch rechtzetten",
         "brush_size_down": "Penseelgrootte verkleinen",
         "brush_size_up": "Penseelgrootte vergroten",
         "color_label_blue": "Kleurlabel: blauw",
@@ -2237,5 +2247,15 @@
     "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
     "cancelled": "Cancelled. Run the queue again to resume.",
     "errors": "Errors"
+  },
+  "captureTime": {
+    "folderShift": "Folder display time shift…",
+    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
+    "hours": "Hours to add",
+    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
+    "cameraZone": "Camera zone: {{zone}}",
+    "shifted": "{{shift}} display shift",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

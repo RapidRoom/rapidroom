@@ -1,3 +1,5 @@
+import CaptureTime from '../../ui/CaptureTime';
+import { formatFocalLength, formatShutterSpeed } from '../../../utils/shootingInfo';
 import { DenoiseBadge } from '../DenoiseQueue';
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -156,8 +158,8 @@ export function CullingPreview({
     const data = {
       iso: exif.PhotographicSensitivity || exif.ISO,
       fNumber: fNum,
-      shutter: exif.ExposureTime,
-      focal: exif.FocalLengthIn35mmFilm,
+      shutter: formatShutterSpeed(exif.ExposureTime),
+      focal: formatFocalLength(exif.FocalLengthIn35mmFilm || exif.FocalLength),
       captureDate: captureDate,
       captureTime: captureTime,
     };
@@ -519,6 +521,7 @@ export function CullingPreview({
             </div>
 
             <div className="flex flex-col gap-4">
+              <CaptureTime path={image.path} exif={image.exif} />
               {imageWidth && imageHeight && (
                 <div>
                   <Text

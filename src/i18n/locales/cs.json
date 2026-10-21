@@ -208,6 +208,7 @@
     "editor": {
       "autoAdjust": "Automaticky upravit",
       "autoLensCorrection": "Auto korekce objektivu",
+      "autoStraighten": "Automaticky vyrovnat",
       "cancel": "Zrušit",
       "colorLabel": "Barevný štítek",
       "confirmReset": "Potvrďte reset",
@@ -277,6 +278,10 @@
       "autoAdjust_other": "Automaticky upravit",
       "autoLensCorrection_one": "Auto korekce objektivu",
       "autoLensCorrection_other": "Auto korekce objektivu",
+      "autoStraighten_few": "Automaticky vyrovnat snímky",
+      "autoStraighten_many": "Automaticky vyrovnat snímky",
+      "autoStraighten_one": "Automaticky vyrovnat snímek",
+      "autoStraighten_other": "Automaticky vyrovnat snímky",
       "collage_one": "Zarámovat snímek",
       "collage_other": "Vytvořit koláž",
       "confirmDelete": "Potvrdit smazání",
@@ -469,6 +474,8 @@
     },
     "crop": {
       "aspectRatioHeading": "Poměr stran",
+      "autoStraightenFailed": "Automatické vyrovnání selhalo: {{error}}",
+      "autoStraightenNoLines": "Nenalezeny žádné rovné čáry k vyrovnání",
       "custom": {
         "hPlaceholder": "V",
         "hTooltip": "Výška",
@@ -568,6 +575,7 @@
       "rotationHeading": "Otáčení",
       "title": "Oříznout a transformovat",
       "tooltips": {
+        "autoStraighten": "Automatické vyrovnání (Shift+S)",
         "compositionOverlay": "Překryvná kompozice",
         "flipHoriz": "Překlopit snímek vodorovně",
         "flipVert": "Překlopit snímek svisle",
@@ -788,7 +796,10 @@
         "preset": "Preset",
         "style": "Styl",
         "tool": "Nástroj"
-      }
+      },
+      "appliedFolder": "Použité",
+      "bakedIn": "pevně začleněno",
+      "bakedInNotice": "Použito dříve a pevně začleněno do úprav. Odebrání zachová úpravy."
     },
     "switcher": {
       "tooltips": {
@@ -1703,6 +1714,7 @@
     },
     "keybinds": {
       "actions": {
+        "auto_straighten": "Automatické vyrovnání",
         "brush_size_down": "Zmenšit velikost štětce",
         "brush_size_up": "Zvětšit velikost štětce",
         "color_label_blue": "Barevný štítek: Modrá",
@@ -2186,5 +2198,15 @@
     "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
     "cancelled": "Cancelled. Run the queue again to resume.",
     "errors": "Errors"
+  },
+  "captureTime": {
+    "folderShift": "Folder display time shift…",
+    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
+    "hours": "Hours to add",
+    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
+    "cameraZone": "Camera zone: {{zone}}",
+    "shifted": "{{shift}} display shift",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

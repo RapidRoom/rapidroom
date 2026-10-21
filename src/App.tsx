@@ -375,6 +375,7 @@ function App() {
     handleGoHome,
     handleBackToLibrary,
     handleImageSelect,
+    handleOpenImage,
     handleSelectSubfolder,
     handleSelectAlbum,
     handleOpenFolder,
@@ -391,7 +392,7 @@ function App() {
     externalEditSession,
     isFinishing: isExternalEditFinishing,
     finishExternalEdit,
-  } = useExternalEditSession(handleImageSelect);
+  } = useExternalEditSession(handleImageSelect, handleOpenImage);
 
   const {
     handleRate,
@@ -508,7 +509,7 @@ function App() {
   });
 
   useAndroidBackHandler();
-  useMcpBridge(handleImageSelect, { requestDeletePaths, refreshImageList: handleLibraryRefresh });
+  useMcpBridge(handleOpenImage, { requestDeletePaths, refreshImageList: handleLibraryRefresh });
 
   useKeyboardShortcuts({
     sortedImageList,
@@ -572,6 +573,7 @@ function App() {
       isWbPickerActive: false,
       mixerPickerProperty: null,
       isRelightPickerActive: false,
+      activeCenterMarker: null,
       isStraightenActive: false,
       isGuidedPerspectiveActive: false,
       activeMaskId: null,

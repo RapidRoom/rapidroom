@@ -9,6 +9,7 @@ import { debouncedSetHistory } from './useEditorActions';
 import { useMcpBridge } from './useMcpBridge';
 import { usePresetCatalog, setCatalogPresets } from '../store/usePresetCatalog';
 import { listMcpPresets } from '../utils/mcpPresets';
+import { useAppliedPresetStore } from '../utils/appliedPreset';
 import { usePresetApplication } from '../utils/presetApplication';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useUIStore } from '../store/useUIStore';
@@ -23,6 +24,7 @@ let responses: Array<Record<string, unknown>>;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  useAppliedPresetStore.setState({ records: {} });
   useEditorStore.setState(initialState, true);
   responses = [];
   usePresetCatalog.setState({ presets: [], loaded: false, isLoading: true });
@@ -189,6 +191,41 @@ describe('MCP editor bridge review', () => {
     expect(useEditorStore.getState().adjustments).toEqual(gui);
     await act(async () => useEditorStore.getState().undo());
     expect(useEditorStore.getState().adjustments).toEqual(INITIAL_ADJUSTMENTS);
+  });
+
+  it('records a labelled multi-mask commit once and undoes the complete batch', async () => {
+    useEditorStore.setState({ selectedImage: image });
+    await mount();
+    renderChanges();
+    const base = useEditorStore.getState().adjustments;
+    const masks = ['Face', 'Sky'].map((name, i) => ({
+      id: `m${i}`,
+      name,
+      visible: true,
+      invert: false,
+      opacity: 100,
+      adjustments: { exposure: i + 0.2 },
+      subMasks: [],
+    }));
+    await act(async () =>
+      emit('mcp-command', {
+        requestId: 'batch',
+        kind: 'apply-adjustments',
+        path,
+        adjustments: { ...base, masks },
+        baseAdjustments: base,
+        label: 'AI: Portrait masks',
+      }),
+    );
+    const after = useEditorStore.getState();
+    expect(responses.at(-1)?.error).toBeNull();
+    expect(after.history).toHaveLength(2);
+    expect(after.adjustments.masks.map((m) => m.name)).toEqual(['Face', 'Sky']);
+    expect(after.historyDetails[1]?.label).toBe('AI: Portrait masks');
+    after.undo();
+    expect(useEditorStore.getState().adjustments).toEqual(base);
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().adjustments).toEqual(after.adjustments);
   });
 
   it('rejects a queued single-mask snapshot after a user edit without overwriting it', async () => {
@@ -464,6 +501,124 @@ describe('protected editing workflow', () => {
     expect(useEditorStore.getState().adjustments).toBe(before.adjustments);
     expect(useEditorStore.getState().history).toBe(before.history);
     expect(usePresetApplication.getState().application?.amount).toBe(100);
+  });
+
+  it('lists and removes the shared ordered stack even after catalog deletion, preserving manual keys and rejecting a fourth atomically', async () => {
+    useEditorStore.setState({ selectedImage: image, adjustments: { ...INITIAL_ADJUSTMENTS, exposure: 0.7 } });
+    setCatalogPresets(
+      ['one', 'two', 'three', 'four'].map((id, i) => ({
+        preset: {
+          id,
+          name: id,
+          presetType: 'style' as const,
+          adjustments: i === 0 ? { contrast: 40 } : i === 1 ? { shadows: 30 } : { clarity: 10 + i },
+        },
+      })),
+    );
+    const catalog = (await listMcpPresets({})).presets;
+    const ids = Object.fromEntries(catalog.map((p) => [p.name, p.id]));
+    await mount();
+    renderChanges();
+    const stackCommand = async (kind: string, options?: Record<string, unknown>) => {
+      const count = responses.length;
+      await act(async () => {
+        await emit('mcp-command', {
+          requestId: 'stack',
+          kind,
+          path,
+          baseAdjustments: useEditorStore.getState().adjustments,
+          options,
+        });
+        await vi.waitFor(() => expect(responses).toHaveLength(count + 1));
+      });
+      return responses.at(-1)!;
+    };
+    for (const name of ['one', 'two', 'three'])
+      await stackCommand('apply-preset', { presetId: ids[name], amount: 100 });
+    const before = useEditorStore.getState();
+    const refused = await stackCommand('apply-preset', { presetId: ids.four });
+    expect(refused.error).toBe('Up to 3 Styles. Remove one first.');
+    expect(useEditorStore.getState().adjustments).toBe(before.adjustments);
+    expect(useEditorStore.getState().history).toBe(before.history);
+    const listed = await stackCommand('list-applied-styles');
+    expect(listed).toMatchObject({
+      error: null,
+      response: {
+        limit: 3,
+        styles: [
+          { presetId: ids.one, position: 1 },
+          { presetId: ids.two, position: 2 },
+          { presetId: ids.three, position: 3 },
+        ],
+      },
+    });
+    await act(async () => {
+      const manual = { ...useEditorStore.getState().adjustments, exposure: 1.25, contrast: 7 };
+      useEditorStore.setState({ adjustments: manual });
+      useEditorStore.getState().pushHistory(manual);
+    });
+    setCatalogPresets([]);
+    const removed = await stackCommand('remove-style', { presetId: ids.two });
+    expect(removed).toMatchObject({
+      error: null,
+      response: { removed: true, styleCount: 2, removedStyle: { id: ids.two, name: 'two' } },
+    });
+    expect(useEditorStore.getState().adjustments).toMatchObject({
+      exposure: 1.25,
+      contrast: 7,
+      shadows: 0,
+      clarity: 12,
+    });
+    expect(useEditorStore.getState().historyDetails.at(-1)).toMatchObject({
+      actor: 'assistant',
+      label: 'AI: Style 2 removed: two',
+    });
+    const remaining = await stackCommand('list-applied-styles');
+    expect(remaining).toMatchObject({
+      response: {
+        styles: [
+          { presetId: ids.one, position: 1 },
+          { presetId: ids.three, position: 2 },
+        ],
+      },
+    });
+    expect(JSON.stringify(remaining)).not.toContain('overrides');
+    await stackCommand('reset-adjustments');
+    expect(await stackCommand('list-applied-styles')).toMatchObject({ response: { styles: [] } });
+    await stackCommand('undo');
+    expect(await stackCommand('list-applied-styles')).toMatchObject({
+      response: { styles: [{ presetId: ids.one }, { presetId: ids.three }] },
+    });
+  });
+
+  it('commits and removes an Amount0 stack entry without waiting for an unchanged preview', async () => {
+    const base = { ...INITIAL_ADJUSTMENTS, exposure: 0.7 };
+    useEditorStore.setState({ selectedImage: image, adjustments: base, history: [base], historyIndex: 0 });
+    setCatalogPresets([
+      { preset: { id: 'zero-look', name: 'Zero look', presetType: 'style', adjustments: { contrast: 40 } } },
+    ]);
+    const id = (await listMcpPresets({})).presets[0].id;
+    await mount();
+    const change = async (kind: string, options: Record<string, unknown>) => {
+      const count = responses.length;
+      await act(async () => {
+        await emit('mcp-command', {
+          requestId: 'zero',
+          kind,
+          path,
+          baseAdjustments: useEditorStore.getState().adjustments,
+          options,
+        });
+        await vi.waitFor(() => expect(responses).toHaveLength(count + 1));
+      });
+      expect(responses.at(-1)).toMatchObject({ error: null, response: { renderPending: false } });
+    };
+    await change('apply-preset', { presetId: id, amount: 0 });
+    expect(useEditorStore.getState().adjustments).toEqual(base);
+    expect(useEditorStore.getState().history).toHaveLength(2);
+    await change('remove-style', { presetId: id });
+    expect(useEditorStore.getState().adjustments).toEqual(base);
+    expect(useEditorStore.getState().history).toHaveLength(3);
   });
 
   it('rejects an edit racing native preflight before setting the marker or committing a Style', async () => {

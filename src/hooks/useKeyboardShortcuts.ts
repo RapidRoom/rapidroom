@@ -11,6 +11,7 @@ import { useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { debouncedSetHistory, useEditorActions } from './useEditorActions';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
+import { rememberAppliedStyleStack } from '../utils/appliedPreset';
 import { editStack } from '../utils/photoStacks';
 import { useLibraryActions } from './useLibraryActions';
 import { registerAppActions, executeAppAction } from '../utils/appActions';
@@ -52,6 +53,7 @@ export const useKeyboardShortcuts = ({
 }: KeyboardShortcutsProps) => {
   const {
     handleRotate,
+    handleAutoStraighten,
     handleCopyAdjustments,
     handlePasteAdjustments,
     toggleShowOriginal,
@@ -89,7 +91,6 @@ export const useKeyboardShortcuts = ({
       settings: useSettingsStore.getState(),
       process: useProcessStore.getState(),
     });
-
     type StoreState = ReturnType<typeof getStoreState>;
     interface ShortcutAction {
       shouldFire?: (state: StoreState) => boolean;
@@ -139,10 +140,15 @@ export const useKeyboardShortcuts = ({
     };
 
     const getPreviewIndex = (s: StoreState) => {
-      const requestedIndex = sortedListRef.current.findIndex((img) => img.path === s.library.libraryActivePath);
-      return requestedIndex >= 0
-        ? requestedIndex
-        : sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage?.path);
+      const findIndex = (path: string | null | undefined) => {
+        if (!path) return -1;
+        const exactIndex = sortedListRef.current.findIndex((img) => img.path === path);
+        if (exactIndex >= 0 || path.includes('?vc=')) return exactIndex;
+        // An external open can select the original while only a virtual copy is visible.
+        return sortedListRef.current.findIndex((img) => img.path.split('?vc=')[0] === path);
+      };
+      const requestedIndex = findIndex(s.library.libraryActivePath);
+      return requestedIndex >= 0 ? requestedIndex : findIndex(s.editor.selectedImage?.path);
     };
 
     const actions: Record<string, ShortcutAction> = {
@@ -154,9 +160,11 @@ export const useKeyboardShortcuts = ({
           try {
             const reset = await createResetAdjustmentsWithLensDefaults(image);
             const current = useEditorStore.getState();
-            if (current.selectedImage?.path !== image?.path || current.adjustments !== before) return;
+            if (current.selectedImage !== image || !current.selectedImage?.isReady || current.adjustments !== before)
+              return;
             debouncedSetHistory.flush();
-            setAdjustments(() => reset);
+            void rememberAppliedStyleStack(current.selectedImage.path, null, reset);
+            setAdjustments(() => reset, 'Reset adjustments');
             debouncedSetHistory.flush();
           } catch (error) {
             toast.error(`Failed to reset adjustments: ${error}`);
@@ -575,6 +583,16 @@ export const useKeyboardShortcuts = ({
           }
         },
       },
+      auto_straighten: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          if (s.ui.activePanel !== Panel.Crop) {
+            s.ui.setPanel(Panel.Crop);
+          }
+          handleAutoStraighten();
+        },
+      },
       rate_0: {
         shouldFire: () => true,
         execute: (e: KeyboardEvent) => {
@@ -933,6 +951,7 @@ export const useKeyboardShortcuts = ({
     handleZoomChange,
     handleCropOrientationToggle,
     handleRotate,
+    handleAutoStraighten,
     handleCopyAdjustments,
     handleCopyImagePaths,
     handlePasteAdjustments,

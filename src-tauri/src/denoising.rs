@@ -504,7 +504,7 @@ fn run_batch(
 }
 
 fn copy_denoised_sidecar(source: &Path, destination: &Path) -> std::io::Result<()> {
-    let bytes = fs::read(source)?;
+    let bytes = crate::file_management::copied_sidecar_without_stack(source)?;
     let contents = match serde_json::from_slice::<serde_json::Value>(&bytes) {
         Ok(serde_json::Value::Object(mut metadata)) if metadata.contains_key("denoise") => {
             metadata.remove("denoise");
@@ -783,7 +783,7 @@ fn denoise_image_with_settings(
     ai_session: DenoiseModels,
     job: &DenoiseJob,
     settings: crate::app_settings::AppSettings,
-    nind_exposure_policy: Option<serde_json::Value>,
+    source_recipe: Option<&queue::RenderedRecipe>,
 ) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
     let method = options.method.as_str();
     let intensity = options.intensity;
@@ -818,17 +818,20 @@ fn denoise_image_with_settings(
 
     let rgb_img_for_denoiser = if method == "ai" {
         let encoded = if is_raw {
-            let source_adjustments = nind_exposure_policy.unwrap_or_else(|| {
-                selected_exposure_policy(image_path, &options.exposure_policies)
-            });
-            nind_raw_view(
-                path_str,
-                &source_adjustments,
-                &dynamic_img,
-                &original_settings,
-                app_handle,
-                job,
-            )?
+            if let Some(recipe) = source_recipe {
+                recipe.render(path_str, &dynamic_img, &original_settings, app_handle, job)?
+            } else {
+                let source_adjustments =
+                    selected_exposure_policy(image_path, &options.exposure_policies);
+                nind_raw_view(
+                    path_str,
+                    &source_adjustments,
+                    &dynamic_img,
+                    &original_settings,
+                    app_handle,
+                    job,
+                )?
+            }
         } else {
             dynamic_img
         };
@@ -893,7 +896,14 @@ fn denoise_image_with_settings(
     };
     job.check()?;
 
-    if uses_default_raw_tone(is_raw, method) {
+    if is_raw
+        && method != "ai"
+        && let Some(recipe) = source_recipe
+    {
+        // BM3D keeps linear RGB input; RAW9 keeps sensor input. Develop their
+        // linear result with the source recipe only after the native denoiser.
+        out_dynamic = recipe.render(path_str, &out_dynamic, &original_settings, app_handle, job)?;
+    } else if uses_default_raw_tone(is_raw, method) {
         apply_cpu_default_raw_processing(&mut out_dynamic);
     }
 

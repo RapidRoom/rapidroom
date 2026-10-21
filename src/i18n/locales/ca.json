@@ -221,6 +221,7 @@
     "editor": {
       "autoAdjust": "Ajustament automàtic",
       "autoLensCorrection": "Correcció d'objectiu automàtica",
+      "autoStraighten": "Redreçar automàticament",
       "cancel": "Cancel·lar",
       "colorLabel": "Etiqueta de color",
       "confirmReset": "Confirmar restabliment",
@@ -292,6 +293,9 @@
       "autoAdjust_other": "Ajustament automàtic de les imatges",
       "autoLensCorrection_one": "Correcció d'objectiu automàtica",
       "autoLensCorrection_other": "Correcció d'objectiu automàtica",
+      "autoStraighten_many": "Redreçar automàticament les imatges",
+      "autoStraighten_one": "Redreçar automàticament la imatge",
+      "autoStraighten_other": "Redreçar automàticament les imatges",
       "collage_one": "Emmarcar imatge",
       "collage_other": "Crear collage",
       "confirmDelete": "Confirmar eliminació",
@@ -571,6 +575,8 @@
     },
     "crop": {
       "aspectRatioHeading": "Relació d'aspecte",
+      "autoStraightenFailed": "No s'ha pogut redreçar automàticament: {{error}}",
+      "autoStraightenNoLines": "No s'han trobat línies rectes per redreçar",
       "custom": {
         "hPlaceholder": "Al",
         "hTooltip": "Alçada",
@@ -670,6 +676,7 @@
       "rotationHeading": "Rotació",
       "title": "Retallar i transformar",
       "tooltips": {
+        "autoStraighten": "Redreçar automàticament (Maj+S)",
         "compositionOverlay": "Superposició de composició",
         "flipHoriz": "Capgirar la imatge horitzontalment",
         "flipVert": "Capgirar la imatge verticalment",
@@ -893,7 +900,10 @@
         "preset": "Ajust preestablert",
         "style": "Estil",
         "tool": "Eina"
-      }
+      },
+      "appliedFolder": "Aplicats",
+      "bakedIn": "integrat",
+      "bakedInNotice": "Aplicat anteriorment i integrat a l’edició. En eliminar-lo es conserva l’edició."
     },
     "referenceView": {
       "active": "Activa",
@@ -1898,6 +1908,7 @@
     },
     "keybinds": {
       "actions": {
+        "auto_straighten": "Redreçar automàticament",
         "brush_size_down": "Reduir mida del pinzell",
         "brush_size_up": "Augmentar mida del pinzell",
         "color_label_blue": "Etiqueta de color: Blau",
@@ -2386,5 +2397,15 @@
     "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
     "cancelled": "Cancelled. Run the queue again to resume.",
     "errors": "Errors"
+  },
+  "captureTime": {
+    "folderShift": "Folder display time shift…",
+    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
+    "hours": "Hours to add",
+    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
+    "cameraZone": "Camera zone: {{zone}}",
+    "shifted": "{{shift}} display shift",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

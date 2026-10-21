@@ -15,6 +15,14 @@ The 2026-10-15 daily refresh retains upstream contributions by Timon Käch, marc
 
 The Original crop-ratio sentinel is adapted from [apweisskopf’s RapidRAW commit 2fb1ce0d](https://github.com/CyberTimon/RapidRAW/commit/2fb1ce0dccdba88de5923e41056928925615d3b4), with tooltip follow-up by CyberTimon. Yojen adapted it to RapidRoom’s Instagram crop, lens-aware reset and typed MCP paths.
 
+Auto straighten is adapted from marclaliberte’s [RapidRAW series ending at 3daf49e4](https://github.com/CyberTimon/RapidRAW/commit/3daf49e47f7c0c45645d6aa5de5c0d24509de342). The line detector and original regression tests are retained; Yojen adapted crop, async and batch handling to RapidRoom.
+
+Auto Straighten uses [lsdetect 0.3.0 by Patrick Zwerschke](https://github.com/p5k369/lsdetect), under its MIT option. Its [copyright and permission notice](src-tauri/resources/licenses/lsdetect-0.3.0-MIT.txt) ships with the app resources.
+
+Batch Auto Adjust completion is adapted from marclaliberte’s [RapidRAW commit 7fb5fadd](https://github.com/CyberTimon/RapidRAW/commit/7fb5fadd7cb0ad04393e7246548fcac71aa12d6a). Yojen adapted the wait to RapidRoom’s existing atomic sidecar, Card and XMP paths.
+
+Movable vignette and centré centres are adapted from [CyberTimon’s RapidRAW commit b39884b3](https://github.com/CyberTimon/RapidRAW/commit/b39884b38d8f148caef6fd0d52afd264951be329). Yojen adapted the overlay to RapidRoom’s mixer/WB tools, defaults, typed MCP and renderer layout.
+
 ## Bounded assistant judge policy
 
 The offline nondecreasing-score and bounded-round policy is adapted from skymanbp’s [autoshade@a1f3507808d1a9d61c44593244a5e6ee2c38cae3](https://github.com/skymanbp/autoshade/tree/a1f3507808d1a9d61c44593244a5e6ee2c38cae3), `src/pipeline.rs` and `src/advisor/judge.rs`, MIT copyright 2026 skymanbp. The notice is retained in `rapidroom/plugin/LICENSES/autoshade-MIT.txt`. Yojen adapted the policy with Codex; the closed move catalogue, generated RapidRoom range projection and local CLI are original integration. No remote model client or external dependency is imported.

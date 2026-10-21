@@ -221,6 +221,7 @@
     "editor": {
       "autoAdjust": "Автонастройка изображения",
       "autoLensCorrection": "Автокоррекция объектива",
+      "autoStraighten": "Автовыравнивание",
       "cancel": "Отмена",
       "colorLabel": "Цветовая метка",
       "confirmReset": "Подтвердить сброс",
@@ -302,6 +303,10 @@
       "autoAdjust_other": "Автонастройка изображений",
       "autoLensCorrection_one": "Автокоррекция объектива",
       "autoLensCorrection_other": "Автокоррекция объектива",
+      "autoStraighten_few": "Автовыравнивание изображений",
+      "autoStraighten_many": "Автовыравнивание изображений",
+      "autoStraighten_one": "Автовыравнивание изображения",
+      "autoStraighten_other": "Автовыравнивание изображений",
       "collage_few": "Создать коллаж",
       "collage_many": "Создать коллаж",
       "collage_one": "Добавить рамку",
@@ -613,6 +618,8 @@
     },
     "crop": {
       "aspectRatioHeading": "Соотношение сторон",
+      "autoStraightenFailed": "Не удалось выровнять автоматически: {{error}}",
+      "autoStraightenNoLines": "Не найдено прямых линий для выравнивания",
       "custom": {
         "hPlaceholder": "В",
         "hTooltip": "Высота",
@@ -712,6 +719,7 @@
       "rotationHeading": "Вращение",
       "title": "Обрезка и трансформация",
       "tooltips": {
+        "autoStraighten": "Автовыравнивание (Shift+S)",
         "compositionOverlay": "Сетка композиции",
         "flipHoriz": "Отразить горизонтально",
         "flipVert": "Отразить вертикально",
@@ -937,7 +945,10 @@
         "preset": "Псет",
         "style": "Стиль",
         "tool": "Инструмент"
-      }
+      },
+      "appliedFolder": "Применённые",
+      "bakedIn": "встроен в обработку",
+      "bakedInNotice": "Применён ранее и встроен в обработку. Удаление сохранит результат обработки."
     },
     "referenceView": {
       "active": "Текущее",
@@ -1977,6 +1988,7 @@
     },
     "keybinds": {
       "actions": {
+        "auto_straighten": "Автовыравнивание",
         "brush_size_down": "Уменьшить размер кисти",
         "brush_size_up": "Увеличить размер кисти",
         "color_label_blue": "Цветовая метка: Синий",
@@ -2467,5 +2479,15 @@
     "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
     "cancelled": "Cancelled. Run the queue again to resume.",
     "errors": "Errors"
+  },
+  "captureTime": {
+    "folderShift": "Folder display time shift…",
+    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
+    "hours": "Hours to add",
+    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
+    "cameraZone": "Camera zone: {{zone}}",
+    "shifted": "{{shift}} display shift",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }
