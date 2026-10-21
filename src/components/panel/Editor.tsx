@@ -281,7 +281,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
+      const target = e.target instanceof HTMLElement ? e.target : null;
       const editingText = target?.matches('input, textarea, [contenteditable="true"]');
       if (!editingText && !e.metaKey && !e.ctrlKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();

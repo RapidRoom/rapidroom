@@ -45,6 +45,13 @@ def _click(smoke, name, event):
       image.dispatchEvent(new MouseEvent(arguments[1],{bubbles:true,button:0}));return true;""", [name, event])
 
 
+def _press_c(smoke):
+    # A real key press targets an element; Editor reads event.target.matches(...).
+    smoke.execute("""document.activeElement?.blur();
+      for (const type of ['keydown','keyup']) document.body.dispatchEvent(new KeyboardEvent(type,
+        {bubbles:true,code:'KeyC',key:'c'}));return true;""")
+
+
 def _ready(smoke, wait_for, name):
     wait_for(lambda: smoke.execute("""const editor=document.querySelector('[data-testid=editor-current-photo]');
       return !!document.querySelector('[data-testid=editor-compare-wipe-toggle]') &&
@@ -52,14 +59,14 @@ def _ready(smoke, wait_for, name):
 
 
 def _original(smoke, wait_for, photo, kind):
-    _click(smoke, photo.name, "dblclick")
+    _click(smoke, photo.name, "click")  # the editor filmstrip navigates on a single click
     _ready(smoke, wait_for, photo.name)
     _seed(photo, kind)  # discard ordinary-open side effects before the guard
     before = _snapshot(_paths(photo))
-    smoke.key("KeyC", "c")
+    _press_c(smoke)
     wait_for(lambda: smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]');
-      const images=[...pane.querySelectorAll('img')];return pane?.dataset.referenceMode==='wipe' && images.length>=2 && images.every(e=>e.complete&&e.naturalWidth>100);"""), "Original comparison " + photo.name, 90)
-    smoke.key("KeyC", "c")
+      if(!pane)return false;const images=[...pane.querySelectorAll('img')];return pane.dataset.referenceMode==='wipe' && images.length>=2 && images.every(e=>e.complete&&e.naturalWidth>100);"""), "Original comparison " + photo.name, 90)
+    _press_c(smoke)
     after = _snapshot(_paths(photo))
     if after != before: raise RuntimeError("Original comparison changed " + photo.name)
     return {"before": before, "after": after}
@@ -95,6 +102,9 @@ def run_compare_read_only(case, smoke, wait_for):
     _seed(healing, "auto")
     sidecar, _ = _paths(healing)
     data = json.loads(sidecar.read_text()); data.pop("exif", None); _write(sidecar, data)
-    _click(smoke, healing.name, "dblclick")
+    _click(smoke, healing.name, "click")
     wait_for(lambda: (json.loads(sidecar.read_text()).get("exif") or {}).get("Make") == "SONY", "ordinary editor EXIF healing", 45)
     smoke.step("ordinary editor still heals saved Auto recipe", {"after": json.loads(sidecar.read_text())})
+    # Hand the generic smoke flow back the library it starts from.
+    smoke.execute("const e=[...document.querySelectorAll('button')].find(e=>/back to library/i.test(e.getAttribute('data-tooltip')||''));if(!e)throw Error('Back to Library missing');e.click();return true;")
+    wait_for(lambda: smoke.execute("return [...document.images].some(e=>e.alt==='smoke.ARW' && e.src.startsWith('asset:') && e.complete && e.naturalWidth>100);"), "library after comparison checks", 45)
