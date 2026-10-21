@@ -4086,9 +4086,6 @@ fn read_analysis_sidecar(path: &Path) -> Result<Value, String> {
 }
 
 fn snapshot_analysis_sidecar(path: &Path) -> Result<Value, String> {
-    let _metadata = SIDECAR_METADATA_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
     let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
     read_analysis_sidecar(path)
 }
@@ -4100,9 +4097,6 @@ fn publish_analyzed_adjustments(
     snapshot: &Value,
     analyzed: ImageMetadata,
 ) -> Result<ImageMetadata, String> {
-    let _metadata = SIDECAR_METADATA_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
     let _guard = lock_sidecar(sidecar).map_err(|e| e.to_string())?;
     let mut latest = read_analysis_sidecar(sidecar)?;
     // Analysis runs without either lock. Recheck its inputs before publishing,
