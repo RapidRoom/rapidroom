@@ -755,8 +755,12 @@ def launch(args):
             engine = args.engine.resolve()
             source_hash = sha(engine)
             shutil.copy2(engine, case / "engine/rapidroom")
-            runtime_payload = engine.parent / "lib" / "RapidRoom"
-            if not runtime_payload.is_dir():
+            # Accept the native build.py layout (lib next to the engine) or the
+            # FHS-style pin (bin/rapidroom with ../lib/RapidRoom); copy it once.
+            runtime_payload = next((candidate for candidate in (engine.parent / "lib" / "RapidRoom",
+                                                                 engine.parent.parent / "lib" / "RapidRoom")
+                                    if candidate.is_dir()), None)
+            if runtime_payload is None:
                 raise RuntimeError("Pinned engine is missing lib/RapidRoom runtime payload")
             shutil.copytree(runtime_payload, case / "lib" / "RapidRoom", symlinks=True)
             runtime_manifest = {str(path.relative_to(runtime_payload)): sha(path)
@@ -775,15 +779,6 @@ def launch(args):
                     raise RuntimeError("Pinned stdio adapter copy differs")
             if sha(case / "engine/rapidroom") != source_hash:
                 raise RuntimeError("Engine changed while pinning")
-            # Preserve the pinned release resource layout after copying the
-            # executable. Otherwise Tauri may resolve the installed app's lib.
-            pinned_lib = engine.parent.parent / "lib/RapidRoom"
-            if pinned_lib.is_dir():
-                shutil.copytree(pinned_lib, case / "lib/RapidRoom", symlinks=True)
-            for name in ("resources", "lensfun_db"):
-                source = engine.parent / name
-                if source.is_dir():
-                    (case / "engine" / name).symlink_to(source)
             save(case / "environment.json", {"engine_source": str(engine), "engine_sha256": source_hash,
                  "fixture": FIXTURE, "fixture_guard": guard, "compositor": "Weston headless GL",
                  "weston_version": subprocess.check_output(["weston", "--version"], text=True).strip(),
