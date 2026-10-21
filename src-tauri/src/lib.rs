@@ -35,6 +35,7 @@ mod as_shot;
 #[cfg(any(feature = "mcp", feature = "terminal", test))]
 mod assistant_text;
 mod atomic_export;
+mod auto_straighten;
 mod baseline_exposure;
 mod batch_rename;
 mod bench;
@@ -2869,6 +2870,8 @@ pub fn run() {
             export_recipes::get_export_recipes,
             image_processing::calculate_auto_adjustments,
             image_processing::sample_white_balance,
+            auto_straighten::calculate_auto_straighten,
+            file_management::apply_auto_straighten_to_paths,
             mask_generation::generate_mask_overlay,
             file_management::update_exif_fields,
             file_management::set_card_browse_root,
