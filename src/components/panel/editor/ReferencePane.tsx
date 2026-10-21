@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Invokes } from '../../ui/AppProperties';
 import { useUIStore } from '../../../store/useUIStore';
 import { useProcessStore } from '../../../store/useProcessStore';
-import { ReferenceViewImage } from '../../../utils/referenceView';
+import { getWipeLabels, ReferenceViewImage } from '../../../utils/referenceView';
 import type { Adjustments } from '../../../utils/adjustments';
 
 interface ReferencePaneProps {
@@ -255,6 +255,7 @@ export default function ReferencePane({
 
   const displayUrl = previewUrl ?? (status === 'loading' ? thumbnailUrl : undefined);
   const isZoomed = transform.scale > 1.01;
+  const wipeLabels = getWipeLabels(wipeSwapped, reference?.label ?? null);
   const comparisonReference = previewUrl ?? originalPreviewUrl;
   const baseUrl = wipeSwapped ? comparisonReference : activePreviewUrl;
   const revealUrl = wipeSwapped ? activePreviewUrl : comparisonReference;
@@ -302,7 +303,12 @@ export default function ReferencePane({
             className="w-full h-full origin-top-left"
             style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}
           >
-            <img className="w-full h-full object-contain select-none" draggable={false} src={baseUrl} alt="Your edit" />
+            <img
+              className="w-full h-full object-contain select-none"
+              draggable={false}
+              src={baseUrl}
+              alt={wipeLabels.right}
+            />
           </div>
         )}
         {mode === 'wipe' && revealUrl && (
@@ -315,7 +321,7 @@ export default function ReferencePane({
                 className="w-full h-full object-contain select-none"
                 draggable={false}
                 src={revealUrl}
-                alt="AI edit"
+                alt={wipeLabels.left}
               />
             </div>
           </div>
@@ -390,8 +396,11 @@ export default function ReferencePane({
 
       <div className="lights-out-chrome absolute inset-x-2 top-2 flex items-start justify-between gap-2 pointer-events-none">
         <div className="flex min-w-0 items-center gap-2 rounded-md bg-surface/90 px-2 py-1 shadow">
-          <span className="shrink-0 rounded bg-text-secondary/25 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-primary">
-            {mode === 'wipe' ? (wipeSwapped ? 'AI edit' : 'Your edit') : t('editor.referenceView.reference')}
+          <span
+            className="shrink-0 rounded bg-text-secondary/25 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-primary"
+            data-testid="editor-wipe-left-label"
+          >
+            {mode === 'wipe' ? wipeLabels.left : t('editor.referenceView.reference')}
           </span>
           {reference && mode !== 'wipe' && (
             <span className="truncate text-xs text-text-primary" data-tooltip={reference.path}>
@@ -403,6 +412,14 @@ export default function ReferencePane({
           )}
         </div>
         <div className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-md bg-surface/90 p-0.5 shadow">
+          {mode === 'wipe' && (
+            <span
+              className="shrink-0 rounded bg-text-secondary/25 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-primary"
+              data-testid="editor-wipe-right-label"
+            >
+              {wipeLabels.right}
+            </span>
+          )}
           {reference && (
             <>
               <button
@@ -441,7 +458,6 @@ export default function ReferencePane({
       </div>
       {mode === 'wipe' && (
         <div className="lights-out-chrome absolute bottom-2 left-2 flex items-center gap-2 rounded-md bg-surface/90 px-2 py-1 text-xs text-text-primary shadow pointer-events-none">
-          <span>{wipeSwapped ? 'Your edit' : 'AI edit'}</span>
           <span className="text-text-secondary">←/→ divider · A swap</span>
         </div>
       )}

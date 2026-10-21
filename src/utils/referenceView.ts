@@ -75,3 +75,10 @@ export const getReferenceLabel = (path: string): string => {
   const fileName = sourcePath.split(/[\\/]/).pop() || sourcePath;
   return vcId ? `${fileName} (VC)` : fileName;
 };
+
+// The left half is the comparison source (Original, or the pinned version's own
+// name) unless the sides are swapped, so each label follows its image.
+export const getWipeLabels = (swapped: boolean, referenceLabel: string | null = null) => {
+  const comparison = referenceLabel || 'Original';
+  return swapped ? { left: 'Your edit', right: comparison } : { left: comparison, right: 'Your edit' };
+};

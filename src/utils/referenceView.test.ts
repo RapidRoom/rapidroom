@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getWipeLabels,
   DEFAULT_REFERENCE_VIEW_STATE,
   getReferenceLabel,
   isReferenceCandidate,
@@ -76,5 +77,17 @@ describe('reference view state', () => {
       reference,
       wipeReference: false,
     });
+  });
+});
+
+describe('wipe labels', () => {
+  it('name the Original on the left and follow the images when swapped', () => {
+    expect(getWipeLabels(false)).toEqual({ left: 'Original', right: 'Your edit' });
+    expect(getWipeLabels(true)).toEqual({ left: 'Your edit', right: 'Original' });
+  });
+
+  it('uses the pinned version name instead of Original', () => {
+    expect(getWipeLabels(false, 'IMG_0001.ARW (VC)')).toEqual({ left: 'IMG_0001.ARW (VC)', right: 'Your edit' });
+    expect(getWipeLabels(true, 'IMG_0001.ARW (VC)')).toEqual({ left: 'Your edit', right: 'IMG_0001.ARW (VC)' });
   });
 });
