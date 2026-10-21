@@ -215,6 +215,7 @@ function DetailsPanel({
                       label={t('adjustments.details.aiDenoiseDetail')}
                       max={100}
                       min={0}
+                      defaultValue={0}
                       onChange={(e: SliderChangeEvent) =>
                         handleAdjustmentChange(DetailsAdjustment.AiDenoiseDetail, String(e.target.value))
                       }

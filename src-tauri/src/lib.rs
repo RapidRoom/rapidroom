@@ -5,6 +5,9 @@ use mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
+// Like println!/eprintln!, but ignores write errors: when stdout/stderr is a
+// closed pipe (e.g. `RapidRAW export ... | head`), println! panics, which
+// left headless exports hanging.
 macro_rules! cli_println {
     ($($arg:tt)*) => {{
         use std::io::Write as _;
@@ -2061,6 +2064,8 @@ fn setup_logging(app_handle: &tauri::AppHandle) {
             ))
         })
         .level(level)
+        // fern panics when a stderr write fails (e.g. output piped into `head`),
+        // and the panic hook below logs again, which aborts the process.
         .chain(fern::Output::call(|record| {
             let _ = writeln!(std::io::stderr(), "{}", record.args());
         }));

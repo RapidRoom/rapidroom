@@ -333,6 +333,8 @@ pub fn calculate_full_job_hash(path: &str, adjustments: &serde_json::Value) -> u
     let mut hasher = DefaultHasher::new();
     path.hash(&mut hasher);
     adjustments.to_string().hash(&mut hasher);
+    // A freshly generated AI-denoise result changes the GPU input without changing the JSON.
+    hash_ai_denoise(adjustments, &mut hasher);
     hasher.finish()
 }
 

@@ -53,6 +53,31 @@ pub fn is_enabled(adjustments: &serde_json::Value) -> bool {
     crate::image_processing::is_effect_enabled(adjustments, "noiseReduction", "aiDenoiseEnabled")
 }
 
+/// Exports must not silently drop AI denoise. The result is generated while a photo is open in
+/// the editor; a photo whose edit enables AI denoise without a cached result fails to export
+/// with this message instead of exporting without denoise.
+pub fn require_result(path: &str, adjustments: &serde_json::Value) -> Result<(), String> {
+    if !is_enabled(adjustments) || adjustments["aiDenoiseAmount"].as_f64() == Some(0.0) {
+        return Ok(());
+    }
+    let source = source_string(path);
+    let key = entry_key(&source);
+    let cached = cache()
+        .get(&key)
+        .is_some_and(|entry| entry.source == source)
+        || read_disk_header(&key).is_some_and(|header| header.source == source);
+    if cached {
+        return Ok(());
+    }
+    let name = Path::new(&source)
+        .file_name()
+        .map_or_else(|| source.clone(), |n| n.to_string_lossy().into_owned());
+    Err(format!(
+        "AI denoise is on for {name} but has not been generated yet. Open the photo in the editor, \
+         wait for AI denoise to finish, then export again."
+    ))
+}
+
 pub fn cache_epoch() -> u64 {
     cache().epoch
 }
@@ -370,21 +395,48 @@ fn restore_low_frequencies(denoised: &mut Rgb32FImage, source: &Rgb32FImage) {
         });
 }
 
+/// The NIND model expects [0, 1] RGB, as RapidRoom's denoise queue feeds it (nind_model_input).
+fn model_input(source: &Rgb32FImage) -> Rgb32FImage {
+    let mut input = source.clone();
+    input.par_iter_mut().for_each(|sample| {
+        *sample = if sample.is_finite() {
+            sample.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+    });
+    input
+}
+
+/// Clamps the model output to its [0, 1] domain, then adds back, once, the part of each
+/// source sample that lay outside that domain (highlights above 1.0, negative values).
+fn restore_out_of_range(output: &mut Rgb32FImage, source: &Rgb32FImage) {
+    output
+        .par_iter_mut()
+        .zip(source.as_raw().par_iter())
+        .for_each(|(dn, &src)| {
+            let excess = if src.is_finite() {
+                src - src.clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            *dn = dn.clamp(0.0, 1.0) + excess;
+        });
+}
+
 fn run_model(
     base: &DynamicImage,
     session: &Mutex<ort::session::Session>,
     on_progress: &dyn Fn(f32),
 ) -> Result<Rgb32FImage, String> {
     let source = base.to_rgb32f();
+    let input = model_input(&source);
     let mut output =
-        crate::ai_processing::run_ai_denoise_with_progress(&source, 0.5, session, on_progress)?
+        crate::ai_processing::run_ai_denoise_with_progress(&input, 0.5, session, on_progress)?
             .into_rgb32f();
+    drop(input);
 
-    output
-        .par_iter_mut()
-        .zip(source.as_raw().par_iter())
-        .for_each(|(dn, &src)| *dn += src - src.clamp(0.0, 1.0));
-
+    restore_out_of_range(&mut output, &source);
     restore_low_frequencies(&mut output, &source);
     Ok(output)
 }
@@ -541,4 +593,151 @@ pub fn clear_ai_denoise_cache() -> Result<(), String> {
     cache.entries.clear();
     cache.epoch += 1;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn over_range_samples_round_trip_exactly_through_the_model_domain() {
+        let samples = [3.5f32, -0.25, 0.5, 1.0, 0.0, 12.0];
+        let source = Rgb32FImage::from_raw(2, 1, samples.to_vec()).unwrap();
+        let input = model_input(&source);
+        assert!(input.as_raw().iter().all(|v| (0.0..=1.0).contains(v)));
+
+        // A model that returns its input unchanged must give back the source exactly.
+        let mut identity = input.clone();
+        restore_out_of_range(&mut identity, &source);
+        assert_eq!(identity.as_raw(), source.as_raw());
+
+        // Model overshoot is clamped before the excess is added back, never counted twice.
+        let mut overshoot = Rgb32FImage::from_raw(2, 1, vec![1.2f32; 6]).unwrap();
+        restore_out_of_range(&mut overshoot, &source);
+        assert_eq!(overshoot.as_raw()[0], 3.5);
+        assert_eq!(overshoot.as_raw()[2], 1.0);
+        assert_eq!(overshoot.as_raw()[5], 12.0);
+    }
+
+    #[test]
+    #[ignore = "Local evidence: set RAPIDROOM_NIND_MODEL, RAPIDROOM_AI_DENOISE_RAW (public corpus raw) and RAPIDROOM_AI_DENOISE_OUT; run under flock"]
+    fn real_nind_highlight_excess_is_added_back_once() {
+        use image::DynamicImage;
+        let env = |k: &str| std::env::var(k).unwrap();
+        let session = Mutex::new(
+            ort::session::Session::builder()
+                .unwrap()
+                .with_intra_threads(4)
+                .unwrap()
+                .commit_from_file(env("RAPIDROOM_NIND_MODEL"))
+                .unwrap(),
+        );
+        let raw = env("RAPIDROOM_AI_DENOISE_RAW");
+        let bytes = std::fs::read(&raw).unwrap();
+        let base = crate::image_loader::load_and_composite_read_only(
+            &bytes,
+            &raw,
+            &serde_json::Value::Null,
+            false,
+            &crate::app_settings::AppSettings::default(),
+            None,
+        )
+        .unwrap()
+        .to_rgb32f();
+        // The 512 px window with the most over-range (clipped highlight) samples.
+        let (w, h) = base.dimensions();
+        let size = 512.min(w).min(h);
+        let mut best = (0usize, 0u32, 0u32);
+        for y in (0..=h - size).step_by(128) {
+            for x in (0..=w - size).step_by(128) {
+                let mut n = 0;
+                for yy in (y..y + size).step_by(4) {
+                    for xx in (x..x + size).step_by(4) {
+                        n += base
+                            .get_pixel(xx, yy)
+                            .0
+                            .iter()
+                            .filter(|v| **v > 1.0)
+                            .count();
+                    }
+                }
+                if n > best.0 {
+                    best = (n, x, y);
+                }
+            }
+        }
+        let source = image::imageops::crop_imm(&base, best.1, best.2, size, size).to_image();
+
+        // Before the fix: unclamped model input, excess added on top of an unclamped output.
+        let mut before =
+            crate::ai_processing::run_ai_denoise_with_progress(&source, 0.5, &session, &|_| {})
+                .unwrap()
+                .into_rgb32f();
+        before
+            .iter_mut()
+            .zip(source.as_raw().iter())
+            .for_each(|(dn, &src)| *dn += src - src.clamp(0.0, 1.0));
+        restore_low_frequencies(&mut before, &source);
+        let after = run_model(
+            &DynamicImage::ImageRgb32F(source.clone()),
+            &session,
+            &|_| {},
+        )
+        .unwrap();
+
+        let over: Vec<usize> = (0..source.as_raw().len())
+            .filter(|&i| source.as_raw()[i] > 1.0)
+            .collect();
+        let mean = |img: &Rgb32FImage| {
+            over.iter()
+                .map(|&i| img.as_raw()[i] - source.as_raw()[i])
+                .sum::<f32>()
+                / over.len().max(1) as f32
+        };
+        let stats = serde_json::json!({
+            "raw": raw, "window": [best.1, best.2, size],
+            "over_range_samples": over.len(),
+            "mean_output_minus_source_on_over_range_before": mean(&before),
+            "mean_output_minus_source_on_over_range_after": mean(&after),
+            "max_before": before.as_raw().iter().cloned().fold(0.0f32, f32::max),
+            "max_after": after.as_raw().iter().cloned().fold(0.0f32, f32::max),
+            "max_source": source.as_raw().iter().cloned().fold(0.0f32, f32::max),
+        });
+        let out = std::path::PathBuf::from(env("RAPIDROOM_AI_DENOISE_OUT"));
+        std::fs::write(
+            out.join("stats.json"),
+            serde_json::to_string_pretty(&stats).unwrap(),
+        )
+        .unwrap();
+        // Display view: exposure -1.5 EV so highlights above 1.0 stay visible, then sRGB.
+        let view = |img: &Rgb32FImage, name: &str| {
+            let mut v = img.clone();
+            v.iter_mut()
+                .for_each(|s| *s = (*s * 0.35).clamp(0.0, 1.0).powf(1.0 / 2.2));
+            DynamicImage::ImageRgb32F(v)
+                .to_rgb8()
+                .save(out.join(name))
+                .unwrap();
+        };
+        view(&source, "source.png");
+        view(&before, "before-fix.png");
+        view(&after, "after-fix.png");
+        assert!(
+            stats["mean_output_minus_source_on_over_range_after"]
+                .as_f64()
+                .unwrap()
+                .abs()
+                < stats["mean_output_minus_source_on_over_range_before"]
+                    .as_f64()
+                    .unwrap()
+                    .abs()
+        );
+    }
+
+    #[test]
+    fn non_finite_samples_never_reach_the_model() {
+        let source = Rgb32FImage::from_raw(1, 1, vec![f32::NAN, f32::INFINITY, 0.25]).unwrap();
+        let input = model_input(&source);
+        assert_eq!(input.as_raw(), &[0.0, 0.0, 0.25]);
+    }
 }

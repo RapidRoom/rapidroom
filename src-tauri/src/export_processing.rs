@@ -1359,6 +1359,7 @@ fn process_image_for_export(
     app_handle: &tauri::AppHandle,
     output_format: &str,
 ) -> Result<DynamicImage, String> {
+    crate::ai_denoise::require_result(path, js_adjustments)?;
     let processed_image = process_image_for_export_pipeline(
         path,
         base_image,

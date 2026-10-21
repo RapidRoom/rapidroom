@@ -2401,45 +2401,6 @@ export default function SettingsPanel({
                               >
                                 <div className="px-4 pb-4 pt-4 border-t border-surface/50 space-y-8">
                                   <SettingItem
-                                    label={t('settings.processing.workerThreads')}
-                                    description={t('settings.processing.workerThreadsDesc')}
-                                  >
-                                    <Slider
-                                      label={t('settings.processing.threads')}
-                                      min={2}
-                                      max={10}
-                                      step={1}
-                                      value={processingSettings.thumbnailWorkerThreads}
-                                      defaultValue={4}
-                                      onChange={(e: any) =>
-                                        handleProcessingSettingChange(
-                                          'thumbnailWorkerThreads',
-                                          parseInt(e.target.value),
-                                        )
-                                      }
-                                      fillOrigin="min"
-                                    />
-                                  </SettingItem>
-
-                                  <SettingItem
-                                    label={t('settings.processing.imageCache')}
-                                    description={t('settings.processing.imageCacheDesc')}
-                                  >
-                                    <Slider
-                                      label={t('settings.processing.images')}
-                                      min={2}
-                                      max={10}
-                                      step={1}
-                                      value={processingSettings.imageCacheSize}
-                                      defaultValue={5}
-                                      onChange={(e: any) =>
-                                        handleProcessingSettingChange('imageCacheSize', parseInt(e.target.value))
-                                      }
-                                      fillOrigin="min"
-                                    />
-                                  </SettingItem>
-
-                                  <SettingItem
                                     label={t('settings.processing.advanced.exportThreads')}
                                     description={t('settings.processing.advanced.exportThreadsDesc')}
                                   >
