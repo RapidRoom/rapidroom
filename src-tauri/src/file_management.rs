@@ -3360,7 +3360,7 @@ fn find_matching_xmp_sidecars_recursive(
     (matches, skipped, failures)
 }
 
-fn read_sidecar_report_snapshot(path: &Path) -> Result<ImageMetadata, String> {
+pub(crate) fn read_sidecar_report_snapshot(path: &Path) -> Result<ImageMetadata, String> {
     const MAX_REPORT_SIDECAR_BYTES: usize = 16 * 1024 * 1024;
     let mut options = fs::OpenOptions::new();
     options.read(true);
@@ -3389,7 +3389,15 @@ fn read_sidecar_report_snapshot(path: &Path) -> Result<ImageMetadata, String> {
     if bytes.len() > MAX_REPORT_SIDECAR_BYTES {
         return Err("Native sidecar exceeds the import report size limit".into());
     }
-    serde_json::from_slice(&bytes)
+    // Older or hand-written sidecars may lack the bookkeeping fields the editor
+    // fills in when it next saves; reading them must not require a write.
+    let mut value: Value = serde_json::from_slice(&bytes)
+        .map_err(|_| "Could not parse native edits for the import report".to_string())?;
+    if let Some(object) = value.as_object_mut() {
+        object.entry("version").or_insert(serde_json::json!(1));
+        object.entry("rating").or_insert(serde_json::json!(0));
+    }
+    serde_json::from_value(value)
         .map_err(|_| "Could not parse native edits for the import report".into())
 }
 
@@ -4714,6 +4722,72 @@ pub fn load_metadata(path: String, app_handle: AppHandle) -> Result<ImageMetadat
     }
 
     Ok(metadata)
+}
+
+/// Read a recipe without XMP synchronization, repair, or any filesystem write.
+/// Missing sidecars receive the same read-only fresh RAW defaults as the editor;
+/// malformed existing sidecars refuse comparison instead of being misrepresented as empty.
+#[tauri::command]
+pub fn read_compare_adjustments(
+    path: String,
+    app_handle: AppHandle,
+) -> Result<serde_json::Value, String> {
+    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    let lens_db = app_handle
+        .state::<AppState>()
+        .lens_db
+        .lock()
+        .unwrap()
+        .clone();
+    let (source_path, sidecar_path) = parse_virtual_path(&path);
+    let mut metadata = read_sidecar_report_snapshot(&sidecar_path)?;
+    apply_compare_defaults(&mut metadata, &source_path, &settings, lens_db.as_deref());
+    serde_json::to_value(metadata.adjustments).map_err(|error| error.to_string())
+}
+
+fn apply_compare_defaults(
+    metadata: &mut ImageMetadata,
+    source_path: &Path,
+    settings: &AppSettings,
+    lens_db: Option<&crate::lens_correction::LensDatabase>,
+) {
+    let fresh = metadata.adjustments.is_null();
+    if fresh {
+        metadata.adjustments = default_adjustments();
+        crate::raw_processing::apply_camera_crop_default_from_path(
+            &mut metadata.adjustments,
+            source_path,
+        );
+    }
+    let saved_auto_recipe = metadata.adjustments["lensCorrectionMode"].as_str() == Some("auto")
+        && metadata.adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1);
+    let auto_lens = crate::formats::is_raw_file(source_path)
+        && ((fresh && settings.auto_lens_correction_on_new_raws.unwrap_or(true))
+            || saved_auto_recipe);
+    if !auto_lens {
+        return;
+    }
+    if metadata.exif.is_none() {
+        let source = source_path.to_string_lossy();
+        let exif = if let Ok(bytes) = read_file_mapped(source_path) {
+            crate::exif_processing::read_exif_data_from_bytes(&source, &bytes)
+        } else if let Ok(bytes) = fs::read(source_path) {
+            crate::exif_processing::read_exif_data_from_bytes(&source, &bytes)
+        } else {
+            Default::default()
+        };
+        if !exif.is_empty() {
+            metadata.exif = Some(exif);
+        }
+    }
+    metadata.adjustments["lensCorrectionMode"] = serde_json::json!("auto");
+    metadata.adjustments["cameraLensCorrectionVersion"] = serde_json::json!(1);
+    resolve_lens_params_in_adjustments(
+        &mut metadata.adjustments,
+        &metadata.exif,
+        lens_db,
+        source_path,
+    );
 }
 
 fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
@@ -7604,6 +7678,74 @@ mod tests {
         fs::write(&sidecar, "invalid JSON").unwrap();
         assert!(read_sidecar_report_snapshot(&sidecar).is_err());
         assert_eq!(fs::read_to_string(&sidecar).unwrap(), "invalid JSON");
+    }
+
+    #[test]
+    fn comparison_snapshot_never_heals_a_bloated_saved_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("sample.jpg");
+        let sidecar = dir.path().join("sample.jpg.rrdata");
+        fs::write(&source, b"not a raw image").unwrap();
+        let huge = "x".repeat(700);
+        let original = format!(
+            r#"{{"adjustments":{{"exposure":1}},"exif":{{"Comment":"{huge}"}},"unknown":"keep"}}"#
+        );
+        fs::write(&sidecar, &original).unwrap();
+        let before = fs::metadata(&sidecar).unwrap().modified().unwrap();
+
+        let mut metadata = read_sidecar_report_snapshot(&sidecar).unwrap();
+        apply_compare_defaults(&mut metadata, &source, &AppSettings::default(), None);
+
+        assert_eq!(metadata.adjustments["exposure"], 1);
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        assert_eq!(fs::metadata(&sidecar).unwrap().modified().unwrap(), before);
+    }
+
+    #[test]
+    fn comparison_snapshot_fresh_file_builds_defaults_without_creating_a_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("fresh.NEF");
+        let sidecar = dir.path().join("fresh.NEF.rrdata");
+        let legacy_exif = crate::exif_processing::get_rrexif_path(&source);
+        fs::write(&source, b"not a raw image").unwrap();
+
+        let mut metadata = read_sidecar_report_snapshot(&sidecar).unwrap();
+        apply_compare_defaults(&mut metadata, &source, &AppSettings::default(), None);
+
+        assert!(metadata.adjustments.is_object());
+        assert!(!sidecar.exists());
+        assert!(!legacy_exif.exists());
+    }
+
+    #[test]
+    fn comparison_snapshot_preserves_a_saved_empty_recipe_byte_for_byte() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("empty.jpg");
+        let sidecar = dir.path().join("empty.jpg.rrdata");
+        let original = r#"{ "adjustments": {}, "unknown": "keep" }"#;
+        fs::write(&source, b"not a raw image").unwrap();
+        fs::write(&sidecar, original).unwrap();
+        let before = fs::metadata(&sidecar).unwrap().modified().unwrap();
+
+        let mut metadata = read_sidecar_report_snapshot(&sidecar).unwrap();
+        apply_compare_defaults(&mut metadata, &source, &AppSettings::default(), None);
+
+        assert_eq!(metadata.adjustments, serde_json::json!({}));
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        assert_eq!(fs::metadata(&sidecar).unwrap().modified().unwrap(), before);
+    }
+
+    #[test]
+    fn comparison_snapshot_rejects_a_corrupt_recipe_without_touching_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let sidecar = dir.path().join("corrupt.jpg.rrdata");
+        let original = "{ invalid JSON";
+        fs::write(&sidecar, original).unwrap();
+        let before = fs::metadata(&sidecar).unwrap().modified().unwrap();
+
+        assert!(read_sidecar_report_snapshot(&sidecar).is_err());
+        assert_eq!(fs::read_to_string(&sidecar).unwrap(), original);
+        assert_eq!(fs::metadata(&sidecar).unwrap().modified().unwrap(), before);
     }
 
     #[test]
