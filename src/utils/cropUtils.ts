@@ -1,5 +1,20 @@
 import { Crop } from 'react-image-crop';
 
+// aspectRatio 0 locks the crop to the image's own ratio, null leaves it free.
+// 0 is the default, because the image ratio differs per image and cannot be stored as one number.
+export const ORIGINAL_RATIO = 0;
+
+export function resolveAspectRatio(
+  aspectRatio: number | null,
+  image: { width: number; height: number } | null | undefined,
+  orientationSteps: number,
+): number | null {
+  if (aspectRatio !== ORIGINAL_RATIO) return aspectRatio;
+  if (!image?.width || !image?.height) return null;
+  const { width, height } = getOrientedDimensions(image.width, image.height, orientationSteps);
+  return width / height;
+}
+
 export function getOrientedDimensions(
   imageWidth: number,
   imageHeight: number,

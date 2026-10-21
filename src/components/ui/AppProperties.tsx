@@ -37,10 +37,12 @@ export enum Invokes {
   ApplyAdjustments = 'apply_adjustments',
   ApplyAdjustmentsToPaths = 'apply_adjustments_to_paths',
   ApplyAutoAdjustmentsToPaths = 'apply_auto_adjustments_to_paths',
+  ApplyAutoStraightenToPaths = 'apply_auto_straighten_to_paths',
   ApplyDenoising = 'apply_denoising',
   CalculateAutoAdjustments = 'calculate_auto_adjustments',
   SampleWhiteBalance = 'sample_white_balance',
   BatchDenoiseImages = 'batch_denoise_images',
+  CalculateAutoStraighten = 'calculate_auto_straighten',
   CancelAiTask = 'cancel_ai_task',
   CancelDenoise = 'cancel_denoise',
   CancelExport = 'cancel_export',
@@ -49,6 +51,7 @@ export enum Invokes {
   ClearAiTags = 'clear_ai_tags',
   ClearAllTags = 'clear_all_tags',
   GetThumbnailCacheUsage = 'get_thumbnail_cache_usage',
+  ClearAiDenoiseCache = 'clear_ai_denoise_cache',
   ClearThumbnailCache = 'clear_thumbnail_cache',
   CopyFiles = 'copy_files',
   CreateDenoiseJob = 'create_denoise_job',
@@ -68,6 +71,7 @@ export enum Invokes {
   GenerateMaskOverlay = 'generate_mask_overlay',
   GeneratePresetPreview = 'generate_preset_preview',
   GenerateUncroppedPreview = 'generate_uncropped_preview',
+  GetAiDenoiseCacheSize = 'get_ai_denoise_cache_size',
   GetFolderTree = 'get_folder_tree',
   GetLastRename = 'get_last_rename',
   GetFolderChildren = 'get_folder_children',
@@ -262,6 +266,8 @@ export interface AppSettings {
   highResZoomMultiplier?: number;
   enableLivePreviews?: boolean;
   livePreviewQuality?: string;
+  exportWorkerThreads?: number;
+  exportMemoryLimit?: number;
   enableAiTagging?: boolean;
   aiTagCount?: number;
   customAiTags?: string[];

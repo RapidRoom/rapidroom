@@ -180,6 +180,8 @@ export default function MainLibrary(props: MainLibraryProps) {
   const [isBusyDelayed, setIsBusyDelayed] = useState(false);
   const [isBusyLoaderMounted, setIsBusyLoaderMounted] = useState(false);
   const [isProgressHovered, setIsProgressHovered] = useState(false);
+  // Upstream's touch selection mode is Android-only; RapidRoom keeps its desktop header.
+  const selectionModeActive = false;
   const isSettingsOpen = useUIStore((state) => state.isSettingsOpen);
   const lightsOutMode = useUIStore((state) => state.lightsOutMode);
 
@@ -721,6 +723,7 @@ export default function MainLibrary(props: MainLibraryProps) {
           <LibraryGrid
             {...props}
             libraryDisplayMode={libraryDisplayMode}
+            selectionModeActive={selectionModeActive}
             thumbnailSizeOptions={translatedThumbnailSizeOptions}
           />
         )

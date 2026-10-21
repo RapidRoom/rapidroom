@@ -1,4 +1,13 @@
-import { type ChangeEvent, useState, useEffect, useRef, useCallback, type Dispatch, type SetStateAction } from 'react';
+import {
+  type ChangeEvent,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { v4 as uuidv4 } from 'uuid';
 import clsx from 'clsx';
@@ -40,12 +49,8 @@ import {
 import CollapsibleSection from '../../ui/CollapsibleSection';
 import Switch from '../../ui/Switch';
 import Slider, { SliderDensityScope, getAdjustmentDensity } from '../../ui/Slider';
-import BasicAdjustments from '../../adjustments/Basic';
-import CurveGraph from '../../adjustments/Curves';
-import ColorPanel from '../../adjustments/Color';
-import DetailsPanel from '../../adjustments/Details';
-import EffectsPanel from '../../adjustments/Effects';
-import Waveform from '../editor/Waveform';
+import AdjustmentSection from '../../adjustments/AdjustmentSection';
+import ConnectedWaveform from '../editor/ConnectedWaveform';
 import Resizer from '../../ui/Resizer';
 import { DepthRangePicker } from '../../ui/DepthRangePicker';
 import AdjustmentSectionsSubMenu from './AdjustmentSectionsSubMenu';
@@ -83,7 +88,6 @@ import {
   setToolActive,
   toggleToolActive,
 } from '../../../utils/adjustments';
-import { ToolVisibilityContext } from '../../../context/ToolVisibilityContext';
 import { useContextMenu } from '../../../context/ContextMenuContext';
 import {
   OPTION_SEPARATOR,
@@ -91,7 +95,6 @@ import {
   Panel,
   type AppSettings,
   type BrushSettings,
-  type HistogramData,
   type Option,
   type Preset,
 } from '../../ui/AppProperties';
@@ -197,7 +200,7 @@ interface SettingsPanelProps {
   setBrushSettings: (updater: (current: BrushSettings | null) => BrushSettings) => void;
   updateContainer: (id: string, update: Partial<MaskContainer>) => void;
   updateSubMask: (id: string, update: Partial<SubMask>) => void;
-  histogram: HistogramData | null;
+  setAdjustments: (updater: (current: Adjustments) => Adjustments) => void;
   appSettings: AppSettings | null;
   setIsMaskControlHovered: (hovered: boolean) => void;
   collapsibleState: MaskCollapsibleState;
@@ -398,11 +401,8 @@ export default function MasksPanel() {
     adjustments,
     brushSettings,
     copiedMask,
-    histogram,
     selectedImage,
     isWaveformVisible,
-    waveform,
-    activeWaveformChannel,
     waveformHeight,
     setEditor,
   } = useEditorStore(
@@ -412,11 +412,8 @@ export default function MasksPanel() {
       adjustments: state.adjustments,
       brushSettings: state.brushSettings,
       copiedMask: state.copiedMask,
-      histogram: state.histogram,
       selectedImage: state.selectedImage,
       isWaveformVisible: state.isWaveformVisible,
-      waveform: state.waveform,
-      activeWaveformChannel: state.activeWaveformChannel,
       waveformHeight: state.waveformHeight,
       setEditor: state.setEditor,
     })),
@@ -722,10 +719,11 @@ export default function MasksPanel() {
   const updateSubMask = (id: string, data: Partial<SubMask>) =>
     setAdjustments((prev: Adjustments) => ({
       ...prev,
-      masks: prev.masks.map((m) => ({
-        ...m,
-        subMasks: m.subMasks.map((sm) => (sm.id === id ? { ...sm, ...data } : sm)),
-      })),
+      masks: prev.masks.map((m) =>
+        m.subMasks.some((sm) => sm.id === id)
+          ? { ...m, subMasks: m.subMasks.map((sm) => (sm.id === id ? { ...sm, ...data } : sm)) }
+          : m,
+      ),
     }));
 
   const handleDeleteContainer = (id: string) => {
@@ -1120,19 +1118,7 @@ export default function MasksPanel() {
               className="shrink-0 flex flex-col relative border-b border-surface overflow-hidden"
             >
               <div className="grow w-full h-full p-3 pb-2 min-h-0">
-                <Waveform
-                  waveformData={waveform || null}
-                  histogram={histogram}
-                  displayMode={activeWaveformChannel || 'luma'}
-                  setDisplayMode={setActiveWaveformChannel}
-                  showClipping={adjustments.showClipping || false}
-                  onToggleClipping={() => {
-                    setAdjustments((prev: Adjustments) => ({
-                      ...prev,
-                      showClipping: !prev.showClipping,
-                    }));
-                  }}
-                />
+                <ConnectedWaveform setDisplayMode={setActiveWaveformChannel} setAdjustments={setAdjustments} />
               </div>
               <Resizer direction={Orientation.Horizontal} onMouseDown={handleWaveformResize} />
             </motion.div>
@@ -1306,7 +1292,7 @@ export default function MasksPanel() {
                       setBrushSettings={setBrushSettings}
                       updateContainer={updateContainer}
                       updateSubMask={updateSubMask}
-                      histogram={histogram}
+                      setAdjustments={setAdjustments}
                       appSettings={appSettings}
                       setIsMaskControlHovered={setIsMaskControlHovered}
                       collapsibleState={collapsibleState}
@@ -2009,7 +1995,7 @@ function SettingsPanel({
   setBrushSettings,
   updateContainer,
   updateSubMask,
-  histogram,
+  setAdjustments,
   appSettings,
   setIsMaskControlHovered,
   collapsibleState,
@@ -2099,12 +2085,17 @@ function SettingsPanel({
     activeSubMask && [Mask.AiSubject, Mask.AiForeground, Mask.AiSky, Mask.AiDepth].includes(activeSubMask.type);
   const isComponentMode = !!activeSubMask;
 
-  const setMaskContainerAdjustments = (updater: (current: MaskAdjustments) => MaskAdjustments) => {
-    if (!isActive) return;
-    const currentAdjustments = container.adjustments;
-    const newAdjustments = updater(currentAdjustments);
-    updateContainer(container.id, { adjustments: newAdjustments });
-  };
+  const containerId: string | null = container?.id ?? null;
+  const setMaskContainerAdjustments = useCallback(
+    (updater: (current: MaskAdjustments) => MaskAdjustments) => {
+      if (!isActive || !containerId) return;
+      setAdjustments((prev: Adjustments) => ({
+        ...prev,
+        masks: prev.masks.map((m) => (m.id === containerId ? { ...m, adjustments: updater(m.adjustments) } : m)),
+      }));
+    },
+    [containerId, isActive, setAdjustments],
+  );
 
   const handleToggleSection = (section: MaskSection) => {
     setCollapsibleState((prev) => {
@@ -2122,13 +2113,15 @@ function SettingsPanel({
     });
   };
 
-  const handleToggleVisibility = (id: string) => {
-    if (!isActive) return;
-    const cur = container.adjustments;
-    updateContainer(container.id, {
-      adjustments: { ...cur, activeTools: toggleToolActive(getActiveTools(cur), id) },
-    });
-  };
+  const handleToggleVisibility = useCallback(
+    (id: string) => {
+      setMaskContainerAdjustments((cur: MaskAdjustments) => ({
+        ...cur,
+        activeTools: toggleToolActive(getActiveTools(cur), id),
+      }));
+    },
+    [setMaskContainerAdjustments],
+  );
 
   const handleSectionContextMenu = (event: React.MouseEvent, sectionName: MaskSection) => {
     if (!isActive) return;
@@ -2201,7 +2194,12 @@ function SettingsPanel({
     ]);
   };
 
-  const activeTools = getActiveTools(displayContainer.adjustments);
+  const containerActiveTools = displayContainer.adjustments.activeTools;
+  const containerSectionVisibility = displayContainer.adjustments.sectionVisibility;
+  const activeTools = useMemo(
+    () => getActiveTools({ activeTools: containerActiveTools, sectionVisibility: containerSectionVisibility }),
+    [containerActiveTools, containerSectionVisibility],
+  );
   const visibleSections = getVisibleAdjustmentSections(appSettings?.adjustmentLayout) as MaskSection[];
 
   return (
@@ -2357,13 +2355,6 @@ function SettingsPanel({
         className="flex flex-col gap-2"
       >
         {visibleSections.map((sectionName) => {
-          const SectionComponent = {
-            basic: BasicAdjustments,
-            curves: CurveGraph,
-            color: ColorPanel,
-            details: DetailsPanel,
-            effects: EffectsPanel,
-          }[sectionName] as React.ElementType;
           const title = t(`editor.adjustments.sections.${sectionName}`, { defaultValue: sectionName });
           return (
             <CollapsibleSection
@@ -2375,18 +2366,16 @@ function SettingsPanel({
               onToggleVisibility={() => handleToggleVisibility(sectionName)}
               onContextMenu={(e: React.MouseEvent) => handleSectionContextMenu(e, sectionName)}
             >
-              <ToolVisibilityContext.Provider
-                value={{ activeTools, onToggleTool: handleToggleVisibility, section: sectionName }}
-              >
-                <SectionComponent
-                  adjustments={displayContainer.adjustments}
-                  setAdjustments={setMaskContainerAdjustments}
-                  histogram={histogram}
-                  isForMask={true}
-                  appSettings={appSettings}
-                  onDragStateChange={onDragStateChange}
-                />
-              </ToolVisibilityContext.Provider>
+              <AdjustmentSection
+                sectionName={sectionName}
+                activeTools={activeTools}
+                onToggleTool={handleToggleVisibility}
+                adjustments={displayContainer.adjustments}
+                setAdjustments={setMaskContainerAdjustments}
+                isForMask={true}
+                appSettings={appSettings}
+                onDragStateChange={onDragStateChange}
+              />
             </CollapsibleSection>
           );
         })}

@@ -78,11 +78,6 @@ interface DenoiseModalState {
   jobId: number | null;
 }
 
-interface NegativeConversionModalState {
-  isOpen: boolean;
-  targetPaths: Array<string>;
-}
-
 interface CullingModalState {
   isOpen: boolean;
   suggestions: CullingSuggestions | null;
@@ -326,7 +321,6 @@ export interface UIState {
   panoramaModalState: PanoramaModalState;
   focusStackModalState: FocusStackModalState;
   hdrModalState: HdrModalState;
-  negativeModalState: NegativeConversionModalState;
   denoiseModalState: DenoiseModalState;
   denoiseRun: number;
   openDenoiseModal: (paths: string[], isRaw: boolean) => void;
@@ -452,7 +446,6 @@ export const useUIStore = create<UIState>((set, get) => ({
     progressMessage: '',
     stitchingSourcePaths: [],
   },
-  negativeModalState: { isOpen: false, targetPaths: [] },
   denoiseModalState: {
     isOpen: false,
     isProcessing: false,

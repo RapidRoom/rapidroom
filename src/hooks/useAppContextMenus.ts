@@ -3,7 +3,7 @@ import { editStack, isStackedPhoto, stackKey, toggleStack } from '../utils/photo
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
 import { copyFilesWithSummary } from '../utils/fileTransfers';
-import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useMemo, useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -58,6 +58,7 @@ import {
   SquareTerminal,
   Database,
   FolderSearch,
+  Wand2,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -80,7 +81,13 @@ import {
   FolderTree,
 } from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
-import { Color, COLOR_LABELS, normalizeLoadedAdjustments, type Adjustments } from '../utils/adjustments';
+import {
+  AutoAdjustMode,
+  Color,
+  COLOR_LABELS,
+  normalizeLoadedAdjustments,
+  type Adjustments,
+} from '../utils/adjustments';
 import TaggingSubMenu from '../context/TaggingSubMenu';
 import {
   prepareEditorDraftForXmpImport,
@@ -88,6 +95,8 @@ import {
   type XmpImportSavePause,
   type XmpEditorDraft,
   useEditorActions,
+  buildAutoAdjustModeOptions,
+  reloadAdjustmentsForPaths,
 } from './useEditorActions';
 import { useLibraryActions } from './useLibraryActions';
 import { globalImageCache } from '../utils/ImageLRUCache';
@@ -183,7 +192,24 @@ export interface UseAppContextMenusProps {
   handleTogglePinFolder: (path: string) => Promise<void>;
 }
 
-export function useAppContextMenus(props: UseAppContextMenusProps) {
+export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
+  const propsRef = useRef(latestProps);
+  propsRef.current = latestProps;
+  const props = useMemo<UseAppContextMenusProps>(
+    () => ({
+      handleImageSelect: (path) => propsRef.current.handleImageSelect(path),
+      handleBackToLibrary: () => propsRef.current.handleBackToLibrary(),
+      handleRenameFiles: (paths) => propsRef.current.handleRenameFiles(paths),
+      handleImportClick: (path) => propsRef.current.handleImportClick(path),
+      handleLibraryRefresh: () => propsRef.current.handleLibraryRefresh(),
+      refreshAllFolderTrees: () => propsRef.current.refreshAllFolderTrees(),
+      refreshImageList: () => propsRef.current.refreshImageList(),
+      executeDelete: (paths, options) => propsRef.current.executeDelete(paths, options),
+      handleDeleteRejected: () => propsRef.current.handleDeleteRejected(),
+      handleTogglePinFolder: (path) => propsRef.current.handleTogglePinFolder(path),
+    }),
+    [],
+  );
   const { t } = useTranslation();
   const { showContextMenu } = useContextMenu();
 
@@ -212,6 +238,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   const {
     handleAutoAdjustments,
     handleAutoLensCorrection,
+    handleAutoStraighten,
+    handleAutoStraightenPaths,
+    handleConvertNegatives,
     handleResetAdjustments,
     handleCopyAdjustments,
     handlePasteAdjustments,
@@ -702,8 +731,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             {
               label: t('contextMenus.editor.autoAdjust'),
               icon: PencilSparkles,
-              onClick: handleAutoAdjustments,
               disabled: !selectedImage?.isReady,
+              submenu: buildAutoAdjustModeOptions(t, handleAutoAdjustments),
             },
             {
               label: t('contextMenus.editor.autoLensCorrection'),
@@ -717,6 +746,12 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               onClick: () => void setDenoiseMark(undefined, [selectedImage.path]),
             },
             {
+              label: t('contextMenus.editor.autoStraighten'),
+              icon: Wand2,
+              onClick: handleAutoStraighten,
+              disabled: !selectedImage?.isReady,
+            },
+            {
               label: t('contextMenus.editor.denoise'),
               icon: Grip,
               disabled: useUIStore.getState().denoiseModalState.isProcessing,
@@ -727,11 +762,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             {
               label: t('contextMenus.editor.convertNegative'),
               icon: Film,
-              onClick: () => {
-                if (selectedImage) {
-                  setUI({ negativeModalState: { isOpen: true, targetPaths: [selectedImage.path] } });
-                }
-              },
+              onClick: () => handleConvertNegatives([selectedImage.path]),
+              disabled: !selectedImage?.isReady,
             },
             {
               icon: LayoutTemplate,
@@ -843,9 +875,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       event.preventDefault();
       event.stopPropagation();
 
-      const { selectedImage, copiedAdjustments, setEditor } = useEditorStore.getState();
-      const { multiSelectedPaths, imageList, libraryActivePath, albumTree, activeAlbumId, setLibrary } =
-        useLibraryStore.getState();
+      const { selectedImage, copiedAdjustments } = useEditorStore.getState();
+      const { multiSelectedPaths, imageList, albumTree, activeAlbumId, setLibrary } = useLibraryStore.getState();
       const { appSettings } = useSettingsStore.getState();
       const { activeView, setUI, setPanel } = useUIStore.getState();
       const { setProcess } = useProcessStore.getState();
@@ -961,33 +992,17 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         }
       };
 
-      const handleApplyAutoAdjustmentsToSelection = () => {
+      const handleApplyAutoAdjustmentsToSelection = (mode: AutoAdjustMode) => {
         const editingPath = activeView === 'editor' ? selectedImage?.path : undefined;
         const batchPaths = finalSelection.filter((p) => p !== editingPath);
         if (batchPaths.length < finalSelection.length) {
-          handleAutoAdjustments();
+          handleAutoAdjustments(mode);
         }
         if (batchPaths.length === 0) return;
         batchPaths.forEach((p) => globalImageCache.delete(p));
 
-        invoke(Invokes.ApplyAutoAdjustmentsToPaths, { paths: batchPaths })
-          .then(async () => {
-            if (selectedImage && batchPaths.includes(selectedImage.path)) {
-              const metadata = await invoke<LoadedImageMetadata>(Invokes.LoadMetadata, { path: selectedImage.path });
-              if (metadata.adjustments && !metadata.adjustments.is_null) {
-                const normalized = normalizeLoadedAdjustments(metadata.adjustments);
-                setEditor({ adjustments: normalized });
-                useEditorStore.getState().resetHistory(normalized);
-              }
-            }
-            if (libraryActivePath && batchPaths.includes(libraryActivePath)) {
-              const metadata = await invoke<LoadedImageMetadata>(Invokes.LoadMetadata, { path: libraryActivePath });
-              if (metadata.adjustments && !metadata.adjustments.is_null) {
-                const normalized = normalizeLoadedAdjustments(metadata.adjustments);
-                setLibrary({ libraryActiveAdjustments: normalized });
-              }
-            }
-          })
+        invoke(Invokes.ApplyAutoAdjustmentsToPaths, { paths: batchPaths, mode })
+          .then(() => reloadAdjustmentsForPaths(batchPaths))
           .catch((err) => {
             console.error('Failed to apply auto adjustments to paths:', err);
             toast.error(t('contextMenus.toasts.failedApplyAuto', { err }));
@@ -1132,11 +1147,20 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           label: t('contextMenus.editor.productivity'),
           icon: Gauge,
           submenu: [
-            { label: autoAdjustLabel, icon: PencilSparkles, onClick: handleApplyAutoAdjustmentsToSelection },
+            {
+              label: autoAdjustLabel,
+              icon: PencilSparkles,
+              submenu: buildAutoAdjustModeOptions(t, handleApplyAutoAdjustmentsToSelection),
+            },
             {
               label: t('contextMenus.thumbnail.autoLensCorrection', { count: selectionCount }),
               icon: Aperture,
               onClick: () => handleAutoLensCorrection(finalSelection),
+            },
+            {
+              label: t('contextMenus.thumbnail.autoStraighten', { count: selectionCount }),
+              icon: Wand2,
+              onClick: () => handleAutoStraightenPaths(finalSelection),
             },
             {
               label: denoiseLabel,
@@ -1150,9 +1174,7 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               label: conversionLabel,
               icon: Film,
               disabled: selectionCount === 0,
-              onClick: () => {
-                setUI({ negativeModalState: { isOpen: true, targetPaths: finalSelection } });
-              },
+              onClick: () => handleConvertNegatives(finalSelection),
             },
             {
               icon: LayoutTemplate,

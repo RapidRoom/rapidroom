@@ -141,6 +141,17 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 | `chromaticAberrationRedCyan`    | number | `0`     | -100 to 100  | 1    |       | Scales the red channel against green by up to 1 %. Try both signs and check high-contrast edges; which sign fixes a lens varies. |
 | `chromaticAberrationBlueYellow` | number | `0`     | -100 to 100  | 1    |       | Scales the blue channel against green by up to 1 %. Try both signs, as above.                                                    |
 
+### Negative Conversion
+
+| Key                         | Type    | Default | Slider range | Step | Masks | Notes                                                                                              |
+| --------------------------- | ------- | ------- | ------------ | ---- | ----- | -------------------------------------------------------------------------------------------------- |
+| `negativeConversionEnabled` | boolean | `false` |              |      |       | Treats the photo as a film negative and inverts it non-destructively before all other adjustments. |
+| `negativeRedWeight`         | number  | `1`     | 0.5 to 2     | 0.01 |       | Red channel balance for removing the film base cast; 1 is neutral. Negative conversion only.       |
+| `negativeGreenWeight`       | number  | `1`     | 0.5 to 2     | 0.01 |       | Green channel balance for removing the film base cast; 1 is neutral. Negative conversion only.     |
+| `negativeBlueWeight`        | number  | `1`     | 0.5 to 2     | 0.01 |       | Blue channel balance for removing the film base cast; 1 is neutral. Negative conversion only.      |
+| `negativeExposure`          | number  | `0`     | -2 to 2      | 0.05 |       | Brightness of the converted positive. Only used with `negativeConversionEnabled`.                  |
+| `negativeContrast`          | number  | `1`     | 0.5 to 2.5   | 0.05 |       | Contrast of the converted positive; 1 is neutral. Only used with `negativeConversionEnabled`.      |
+
 ## Effects
 
 ### Vignette
@@ -236,6 +247,9 @@ Not part of Copy & Paste; most are set by the editor itself.
 | Key                                 | Type           | Default     | Slider range | Step | Masks | Notes                                                                                                                                                                                                                            |
 | ----------------------------------- | -------------- | ----------- | ------------ | ---- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `activeTools`                       | object         | `{}`        |              |      | yes   | Per-tool boolean map; omitted keys are enabled. Set colorMixer or colorGrading to false to bypass that tool without losing its values. Applies to global and mask edits; legacy sectionVisibility sidecars are migrated on load. |
+| `aiDenoiseAmount`                   | number         | `100`       | 0 to 100     | 1    |       | Blend of the AI-denoised base, 0–100; 0 leaves the image unchanged. Needs `aiDenoiseEnabled`.                                                                                                                                    |
+| `aiDenoiseDetail`                   | number         | `0`         | 0 to 100     | 1    |       | + keeps more of the original luminance texture while colour noise stays removed (0–100). Needs `aiDenoiseEnabled`.                                                                                                               |
+| `aiDenoiseEnabled`                  | boolean        | `false`     |              |      |       | Turns on upstream non-destructive AI denoise: the model runs once per photo (cached on disk) and is blended into the base image. Global only. Separate from the Library denoise queue.                                           |
 | `aiPatches`                         | array          | `[]`        |              |      |       | Generative edits made in the GUI. Leave alone.                                                                                                                                                                                   |
 | `lensBlurAmount`                    | number         | `40`        | 0 to 100     | 1    |       | Strength of the depth-of-field blur. Needs `lensBlurEnabled` and a depth map.                                                                                                                                                    |
 | `lensBlurDiffusion`                 | number         | `0`         | 0 to 100     | 1    |       | Softens the blur discs.                                                                                                                                                                                                          |

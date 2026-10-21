@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef, useMemo, ReactNode } from 'react';
+import { useState, useEffect, useRef, useMemo, ReactNode, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'react-toastify';
-import { Loader2, Circle, Hexagon, Octagon, Aperture, Plus, X } from 'lucide-react';
+import { Loader2, Circle, Hexagon, Octagon, Aperture, Plus, X, CopyPlus, Trash2 } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import Slider, { SliderChangeEvent } from '../ui/Slider';
 import Switch from '../ui/Switch';
-import VisibilityToggle, { HIDDEN_CONTENT_CLASS } from '../ui/VisibilityToggle';
 import {
   Adjustments,
   Effect,
@@ -30,7 +30,8 @@ import { DepthRangePicker } from '../ui/DepthRangePicker';
 import { useProcessStore } from '../../store/useProcessStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { useEditorStore } from '../../store/useEditorStore';
-import { useToolVisibility } from '../../context/ToolVisibilityContext';
+import { useContextMenu } from '../../context/ContextMenuContext';
+import { areSectionPropsEqual } from '../../utils/adjustments';
 
 interface EffectsPanelProps {
   adjustments: Adjustments;
@@ -156,22 +157,14 @@ const BokehShapeSwitch = ({ selectedShape, onShapeChange }: BokehShapeSwitchProp
 interface SpatialEffectProps {
   children: ReactNode;
   enabled: boolean;
-  id: string;
   label: string;
   onToggle(enabled: boolean): void;
 }
 
-const SpatialEffect = ({ children, enabled, id, label, onToggle }: SpatialEffectProps) => {
-  const visibility = useToolVisibility(id, 'spatial');
-
+export const SpatialEffect = ({ children, enabled, label, onToggle }: SpatialEffectProps) => {
   return (
     <div>
-      <div className="group/visibility flex items-center gap-2">
-        <Switch className="grow" label={label} checked={enabled} onChange={onToggle} />
-        {enabled && visibility && (
-          <VisibilityToggle isVisible={visibility.isVisible} onToggle={visibility.toggle} revealOnHover />
-        )}
-      </div>
+      <Switch label={label} checked={enabled} onChange={onToggle} />
 
       <div
         className={`grid transition-all duration-300 ease-in-out ${
@@ -179,12 +172,7 @@ const SpatialEffect = ({ children, enabled, id, label, onToggle }: SpatialEffect
         }`}
       >
         <div className="overflow-hidden">
-          <div
-            className={clsx(
-              'space-y-4 mt-4 mb-1 pl-2 border-l-2 border-card-active transition-opacity duration-300',
-              visibility?.isDimmed && HIDDEN_CONTENT_CLASS,
-            )}
-          >
+          <div className="space-y-4 mt-4 mb-1 pl-2 border-l-2 border-card-active transition-opacity duration-300">
             {children}
           </div>
         </div>
@@ -193,7 +181,7 @@ const SpatialEffect = ({ children, enabled, id, label, onToggle }: SpatialEffect
   );
 };
 
-export default function EffectsPanel({
+function EffectsPanel({
   adjustments,
   setAdjustments,
   isForMask = false,
@@ -211,6 +199,7 @@ export default function EffectsPanel({
   const isRelightPickerActive = useEditorStore((state) => state.isRelightPickerActive);
   const activeRelightLightId = useEditorStore((state) => state.activeRelightLightId);
   const setEditor = useEditorStore((state) => state.setEditor);
+  const { showContextMenu } = useContextMenu();
 
   const mapRequests = useRef(new Map<string, symbol>());
 
@@ -249,7 +238,10 @@ export default function EffectsPanel({
       mapRequests.current.get(mapKey) === request && useEditorStore.getState().selectedImage?.path === imagePath;
     setGenerating(true);
     try {
-      const result = await invoke<{ imagePath: string; dataUrl: string }>(command, { imagePath });
+      const result = await invoke<{ imagePath: string; dataUrl: string }>(command, {
+        imagePath,
+        jsAdjustments: adjustments,
+      });
       if (!isCurrent() || result.imagePath !== imagePath) return;
       setAdjustments((prev) => (isCurrent() ? { ...prev, [mapKey]: result.dataUrl } : prev));
     } catch (e: unknown) {
@@ -376,6 +368,42 @@ export default function EffectsPanel({
     }
   };
 
+  const handleDuplicateLight = (id: string) => {
+    const source = relightLights.find((light) => light.id === id);
+    if (!source) return;
+    const light = { ...source, id: uuidv4() };
+    setAdjustments((prev: Partial<Adjustments>) => {
+      const lights = prev.relightLights || [];
+      const index = lights.findIndex((l: RelightLight) => l.id === id);
+      return { ...prev, relightLights: [...lights.slice(0, index + 1), light, ...lights.slice(index + 1)] };
+    });
+    setEditor({
+      activeRelightLightId: light.id,
+      isRelightPickerActive: true,
+      isWbPickerActive: false,
+      mixerPickerProperty: null,
+      activeCenterMarker: null,
+    });
+  };
+
+  const handleLightContextMenu = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showContextMenu(e.clientX, e.clientY, [
+      {
+        label: t('adjustments.effects.relightDuplicateLight'),
+        icon: CopyPlus,
+        onClick: () => handleDuplicateLight(id),
+      },
+      {
+        label: t('adjustments.effects.relightRemoveLight'),
+        icon: Trash2,
+        isDestructive: true,
+        onClick: () => handleRemoveLight(id),
+      },
+    ]);
+  };
+
   const isAiFree = useSettingsStore((s) => s.appSettings?.aiProvider === 'ai-free');
   const hiddenTools = getHiddenAdjustmentTools(appSettings?.adjustmentLayout);
   const toolOrder = getAdjustmentToolOrder('effects', appSettings?.adjustmentLayout?.toolOrder);
@@ -437,7 +465,6 @@ export default function EffectsPanel({
               <div className="space-y-3">
                 <SpatialEffect
                   enabled={!!adjustments.lensBlurEnabled}
-                  id="lensBlur"
                   label={t('adjustments.effects.lensBlur')}
                   onToggle={handleLensBlurToggle}
                 >
@@ -526,7 +553,6 @@ export default function EffectsPanel({
                 </SpatialEffect>
                 <SpatialEffect
                   enabled={!!adjustments.relightEnabled}
-                  id="relight"
                   label={t('adjustments.effects.relight')}
                   onToggle={handleRelightToggle}
                 >
@@ -617,6 +643,7 @@ export default function EffectsPanel({
                                 key={light.id}
                                 onMouseEnter={() => setHoveredLightId(light.id)}
                                 onMouseLeave={() => setHoveredLightId(null)}
+                                onContextMenu={(e) => handleLightContextMenu(e, light.id)}
                               >
                                 <ColorSwatch
                                   color={getRelightLightColor(light)}
@@ -808,7 +835,6 @@ export default function EffectsPanel({
                 </SpatialEffect>
                 <SpatialEffect
                   enabled={!!adjustments.fogEnabled}
-                  id="fog"
                   label={t('adjustments.effects.fog')}
                   onToggle={handleFogToggle}
                 >
@@ -1048,3 +1074,5 @@ export default function EffectsPanel({
     </div>
   );
 }
+
+export default memo(EffectsPanel, areSectionPropsEqual('effects'));

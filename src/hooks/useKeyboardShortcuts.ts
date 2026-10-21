@@ -53,6 +53,7 @@ export const useKeyboardShortcuts = ({
 }: KeyboardShortcutsProps) => {
   const {
     handleRotate,
+    handleAutoStraighten,
     handleCopyAdjustments,
     handlePasteAdjustments,
     toggleShowOriginal,
@@ -90,6 +91,7 @@ export const useKeyboardShortcuts = ({
       settings: useSettingsStore.getState(),
       process: useProcessStore.getState(),
     });
+    type ShortcutState = ReturnType<typeof getStoreState>;
 
     type StoreState = ReturnType<typeof getStoreState>;
     interface ShortcutAction {
@@ -583,6 +585,16 @@ export const useKeyboardShortcuts = ({
           }
         },
       },
+      auto_straighten: {
+        shouldFire: (s: ShortcutState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: ShortcutState) => {
+          e.preventDefault();
+          if (s.ui.activePanel !== Panel.Crop) {
+            s.ui.setPanel(Panel.Crop);
+          }
+          handleAutoStraighten();
+        },
+      },
       rate_0: {
         shouldFire: () => true,
         execute: (e: KeyboardEvent) => {
@@ -885,8 +897,7 @@ export const useKeyboardShortcuts = ({
         state.ui.panoramaModalState.isOpen ||
         state.ui.cullingModalState.isOpen ||
         state.ui.collageModalState.isOpen ||
-        state.ui.denoiseModalState.isOpen ||
-        state.ui.negativeModalState.isOpen;
+        state.ui.denoiseModalState.isOpen;
 
       if (isModalOpen || state.library.stackPreviewOpen) return;
 
@@ -941,6 +952,7 @@ export const useKeyboardShortcuts = ({
     handleZoomChange,
     handleCropOrientationToggle,
     handleRotate,
+    handleAutoStraighten,
     handleCopyAdjustments,
     handleCopyImagePaths,
     handlePasteAdjustments,

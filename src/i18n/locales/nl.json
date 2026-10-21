@@ -95,14 +95,23 @@
       "resetPoint": "{{channel}} puntcurve herstellen"
     },
     "details": {
+      "aiDenoise": "AI-ruisonderdrukking",
+      "aiDenoiseDetail": "Detail",
       "aiDenoiseHint": "For high-ISO RAW photos, use AI Denoise from the photo menu. These sliders are for light touch-ups.",
       "blueYellow": "Blauw/Geel",
       "centre": "Centrum",
       "chromaticAberration": "Chromatische aberratie",
       "clarity": "Lokaal contrast",
       "color": "Kleur",
+      "convertNegative": "Negatief omzetten",
       "dehaze": "Nevel verwijderen",
       "luminance": "Luminantie",
+      "negativeBlue": "Blauw",
+      "negativeContrast": "Papiergradatie",
+      "negativeConversion": "Negatiefconversie",
+      "negativeExposure": "Afdrukbelichting",
+      "negativeGreen": "Groen",
+      "negativeRed": "Rood",
       "noiseReduction": "Ruisonderdrukking",
       "presence": "Presentie",
       "quickNoiseReduction": "Quick noise reduction (basic)",
@@ -141,6 +150,7 @@
       "relightColor": "Lichtkleur",
       "relightCone": "Kegel",
       "relightDepth": "Diepte",
+      "relightDuplicateLight": "Licht dupliceren",
       "relightElevation": "Elevatie",
       "relightFalloff": "Afname",
       "relightHint": "Voeg een licht toe of selecteer er een en klik of sleep in de afbeelding om het te plaatsen.",
@@ -198,6 +208,11 @@
       "renameGroup": "Groep hernoemen",
       "rootDir": "Hoofdmap"
     },
+    "autoAdjustModes": {
+      "normal": "Normaal",
+      "strong": "Sterk",
+      "subtle": "Subtiel"
+    },
     "colors": {
       "blue": "Blauw",
       "green": "Groen",
@@ -210,6 +225,7 @@
     "editor": {
       "autoAdjust": "Autom. aanpassen",
       "autoLensCorrection": "Autom. lenscorrectie",
+      "autoStraighten": "Automatisch rechtzetten",
       "cancel": "Annuleren",
       "colorLabel": "Kleurlabel",
       "confirmReset": "Herstellen bevestigen",
@@ -274,6 +290,8 @@
       "autoAdjust_other": "Autom. aanpassen",
       "autoLensCorrection_one": "Autom. lenscorrectie",
       "autoLensCorrection_other": "Autom. lenscorrectie",
+      "autoStraighten_one": "Afbeelding automatisch rechtzetten",
+      "autoStraighten_other": "Afbeeldingen automatisch rechtzetten",
       "collage_one": "Afbeelding inkaderen",
       "collage_other": "Collage maken",
       "confirmDelete": "Verwijderen bevestigen",
@@ -448,6 +466,7 @@
       },
       "createNewTitle": "Nieuwe generatieve bewerking maken",
       "createNewTooltip": "Nieuwe {{name}} bewerking maken",
+      "denoising": "AI-ruisonderdrukking wordt uitgevoerd...",
       "dropzoneText": "Hier neerzetten om een nieuwe bewerking te maken",
       "editSettingsTitle": "Bewerkingsinstellingen",
       "editsTitle": "Bewerkingen",
@@ -516,6 +535,8 @@
     },
     "crop": {
       "aspectRatioHeading": "Beeldverhouding",
+      "autoStraightenFailed": "Automatisch rechtzetten mislukt: {{error}}",
+      "autoStraightenNoLines": "Geen rechte lijnen gevonden om recht te zetten",
       "custom": {
         "hPlaceholder": "H",
         "hTooltip": "Hoogte",
@@ -615,6 +636,7 @@
       "rotationHeading": "Rotatie",
       "title": "Bijsnijden & transformeren",
       "tooltips": {
+        "autoStraighten": "Automatisch rechtzetten (Shift+S)",
         "compositionOverlay": "Compositie-overlay",
         "flipHoriz": "Afbeelding horizontaal spiegelen",
         "flipVert": "Afbeelding verticaal spiegelen",
@@ -1129,6 +1151,8 @@
       }
     },
     "header": {
+      "cancel": "Annuleren",
+      "deselectAll": "Alles deselecteren",
       "search": {
         "addFilterOrSearch": "Filter toevoegen of zoeken...",
         "indexingImages": "Afbeeldingen indexeren...",
@@ -1140,6 +1164,8 @@
         "tooltipClearSearch": "Zoekopdracht wissen",
         "tooltipSearchFilter": "Zoeken of filteren"
       },
+      "selectAll": "Alles selecteren",
+      "selectItems": "Items selecteren",
       "title": "Bibliotheek",
       "viewOptions": {
         "currentFolder": "Huidige map",
@@ -1249,7 +1275,8 @@
     "tooltips": {
       "communityPresets": "Community-voorinstellingen",
       "goHome": "Naar startpagina",
-      "importImages": "Afbeeldingen importeren"
+      "importImages": "Afbeeldingen importeren",
+      "select": "Selecteren"
     },
     "photoCounts": {
       "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
@@ -1361,6 +1388,7 @@
         "lensCorrection": "Lenscorrectie",
         "lut": "LUT",
         "masks": "Maskers",
+        "negativeConversion": "Negatiefconversie",
         "noiseReduction": "Ruisonderdrukking",
         "presence": "Presentie",
         "sharpness": "Scherpte",
@@ -1549,30 +1577,6 @@
       "zoomInTooltip": "Inzoomen",
       "zoomOutTooltip": "Uitzoomen"
     },
-    "negativeConversion": {
-      "blueWeight": "Blauw (geel)",
-      "cancel": "Annuleren",
-      "colorTiming": "Kleurtiming",
-      "compareTooltip": "Vasthouden om origineel te bekijken",
-      "contrast": "Contrast (gradatie)",
-      "convertAndSave": "Omzetten & opslaan",
-      "convertAndSaveAll": "Alles omzetten & opslaan ({{count}})",
-      "convertAndSaveAll_one": "Alles omzetten & opslaan ({{count}})",
-      "convertAndSaveAll_other": "Alles omzetten & opslaan ({{count}})",
-      "converting": "Omzetten",
-      "convertingProgress": "Omzetten {{current}}/{{total}}",
-      "exposure": "Belichting",
-      "greenWeight": "Groen (magenta)",
-      "noticeText": "Inversielogica geïnspireerd door <0>NegPy</0> gemaakt door marcinz606 (<1>GPL-3.0</1>).",
-      "originalLabel": "Origineel negatief",
-      "printGrade": "Afdrukgradatie",
-      "redWeight": "Rood (cyaan)",
-      "resetTooltip": "Herstellen",
-      "resetViewTooltip": "Weergave herstellen",
-      "title": "Negatief omzetten",
-      "zoomInTooltip": "Inzoomen",
-      "zoomOutTooltip": "Uitzoomen"
-    },
     "panorama": {
       "cancel": "Annuleren",
       "close": "Sluiten",
@@ -1669,6 +1673,9 @@
       "zoomDesc": "Pas aan hoe snel het canvas in- en uitzoomt bij gebruik van het scrollwiel of knijpgebaar."
     },
     "data": {
+      "clearAiDenoise": "AI-ruisonderdrukkingscache wissen",
+      "clearAiDenoiseButton": "Wissen",
+      "clearAiDenoiseDesc": "Verwijdert de opgeslagen AI-ruisonderdrukkingsresultaten ({{size}}). Afbeeldingen met AI-ruisonderdrukking ingeschakeld berekenen deze opnieuw wanneer ze de volgende keer worden geopend.",
       "clearSidecars": "Alle sidecar-bestanden wissen",
       "clearSidecarsButton": "Wissen",
       "clearSidecarsDesc": "Dit verwijdert alle .rrdata-bestanden (met uw bewerkingen) in uw hoofdmappen:",
@@ -1682,6 +1689,7 @@
       "logsButton": "Openen",
       "logsDesc": "Bekijk het logboekbestand van de toepassing voor probleemoplossing. Het logboek bevindt zich op:",
       "modals": {
+        "aiDenoiseMessage": "Weet je zeker dat je de AI-ruisonderdrukkingscache wilt wissen?\n\nAfbeeldingen met AI-ruisonderdrukking ingeschakeld moeten opnieuw worden verwerkt, wat per afbeelding enkele minuten kan duren.",
         "aiMessage": "Weet u zeker dat u alle door AI gegenereerde tags van alle afbeeldingen in alle actieve hoofdmappen wilt verwijderen?\n\nDit heeft geen invloed op door gebruikers toegevoegde tags. Deze actie kan niet ongedaan worden gemaakt.",
         "allMessage": "Weet u zeker dat u alle door AI gegenereerde en door gebruikers toegevoegde tags van alle afbeeldingen in alle actieve hoofdmappen wilt verwijderen?\n\nDeze actie kan niet ongedaan worden gemaakt.",
         "cacheMessage": "Weet u zeker dat u de miniatuurcache wilt wissen?\n\nAlle miniaturen moeten opnieuw worden gegenereerd, wat langzaam kan zijn voor grote mappen.",
@@ -1704,6 +1712,7 @@
       "resetLayoutDesc": "Paneeldocks, zijsplitsers, hoogtes en paneelschakelaars terugzetten naar de standaardindeling.",
       "resetLayoutTitle": "Werkruimte-indeling herstellen",
       "statuses": {
+        "aiDenoiseSuccess": "AI-ruisonderdrukkingscache succesvol gewist.",
         "aiSuccess": "{{count}} bestanden bijgewerkt. AI-tags verwijderd.",
         "aiSuccess_one": "{{count}} bestand bijgewerkt. AI-tags verwijderd.",
         "aiSuccess_other": "{{count}} bestanden bijgewerkt. AI-tags verwijderd.",
@@ -1712,6 +1721,7 @@
         "allSuccess_other": "{{count}} bestanden bijgewerkt. Alle niet-kleur-tags verwijderd.",
         "cacheSuccess": "Miniatuurcache succesvol gewist.",
         "clearingAi": "AI-tags wissen uit alle sidecar-bestanden...",
+        "clearingAiDenoise": "AI-ruisonderdrukkingscache wordt gewist...",
         "clearingAll": "Alle tags wissen uit sidecar-bestanden...",
         "clearingCache": "Miniatuurcache wissen...",
         "deleting": "Sidecar-bestanden verwijderen, even geduld...",
@@ -1762,6 +1772,7 @@
     },
     "keybinds": {
       "actions": {
+        "auto_straighten": "Automatisch rechtzetten",
         "brush_size_down": "Penseelgrootte verkleinen",
         "brush_size_up": "Penseelgrootte vergroten",
         "color_label_blue": "Kleurlabel: blauw",
@@ -1842,6 +1853,16 @@
       "title": "Mijn lenzen"
     },
     "processing": {
+      "advanced": {
+        "heading": "Geavanceerd",
+        "headingDesc": "Prestatie-instellingen voor miniaturen, cache en exports. De standaardwaarden werken voor de meeste gebruikers.",
+        "title": "Geavanceerde instellingen",
+        "auto": "Automatisch",
+        "exportThreads": "Parallelle exports",
+        "exportThreadsDesc": "Aantal afbeeldingen dat tegelijk wordt geëxporteerd. Automatisch kiest een waarde op basis van je CPU. Verlaag dit als grote exports mislukken of je GPU weinig geheugen heeft.",
+        "exportMemoryLimit": "Geheugenlimiet voor exports",
+        "exportMemoryLimitDesc": "Deel van het vrije RAM dat batch-exports mogen gebruiken. Verlaag dit om andere apps responsief te houden tijdens grote exports."
+      },
       "ai": {
         "cloud": {
           "description": "Voor wie een eenvoudigere oplossing wil, biedt een optioneel abonnement dezelfde hoogwaardige resultaten als zelfhosting zonder gedoe. Dit is de meest handige optie en de beste manier om het project te ondersteunen.",
@@ -1988,7 +2009,6 @@
       "previewResDesc": "Bepaalt de maximale resolutie van het voorbeeld. Lagere waarden verbeteren de prestaties aanzienlijk.",
       "previewStrategy": "Voorbeeldrenderstrategie",
       "qualities": {
-        "full": "Volledige resolutie",
         "high": "Hoge kwaliteit",
         "performance": "Prestaties"
       },

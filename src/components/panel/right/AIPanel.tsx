@@ -805,10 +805,11 @@ export default function AIPanel() {
   const updateSubMask: UpdateSubMask = (id, data) =>
     setAdjustments((prev: Adjustments) => ({
       ...prev,
-      aiPatches: prev.aiPatches.map((p) => ({
-        ...p,
-        subMasks: p.subMasks.map((sm) => (sm.id === id ? { ...sm, ...data } : sm)),
-      })),
+      aiPatches: prev.aiPatches.map((p) =>
+        p.subMasks.some((sm) => sm.id === id)
+          ? { ...p, subMasks: p.subMasks.map((sm) => (sm.id === id ? { ...sm, ...data } : sm)) }
+          : p,
+      ),
     }));
 
   const handleDeleteContainer = (id: string) => {

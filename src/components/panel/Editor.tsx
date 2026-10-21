@@ -6,7 +6,15 @@ import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 
 import { ImageDimensions, RenderSize, useImageRenderSize } from '../../hooks/useImageRenderSize';
-import { Adjustments, AiPatch, MaskContainer, INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
+import {
+  Adjustments,
+  AiPatch,
+  MaskContainer,
+  INITIAL_ADJUSTMENTS,
+  omitTonalAdjustments,
+} from '../../utils/adjustments';
+import { useShallow } from 'zustand/react/shallow';
+import { prepareAdjustmentsPayload } from '../../utils/backendPayload';
 import {
   calculateCenteredCrop,
   getOrientedDimensions,
@@ -29,7 +37,7 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 import { useUIStore } from '../../store/useUIStore';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useAiMasking } from '../../hooks/useAiMasking';
-import { useEditorActions } from '../../hooks/useEditorActions';
+import { useEditorActions, withRotation } from '../../hooks/useEditorActions';
 import {
   getDpr,
   transformFromPercent,
@@ -112,12 +120,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const setUI = useUIStore((s) => s.setUI);
   const isLoading = useLibraryStore((s) => s.isViewLoading);
   const selectedImage = useEditorStore((s) => s.selectedImage);
-  const adjustments = useEditorStore((s) => s.adjustments);
+  const adjustments = useEditorStore(useShallow((s) => omitTonalAdjustments(s.adjustments)));
   const adjustmentsHistory = useEditorStore((s) => s.history);
   const adjustmentsHistoryIndex = useEditorStore((s) => s.historyIndex);
   const finalPreviewUrl = useEditorStore((s) => s.finalPreviewUrl);
   const uncroppedAdjustedPreviewUrl = useEditorStore((s) => s.uncroppedAdjustedPreviewUrl);
-  const interactivePatch = useEditorStore((s) => s.interactivePatch);
   const showOriginal = useEditorStore((s) => s.showOriginal);
   const referenceView = useEditorStore((s) => s.referenceView);
   const dispatchReferenceView = useEditorStore((s) => s.dispatchReferenceView);
@@ -360,27 +367,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const handleStraighten = useCallback(
     (angleCorrection: number) => {
-      setAdjustments((prev: Adjustments) => {
-        const newRotation = (prev.rotation || 0) + angleCorrection;
-        const newCrop =
-          selectedImage?.width && selectedImage?.height
-            ? calculateAutoCropForRotation(
-                selectedImage.width,
-                selectedImage.height,
-                prev.orientationSteps || 0,
-                prev.aspectRatio,
-                newRotation,
-                prev.crop,
-                angleCorrection,
-              )
-            : prev.crop;
-
-        return {
-          ...prev,
-          rotation: newRotation,
-          crop: newCrop,
-        };
-      });
+      setAdjustments((prev: Adjustments) => withRotation(prev, selectedImage, (prev.rotation || 0) + angleCorrection));
       setEditor({ isStraightenActive: false });
     },
     [selectedImage, setAdjustments, setEditor],
@@ -388,16 +375,19 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const updateSubMaskLocal = useCallback(
     (subMaskId: string, updatedData: any) => {
+      const updateContainers = <T extends MaskContainer | AiPatch>(containers: T[]): T[] =>
+        containers.map((c) =>
+          c.subMasks.some((sm: SubMask) => sm.id === subMaskId)
+            ? {
+                ...c,
+                subMasks: c.subMasks.map((sm: SubMask) => (sm.id === subMaskId ? { ...sm, ...updatedData } : sm)),
+              }
+            : c,
+        );
       setAdjustments((prev: Adjustments) => ({
         ...prev,
-        masks: prev.masks.map((c: MaskContainer) => ({
-          ...c,
-          subMasks: c.subMasks.map((sm: SubMask) => (sm.id === subMaskId ? { ...sm, ...updatedData } : sm)),
-        })),
-        aiPatches: (prev.aiPatches || []).map((p: AiPatch) => ({
-          ...p,
-          subMasks: p.subMasks.map((sm: SubMask) => (sm.id === subMaskId ? { ...sm, ...updatedData } : sm)),
-        })),
+        masks: updateContainers(prev.masks),
+        aiPatches: updateContainers(prev.aiPatches || []),
       }));
     },
     [setAdjustments],
@@ -1016,14 +1006,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         if (now - lastCtrlClickTimeRef.current < 300) {
           lastCtrlClickTimeRef.current = 0;
 
-          const originalAspectRatio =
-            selectedImage?.width && selectedImage?.height ? selectedImage.width / selectedImage.height : null;
-
           setAdjustments((prev) => ({
             ...prev,
             crop: INITIAL_ADJUSTMENTS.crop,
             rotation: INITIAL_ADJUSTMENTS.rotation ?? 0,
-            aspectRatio: originalAspectRatio,
+            aspectRatio: INITIAL_ADJUSTMENTS.aspectRatio,
           }));
 
           setEditor({ liveRotation: null, isSliderDragging: false });
@@ -1436,18 +1423,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         });
       };
 
-      const strippedAdjustments = structuredClone(jsAdjustments);
-      if (strippedAdjustments.masks) {
-        strippedAdjustments.masks.forEach((m: any) => stripSubMasks(m.subMasks));
-      }
-      if (strippedAdjustments.aiPatches) {
-        strippedAdjustments.aiPatches.forEach((p: any) => stripSubMasks(p.subMasks));
-      }
+      const { payload: strippedAdjustments, markSent } = prepareAdjustmentsPayload(jsAdjustments);
 
       const strippedMaskDef = structuredClone(maskDef);
       stripSubMasks(strippedMaskDef.subMasks);
 
-      const dataUrl: string = await invoke(Invokes.GenerateMaskOverlay, {
+      const buffer: ArrayBuffer = await invoke(Invokes.GenerateMaskOverlay, {
         cropOffset,
         height: Math.round(renderSize.height),
         maskDef: strippedMaskDef,
@@ -1455,9 +1436,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         width: Math.round(renderSize.width),
         jsAdjustments: strippedAdjustments,
       });
+      markSent();
 
-      if (dataUrl) {
-        setMaskOverlayUrl(dataUrl);
+      if (buffer && buffer.byteLength > 0) {
+        setMaskOverlayUrl(URL.createObjectURL(new Blob([buffer], { type: 'image/png' })));
       } else {
         setMaskOverlayUrl(null);
       }
@@ -1471,6 +1453,13 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!maskOverlayUrl) return;
+    return () => {
+      setTimeout(() => URL.revokeObjectURL(maskOverlayUrl), 1000);
+    };
+  }, [maskOverlayUrl]);
 
   const requestMaskOverlay = useCallback(
     (maskDef: any, renderSize: any, currentAdjustments: any) => {
@@ -1490,10 +1479,21 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           opacity: 100,
         };
       }
-      requestMaskOverlay(normalizedDef, imageRenderSize, adjustments);
+      requestMaskOverlay(normalizedDef, imageRenderSize, useEditorStore.getState().adjustments);
     },
-    [imageRenderSize, adjustments, requestMaskOverlay],
+    [imageRenderSize, requestMaskOverlay],
   );
+
+  const handleSelectAiPatchContainer = useCallback(
+    (id: string | null) => setEditor({ activeAiPatchContainerId: id }),
+    [setEditor],
+  );
+  const handleSelectMaskContainer = useCallback(
+    (id: string | null) => setEditor({ activeMaskContainerId: id }),
+    [setEditor],
+  );
+  const handleSelectAiSubMask = useCallback((id: string | null) => setEditor({ activeAiSubMaskId: id }), [setEditor]);
+  const handleSelectMask = useCallback((id: string | null) => setEditor({ activeMaskId: id }), [setEditor]);
 
   const croppedDimensionsRef = useRef(croppedDimensions);
   useEffect(() => {
@@ -1814,7 +1814,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       }
     }
 
-    requestMaskOverlay(maskDefForOverlay, imageRenderSize, adjustments);
+    requestMaskOverlay(maskDefForOverlay, imageRenderSize, useEditorStore.getState().adjustments);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     overlayTriggerHash,
@@ -1895,7 +1895,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           effectiveRotation,
         );
       } else if (aspectChanged) {
-        if (!aspectRatio) {
+        if (aspectRatio === null) {
           nextPixelCrop = currentAdjCrop;
         } else {
           const curW = currentAdjCrop.width;
@@ -2180,7 +2180,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
       const lastRatio = oldW / oldH;
       const newRatio = newW / newH;
-      const isProportional = adjustments.aspectRatio || Math.abs(lastRatio - newRatio) < 0.005;
+      const isProportional = adjustments.aspectRatio !== null || Math.abs(lastRatio - newRatio) < 0.005;
 
       if (isProportional) {
         const oldCX = oldL + oldW / 2;
@@ -2499,7 +2499,6 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
               finalPreviewUrl={finalPreviewUrl}
               handleCropComplete={handleCropComplete}
               imageRenderSize={imageRenderSize}
-              interactivePatch={interactivePatch}
               isAiEditing={isAiEditing}
               isCropping={isCropping}
               isMaskControlHovered={isMaskControlHovered}
@@ -2509,13 +2508,13 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
               isSliderDragging={isSliderDragging}
               maskOverlayUrl={maskOverlayUrl}
               onGenerateAiMask={handleGenerateAiMask}
-              onSelectAiPatchContainer={(id) => setEditor({ activeAiPatchContainerId: id })}
-              onSelectMaskContainer={(id) => setEditor({ activeMaskContainerId: id })}
+              onSelectAiPatchContainer={handleSelectAiPatchContainer}
+              onSelectMaskContainer={handleSelectMaskContainer}
               onLiveMaskPreview={handleLiveMaskPreview}
               onDirectPatch={handleDirectPatch}
               onQuickErase={handleQuickErase}
-              onSelectAiSubMask={(id) => setEditor({ activeAiSubMaskId: id })}
-              onSelectMask={(id) => setEditor({ activeMaskId: id })}
+              onSelectAiSubMask={handleSelectAiSubMask}
+              onSelectMask={handleSelectMask}
               onStraighten={handleStraighten}
               selectedImage={selectedImage}
               setCrop={handleCropChange}
