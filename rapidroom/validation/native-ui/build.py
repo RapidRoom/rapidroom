@@ -99,6 +99,10 @@ def main():
         env["RAPIDROOM_NATIVE_BUILD_FEATURES"] = ",".join(features + ["tauri/custom-protocol"])
         digest = build_and_pin(root, root / "src-tauri/Cargo.toml", "RapidRAW",
                                out / "rapidroom", out / "build", env)
+        runtime = out / "lib" / "RapidRoom"
+        runtime.mkdir(parents=True)
+        for name in ("resources", "lensfun_db"):
+            shutil.copytree(root / "src-tauri" / name, runtime / name, symlinks=True)
         adapter_digest = None
         if args.mcp_clients:
             adapter_digest = build_and_pin(root, root / "rapidroom/mcp-client/Cargo.toml",
@@ -112,7 +116,7 @@ def main():
               "stdio_adapter_sha256": adapter_digest,
               "profile": "release", "features": features + ["tauri/custom-protocol"], "cargo_locked": True,
               "executable_provenance": "build-artifact.json; Cargo compiler-artifact from this locked build",
-              "jobs": 4, "resources": "symlinked source resources; no AI operation in minimum smoke"}, indent=2) + "\n")
+              "jobs": 4, "resources": "owned lib/RapidRoom runtime payload copied under build lock"}, indent=2) + "\n")
     print("Pinned native UI release: " + str(out / "rapidroom"), flush=True)
 
 

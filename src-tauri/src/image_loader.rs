@@ -82,8 +82,55 @@ pub fn load_and_composite(
     settings: &AppSettings,
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
 ) -> Result<DynamicImage> {
-    let base_image =
-        load_base_image_from_bytes(base_image, path, use_fast_raw_dev, settings, cancel_token)?;
+    load_and_composite_with_exif_persistence(
+        base_image,
+        path,
+        adjustments,
+        use_fast_raw_dev,
+        settings,
+        cancel_token,
+        true,
+    )
+}
+
+/// Decode a render source without persisting EXIF or migrating any legacy cache.
+/// Comparison rendering calls this so merely looking at a photo cannot edit it.
+pub fn load_and_composite_read_only(
+    base_image: &[u8],
+    path: &str,
+    adjustments: &Value,
+    use_fast_raw_dev: bool,
+    settings: &AppSettings,
+    cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+) -> Result<DynamicImage> {
+    load_and_composite_with_exif_persistence(
+        base_image,
+        path,
+        adjustments,
+        use_fast_raw_dev,
+        settings,
+        cancel_token,
+        false,
+    )
+}
+
+fn load_and_composite_with_exif_persistence(
+    base_image: &[u8],
+    path: &str,
+    adjustments: &Value,
+    use_fast_raw_dev: bool,
+    settings: &AppSettings,
+    cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+    persist_exif: bool,
+) -> Result<DynamicImage> {
+    let base_image = load_base_image_from_bytes_with_exif_persistence(
+        base_image,
+        path,
+        use_fast_raw_dev,
+        settings,
+        cancel_token,
+        persist_exif,
+    )?;
     composite_patches_on_image(&base_image, adjustments)
 }
 
@@ -94,14 +141,34 @@ pub fn load_base_image_from_bytes(
     settings: &AppSettings,
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
 ) -> Result<DynamicImage> {
-    load_base_image_with_proxy(
+    load_base_image_from_bytes_with_exif_persistence(
+        bytes,
+        path_for_ext_check,
+        use_fast_raw_dev,
+        settings,
+        cancel_token,
+        true,
+    )
+}
+
+fn load_base_image_from_bytes_with_exif_persistence(
+    bytes: &[u8],
+    path_for_ext_check: &str,
+    use_fast_raw_dev: bool,
+    settings: &AppSettings,
+    cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+    persist_exif: bool,
+) -> Result<DynamicImage> {
+    load_base_image_with_proxy_outcome(
         bytes,
         path_for_ext_check,
         use_fast_raw_dev,
         settings,
         cancel_token,
         None,
+        persist_exif,
     )
+    .map(|loaded| loaded.image)
 }
 
 pub fn load_base_image_with_proxy(
@@ -119,6 +186,7 @@ pub fn load_base_image_with_proxy(
         settings,
         cancel_token,
         proxy_min_dim,
+        true,
     )
     .map(|loaded| loaded.image)
 }
@@ -130,6 +198,7 @@ fn load_base_image_with_proxy_outcome(
     settings: &AppSettings,
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
     proxy_min_dim: Option<usize>,
+    persist_exif: bool,
 ) -> Result<BaseImageLoad> {
     let highlight_compression = settings.raw_highlight_compression.unwrap_or(2.5);
     let linear_mode = settings.linear_raw_mode.clone();
@@ -143,11 +212,13 @@ fn load_base_image_with_proxy_outcome(
     let sharpening_amount = settings.raw_preprocessing_sharpening.unwrap_or(0.35);
     let apply_to_non_raws = settings.apply_preprocessing_to_non_raws.unwrap_or(false);
 
-    crate::exif_processing::persist_exif_if_missing(
-        Path::new(path_for_ext_check),
-        path_for_ext_check,
-        bytes,
-    );
+    if persist_exif {
+        crate::exif_processing::persist_exif_if_missing(
+            Path::new(path_for_ext_check),
+            path_for_ext_check,
+            bytes,
+        );
+    }
 
     let mut decode_as_raw = is_raw_file(path_for_ext_check);
     if decode_as_raw && has_non_raw_image_signature(bytes) {
@@ -1096,6 +1167,7 @@ pub async fn load_image(
                             &settings,
                             cancel_token.clone(),
                             None,
+                            true,
                         )
                         .map_err(|e| e.to_string())?;
                         let exif = exif_processing::read_exif_data(&path_clone, &mmap);
@@ -1122,6 +1194,7 @@ pub async fn load_image(
                             &settings,
                             cancel_token.clone(),
                             None,
+                            true,
                         )
                         .map_err(|e| e.to_string())?;
                         let exif = exif_processing::read_exif_data(&path_clone, &bytes);
@@ -1221,12 +1294,60 @@ mod embedded_preview_tests {
     }
 
     #[test]
+    fn read_only_decode_does_not_heal_an_auto_recipe_or_migrate_legacy_exif() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("compare.NEF");
+        let sidecar = dir.path().join("compare.NEF.rrdata");
+        let legacy = dir.path().join("compare.NEF.rrexif");
+        let bytes = jpeg(80, 48);
+        let recipe = r#"{ "adjustments": { "lensCorrectionMode": "auto", "cameraLensCorrectionVersion": 1 }, "unknown": { "mustStay": true } }"#;
+        let legacy_exif = r#"{ "Make": "Example Camera" }"#;
+        std::fs::write(&source, &bytes).unwrap();
+        std::fs::write(&sidecar, recipe).unwrap();
+        std::fs::write(&legacy, legacy_exif).unwrap();
+        let sidecar_mtime = std::fs::metadata(&sidecar).unwrap().modified().unwrap();
+        let legacy_mtime = std::fs::metadata(&legacy).unwrap().modified().unwrap();
+
+        let decoded = load_and_composite_read_only(
+            &bytes,
+            source.to_str().unwrap(),
+            &serde_json::json!({
+                "lensCorrectionMode": "auto",
+                "cameraLensCorrectionVersion": 1
+            }),
+            false,
+            &crate::app_settings::AppSettings::default(),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(decoded.dimensions(), (80, 48));
+        assert_eq!(std::fs::read_to_string(&sidecar).unwrap(), recipe);
+        assert_eq!(
+            std::fs::metadata(&sidecar).unwrap().modified().unwrap(),
+            sidecar_mtime
+        );
+        assert_eq!(std::fs::read_to_string(&legacy).unwrap(), legacy_exif);
+        assert_eq!(
+            std::fs::metadata(&legacy).unwrap().modified().unwrap(),
+            legacy_mtime
+        );
+    }
+
+    #[test]
     fn reports_when_raw_decode_uses_embedded_preview() {
         let settings = crate::app_settings::AppSettings::default();
         let image = jpeg(64, 32);
-        let regular =
-            load_base_image_with_proxy_outcome(&image, "photo.NEF", false, &settings, None, None)
-                .unwrap();
+        let regular = load_base_image_with_proxy_outcome(
+            &image,
+            "photo.NEF",
+            false,
+            &settings,
+            None,
+            None,
+            true,
+        )
+        .unwrap();
         assert!(!regular.used_embedded_preview);
 
         let fallback_fixture = tiff(true, 1, &jpeg(64, 32), &jpeg(320, 160));
@@ -1237,6 +1358,7 @@ mod embedded_preview_tests {
             &settings,
             None,
             None,
+            true,
         )
         .expect("failed RAW decode should use the embedded preview");
         assert!(fallback.used_embedded_preview);

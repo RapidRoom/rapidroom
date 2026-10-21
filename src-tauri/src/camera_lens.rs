@@ -123,6 +123,37 @@ pub fn resolve_snapshot(adjustments: &mut Value, path: &str, state: &crate::AppS
     );
 }
 
+/// Resolve a comparison render without healing its sidecar, persisting EXIF,
+/// or migrating legacy cache files. The returned lens values stay in the
+/// caller's render snapshot only.
+pub fn resolve_snapshot_read_only(adjustments: &mut Value, path: &str, state: &crate::AppState) {
+    if !is_camera_recipe(adjustments) {
+        return;
+    }
+    let (source, sidecar) = crate::file_management::parse_virtual_path(path);
+    let mut exif = crate::file_management::read_sidecar_report_snapshot(&sidecar)
+        .ok()
+        .and_then(|metadata| metadata.exif);
+    if exif
+        .as_ref()
+        .is_none_or(|fields| !fields.contains_key("Make"))
+    {
+        exif = crate::file_management::read_file_mapped(&source)
+            .ok()
+            .map(|bytes| {
+                crate::exif_processing::read_exif_data_from_bytes(&source.to_string_lossy(), &bytes)
+            })
+            .filter(|fields| !fields.is_empty());
+    }
+    let db = state.lens_db.lock().unwrap().clone();
+    crate::file_management::resolve_lens_params_in_adjustments(
+        adjustments,
+        &exif,
+        db.as_deref(),
+        &source,
+    );
+}
+
 pub fn resolution_report(adjustments: &Value, mut resolution: Value) -> Value {
     let version = adjustments["cameraLensCorrectionVersion"]
         .as_u64()
