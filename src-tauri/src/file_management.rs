@@ -4595,7 +4595,7 @@ fn get_presets_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String
     Ok(presets_dir.join("presets.json"))
 }
 
-static PRESET_LIBRARY_LOCK: Mutex<()> = Mutex::new(());
+static PRESET_LIBRARY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn backup_presets(path: &Path, bytes: &[u8]) -> Result<(), String> {
     use std::io::Write;
