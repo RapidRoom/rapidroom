@@ -326,14 +326,15 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
         };
       });
 
+      // RapidRoom code reads image.exif and upstream code reads exifByPath; update both.
       setLibrary((state) => {
         const exifByPath = { ...state.exifByPath };
-        for (const img of state.imageList) {
-          if (physicalPathsSet.has(img.path.split('?vc=')[0])) {
-            exifByPath[img.path] = { ...(exifByPath[img.path] || {}), ...updates };
-          }
-        }
-        return { exifByPath };
+        const imageList = state.imageList.map((img) => {
+          if (!physicalPathsSet.has(img.path.split('?vc=')[0])) return img;
+          exifByPath[img.path] = { ...(exifByPath[img.path] || img.exif || {}), ...updates };
+          return { ...img, exif: { ...(img.exif || {}), ...updates } };
+        });
+        return { exifByPath, imageList };
       });
 
       pathsToUpdate.forEach((p) => {
