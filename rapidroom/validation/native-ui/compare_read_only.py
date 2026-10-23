@@ -104,7 +104,12 @@ def run_compare_read_only(case, smoke, wait_for):
     data = json.loads(sidecar.read_text()); data.pop("exif", None); _write(sidecar, data)
     _click(smoke, healing.name, "click")
     wait_for(lambda: (json.loads(sidecar.read_text()).get("exif") or {}).get("Make") == "SONY", "ordinary editor EXIF healing", 45)
-    smoke.step("ordinary editor still heals saved Auto recipe", {"after": json.loads(sidecar.read_text())})
+    after = json.loads(sidecar.read_text())
+    recipe = after.get("adjustments") or {}
+    # The seed has no version/rating; opening it must not replace the saved recipe.
+    if recipe.get("lensCorrectionMode") != "auto" or recipe.get("cameraLensCorrectionVersion") != 1:
+        raise RuntimeError("Opening a legacy sidecar lost its saved recipe: " + json.dumps(after)[:300])
+    smoke.step("ordinary editor still heals saved Auto recipe and keeps it", {"after": after})
     # Hand the generic smoke flow back the library it starts from.
     smoke.execute("const e=[...document.querySelectorAll('button')].find(e=>/back to library/i.test(e.getAttribute('data-tooltip')||''));if(!e)throw Error('Back to Library missing');e.click();return true;")
     wait_for(lambda: smoke.execute("return [...document.images].some(e=>e.alt==='smoke.ARW' && e.src.startsWith('asset:') && e.complete && e.naturalWidth>100);"), "library after comparison checks", 45)
