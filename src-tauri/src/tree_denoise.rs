@@ -216,7 +216,10 @@ async fn models_with_download(
                     r = &mut download => { r?; break; }
                     _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
                         if let Err(e) = job.check() {
-                            let _ = app.emit("ai-model-download-finish", model.name);
+                            let _ = app.emit(
+                                "ai-model-download-finish",
+                                serde_json::json!({ "name": model.name, "error": "cancelled" }),
+                            );
                             return Err(anyhow::Error::msg(e));
                         }
                     }

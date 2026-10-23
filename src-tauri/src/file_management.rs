@@ -4035,10 +4035,14 @@ pub async fn apply_adjustments_to_paths(
             crate::ai_jobs::release(&paths);
         }
 
-        regenerate_thumbnails(&paths, &app_handle, &settings);
-    });
-
-    Ok(())
+        // The sidecars are written when the command resolves, so the editor's reload
+        // after a paste reads the pasted values; thumbnails follow in the background.
+        tauri::async_runtime::spawn_blocking(move || {
+            regenerate_thumbnails(&paths, &app_handle, &settings);
+        });
+    })
+    .await
+    .map_err(|e| format!("Task failed: {}", e))
 }
 
 #[tauri::command]

@@ -493,11 +493,15 @@ export function useAiMasking() {
         taskId: subMaskId,
       });
 
+      // Merge into the latest settings: grow/feather may have changed during generation.
+      const { selectedImage: current, adjustments: latest } = useEditorStore.getState();
+      if (current?.path !== selectedImage.path) return;
       const subMask =
-        adjustments.masks?.flatMap((m: MaskContainer) => m.subMasks).find((sm: SubMask) => sm.id === subMaskId) ||
-        adjustments.aiPatches?.flatMap((p: AiPatch) => p.subMasks).find((sm: SubMask) => sm.id === subMaskId);
+        latest.masks?.flatMap((m: MaskContainer) => m.subMasks).find((sm: SubMask) => sm.id === subMaskId) ||
+        latest.aiPatches?.flatMap((p: AiPatch) => p.subMasks).find((sm: SubMask) => sm.id === subMaskId);
+      if (!subMask) return;
 
-      const mergedParameters = { ...(subMask?.parameters || {}), ...newParameters };
+      const mergedParameters = { ...subMask.parameters, ...newParameters };
       patchesSentToBackend.delete(subMaskId);
       updateSubMask(subMaskId, { parameters: mergedParameters });
       if (noResult) toast.error(`AI Text Mask Failed: ${noResult}`);

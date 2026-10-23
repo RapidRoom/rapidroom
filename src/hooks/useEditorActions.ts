@@ -741,26 +741,38 @@ export function useEditorActions() {
           'Paste adjustments',
         );
       }
+      const pastedSnapshot = openPath ? useEditorStore.getState().adjustments : null;
+      const prePaste = adjustments as unknown as Record<string, unknown>;
 
       invoke(Invokes.ApplyAdjustmentsToPaths, { paths: pathsToUpdate, adjustments: adjustmentsToApply })
         .then(async () => {
-          if (!openPath) return;
-          // The backend may drop AI results copied from another photo (they are
-          // regenerated for this one), so reload what was pasted (upstream).
+          if (!openPath || !pastedSnapshot) return;
+          // The backend resolves the lens and may drop AI results copied from another photo
+          // (they are regenerated for this one). Take those disk values, but only for pasted
+          // keys the user has not changed since the paste, and never a pre-paste value from a
+          // stale read.
           const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: openPath });
-          const loadedAdjustments = meta.adjustments as Record<string, unknown> | null | undefined;
-          if (
-            !loadedAdjustments ||
-            loadedAdjustments.is_null ||
-            useEditorStore.getState().selectedImage?.path !== openPath
-          ) {
-            return;
-          }
-          const pastedKeys = [...Object.keys(adjustmentsToApply), 'lensMaker', 'lensModel', 'lensDistortionParams'];
-          const pasted = Object.fromEntries(
-            pastedKeys.filter((key) => key in loadedAdjustments).map((key) => [key, loadedAdjustments[key]]),
+          const loaded = meta.adjustments;
+          const { selectedImage: current, adjustments: latest } = useEditorStore.getState();
+          if (!loaded || loaded.is_null || current?.path !== openPath) return;
+          const onDisk = normalizeLoadedAdjustments(loaded) as unknown as Record<string, unknown>;
+          const now = latest as unknown as Record<string, unknown>;
+          const pasted = pastedSnapshot as unknown as Record<string, unknown>;
+          const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+          const keys = [...Object.keys(adjustmentsToApply), 'lensMaker', 'lensModel', 'lensDistortionParams'];
+          const changes = Object.fromEntries(
+            keys
+              .filter(
+                (key) =>
+                  key in onDisk &&
+                  same(now[key], pasted[key]) &&
+                  !same(onDisk[key], now[key]) &&
+                  !same(onDisk[key], prePaste[key]),
+              )
+              .map((key) => [key, onDisk[key]]),
           );
-          setAdjustments((prev) => ({ ...prev, ...pasted }));
+          if (Object.keys(changes).length === 0) return;
+          setAdjustments((prev) => ({ ...prev, ...changes }) as Adjustments, 'Paste adjustments');
         })
         .catch((err) => toast.error(`Failed to paste adjustments: ${err}`));
 
