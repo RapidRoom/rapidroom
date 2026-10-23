@@ -1,0 +1,13 @@
+{
+  "id": "upstream-sync-db643b1c",
+  "title": "Sync upstream RapidRAW db643b1c: Immich library, AI job tracker, new AI masks, BM3D denoise, storage page",
+  "category": "feature",
+  "landed": "2026-10-23",
+  "authors": ["CyberTimon", "cl1x", "elhigu", "yojen7"],
+  "source": "CyberTimon/RapidRAW main at db643b1cf4e1bea3811de32a8e3322b242652b29 (normal merge; RapidRoom conflict resolution with Claude)",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/db643b1cf4e1bea3811de32a8e3322b242652b29"],
+  "upstream_issues": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#1879", "CyberTimon/RapidRAW#1959", "CyberTimon/RapidRAW#1993"],
+  "rendering_change": true,
+  "notes": "Adopts the Immich library section, the global job tracker for exports, imports, transfers and AI work, background AI regeneration of masks, maps and denoise, DirectML/CoreML acceleration, EfficientSAM3/BiRefNet sky and foreground masks plus text and face masks, non-destructive BM3D denoise, the storage page with cache limits, decode fingerprints for the decoded-image cache, the rewritten shader noise reduction and sharpening, and the rewritten RAW preprocessing colour noise reduction. Every upstream sidecar writer goes through RapidRoom's locked atomic writer (with the #416 guard); sidecars holding only defaults are never deleted. Keeps the RapidRoom denoise queue and Apple RAW 9 denoise, the [0,1] AI denoise clamp, batch and auto lens, stacks, card mode, Instagram export and the reference view. Upstream's split and side-by-side compare modes are not taken yet. Upstream rendering changes were tested upstream; the new reference is blessed separately with Josh's standing approval for upstream syncs."
+}
