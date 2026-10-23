@@ -1435,6 +1435,7 @@
     },
     "items": {
       "cloudPlaceholder": "Przechowywane w iCloud — niepobrane",
+      "immichPlaceholder": "Przechowywane w Immich — niepobrane",
       "collapseFolder": "Zwiń folder",
       "currentFolder": "Bieżący folder",
       "expandFolder": "Rozwiń folder",

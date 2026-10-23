@@ -1435,6 +1435,7 @@
     },
     "items": {
       "cloudPlaceholder": "Хранится в iCloud — не загружено",
+      "immichPlaceholder": "Хранится в Immich — не загружено",
       "collapseFolder": "Свернуть папку",
       "currentFolder": "Текущая папка",
       "expandFolder": "Развернуть папку",

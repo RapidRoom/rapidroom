@@ -1385,6 +1385,7 @@
     },
     "items": {
       "cloudPlaceholder": "Emmagatzemat a iCloud — no baixat",
+      "immichPlaceholder": "Emmagatzemat a Immich — no baixat",
       "collapseFolder": "Contraure carpeta",
       "currentFolder": "Carpeta actual",
       "expandFolder": "Expandir carpeta",

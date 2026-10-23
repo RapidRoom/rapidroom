@@ -3184,7 +3184,27 @@ fn find_all_associated_files(source_image_path: &Path) -> Result<Vec<PathBuf>, S
 }
 
 #[tauri::command]
-pub fn copy_files(
+pub async fn copy_files(
+    source_paths: Vec<String>,
+    destination_folder: String,
+    app_handle: AppHandle,
+) -> Result<crate::file_transfer::TransferSummary, String> {
+    // Immich placeholders are downloaded before they are copied (upstream).
+    let sources: HashSet<PathBuf> = source_paths
+        .iter()
+        .map(|p| parse_virtual_path(p).0)
+        .collect();
+    for source in &sources {
+        crate::immich::ensure_local(&app_handle, source).await?;
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        copy_files_blocking(source_paths, destination_folder)
+    })
+    .await
+    .map_err(|e| format!("Task failed: {}", e))?
+}
+
+pub fn copy_files_blocking(
     source_paths: Vec<String>,
     destination_folder: String,
 ) -> Result<crate::file_transfer::TransferSummary, String> {
@@ -3214,12 +3234,24 @@ pub fn copy_files(
 }
 
 #[tauri::command]
-pub fn move_files(
+pub async fn move_files(
     source_paths: Vec<String>,
     destination_folder: String,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    let renames = move_files_on_disk(&source_paths, &destination_folder)?;
+    // Immich placeholders are downloaded before they are moved (upstream).
+    let sources: HashSet<PathBuf> = source_paths
+        .iter()
+        .map(|p| parse_virtual_path(p).0)
+        .collect();
+    for source in &sources {
+        crate::immich::ensure_local(&app_handle, source).await?;
+    }
+    let renames = tauri::async_runtime::spawn_blocking(move || {
+        move_files_on_disk(&source_paths, &destination_folder)
+    })
+    .await
+    .map_err(|e| format!("Task failed: {}", e))??;
     sync_album_path_changes(&app_handle, Some(&renames), None, None);
     Ok(())
 }
@@ -3258,6 +3290,7 @@ fn move_files_on_disk(
         }
 
         let all_files_to_move = find_all_associated_files(source_image_path)?;
+        let is_remote = crate::immich::is_remote(source_image_path);
 
         for file_to_move in &all_files_to_move {
             if let Some(file_name) = file_to_move.file_name() {
@@ -3270,10 +3303,13 @@ fn move_files_on_disk(
                     ));
                 }
 
-                operations_to_perform.push((file_to_move.clone(), dest_file_path));
+                operations_to_perform.push((file_to_move.clone(), dest_file_path, is_remote));
             }
         }
 
+        if is_remote {
+            continue;
+        }
         let dest_image_path = dest_path.join(source_image_path.file_name().unwrap());
         renames.insert(
             source_image_path.to_string_lossy().into_owned(),
@@ -3281,8 +3317,11 @@ fn move_files_on_disk(
         );
     }
 
-    for (source, dest) in operations_to_perform {
-        if fs::rename(&source, &dest).is_err() {
+    for (source, dest, is_remote) in operations_to_perform {
+        if is_remote {
+            fs::copy(&source, &dest)
+                .map_err(|e| format!("Copy failed for {}: {}", source.display(), e))?;
+        } else if fs::rename(&source, &dest).is_err() {
             fs::copy(&source, &dest)
                 .map_err(|e| format!("Move failed during copy for {}: {}", source.display(), e))?;
 
@@ -7200,7 +7239,7 @@ mod card_mode_tests {
         let _mode = CardMode::on(&f.card);
         let before = snapshot(&f.card);
 
-        assert_read_only(copy_files(
+        assert_read_only(copy_files_blocking(
             vec![path_str(&f.library.join("IMG_0001.jpg"))],
             path_str(&f.dcim),
         ));
@@ -7208,7 +7247,7 @@ mod card_mode_tests {
 
         let out = f.library.join("from-card");
         fs::create_dir(&out).unwrap();
-        copy_files(vec![path_str(&f.dcim.join("IMG_0001.jpg"))], path_str(&out)).unwrap();
+        copy_files_blocking(vec![path_str(&f.dcim.join("IMG_0001.jpg"))], path_str(&out)).unwrap();
         assert!(out.join("IMG_0001.jpg").is_file());
         assert!(out.join("IMG_0001.jpg.rrdata").is_file());
         assert_eq!(snapshot(&f.card), before);

@@ -1410,6 +1410,7 @@
     },
     "items": {
       "cloudPlaceholder": "Archiviato in iCloud — non scaricato",
+      "immichPlaceholder": "Archiviato in Immich — non scaricato",
       "collapseFolder": "Comprimi Cartella",
       "currentFolder": "Cartella Corrente",
       "expandFolder": "Espandi Cartella",
