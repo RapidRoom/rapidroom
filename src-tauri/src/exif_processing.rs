@@ -447,9 +447,6 @@ pub fn load_sidecar_with_exif(sidecar_path: &Path, source_path: &Path) -> ImageM
     meta
 }
 
-/// Serializes virtual-copy sidecar creation (upstream).
-pub static SIDECAR_LAYOUT_LOCK: Mutex<()> = Mutex::new(());
-
 /// Upstream's sidecar update API, routed through RapidRoom's locked, atomic writer.
 /// RapidRoom never deletes a sidecar that holds only defaults: RapidRoom sidecars also carry
 /// explicit unrated/unflagged choices, framing, denoise and stack membership.

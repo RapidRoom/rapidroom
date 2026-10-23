@@ -1629,6 +1629,12 @@ pub fn write_file_atomically(
         );
     }
     let _guard = lock_sidecar(path)?;
+    write_sidecar_locked(path, contents)
+}
+
+/// The `.rrdata` half of [`write_file_atomically`] for a caller that already holds
+/// `lock_sidecar`/`lock_sidecars` for `path`: keeps the RapidRoom-owned fields.
+pub(crate) fn write_sidecar_locked(path: &Path, contents: impl AsRef<[u8]>) -> std::io::Result<()> {
     let mut bytes = contents.as_ref().to_vec();
     if let Ok(existing) = fs::read(path)
         && let Ok(current) = serde_json::from_slice::<Value>(&existing)
