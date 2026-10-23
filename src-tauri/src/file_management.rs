@@ -201,7 +201,7 @@ fn thumbnail_cache_hash(path_str: &str, img_mod_time: u64, adjustments_bytes: &[
 fn thumbnail_adjustment_bytes(sidecar_path: &Path) -> Vec<u8> {
     fs::read_to_string(sidecar_path)
         .ok()
-        .and_then(|content| serde_json::from_str::<ImageMetadata>(&content).ok())
+        .and_then(|content| crate::exif_processing::parse_sidecar_metadata(&content))
         .map(|meta| serde_json::to_vec(&meta.adjustments).unwrap_or_default())
         .unwrap_or_default()
 }
@@ -1852,6 +1852,12 @@ fn write_file_atomically_with_backend<B: AtomicWriteBackend>(
     if is_card_read_only_path(path) {
         return Err(card_read_only_io_error());
     }
+    if path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("rrdata"))
+    {
+        crate::exif_processing::refuse_unreadable_overwrite(path)?;
+    }
     let target = match fs::symlink_metadata(path) {
         Ok(meta) if meta.file_type().is_symlink() => fs::canonicalize(path)?,
         _ => path.to_path_buf(),
@@ -2455,7 +2461,7 @@ fn generate_single_thumbnail_and_cache_with(
         (0, false, Vec::new())
     } else if let Some(meta) = fs::read_to_string(&sidecar_path)
         .ok()
-        .and_then(|content| serde_json::from_str::<ImageMetadata>(&content).ok())
+        .and_then(|content| crate::exif_processing::parse_sidecar_metadata(&content))
     {
         let is_raw = crate::formats::is_raw_file(path_str);
         let tm = crate::image_processing::resolve_tonemapper_override(settings, is_raw);
@@ -9797,5 +9803,84 @@ mod explicit_auto_lens_readonly_tests {
                 legacy_modified
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod unreadable_sidecar_tests {
+    use super::*;
+
+    fn photo(dir: &Path) -> (PathBuf, PathBuf) {
+        let source = dir.join("photo.jpg");
+        fs::write(&source, b"not a real image").unwrap();
+        let (_, sidecar) = parse_virtual_path(source.to_str().unwrap());
+        (source, sidecar)
+    }
+
+    #[test]
+    fn legacy_sidecar_without_version_or_rating_keeps_its_recipe_through_open_and_exif_refresh() {
+        let dir = tempfile::tempdir().unwrap();
+        let (source, sidecar) = photo(dir.path());
+        fs::write(
+            &sidecar,
+            r#"{"adjustments":{"exposure":0.4,"contrast":12},"unknown":{"keep":true}}"#,
+        )
+        .unwrap();
+        let before = fs::read(&sidecar).unwrap();
+        let opened = crate::exif_processing::load_sidecar_with_exif(&sidecar, &source);
+        assert_eq!(opened.adjustments["exposure"], 0.4);
+        assert_eq!(fs::read(&sidecar).unwrap(), before, "opening never writes");
+        let exif = std::collections::HashMap::from([("Make".to_string(), "SONY".to_string())]);
+        update_sidecar(&sidecar, |metadata| metadata.exif = Some(exif.clone())).unwrap();
+        let saved: Value = serde_json::from_slice(&fs::read(&sidecar).unwrap()).unwrap();
+        assert_eq!(saved["adjustments"]["exposure"], 0.4);
+        assert_eq!(saved["adjustments"]["contrast"], 12);
+        assert_eq!(saved["exif"]["Make"], "SONY");
+        assert_eq!(saved["version"], 1);
+        assert_eq!(saved["rating"], 0);
+    }
+
+    #[test]
+    fn unreadable_sidecar_is_never_overwritten_until_its_bytes_change() {
+        let dir = tempfile::tempdir().unwrap();
+        let (source, sidecar) = photo(dir.path());
+        for bytes in [
+            br#"{"adjustments":{"exposure":1},"exif":{"Make":5}}"#.as_slice(),
+            br#"{ "adjustments": {"exposure": 1}, "#.as_slice(),
+            b"[1,2,3]".as_slice(),
+            &[0xff, 0xfe, 0x7b],
+        ] {
+            fs::write(&sidecar, bytes).unwrap();
+            let loaded = crate::exif_processing::load_sidecar_with_exif(&sidecar, &source);
+            assert!(loaded.adjustments.is_null(), "reads fall back to defaults");
+            assert!(update_sidecar(&sidecar, |m| m.rating = 3).is_err());
+            assert!(set_sidecar_flag_for_test(&sidecar).is_err());
+            assert_eq!(fs::read(&sidecar).unwrap(), bytes, "original bytes kept");
+            fs::write(
+                &sidecar,
+                r#"{"version":1,"rating":0,"adjustments":{"exposure":2}}"#,
+            )
+            .unwrap();
+            assert!(update_sidecar(&sidecar, |m| m.rating = 3).is_ok());
+            assert_eq!(crate::exif_processing::load_sidecar(&sidecar).rating, 3);
+        }
+    }
+
+    fn set_sidecar_flag_for_test(sidecar: &Path) -> std::io::Result<()> {
+        let _guard = lock_sidecar(sidecar)?;
+        write_file_atomically_unmerged(sidecar, b"{}")
+    }
+
+    #[test]
+    fn a_blank_sidecar_is_ordinary_defaults_and_stays_writable() {
+        let dir = tempfile::tempdir().unwrap();
+        let (_, sidecar) = photo(dir.path());
+        fs::write(&sidecar, "  \n").unwrap();
+        assert!(
+            crate::exif_processing::load_sidecar(&sidecar)
+                .adjustments
+                .is_null()
+        );
+        assert!(update_sidecar(&sidecar, |m| m.rating = 2).is_ok());
     }
 }
