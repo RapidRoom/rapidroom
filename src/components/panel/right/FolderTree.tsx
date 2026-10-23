@@ -46,6 +46,7 @@ import { useUIStore } from '../../../store/useUIStore';
 import { AlbumItem, AlbumGroup, Album, Invokes, FolderTreeSort, SortDirection } from '../../ui/AppProperties';
 import type { FolderTree } from '../../ui/AppProperties';
 import { useLibraryActions } from '../../../hooks/useLibraryActions';
+import ImmichSection from '../../immich/ImmichSection';
 
 export type { FolderTree } from '../../ui/AppProperties';
 
@@ -1038,6 +1039,21 @@ export default function FolderTree({
                 </AnimatePresence>
               </>
             )}
+
+            <ImmichSection
+              header={
+                <SectionHeader
+                  title={t('immich.section.title')}
+                  isOpen={openSections.includes('immich')}
+                  onToggle={() => toggleSection('immich')}
+                />
+              }
+              isOpen={openSections.includes('immich')}
+              onSelectAlbum={onSelectAlbum}
+              searchQuery={searchQuery}
+              selectedAlbumId={activeAlbumId}
+              showImageCounts={showImageCounts && isHovering}
+            />
 
             {filteredTrees && filteredTrees.length > 0 && (
               <>

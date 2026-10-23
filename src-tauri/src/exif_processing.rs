@@ -104,6 +104,29 @@ pub fn flush_all_dirty_caches() {
     }
 }
 
+/// Storage page: clear the EXIF disk cache (upstream).
+pub fn clear_disk_cache() -> Result<(), String> {
+    let mut state = get_exif_cache()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    state.cache.clear();
+    state.dirty.clear();
+    let Some(read_dir) = state
+        .cache_dir
+        .as_ref()
+        .and_then(|dir| fs::read_dir(dir).ok())
+    else {
+        return Ok(());
+    };
+    for path in read_dir.filter_map(|e| e.ok()).map(|e| e.path()) {
+        if path.is_file() {
+            fs::remove_file(&path)
+                .map_err(|e| format!("Failed to remove {}: {}", path.display(), e))?;
+        }
+    }
+    Ok(())
+}
+
 fn load_rrcache_for_folder(folder: &Path) {
     let mut cache_path = None;
 
@@ -335,6 +358,31 @@ pub fn load_sidecar_with_exif(sidecar_path: &Path, source_path: &Path) -> ImageM
     }
 
     meta
+}
+
+/// Serializes virtual-copy sidecar creation (upstream).
+pub static SIDECAR_LAYOUT_LOCK: Mutex<()> = Mutex::new(());
+
+/// Upstream's sidecar update API, routed through RapidRoom's locked, atomic writer.
+/// RapidRoom never deletes a sidecar that holds only defaults: RapidRoom sidecars also carry
+/// explicit unrated/unflagged choices, framing, denoise and stack membership.
+pub fn update_sidecar(
+    sidecar_path: &Path,
+    source_path: &Path,
+    update: impl FnOnce(&mut ImageMetadata),
+) -> std::io::Result<ImageMetadata> {
+    if crate::immich::is_placeholder(source_path)
+        && let Some(parent) = sidecar_path.parent()
+    {
+        fs::create_dir_all(parent)?;
+    }
+    let update = std::cell::RefCell::new(Some(update));
+    crate::file_management::update_sidecar(sidecar_path, |metadata| {
+        if let Some(update) = update.borrow_mut().take() {
+            update(metadata);
+        }
+    })
+    .map_err(std::io::Error::other)
 }
 
 fn to_ur64(val: &exif::Rational) -> uR64 {

@@ -19,6 +19,18 @@ interface TransformWrapper {
 }
 import { prepareAdjustmentsPayload } from '../utils/backendPayload';
 
+const isWgpuRender = (buffer: ArrayBuffer) => new TextDecoder().decode(buffer.slice(0, 11)) === 'WGPU_RENDER';
+
+const releasePreviewUrl = (url: string | null | undefined) => {
+  if (url && url.startsWith('blob:') && !globalImageCache.isProtected(url)) {
+    setTimeout(() => {
+      if (!globalImageCache.isProtected(url)) {
+        URL.revokeObjectURL(url);
+      }
+    }, 250);
+  }
+};
+
 export function useImageProcessing(
   transformWrapperRef: React.RefObject<TransformWrapper | null>,
   prevAdjustmentsRef: React.RefObject<{ path: string; adjustments: Adjustments } | null>,
@@ -127,8 +139,9 @@ export function useImageProcessing(
       const roi = calculateROI();
 
       try {
-        const buffer: ArrayBuffer = await invoke(Invokes.ApplyAdjustments, {
+        const buffer = await invoke<ArrayBuffer>(Invokes.ApplyAdjustments, {
           jsAdjustments: payload,
+          original: false,
           isInteractive: dragging,
           targetResolution: targetRes || null,
           roi: roi || null,
@@ -144,9 +157,7 @@ export function useImageProcessing(
         if (buffer && buffer.byteLength > 0 && jobId >= latestRenderedJobIdRef.current) {
           latestRenderedJobIdRef.current = jobId;
 
-          const textDecoder = new TextDecoder();
-          const prefix = textDecoder.decode(buffer.slice(0, 11));
-          if (prefix === 'WGPU_RENDER') {
+          if (isWgpuRender(buffer)) {
             setEditor((state) => {
               if (state.interactivePatch && state.interactivePatch.url) URL.revokeObjectURL(state.interactivePatch.url);
               return {
@@ -194,14 +205,7 @@ export function useImageProcessing(
             }
 
             setEditor((state) => {
-              const prevUrl = state.finalPreviewUrl;
-              if (prevUrl && prevUrl.startsWith('blob:') && !globalImageCache.isProtected(prevUrl)) {
-                setTimeout(() => {
-                  if (!globalImageCache.isProtected(prevUrl)) {
-                    URL.revokeObjectURL(prevUrl);
-                  }
-                }, 250);
-              }
+              releasePreviewUrl(state.finalPreviewUrl);
               return {
                 finalPreviewUrl: url,
                 previewRenderVersion: state.previewRenderVersion + 1,
@@ -287,14 +291,7 @@ export function useImageProcessing(
               latestUncroppedJobIdRef.current = jobId;
               const url = URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }));
               useEditorStore.getState().setEditor((state) => {
-                const prevUrl = state.uncroppedAdjustedPreviewUrl;
-                if (prevUrl && prevUrl.startsWith('blob:') && !globalImageCache.isProtected(prevUrl)) {
-                  setTimeout(() => {
-                    if (!globalImageCache.isProtected(prevUrl)) {
-                      URL.revokeObjectURL(prevUrl);
-                    }
-                  }, 250);
-                }
+                releasePreviewUrl(state.uncroppedAdjustedPreviewUrl);
                 return { uncroppedAdjustedPreviewUrl: url };
               });
             })

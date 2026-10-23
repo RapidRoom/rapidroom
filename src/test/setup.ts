@@ -7,6 +7,7 @@ vi.mock('@tauri-apps/api/core', async (importOriginal) => {
     ...(await importOriginal<typeof import('@tauri-apps/api/core')>()),
     invoke: mock.invoke,
     convertFileSrc: mock.convertFileSrc,
+    Channel: mock.Channel,
   };
 });
 

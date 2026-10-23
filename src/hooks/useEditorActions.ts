@@ -591,22 +591,22 @@ export function useEditorActions() {
     [handleAutoStraighten, t],
   );
 
-  const handleConvertNegatives = useCallback(
-    (paths: string[]) => {
+  const handleEnableAdjustments = useCallback(
+    (paths: string[], patch: Partial<Adjustments>) => {
       const beforeBatch = useEditorStore.getState();
       const { selectedImage } = beforeBatch;
       const editingPath = useUIStore.getState().activeView === 'editor' ? selectedImage?.path : undefined;
       const batchPaths = paths.filter((path) => path !== editingPath);
       if (batchPaths.length < paths.length) {
-        setAdjustments((prev: Adjustments) => ({ ...prev, negativeConversionEnabled: true }));
+        setAdjustments((prev: Adjustments) => ({ ...prev, ...patch }));
       }
       if (batchPaths.length === 0) return;
       batchPaths.forEach((p) => globalImageCache.delete(p));
-      invoke(Invokes.ApplyAdjustmentsToPaths, { paths: batchPaths, adjustments: { negativeConversionEnabled: true } })
+      invoke(Invokes.ApplyAdjustmentsToPaths, { paths: batchPaths, adjustments: patch })
         .then(() =>
           reloadAdjustmentsForPaths(batchPaths, { path: selectedImage?.path, adjustments: beforeBatch.adjustments }),
         )
-        .catch((err) => toast.error(`Failed to convert negatives: ${err}`));
+        .catch((err) => toast.error(`Failed to apply adjustments: ${err}`));
     },
     [setAdjustments],
   );
@@ -730,7 +730,8 @@ export function useEditorActions() {
 
       pathsToUpdate.forEach((p) => globalImageCache.delete(p));
 
-      if (selectedImage && pathsToUpdate.includes(selectedImage.path)) {
+      const openPath = selectedImage && pathsToUpdate.includes(selectedImage.path) ? selectedImage.path : null;
+      if (openPath) {
         setAdjustments(
           normalizeLensPolicyVersion(
             { ...adjustments, ...adjustmentsToApply },
@@ -742,20 +743,24 @@ export function useEditorActions() {
       }
 
       invoke(Invokes.ApplyAdjustmentsToPaths, { paths: pathsToUpdate, adjustments: adjustmentsToApply })
-        .then(() => {
-          if (selectedImage && pathsToUpdate.includes(selectedImage.path)) {
-            invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: selectedImage.path }).then((meta) => {
-              const loadedAdjustments = meta.adjustments;
-              if (loadedAdjustments && !loadedAdjustments.is_null) {
-                setAdjustments((prev) => ({
-                  ...prev,
-                  lensMaker: loadedAdjustments.lensMaker,
-                  lensModel: loadedAdjustments.lensModel,
-                  lensDistortionParams: loadedAdjustments.lensDistortionParams,
-                }));
-              }
-            });
+        .then(async () => {
+          if (!openPath) return;
+          // The backend may drop AI results copied from another photo (they are
+          // regenerated for this one), so reload what was pasted (upstream).
+          const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: openPath });
+          const loadedAdjustments = meta.adjustments as Record<string, unknown> | null | undefined;
+          if (
+            !loadedAdjustments ||
+            loadedAdjustments.is_null ||
+            useEditorStore.getState().selectedImage?.path !== openPath
+          ) {
+            return;
           }
+          const pastedKeys = [...Object.keys(adjustmentsToApply), 'lensMaker', 'lensModel', 'lensDistortionParams'];
+          const pasted = Object.fromEntries(
+            pastedKeys.filter((key) => key in loadedAdjustments).map((key) => [key, loadedAdjustments[key]]),
+          );
+          setAdjustments((prev) => ({ ...prev, ...pasted }));
         })
         .catch((err) => toast.error(`Failed to paste adjustments: ${err}`));
 
@@ -820,7 +825,7 @@ export function useEditorActions() {
     setLutPreviewOverride,
     handleResetAdjustments,
     handleAutoLensCorrection,
-    handleConvertNegatives,
+    handleEnableAdjustments,
     handleCopyAdjustments,
     handlePasteAdjustments,
     handleZoomChange,

@@ -326,14 +326,15 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
         };
       });
 
-      setLibrary((state) => ({
-        imageList: state.imageList.map((img) => {
+      setLibrary((state) => {
+        const exifByPath = { ...state.exifByPath };
+        for (const img of state.imageList) {
           if (physicalPathsSet.has(img.path.split('?vc=')[0])) {
-            return { ...img, exif: { ...(img.exif || {}), ...updates } };
+            exifByPath[img.path] = { ...(exifByPath[img.path] || {}), ...updates };
           }
-          return img;
-        }),
-      }));
+        }
+        return { exifByPath };
+      });
 
       pathsToUpdate.forEach((p) => {
         const cached = globalImageCache.get(p);

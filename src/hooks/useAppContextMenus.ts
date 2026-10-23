@@ -59,6 +59,7 @@ import {
   Database,
   FolderSearch,
   Wand2,
+  ScanLine,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -66,7 +67,7 @@ import { describeLightroomSettings, type LightroomSettingReport } from '../utils
 import { useContextMenu } from '../context/ContextMenuContext';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
-import { useProcessStore } from '../store/useProcessStore';
+import { JobKind, useProcessStore } from '../store/useProcessStore';
 import { useUIStore } from '../store/useUIStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import {
@@ -99,7 +100,10 @@ import {
   reloadAdjustmentsForPaths,
 } from './useEditorActions';
 import { useLibraryActions } from './useLibraryActions';
+import { transferFiles } from './useFileOperations';
 import { globalImageCache } from '../utils/ImageLRUCache';
+import { immichAlbumOf, isImmichAlbumId, removeFromImmichAlbum } from '../components/immich/immichApi';
+import { useImmichStore } from '../components/immich/useImmichStore';
 
 interface ImportedXmpMetadata {
   adjustments?: (Partial<Adjustments> & { is_null?: boolean }) | null;
@@ -236,7 +240,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
     handleAutoLensCorrection,
     handleAutoStraighten,
     handleAutoStraightenPaths,
-    handleConvertNegatives,
+    handleEnableAdjustments,
     handleResetAdjustments,
     handleCopyAdjustments,
     handlePasteAdjustments,
@@ -738,7 +742,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
             },
             {
               label: t('contextMenus.editor.autoStraighten'),
-              icon: Wand2,
+              icon: ScanLine,
               onClick: handleAutoStraighten,
               disabled: !selectedImage?.isReady,
             },
@@ -764,7 +768,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
             {
               label: t('contextMenus.editor.convertNegative'),
               icon: Film,
-              onClick: () => handleConvertNegatives([selectedImage.path]),
+              onClick: () => handleEnableAdjustments([selectedImage.path], { negativeConversionEnabled: true }),
               disabled: !selectedImage?.isReady,
             },
             {
@@ -1032,6 +1036,22 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
 
       const handleRemoveFromAlbum = async () => {
         if (!activeAlbumId) return;
+        const immichAlbum = immichAlbumOf(activeAlbumId);
+        if (immichAlbum) {
+          try {
+            await removeFromImmichAlbum(immichAlbum, finalSelection);
+            const removed = new Set(finalSelection.filter((p) => !p.includes('?vc=')));
+            if (useLibraryStore.getState().activeAlbumId === activeAlbumId) {
+              setLibrary((state) => ({
+                imageList: state.imageList.filter((i) => !removed.has(i.path.split('?vc=')[0])),
+              }));
+            }
+            useImmichStore.getState().loadAlbums();
+          } catch (e) {
+            toast.error(String(e));
+          }
+          return;
+        }
         const newTree = JSON.parse(JSON.stringify(albumTree));
 
         const removeImages = (nodes: AlbumItem[]): boolean => {
@@ -1167,7 +1187,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
             },
             {
               label: t('contextMenus.thumbnail.autoStraighten', { count: selectionCount }),
-              icon: Wand2,
+              icon: ScanLine,
               onClick: () => handleAutoStraightenPaths(finalSelection),
             },
             {
@@ -1182,7 +1202,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
               label: conversionLabel,
               icon: Film,
               disabled: selectionCount === 0,
-              onClick: () => handleConvertNegatives(finalSelection),
+              onClick: () => handleEnableAdjustments(finalSelection, { negativeConversionEnabled: true }),
             },
             {
               icon: LayoutTemplate,
@@ -1351,15 +1371,19 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
           ],
         },
         { type: OPTION_SEPARATOR },
-        {
-          label: t('contextMenus.thumbnail.addToAlbum'),
-          icon: FolderPlus,
-          submenu:
-            albumTree.length > 0
-              ? buildAddToAlbumMenu(albumTree, finalSelection)
-              : [{ label: t('contextMenus.thumbnail.noAlbums'), disabled: true }],
-        },
-        ...(activeAlbumId
+        ...(isImmichAlbumId(activeAlbumId)
+          ? []
+          : [
+              {
+                label: t('contextMenus.thumbnail.addToAlbum'),
+                icon: FolderPlus,
+                submenu:
+                  albumTree.length > 0
+                    ? buildAddToAlbumMenu(albumTree, finalSelection)
+                    : [{ label: t('contextMenus.thumbnail.noAlbums'), disabled: true }],
+              },
+            ]),
+        ...(activeAlbumId && (!isImmichAlbumId(activeAlbumId) || immichAlbumOf(activeAlbumId))
           ? [
               {
                 label: t('contextMenus.thumbnail.removeFromAlbum', { count: selectionCount }),
@@ -1567,7 +1591,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
               label: movePastedLabel,
               onClick: async () => {
                 try {
-                  await invoke(Invokes.MoveFiles, { sourcePaths: copiedFilePaths, destinationFolder: targetPath });
+                  await transferFiles(JobKind.Move, copiedFilePaths, targetPath);
                   setProcess({ copiedFilePaths: [] });
                   setLibrary({ multiSelectedPaths: [] });
                   props.refreshAllFolderTrees();
@@ -1971,10 +1995,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
                 label: movePastedLabel,
                 onClick: async () => {
                   try {
-                    await invoke(Invokes.MoveFiles, {
-                      sourcePaths: copiedFilePaths,
-                      destinationFolder: currentFolderPath,
-                    });
+                    await transferFiles(JobKind.Move, copiedFilePaths, currentFolderPath as string);
                     setProcess({ copiedFilePaths: [] });
                     setLibrary({ multiSelectedPaths: [] });
                     props.refreshAllFolderTrees();

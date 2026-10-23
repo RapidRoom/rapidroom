@@ -253,6 +253,7 @@ pub async fn run_headless_bench(
             &handle,
             state,
             adj,
+            crate::gpu_processing::DisplayLayer::Edited,
             interactive,
             Some(preview_dim),
             None,

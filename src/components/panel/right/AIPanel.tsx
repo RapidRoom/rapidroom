@@ -68,7 +68,7 @@ import { createSubMask } from '../../../utils/maskUtils';
 import Text from '../../ui/Text';
 import { TEXT_COLOR_KEYS, TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useEditorStore } from '../../../store/useEditorStore';
-import { useProcessStore } from '../../../store/useProcessStore';
+import { selectAiModelDownloadStatus, useProcessStore } from '../../../store/useProcessStore';
 import { useUIStore } from '../../../store/useUIStore';
 import { useEditorActions } from '../../../hooks/useEditorActions';
 import { useAiMasking } from '../../../hooks/useAiMasking';
@@ -441,7 +441,7 @@ export default function AIPanel() {
   const setEditor = useEditorStore((s) => s.setEditor);
 
   const activeAiTasks = useProcessStore((s) => s.activeAiTasks);
-  const aiModelDownloadStatus = useProcessStore((s) => s.aiModelDownloadStatus);
+  const aiModelDownloadStatus = useProcessStore(selectAiModelDownloadStatus);
   const setCustomEscapeHandler = useUIStore((s) => s.setCustomEscapeHandler);
 
   const { setAdjustments } = useEditorActions();

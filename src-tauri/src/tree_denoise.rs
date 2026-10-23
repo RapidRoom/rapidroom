@@ -203,14 +203,13 @@ async fn models_with_download(
                 "https://github.com/rymuelle/RawForge/releases/download/onnx_v1.0.0/{}",
                 model.file
             );
-            let download = crate::ai_processing::download_and_verify_model(
-                app,
-                &dir,
-                model.file,
-                &url,
-                model.sha256,
-                model.name,
-            );
+            let asset = crate::ai_processing::ModelAsset {
+                filename: model.file,
+                url: url.into(),
+                sha256: Some(model.sha256),
+                name: model.name,
+            };
+            let download = crate::ai_processing::download_and_verify_model(app, &dir, &asset);
             tokio::pin!(download);
             loop {
                 tokio::select! {

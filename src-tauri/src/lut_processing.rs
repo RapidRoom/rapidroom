@@ -747,66 +747,70 @@ fn render_lut_swatch(
 }
 
 #[tauri::command]
-pub fn generate_lut_previews(
+pub async fn generate_lut_previews(
     luts: Vec<LutPreviewRequest>,
     size: u32,
     js_adjustments: Option<serde_json::Value>,
-    state: State<AppState>,
     app_handle: AppHandle,
 ) -> Result<Vec<LutPreview>, String> {
-    let context = crate::image_processing::get_or_init_gpu_context(&state, &app_handle)?;
-    let loaded_image = state
-        .original_image
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("No original image loaded for LUT previews")?;
-    let is_raw = loaded_image.is_raw;
-    let source_adjustments = js_adjustments.unwrap_or_else(|| {
-        let (_, sidecar) = crate::file_management::parse_virtual_path(&loaded_image.path);
-        crate::exif_processing::load_sidecar(&sidecar).adjustments
-    });
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let context = crate::image_processing::get_or_init_gpu_context(&state, &app_handle)?;
+        let loaded_image = state
+            .original_image
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("No original image loaded for LUT previews")?;
+        let is_raw = loaded_image.is_raw;
+        let source_adjustments = js_adjustments.unwrap_or_else(|| {
+            let (_, sidecar) = crate::file_management::parse_virtual_path(&loaded_image.path);
+            crate::exif_processing::load_sidecar(&sidecar).adjustments
+        });
 
-    let base_json = serde_json::json!({});
-    let (base_image, _scale, _offset) =
-        crate::generate_transformed_preview(&state, &loaded_image, &base_json, size)?;
+        let base_json = serde_json::json!({});
+        let (base_image, _scale, _offset) =
+            crate::generate_transformed_preview(&state, &loaded_image, &base_json, size)?;
 
-    let render = resolve_render_options_from_handle(&app_handle, is_raw);
-    let transform_hash = calculate_transform_hash(&base_json);
+        let render = resolve_render_options_from_handle(&app_handle, is_raw);
+        let transform_hash = calculate_transform_hash(&base_json);
 
-    let previews = luts
-        .into_iter()
-        .map(|request| {
-            let mut swatch_lut_json = serde_json::json!({
-                "lutPath": "preview",
-                "lutIntensity": 100,
-                "lutIsSceneReferred": request.is_built_in,
-                "sectionVisibility": { "effects": true }
-            });
-            copy_exposure_policy(&source_adjustments, &mut swatch_lut_json);
-            let swatch_adjustments = get_all_adjustments_from_json(
-                &swatch_lut_json,
-                is_raw,
-                loaded_image.as_shot,
-                render,
-            );
+        let previews = luts
+            .into_iter()
+            .map(|request| {
+                let mut swatch_lut_json = serde_json::json!({
+                    "lutPath": "preview",
+                    "lutIntensity": 100,
+                    "lutIsSceneReferred": request.is_built_in,
+                    "sectionVisibility": { "effects": true }
+                });
+                copy_exposure_policy(&source_adjustments, &mut swatch_lut_json);
+                let swatch_adjustments = get_all_adjustments_from_json(
+                    &swatch_lut_json,
+                    is_raw,
+                    loaded_image.as_shot,
+                    render,
+                );
 
-            let thumb = render_lut_swatch(
-                &context,
-                &state,
-                &base_image,
-                transform_hash,
-                swatch_adjustments,
-                &request.path,
-            );
-            LutPreview {
-                path: request.path,
-                thumb,
-            }
-        })
-        .collect();
+                let thumb = render_lut_swatch(
+                    &context,
+                    &state,
+                    &base_image,
+                    transform_hash,
+                    swatch_adjustments,
+                    &request.path,
+                );
+                LutPreview {
+                    path: request.path,
+                    thumb,
+                }
+            })
+            .collect();
 
-    Ok(previews)
+        Ok(previews)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
