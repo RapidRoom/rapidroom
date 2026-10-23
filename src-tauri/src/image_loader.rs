@@ -20,6 +20,7 @@ use rawler::Orientation;
 use rayon::prelude::*;
 use serde::Deserialize;
 use serde_json::Value;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
 use std::panic;
@@ -131,7 +132,28 @@ fn load_and_composite_with_exif_persistence(
         cancel_token,
         persist_exif,
     )?;
-    composite_patches_on_image(&base_image, adjustments)
+    let prepared = match prepare_base_image_cow(&base_image, path, adjustments)? {
+        Cow::Owned(img) => Some(img),
+        Cow::Borrowed(_) => None,
+    };
+    Ok(prepared.unwrap_or(base_image))
+}
+
+pub fn prepare_base_image_cow<'a>(
+    base_image: &'a DynamicImage,
+    path: &str,
+    adjustments: &Value,
+) -> Result<Cow<'a, DynamicImage>> {
+    let has_patches = adjustments
+        .get("aiPatches")
+        .and_then(|v| v.as_array())
+        .is_some_and(|a| !a.is_empty());
+
+    let denoised = crate::ai_denoise::apply_ai_denoise(base_image, path, adjustments);
+    match crate::negative_conversion::apply_negative_conversion(denoised, adjustments) {
+        Cow::Owned(prepared) if !has_patches => Ok(Cow::Owned(prepared)),
+        prepared => composite_patches_cow(prepared, adjustments),
+    }
 }
 
 pub fn load_base_image_from_bytes(
@@ -610,18 +632,26 @@ pub fn load_image_with_orientation(
     Ok(DynamicImage::ImageRgb32F(oriented_image.to_rgb32f()))
 }
 
+/// Composites only the saved AI patches, without upstream's AI denoise or negative conversion.
 pub fn composite_patches_on_image(
     base_image: &DynamicImage,
     current_adjustments: &Value,
 ) -> Result<DynamicImage> {
+    composite_patches_cow(Cow::Borrowed(base_image), current_adjustments).map(Cow::into_owned)
+}
+
+fn composite_patches_cow<'a>(
+    base_image: Cow<'a, DynamicImage>,
+    current_adjustments: &Value,
+) -> Result<Cow<'a, DynamicImage>> {
     let patches_val = match current_adjustments.get("aiPatches") {
         Some(val) => val,
-        None => return Ok(base_image.clone()),
+        None => return Ok(base_image),
     };
 
     let patches_arr = match patches_val.as_array() {
         Some(arr) if !arr.is_empty() => arr,
-        _ => return Ok(base_image.clone()),
+        _ => return Ok(base_image),
     };
 
     let visible_patches: Vec<&Value> = patches_arr
@@ -643,7 +673,7 @@ pub fn composite_patches_on_image(
         .collect();
 
     if visible_patches.is_empty() {
-        return Ok(base_image.clone());
+        return Ok(base_image);
     }
 
     let (base_w, base_h) = base_image.dimensions();
@@ -681,14 +711,14 @@ pub fn composite_patches_on_image(
                 .filter(|s| !s.is_empty())
             {
                 let mask_bytes = general_purpose::STANDARD.decode(mask_b64)?;
-                let mask_img = image::load_from_memory(&mask_bytes)?.to_luma8();
+                let mask_img = image::load_from_memory(&mask_bytes)?.into_luma8();
                 if !is_cropped && (mask_img.width() != base_w || mask_img.height() != base_h) {
                     imageops::resize(&mask_img, base_w, base_h, imageops::FilterType::Lanczos3)
                 } else {
                     mask_img
                 }
             } else {
-                let patch_info: PatchMaskInfo = serde_json::from_value((*patch_obj).clone())
+                let patch_info = PatchMaskInfo::deserialize(*patch_obj)
                     .context("Failed to deserialize patch info for mask generation")?;
 
                 let mask_def = MaskDefinition {
@@ -741,7 +771,7 @@ pub fn composite_patches_on_image(
                 .and_then(|v| v.as_str())
                 .context("Missing color data")?;
             let color_bytes = general_purpose::STANDARD.decode(color_b64)?;
-            let color_image_u8 = image::load_from_memory(&color_bytes)?.to_rgb8();
+            let color_image_u8 = image::load_from_memory(&color_bytes)?.into_rgb8();
 
             let (patch_w, patch_h) = color_image_u8.dimensions();
             let final_color = if !is_cropped && (base_w != patch_w || base_h != patch_h) {
@@ -767,7 +797,7 @@ pub fn composite_patches_on_image(
 
     let decoded_patches = decoded_patches?;
 
-    let mut composited_image = base_image.clone();
+    let mut composited_image = base_image.into_owned();
     let lut = srgb_to_linear_lut();
 
     let get_color = |patch: &DecodedPatch, r: u8, g: u8, b: u8| -> (f32, f32, f32) {
@@ -1032,7 +1062,7 @@ pub fn composite_patches_on_image(
         }
     }
 
-    Ok(composited_image)
+    Ok(Cow::Owned(composited_image))
 }
 
 #[tauri::command]
@@ -1043,8 +1073,7 @@ pub fn is_image_cached(path: String, state: tauri::State<'_, AppState>) -> bool 
         .decoded_image_cache
         .lock()
         .unwrap()
-        .get(&source_path_str)
-        .is_some()
+        .contains(&source_path_str)
 }
 
 #[tauri::command]
@@ -1114,11 +1143,11 @@ pub async fn load_image(
 
     let path_clone = source_path_str.clone();
 
-    let cached_data = state
-        .decoded_image_cache
-        .lock()
-        .unwrap()
-        .get(&source_path_str);
+    let cached_data = {
+        let mut decoded_cache = state.decoded_image_cache.lock().unwrap();
+        decoded_cache.compact_except(&source_path_str);
+        decoded_cache.get(&source_path_str)
+    };
 
     let (pristine_arc, exif_data, used_embedded_preview) = if let Some((
         cached_img,

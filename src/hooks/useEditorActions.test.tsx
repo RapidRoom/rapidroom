@@ -241,6 +241,33 @@ it('does not reload a draft edited while batch processing was in progress', asyn
   expect(useEditorStore.getState().adjustments).toBe(edited);
 });
 
+it('drops a batch reload when the user navigates to another photo during the wait', async () => {
+  vi.mocked(invoke).mockReset();
+  const photo = (path: string) => ({
+    exif: {},
+    width: 6000,
+    height: 4000,
+    isRaw: true,
+    isReady: true,
+    path,
+    thumbnailUrl: '',
+  });
+  const before = { ...INITIAL_ADJUSTMENTS, exposure: 0 };
+  useEditorStore.getState().setEditor({ selectedImage: photo('/photos/a.raw'), adjustments: before });
+  useLibraryStore.getState().setLibrary({ libraryActivePath: '/photos/a.raw' });
+  const nextAdjustments = { ...INITIAL_ADJUSTMENTS, exposure: 2 };
+  vi.mocked(invoke).mockImplementation(async () => {
+    // The user moves on while the sidecar is being read.
+    useEditorStore.getState().setEditor({ selectedImage: photo('/photos/b.raw'), adjustments: nextAdjustments });
+    useLibraryStore.getState().setLibrary({ libraryActivePath: '/photos/b.raw' });
+    return { adjustments: { ...INITIAL_ADJUSTMENTS, exposure: 1 } };
+  });
+  await reloadAdjustmentsForPaths(['/photos/a.raw'], { path: '/photos/a.raw', adjustments: before });
+  expect(useEditorStore.getState().selectedImage?.path).toBe('/photos/b.raw');
+  expect(useEditorStore.getState().adjustments).toBe(nextAdjustments);
+  expect(useLibraryStore.getState().libraryActiveAdjustments?.exposure).not.toBe(1);
+});
+
 describe('labelled async editor actions', () => {
   const path = '/photos/history.raw';
   function setup() {

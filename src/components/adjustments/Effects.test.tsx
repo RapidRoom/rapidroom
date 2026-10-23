@@ -94,7 +94,7 @@ it.each(cases)('applies a completed %s map only to its initiating image', async 
   await select('/a.raw');
   await mount();
   await toggle(kind);
-  expect(job.invoked).toHaveBeenCalledWith({ imagePath: '/a.raw' });
+  expect(job.invoked).toHaveBeenCalledWith(expect.objectContaining({ imagePath: '/a.raw' }));
   await act(async () => job.finish());
   expect(useEditorStore.getState().adjustments[key]).toBe('map-from-/a.raw');
   await act(async () => debouncedSetHistory.flush());

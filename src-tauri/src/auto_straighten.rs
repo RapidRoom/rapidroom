@@ -327,6 +327,10 @@ fn crop_for_rotation(
 }
 
 pub fn straighten_adjustments(image: &DynamicImage, source_path: &str, adjustments: &mut Value) {
+    // A corrupt sidecar can hold non-object adjustments; leave those untouched.
+    if !adjustments.is_object() {
+        return;
+    }
     let Some(rotation) = rotation_for_image(image, is_raw_file(source_path), adjustments) else {
         return;
     };
@@ -355,14 +359,20 @@ pub fn straighten_adjustments(image: &DynamicImage, source_path: &str, adjustmen
         rotation - previous_rotation,
     );
 
-    adjustments["rotation"] = json!(rotation);
-    adjustments["crop"] = json!({
-        "unit": "px",
-        "x": crop.x,
-        "y": crop.y,
-        "width": crop.width,
-        "height": crop.height,
-    });
+    let Some(object) = adjustments.as_object_mut() else {
+        return;
+    };
+    object.insert("rotation".into(), json!(rotation));
+    object.insert(
+        "crop".into(),
+        json!({
+            "unit": "px",
+            "x": crop.x,
+            "y": crop.y,
+            "width": crop.width,
+            "height": crop.height,
+        }),
+    );
 }
 
 #[tauri::command]
@@ -429,6 +439,16 @@ mod tests {
             (rotation - expected).abs() < 0.2,
             "expected {expected}, detected {rotation}"
         );
+    }
+
+    #[test]
+    fn non_object_adjustments_are_left_untouched() {
+        let image = DynamicImage::ImageLuma8(rotated(&level_scene(), 3.0));
+        for mut value in [json!(null), json!([1, 2]), json!("x")] {
+            let before = value.clone();
+            straighten_adjustments(&image, "photo.jpg", &mut value);
+            assert_eq!(value, before);
+        }
     }
 
     #[test]

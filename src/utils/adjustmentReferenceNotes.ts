@@ -79,6 +79,18 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   lumaNoiseReduction:
     '+ smooths luminance noise. In a mask, the value is added to the global one, so a negative mask value only reduces global NR there.',
   colorNoiseReduction: '+ removes colour blotches. Masks work as for luma noise reduction.',
+  aiDenoiseEnabled:
+    'Turns on upstream non-destructive AI denoise: the model runs once per photo (cached on disk) and is blended into the base image. Global only. Separate from the Library denoise queue.',
+  aiDenoiseAmount: 'Blend of the AI-denoised base, 0–100; 0 leaves the image unchanged. Needs `aiDenoiseEnabled`.',
+  aiDenoiseDetail:
+    '+ keeps more of the original luminance texture while colour noise stays removed (0–100). Needs `aiDenoiseEnabled`.',
+  negativeConversionEnabled:
+    'Treats the photo as a film negative and inverts it non-destructively before all other adjustments.',
+  negativeExposure: 'Brightness of the converted positive. Only used with `negativeConversionEnabled`.',
+  negativeContrast: 'Contrast of the converted positive; 1 is neutral. Only used with `negativeConversionEnabled`.',
+  negativeRedWeight: 'Red channel balance for removing the film base cast; 1 is neutral. Negative conversion only.',
+  negativeGreenWeight: 'Green channel balance for removing the film base cast; 1 is neutral. Negative conversion only.',
+  negativeBlueWeight: 'Blue channel balance for removing the film base cast; 1 is neutral. Negative conversion only.',
   chromaticAberrationRedCyan:
     'Scales the red channel against green by up to 1 %. Try both signs and check high-contrast edges; which sign fixes a lens varies.',
   chromaticAberrationBlueYellow: 'Scales the blue channel against green by up to 1 %. Try both signs, as above.',

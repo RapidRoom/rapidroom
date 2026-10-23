@@ -99,6 +99,15 @@ pub struct DenoiseJob {
 }
 
 impl DenoiseJob {
+    /// A job with no events and no cancellation, for callers outside the denoise queue.
+    pub fn detached() -> Self {
+        Self {
+            id: 0,
+            token: Arc::default(),
+            sink: None,
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn testing() -> Self {
         Self {
@@ -748,6 +757,7 @@ fn nind_raw_view(
         RenderRequest {
             adjustments,
             mask_bitmaps: &[],
+            mask_cache_key: None,
             lut: None,
             roi: None,
         },
