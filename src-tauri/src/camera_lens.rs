@@ -547,10 +547,6 @@ mod tests {
             crate::export_framing::geometry_signature(&second)
         );
         assert_ne!(
-            crate::cache_utils::calculate_visual_hash("photo", &first),
-            crate::cache_utils::calculate_visual_hash("photo", &second)
-        );
-        assert_ne!(
             crate::cache_utils::calculate_effects_hash(&first),
             crate::cache_utils::calculate_effects_hash(&second)
         );

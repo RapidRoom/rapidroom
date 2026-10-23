@@ -1,9 +1,9 @@
 {
   "_comment": "Per-image pixel hashes for the CI regression check (.github/workflows/regression.yml), recorded on a GitHub Actions runner with Mesa lavapipe. pixel_sha256 is the SHA-256 of the decoded 16-bit RGB pixels (little-endian), so TIFF container changes don't matter. Updating this file is a rendering decision that needs a maintainer's sign-off (see GOVERNANCE).",
   "kind": "rapidraw-ci-reference",
-  "created": "2026-10-21T03:09:31+00:00",
+  "created": "2026-10-21T17:19:10+00:00",
   "recorded_by": "GitHub Actions (workflow_dispatch, record)",
-  "source": "https://github.com/RapidRoom/rapidroom/actions/runs/39531797138 at 900c69c22c4a7a7e8bf2f681d7ce5653bbaa2e22",
+  "source": "https://github.com/RapidRoom/rapidroom/actions/runs/39635510707 at d4001f779a13ec8607f5e1f7414d4fcfe18912b5",
   "environment": {
     "kernel": "6.17.0-1022-azure",
     "cpu_count": 4,
@@ -20,7 +20,7 @@
       "mesa-vulkan-drivers 25.2.8-0ubuntu0.24.04.4"
     ]
   },
-  "engine_sha256": "6b19f8ef3f507d2b96eff14bc925c51ca2195e2d07cebc525a43c6aa3bfd0258",
+  "engine_sha256": "47e50e01463afb5ad2f458501e77b7130213f84b6d16c4c254e03076619314d2",
   "corpus_sha256": "09d42ceaf831e7b7cebbb85d3a6f6deabe8d37814dc19968e004b3caf522b724",
   "adjustment_sets": {
     "busy-agx-lut-effects": "7017a74e8bcee5c10f84e254b926c7fa19140985041bc96db8bd5c6a27e4df01",
@@ -34,119 +34,119 @@
       "id": "canon-r50-24mp-craw",
       "width": 6000,
       "height": 4000,
-      "pixel_sha256": "c1ca30c98fbe4d7c7054bdc11dd70464384b98ccab578c2b1232d0a9fbb7add1"
+      "pixel_sha256": "9d9e4039aa3ff100fa6c2e2e309b56a155be26f20fc02a06d9397de4c4f61f86"
     },
     {
       "set": "busy-agx-lut-effects",
       "id": "fuji-xt4-26mp-lossless",
       "width": 6240,
       "height": 4160,
-      "pixel_sha256": "8ca891330fa096a97e6c7c1f63652ec2b7cc24ab65cbba8b6514f2cacb10f1e4"
+      "pixel_sha256": "a14ec8ede602d25c714ab7abf5c59ca317f19a3d1256e773702d661e7a8e4c2f"
     },
     {
       "set": "busy-agx-lut-effects",
       "id": "google-pixel7pro-dng",
       "width": 3866,
       "height": 2908,
-      "pixel_sha256": "df650f2225ed2bb2db87834188775d8f75af26a0ac3777cffc6b21dc860f17f3"
+      "pixel_sha256": "f8f4e02cd1b08d3901ab9496443f8b24df950e8992b7f4a64be94e30506a3d9e"
     },
     {
       "set": "busy-agx-lut-effects",
       "id": "nikon-zfc-21mp-lossless",
       "width": 5568,
       "height": 3712,
-      "pixel_sha256": "aba94aaed6bdec5273c98793e0d7fd7a9f8fd1fa0dfc51892b061c85f0b0e1c9"
+      "pixel_sha256": "4a5b65815f5a6ecb16e1ade7cde6c7e54a96a8a7b2f306006a958f057ea04f0e"
     },
     {
       "set": "busy-agx-lut-effects",
       "id": "sony-a7c2-15mp-compressed",
       "width": 4608,
       "height": 3072,
-      "pixel_sha256": "9825589aa23e2d6d573f851d3e76949600291deb1e4dd39b2c09aa0081f7878f"
+      "pixel_sha256": "04fd9c56d8b8f1e50ccb257cbaa2832979dafce67a1282460d297050b5f97335"
     },
     {
       "set": "busy-agx-lut-effects",
       "id": "sony-a7cr-18mp-lossless-s",
       "width": 4752,
       "height": 3168,
-      "pixel_sha256": "0d5f74376d3a8ae052c600a6bde50e4be704e2e6801c6f2d75cc2857bffe970e"
+      "pixel_sha256": "b750bb050595eaebb4568bac89c98014a85df791c8a87bea30e44dab9a28d98d"
     },
     {
       "set": "busy-tone-color-detail",
       "id": "canon-r50-24mp-craw",
       "width": 6000,
       "height": 4000,
-      "pixel_sha256": "b05f0c4fd56c71223bcd784f9ff24c44db66772765432d7527d70d2f46542bd2"
+      "pixel_sha256": "0dcf9a859f31b64a0a114fbd2e69ca69139241af4bd95030af7f89177c09eaa3"
     },
     {
       "set": "busy-tone-color-detail",
       "id": "fuji-xt4-26mp-lossless",
       "width": 6240,
       "height": 4160,
-      "pixel_sha256": "a7d8221c16c4a30beb0a23ac38187f6e0304c06f8799a84078750f771bbc5226"
+      "pixel_sha256": "649a785df6631d96a49575db9271ca78cd6eae2d7b5c6617abcb4e5a663768d0"
     },
     {
       "set": "busy-tone-color-detail",
       "id": "google-pixel7pro-dng",
       "width": 3866,
       "height": 2908,
-      "pixel_sha256": "420d61306d0bb0683aff86e88f0bcf39b62c4235ae31a6475fa07b5d999270c9"
+      "pixel_sha256": "ab4557e143c0d41b2de5d50bb025821a3bff99b82e01ae80f555c6e477030361"
     },
     {
       "set": "busy-tone-color-detail",
       "id": "nikon-zfc-21mp-lossless",
       "width": 5568,
       "height": 3712,
-      "pixel_sha256": "21037780d191f00485c4858c73b5d8d14719f5d291de28709a79bda54ea93cab"
+      "pixel_sha256": "c430493318be310374c5148ccd15e685323f7364ba010285a0463397a186d8c0"
     },
     {
       "set": "busy-tone-color-detail",
       "id": "sony-a7c2-15mp-compressed",
       "width": 4608,
       "height": 3072,
-      "pixel_sha256": "64a19836b135fdab4bc5bbc71b318557f56861f56c9c84c6467c9f131e5f9df6"
+      "pixel_sha256": "504f549709fb774803a66afd74fdaaca32daf5cf28180a8f33d4a2af334ba76d"
     },
     {
       "set": "busy-tone-color-detail",
       "id": "sony-a7cr-18mp-lossless-s",
       "width": 4752,
       "height": 3168,
-      "pixel_sha256": "efc66287d797782fc62075a5e3d408a5e601e208bebaed5dff86e6eea8d4484f"
+      "pixel_sha256": "20be0dd6793f0c4829eda8c8e6b4204f12598645eaf56388e5e4f5037e88e7ed"
     },
     {
       "set": "neutral",
       "id": "canon-r50-24mp-craw",
       "width": 6000,
       "height": 4000,
-      "pixel_sha256": "328db2584fa4ef5b9c9b391a4e95b6fbb83f021d87a8433beee355a1212ebbe0"
+      "pixel_sha256": "ac8321b9f8686f60f13c233e3717405d4a989f41fded2fa606454de750dbc2c7"
     },
     {
       "set": "neutral",
       "id": "fuji-xt4-26mp-lossless",
       "width": 6240,
       "height": 4160,
-      "pixel_sha256": "40d9641a36e7975d9700573e0ad44172cce6f175cebead84741f2fdcd34b3bb3"
+      "pixel_sha256": "60dcb9490023453f56ea05649933b1c16b621c04755b7412a73a995d109d3099"
     },
     {
       "set": "neutral",
       "id": "google-pixel7pro-dng",
       "width": 3866,
       "height": 2908,
-      "pixel_sha256": "7dd2efc7618e111a80f93d7cf56131b7be17e8ba4072374c4173dd8d5e46615a"
+      "pixel_sha256": "5610ca468e4c4b5185f14614deeb0dd575ce592ef010726eb4feeb049ce1257c"
     },
     {
       "set": "neutral",
       "id": "nikon-zfc-21mp-lossless",
       "width": 5568,
       "height": 3712,
-      "pixel_sha256": "c86aabe9cf3da66a277bda67b2b74e40098f1ce8fd4f2fa39b9a7c10bd878f0f"
+      "pixel_sha256": "7e4cd753edbfda7c2938e9a5170208703daf3532935299b113d521c386b4b369"
     },
     {
       "set": "neutral",
       "id": "sony-a7c2-15mp-compressed",
       "width": 4608,
       "height": 3072,
-      "pixel_sha256": "1eeec2bd288873c7c0a70e89e4ae9e2345fb19218468d8b7e5d1a9db78184a19"
+      "pixel_sha256": "0b095037521c21c71ccd169dfdc009dbc0ae0826fa73864134841aabff3918d3"
     },
     {
       "set": "neutral",

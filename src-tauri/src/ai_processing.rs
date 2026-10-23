@@ -69,12 +69,62 @@ const NORMAL_MAX_SIZE: u32 = 768;
 const NORMAL_NUM_TOKENS: i64 = 2500;
 const NORMAL_SHA256: &str = "24eacb5dc7a2c54c7bc98f7de085ffbed79ad006ea5b664c2c2cdc02ff3a52f0";
 
+type SharedSession = Arc<Mutex<Session>>;
+
 pub struct AiModels {
-    pub sam_encoder: Mutex<Session>,
-    pub sam_decoder: Mutex<Session>,
-    pub u2netp: Mutex<Session>,
-    pub sky_seg: Mutex<Session>,
-    pub depth_anything: Mutex<Session>,
+    models_dir: PathBuf,
+    sam_encoder: Mutex<Option<SharedSession>>,
+    sam_decoder: Mutex<Option<SharedSession>>,
+    u2netp: Mutex<Option<SharedSession>>,
+    sky_seg: Mutex<Option<SharedSession>>,
+    depth_anything: Mutex<Option<SharedSession>>,
+}
+
+impl AiModels {
+    fn session(
+        &self,
+        slot: &Mutex<Option<SharedSession>>,
+        filename: &str,
+    ) -> Result<SharedSession> {
+        let mut slot = slot.lock().unwrap();
+        if let Some(session) = slot.as_ref() {
+            return Ok(Arc::clone(session));
+        }
+        let session = Arc::new(Mutex::new(one_shot_session(
+            &self.models_dir.join(filename),
+        )?));
+        *slot = Some(Arc::clone(&session));
+        Ok(session)
+    }
+
+    pub fn sam_encoder(&self) -> Result<SharedSession> {
+        self.session(&self.sam_encoder, ENCODER_FILENAME)
+    }
+
+    pub fn sam_decoder(&self) -> Result<SharedSession> {
+        self.session(&self.sam_decoder, DECODER_FILENAME)
+    }
+
+    pub fn u2netp(&self) -> Result<SharedSession> {
+        self.session(&self.u2netp, U2NETP_FILENAME)
+    }
+
+    pub fn sky_seg(&self) -> Result<SharedSession> {
+        self.session(&self.sky_seg, SKYSEG_FILENAME)
+    }
+
+    pub fn depth_anything(&self) -> Result<SharedSession> {
+        self.session(&self.depth_anything, DEPTH_FILENAME)
+    }
+}
+
+fn one_shot_session(model_path: &Path) -> Result<Session> {
+    Ok(Session::builder()?
+        .with_execution_providers([ort::execution_providers::CPUExecutionProvider::default()
+            .with_arena_allocator(false)
+            .build()])?
+        .with_memory_pattern(false)?
+        .commit_from_file(model_path)?)
 }
 
 pub struct ClipModels {
@@ -231,7 +281,11 @@ pub fn fast_guided_filter(
     let h = lr_h as usize;
     let area = w * h;
 
-    let guide_lr = imageops::resize(guide_hr, lr_w, lr_h, FilterType::Triangle);
+    let guide_lr = if (lr_w, lr_h) == (hr_w, hr_h) {
+        std::borrow::Cow::Borrowed(guide_hr)
+    } else {
+        std::borrow::Cow::Owned(imageops::resize(guide_hr, lr_w, lr_h, FilterType::Triangle))
+    };
 
     let mut i_lr = vec![0.0; area];
     let mut p_lr = vec![0.0; area];
@@ -256,29 +310,27 @@ pub fn fast_guided_filter(
             *ii_out = i_val * i_val;
         });
 
+    drop(guide_lr);
+
     let mut temp1 = vec![0.0; area];
     let mut temp2 = vec![0.0; area];
 
-    let mut mean_i = vec![0.0; area];
-    let mut mean_p = vec![0.0; area];
-    let mut mean_ip = vec![0.0; area];
-    let mut mean_ii = vec![0.0; area];
-
-    box_filter_opt(&i_lr, &mut mean_i, &mut temp1, &mut temp2, w, h, r);
-    box_filter_opt(&p_lr, &mut mean_p, &mut temp1, &mut temp2, w, h, r);
-    box_filter_opt(&ip_lr, &mut mean_ip, &mut temp1, &mut temp2, w, h, r);
-    box_filter_opt(&ii_lr, &mut mean_ii, &mut temp1, &mut temp2, w, h, r);
-
-    let mut a = vec![0.0; area];
-    let mut b = vec![0.0; area];
+    let box_filter = |src: Vec<f32>, temp1: &mut [f32], temp2: &mut [f32]| {
+        let mut mean = vec![0.0; area];
+        box_filter_opt(&src, &mut mean, temp1, temp2, w, h, r);
+        mean
+    };
+    let mean_i = box_filter(i_lr, &mut temp1, &mut temp2);
+    let mean_p = box_filter(p_lr, &mut temp1, &mut temp2);
+    let mut a = box_filter(ip_lr, &mut temp1, &mut temp2);
+    let mut b = box_filter(ii_lr, &mut temp1, &mut temp2);
 
     a.par_iter_mut()
         .zip(b.par_iter_mut())
         .zip(mean_i.par_iter())
         .zip(mean_p.par_iter())
-        .zip(mean_ip.par_iter())
-        .zip(mean_ii.par_iter())
-        .for_each(|(((((a_out, b_out), &m_i), &m_p), &m_ip), &m_ii)| {
+        .for_each(|(((a_out, b_out), &m_i), &m_p)| {
+            let (m_ip, m_ii) = (*a_out, *b_out);
             let cov_ip = m_ip - m_i * m_p;
             let var_i = m_ii - m_i * m_i;
             let a_val = cov_ip / (var_i + eps);
@@ -286,20 +338,23 @@ pub fn fast_guided_filter(
             *b_out = m_p - a_val * m_i;
         });
 
-    let mut mean_a = vec![0.0; area];
-    let mut mean_b = vec![0.0; area];
-
+    let (mut mean_a, mut mean_b) = (mean_i, mean_p);
     box_filter_opt(&a, &mut mean_a, &mut temp1, &mut temp2, w, h, r);
     box_filter_opt(&b, &mut mean_b, &mut temp1, &mut temp2, w, h, r);
+    drop((a, b, temp1, temp2));
 
     let mean_a_img = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(lr_w, lr_h, mean_a).unwrap();
     let mean_b_img = ImageBuffer::<Luma<f32>, Vec<f32>>::from_raw(lr_w, lr_h, mean_b).unwrap();
 
-    let mean_a_hr = imageops::resize(&mean_a_img, hr_w, hr_h, FilterType::Triangle);
-    let mean_b_hr = imageops::resize(&mean_b_img, hr_w, hr_h, FilterType::Triangle);
-
-    let mean_a_hr_raw = mean_a_hr.as_raw();
-    let mean_b_hr_raw = mean_b_hr.as_raw();
+    let upscale = |img: ImageBuffer<Luma<f32>, Vec<f32>>| {
+        if (lr_w, lr_h) == (hr_w, hr_h) {
+            img.into_raw()
+        } else {
+            imageops::resize(&img, hr_w, hr_h, FilterType::Triangle).into_raw()
+        }
+    };
+    let mean_a_hr_raw = upscale(mean_a_img);
+    let mean_b_hr_raw = upscale(mean_b_img);
     let guide_hr_raw = guide_hr.as_raw();
 
     let mut final_mask_raw = vec![0u8; (hr_w * hr_h) as usize];
@@ -531,26 +586,15 @@ pub async fn get_or_init_ai_models(
 
     let _ = ort::init().with_name("AI").commit();
 
-    let encoder_path = models_dir.join(ENCODER_FILENAME);
-    let decoder_path = models_dir.join(DECODER_FILENAME);
-    let u2netp_path = models_dir.join(U2NETP_FILENAME);
-    let sky_seg_path = models_dir.join(SKYSEG_FILENAME);
-    let depth_path = models_dir.join(DEPTH_FILENAME);
-
-    let sam_encoder = Session::builder()?.commit_from_file(encoder_path)?;
-    let sam_decoder = Session::builder()?.commit_from_file(decoder_path)?;
-    let u2netp = Session::builder()?.commit_from_file(u2netp_path)?;
-    let sky_seg = Session::builder()?.commit_from_file(sky_seg_path)?;
-    let depth_anything = Session::builder()?.commit_from_file(depth_path)?;
-
     crate::register_exit_handler();
 
     let models = Arc::new(AiModels {
-        sam_encoder: Mutex::new(sam_encoder),
-        sam_decoder: Mutex::new(sam_decoder),
-        u2netp: Mutex::new(u2netp),
-        sky_seg: Mutex::new(sky_seg),
-        depth_anything: Mutex::new(depth_anything),
+        models_dir,
+        sam_encoder: Mutex::new(None),
+        sam_decoder: Mutex::new(None),
+        u2netp: Mutex::new(None),
+        sky_seg: Mutex::new(None),
+        depth_anything: Mutex::new(None),
     });
 
     let mut ai_state_lock = ai_state_mutex.lock().unwrap();
@@ -769,7 +813,7 @@ pub async fn get_or_init_lama_model(
 
     let _ = ort::init().with_name("AI-Inpainting").commit();
     let model_path = models_dir.join(LAMA_FILENAME);
-    let session = Session::builder()?.commit_from_file(model_path)?;
+    let session = one_shot_session(&model_path)?;
     let lama_model = Arc::new(Mutex::new(session));
 
     crate::register_exit_handler();
@@ -831,7 +875,7 @@ pub async fn get_or_init_normal_model(
 
     let _ = ort::init().with_name("AI-Normal").commit();
     let model_path = models_dir.join(NORMAL_FILENAME);
-    let session = Session::builder()?.commit_from_file(model_path)?;
+    let session = one_shot_session(&model_path)?;
     let normal_model = Arc::new(Mutex::new(session));
 
     crate::register_exit_handler();
@@ -905,6 +949,7 @@ fn extract_tile_mirror(img: &Rgb32FImage, x0: i32, y0: i32, cs: usize) -> Array4
     arr
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_native_denoise(
     img: &Rgb32FImage,
     session: &Mutex<Session>,
@@ -913,6 +958,7 @@ fn run_native_denoise(
     height: usize,
     job: &DenoiseJob,
     params: TileParams,
+    on_progress: &dyn Fn(f32),
 ) -> std::result::Result<(), String> {
     let run_options = Arc::new(RunOptions::new().map_err(|e| e.to_string())?);
     job.attach_run_options(run_options.clone())?;
@@ -930,6 +976,7 @@ fn run_native_denoise(
         let x0 = x as i32 - params.pad as i32;
         let y0 = y as i32 - params.pad as i32;
 
+        on_progress(i as f32 / total as f32);
         if i % 10 == 0 {
             let pct = (i as f32 / total as f32) * 100.0;
             job.progress(format!("Denoising… {:.0}%", pct));
@@ -981,6 +1028,33 @@ pub fn run_ai_denoise(
     session: &Mutex<Session>,
     job: &DenoiseJob,
 ) -> std::result::Result<DynamicImage, String> {
+    run_ai_denoise_reporting(rgb_img, intensity, session, job, &|_| {})
+}
+
+/// Entry point for upstream's non-destructive AI denoise (`ai_denoise.rs`). It uses
+/// RapidRoom's tiling and whole-image colour restoration (#172) and cannot be cancelled.
+pub fn run_ai_denoise_with_progress(
+    rgb_img: &Rgb32FImage,
+    intensity: f32,
+    session: &Mutex<Session>,
+    on_progress: &dyn Fn(f32),
+) -> std::result::Result<DynamicImage, String> {
+    run_ai_denoise_reporting(
+        rgb_img,
+        intensity,
+        session,
+        &DenoiseJob::detached(),
+        on_progress,
+    )
+}
+
+fn run_ai_denoise_reporting(
+    rgb_img: &Rgb32FImage,
+    intensity: f32,
+    session: &Mutex<Session>,
+    job: &DenoiseJob,
+    on_progress: &dyn Fn(f32),
+) -> std::result::Result<DynamicImage, String> {
     let (width, height) = rgb_img.dimensions();
     let params = select_tile_params(intensity);
 
@@ -994,6 +1068,7 @@ pub fn run_ai_denoise(
         height as usize,
         job,
         params,
+        on_progress,
     )?;
 
     job.progress("Restoring whole-image colour…");
@@ -1022,7 +1097,7 @@ pub fn run_lama_inpainting(
     image: &DynamicImage,
     mask: &GrayImage,
     lama_session: &Mutex<Session>,
-) -> Result<RgbaImage> {
+) -> Result<(RgbaImage, u32, u32)> {
     let (w, h) = image.dimensions();
 
     let (mut min_x, mut min_y) = (w, h);
@@ -1040,7 +1115,7 @@ pub fn run_lama_inpainting(
     }
 
     if !has_mask {
-        return Ok(image.to_rgba8());
+        return Ok((image.to_rgba8(), 0, 0));
     }
 
     let mask_w = max_x - min_x + 1;
@@ -1057,9 +1132,7 @@ pub fn run_lama_inpainting(
     let crop_w = x1 - x0 + 1;
     let crop_h = y1 - y0 + 1;
 
-    let rgba = image.to_rgba8();
-
-    let cropped_img = imageops::crop_imm(&rgba, x0, y0, crop_w, crop_h).to_image();
+    let cropped_img = image.crop_imm(x0, y0, crop_w, crop_h).to_rgba8();
     let cropped_mask = imageops::crop_imm(mask, x0, y0, crop_w, crop_h).to_image();
 
     let max_dim_limit: u32 = 768;
@@ -1131,7 +1204,7 @@ pub fn run_lama_inpainting(
         result_inf
     };
 
-    let mut final_image = image.to_rgba8();
+    let mut final_crop = cropped_img;
 
     for y in 0..crop_h {
         for x in 0..crop_w {
@@ -1139,20 +1212,18 @@ pub fn run_lama_inpainting(
             if m > 0 {
                 let alpha = m as f32 / 255.0;
                 let p = result_crop.get_pixel(x, y);
-                let gx = x0 + x;
-                let gy = y0 + y;
-                let orig = final_image.get_pixel(gx, gy);
+                let orig = final_crop.get_pixel(x, y);
 
                 let r = (p[0] as f32 * alpha + orig[0] as f32 * (1.0 - alpha)) as u8;
                 let g = (p[1] as f32 * alpha + orig[1] as f32 * (1.0 - alpha)) as u8;
                 let b = (p[2] as f32 * alpha + orig[2] as f32 * (1.0 - alpha)) as u8;
 
-                final_image.put_pixel(gx, gy, Rgba([r, g, b, 255]));
+                final_crop.put_pixel(x, y, Rgba([r, g, b, 255]));
             }
         }
     }
 
-    Ok(final_image)
+    Ok((final_crop, x0, y0))
 }
 
 pub fn generate_image_embeddings(
@@ -2013,8 +2084,8 @@ mod runtime_compatibility_tests {
                     0
                 }])
             });
-            let filled = run_lama_inpainting(&image, &mask, &model).unwrap();
-            assert_eq!(filled.dimensions(), image.dimensions());
+            let (filled, x0, y0) = run_lama_inpainting(&image, &mask, &model).unwrap();
+            assert!(x0 + filled.width() <= image.width() && y0 + filled.height() <= image.height());
             filled.save(out.join("remove.png")).unwrap();
             rows.push(serde_json::json!({"feature":"LaMa remove","seconds":started.elapsed().as_secs_f64(),"shape":filled.dimensions()}));
         }

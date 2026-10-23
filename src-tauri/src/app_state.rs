@@ -126,6 +126,10 @@ pub struct CachedPreview {
 }
 
 pub struct GpuImageCache {
+    pub entries: Vec<GpuImageEntry>,
+}
+
+pub struct GpuImageEntry {
     pub texture: Texture,
     pub texture_view: TextureView,
     pub gf_coeffs_view: TextureView,
@@ -134,6 +138,7 @@ pub struct GpuImageCache {
     pub width: u32,
     pub height: u32,
     pub transform_hash: u64,
+    pub source: (usize, usize),
 }
 
 pub struct GpuProcessorState {
@@ -155,7 +160,7 @@ pub struct PreviewJob {
 
 pub struct AnalyticsJob {
     pub path: String,
-    pub image: Arc<DynamicImage>,
+    pub frame: crate::image_processing::AnalyticsFrame,
     pub compute_waveform: bool,
     pub active_waveform_channel: Option<String>,
 }
@@ -287,9 +292,11 @@ pub struct AppState {
     pub thumbnail_geometry_cache: Mutex<HashMap<String, ThumbnailGeometryEntry>>,
     pub lens_db: Mutex<Option<Arc<LensDatabase>>>,
     pub load_image_generation: Arc<AtomicUsize>,
+    pub wgpu_presented_generation: AtomicUsize,
     pub full_warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
+    pub full_warped_build_lock: Mutex<()>,
     pub patched_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
-    pub patched_warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
+    pub warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
     pub working_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
     pub effects_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
     pub full_transformed_cache: Mutex<Option<TransformedImageCache>>,
@@ -301,6 +308,7 @@ pub struct AppState {
     /// check as soon as they get the permit.
     pub decode_permit: Arc<tokio::sync::Semaphore>,
     pub thumbnail_manager: Arc<ThumbnailManager>,
+    pub memory_budget: Arc<crate::memory_budget::MemoryBudget>,
     pub metadata_manager: Arc<MetadataManager>,
     pub disks_cache: Mutex<Option<Disks>>,
     pub disks_cache_refreshing: AtomicBool,

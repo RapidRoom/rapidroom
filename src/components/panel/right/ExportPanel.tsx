@@ -6,7 +6,6 @@ import { FileInput, CheckCircle, XCircle, Loader, Ban, ChevronDown, ChevronRight
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import type { TFunction } from 'i18next';
 import debounce from 'lodash.debounce';
 import Switch from '../../ui/Switch';
 import Button from '../../ui/Button';
@@ -41,6 +40,7 @@ import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useUIStore } from '../../../store/useUIStore';
+import { formatBytes } from '../../../utils/formatBytes';
 
 interface ExportPanelProps {
   exportState: ExportState;
@@ -213,21 +213,6 @@ function WatermarkPreview({
     </div>
   );
 }
-
-const formatBytes = (bytes: number, t: TFunction, decimals = 2) => {
-  if (!+bytes) return `0 ${t('export.bytes.bytes')}`;
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = [
-    t('export.bytes.bytes'),
-    t('export.bytes.kb'),
-    t('export.bytes.mb'),
-    t('export.bytes.gb'),
-    t('export.bytes.tb'),
-  ];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-};
 
 export default function ExportPanel({
   exportState,

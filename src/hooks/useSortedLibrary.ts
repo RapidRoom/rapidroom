@@ -45,6 +45,8 @@ const parseFocalLength = (val: string | undefined): number => {
   return isNaN(numVal) ? 0 : numVal;
 };
 
+const nameCollator = new Intl.Collator();
+
 export interface GroupedLibrary {
   displayList: ImageFile[];
   matchingPhotoCount: number;
@@ -74,7 +76,11 @@ type SettingsSortState = {
   appSettings: { grouping?: GroupingMode; groupEditedFiles?: boolean } | null;
 };
 
-function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: SettingsSortState): GroupedLibrary {
+function computeGroupedLibrary(
+  libraryState: LibrarySortState,
+  settingsState: SettingsSortState,
+  options: { includeBadges: boolean } = { includeBadges: true },
+): GroupedLibrary {
   const { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria } = libraryState;
   const { appSettings } = settingsState;
 
@@ -242,8 +248,34 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
   const getRatingSortValue = (image: ImageFile) =>
     image.flag === ImageFlag.Reject ? -1 : imageRatings[image.path] || 0;
 
+  const { key, order } = sortCriteria;
+
+  const getNumericSortValue = (image: ImageFile): number => {
+    switch (key) {
+      case 'iso':
+        return parseInt(image.exif?.PhotographicSensitivity || image.exif?.ISOSpeedRatings || '0', 10) || 0;
+      case 'shutter_speed':
+        return parseShutter(image.exif?.ExposureTime);
+      case 'aperture':
+        return parseAperture(image.exif?.FNumber);
+      case 'focal_length':
+        return parseFocalLength(image.exif?.FocalLength);
+      case 'rating':
+        return getRatingSortValue(image);
+      default:
+        return 0;
+    }
+  };
+
+  const names = new Map<ImageFile, string>();
+  const values = new Map<ImageFile, number>();
+  for (const image of list) {
+    names.set(image, image.path.split(/[\\/]/).pop() || image.path);
+    values.set(image, getNumericSortValue(image));
+  }
+  const compareNames = (a: ImageFile, b: ImageFile) => nameCollator.compare(names.get(a)!, names.get(b)!);
+
   list.sort((a, b) => {
-    const { key, order } = sortCriteria;
     let comparison: number;
 
     switch (key) {
@@ -259,53 +291,36 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
         else comparison = a.modified - b.modified;
         break;
       }
-      case 'iso': {
-        const isoA = parseInt(a.exif?.PhotographicSensitivity || a.exif?.ISOSpeedRatings || '0', 10) || 0;
-        const isoB = parseInt(b.exif?.PhotographicSensitivity || b.exif?.ISOSpeedRatings || '0', 10) || 0;
-        comparison = isoA - isoB;
+      case 'iso':
+      case 'shutter_speed':
+      case 'aperture':
+      case 'focal_length':
+      case 'rating':
+        comparison = values.get(a)! - values.get(b)!;
         break;
-      }
-      case 'shutter_speed': {
-        comparison = parseShutter(a.exif?.ExposureTime) - parseShutter(b.exif?.ExposureTime);
-        break;
-      }
-      case 'aperture': {
-        comparison = parseAperture(a.exif?.FNumber) - parseAperture(b.exif?.FNumber);
-        break;
-      }
-      case 'focal_length': {
-        comparison = parseFocalLength(a.exif?.FocalLength) - parseFocalLength(b.exif?.FocalLength);
-        break;
-      }
       case 'date':
         comparison = a.modified - b.modified;
-        break;
-      case 'rating':
-        comparison = getRatingSortValue(a) - getRatingSortValue(b);
         break;
       case 'edited':
         comparison = a.is_edited === b.is_edited ? 0 : a.is_edited ? 1 : -1;
         break;
       default: {
-        const nameA = a.path.split(/[\\/]/).pop() || a.path;
-        const nameB = b.path.split(/[\\/]/).pop() || b.path;
-        comparison = nameA.localeCompare(nameB);
+        comparison = compareNames(a, b);
         break;
       }
     }
 
     if (comparison === 0 && key !== 'name') {
-      const nameA = a.path.split(/[\\/]/).pop() || a.path;
-      const nameB = b.path.split(/[\\/]/).pop() || b.path;
-      return nameA.localeCompare(nameB);
+      return compareNames(a, b);
     }
 
     return order === SortDirection.Ascending ? comparison : -comparison;
   });
 
-  const badges = isGroupingActive
-    ? buildImageGroups(imageList, groupingMode, appSettings?.groupEditedFiles ?? true).badges
-    : null;
+  const badges =
+    isGroupingActive && options.includeBadges
+      ? buildImageGroups(imageList, groupingMode, appSettings?.groupEditedFiles ?? true).badges
+      : null;
 
   return {
     displayList: collapseStacks(list, libraryState.expandedStacks ?? new Set(), imageList),
@@ -315,7 +330,7 @@ function computeGroupedLibrary(libraryState: LibrarySortState, settingsState: Se
 }
 
 export function computeSortedLibrary(libraryState: LibrarySortState, settingsState: SettingsSortState): ImageFile[] {
-  return computeGroupedLibrary(libraryState, settingsState).displayList;
+  return computeGroupedLibrary(libraryState, settingsState, { includeBadges: false }).displayList;
 }
 
 export function useSortedLibrary() {
@@ -329,10 +344,14 @@ export function useSortedLibrary() {
 
   const appSettings = useSettingsStore((state) => state.appSettings);
 
-  const result = useMemo(() => {
+  const groupingMode: GroupingMode = appSettings?.grouping ?? 'off';
+  const groupEditedFiles = appSettings?.groupEditedFiles ?? true;
+
+  const grouped = useMemo(() => {
     return computeGroupedLibrary(
       { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria, denoiseStatuses, expandedStacks },
       { appSettings },
+      { includeBadges: false },
     );
   }, [
     expandedStacks,
@@ -345,5 +364,13 @@ export function useSortedLibrary() {
     denoiseStatuses,
   ]);
 
-  return result;
+  const badges = useMemo(
+    () => (groupingMode !== 'off' ? buildImageGroups(imageList, groupingMode, groupEditedFiles).badges : null),
+    [imageList, groupingMode, groupEditedFiles],
+  );
+
+  return useMemo(
+    () => ({ displayList: grouped.displayList, matchingPhotoCount: grouped.matchingPhotoCount, badges }),
+    [grouped, badges],
+  );
 }

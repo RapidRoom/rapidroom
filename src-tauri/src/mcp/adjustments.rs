@@ -277,6 +277,31 @@ pub(super) fn adjustments_schema() -> Value {
         ("flareAmount", "Flare amount."),
         ("lutIntensity", "LUT intensity."),
         ("transformScale", "Transform scale percentage."),
+        (
+            "aiDenoiseAmount",
+            "Blend of the non-destructive AI denoise; needs aiDenoiseEnabled.",
+        ),
+        (
+            "aiDenoiseDetail",
+            "Luminance texture kept by AI denoise; needs aiDenoiseEnabled.",
+        ),
+        (
+            "negativeRedWeight",
+            "Negative conversion red balance; 1 is neutral.",
+        ),
+        (
+            "negativeGreenWeight",
+            "Negative conversion green balance; 1 is neutral.",
+        ),
+        (
+            "negativeBlueWeight",
+            "Negative conversion blue balance; 1 is neutral.",
+        ),
+        ("negativeExposure", "Negative conversion exposure."),
+        (
+            "negativeContrast",
+            "Negative conversion contrast; 1 is neutral.",
+        ),
     ] {
         properties.insert(key.to_string(), numeric_schema(key, description));
     }
@@ -404,6 +429,8 @@ pub(super) fn adjustments_schema() -> Value {
     for key in [
         "baselineExposure",
         "cameraExposureCompensation",
+        "aiDenoiseEnabled",
+        "negativeConversionEnabled",
         "lensBlurEnabled",
         "lensDistortionEnabled",
         "lensTcaEnabled",
@@ -683,6 +710,9 @@ fn adjustment_keys() -> Vec<String> {
                 "baselineExposure",
                 "cameraLensCorrectionVersion",
                 "cameraExposureCompensation",
+                "aiDenoiseEnabled",
+                "aiDenoiseAmount",
+                "aiDenoiseDetail",
                 "aiPatches",
                 "sectionVisibility",
                 "activeTools",
@@ -1231,7 +1261,10 @@ fn numeric_adjustment_range(key: &str) -> Option<(f64, f64)> {
         | "flareAmount" => Some((0.0, 100.0)),
         "orientationSteps" => Some((0.0, 3.0)),
         "transformScale" => Some((0.0, 500.0)),
-        "lutIntensity" => Some((0.0, 100.0)),
+        "lutIntensity" | "aiDenoiseAmount" | "aiDenoiseDetail" => Some((0.0, 100.0)),
+        "negativeRedWeight" | "negativeGreenWeight" | "negativeBlueWeight" => Some((0.5, 2.0)),
+        "negativeExposure" => Some((-2.0, 2.0)),
+        "negativeContrast" => Some((0.5, 2.5)),
         _ => SPATIAL_EFFECT_RANGES
             .iter()
             .find(|(name, _, _)| *name == key)

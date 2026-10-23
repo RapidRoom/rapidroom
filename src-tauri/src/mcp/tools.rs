@@ -625,6 +625,7 @@ async fn apply_auto_adjustments(
     let current = get_image_state(app_handle, arguments)?;
     let auto_json = crate::image_processing::calculate_auto_adjustments(
         current["adjustments"].clone(),
+        None,
         state,
         app_handle.clone(),
     )?;

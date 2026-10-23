@@ -51,6 +51,7 @@ export enum Invokes {
   ClearAiTags = 'clear_ai_tags',
   ClearAllTags = 'clear_all_tags',
   GetThumbnailCacheUsage = 'get_thumbnail_cache_usage',
+  ClearAiDenoiseCache = 'clear_ai_denoise_cache',
   ClearThumbnailCache = 'clear_thumbnail_cache',
   CopyFiles = 'copy_files',
   CreateDenoiseJob = 'create_denoise_job',
@@ -70,6 +71,7 @@ export enum Invokes {
   GenerateMaskOverlay = 'generate_mask_overlay',
   GeneratePresetPreview = 'generate_preset_preview',
   GenerateUncroppedPreview = 'generate_uncropped_preview',
+  GetAiDenoiseCacheSize = 'get_ai_denoise_cache_size',
   GetFolderTree = 'get_folder_tree',
   GetLastRename = 'get_last_rename',
   GetFolderChildren = 'get_folder_children',
@@ -265,6 +267,8 @@ export interface AppSettings {
   highResZoomMultiplier?: number;
   enableLivePreviews?: boolean;
   livePreviewQuality?: string;
+  exportWorkerThreads?: number;
+  exportMemoryLimit?: number;
   enableAiTagging?: boolean;
   aiTagCount?: number;
   customAiTags?: string[];

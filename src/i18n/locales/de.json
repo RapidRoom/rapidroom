@@ -98,14 +98,23 @@
       "resetPoint": "Punktkurve ({{channel}}) zurücksetzen"
     },
     "details": {
+      "aiDenoise": "KI-Entrauschen",
+      "aiDenoiseDetail": "Details",
       "aiDenoiseHint": "For high-ISO RAW photos, use AI Denoise from the photo menu. These sliders are for light touch-ups.",
       "blueYellow": "Blau/Gelb",
       "centre": "Zentriert",
       "chromaticAberration": "Chromatische Aberration",
       "clarity": "Klarheit",
       "color": "Farbe",
+      "convertNegative": "Negativ umwandeln",
       "dehaze": "Dunst entfernen",
       "luminance": "Luminanz",
+      "negativeBlue": "Blau",
+      "negativeContrast": "Papiergradation",
+      "negativeConversion": "Negativumwandlung",
+      "negativeExposure": "Abzugsbelichtung",
+      "negativeGreen": "Grün",
+      "negativeRed": "Rot",
       "noiseReduction": "Rauschreduzierung",
       "presence": "Präsenz",
       "quickNoiseReduction": "Quick noise reduction (basic)",
@@ -144,6 +153,7 @@
       "relightColor": "Lichtfarbe",
       "relightCone": "Kegel",
       "relightDepth": "Tiefe",
+      "relightDuplicateLight": "Licht duplizieren",
       "relightElevation": "Höhe",
       "relightFalloff": "Abfall",
       "relightHint": "Füge ein Licht hinzu oder wähle eines aus und klicke oder ziehe im Bild, um es zu platzieren.",
@@ -204,6 +214,11 @@
       "renameGroup": "Gruppe umbenennen",
       "rootDir": "Stammverzeichnis",
       "selectLightroomCatalog": "Lightroom-Katalog auswählen"
+    },
+    "autoAdjustModes": {
+      "normal": "Normal",
+      "strong": "Stark",
+      "subtle": "Dezent"
     },
     "colors": {
       "blue": "Blau",
@@ -504,6 +519,7 @@
       },
       "createNewTitle": "Neue generative Bearbeitung erstellen",
       "createNewTooltip": "Neue {{name}}-Bearbeitung erstellen",
+      "denoising": "KI-Entrauschen läuft...",
       "dropzoneText": "Hier ablegen, um eine neue Bearbeitung zu erstellen",
       "editSettingsTitle": "Bearbeitungseinstellungen",
       "editsTitle": "Bearbeitungen",
@@ -1201,6 +1217,8 @@
       }
     },
     "header": {
+      "cancel": "Abbrechen",
+      "deselectAll": "Alle abwählen",
       "search": {
         "addFilterOrSearch": "Filter oder Suche hinzufügen...",
         "indexingImages": "Bilder werden indiziert...",
@@ -1212,6 +1230,8 @@
         "tooltipClearSearch": "Suche löschen",
         "tooltipSearchFilter": "Suchen oder Filtern"
       },
+      "selectAll": "Alle auswählen",
+      "selectItems": "Bilder auswählen",
       "title": "Bibliothek",
       "viewOptions": {
         "currentFolder": "Aktueller Ordner",
@@ -1332,7 +1352,8 @@
     "tooltips": {
       "communityPresets": "Community-Vorgaben",
       "goHome": "Zur Startseite",
-      "importImages": "Bilder importieren"
+      "importImages": "Bilder importieren",
+      "select": "Auswählen"
     },
     "photoCounts": {
       "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
@@ -1444,6 +1465,7 @@
         "lensCorrection": "Objektivkorrektur",
         "lut": "LUT",
         "masks": "Masken",
+        "negativeConversion": "Negativumwandlung",
         "noiseReduction": "Rauschreduzierung",
         "presence": "Präsenz",
         "sharpness": "Schärfe",
@@ -1662,30 +1684,6 @@
       "smartCollections": "Smart Collections, nicht importiert: {{total}}",
       "title": "Lightroom-Sammlungen importieren"
     },
-    "negativeConversion": {
-      "blueWeight": "Blau (Gelb)",
-      "cancel": "Abbrechen",
-      "colorTiming": "Color Timing",
-      "compareTooltip": "Halten um Original zu sehen",
-      "contrast": "Kontrast (Grade)",
-      "convertAndSave": "Umwandeln & Speichern",
-      "convertAndSaveAll": "Alle umwandeln & speichern ({{count}})",
-      "convertAndSaveAll_one": "Alle umwandeln & speichern ({{count}})",
-      "convertAndSaveAll_other": "Alle umwandeln & speichern ({{count}})",
-      "converting": "Wird umgewandelt",
-      "convertingProgress": "Wird umgewandelt {{current}}/{{total}}",
-      "exposure": "Belichtung",
-      "greenWeight": "Grün (Magenta)",
-      "noticeText": "Inversionslogik inspiriert von <0>NegPy</0> erstellt von marcinz606 (<1>GPL-3.0</1>).",
-      "originalLabel": "Original Negativ",
-      "printGrade": "Print Grade",
-      "redWeight": "Rot (Cyan)",
-      "resetTooltip": "Zurücksetzen",
-      "resetViewTooltip": "Ansicht zurücksetzen",
-      "title": "Negativumwandlung",
-      "zoomInTooltip": "Vergrößern",
-      "zoomOutTooltip": "Verkleinern"
-    },
     "panorama": {
       "cancel": "Abbrechen",
       "close": "Schließen",
@@ -1800,6 +1798,9 @@
       "zoomDesc": "Passen Sie an, wie schnell das Bild beim Scrollen oder Kneifen zoomt."
     },
     "data": {
+      "clearAiDenoise": "KI-Entrauschen-Cache leeren",
+      "clearAiDenoiseButton": "Leeren",
+      "clearAiDenoiseDesc": "Löscht die zwischengespeicherten KI-Entrauschen-Ergebnisse ({{size}}). Bilder mit aktiviertem KI-Entrauschen berechnen es beim nächsten Öffnen neu.",
       "clearSidecars": "Alle Filialdateien löschen",
       "clearSidecarsButton": "Löschen",
       "clearSidecarsDesc": "Dies löscht alle .rrdata-Dateien (die Ihre Bearbeitungen enthalten) in Ihren Stammordnern:",
@@ -1813,6 +1814,7 @@
       "logsButton": "Öffnen",
       "logsDesc": "Zeigen Sie die Protokolldatei der Anwendung zur Fehlerbehebung an. Das Protokoll befindet sich unter:",
       "modals": {
+        "aiDenoiseMessage": "Möchtest du den KI-Entrauschen-Cache wirklich leeren?\n\nBilder mit aktiviertem KI-Entrauschen müssen erneut entrauscht werden, was pro Bild mehrere Minuten dauern kann.",
         "aiMessage": "Sind Sie sicher, dass Sie alle KI-generierten Tags von allen Bildern in allen aktiven Stammordnern entfernen möchten?\n\nBenutzerdefinierte Tags sind nicht betroffen. Diese Aktion kann nicht rückgängig gemacht werden.",
         "allMessage": "Sind Sie sicher, dass Sie alle KI-generierten und benutzerdefinierten Tags von allen Bildern in allen aktiven Stammordnern entfernen möchten?\n\nDiese Aktion kann nicht rückgängig gemacht werden.",
         "cacheMessage": "Sind Sie sicher, dass Sie den Miniaturbild-Cache löschen möchten?\n\nAlle Miniaturbilder müssen neu generiert werden, was bei großen Ordnern dauern kann.",
@@ -1835,6 +1837,7 @@
       "resetLayoutDesc": "Setzt Panel-Docks, seitliche Teiler, Höhen und Panel-Umschalter auf das Standard-Layout zurück.",
       "resetLayoutTitle": "Arbeitsbereich-Layout zurücksetzen",
       "statuses": {
+        "aiDenoiseSuccess": "KI-Entrauschen-Cache erfolgreich geleert.",
         "aiSuccess": "{{count}} Dateien aktualisiert. KI-Tags entfernt.",
         "aiSuccess_one": "{{count}} Datei aktualisiert. KI-Tags entfernt.",
         "aiSuccess_other": "{{count}} Dateien aktualisiert. KI-Tags entfernt.",
@@ -1843,6 +1846,7 @@
         "allSuccess_other": "{{count}} Dateien aktualisiert. Alle nicht-farbigen Tags entfernt.",
         "cacheSuccess": "Miniaturbild-Cache erfolgreich gelöscht.",
         "clearingAi": "KI-Tags aus allen Filialdateien löschen...",
+        "clearingAiDenoise": "KI-Entrauschen-Cache wird geleert...",
         "clearingAll": "Alle Tags aus Filialdateien löschen...",
         "clearingCache": "Miniaturbild-Cache löschen...",
         "deleting": "Filialdateien werden gelöscht, bitte warten...",
@@ -1983,6 +1987,16 @@
       "title": "Meine Objektive"
     },
     "processing": {
+      "advanced": {
+        "heading": "Erweitert",
+        "headingDesc": "Leistungsoptimierung für Vorschaubilder, Cache und Exporte. Die Standardwerte passen für die meisten Nutzer.",
+        "title": "Erweiterte Einstellungen",
+        "auto": "Automatisch",
+        "exportThreads": "Parallele Exporte",
+        "exportThreadsDesc": "Anzahl der gleichzeitig exportierten Bilder. Automatisch wählt einen Wert passend zu deiner CPU. Verringere ihn, wenn große Exporte fehlschlagen oder deine GPU wenig Speicher hat.",
+        "exportMemoryLimit": "Speicherlimit für Exporte",
+        "exportMemoryLimitDesc": "Anteil des freien Arbeitsspeichers, den Stapelexporte nutzen dürfen. Verringere ihn, damit andere Apps bei großen Exporten flüssig bleiben."
+      },
       "ai": {
         "cloud": {
           "description": "Für diejenigen, die eine einfachere Lösung wünschen, bietet ein optionales Abonnement die gleichen hochwertigen Ergebnisse wie das Selbst-Hosting ohne den Aufwand. Dies ist die bequemste Option und der beste Weg, das Projekt zu unterstützen.",
@@ -2129,7 +2143,6 @@
       "previewResDesc": "Bestimmt die maximale Auflösung der Vorschau. Niedrigere Werte verbessern die Leistung deutlich.",
       "previewStrategy": "Strategie für Vorschau-Rendering",
       "qualities": {
-        "full": "Volle Auflösung",
         "high": "Hohe Qualität",
         "performance": "Leistung"
       },
