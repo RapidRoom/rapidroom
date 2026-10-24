@@ -1408,6 +1408,7 @@
     },
     "items": {
       "cloudPlaceholder": "Armazenado no iCloud — não baixado",
+      "immichPlaceholder": "Armazenado no Immich — não baixado",
       "collapseFolder": "Recolher Pasta",
       "currentFolder": "Pasta Atual",
       "expandFolder": "Expandir Pasta",

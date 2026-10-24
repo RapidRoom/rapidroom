@@ -25,6 +25,7 @@ import { ColumnWidths } from '../MainLibrary';
 import { useProcessStore } from '../../../store/useProcessStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useLibraryStore } from '../../../store/useLibraryStore';
+import { isImmichAlbumId } from '../../immich/immichApi';
 import { IconAperture, IconFocalLength, IconIso, IconShutter } from '../editor/ExifIcons';
 
 const LIST_DATE_FORMAT = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -61,6 +62,9 @@ const ThumbnailComponent = ({
   const exif = useLibraryStore((s) => s.exifByPath[path]);
   const isAiPending = useProcessStore((s) => !!s.aiPendingPaths[path]);
   const isAiPaused = useProcessStore((s) => s.aiJobs.paused);
+  const cloudTooltip = useLibraryStore((s) =>
+    isImmichAlbumId(s.activeAlbumId) ? 'library.items.immichPlaceholder' : 'library.items.cloudPlaceholder',
+  );
   const exifOverlay = useSettingsStore((s) => s.appSettings?.exifOverlay || ExifOverlay.Off);
   const displayEditIcon = useSettingsStore((s) => s.appSettings?.displayEditIcon ?? true);
   const showEditIcon = isEdited && displayEditIcon;
@@ -275,7 +279,7 @@ const ThumbnailComponent = ({
           (isCloudPlaceholder ? (
             <div
               className="absolute inset-0 w-full h-full flex items-center justify-center bg-surface"
-              data-tooltip={t('library.items.cloudPlaceholder')}
+              data-tooltip={t(cloudTooltip)}
             >
               <CloudOff className="text-text-secondary" />
             </div>
@@ -288,7 +292,7 @@ const ThumbnailComponent = ({
         {isCloudPlaceholder && layers.length > 0 && (
           <div
             className="absolute top-1.5 left-1.5 z-10 rounded-full h-5 w-5 flex items-center justify-center bg-black/40 shadow-md pointer-events-none"
-            data-tooltip={t('library.items.cloudPlaceholder')}
+            data-tooltip={t(cloudTooltip)}
           >
             <CloudOff size={12} className="text-white" />
           </div>
@@ -557,6 +561,9 @@ const ListItemComponent = ({
   const { t } = useTranslation();
   const data = useProcessStore((s) => s.thumbnails[path]);
   const exif = useLibraryStore((s) => s.exifByPath[path]);
+  const cloudTooltip = useLibraryStore((s) =>
+    isImmichAlbumId(s.activeAlbumId) ? 'library.items.immichPlaceholder' : 'library.items.cloudPlaceholder',
+  );
   const exifOverlay = useSettingsStore((s) => s.appSettings?.exifOverlay || ExifOverlay.Off);
 
   const [showPlaceholder, setShowPlaceholder] = useState(false);
@@ -777,7 +784,7 @@ const ListItemComponent = ({
             (isCloudPlaceholder ? (
               <div
                 className="absolute inset-0 w-full h-full flex items-center justify-center"
-                data-tooltip={t('library.items.cloudPlaceholder')}
+                data-tooltip={t(cloudTooltip)}
               >
                 <CloudOff size={14} className="text-text-secondary" />
               </div>
@@ -790,7 +797,7 @@ const ListItemComponent = ({
           {isCloudPlaceholder && layers.length > 0 && (
             <div
               className="absolute top-0.5 left-0.5 z-10 rounded-full h-3.5 w-3.5 flex items-center justify-center bg-black/40 pointer-events-none"
-              data-tooltip={t('library.items.cloudPlaceholder')}
+              data-tooltip={t(cloudTooltip)}
             >
               <CloudOff size={9} className="text-white" />
             </div>

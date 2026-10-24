@@ -146,7 +146,9 @@ fn local_changes(source: &Path, state: &SyncState) -> Option<Value> {
     Some(local)
 }
 
-fn write_sidecar(source: &Path, value: &Value) -> Result<(), String> {
+/// Writes the remote edit over the primary sidecar, keeping its EXIF block. The caller
+/// holds the sidecar lock (`lock_sidecars`), so this writes without re-locking.
+fn write_sidecar_locked(source: &Path, value: &Value) -> Result<(), String> {
     let mut value = value.clone();
     if let (Some(map), Some(exif)) = (
         value.as_object_mut(),
@@ -155,16 +157,11 @@ fn write_sidecar(source: &Path, value: &Value) -> Result<(), String> {
         map.insert("exif".to_string(), exif);
     }
     let json = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
-    let _layout = crate::exif_processing::SIDECAR_LAYOUT_LOCK.lock().unwrap();
-    crate::file_management::write_file_atomic(&sidecar_of(source), json.as_bytes())
+    crate::file_management::write_sidecar_locked(&sidecar_of(source), json.as_bytes())
         .map_err(|e| e.to_string())
 }
 
-fn keep_as_virtual_copy(
-    app_handle: &AppHandle,
-    source: &Path,
-    value: &Value,
-) -> Result<(), String> {
+fn conflict_copy_path(source: &Path) -> Result<PathBuf, String> {
     let file_name = source
         .file_name()
         .ok_or("Invalid file name")?
@@ -176,19 +173,30 @@ fn keep_as_virtual_copy(
         .chars()
         .take(6)
         .collect();
-    let json = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
-    {
-        let _layout = crate::exif_processing::SIDECAR_LAYOUT_LOCK.lock().unwrap();
-        crate::file_management::write_file_atomic(
-            &source.with_file_name(format!("{file_name}.{copy_id}.rrdata")),
-            json.as_bytes(),
-        )
-        .map_err(|e| e.to_string())?;
-    }
+    Ok(source.with_file_name(format!("{file_name}.{copy_id}.rrdata")))
+}
+
+fn emit_conflict(app_handle: &AppHandle, source: &Path) {
+    let file_name = source
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let _ = app_handle.emit(
         "immich-edits-conflict",
         json!({ "path": source, "fileName": file_name }),
     );
+}
+
+/// Keeps a remote edit that clashes with local changes as a new virtual copy.
+fn keep_as_virtual_copy(
+    app_handle: &AppHandle,
+    source: &Path,
+    value: &Value,
+) -> Result<(), String> {
+    let copy = conflict_copy_path(source)?;
+    let json = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
+    crate::file_management::write_file_atomic(&copy, json.as_bytes()).map_err(|e| e.to_string())?;
+    emit_conflict(app_handle, source);
     Ok(())
 }
 
@@ -220,37 +228,58 @@ pub async fn pull(
     Ok(())
 }
 
+#[derive(Debug, PartialEq)]
+enum RemoteOutcome {
+    AlreadyApplied,
+    KeptAsCopy,
+    Applied,
+}
+
 fn apply_remote(
     app_handle: &AppHandle,
     source: &Path,
     remote: &MetadataEntry,
 ) -> Result<bool, String> {
-    // RapidRoom: no outer sidecar lock here. write_sidecar goes through
-    // file_management::write_file_atomically, which takes the sidecar lock itself
-    // (holding it here as well would deadlock).
+    let outcome = apply_remote_locked(source, remote)?;
+    if outcome == RemoteOutcome::KeptAsCopy {
+        emit_conflict(app_handle, source);
+    }
+    Ok(outcome == RemoteOutcome::Applied)
+}
+
+/// Checks for local changes and writes the remote edit (or the conflict copy) while
+/// holding the sidecar lock, so a local save cannot slip in between (#422). The conflict
+/// copy gets a fresh random name that no other writer uses, so it needs no file lock of
+/// its own (the in-process sidecar mutex is held anyway), and no lock file is left behind.
+fn apply_remote_locked(source: &Path, remote: &MetadataEntry) -> Result<RemoteOutcome, String> {
+    if let Some(parent) = source.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let sidecar = sidecar_of(source);
+    let _guard = crate::file_management::lock_sidecar(&sidecar).map_err(|e| e.to_string())?;
     let mut state = load_state(source);
     if state.remote_updated_at.as_deref() == Some(remote.updated_at.as_str()) {
-        return Ok(false);
+        return Ok(RemoteOutcome::AlreadyApplied);
     }
     match local_changes(source, &state) {
         Some(local) if local != remote.value => {
-            keep_as_virtual_copy(app_handle, source, &remote.value)?;
+            let copy = conflict_copy_path(source)?;
+            let json = serde_json::to_string_pretty(&remote.value).map_err(|e| e.to_string())?;
+            crate::file_management::write_sidecar_locked(&copy, json.as_bytes())
+                .map_err(|e| e.to_string())?;
             state.remote_updated_at = Some(remote.updated_at.clone());
             save_state(source, &state);
-            Ok(false)
+            Ok(RemoteOutcome::KeptAsCopy)
         }
         _ => {
-            if let Some(parent) = source.parent() {
-                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-            write_sidecar(source, &remote.value)?;
+            write_sidecar_locked(source, &remote.value)?;
             remember(
                 source,
-                modified_ms(&sidecar_of(source)),
+                modified_ms(&sidecar),
                 &remote.value,
                 Some(remote.updated_at.clone()),
             );
-            Ok(true)
+            Ok(RemoteOutcome::Applied)
         }
     }
 }
@@ -342,4 +371,99 @@ pub fn start(app_handle: &AppHandle) {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(value: Value, updated_at: &str) -> MetadataEntry {
+        MetadataEntry {
+            key: EDITS_KEY.to_string(),
+            value,
+            updated_at: updated_at.to_string(),
+        }
+    }
+
+    fn copies(dir: &Path) -> Vec<PathBuf> {
+        fs::read_dir(dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| {
+                let name = p.file_name().unwrap().to_string_lossy().into_owned();
+                name.starts_with("IMG_1.ARW.")
+                    && name.ends_with(".rrdata")
+                    && name != "IMG_1.ARW.rrdata"
+            })
+            .collect()
+    }
+
+    // #422: a local save that lands while a remote edit is being applied must survive,
+    // and the remote edit must be kept as a conflict copy instead of overwriting it.
+    #[test]
+    fn local_save_during_remote_apply_is_kept() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("IMG_1.ARW");
+        fs::write(&source, b"raw").unwrap();
+        let sidecar = sidecar_of(&source);
+        let synced = json!({"rating": 1, "adjustments": {"exposure": 0.0}});
+        fs::write(&sidecar, serde_json::to_vec_pretty(&synced).unwrap()).unwrap();
+        remember(&source, modified_ms(&sidecar), &synced, Some("t0".into()));
+
+        // The editor holds the sidecar lock for its save transaction.
+        let editor = crate::file_management::lock_sidecar(&sidecar).unwrap();
+        let worker = {
+            let source = source.clone();
+            std::thread::spawn(move || {
+                apply_remote_locked(
+                    &source,
+                    &entry(json!({"rating": 5, "adjustments": {}}), "t1"),
+                )
+            })
+        };
+        std::thread::sleep(Duration::from_millis(200));
+        let local = json!({"rating": 3, "adjustments": {"exposure": 1.0}});
+        crate::file_management::write_file_atomically_unmerged(
+            &sidecar,
+            serde_json::to_vec_pretty(&local).unwrap(),
+        )
+        .unwrap();
+        drop(editor);
+
+        assert_eq!(worker.join().unwrap().unwrap(), RemoteOutcome::KeptAsCopy);
+        let on_disk: Value = serde_json::from_slice(&fs::read(&sidecar).unwrap()).unwrap();
+        assert_eq!(on_disk, local, "the local save must not be overwritten");
+        let copies = copies(dir.path());
+        assert_eq!(copies.len(), 1);
+        let copy: Value = serde_json::from_slice(&fs::read(&copies[0]).unwrap()).unwrap();
+        assert_eq!(copy["rating"], 5);
+    }
+
+    #[test]
+    fn unchanged_local_edit_takes_the_remote_edit() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("IMG_1.ARW");
+        fs::write(&source, b"raw").unwrap();
+        let sidecar = sidecar_of(&source);
+        let synced = json!({"rating": 1, "exif": {"Model": "X"}});
+        fs::write(&sidecar, serde_json::to_vec_pretty(&synced).unwrap()).unwrap();
+        remember(
+            &source,
+            modified_ms(&sidecar),
+            &shared(synced),
+            Some("t0".into()),
+        );
+
+        let outcome = apply_remote_locked(&source, &entry(json!({"rating": 4}), "t1")).unwrap();
+        assert_eq!(outcome, RemoteOutcome::Applied);
+        let on_disk: Value = serde_json::from_slice(&fs::read(&sidecar).unwrap()).unwrap();
+        assert_eq!(on_disk["rating"], 4);
+        assert_eq!(on_disk["exif"]["Model"], "X");
+        assert!(copies(dir.path()).is_empty());
+        assert_eq!(
+            apply_remote_locked(&source, &entry(json!({"rating": 4}), "t1")).unwrap(),
+            RemoteOutcome::AlreadyApplied
+        );
+    }
 }

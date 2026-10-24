@@ -1257,6 +1257,7 @@
     },
     "items": {
       "cloudPlaceholder": "Uloženo na iCloudu — nestaženo",
+      "immichPlaceholder": "Uloženo v Immichi — nestaženo",
       "collapseFolder": "Sbalit složku",
       "currentFolder": "Aktuální složka",
       "expandFolder": "Rozbalit složku",

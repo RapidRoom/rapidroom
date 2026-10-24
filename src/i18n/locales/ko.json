@@ -1376,6 +1376,7 @@
     },
     "items": {
       "cloudPlaceholder": "iCloud에 저장됨 — 다운로드되지 않음",
+      "immichPlaceholder": "Immich에 저장됨 — 다운로드되지 않음",
       "collapseFolder": "폴더 접기",
       "currentFolder": "현재 폴더",
       "expandFolder": "폴더 펼치기",

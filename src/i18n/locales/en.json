@@ -1467,6 +1467,7 @@
     },
     "items": {
       "cloudPlaceholder": "Stored in iCloud — not downloaded",
+      "immichPlaceholder": "Stored in Immich — not downloaded",
       "collapseFolder": "Collapse Folder",
       "currentFolder": "Current Folder",
       "expandFolder": "Expand Folder",

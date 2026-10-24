@@ -122,3 +122,7 @@ pub fn clear_cache(app_handle: &AppHandle) -> Result<(), String> {
 pub fn is_placeholder(path: &Path) -> bool {
     registry::is_placeholder(path)
 }
+
+pub fn is_remote(path: &Path) -> bool {
+    registry::get(path).is_some()
+}

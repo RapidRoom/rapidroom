@@ -1376,6 +1376,7 @@
     },
     "items": {
       "cloudPlaceholder": "iCloudに保存されています — 未ダウンロード",
+      "immichPlaceholder": "Immichに保存されています — 未ダウンロード",
       "collapseFolder": "フォルダを折りたたむ",
       "currentFolder": "現在のフォルダ",
       "expandFolder": "フォルダを展開",
