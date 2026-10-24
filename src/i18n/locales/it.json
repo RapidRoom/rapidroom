@@ -99,6 +99,7 @@
     },
     "details": {
       "aiDenoise": "Riduzione rumore IA",
+      "classicDenoise": "Riduzione rumore classica",
       "aiDenoiseDetail": "Dettaglio",
       "aiDenoiseHint": "For high-ISO RAW photos, use AI Denoise from the photo menu. These sliders are for light touch-ups.",
       "blueYellow": "Blu/Giallo",
@@ -234,7 +235,7 @@
       "xmpSidecar": "XMP Sidecar"
     },
     "editor": {
-      "autoAdjust": "Regolazione Automatica Immagine",
+      "autoAdjust": "Regolazione Automatica",
       "autoLensCorrection": "Correzione automatica obiettivo",
       "autoStraighten": "Raddrizza automaticamente",
       "cancel": "Annulla",
@@ -242,14 +243,14 @@
       "confirmReset": "Conferma Ripristino",
       "convertNegative": "Converti Negativo",
       "copyAdjustments": "Copia Regolazioni",
-      "cullImage": "Seleziona Immagine",
-      "denoise": "Riduci Rumore Immagine",
+      "cullImage": "Selezione Automatica",
+      "denoise": "Riduci Rumore",
       "editImage": "Modifica Immagine",
       "exportImage": "Esporta Immagine",
       "flag": "Flag",
       "flagPick": "Scelta",
       "flagReject": "Rifiutata",
-      "frameImage": "Incornicia Immagine",
+      "frameImage": "Editor Cornici",
       "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "Unisci in HDR",
       "noLabel": "Nessuna Etichetta",
@@ -308,20 +309,17 @@
     },
     "thumbnail": {
       "addToAlbum": "Aggiungi all'Album",
-      "autoAdjust_many": "Regolazione Automatica Immagini",
-      "autoAdjust_one": "Regolazione Automatica Immagine",
-      "autoAdjust_other": "Regolazione Automatica Immagini",
+      "autoAdjust_many": "Regolazione Automatica",
+      "autoAdjust_one": "Regolazione Automatica",
+      "autoAdjust_other": "Regolazione Automatica",
       "autoLensCorrection_many": "Correzione automatica obiettivo",
-      "autoStraighten_many": "Raddrizza immagini automaticamente",
-      "autoStraighten_one": "Raddrizza immagine automaticamente",
-      "autoStraighten_other": "Raddrizza immagini automaticamente",
+      "autoStraighten_many": "Raddrizza automaticamente",
+      "autoStraighten_one": "Raddrizza automaticamente",
+      "autoStraighten_other": "Raddrizza automaticamente",
       "autoLensCorrection_one": "Correzione automatica obiettivo",
       "autoLensCorrection_other": "Correzione automatica obiettivo",
-      "autoStraighten_many": "Raddrizza immagini automaticamente",
-      "autoStraighten_one": "Raddrizza immagine automaticamente",
-      "autoStraighten_other": "Raddrizza immagini automaticamente",
       "collage_many": "Crea Collage",
-      "collage_one": "Incornicia Immagine",
+      "collage_one": "Editor Cornici",
       "collage_other": "Crea Collage",
       "confirmDelete": "Conferma Eliminazione",
       "confirmDeleteVc": "Conferma Eliminazione + Copie Virtuali",
@@ -331,17 +329,17 @@
       "copyImage_many": "Copia {{count}} Immagini",
       "copyImage_one": "Copia Immagine",
       "copyImage_other": "Copia {{count}} Immagini",
-      "cullImage_many": "Seleziona Immagini",
-      "cullImage_one": "Seleziona Immagine",
-      "cullImage_other": "Seleziona Immagini",
+      "cullImage_many": "Selezione Automatica",
+      "cullImage_one": "Selezione Automatica",
+      "cullImage_other": "Selezione Automatica",
       "deleteAssociated": "Elimina + Associate",
       "deleteImage_many": "Elimina {{count}} Immagini",
       "deleteImage_one": "Elimina Immagine",
       "deleteImage_other": "Elimina {{count}} Immagini",
       "deleteSelected": "Elimina Solo Selezionate",
-      "denoise_many": "Riduci Rumore Immagini",
-      "denoise_one": "Riduci Rumore Immagine",
-      "denoise_other": "Riduci Rumore Immagini",
+      "denoise_many": "Riduci Rumore",
+      "denoise_one": "Riduci Rumore",
+      "denoise_other": "Riduci Rumore",
       "duplicateImage": "Duplica Immagine",
       "exportImage_many": "Esporta {{count}} Immagini",
       "exportImage_one": "Esporta Immagine",
@@ -526,7 +524,7 @@
       "comingSoon": "Prossimamente",
       "connection": {
         "backendLabel": "Backend AI:",
-        "builtinDesc": "Utilizza la CPU locale di base. Seleziona Cloud o Connettore AI nelle impostazioni per la sostituzione generativa.",
+        "builtinDesc": "Utilizza l'AI integrata di base. Seleziona Cloud o Connettore AI nelle impostazioni per la sostituzione generativa.",
         "builtinLabel": "AI Integrata:",
         "cloudLabel": "AI Cloud:",
         "connectorConnectedDesc": "Connesso al backend generativo locale.",
@@ -613,6 +611,13 @@
         "useBasicInpaint": "Usa inpainting semplice"
       },
       "touchUpTitle": "Ritocchi"
+    },
+    "compare": {
+      "horizontal": "Dividi sopra / sotto",
+      "sideBySide": "Affiancate",
+      "title": "Prima / dopo",
+      "toggle": "Originale completo",
+      "vertical": "Dividi sinistra / destra"
     },
     "crop": {
       "aspectRatioHeading": "Proporzioni",
@@ -822,6 +827,18 @@
         "applyPreset": "Applica Predefinito",
         "componentPropertiesTitle": "Proprietà {{name}}",
         "copySectionSettings": "Copia Impostazioni {{section}}",
+        "faceParts": {
+          "bodySkin": "Pelle del corpo",
+          "eyeWhites": "Bianco oculare",
+          "eyebrows": "Sopracciglia",
+          "faceSkin": "Pelle del viso",
+          "hair": "Capelli",
+          "iris": "Iride e pupilla",
+          "lips": "Labbra",
+          "nose": "Naso",
+          "teeth": "Denti"
+        },
+        "generateTextMask": "Genera maschera",
         "invertComponent": "Inverti Componente",
         "invertMask": "Inverti Maschera",
         "maskPropertiesTitle": "Proprietà Maschera",
@@ -831,7 +848,8 @@
         "pasteSettings": "Incolla Impostazioni",
         "resetSectionSettings": "Ripristina Impostazioni {{section}}",
         "select": "Seleziona",
-        "selectPresetTooltip": "Seleziona un predefinito da applicare"
+        "selectPresetTooltip": "Seleziona un predefinito da applicare",
+        "textPromptPlaceholder": "es. persona, auto, acqua"
       },
       "toggleAnalyticsInAdjustments": "Mostra/Nascondi analisi nel pannello Regolazioni",
       "toggleAnalyticsTooltip": "Attiva/Disattiva Visualizzazione Analitiche",
@@ -971,10 +989,12 @@
       }
     },
     "toolbar": {
+      "history": "Cronologia",
       "switchToVariant": "Passa a {{label}}",
       "tooltips": {
         "aperture": "Apertura",
         "backToLibrary": "Torna alla Libreria",
+        "compare": "Prima / dopo (B) o modalità (clic destro)",
         "focalLength": "Lunghezza Focale",
         "fullscreen": "Attiva/Disattiva Schermo Intero (F)",
         "iso": "ISO",
@@ -1124,7 +1144,92 @@
       "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
+  "immich": {
+    "close": {
+      "cancel": "Annulla",
+      "closeAnyway": "Chiudi comunque",
+      "message": "Modifiche in attesa di Immich: {{number}}. Restano su questo computer e verranno inviate la prossima volta che RapidRAW è in esecuzione e Immich è raggiungibile.",
+      "title": "Modifiche non ancora su Immich"
+    },
+    "export": {
+      "album": "Album",
+      "destination": "Immich",
+      "noAlbum": "Nessun album",
+      "sourceAlbum": "Album da cui è stata aperta l'immagine",
+      "withOriginal": "Carica anche l'originale",
+      "withOriginalDesc": "Per le immagini di una cartella locale: l'originale viene caricato con le sue modifiche e l'esportazione viene impilata sopra. Le immagini di Immich vengono sempre impilate sul loro originale."
+    },
+    "section": {
+      "empty": "Nessun album sul server.",
+      "error": "Immich non è raggiungibile.",
+      "loading": "Caricamento album…",
+      "refresh": "Aggiorna album",
+      "timeline": "Cronologia",
+      "title": "Immich"
+    },
+    "settings": {
+      "apiKey": "Chiave API",
+      "apiKeyDesc": "Creane una in Immich in Impostazioni account → Chiavi API con questi permessi: album.read, albumAsset.create, albumAsset.delete, asset.read, asset.view, asset.download, asset.upload, asset.update, asset.delete, stack.read, stack.create e user.read.",
+      "connected": "Connesso come {{user}} (Immich {{version}})",
+      "description": "Sfoglia le foto del tuo server Immich nella libreria e modificale direttamente. Gli originali vengono scaricati quando li apri e le modifiche vengono salvate in Immich, così appaiono uguali su ogni computer.",
+      "keyInFile": "Salvata in un file leggibile solo da te: nessun archivio di credenziali disponibile. Su KDE, attiva l'interfaccia Secret Service nelle impostazioni di KDE Wallet e salva di nuovo.",
+      "keyInStore": "Salvata nell'archivio delle credenziali di sistema.",
+      "save": "Salva",
+      "saved": "Salvato.",
+      "serverUrl": "Indirizzo del server",
+      "serverUrlDesc": "L'indirizzo con cui apri Immich nel browser.",
+      "test": "Verifica connessione",
+      "title": "Immich",
+      "working": "Elaborazione…"
+    },
+    "sync": {
+      "offline": "Offline",
+      "pending": "Modifiche in attesa di Immich: {{number}}"
+    },
+    "toasts": {
+      "backOnline": "Immich è di nuovo raggiungibile e tutte le modifiche sono salvate lì.",
+      "downloadFailed": "Impossibile scaricare da Immich: {{error}}",
+      "editsConflict": "{{fileName}} è stata modificata anche su un altro computer. Le tue modifiche restano e l'altra versione viene conservata come copia virtuale.",
+      "offline": "Immich non è raggiungibile. Le tue modifiche restano qui e verranno inviate appena tornerà disponibile.",
+      "trashFailed": "Impossibile spostare nel cestino di Immich: {{error}}",
+      "uploaded": "Caricate su Immich: {{number}}"
+    }
+  },
   "library": {
+    "aiJobs": {
+      "discard": "Scarta l'elaborazione IA rimanente",
+      "failed": "Non riusciti ({{failedCount}})",
+      "kinds": {
+        "denoise": "Riduzione rumore IA",
+        "depthMap": "Analisi della profondità",
+        "depthMask": "Generazione maschera profondità",
+        "faceMask": "Generazione maschera viso",
+        "foregroundMask": "Generazione maschera primo piano",
+        "normalMap": "Analisi delle superfici",
+        "skyMask": "Generazione maschera cielo",
+        "subjectMask": "Generazione maschera soggetto",
+        "textMask": "Generazione maschera testo"
+      },
+      "more": "+{{moreCount}} altri",
+      "pause": "Metti in pausa l'elaborazione IA",
+      "paused": "In pausa · {{remaining}} rimanenti",
+      "pausedItem": "In pausa",
+      "pausing": "Pausa dopo il passaggio corrente…",
+      "process": "Elabora le immagini",
+      "progress": "{{current}}/{{total}}",
+      "queue": "Coda",
+      "queuedItem": "In coda",
+      "resume": "Riprendi l'elaborazione IA",
+      "retry": "Riprova",
+      "taskWithMask": "{{task}} «{{mask}}»",
+      "thumbnailPaused": "Elaborazione IA in pausa",
+      "thumbnailPending": "Elaborazione IA in sospeso",
+      "title": "Elaborazione IA",
+      "unprocessed_many": "{{count}} immagini richiedono l'elaborazione IA",
+      "unprocessed_one": "{{count}} immagine richiede l'elaborazione IA",
+      "unprocessed_other": "{{count}} immagini richiedono l'elaborazione IA",
+      "waiting": "Preparazione dell'elaborazione IA…"
+    },
     "community": {
       "actionSave": "Salva",
       "actionSaved": "Salvato",
@@ -1318,6 +1423,30 @@
       "tooltipShutterSpeed": "Tempo di Esposizione",
       "tooltipVirtualCopy": "Copia Virtuale"
     },
+    "jobs": {
+      "active": "In corso",
+      "cancel": "Annulla esportazione",
+      "cancelling": "Annullamento…",
+      "clear": "Cancella",
+      "copyError": "Clicca per copiare",
+      "empty": "Nessuna attività in corso",
+      "emptyHint": "Esportazioni, importazioni, trasferimenti di file e attività IA vengono mostrati qui.",
+      "errorCopied": "Errore copiato negli appunti",
+      "images_many": "{{count}} immagini",
+      "images_one": "{{count}} immagine",
+      "images_other": "{{count}} immagini",
+      "kinds": {
+        "aiTagging": "Tag IA",
+        "copy": "Copia file",
+        "export": "Esportazione",
+        "import": "Importazione",
+        "modelDownload": "Download modello IA",
+        "move": "Sposta file"
+      },
+      "openInLibrary": "Apri nella libreria",
+      "recent": "Recenti",
+      "title": "Attività"
+    },
     "reject": {
       "deleteConfirm": "Elimina Rifiutate",
       "deleteMessage_many": "Vuoi davvero eliminare {{count}} immagini rifiutate? Verranno spostate nel cestino.",
@@ -1420,6 +1549,7 @@
       "clone": "Clona",
       "color": "Colore",
       "depth": "Profondità",
+      "face": "Viso",
       "flow": "Flusso",
       "foreground": "Primo Piano",
       "heal": "Ripara",
@@ -1432,7 +1562,8 @@
       "radial": "Radiale",
       "retouch": "Ritocco",
       "sky": "Cielo",
-      "subject": "Soggetto"
+      "subject": "Soggetto",
+      "text": "Testo"
     }
   },
   "menus": {
@@ -1488,6 +1619,7 @@
       "descMerge": "Aggiunge le tue modifiche copiate, lasciando intatte le altre impostazioni.",
       "descReplace": "Sovrascrive tutte le impostazioni selezionate, ripristinando il resto ai valori predefiniti.",
       "groups": {
+        "aiDenoise": "Riduzione rumore IA",
         "chromaticAberration": "Aberrazione Cromatica",
         "clarityDehaze": "Chiarezza e Rimozione Foschia",
         "colorCalibration": "Calibrazione Colore",
@@ -1495,17 +1627,20 @@
         "colorMixer": "Mixer Colori",
         "cropAspectRatio": "Ritaglio e Proporzioni",
         "curves": "Curve",
+        "fog": "Nebbia",
         "exposureToneMapper": "Esposizione e Tone Mapper",
         "grain": "Grana",
         "guidedPerspective": "Prospettiva guidata",
         "halationGlow": "Alonatura e Bagliore",
         "hueShift": "Spostamento tonalità globale",
+        "lensBlur": "Sfocatura obiettivo",
         "lensCorrection": "Correzione Obiettivo",
         "lut": "LUT",
         "masks": "Maschere",
         "negativeConversion": "Conversione Negativo",
         "noiseReduction": "Riduzione Rumore",
         "presence": "Presenza",
+        "relight": "Reilluminazione",
         "sharpness": "Nitidezza",
         "tone": "Tono",
         "transformRotation": "Trasformazione e Rotazione",
@@ -1845,6 +1980,16 @@
       "zoomDesc": "Regola la velocità dello zoom dell'area di lavoro quando utilizzi la rotellina di scorrimento o il gesto del pizzico."
     },
     "data": {
+      "aiTags": "Cancella Tag AI",
+      "aiTagsDesc": "Rimuove i tag generati dall’IA da tutte le immagini nelle cartelle principali. I tuoi tag vengono mantenuti.",
+      "allTags": "Cancella Tutti i Tag",
+      "allTagsDesc": "Rimuove i tag generati dall’IA e quelli aggiunti da te da tutte le immagini nelle cartelle principali. Le etichette colore vengono mantenute.",
+      "clear": "Svuota",
+      "delete": "Elimina",
+      "deleteEdits": "Elimina tutte le modifiche",
+      "deleteEditsDesc": "Rimuove tutti i file sidecar .rrdata (le tue modifiche) in tutte le cartelle principali. L’operazione non può essere annullata.",
+      "libraryAndWorkspace": "Libreria e spazio di lavoro",
+      "limit": "Limite",
       "clearAiDenoise": "Svuota cache riduzione rumore IA",
       "clearAiDenoiseButton": "Svuota",
       "clearAiDenoiseDesc": "Elimina i risultati salvati della riduzione rumore IA ({{size}}). Le immagini con la riduzione rumore IA attiva la ricalcoleranno alla prossima apertura.",
@@ -1862,6 +2007,7 @@
       "logsDesc": "Visualizza il file di log dell'applicazione per la risoluzione dei problemi. Il log si trova in:",
       "modals": {
         "aiDenoiseMessage": "Vuoi davvero svuotare la cache della riduzione rumore IA?\n\nLe immagini con la riduzione rumore IA attiva dovranno essere elaborate di nuovo, operazione che può richiedere diversi minuti per immagine.",
+        "aiMapsMessage": "Vuoi davvero svuotare le mappe di profondità e normali?\n\nLe immagini che usano sfocatura obiettivo, nebbia o reilluminazione rigenereranno le mappe alla prossima apertura.",
         "aiMessage": "Sei sicuro di voler rimuovere tutti i tag generati dall'AI da tutte le immagini in tutte le cartelle principali attive?\n\nQuesto non influirà sui tag aggiunti dall'utente. Questa azione non può essere annullata.",
         "allMessage": "Sei sicuro di voler rimuovere tutti i tag generati dall'AI e aggiunti dall'utente da tutte le immagini in tutte le cartelle principali attive?\n\nQuesta azione non può essere annullata.",
         "cacheMessage": "Sei sicuro di voler cancellare la cache delle miniature?\n\nTutte le miniature dovranno essere rigenerate, operazione che potrebbe essere lenta per le cartelle di grandi dimensioni.",
@@ -1876,13 +2022,19 @@
         "confirmResetLayout": "Ripristina layout",
         "confirmResetLayoutTitle": "Ripristina layout spazio di lavoro",
         "confirmTitle": "Conferma Eliminazione",
+        "immichMessage": "Vuoi davvero svuotare gli originali Immich scaricati?\n\nLe tue modifiche vengono mantenute. Gli originali vengono scaricati di nuovo quando li apri.",
+        "metadataMessage": "Vuoi davvero svuotare la cache dei metadati?\n\nI metadati verranno riletti dai tuoi file durante la navigazione.",
+        "modelsMessage": "Vuoi davvero rimuovere i modelli IA scaricati?\n\nVerranno scaricati di nuovo al prossimo utilizzo di una funzione IA.",
         "resetLayoutMessage": "Sei sicuro di voler ripristinare il layout dello spazio di lavoro? Tutti i pannelli ancorati, le larghezze e le posizioni dei selettori verranno ripristinati ai valori predefiniti.",
         "sidecarMessage": "Sei sicuro di voler eliminare tutti i file sidecar?\n\nQuesto rimuoverà permanentemente tutte le tue modifiche per tutte le immagini all'interno di tutte le cartelle principali attive e le relative sottocartelle."
       },
       "noFolders": "Nessuna cartella selezionata",
+      "refresh": "Aggiorna",
+      "reset": "Ripristina",
       "resetLayoutButton": "Ripristina layout",
       "resetLayoutDesc": "Ripristina i pannelli ancorati, i divisori laterali, le altezze e i selettori dei pannelli al layout predefinito.",
       "resetLayoutTitle": "Ripristina layout spazio di lavoro",
+      "show": "Mostra",
       "statuses": {
         "aiDenoiseSuccess": "Cache della riduzione rumore IA svuotata correttamente.",
         "aiSuccess": "{{count}} file aggiornati. Tag AI rimossi.",
@@ -1894,6 +2046,7 @@
         "allSuccess_one": "{{count}} file aggiornato. Tutti i tag non colore rimossi.",
         "allSuccess_other": "{{count}} file aggiornati. Tutti i tag non colore rimossi.",
         "cacheSuccess": "Cache miniature cancellata con successo.",
+        "cleared": "Svuotato correttamente.",
         "clearingAi": "Rimozione dei tag AI da tutti i file sidecar...",
         "clearingAiDenoise": "Svuotamento della cache della riduzione rumore IA...",
         "clearingAll": "Rimozione di tutti i tag dai file sidecar...",
@@ -1908,7 +2061,25 @@
         "sidecarSuccess_one": "{{count}} file sidecar eliminato con successo.",
         "sidecarSuccess_other": "{{count}} file sidecar eliminati con successo."
       },
-      "title": "Gestione Dati"
+      "storage": {
+        "aiDenoise": "Riduzione rumore IA",
+        "aiDenoiseDesc": "Risultati della riduzione rumore in cache.",
+        "aiMaps": "Mappe di profondità e normali",
+        "aiMapsDesc": "Usate da sfocatura obiettivo, nebbia e reilluminazione.",
+        "immich": "Immich",
+        "immichDesc": "Originali scaricati. Quelli usati meno di recente vengono rimossi al raggiungimento del limite; le tue modifiche vengono mantenute.",
+        "logs": "Log",
+        "logsDesc": "File di log dell’applicazione per la risoluzione dei problemi. Svuotati a ogni avvio.",
+        "metadata": "Metadati",
+        "metadataDesc": "Dati EXIF in cache per caricare più velocemente le cartelle.",
+        "models": "Modelli IA",
+        "modelsDesc": "Scaricati su richiesta al primo utilizzo di una funzione IA.",
+        "thumbnails": "Miniature",
+        "thumbnailsDesc": "Rigenerate automaticamente durante la navigazione."
+      },
+      "storageTitle": "Archiviazione",
+      "title": "Gestione Dati",
+      "totalUsed": "RapidRAW sta usando {{size}} su questo dispositivo."
     },
     "general": {
       "autoAdvance": "Avanza dopo la valutazione",
@@ -2091,8 +2262,11 @@
           "description": "Integrate direttamente in RapidRAW, queste funzionalità funzionano interamente sul tuo computer. Sono veloci, gratuite e non richiedono alcuna configurazione, rendendole ideali per accelerare il flusso di lavoro quotidiano.",
           "feature1": "Mascheratura AI (Soggetto, Cielo, Primo Piano)",
           "feature2": "Tagging Automatico Immagini",
-          "feature3": "Sostituzione Generativa semplice basata su CPU",
-          "title": "AI Integrata (CPU)"
+          "feature3": "Sostituzione Generativa semplice sul dispositivo",
+          "gpuAcceleration": "Accelerazione GPU",
+          "gpuAccelerationDesc": "Esegue le funzioni IA integrate, come riduzione del rumore, maschere, mappe di profondità e delle normali e tagging, sulla scheda grafica per risultati molto più rapidi. Disattivala in caso di arresti anomali o risultati IA errati.",
+          "gpuAccelerationLabel": "Usa la GPU per i modelli IA",
+          "title": "AI Integrata"
         },
         "aiFree": {
           "description": "Disattiva tutte le funzioni di IA. Tutti i controlli legati all'IA vengono nascosti dall'interfaccia, così RapidRAW funziona come un editor RAW puramente tradizionale.",
@@ -2106,7 +2280,7 @@
           "aiConnector": "Connettore AI",
           "aiFree": "Senza IA",
           "cloud": "Cloud",
-          "cpu": "CPU"
+          "cpu": "Integrata"
         },
         "title": "AI Generativa"
       },
@@ -2248,11 +2422,14 @@
     "thanks": {
       "description": "Un enorme grazie ai seguenti progetti che sono stati molto importanti nello sviluppo di RapidRAW:",
       "list": {
+        "birefnet": "Per il modello di segmentazione ad alta risoluzione che alimenta il rilevamento AI del primo piano.",
         "darktable": "Per alcune implementazioni di riferimento che hanno guidato parti di questo lavoro.",
         "depth": "Per il potente modello di stima della profondità monoculare che abilita le funzionalità di mascheratura di profondità AI.",
+        "efficientsam3": "Per l'efficiente modello di segmentazione guidato da prompt, distillato da SAM 3, che alimenta le maschere AI di cielo e testo.",
         "lama": "Per il potente e semplice modello di inpainting delle immagini, che permette il riempimento in base al contenuto e la rimozione di oggetti.",
         "lensfun": "Per la sua inestimabile libreria open source e il database completo per la correzione automatica dell'obiettivo.",
         "libgphoto2": "Per la completa libreria di comunicazione con le fotocamere che alimenta il tethering e lo scatto remoto di RapidRAW.",
+        "mediapipe": "Per i rapidi modelli di punti del viso e segmentazione che alimentano le maschere viso IA.",
         "negpy": "Per l'ispirazione dietro alla logica di conversione dei negativi.",
         "nind": "Per aver fornito i modelli AI che alimentano le capacità di riduzione del rumore AI in RapidRAW.",
         "rawler": "Per l'eccellente crate Rust che fornisce le basi per l'elaborazione dei file RAW in questo progetto.",

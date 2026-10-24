@@ -47,6 +47,30 @@ const parseFocalLength = (val: string | undefined): number => {
 
 const nameCollator = new Intl.Collator();
 
+const EXIF_SORT_KEYS = new Set(['date_taken', 'iso', 'shutter_speed', 'aperture', 'focal_length']);
+const EXIF_QUERY_FIELDS = new Set([
+  'iso',
+  'aperture',
+  'f',
+  'shutter',
+  's',
+  'focal',
+  'mm',
+  'camera',
+  'make',
+  'model',
+  'lens',
+]);
+const NO_EXIF: Record<string, Record<string, string>> = {};
+
+function usesExif(sortCriteria: { key: string }, searchCriteria: { tags: string[] }): boolean {
+  if (EXIF_SORT_KEYS.has(sortCriteria.key)) return true;
+  return searchCriteria.tags.some((tag) => {
+    const match = tag.match(ADVANCED_QUERY_REGEX);
+    return !!match && EXIF_QUERY_FIELDS.has(match[1].toLowerCase());
+  });
+}
+
 export interface GroupedLibrary {
   displayList: ImageFile[];
   matchingPhotoCount: number;
@@ -70,6 +94,7 @@ type LibrarySortState = Pick<
   searchCriteria: SearchCriteria;
   denoiseStatuses?: Record<string, { marked: boolean; denoised: boolean }>;
   expandedStacks?: Set<string>;
+  exifByPath?: Record<string, Record<string, string>>;
 };
 
 type SettingsSortState = {
@@ -82,6 +107,7 @@ function computeGroupedLibrary(
   options: { includeBadges: boolean } = { includeBadges: true },
 ): GroupedLibrary {
   const { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria } = libraryState;
+  const exifByPath: Record<string, Record<string, string>> = libraryState.exifByPath ?? NO_EXIF;
   const { appSettings } = settingsState;
 
   const groupingMode: GroupingMode = appSettings?.grouping ?? 'off';
@@ -138,18 +164,18 @@ function computeGroupedLibrary(
 
   const evaluateQuery = (q: Extract<ParsedTag, { type: 'query' }>, image: ImageFile) => {
     const { field, operator, value } = q;
+    const exif = exifByPath[image.path] ?? image.exif;
 
     if (['iso', 'aperture', 'f', 'shutter', 's', 'focal', 'mm', 'rating'].includes(field)) {
       let imgVal = 0;
       let qVal = parseFloat(value);
 
-      if (field === 'iso')
-        imgVal = parseInt(image.exif?.PhotographicSensitivity || image.exif?.ISOSpeedRatings || '0', 10) || 0;
-      else if (field === 'aperture' || field === 'f') imgVal = parseAperture(image.exif?.FNumber);
-      else if (field === 'focal' || field === 'mm') imgVal = parseFocalLength(image.exif?.FocalLength);
+      if (field === 'iso') imgVal = parseInt(exif?.PhotographicSensitivity || exif?.ISOSpeedRatings || '0', 10) || 0;
+      else if (field === 'aperture' || field === 'f') imgVal = parseAperture(exif?.FNumber);
+      else if (field === 'focal' || field === 'mm') imgVal = parseFocalLength(exif?.FocalLength);
       else if (field === 'rating') imgVal = imageRatings[image.path] || 0;
       else if (field === 'shutter' || field === 's') {
-        imgVal = parseShutter(image.exif?.ExposureTime);
+        imgVal = parseShutter(exif?.ExposureTime);
         qVal = parseShutter(value);
       }
 
@@ -171,11 +197,9 @@ function computeGroupedLibrary(
     } else {
       let imgStr = '';
       if (field === 'camera' || field === 'make' || field === 'model') {
-        imgStr = `${image.exif?.Make || ''} ${image.exif?.Model || ''}`.toLowerCase();
+        imgStr = `${exif?.Make || ''} ${exif?.Model || ''}`.toLowerCase();
       } else if (field === 'lens') {
-        imgStr = String(
-          `${image.exif?.LensModel || ''} ${image.exif?.Lens || ''} ${image.exif?.LensMake || ''}`,
-        ).toLowerCase();
+        imgStr = String(`${exif?.LensModel || ''} ${exif?.Lens || ''} ${exif?.LensMake || ''}`).toLowerCase();
       } else if (field === 'color') {
         imgStr = (image.tags || []).find((t: string) => t.startsWith('color:'))?.substring(6) || '';
       }
@@ -251,15 +275,16 @@ function computeGroupedLibrary(
   const { key, order } = sortCriteria;
 
   const getNumericSortValue = (image: ImageFile): number => {
+    const exif = exifByPath[image.path] ?? image.exif;
     switch (key) {
       case 'iso':
-        return parseInt(image.exif?.PhotographicSensitivity || image.exif?.ISOSpeedRatings || '0', 10) || 0;
+        return parseInt(exif?.PhotographicSensitivity || exif?.ISOSpeedRatings || '0', 10) || 0;
       case 'shutter_speed':
-        return parseShutter(image.exif?.ExposureTime);
+        return parseShutter(exif?.ExposureTime);
       case 'aperture':
-        return parseAperture(image.exif?.FNumber);
+        return parseAperture(exif?.FNumber);
       case 'focal_length':
-        return parseFocalLength(image.exif?.FocalLength);
+        return parseFocalLength(exif?.FocalLength);
       case 'rating':
         return getRatingSortValue(image);
       default:
@@ -280,10 +305,12 @@ function computeGroupedLibrary(
 
     switch (key) {
       case 'date_taken': {
-        const dateA = a.exif?.DateTimeOriginal || '';
-        const dateB = b.exif?.DateTimeOriginal || '';
-        const timeA = captureSortTime(a.exif);
-        const timeB = captureSortTime(b.exif);
+        const exifA = exifByPath[a.path] ?? a.exif;
+        const exifB = exifByPath[b.path] ?? b.exif;
+        const dateA = exifA?.DateTimeOriginal || '';
+        const dateB = exifB?.DateTimeOriginal || '';
+        const timeA = captureSortTime(exifA);
+        const timeB = captureSortTime(exifB);
         if (timeA !== null && timeB !== null) comparison = timeA - timeB || a.modified - b.modified;
         else if (timeA === null && timeB !== null) comparison = dateA ? 1 : -1;
         else if (timeB === null && timeA !== null) comparison = dateB ? -1 : 1;
@@ -341,6 +368,8 @@ export function useSortedLibrary() {
   const filterCriteria = useLibraryStore((state) => state.filterCriteria);
   const searchCriteria = useLibraryStore((state) => state.searchCriteria);
   const sortCriteria = useLibraryStore((state) => state.sortCriteria);
+  const needsExif = useLibraryStore((state) => usesExif(state.sortCriteria, state.searchCriteria));
+  const exifByPath = useLibraryStore((state) => (needsExif ? state.exifByPath : NO_EXIF));
 
   const appSettings = useSettingsStore((state) => state.appSettings);
 
@@ -349,7 +378,16 @@ export function useSortedLibrary() {
 
   const grouped = useMemo(() => {
     return computeGroupedLibrary(
-      { imageList, imageRatings, filterCriteria, searchCriteria, sortCriteria, denoiseStatuses, expandedStacks },
+      {
+        imageList,
+        imageRatings,
+        filterCriteria,
+        searchCriteria,
+        sortCriteria,
+        denoiseStatuses,
+        expandedStacks,
+        exifByPath,
+      },
       { appSettings },
       { includeBadges: false },
     );
@@ -362,6 +400,7 @@ export function useSortedLibrary() {
     searchCriteria,
     appSettings,
     denoiseStatuses,
+    exifByPath,
   ]);
 
   const badges = useMemo(

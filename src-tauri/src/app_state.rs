@@ -16,9 +16,9 @@ use wgpu::{Texture, TextureView};
 
 use crate::ai_processing::AiState;
 use crate::as_shot::AsShot;
-use crate::cache_utils::DecodedImageCache;
+use crate::cache_utils::{DecodeFlights, DecodedImageCache};
 use crate::camera_tethering::CameraSession;
-use crate::gpu_processing::GpuProcessor;
+use crate::gpu_processing::{DisplayLayer, GpuProcessor};
 use crate::image_processing::GpuContext;
 use crate::launch_request::ExternalEditSession;
 use crate::lens_correction::LensDatabase;
@@ -130,6 +130,7 @@ pub struct GpuImageCache {
 }
 
 pub struct GpuImageEntry {
+    pub id: u64,
     pub texture: Texture,
     pub texture_view: TextureView,
     pub gf_coeffs_view: TextureView,
@@ -149,6 +150,7 @@ pub struct GpuProcessorState {
 
 pub struct PreviewJob {
     pub adjustments: serde_json::Value,
+    pub layer: DisplayLayer,
     pub is_interactive: bool,
     pub target_resolution: Option<u32>,
     pub roi: Option<(f32, f32, f32, f32)>,
@@ -286,6 +288,7 @@ pub struct AppState {
     pub thumbnail_progress: Mutex<ThumbnailProgressTracker>,
     pub preview_worker_tx: Mutex<Option<Sender<PreviewJob>>>,
     pub analytics_worker_tx: Mutex<Option<Sender<AnalyticsJob>>>,
+    pub analytics_channel: Mutex<Option<tauri::ipc::Channel>>,
     pub mask_cache: Mutex<HashMap<u64, GrayImage>>,
     pub patch_cache: Mutex<HashMap<String, serde_json::Value>>,
     pub geometry_cache: Mutex<HashMap<u64, DynamicImage>>,
@@ -307,6 +310,7 @@ pub struct AppState {
     /// the machine runs out of memory. Stale waiters bail on the generation
     /// check as soon as they get the permit.
     pub decode_permit: Arc<tokio::sync::Semaphore>,
+    pub decode_flights: DecodeFlights,
     pub thumbnail_manager: Arc<ThumbnailManager>,
     pub memory_budget: Arc<crate::memory_budget::MemoryBudget>,
     pub metadata_manager: Arc<MetadataManager>,

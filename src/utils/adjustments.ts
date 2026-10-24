@@ -69,10 +69,21 @@ export enum ColorGrading {
   Shadows = 'shadows',
 }
 
+export enum DenoiseMethod {
+  Ai = 'ai',
+  Bm3d = 'bm3d',
+}
+
+export const getAiDenoiseEnablePatch = (aiProvider?: string): Partial<Adjustments> => ({
+  aiDenoiseEnabled: true,
+  aiDenoiseMethod: aiProvider === 'ai-free' ? DenoiseMethod.Bm3d : DenoiseMethod.Ai,
+});
+
 export enum DetailsAdjustment {
   AiDenoiseAmount = 'aiDenoiseAmount',
   AiDenoiseDetail = 'aiDenoiseDetail',
   AiDenoiseEnabled = 'aiDenoiseEnabled',
+  AiDenoiseMethod = 'aiDenoiseMethod',
   Clarity = 'clarity',
   Dehaze = 'dehaze',
   Structure = 'structure',
@@ -265,6 +276,7 @@ export interface Adjustments {
   aiDenoiseAmount: number;
   aiDenoiseDetail: number;
   aiDenoiseEnabled: boolean;
+  aiDenoiseMethod: DenoiseMethod;
   aiPatches: Array<AiPatch>;
   aspectRatio: number | null;
   baselineExposure: boolean;
@@ -962,6 +974,15 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
       keys: [DetailsAdjustment.LumaNoiseReduction, DetailsAdjustment.ColorNoiseReduction],
     },
     {
+      label: 'modals.copyPaste.groups.aiDenoise',
+      keys: [
+        DetailsAdjustment.AiDenoiseEnabled,
+        DetailsAdjustment.AiDenoiseMethod,
+        DetailsAdjustment.AiDenoiseAmount,
+        DetailsAdjustment.AiDenoiseDetail,
+      ],
+    },
+    {
       label: 'modals.copyPaste.groups.chromaticAberration',
       keys: [DetailsAdjustment.ChromaticAberrationRedCyan, DetailsAdjustment.ChromaticAberrationBlueYellow],
     },
@@ -1003,6 +1024,45 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
         Effect.LutSize,
         Effect.LutData,
         Effect.LutIsSceneReferred,
+      ],
+    },
+    {
+      label: 'modals.copyPaste.groups.lensBlur',
+      keys: [
+        Effect.LensBlurEnabled,
+        Effect.LensBlurAmount,
+        Effect.lensBlurDiffusion,
+        Effect.LensBlurShape,
+        Effect.LensBlurMinDepth,
+        Effect.LensBlurMaxDepth,
+        Effect.LensBlurMinFade,
+        Effect.LensBlurMaxFade,
+      ],
+    },
+    {
+      label: 'modals.copyPaste.groups.fog',
+      keys: [
+        Effect.FogEnabled,
+        Effect.FogAmount,
+        Effect.FogStart,
+        Effect.FogDensity,
+        Effect.FogHeight,
+        Effect.FogVariation,
+        Effect.FogGlow,
+        Effect.FogTemperature,
+        Effect.FogTint,
+      ],
+    },
+    {
+      label: 'modals.copyPaste.groups.relight',
+      keys: [
+        Effect.RelightEnabled,
+        Effect.RelightLights,
+        Effect.RelightAmbient,
+        Effect.RelightSoftness,
+        Effect.RelightShine,
+        Effect.RelightShadows,
+        Effect.RelightShadowSoftness,
       ],
     },
   ],
@@ -1088,6 +1148,7 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     DetailsAdjustment.LumaNoiseReduction,
     DetailsAdjustment.ColorNoiseReduction,
     DetailsAdjustment.AiDenoiseEnabled,
+    DetailsAdjustment.AiDenoiseMethod,
     DetailsAdjustment.AiDenoiseAmount,
     DetailsAdjustment.AiDenoiseDetail,
     DetailsAdjustment.ChromaticAberrationRedCyan,

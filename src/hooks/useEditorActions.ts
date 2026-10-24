@@ -591,22 +591,22 @@ export function useEditorActions() {
     [handleAutoStraighten, t],
   );
 
-  const handleConvertNegatives = useCallback(
-    (paths: string[]) => {
+  const handleEnableAdjustments = useCallback(
+    (paths: string[], patch: Partial<Adjustments>) => {
       const beforeBatch = useEditorStore.getState();
       const { selectedImage } = beforeBatch;
       const editingPath = useUIStore.getState().activeView === 'editor' ? selectedImage?.path : undefined;
       const batchPaths = paths.filter((path) => path !== editingPath);
       if (batchPaths.length < paths.length) {
-        setAdjustments((prev: Adjustments) => ({ ...prev, negativeConversionEnabled: true }));
+        setAdjustments((prev: Adjustments) => ({ ...prev, ...patch }));
       }
       if (batchPaths.length === 0) return;
       batchPaths.forEach((p) => globalImageCache.delete(p));
-      invoke(Invokes.ApplyAdjustmentsToPaths, { paths: batchPaths, adjustments: { negativeConversionEnabled: true } })
+      invoke(Invokes.ApplyAdjustmentsToPaths, { paths: batchPaths, adjustments: patch })
         .then(() =>
           reloadAdjustmentsForPaths(batchPaths, { path: selectedImage?.path, adjustments: beforeBatch.adjustments }),
         )
-        .catch((err) => toast.error(`Failed to convert negatives: ${err}`));
+        .catch((err) => toast.error(`Failed to apply adjustments: ${err}`));
     },
     [setAdjustments],
   );
@@ -730,7 +730,8 @@ export function useEditorActions() {
 
       pathsToUpdate.forEach((p) => globalImageCache.delete(p));
 
-      if (selectedImage && pathsToUpdate.includes(selectedImage.path)) {
+      const openPath = selectedImage && pathsToUpdate.includes(selectedImage.path) ? selectedImage.path : null;
+      if (openPath) {
         setAdjustments(
           normalizeLensPolicyVersion(
             { ...adjustments, ...adjustmentsToApply },
@@ -740,22 +741,38 @@ export function useEditorActions() {
           'Paste adjustments',
         );
       }
+      const pastedSnapshot = openPath ? useEditorStore.getState().adjustments : null;
+      const prePaste = adjustments as unknown as Record<string, unknown>;
 
       invoke(Invokes.ApplyAdjustmentsToPaths, { paths: pathsToUpdate, adjustments: adjustmentsToApply })
-        .then(() => {
-          if (selectedImage && pathsToUpdate.includes(selectedImage.path)) {
-            invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: selectedImage.path }).then((meta) => {
-              const loadedAdjustments = meta.adjustments;
-              if (loadedAdjustments && !loadedAdjustments.is_null) {
-                setAdjustments((prev) => ({
-                  ...prev,
-                  lensMaker: loadedAdjustments.lensMaker,
-                  lensModel: loadedAdjustments.lensModel,
-                  lensDistortionParams: loadedAdjustments.lensDistortionParams,
-                }));
-              }
-            });
-          }
+        .then(async () => {
+          if (!openPath || !pastedSnapshot) return;
+          // The backend resolves the lens and may drop AI results copied from another photo
+          // (they are regenerated for this one). Take those disk values, but only for pasted
+          // keys the user has not changed since the paste, and never a pre-paste value from a
+          // stale read.
+          const meta = await invoke<LoadedMetadata>(Invokes.LoadMetadata, { path: openPath });
+          const loaded = meta.adjustments;
+          const { selectedImage: current, adjustments: latest } = useEditorStore.getState();
+          if (!loaded || loaded.is_null || current?.path !== openPath) return;
+          const onDisk = normalizeLoadedAdjustments(loaded) as unknown as Record<string, unknown>;
+          const now = latest as unknown as Record<string, unknown>;
+          const pasted = pastedSnapshot as unknown as Record<string, unknown>;
+          const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+          const keys = [...Object.keys(adjustmentsToApply), 'lensMaker', 'lensModel', 'lensDistortionParams'];
+          const changes = Object.fromEntries(
+            keys
+              .filter(
+                (key) =>
+                  key in onDisk &&
+                  same(now[key], pasted[key]) &&
+                  !same(onDisk[key], now[key]) &&
+                  !same(onDisk[key], prePaste[key]),
+              )
+              .map((key) => [key, onDisk[key]]),
+          );
+          if (Object.keys(changes).length === 0) return;
+          setAdjustments((prev) => ({ ...prev, ...changes }) as Adjustments, 'Paste adjustments');
         })
         .catch((err) => toast.error(`Failed to paste adjustments: ${err}`));
 
@@ -820,7 +837,7 @@ export function useEditorActions() {
     setLutPreviewOverride,
     handleResetAdjustments,
     handleAutoLensCorrection,
-    handleConvertNegatives,
+    handleEnableAdjustments,
     handleCopyAdjustments,
     handlePasteAdjustments,
     handleZoomChange,

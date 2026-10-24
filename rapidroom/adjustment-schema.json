@@ -53,6 +53,7 @@
       "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
     },
     "aiDenoiseEnabled": { "defaultType": "boolean", "default": false },
+    "aiDenoiseMethod": { "defaultType": "string", "default": "ai" },
     "aiPatches": { "defaultType": "array", "default": [] },
     "aspectRatio": { "defaultType": "number", "default": 0 },
     "baselineExposure": { "defaultType": "boolean", "default": true },
@@ -2604,7 +2605,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 63,
+      "line": 70,
       "valueExpression": "adjustments.sharpness",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.Sharpness, e.target.value)",
       "labelExpression": "t('adjustments.details.sharpness')",
@@ -2615,7 +2616,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 73,
+      "line": 80,
       "valueExpression": "adjustments.sharpnessThreshold ?? 15",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.SharpnessThreshold, e.target.value)",
       "labelExpression": "t('adjustments.details.threshold')",
@@ -2626,7 +2627,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 94,
+      "line": 101,
       "valueExpression": "adjustments.clarity",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.Clarity, e.target.value)",
       "labelExpression": "t('adjustments.details.clarity')",
@@ -2637,7 +2638,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 103,
+      "line": 110,
       "valueExpression": "adjustments.dehaze",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.Dehaze, e.target.value)",
       "labelExpression": "t('adjustments.details.dehaze')",
@@ -2648,7 +2649,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 112,
+      "line": 119,
       "valueExpression": "adjustments.structure",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.Structure, e.target.value)",
       "labelExpression": "t('adjustments.details.structure')",
@@ -2659,7 +2660,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 133,
+      "line": 140,
       "valueExpression": "adjustments.centré",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.Centré, e.target.value)",
       "labelExpression": "t('adjustments.details.centre')",
@@ -2670,7 +2671,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 155,
+      "line": 162,
       "valueExpression": "adjustments.lumaNoiseReduction",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.LumaNoiseReduction, e.target.value)",
       "labelExpression": "t('adjustments.details.luminance')",
@@ -2681,7 +2682,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 164,
+      "line": 171,
       "valueExpression": "adjustments.colorNoiseReduction",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.ColorNoiseReduction, e.target.value)",
       "labelExpression": "t('adjustments.details.color')",
@@ -2692,7 +2693,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 201,
+      "line": 212,
       "valueExpression": "adjustments.aiDenoiseAmount ?? 100",
       "changeExpression": "(e: SliderChangeEvent) =>\n                        handleAdjustmentChange(DetailsAdjustment.AiDenoiseAmount, String(e.target.value))",
       "labelExpression": "t('adjustments.effects.amount')",
@@ -2703,7 +2704,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 214,
+      "line": 225,
       "valueExpression": "adjustments.aiDenoiseDetail ?? 0",
       "changeExpression": "(e: SliderChangeEvent) =>\n                        handleAdjustmentChange(DetailsAdjustment.AiDenoiseDetail, String(e.target.value))",
       "labelExpression": "t('adjustments.details.aiDenoiseDetail')",
@@ -2714,7 +2715,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 240,
+      "line": 251,
       "valueExpression": "adjustments.chromaticAberrationRedCyan",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.ChromaticAberrationRedCyan, e.target.value)",
       "labelExpression": "t('adjustments.details.redCyan')",
@@ -2725,7 +2726,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 249,
+      "line": 260,
       "valueExpression": "adjustments.chromaticAberrationBlueYellow",
       "changeExpression": "(e) => handleAdjustmentChange(DetailsAdjustment.ChromaticAberrationBlueYellow, e.target.value)",
       "labelExpression": "t('adjustments.details.blueYellow')",
@@ -2736,7 +2737,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 274,
+      "line": 285,
       "valueExpression": "adjustments.negativeRedWeight ?? 1",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleFloatAdjustmentChange(DetailsAdjustment.NegativeRedWeight, String(e.target.value))",
       "labelExpression": "t('adjustments.details.negativeRed')",
@@ -2747,7 +2748,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 287,
+      "line": 298,
       "valueExpression": "adjustments.negativeGreenWeight ?? 1",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleFloatAdjustmentChange(DetailsAdjustment.NegativeGreenWeight, String(e.target.value))",
       "labelExpression": "t('adjustments.details.negativeGreen')",
@@ -2758,7 +2759,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 300,
+      "line": 311,
       "valueExpression": "adjustments.negativeBlueWeight ?? 1",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleFloatAdjustmentChange(DetailsAdjustment.NegativeBlueWeight, String(e.target.value))",
       "labelExpression": "t('adjustments.details.negativeBlue')",
@@ -2769,7 +2770,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 313,
+      "line": 324,
       "valueExpression": "adjustments.negativeExposure ?? 0",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleFloatAdjustmentChange(DetailsAdjustment.NegativeExposure, String(e.target.value))",
       "labelExpression": "t('adjustments.details.negativeExposure')",
@@ -2780,7 +2781,7 @@
     },
     {
       "source": "src/components/adjustments/Details.tsx",
-      "line": 324,
+      "line": 335,
       "valueExpression": "adjustments.negativeContrast ?? 1",
       "changeExpression": "(e: SliderChangeEvent) =>\n                handleFloatAdjustmentChange(DetailsAdjustment.NegativeContrast, String(e.target.value))",
       "labelExpression": "t('adjustments.details.negativeContrast')",
@@ -3166,7 +3167,7 @@
       "line": 1019,
       "valueExpression": "displayRotation",
       "changeExpression": "handleFineRotationChange",
-      "labelExpression": "<div className=\"flex items-center gap-2\">\n                      <button\n                        onClick={() => {\n                          setEditor((state) => ({\n                            isStraightenActive: !state.isStraightenActive,\n                          }));\n                        }}\n                        className={clsx(\n                          'p-1.5 rounded-md transition-colors',\n                          isStraightenActive\n                            ? 'bg-accent text-button-text'\n                            : 'text-text-secondary hover:bg-card-active hover:text-text-primary',\n                        )}\n                        data-tooltip={t('editor.crop.tooltips.straighten')}\n                      >\n                        <Ruler size={14} />\n                      </button>\n                      <button\n                        onClick={handleAutoStraighten}\n                        className=\"p-1.5 rounded-md text-text-secondary transition-colors cursor-pointer hover:bg-card-active hover:text-text-primary disabled:cursor-wait\"\n                        data-tooltip={t('editor.crop.tooltips.autoStraighten')}\n                        disabled={isAutoStraightening}\n                      >\n                        {isAutoStraightening ? <Loader size={14} className=\"animate-spin\" /> : <Wand2 size={14} />}\n                      </button>\n                      <button\n                        className=\"p-1.5 rounded-md text-text-secondary transition-colors cursor-pointer hover:bg-card-active hover:text-text-primary\"\n                        onClick={resetFineRotation}\n                        data-tooltip={t('editor.crop.tooltips.resetFineRotation')}\n                        disabled={displayRotation === 0}\n                      >\n                        <RotateCcw size={14} />\n                      </button>\n                    </div>",
+      "labelExpression": "<div className=\"flex items-center gap-2\">\n                      <button\n                        onClick={() => {\n                          setEditor((state) => ({\n                            isStraightenActive: !state.isStraightenActive,\n                          }));\n                        }}\n                        className={clsx(\n                          'p-1.5 rounded-md transition-colors',\n                          isStraightenActive\n                            ? 'bg-accent text-button-text'\n                            : 'text-text-secondary hover:bg-card-active hover:text-text-primary',\n                        )}\n                        data-tooltip={t('editor.crop.tooltips.straighten')}\n                      >\n                        <Ruler size={14} />\n                      </button>\n                      <button\n                        onClick={handleAutoStraighten}\n                        className=\"p-1.5 rounded-md text-text-secondary transition-colors cursor-pointer hover:bg-card-active hover:text-text-primary disabled:cursor-wait\"\n                        data-tooltip={t('editor.crop.tooltips.autoStraighten')}\n                        disabled={isAutoStraightening}\n                      >\n                        {isAutoStraightening ? <Loader size={14} className=\"animate-spin\" /> : <ScanLine size={14} />}\n                      </button>\n                      <button\n                        className=\"p-1.5 rounded-md text-text-secondary transition-colors cursor-pointer hover:bg-card-active hover:text-text-primary\"\n                        onClick={resetFineRotation}\n                        data-tooltip={t('editor.crop.tooltips.resetFineRotation')}\n                        disabled={displayRotation === 0}\n                      >\n                        <RotateCcw size={14} />\n                      </button>\n                    </div>",
       "minimum": -45,
       "maximum": 45,
       "step": 0.1,
@@ -3295,7 +3296,7 @@
     },
     {
       "source": "src/components/ui/ColorWheel.tsx",
-      "line": 270,
+      "line": 264,
       "valueExpression": "hue",
       "changeExpression": "handleHueChange",
       "labelExpression": "t('ui.colorWheel.hue')",
@@ -3311,7 +3312,7 @@
     },
     {
       "source": "src/components/ui/ColorWheel.tsx",
-      "line": 285,
+      "line": 279,
       "valueExpression": "saturation",
       "changeExpression": "handleSaturationChange",
       "labelExpression": "t('ui.colorWheel.saturation')",
@@ -3327,7 +3328,7 @@
     },
     {
       "source": "src/components/ui/ColorWheel.tsx",
-      "line": 304,
+      "line": 298,
       "valueExpression": "luminance",
       "changeExpression": "handleLumChange",
       "labelExpression": "isExpanded ? t('ui.colorWheel.luminance') : <Sun size={16} className=\"text-text-secondary\" />",

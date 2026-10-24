@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/useUIStore';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
-import { useProcessStore } from '../../store/useProcessStore';
+import { selectAiModelDownloadStatus, useProcessStore } from '../../store/useProcessStore';
 import { useEditorStore } from '../../store/useEditorStore';
 import CopyPasteSettingsModal from './CopyPasteSettingsModal';
 import PanoramaModal from './PanoramaModal';
@@ -114,16 +114,15 @@ export default function AppModals(props: AppModalsProps) {
   const focusStackLoadingPath = middlePath(focusStackModalState.sourcePaths);
   const denoiseLoadingPath = denoiseModalState.targetPaths.length > 0 ? denoiseModalState.targetPaths[0] : null;
 
-  const { panoramaThumbnail, hdrThumbnail, focusStackThumbnail, denoiseThumbnail, aiModelDownloadStatus } =
-    useProcessStore(
-      useShallow((state) => ({
-        panoramaThumbnail: panoramaLoadingPath ? state.thumbnails[panoramaLoadingPath] : undefined,
-        hdrThumbnail: hdrLoadingPath ? state.thumbnails[hdrLoadingPath] : undefined,
-        focusStackThumbnail: focusStackLoadingPath ? state.thumbnails[focusStackLoadingPath] : undefined,
-        denoiseThumbnail: denoiseLoadingPath ? state.thumbnails[denoiseLoadingPath] : undefined,
-        aiModelDownloadStatus: state.aiModelDownloadStatus,
-      })),
-    );
+  const { panoramaThumbnail, hdrThumbnail, focusStackThumbnail, denoiseThumbnail } = useProcessStore(
+    useShallow((state) => ({
+      panoramaThumbnail: panoramaLoadingPath ? state.thumbnails[panoramaLoadingPath] : undefined,
+      hdrThumbnail: hdrLoadingPath ? state.thumbnails[hdrLoadingPath] : undefined,
+      focusStackThumbnail: focusStackLoadingPath ? state.thumbnails[focusStackLoadingPath] : undefined,
+      denoiseThumbnail: denoiseLoadingPath ? state.thumbnails[denoiseLoadingPath] : undefined,
+    })),
+  );
+  const aiModelDownloadStatus = useProcessStore(selectAiModelDownloadStatus);
 
   const { selectedImage, finalPreviewUrl } = useEditorStore(
     useShallow((state) => ({

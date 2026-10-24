@@ -405,9 +405,9 @@ fn list_images(app_handle: &AppHandle, arguments: &Value) -> Result<Value, Strin
         .unwrap_or(100)
         .clamp(1, 500) as usize;
     let images = if recursive {
-        crate::file_management::list_images_recursive(path, app_handle.clone())?
+        crate::file_management::list_images_recursive_blocking(path, app_handle.clone())?
     } else {
-        crate::file_management::list_images_in_dir(path, app_handle.clone())?
+        crate::file_management::list_images_in_dir_blocking(path, app_handle.clone())?
     };
     let total = images.len();
     let images = images

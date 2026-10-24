@@ -26,6 +26,7 @@ import { clearLibrarySelection } from './useLibraryActions';
 import { computeSortedLibrary } from './useSortedLibrary';
 import { isPathInCardRoot } from '../utils/cardMode';
 import type { ImageDimensions } from './useImageRenderSize';
+import { getImmichAlbumImages, isImmichAlbumId } from '../components/immich/immichApi';
 
 interface CachedEditorState {
   adjustments: Adjustments;
@@ -82,6 +83,8 @@ export interface AppNavigationProps {
 
 let exifLoadGeneration = 0;
 
+const EXIF_CHUNK_SIZE = 250;
+
 const loadExifForImages = async (
   files: ImageFile[],
   expectedFolderPath: string | null,
@@ -96,45 +99,49 @@ const loadExifForImages = async (
 
   if (!isCurrent()) return;
 
+  const previousExif = useLibraryStore.getState().exifByPath;
+  const knownExif: Record<string, Record<string, string>> = {};
+  for (const file of files) {
+    const exif = previousExif[file.path] || file.exif;
+    if (exif) knownExif[file.path] = exif;
+  }
+
   if (files.length === 0) {
-    setLibrary({ imageList: files });
+    setLibrary({ imageList: files, exifByPath: knownExif });
     return;
   }
 
   const paths = files.map((f: ImageFile) => f.path);
 
   if (isExifSortActive) {
-    const combinedExifMap: Record<string, Record<string, string>> = {};
-    const chunkSize = 100;
-
-    for (let i = 0; i < paths.length; i += chunkSize) {
-      const chunk = paths.slice(i, i + chunkSize);
+    for (let i = 0; i < paths.length; i += EXIF_CHUNK_SIZE) {
+      const chunk = paths.slice(i, i + EXIF_CHUNK_SIZE);
       try {
         const chunkExif = await invoke<Record<string, Record<string, string>>>(Invokes.ReadExifForPaths, {
           paths: chunk,
         });
-        Object.assign(combinedExifMap, chunkExif);
+        Object.assign(knownExif, chunkExif);
       } catch (err) {
         console.error('Failed to read EXIF chunk:', err);
       }
     }
 
     if (!isCurrent()) return;
+    // RapidRoom code still reads image.exif; upstream code reads exifByPath. Keep both.
     const finalImageList = files.map((image) => ({
       ...image,
-      exif: combinedExifMap[image.path] || image.exif || null,
+      exif: knownExif[image.path] || image.exif || null,
     }));
-    setLibrary({ imageList: finalImageList });
+    setLibrary({ imageList: finalImageList, exifByPath: knownExif });
   } else {
-    setLibrary({ imageList: files });
+    setLibrary({ imageList: files, exifByPath: knownExif });
 
     setTimeout(() => {
       const fetchExifInChunks = async () => {
-        const chunkSize = 50;
-        for (let i = 0; i < paths.length; i += chunkSize) {
+        for (let i = 0; i < paths.length; i += EXIF_CHUNK_SIZE) {
           if (!isCurrent()) break;
 
-          const chunk = paths.slice(i, i + chunkSize);
+          const chunk = paths.slice(i, i + EXIF_CHUNK_SIZE);
           try {
             const chunkExif = await invoke<Record<string, Record<string, string>>>(Invokes.ReadExifForPaths, {
               paths: chunk,
@@ -148,7 +155,10 @@ const loadExifForImages = async (
                 changed = true;
                 return { ...image, exif };
               });
-              return changed ? { imageList } : {};
+              return {
+                ...(changed ? { imageList } : {}),
+                exifByPath: { ...state.exifByPath, ...chunkExif },
+              };
             });
             await new Promise((resolve) => setTimeout(resolve, 50));
           } catch (err) {
@@ -519,6 +529,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
           files = preloadedImages;
         } else {
           files = await invoke(command, { path });
+          if (useLibraryStore.getState().currentFolderPath !== path) return;
         }
 
         const initialRatings: Record<string, number> = {};
@@ -540,7 +551,9 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
         console.error('Failed to load folder contents:', err);
         toast.error('Failed to load images from the selected folder.');
       } finally {
-        useLibraryStore.getState().setLibrary({ isViewLoading: false });
+        if (useLibraryStore.getState().currentFolderPath === path) {
+          useLibraryStore.getState().setLibrary({ isViewLoading: false });
+        }
       }
     },
     [clearThumbnailQueue, refs],
@@ -644,6 +657,10 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       }
 
       const albumFolderPath = `Album: ${albumName}`;
+      const isCurrentAlbum = () => {
+        const { currentFolderPath, activeAlbumId } = useLibraryStore.getState();
+        return currentFolderPath === albumFolderPath && activeAlbumId === albumId;
+      };
 
       setLibrary({
         isViewLoading: true,
@@ -652,7 +669,10 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
       });
 
       try {
-        const files: ImageFile[] = await invoke(Invokes.GetAlbumImages, { paths: imagePaths });
+        const files: ImageFile[] = isImmichAlbumId(albumId)
+          ? await getImmichAlbumImages(albumId)
+          : await invoke(Invokes.GetAlbumImages, { paths: imagePaths });
+        if (!isCurrentAlbum()) return true;
 
         if (imagePaths.length > 0 && files.length === 0) {
           toast.warning(i18n.t('contextMenus.toasts.albumFilesUnreachable'));
@@ -669,11 +689,15 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
         });
 
         await loadExifForImages(files, albumFolderPath, sortCriteria.key, setLibrary);
+        return true;
       } catch (err) {
         console.error('Failed to load album images:', err);
         toast.error(`Failed to load album: ${err}`);
+        return false;
       } finally {
-        setLibrary({ isViewLoading: false });
+        if (isCurrentAlbum()) {
+          setLibrary({ isViewLoading: false });
+        }
       }
     },
     [clearThumbnailQueue],
@@ -898,7 +922,10 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
             const album = findObj(albumTree);
             if (album?.type === 'album') {
               await handleSelectAlbum(album.id, album.name, album.images);
-            } else {
+            } else if (
+              !isImmichAlbumId(activeAlbumId) ||
+              !(await handleSelectAlbum(activeAlbumId, pathToSelect.slice('Album: '.length), []))
+            ) {
               await handleSelectSubfolder(rootFolders[0], false, undefined, false);
             }
           } catch (e) {

@@ -156,6 +156,7 @@ interface WatermarkSettings {
 }
 
 export interface ExportState {
+  destination?: string | null;
   errorMessage: string;
   progress: Progress;
   status: Status;
@@ -168,6 +169,7 @@ export interface FileFormat {
 }
 
 export interface ImportState {
+  destination?: string | null;
   errorMessage: string;
   path?: string;
   progress?: Progress;
