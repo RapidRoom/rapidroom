@@ -392,7 +392,9 @@ mod tests {
             .map(|e| e.path())
             .filter(|p| {
                 let name = p.file_name().unwrap().to_string_lossy().into_owned();
-                name.starts_with("IMG_1.ARW.") && name.ends_with(".rrdata") && name != "IMG_1.ARW.rrdata"
+                name.starts_with("IMG_1.ARW.")
+                    && name.ends_with(".rrdata")
+                    && name != "IMG_1.ARW.rrdata"
             })
             .collect()
     }
