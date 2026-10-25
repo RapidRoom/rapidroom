@@ -128,7 +128,7 @@
   "original_guards_unchanged": true,
   "guards_receipt_sha256": "31d0b2d558a9807e42b04b71ad1c5e25febe37ae18511912a9103c9bcc5c80fd",
   "reference_updated": false,
-  "josh_approval": false,
+  "maintainer_approval": false,
   "source_review": "https://github.com/RapidRoom/rapidroom/pull/179#issuecomment-6101744763",
   "scope": "Fresh migrated-main gates at523; prior Sony36, baseline80, pinned mainf30 controls and43 panels remain historical dcff/720 evidence. No fresh mainfd/native control or fresh settings/Sony run claimed."
 }
