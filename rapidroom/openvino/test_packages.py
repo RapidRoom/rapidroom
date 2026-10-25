@@ -108,10 +108,10 @@ class PackageTests(unittest.TestCase):
                 '%global __os_install_post %{nil}', '%global debug_package %{nil}', '%global _build_id_links none',
                 'Name: runtime-test', 'Version: 1.0', 'Release: 1', 'Summary: archive regression',
                 'License: MIT', 'Recommends: fixture-recommend', '', '%description', 'archive regression', '',
-                '%install', 'cp -a "%{t}/." "%{buildroot}/"', '', '%files',
+                '%install', 'cp -a "%{fixture_tree}/." "%{buildroot}/"', '', '%files',
                 '/usr/bin/keep-me', '/usr/lib/RapidRoom', '']))
             subprocess.run(['rpmbuild', '-bb', '--quiet', '--define', '_topdir ' + str(top),
-                            '--define', 't ' + str(tree), str(spec)], stdout=subprocess.DEVNULL, check=True)
+                            '--define', 'fixture_tree ' + str(tree), str(spec)], stdout=subprocess.DEVNULL, check=True)
             target = root / 'target'
             bundle = target / 'release/bundle/rpm'
             bundle.mkdir(parents=True)
