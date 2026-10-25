@@ -412,8 +412,7 @@ fn classify(name: &str, stem: &str, path: &Path) -> Option<UnitFile> {
         [image, id, ext]
             if is_image_ext(image)
                 && ext.eq_ignore_ascii_case("rrdata")
-                && crate::file_management::parse_sidecar_name(name)
-                    .is_some_and(|(_, copy)| copy == Some(*id)) =>
+                && crate::file_management::is_virtual_copy_id(id) =>
         {
             (EntryKind::Sidecar, Some(id.to_string()))
         }

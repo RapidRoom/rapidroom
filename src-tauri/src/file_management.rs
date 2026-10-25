@@ -686,6 +686,13 @@ pub struct XmpEditorDraft {
     adjustments: Value,
 }
 
+/// A virtual copy id in `IMG.ARW.<id>.rrdata`: six lowercase hex characters
+/// from RapidRoom, or a full UUID from the Lightroom catalog importer.
+pub fn is_virtual_copy_id(id: &str) -> bool {
+    (id.len() == 6 && id.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')))
+        || (id.len() == 36 && Uuid::parse_str(id).is_ok())
+}
+
 pub fn parse_sidecar_name(file_name: &str) -> Option<(&str, Option<&str>)> {
     let base = file_name.strip_suffix(".rrdata")?;
     if base.len() >= 7 && base.as_bytes()[base.len() - 7] == b'.' {

@@ -168,9 +168,10 @@ fn members(source: &Path) -> Result<Vec<Member>, String> {
         let filename = entry.file_name();
         let filename = filename.to_string_lossy();
         // Exact virtual copy ids only: `IMG.CR2.jpg.rrdata` belongs to IMG.CR2.jpg.
-        if let Some((image, Some(id))) = crate::file_management::parse_sidecar_name(&filename)
-            && filename.starts_with(&prefix)
-            && image.len() + 1 == prefix.len()
+        if let Some(id) = filename
+            .strip_prefix(&prefix)
+            .and_then(|s| s.strip_suffix(".rrdata"))
+            && crate::file_management::is_virtual_copy_id(id)
         {
             result.push(Member {
                 source: path,
@@ -371,9 +372,12 @@ mod tests {
         let (src, dest) = (root.path().join("src"), root.path().join("dest"));
         fs::create_dir(&src).unwrap();
         fs::create_dir(&dest).unwrap();
+        // RapidRoom and Lightroom-import virtual copies travel; IMG.CR2.jpg's edits don't.
+        let lightroom = "IMG.CR2.0f8fad5b-d9cb-469f-a165-70867728950e.rrdata";
         for name in [
             "IMG.CR2",
             "IMG.CR2.a1b2c3.rrdata",
+            lightroom,
             "IMG.CR2.jpg",
             "IMG.CR2.jpg.rrdata",
         ] {
@@ -385,7 +389,7 @@ mod tests {
             .map(|e| e.unwrap().file_name().into_string().unwrap())
             .collect();
         copied.sort();
-        assert_eq!(copied, ["IMG.CR2", "IMG.CR2.a1b2c3.rrdata"]);
+        assert_eq!(copied, ["IMG.CR2", lightroom, "IMG.CR2.a1b2c3.rrdata"]);
     }
 
     // Two cards with recycled image numbers, edits and Lightroom sidecars. This

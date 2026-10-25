@@ -213,7 +213,13 @@ struct CameraToSrgb {
 
 impl CameraToSrgb {
     fn new(raw_image: &RawImage) -> Option<Self> {
-        let color_matrix = as_shot_color(raw_image)
+        // Unity coefficients (Sony lossless M/S, neutralised Canon multi-exposures)
+        // are development gains, not a camera neutral: blending the illuminant
+        // matrices from them would pick the tungsten matrix. Keep the primary one.
+        let as_shot = (!wb_is_development_gain(raw_image))
+            .then(|| as_shot_color(raw_image))
+            .flatten();
+        let color_matrix = as_shot
             .map(|(_, color_matrix)| color_matrix)
             .or_else(|| primary_color_matrix(raw_image).cloned())?;
         if color_matrix.len() % 3 != 0 || color_matrix.len() > 12 {
@@ -614,12 +620,16 @@ fn as_shot_white_balance_from_raw(raw_image: &RawImage) -> Option<WhiteBalance> 
     if raw_image.make.eq_ignore_ascii_case("SONY")
         && raw_image.cpp == 3
         && is_linear_raw_format(raw_image)
-        && raw_image.wb_coeffs[..3] == [1.0; 3]
+        && wb_is_development_gain(raw_image)
     {
         return None;
     }
 
     as_shot_color(raw_image).map(|(white_balance, _)| white_balance)
+}
+
+fn wb_is_development_gain(raw_image: &RawImage) -> bool {
+    raw_image.wb_coeffs[..3] == [1.0; 3]
 }
 
 fn camera_neutral(raw_image: &RawImage) -> [f32; 4] {
@@ -777,6 +787,31 @@ mod as_shot_white_balance_tests {
                     .all(|gain| gain.is_finite() && gain.abs() < 0.25)
             );
         }
+    }
+
+    #[test]
+    fn unity_development_gains_keep_the_daylight_matrix() {
+        let d65 = |image: &RawImage| {
+            let primaries = crate::white_balance::camera_to_srgb(
+                &image.color_matrix[&Illuminant::D65],
+                &camera_neutral(image),
+            )
+            .unwrap();
+            let mut matrix = [[0.0f32; 4]; 3];
+            for (channel, primary) in primaries.iter().enumerate() {
+                for (row, value) in matrix.iter_mut().zip(primary) {
+                    row[channel] = *value;
+                }
+            }
+            matrix
+        };
+        for cpp in [1, 3] {
+            let image = sony_metadata(cpp, [1.0, 1.0, 1.0, f32::NAN]);
+            assert_eq!(CameraToSrgb::new(&image).unwrap().matrix, d65(&image));
+        }
+        // A real as-shot neutral still blends towards its illuminant.
+        let warm = sony_metadata(1, [1.6, 1.0, 2.9, f32::NAN]);
+        assert_ne!(CameraToSrgb::new(&warm).unwrap().matrix, d65(&warm));
     }
 
     #[test]

@@ -1204,10 +1204,22 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
             {
               label: denoiseLabel,
               icon: Grip,
-              disabled: finalSelection.length === 0 || useUIStore.getState().denoiseModalState.isProcessing,
-              onClick: () => {
-                useUIStore.getState().openDenoiseModal(finalSelection, selectedImage?.isRaw || false);
-              },
+              disabled: finalSelection.length === 0,
+              submenu: [
+                {
+                  label: t('contextMenus.thumbnail.enable'),
+                  icon: Check,
+                  disabled: useUIStore.getState().denoiseModalState.isProcessing,
+                  onClick: () => {
+                    useUIStore.getState().openDenoiseModal(finalSelection, selectedImage?.isRaw || false);
+                  },
+                },
+                {
+                  label: t('contextMenus.thumbnail.remove'),
+                  icon: X,
+                  onClick: () => handleEnableAdjustments(finalSelection, { aiDenoiseEnabled: false }),
+                },
+              ],
             },
             {
               label: t('contextMenus.editor.convertNegative'),
