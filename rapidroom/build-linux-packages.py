@@ -85,25 +85,19 @@ def verify_packages(root, target, kinds, adapter):
     bundle = target / 'release/bundle'
     notices = list((root / 'rapidroom/assets/poppins').glob('*.txt'))
     for kind in kinds:
-        candidates = list((bundle / kind).glob('*.deb' if kind == 'deb' else '*.AppImage'))
+        candidates = list((bundle / kind).glob(OPENVINO.SUFFIX[kind]))
         if len(candidates) != 1:
             raise RuntimeError('Expected exactly one ' + kind + ' package')
         package = candidates[0]
         with tempfile.TemporaryDirectory(prefix='mcp-check-', dir=bundle) as temporary:
             folder = Path(temporary)
-            if kind == 'deb':
-                subprocess.run(['dpkg-deb', '--extract', str(package), str(folder)], check=True)
-                contents = folder
-            else:
-                subprocess.run([str(package), '--appimage-extract'], cwd=folder,
-                               stdout=subprocess.DEVNULL, check=True)
-                contents = folder / 'squashfs-root'
+            contents = OPENVINO.extract(package, kind, folder)
             installed = contents / 'usr/bin/rapidroom-mcp-stdio'
             if not installed.is_file() or not os.access(installed, os.X_OK):
                 raise RuntimeError(kind + ' adapter missing or not executable')
-            if kind == 'deb':
+            if kind in ('deb', 'rpm'):
                 if sha(installed) != sha(adapter):
-                    raise RuntimeError('Debian adapter differs from staged source')
+                    raise RuntimeError(kind + ' adapter differs from staged source')
             else:
                 original, _ = elf_payload(adapter)
                 packaged, rpaths = elf_payload(installed)
@@ -127,8 +121,10 @@ def main():
     parser.add_argument('--artifacts-dir', type=Path, help='pin verified binaries/packages before releasing the build lock (new directory)')
     parser.add_argument('--lock', type=Path, default=Path('/tmp/rapidroom-build.lock'))
     args = parser.parse_args()
-    if sys.platform != 'linux' or set(args.bundles.split(',')) - {'deb', 'appimage'}:
-        parser.error('Linux deb and/or appimage bundles only')
+    if sys.platform != 'linux' or set(args.bundles.split(',')) - {'deb', 'rpm', 'appimage'}:
+        parser.error('Linux deb, rpm and/or appimage bundles only')
+    if 'rpm' in args.bundles.split(',') and not shutil.which('rpmbuild'):
+        parser.error('RPM bundles need rpmbuild (Fedora: sudo dnf install rpm-build)')
     if args.version and not re.fullmatch(r'\d+\.\d+\.\d+', args.version):
         parser.error('Version must be MAJOR.MINOR.PATCH')
     root = Path(__file__).resolve().parent.parent

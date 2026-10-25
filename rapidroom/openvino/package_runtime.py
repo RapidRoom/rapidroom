@@ -18,6 +18,9 @@ SPEC = importlib.util.spec_from_file_location('stage_openvino', Path(__file__).p
 STAGE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(STAGE)
 RUNTIME = Path('usr/lib/RapidRoom/resources/openvino-cpu/runtime')
+SUFFIX = {'deb': '*.deb', 'rpm': '*.rpm', 'appimage': '*.AppImage'}
+# LICENSE is the plain AGPL v3 text; nothing in the project grants "or later".
+RPM_LICENSE = 'AGPL-3.0-only'
 
 
 def manifest(root):
@@ -55,7 +58,7 @@ def restore_tree(root, contents):
 
 
 def package_path(target, kind):
-    candidates = list((target / 'release/bundle' / kind).glob('*.deb' if kind == 'deb' else '*.AppImage'))
+    candidates = list((target / 'release/bundle' / kind).glob(SUFFIX[kind]))
     if len(candidates) != 1:
         raise ValueError('Expected exactly one ' + kind + ' package')
     return candidates[0]
@@ -71,6 +74,10 @@ def appimagetool():
 
 
 def extract(package, kind, folder, control=False):
+    if kind == 'rpm':
+        payload = subprocess.run(['rpm2cpio', str(package)], stdout=subprocess.PIPE, check=True).stdout
+        subprocess.run(['cpio', '-idm', '--quiet', '--no-absolute-filenames'], input=payload, cwd=folder, check=True)
+        return folder
     if kind == 'deb':
         subprocess.run(['dpkg-deb', '--raw-extract' if control else '--extract', str(package), str(folder)], check=True)
         return folder
@@ -148,6 +155,67 @@ def rebuild_deb(contents, output):
     subprocess.run(['dpkg-deb', '--build', '--root-owner-group', str(contents), str(output)], check=True)
 
 
+def rpm_query(package, form):
+    return subprocess.check_output(['rpm', '-qp', '--qf', form, str(package)], text=True,
+                                   stderr=subprocess.DEVNULL)
+
+
+def rebuild_rpm(package, contents, output):
+    """Repackage the restored tree with rpmbuild, keeping every file byte for byte.
+
+Tauri's own RPM flattens the runtime's aliases, has no License and declares
+only webkit/gtk. rpmbuild adds the binaries' real library requirements; the
+bundled private libraries under /usr/lib/RapidRoom neither provide nor require
+anything, so they can't satisfy or clash with system packages. No strip, no
+debuginfo, no build-id links: the restored native bytes must survive as-is.
+"""
+    meta = {key: rpm_query(package, '%{' + key + '}') for key in
+            ('NAME', 'VERSION', 'RELEASE', 'ARCH', 'SUMMARY', 'DESCRIPTION', 'URL')}
+    owned = set(rpm_query(package, '[%{FILENAMES}\n]').split('\n')) - {''}
+    # Files the restore added (the runtime aliases) belong to the package too.
+    dirs = [d + '/' for d in owned if (contents / d.lstrip('/')).is_dir()]
+    for path in contents.rglob('*'):
+        name = '/' + path.relative_to(contents).as_posix()
+        if any(name.startswith(d) for d in dirs):
+            owned.add(name)
+    def quoted(name):
+        return '"' + name.replace('%', '%%') + '"'
+    lines = []
+    for name in sorted(owned):
+        path = contents / name.lstrip('/')
+        if not path.exists() and not path.is_symlink():
+            raise ValueError('Packaged path missing from restored tree: ' + name)
+        lines.append(('%dir ' if path.is_dir() and not path.is_symlink() else '') + quoted(name))
+    recommends = [r for r in rpm_query(package, '[%{RECOMMENDNAME}\n]').split('\n') if r]
+    top = output.parent / 'rpmbuild'
+    spec = top / 'rapidroom.spec'
+    spec.parent.mkdir(parents=True)
+    summary = meta['SUMMARY'].replace('%', '%%')
+    url = meta['URL'] if meta['URL'] != '(none)' else 'https://github.com/RapidRoom/rapidroom'
+    spec.write_text('\n'.join([
+        '%global __os_install_post %{nil}',
+        '%global __spec_install_post %{nil}',
+        '%global debug_package %{nil}',
+        '%global source_date_epoch_from_changelog 0',
+        '%global _build_id_links none',
+        '%global _missing_build_ids_terminate_build 0',
+        '%global __provides_exclude_from ^/usr/lib/RapidRoom/.*$',
+        '%global __requires_exclude_from ^/usr/lib/RapidRoom/.*$',
+        'Name: ' + meta['NAME'], 'Version: ' + meta['VERSION'], 'Release: ' + meta['RELEASE'],
+        'Summary: ' + summary, 'License: ' + RPM_LICENSE, 'URL: ' + url,
+        *['Recommends: ' + r for r in recommends],
+        '', '%description', meta['DESCRIPTION'].replace('%', '%%'),
+        '', '%install', 'cp -a "%{rr_tree}/." "%{buildroot}/"',
+        '', '%files', '%defattr(-,root,root,-)', *lines, '']))
+    subprocess.run(['rpmbuild', '-bb', '--quiet', '--target', meta['ARCH'],
+                    '--define', '_topdir ' + str(top), '--define', 'rr_tree ' + str(contents),
+                    str(spec)], check=True, stdout=subprocess.DEVNULL)
+    built = list((top / 'RPMS' / meta['ARCH']).glob('*.rpm'))
+    if len(built) != 1:
+        raise ValueError('Expected exactly one rebuilt RPM')
+    os.replace(built[0], output)
+
+
 def finalize(root, target, kinds):
     staged(root)  # Fail before changing a package if staging is incomplete.
     for kind in kinds:
@@ -161,6 +229,8 @@ def finalize(root, target, kinds):
             output = folder / package.name
             if kind == 'deb':
                 rebuild_deb(contents, output)
+            elif kind == 'rpm':
+                rebuild_rpm(package, contents, output)
             else:
                 rebuild_appimage(package, contents, output)
             # Independently reopen the finished archive before replacing it.
