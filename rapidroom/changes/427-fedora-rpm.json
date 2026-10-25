@@ -1,0 +1,14 @@
+{
+  "id": "fedora-rpm-package",
+  "title": "Linux: build a proper Fedora RPM",
+  "category": "platform",
+  "landed": "2026-10-24",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "`build-linux-packages.py --bundles rpm` restores the verified OpenVINO runtime in Tauri's RPM and repackages it with rpmbuild: files keep their bytes, License AGPL-3.0-only, library requirements generated from the binaries, bundled libraries excluded from provides/requires. Installs with dnf. Written with Claude Code."
+}
