@@ -3202,8 +3202,15 @@ fn find_all_associated_files(source_image_path: &Path) -> Result<Vec<PathBuf>, S
             let entry_os_filename = entry.file_name();
             let entry_filename = entry_os_filename.to_string_lossy();
 
-            if parse_sidecar_name(&entry_filename).is_some_and(|(name, _)| name == source_filename)
-            {
+            // `<name>.rrdata` or `<name>.<virtual copy id>.rrdata`, never another
+            // image's edits such as `IMG.CR2.jpg.rrdata`.
+            let is_sidecar = entry_filename
+                .strip_prefix(&*source_filename)
+                .and_then(|rest| rest.strip_suffix(".rrdata"))
+                .is_some_and(|rest| {
+                    rest.is_empty() || rest.strip_prefix('.').is_some_and(is_virtual_copy_id)
+                });
+            if is_sidecar {
                 associated_files.push(entry_path);
             }
         }
@@ -7331,6 +7338,44 @@ mod card_mode_tests {
         assert_eq!(renames.len(), 1);
         assert!(elsewhere.join("IMG_0001.jpg").is_file());
         assert!(elsewhere.join("IMG_0001.jpg.rrdata").is_file());
+    }
+
+    #[test]
+    fn moving_keeps_virtual_copies_with_their_image_only() {
+        let dir = tempfile::tempdir().unwrap();
+        let (src, dest) = (dir.path().join("src"), dir.path().join("dest"));
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&dest).unwrap();
+        let lightroom = "IMG.CR2.0f8fad5b-d9cb-469f-a165-70867728950e.rrdata";
+        for name in [
+            "IMG.CR2",
+            "IMG.CR2.rrdata",
+            "IMG.CR2.a1b2c3.rrdata",
+            lightroom,
+            "IMG.CR2.jpg",
+            "IMG.CR2.jpg.rrdata",
+        ] {
+            fs::write(src.join(name), name).unwrap();
+        }
+        move_files_on_disk(&[path_str(&src.join("IMG.CR2"))], &path_str(&dest)).unwrap();
+        let names = |dir: &Path| {
+            let mut names: Vec<String> = fs::read_dir(dir)
+                .unwrap()
+                .map(|e| e.unwrap().file_name().into_string().unwrap())
+                .collect();
+            names.sort();
+            names
+        };
+        assert_eq!(
+            names(&dest),
+            [
+                "IMG.CR2",
+                lightroom,
+                "IMG.CR2.a1b2c3.rrdata",
+                "IMG.CR2.rrdata"
+            ]
+        );
+        assert_eq!(names(&src), ["IMG.CR2.jpg", "IMG.CR2.jpg.rrdata"]);
     }
 
     #[test]
