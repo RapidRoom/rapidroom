@@ -701,6 +701,17 @@ const GF_STRUCTURE_EPS: f32 = 0.5;
 const GF_COARSE_DIV: u32 = 4;
 const GF_TONAL_RADIUS: f32 = 10.0;
 const GF_TONAL_EPS: f32 = 0.25;
+const HZ_DIV: u32 = 2;
+const HZ_PATCH_RADIUS: f32 = 12.0;
+const HZ_GF_RADIUS: f32 = 48.0;
+const HZ_GF_EPS: f32 = 1.0e-3;
+
+pub struct GuidedTextures {
+    pub coeffs: wgpu::TextureView,
+    pub structure: wgpu::TextureView,
+    pub haze: wgpu::TextureView,
+    pub airlight: wgpu::TextureView,
+}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -750,6 +761,13 @@ pub struct GpuProcessor {
     gf_blur_v_pipeline: wgpu::ComputePipeline,
     gf_coeffs_pipeline: wgpu::ComputePipeline,
     gf_pack_pipeline: wgpu::ComputePipeline,
+    hz_downsample_pipeline: wgpu::ComputePipeline,
+    hz_airlight_pipeline: wgpu::ComputePipeline,
+    hz_min_h_pipeline: wgpu::ComputePipeline,
+    hz_min_v_pipeline: wgpu::ComputePipeline,
+    hz_max_h_pipeline: wgpu::ComputePipeline,
+    hz_max_v_pipeline: wgpu::ComputePipeline,
+    hz_coeffs_pipeline: wgpu::ComputePipeline,
 
     main_bgl: wgpu::BindGroupLayout,
     main_pipeline: wgpu::ComputePipeline,
@@ -1312,6 +1330,13 @@ impl GpuProcessor {
         let gf_blur_v_pipeline = gf_pipeline("gf_blur_v");
         let gf_coeffs_pipeline = gf_pipeline("gf_coeffs");
         let gf_pack_pipeline = gf_pipeline("gf_pack");
+        let hz_downsample_pipeline = gf_pipeline("hz_downsample");
+        let hz_airlight_pipeline = gf_pipeline("hz_airlight");
+        let hz_min_h_pipeline = gf_pipeline("hz_min_h");
+        let hz_min_v_pipeline = gf_pipeline("hz_min_v");
+        let hz_max_h_pipeline = gf_pipeline("hz_max_h");
+        let hz_max_v_pipeline = gf_pipeline("hz_max_v");
+        let hz_coeffs_pipeline = gf_pipeline("hz_coeffs");
 
         let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Image Processing Shader"),
@@ -1448,16 +1473,18 @@ impl GpuProcessor {
             count: None,
         });
 
-        bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
-            binding: 12 + MAX_MASK_BINDINGS,
-            visibility: wgpu::ShaderStages::COMPUTE,
-            ty: wgpu::BindingType::Texture {
-                sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                view_dimension: wgpu::TextureViewDimension::D2,
-                multisampled: false,
-            },
-            count: None,
-        });
+        for binding in 12..15 {
+            bind_group_layout_entries.push(wgpu::BindGroupLayoutEntry {
+                binding: binding + MAX_MASK_BINDINGS,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            });
+        }
 
         let main_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Main BGL"),
@@ -1629,6 +1656,13 @@ impl GpuProcessor {
             gf_blur_v_pipeline,
             gf_coeffs_pipeline,
             gf_pack_pipeline,
+            hz_downsample_pipeline,
+            hz_airlight_pipeline,
+            hz_min_h_pipeline,
+            hz_min_v_pipeline,
+            hz_max_h_pipeline,
+            hz_max_v_pipeline,
+            hz_coeffs_pipeline,
             main_bgl,
             main_pipeline,
             main_shader_module,
@@ -1665,7 +1699,7 @@ impl GpuProcessor {
         width: u32,
         height: u32,
         is_raw: u32,
-    ) -> (wgpu::TextureView, wgpu::TextureView) {
+    ) -> GuidedTextures {
         let device = &self.context.device;
         let queue = &self.context.queue;
 
@@ -1676,6 +1710,10 @@ impl GpuProcessor {
         let low_short = lw.min(lh) as f32;
         let cw = lw.div_ceil(GF_COARSE_DIV).max(1);
         let ch = lh.div_ceil(GF_COARSE_DIV).max(1);
+        let hw = lw.div_ceil(HZ_DIV).max(1);
+        let hh = lh.div_ceil(HZ_DIV).max(1);
+        let hcw = hw.div_ceil(GF_COARSE_DIV).max(1);
+        let hch = hh.div_ceil(GF_COARSE_DIV).max(1);
 
         let make_view = |label: &'static str, w: u32, h: u32| {
             device
@@ -1720,11 +1758,18 @@ impl GpuProcessor {
         let c_tmp = make_view("GF Coarse Ping Pong", cw, ch);
         let c_blurred = make_view("GF Coarse Blurred", cw, ch);
         let c_ab = make_view("GF Coarse Coeffs", cw, ch);
+        let hz_a = make_view("Haze Ping", hw, hh);
+        let hz_b = make_view("Haze Pong", hw, hh);
+        let hz_coarse = make_view("Haze Coarse", hcw, hch);
+        let haze = make_view("Haze Coeffs", hw, hh);
+        let airlight = make_view("Haze Airlight", 2, 1);
 
         let params_clarity = make_params(GF_CLARITY_RADIUS, GF_CLARITY_EPS, 1.0);
         let params_tonal = make_params(GF_TONAL_RADIUS, GF_TONAL_EPS, 1.0);
         let params_coarse =
             make_params(GF_STRUCTURE_RADIUS, GF_STRUCTURE_EPS, GF_COARSE_DIV as f32);
+        let params_hz_patch = make_params(HZ_PATCH_RADIUS, HZ_GF_EPS, HZ_DIV as f32);
+        let params_hz_gf = make_params(HZ_GF_RADIUS, HZ_GF_EPS, HZ_DIV as f32);
 
         let mut encoder = device.create_command_encoder(&Default::default());
 
@@ -1763,6 +1808,7 @@ impl GpuProcessor {
         };
         let fine = (lw, lh);
         let coarse = (cw, ch);
+        let half = (hw, hh);
 
         pass(
             &self.gf_downsample_pipeline,
@@ -1853,8 +1899,110 @@ impl GpuProcessor {
             fine,
         );
 
+        pass(
+            &self.hz_downsample_pipeline,
+            input_view,
+            input_view,
+            &hz_a,
+            &params_hz_patch,
+            half,
+        );
+        pass(
+            &self.gf_box_down_pipeline,
+            &hz_a,
+            &hz_a,
+            &hz_coarse,
+            &params_hz_patch,
+            (hcw, hch),
+        );
+        pass(
+            &self.hz_airlight_pipeline,
+            &hz_coarse,
+            &hz_coarse,
+            &airlight,
+            &params_hz_patch,
+            (1, 1),
+        );
+        pass(
+            &self.hz_min_h_pipeline,
+            &hz_a,
+            &airlight,
+            &hz_b,
+            &params_hz_patch,
+            half,
+        );
+        pass(
+            &self.hz_min_v_pipeline,
+            &hz_b,
+            &hz_b,
+            &hz_a,
+            &params_hz_patch,
+            half,
+        );
+        pass(
+            &self.hz_max_h_pipeline,
+            &hz_a,
+            &hz_a,
+            &hz_b,
+            &params_hz_patch,
+            half,
+        );
+        pass(
+            &self.hz_max_v_pipeline,
+            &hz_b,
+            &hz_b,
+            &hz_a,
+            &params_hz_patch,
+            half,
+        );
+        pass(
+            &self.gf_blur_h_pipeline,
+            &hz_a,
+            &hz_a,
+            &hz_b,
+            &params_hz_gf,
+            half,
+        );
+        pass(
+            &self.gf_blur_v_pipeline,
+            &hz_b,
+            &hz_b,
+            &hz_a,
+            &params_hz_gf,
+            half,
+        );
+        pass(
+            &self.hz_coeffs_pipeline,
+            &hz_a,
+            &hz_a,
+            &hz_b,
+            &params_hz_gf,
+            half,
+        );
+        pass(
+            &self.gf_blur_h_pipeline,
+            &hz_b,
+            &hz_b,
+            &hz_a,
+            &params_hz_gf,
+            half,
+        );
+        pass(
+            &self.gf_blur_v_pipeline,
+            &hz_a,
+            &hz_a,
+            &haze,
+            &params_hz_gf,
+            half,
+        );
+
         queue.submit(Some(encoder.finish()));
-        (ab, c_moments)
+        GuidedTextures {
+            coeffs: ab,
+            structure: c_moments,
+            haze,
+            airlight,
+        }
     }
 
     fn mask_view(
@@ -2166,7 +2314,9 @@ impl GpuProcessor {
     ) -> Result<(RenderedPixels, u32, u32, u32, u32), String> {
         let input_texture_view = &input.texture_view;
         let gf_coeffs_view = &input.gf_coeffs_view;
-        let gf_dehaze_view = &input.gf_dehaze_view;
+        let gf_structure_view = &input.gf_structure_view;
+        let haze_view = &input.haze_view;
+        let airlight_view = &input.airlight_view;
         let (width, height) = (input.width, input.height);
         let device = &self.context.device;
         let queue = &self.context.queue;
@@ -2589,7 +2739,15 @@ impl GpuProcessor {
                 });
                 bind_group_entries.push(wgpu::BindGroupEntry {
                     binding: 12 + MAX_MASK_BINDINGS,
-                    resource: wgpu::BindingResource::TextureView(gf_dehaze_view),
+                    resource: wgpu::BindingResource::TextureView(gf_structure_view),
+                });
+                bind_group_entries.push(wgpu::BindGroupEntry {
+                    binding: 13 + MAX_MASK_BINDINGS,
+                    resource: wgpu::BindingResource::TextureView(haze_view),
+                });
+                bind_group_entries.push(wgpu::BindGroupEntry {
+                    binding: 14 + MAX_MASK_BINDINGS,
+                    resource: wgpu::BindingResource::TextureView(airlight_view),
                 });
 
                 let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -2821,8 +2979,8 @@ pub fn process_and_get_dynamic_image_with_analytics(
     )
 }
 
-/// Gaussian textures are now consumed only by sharpening, halation, glow and
-/// negative dehaze. Shadows, blacks, clarity, structure and centre use the new
+/// Gaussian textures are now consumed only by sharpening, halation and glow;
+/// dehaze uses its own haze textures. Shadows, blacks, clarity, structure and centre use the new
 /// log-space guided filter. Keep a conservative union of global and active mask
 /// terms: mask influence can prevent opposite signs from cancelling per pixel.
 struct BlurNeeds {
@@ -2838,14 +2996,14 @@ fn compute_blur_needs(adjustments: &AllAdjustments) -> BlurNeeds {
         sharpness: g.sharpness != 0.0,
         tonal: g.sharpness != 0.0,
         clarity: g.halation_amount != 0.0,
-        structure: g.glow_amount != 0.0 || g.dehaze != 0.0,
+        structure: g.glow_amount != 0.0,
     };
     let mask_count = (adjustments.mask_count as usize).min(adjustments.mask_adjustments.len());
     for m in &adjustments.mask_adjustments[..mask_count] {
         n.sharpness |= m.sharpness != 0.0;
         n.tonal |= m.sharpness != 0.0;
         n.clarity |= m.halation_amount != 0.0;
-        n.structure |= m.glow_amount != 0.0 || m.dehaze != 0.0;
+        n.structure |= m.glow_amount != 0.0;
     }
     n
 }
@@ -2985,15 +3143,16 @@ fn process_and_get_dynamic_image_inner(
         upload_span.gpu_sync(device);
         drop(upload_span);
 
-        let (gf_coeffs_view, gf_dehaze_view) =
-            processor.build_guided_coeffs(&texture_view, width, height, is_raw);
+        let guided = processor.build_guided_coeffs(&texture_view, width, height, is_raw);
 
         cache.entries.push(GpuImageEntry {
             id: NEXT_GPU_IMAGE_ID.fetch_add(1, Ordering::Relaxed),
             texture,
             texture_view,
-            gf_coeffs_view,
-            gf_dehaze_view,
+            gf_coeffs_view: guided.coeffs,
+            gf_structure_view: guided.structure,
+            haze_view: guided.haze,
+            airlight_view: guided.airlight,
             is_raw,
             width,
             height,
@@ -3339,12 +3498,8 @@ mod tests {
                 |a, v| a.mask_adjustments[2].glow_amount = v,
                 STRUCTURE,
             ),
-            ("dehaze", |a, v| a.global.dehaze = v, STRUCTURE),
-            (
-                "mask dehaze",
-                |a, v| a.mask_adjustments[2].dehaze = v,
-                STRUCTURE,
-            ),
+            ("dehaze", |a, v| a.global.dehaze = v, NONE),
+            ("mask dehaze", |a, v| a.mask_adjustments[2].dehaze = v, NONE),
             ("highlights", |a, v| a.global.highlights = v, NONE),
             (
                 "mask highlights",

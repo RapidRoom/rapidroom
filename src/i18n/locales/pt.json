@@ -262,6 +262,8 @@
       "ratingLabel_one": "{{count}} Estrela",
       "ratingLabel_other": "{{count}} Estrelas",
       "redo": "Refazer",
+      "removeDenoise": "Remover Redução de Ruído",
+      "removeNegativeConversion": "Remover Conversão de Negativo",
       "resetAdjustments": "Redefinir Ajustes",
       "stitchPanorama": "Montar Panorama",
       "tagging": "Etiquetas",
@@ -322,9 +324,6 @@
       "collage_other": "Criar Colagem",
       "confirmDelete": "Confirmar Exclusão",
       "confirmDeleteVc": "Confirmar Exclusão + Cópias Virtuais",
-      "convertNegative_many": "Converter Negativos",
-      "convertNegative_one": "Converter Negativo",
-      "convertNegative_other": "Converter Negativos",
       "copyImage_many": "Copiar {{count}} Imagens",
       "copyImage_one": "Copiar Imagem",
       "copyImage_other": "Copiar {{count}} Imagens",
@@ -340,6 +339,7 @@
       "denoise_one": "Reduzir Ruído",
       "denoise_other": "Reduzir Ruído",
       "duplicateImage": "Duplicar Imagem",
+      "enable": "Ativar",
       "exportImage_many": "Exportar {{count}} Imagens",
       "exportImage_one": "Exportar Imagem",
       "exportImage_other": "Exportar {{count}} Imagens",
@@ -349,6 +349,7 @@
       "pasteAdjustments_one": "Colar Ajustes",
       "pasteAdjustments_other": "Colar Ajustes em {{count}} Imagens",
       "physicalCopy": "Cópia Física",
+      "remove": "Remover",
       "removeFromAlbum_many": "Remover {{count}} Imagens do Álbum",
       "removeFromAlbum_one": "Remover do Álbum",
       "removeFromAlbum_other": "Remover {{count}} Imagens do Álbum",
@@ -1268,6 +1269,13 @@
       "tags": "Tags",
       "toggleFit": "Alternar 1:1 / Ajustar",
       "vc": "CV"
+    },
+    "filterExit": {
+      "hiddenSingle": "{{name}} não corresponde mais ao filtro",
+      "hiddenMultiple_many": "{{count}} imagens não correspondem mais ao filtro",
+      "hiddenMultiple_one": "{{count}} imagens não correspondem mais ao filtro",
+      "hiddenMultiple_other": "{{count}} imagens não correspondem mais ao filtro",
+      "undo": "Desfazer"
     },
     "filters": {
       "edited": {

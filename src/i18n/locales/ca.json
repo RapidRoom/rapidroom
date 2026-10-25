@@ -261,6 +261,8 @@
       "ratingLabel_one": "{{count}} Estrella",
       "ratingLabel_other": "{{count}} Estrelles",
       "redo": "Refer",
+      "removeDenoise": "Treure reducció de soroll",
+      "removeNegativeConversion": "Treure conversió de negatiu",
       "resetAdjustments": "Restablir ajustaments",
       "stitchPanorama": "Unir panorama",
       "tagging": "Etiquetatge",
@@ -316,8 +318,6 @@
       "collage_other": "Crear collage",
       "confirmDelete": "Confirmar eliminació",
       "confirmDeleteVc": "Confirmar eliminació + Còpies virtuals",
-      "convertNegative_one": "Convertir negatiu",
-      "convertNegative_other": "Convertir negatius",
       "copyImage_one": "Copiar imatge",
       "copyImage_other": "Copiar {{count}} imatges",
       "cullImage_one": "Cribratge automàtic",
@@ -329,6 +329,7 @@
       "denoise_one": "Reduir soroll",
       "denoise_other": "Reduir soroll",
       "duplicateImage": "Duplicar imatge",
+      "enable": "Activar",
       "exportImage_one": "Exportar imatge",
       "exportImage_other": "Exportar {{count}} imatges",
       "importXmpAdjustments": "Importar ajustaments XMP",
@@ -336,6 +337,7 @@
       "pasteAdjustments_one": "Enganxar ajustaments",
       "pasteAdjustments_other": "Enganxar ajustaments a {{count}} imatges",
       "physicalCopy": "Còpia física",
+      "remove": "Treure",
       "removeFromAlbum_one": "Treure de l'àlbum",
       "removeFromAlbum_other": "Treure {{count}} imatges de l'àlbum",
       "renameImage_one": "Reanomenar imatge",
@@ -1245,6 +1247,13 @@
       "tags": "Etiquetes",
       "toggleFit": "Alternar 1:1 / Ajustar",
       "vc": "CV"
+    },
+    "filterExit": {
+      "hiddenSingle": "{{name}} ja no coincideix amb el filtre",
+      "hiddenMultiple_many": "{{count}} imatges ja no coincideixen amb el filtre",
+      "hiddenMultiple_one": "{{count}} imatges ja no coincideixen amb el filtre",
+      "hiddenMultiple_other": "{{count}} imatges ja no coincideixen amb el filtre",
+      "undo": "Desfés"
     },
     "filters": {
       "edited": {

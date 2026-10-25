@@ -506,6 +506,7 @@ function TreeNode({
   isLayoutDragging,
 }: TreeNodeProps) {
   const hasChildren = node.hasSubdirs || (node.children && node.children.length > 0);
+  const isOpen = isExpanded && hasChildren;
   const isSelected = node.path === selectedPath;
   const isPinned = pinnedFolders.includes(node.path);
 
@@ -554,7 +555,7 @@ function TreeNode({
   };
 
   const currentFolderIconKey = folderIcons[node.path];
-  let ResolvedIcon: LucideIcon = isExpanded ? FolderOpen : Folder;
+  let ResolvedIcon: LucideIcon = isOpen ? FolderOpen : Folder;
 
   if (currentFolderIconKey && ALBUM_ICONS[currentFolderIconKey]) {
     ResolvedIcon = ALBUM_ICONS[currentFolderIconKey];
@@ -564,7 +565,7 @@ function TreeNode({
     ResolvedIcon = MoveRight;
   }
 
-  const iconKey = isDropTarget ? 'drop-target' : currentFolderIconKey || (isExpanded ? 'folder-open' : 'folder-closed');
+  const iconKey = isDropTarget ? 'drop-target' : currentFolderIconKey || (isOpen ? 'folder-open' : 'folder-closed');
 
   return (
     <Text as="div" color={TextColors.primary} weight={TextWeights.medium}>
@@ -614,14 +615,14 @@ function TreeNode({
             className="p-0.5 rounded-sm hover:bg-surface/50"
             onClick={handleFolderIconClick}
           >
-            {isExpanded ? <ChevronUp size={16} className="shrink-0" /> : <ChevronDown size={16} className="shrink-0" />}
+            {isOpen ? <ChevronUp size={16} className="shrink-0" /> : <ChevronDown size={16} className="shrink-0" />}
           </Text>
         )}
         {!hasChildren && <div className="w-5 h-5 shrink-0" aria-hidden="true" />}
       </div>
 
       <AnimatePresence initial={false}>
-        {hasChildren && isExpanded && node.children && node.children.length > 0 && (
+        {isOpen && node.children && node.children.length > 0 && (
           <motion.div
             animate="open"
             className="pl-1 border-l-[1.5px] border-border-color/50 ml-3.75 overflow-hidden"

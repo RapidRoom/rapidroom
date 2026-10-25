@@ -278,6 +278,8 @@
       "ratingLabel_one": "{{count}} Star",
       "ratingLabel_other": "{{count}} Stars",
       "redo": "Redo",
+      "removeDenoise": "Remove Denoise",
+      "removeNegativeConversion": "Remove Negative Conversion",
       "resetAdjustments": "Reset Adjustments",
       "stitchPanorama": "Stitch Panorama",
       "tagging": "Tagging",
@@ -334,8 +336,6 @@
       "collage_other": "Create Collage",
       "confirmDelete": "Confirm Delete",
       "confirmDeleteVc": "Confirm Delete + Virtual Copies",
-      "convertNegative_one": "Convert Negative",
-      "convertNegative_other": "Convert Negatives",
       "copyImage_one": "Copy Image",
       "copyImage_other": "Copy {{count}} Images",
       "cullImage_one": "Auto Cull",
@@ -347,6 +347,7 @@
       "denoise_one": "Denoise",
       "denoise_other": "Denoise",
       "duplicateImage": "Duplicate Image",
+      "enable": "Enable",
       "exportImage_one": "Export Image",
       "exportImage_other": "Export {{count}} Images",
       "importXmpAdjustments": "Import XMP Adjustments",
@@ -354,6 +355,7 @@
       "pasteAdjustments_one": "Paste Adjustments",
       "pasteAdjustments_other": "Paste Adjustments to {{count}} Images",
       "physicalCopy": "Physical Copy",
+      "remove": "Remove",
       "removeFromAlbum_one": "Remove from Album",
       "removeFromAlbum_other": "Remove {{count}} Images from Album",
       "renameImage_one": "Rename Image",
@@ -1325,6 +1327,12 @@
       "tags": "Tags",
       "toggleFit": "Toggle 1:1 / Fit",
       "vc": "VC"
+    },
+    "filterExit": {
+      "hiddenSingle": "{{name}} no longer matches the filter",
+      "hiddenMultiple_one": "{{count}} images no longer match the filter",
+      "hiddenMultiple_other": "{{count}} images no longer match the filter",
+      "undo": "Undo"
     },
     "filters": {
       "edited": {
