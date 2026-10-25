@@ -261,6 +261,8 @@
       "ratingLabel_one": "{{count}} Stern",
       "ratingLabel_other": "{{count}} Sterne",
       "redo": "Wiederholen",
+      "removeDenoise": "Entrauschen entfernen",
+      "removeNegativeConversion": "Negativumwandlung entfernen",
       "resetAdjustments": "Einstellungen zurücksetzen",
       "stitchPanorama": "Panorama zusammenfügen",
       "tagging": "Tagging",
@@ -315,8 +317,6 @@
       "collage_other": "Collage erstellen",
       "confirmDelete": "Löschen bestätigen",
       "confirmDeleteVc": "Löschen + virtuelle Kopien bestätigen",
-      "convertNegative_one": "Negativ umwandeln",
-      "convertNegative_other": "Negative umwandeln",
       "copyImage_one": "Bild kopieren",
       "copyImage_other": "{{count}} Bilder kopieren",
       "cullImage_one": "Autom. aussortieren",
@@ -328,6 +328,7 @@
       "denoise_one": "Entrauschen",
       "denoise_other": "Entrauschen",
       "duplicateImage": "Bild duplizieren",
+      "enable": "Aktivieren",
       "exportImage_one": "Bild exportieren",
       "exportImage_other": "{{count}} Bilder exportieren",
       "importXmpAdjustments": "Import XMP Adjustments",
@@ -335,6 +336,7 @@
       "pasteAdjustments_one": "Einstellungen einfügen",
       "pasteAdjustments_other": "Einstellungen in {{count}} Bilder einfügen",
       "physicalCopy": "Physische Kopie",
+      "remove": "Entfernen",
       "removeFromAlbum_one": "Aus Album entfernen",
       "removeFromAlbum_other": "{{count}} Bilder aus Album entfernen",
       "renameImage_one": "Bild umbenennen",
@@ -1241,6 +1243,12 @@
       "tags": "Tags",
       "toggleFit": "1:1 / Einpassen umschalten",
       "vc": "VK"
+    },
+    "filterExit": {
+      "hiddenSingle": "{{name}} entspricht nicht mehr dem Filter",
+      "hiddenMultiple_one": "{{count}} Bilder entsprechen nicht mehr dem Filter",
+      "hiddenMultiple_other": "{{count}} Bilder entsprechen nicht mehr dem Filter",
+      "undo": "Rückgängig"
     },
     "filters": {
       "edited": {

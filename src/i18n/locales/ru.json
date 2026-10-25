@@ -263,6 +263,8 @@
       "ratingLabel_one": "{{count}} звезда",
       "ratingLabel_other": "{{count}} звезд",
       "redo": "Повторить",
+      "removeDenoise": "Убрать шумоподавление",
+      "removeNegativeConversion": "Убрать преобразование негатива",
       "resetAdjustments": "Сбросить настройки",
       "stitchPanorama": "Сшить панораму",
       "tagging": "Теги",
@@ -329,10 +331,6 @@
       "collage_other": "Создать коллаж",
       "confirmDelete": "Подтвердить удаление",
       "confirmDeleteVc": "Подтвердить удаление + виртуальные копии",
-      "convertNegative_few": "Преобразовать негативы",
-      "convertNegative_many": "Преобразовать негативы",
-      "convertNegative_one": "Преобразовать негатив",
-      "convertNegative_other": "Преобразовать негативы",
       "copyImage_few": "Копировать {{count}} изображений",
       "copyImage_many": "Копировать {{count}} изображений",
       "copyImage_one": "Копировать {{count}} изображение",
@@ -352,6 +350,7 @@
       "denoise_one": "Шумоподавление",
       "denoise_other": "Шумоподавление",
       "duplicateImage": "Дублировать изображение",
+      "enable": "Включить",
       "exportImage_few": "Экспортировать {{count}} изображений",
       "exportImage_many": "Экспортировать {{count}} изображений",
       "exportImage_one": "Экспортировать {{count}} изображение",
@@ -363,6 +362,7 @@
       "pasteAdjustments_one": "Вставить настройки для {{count}} изображения",
       "pasteAdjustments_other": "Вставить настройки для {{count}} изображений",
       "physicalCopy": "Физическая копия",
+      "remove": "Убрать",
       "removeFromAlbum_few": "Удалить {{count}} изображений из альбома",
       "removeFromAlbum_many": "Удалить {{count}} изображений из альбома",
       "removeFromAlbum_one": "Удалить {{count}} изображение из альбома",
@@ -1295,6 +1295,14 @@
       "tags": "Теги",
       "toggleFit": "Переключить 1:1 / Вписать",
       "vc": "ВК"
+    },
+    "filterExit": {
+      "hiddenSingle": "{{name}} больше не соответствует фильтру",
+      "hiddenMultiple_few": "Снимки ({{count}}) больше не соответствуют фильтру",
+      "hiddenMultiple_many": "Снимки ({{count}}) больше не соответствуют фильтру",
+      "hiddenMultiple_one": "Снимки ({{count}}) больше не соответствуют фильтру",
+      "hiddenMultiple_other": "Снимки ({{count}}) больше не соответствуют фильтру",
+      "undo": "Отменить"
     },
     "filters": {
       "edited": {

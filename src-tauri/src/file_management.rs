@@ -168,14 +168,29 @@ fn emit_thumbnail_cache_setup_error(app_handle: &AppHandle, path: &str, reason: 
     );
 }
 
-fn compute_thumbnail_cache_hash(path_str: &str, adjustments_bytes: &[u8]) -> Option<String> {
+fn compute_thumbnail_cache_hash(
+    path_str: &str,
+    adjustments_bytes: &[u8],
+    settings: &AppSettings,
+) -> Option<String> {
     let (source_path, _) = parse_virtual_path(path_str);
     let img_mod_time = thumbnail_mtime(&source_path)?;
     Some(thumbnail_cache_hash(
         path_str,
         img_mod_time,
         adjustments_bytes,
+        &thumbnail_render_key(&source_path, settings),
     ))
+}
+
+/// Render settings that change how a thumbnail looks, so changing them
+/// regenerates thumbnails instead of serving stale ones.
+fn thumbnail_render_key(source_path: &Path, settings: &AppSettings) -> String {
+    format!(
+        "{:?}{:?}",
+        resolve_render_options(settings, is_raw_file(source_path)),
+        settings.always_decode_raw_thumbnails
+    )
 }
 
 fn thumbnail_mtime(source_path: &Path) -> Option<u64> {
@@ -190,11 +205,17 @@ fn thumbnail_mtime(source_path: &Path) -> Option<u64> {
     )
 }
 
-fn thumbnail_cache_hash(path_str: &str, img_mod_time: u64, adjustments_bytes: &[u8]) -> String {
+fn thumbnail_cache_hash(
+    path_str: &str,
+    img_mod_time: u64,
+    adjustments_bytes: &[u8],
+    render_key: &str,
+) -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(path_str.as_bytes());
     hasher.update(&img_mod_time.to_le_bytes());
     hasher.update(adjustments_bytes);
+    hasher.update(render_key.as_bytes());
     hasher.finalize().to_hex().to_string()
 }
 
@@ -2497,7 +2518,7 @@ fn generate_single_thumbnail_and_cache_with(
         return remote.map(|(small, medium)| (small, medium, rating, is_edited));
     }
 
-    let cache_hash = compute_thumbnail_cache_hash(path_str, &adjustments_bytes)?;
+    let cache_hash = compute_thumbnail_cache_hash(path_str, &adjustments_bytes, settings)?;
 
     let small_path = thumb_cache_dir.join(format!("{}_small.jpg", cache_hash));
     let medium_path = thumb_cache_dir.join(format!("{}_medium.jpg", cache_hash));
@@ -3164,9 +3185,6 @@ fn find_all_associated_files(source_image_path: &Path) -> Result<Vec<PathBuf>, S
         .ok_or("Could not get source filename")?
         .to_string_lossy();
 
-    let primary_sidecar_name = format!("{}.rrdata", source_filename);
-    let virtual_copy_prefix = format!("{}.", source_filename);
-
     if let Ok(entries) = fs::read_dir(parent_dir) {
         for entry in entries.filter_map(Result::ok) {
             let entry_path = entry.path();
@@ -3177,9 +3195,7 @@ fn find_all_associated_files(source_image_path: &Path) -> Result<Vec<PathBuf>, S
             let entry_os_filename = entry.file_name();
             let entry_filename = entry_os_filename.to_string_lossy();
 
-            if entry_filename == primary_sidecar_name
-                || (entry_filename.starts_with(&virtual_copy_prefix)
-                    && entry_filename.ends_with(".rrdata"))
+            if parse_sidecar_name(&entry_filename).is_some_and(|(name, _)| name == source_filename)
             {
                 associated_files.push(entry_path);
             }
@@ -3302,7 +3318,11 @@ fn move_files_on_disk(
             if let Some(file_name) = file_to_move.file_name() {
                 let dest_file_path = dest_path.join(file_name);
 
-                if dest_file_path.exists() {
+                if dest_file_path.exists()
+                    || operations_to_perform
+                        .iter()
+                        .any(|(_, dest, _)| *dest == dest_file_path)
+                {
                     return Err(format!(
                         "Move aborted: File already exists at destination: {}",
                         dest_file_path.display()
@@ -5799,28 +5819,32 @@ pub fn delete_files_with_associated(
 fn plan_associated_deletions(paths: &[String]) -> Result<DeletionPlan, String> {
     ensure_card_writable_for_paths(paths)?;
 
-    let mut stems_to_delete = HashSet::new();
-    let mut parent_dirs = HashSet::new();
+    // Stems are matched per folder: deleting /a/IMG_1 and /b/IMG_2 must not
+    // also trash /a/IMG_2 or /b/IMG_1.
+    let mut stems_by_dir: HashMap<PathBuf, HashSet<String>> = HashMap::new();
     let mut deletions = HashSet::new();
 
     for path_str in paths {
         deletions.insert(path_str.clone());
         let (source_path, _) = parse_virtual_path(path_str);
-        if let Some(stem) = source_path.file_stem().and_then(|s| s.to_str()) {
-            stems_to_delete.insert(stem.to_string());
-        }
-        if let Some(parent) = source_path.parent() {
-            parent_dirs.insert(parent.to_path_buf());
+        if let (Some(stem), Some(parent)) = (
+            source_path.file_stem().and_then(|s| s.to_str()),
+            source_path.parent(),
+        ) {
+            stems_by_dir
+                .entry(parent.to_path_buf())
+                .or_default()
+                .insert(stem.to_string());
         }
     }
 
-    if stems_to_delete.is_empty() {
+    if stems_by_dir.is_empty() {
         return Ok((Vec::new(), deletions));
     }
 
     let mut files_to_trash = HashSet::new();
 
-    for parent_dir in parent_dirs {
+    for (parent_dir, stems_to_delete) in stems_by_dir {
         if let Ok(entries) = fs::read_dir(parent_dir) {
             for entry in entries.filter_map(Result::ok) {
                 let entry_path = entry.path();
@@ -5855,9 +5879,13 @@ pub fn get_thumb_cache_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
     Ok(thumb_cache_dir)
 }
 
-pub fn get_cache_key_hash(path_str: &str) -> Option<String> {
+pub fn get_cache_key_hash(path_str: &str, settings: &AppSettings) -> Option<String> {
     let (_, sidecar_path) = parse_virtual_path(path_str);
-    compute_thumbnail_cache_hash(path_str, &thumbnail_adjustment_bytes(&sidecar_path))
+    compute_thumbnail_cache_hash(
+        path_str,
+        &thumbnail_adjustment_bytes(&sidecar_path),
+        settings,
+    )
 }
 
 pub fn get_cached_or_generate_thumbnail_image(
@@ -5870,7 +5898,7 @@ pub fn get_cached_or_generate_thumbnail_image(
     let target_width_small = settings.small_thumbnail_resolution.unwrap_or(480);
     let target_width_medium = settings.medium_thumbnail_resolution.unwrap_or(1280);
 
-    if let Some(cache_hash) = get_cache_key_hash(path_str) {
+    if let Some(cache_hash) = get_cache_key_hash(path_str, &settings) {
         let cache_path = thumb_cache_dir.join(format!("{}_medium.jpg", cache_hash));
 
         if cache_path.exists() {
@@ -6181,21 +6209,27 @@ fn update_references_after_rename(app_handle: &AppHandle, outcome: &RenameOutcom
         exif_processing::rename_cached_exif(Path::new(&change.from), Path::new(&change.to));
     }
     if let Ok(thumb_cache_dir) = get_thumb_cache_dir(app_handle) {
-        migrate_thumbnail_cache(&thumb_cache_dir, &outcome.images);
+        let settings = load_settings(app_handle.clone()).unwrap_or_default();
+        migrate_thumbnail_cache(&thumb_cache_dir, &outcome.images, &settings);
     }
 }
 
 /// Cached thumbnails are keyed by path, so move them to the new names instead
 /// of regenerating every renamed image.
-fn migrate_thumbnail_cache(thumb_cache_dir: &Path, images: &[crate::batch_rename::PathChange]) {
+fn migrate_thumbnail_cache(
+    thumb_cache_dir: &Path,
+    images: &[crate::batch_rename::PathChange],
+    settings: &AppSettings,
+) {
     for change in images {
         let (source_path, sidecar_path) = parse_virtual_path(&change.to);
         let Some(mtime) = thumbnail_mtime(&source_path) else {
             continue;
         };
         let adjustments = thumbnail_adjustment_bytes(&sidecar_path);
-        let old_hash = thumbnail_cache_hash(&change.from, mtime, &adjustments);
-        let new_hash = thumbnail_cache_hash(&change.to, mtime, &adjustments);
+        let render_key = thumbnail_render_key(&source_path, settings);
+        let old_hash = thumbnail_cache_hash(&change.from, mtime, &adjustments, &render_key);
+        let new_hash = thumbnail_cache_hash(&change.to, mtime, &adjustments, &render_key);
         for size in ["small", "medium"] {
             let old = thumb_cache_dir.join(format!("{}_{}.jpg", old_hash, size));
             if old.exists() {
@@ -7389,6 +7423,39 @@ mod card_mode_tests {
         assert!(files.contains(&f.library.join("IMG_0001.jpg.rrdata")));
         let (files, _) = plan_associated_deletions(&[photo]).unwrap();
         assert!(files.contains(&f.library.join("IMG_0001.jpg")));
+    }
+
+    #[test]
+    fn deleting_from_two_folders_matches_stems_per_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let (a, b) = (dir.path().join("a"), dir.path().join("b"));
+        for folder in [&a, &b] {
+            fs::create_dir_all(folder).unwrap();
+            for name in [
+                "IMG_1.jpg",
+                "IMG_2.jpg",
+                "IMG_1.jpg.rrdata",
+                "IMG_2.jpg.rrdata",
+            ] {
+                fs::write(folder.join(name), "x").unwrap();
+            }
+        }
+        let (files, _) = plan_associated_deletions(&[
+            path_str(&a.join("IMG_1.jpg")),
+            path_str(&b.join("IMG_2.jpg")),
+        ])
+        .unwrap();
+        let mut files: Vec<_> = files.into_iter().collect();
+        files.sort();
+        assert_eq!(
+            files,
+            vec![
+                a.join("IMG_1.jpg"),
+                a.join("IMG_1.jpg.rrdata"),
+                b.join("IMG_2.jpg"),
+                b.join("IMG_2.jpg.rrdata"),
+            ]
+        );
     }
 
     #[test]
@@ -9255,6 +9322,7 @@ mod rename_cache_tests {
 
     #[test]
     fn renamed_thumbnails_are_found_under_the_new_path() {
+        let settings = AppSettings::default();
         let dir = tempfile::tempdir().unwrap();
         let photos = dir.path().join("photos");
         let cache = dir.path().join("thumbs");
@@ -9263,16 +9331,16 @@ mod rename_cache_tests {
         let old = photos.join("IMG_1.jpg");
         fs::write(&old, "jpg").unwrap();
         fs::write(
-            photos.join("IMG_1.jpg.abc.rrdata"),
+            photos.join("IMG_1.jpg.abc123.rrdata"),
             r#"{"version":1,"rating":0,"adjustments":{"exposure":1.0}}"#,
         )
         .unwrap();
         let old_paths = [
             old.to_string_lossy().into_owned(),
-            format!("{}?vc=abc", old.to_string_lossy()),
+            format!("{}?vc=abc123", old.to_string_lossy()),
         ];
         for path in &old_paths {
-            let hash = get_cache_key_hash(path).unwrap();
+            let hash = get_cache_key_hash(path, &settings).unwrap();
             fs::write(cache.join(format!("{}_small.jpg", hash)), path).unwrap();
             fs::write(cache.join(format!("{}_medium.jpg", hash)), path).unwrap();
         }
@@ -9280,13 +9348,13 @@ mod rename_cache_tests {
         let new = photos.join("trip_1.jpg");
         fs::rename(&old, &new).unwrap();
         fs::rename(
-            photos.join("IMG_1.jpg.abc.rrdata"),
-            photos.join("trip_1.jpg.abc.rrdata"),
+            photos.join("IMG_1.jpg.abc123.rrdata"),
+            photos.join("trip_1.jpg.abc123.rrdata"),
         )
         .unwrap();
         let new_paths = [
             new.to_string_lossy().into_owned(),
-            format!("{}?vc=abc", new.to_string_lossy()),
+            format!("{}?vc=abc123", new.to_string_lossy()),
         ];
         let changes: Vec<PathChange> = old_paths
             .iter()
@@ -9296,10 +9364,10 @@ mod rename_cache_tests {
                 to: to.clone(),
             })
             .collect();
-        migrate_thumbnail_cache(&cache, &changes);
+        migrate_thumbnail_cache(&cache, &changes, &settings);
 
         for (old_path, new_path) in old_paths.iter().zip(&new_paths) {
-            let hash = get_cache_key_hash(new_path).unwrap();
+            let hash = get_cache_key_hash(new_path, &settings).unwrap();
             for size in ["small", "medium"] {
                 let cached = cache.join(format!("{}_{}.jpg", hash, size));
                 assert_eq!(fs::read_to_string(cached).unwrap(), *old_path);

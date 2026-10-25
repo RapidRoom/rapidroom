@@ -188,7 +188,7 @@ export default function LibraryView({
           <div className="lights-out-chrome shrink-0">
             <BottomBar
               isCopied={isCopied}
-              isCopyDisabled={multiSelectedPaths.length !== 1}
+              isCopyDisabled={multiSelectedPaths.length === 0}
               isExportDisabled={multiSelectedPaths.length === 0}
               isLibraryView={true}
               layoutMode={layoutMode}

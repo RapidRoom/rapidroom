@@ -262,6 +262,8 @@
       "ratingLabel_one": "{{count}} Stella",
       "ratingLabel_other": "{{count}} Stelle",
       "redo": "Ripeti",
+      "removeDenoise": "Rimuovi Riduzione Rumore",
+      "removeNegativeConversion": "Rimuovi Conversione Negativo",
       "resetAdjustments": "Ripristina Regolazioni",
       "stitchPanorama": "Unisci Panorama",
       "tagging": "Tag",
@@ -323,9 +325,6 @@
       "collage_other": "Crea Collage",
       "confirmDelete": "Conferma Eliminazione",
       "confirmDeleteVc": "Conferma Eliminazione + Copie Virtuali",
-      "convertNegative_many": "Converti Negativi",
-      "convertNegative_one": "Converti Negativo",
-      "convertNegative_other": "Converti Negativi",
       "copyImage_many": "Copia {{count}} Immagini",
       "copyImage_one": "Copia Immagine",
       "copyImage_other": "Copia {{count}} Immagini",
@@ -341,6 +340,7 @@
       "denoise_one": "Riduci Rumore",
       "denoise_other": "Riduci Rumore",
       "duplicateImage": "Duplica Immagine",
+      "enable": "Attiva",
       "exportImage_many": "Esporta {{count}} Immagini",
       "exportImage_one": "Esporta Immagine",
       "exportImage_other": "Esporta {{count}} Immagini",
@@ -350,6 +350,7 @@
       "pasteAdjustments_one": "Incolla Regolazioni",
       "pasteAdjustments_other": "Incolla Regolazioni su {{count}} Immagini",
       "physicalCopy": "Copia Fisica",
+      "remove": "Rimuovi",
       "removeFromAlbum_many": "Rimuovi {{count}} Immagini dall'Album",
       "removeFromAlbum_one": "Rimuovi dall'Album",
       "removeFromAlbum_other": "Rimuovi {{count}} Immagini dall'Album",
@@ -1270,6 +1271,13 @@
       "tags": "Tag",
       "toggleFit": "Alterna 1:1 / Adatta",
       "vc": "CV"
+    },
+    "filterExit": {
+      "hiddenSingle": "{{name}} non corrisponde più al filtro",
+      "hiddenMultiple_many": "{{count}} immagini non corrispondono più al filtro",
+      "hiddenMultiple_one": "{{count}} immagini non corrispondono più al filtro",
+      "hiddenMultiple_other": "{{count}} immagini non corrispondono più al filtro",
+      "undo": "Annulla"
     },
     "filters": {
       "edited": {

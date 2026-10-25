@@ -408,8 +408,12 @@ fn classify(name: &str, stem: &str, path: &Path) -> Option<UnitFile> {
         [image, ext] if is_image_ext(image) && is_one_of(ext, IMAGE_SIDECAR_EXTENSIONS) => {
             (EntryKind::Sidecar, None)
         }
+        // Exact virtual copy ids only: `IMG.CR2.jpg.rrdata` belongs to IMG.CR2.jpg.
         [image, id, ext]
-            if is_image_ext(image) && !id.is_empty() && ext.eq_ignore_ascii_case("rrdata") =>
+            if is_image_ext(image)
+                && ext.eq_ignore_ascii_case("rrdata")
+                && crate::file_management::parse_sidecar_name(name)
+                    .is_some_and(|(_, copy)| copy == Some(*id)) =>
         {
             (EntryKind::Sidecar, Some(id.to_string()))
         }
