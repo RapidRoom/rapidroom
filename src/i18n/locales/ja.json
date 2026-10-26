@@ -364,6 +364,8 @@
         "masks": "masks of a kind RapidRAW can't import",
         "pointColor": "Point Color",
         "profileLook": "profile look (colour table)",
+        "unsupportedDevelopSettings": "RapidRoom に対応する操作がない Lightroom 現像設定",
+        "unsupportedProcessVersion": "Lightroom の処理バージョンが不明なため既定値を推定しません",
         "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
       },
       "title": "XMP Import Report",

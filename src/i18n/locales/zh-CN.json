@@ -364,6 +364,8 @@
         "masks": "masks of a kind RapidRAW can't import",
         "pointColor": "Point Color",
         "profileLook": "profile look (colour table)",
+        "unsupportedDevelopSettings": "RapidRoom 不支持的 Lightroom 显影设置",
+        "unsupportedProcessVersion": "无法识别 Lightroom 处理版本（不推断默认值）",
         "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
       },
       "title": "XMP Import Report",

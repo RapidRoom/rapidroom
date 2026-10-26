@@ -120,7 +120,9 @@ type XmpNotTransferredItem =
   | 'maskBrushTable'
   | 'masks'
   | 'localAdjustments'
-  | 'pointColor';
+  | 'pointColor'
+  | 'unsupportedDevelopSettings'
+  | 'unsupportedProcessVersion';
 
 interface BrushTableRefusal {
   name: string;
@@ -222,6 +224,8 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
         masks: t('contextMenus.xmpImportReport.notTransferredItems.masks'),
         pointColor: t('contextMenus.xmpImportReport.notTransferredItems.pointColor'),
         profileLook: t('contextMenus.xmpImportReport.notTransferredItems.profileLook'),
+        unsupportedDevelopSettings: t('contextMenus.xmpImportReport.notTransferredItems.unsupportedDevelopSettings'),
+        unsupportedProcessVersion: t('contextMenus.xmpImportReport.notTransferredItems.unsupportedProcessVersion'),
         whiteBalance: t('contextMenus.xmpImportReport.notTransferredItems.whiteBalance'),
       };
       return [
