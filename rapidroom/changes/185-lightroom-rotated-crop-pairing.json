@@ -2,7 +2,7 @@
   "id": "lightroom-rotated-crop-pairing",
   "title": "Preserve Lightroom crop corner pairing through EXIF orientation",
   "category": "fix",
-  "landed": "2026-10-20",
+  "landed": "2026-10-26",
   "authors": ["yojen7"],
   "source": "rapidroom (original implementation with Codex; renewed integration of PR187)",
   "commits": [],
