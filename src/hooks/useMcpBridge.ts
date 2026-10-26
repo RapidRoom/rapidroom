@@ -344,9 +344,10 @@ export function useMcpBridge(
               type: 'set-reference',
               image: { path: command.referencePath, label: getReferenceLabel(command.referencePath) },
             });
+            current.dispatchReferenceView({ type: 'toggle-wipe' });
             await invoke('ui_response', {
               requestId: command.requestId,
-              response: { imagePath: command.path, referencePath: command.referencePath, mode: 'side-by-side' },
+              response: { imagePath: command.path, referencePath: command.referencePath, mode: 'wipe' },
               error: null,
             });
           } else {
@@ -440,7 +441,7 @@ export function useMcpBridge(
               command.path,
               next,
               before.adjustments,
-              plan.application.label,
+              command.label ?? `AI: ${plan.application.label}`,
               !!plan.application.stackChanged,
             );
           });

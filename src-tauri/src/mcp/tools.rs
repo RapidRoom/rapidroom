@@ -268,6 +268,21 @@ pub(super) fn tool_definitions() -> Vec<Value> {
                 adjustments::referenced_definitions(&tool["inputSchema"], &all);
         }
     }
+    for tool in &mut definitions {
+        if matches!(
+            tool["name"].as_str(),
+            Some(
+                "set_adjustments"
+                    | "update_adjustments"
+                    | "reset_adjustments"
+                    | "apply_auto_adjustments"
+                    | "upsert_mask"
+                    | "remove_mask"
+            )
+        ) {
+            tool["inputSchema"]["properties"]["label"] = json!({"type":"string","minLength":1,"maxLength":160,"description":"Optional descriptive history label; recorded as AI: <label>."});
+        }
+    }
     definitions.extend(super::presets::definitions());
     definitions.extend(super::library::definitions());
     definitions
@@ -390,9 +405,9 @@ fn list_images(app_handle: &AppHandle, arguments: &Value) -> Result<Value, Strin
         .unwrap_or(100)
         .clamp(1, 500) as usize;
     let images = if recursive {
-        crate::file_management::list_images_recursive(path, app_handle.clone())?
+        crate::file_management::list_images_recursive_blocking(path, app_handle.clone())?
     } else {
-        crate::file_management::list_images_in_dir(path, app_handle.clone())?
+        crate::file_management::list_images_in_dir_blocking(path, app_handle.clone())?
     };
     let total = images.len();
     let images = images
@@ -494,7 +509,7 @@ async fn set_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result<Va
     let response = ui::request_ui(
         app_handle,
         "apply-adjustments",
-        json!({ "path": path, "adjustments": adjustments, "resetHistory": false }),
+        json!({ "path": path, "adjustments": adjustments, "resetHistory": false, "label": history_label(arguments)? }),
     )
     .await?;
     Ok(mutation_response(&before, response, verbose))
@@ -519,7 +534,7 @@ async fn update_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result
     let response = ui::request_ui(
         app_handle,
         "apply-adjustments",
-        json!({ "path": path, "adjustments": merged, "resetHistory": false }),
+        json!({ "path": path, "adjustments": merged, "resetHistory": false, "label": history_label(arguments)? }),
     )
     .await?;
     Ok(mutation_response(&current, response, verbose))
@@ -553,7 +568,7 @@ async fn mask_action(
     let mut next = current["adjustments"].clone();
     next["masks"] = changed;
     let response = ui::request_ui(app_handle, "apply-adjustments", json!({
-        "path":path,"adjustments":next,"baseAdjustments":current["adjustments"],"resetHistory":false
+        "path":path,"adjustments":next,"baseAdjustments":current["adjustments"],"resetHistory":false,"label":history_label(arguments)?
     })).await?;
     Ok(mutation_response(&current, response, verbose))
 }
@@ -564,8 +579,30 @@ async fn reset_adjustments(app_handle: &AppHandle, arguments: &Value) -> Result<
     check_expected_revision(app_handle, &path, arguments.get("expectedRevision")).await?;
     ui::require_active_session(app_handle, Some(&path))?;
     let before = get_image_state(app_handle, arguments)?;
-    let response = ui::request_ui(app_handle, "reset-adjustments", json!({ "path": path })).await?;
+    let response = ui::request_ui(
+        app_handle,
+        "reset-adjustments",
+        json!({ "path": path, "label":history_label(arguments)?.unwrap_or_else(|| "AI: Reset adjustments".into()) }),
+    )
+    .await?;
     Ok(mutation_response(&before, response, verbose))
+}
+
+pub(super) fn history_label(arguments: &Value) -> Result<Option<String>, String> {
+    arguments
+        .get("label")
+        .map(|value| {
+            value
+                .as_str()
+                .filter(|s| {
+                    !s.trim().is_empty()
+                        && s.chars().count() <= 160
+                        && !s.chars().any(char::is_control)
+                })
+                .map(|s| format!("AI: {s}"))
+                .ok_or_else(|| "label must be 1–160 printable characters".to_string())
+        })
+        .transpose()
 }
 
 pub(super) fn mutation_response(before: &Value, response: Value, verbose: bool) -> Value {
@@ -588,6 +625,7 @@ async fn apply_auto_adjustments(
     let current = get_image_state(app_handle, arguments)?;
     let auto_json = crate::image_processing::calculate_auto_adjustments(
         current["adjustments"].clone(),
+        None,
         state,
         app_handle.clone(),
     )?;
@@ -601,7 +639,7 @@ async fn apply_auto_adjustments(
     ui::request_ui(
         app_handle,
         "apply-adjustments",
-        json!({ "path": path, "adjustments": merged, "resetHistory": false }),
+        json!({ "path": path, "adjustments": merged, "resetHistory": false, "label": history_label(arguments)?.unwrap_or_else(|| "AI: Auto adjustments".into()) }),
     )
     .await
 }

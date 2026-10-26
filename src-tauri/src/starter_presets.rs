@@ -190,46 +190,37 @@ pub fn include_styles(library: &mut Vec<PresetItem>) -> Result<(), String> {
     Ok(())
 }
 
-/// Retire only unmodified stock items in their original groups. Favourited,
-/// renamed, moved, edited and imported presets remain user-owned.
-pub fn retire_untouched_stock(library: &mut Vec<PresetItem>) -> Result<(), String> {
+/// Older converters produced different values for the same stock presets.
+/// Retire only complete stock folders, leaving mixed and moved items intact.
+pub fn retire_legacy_stock_folders(library: &mut Vec<serde_json::Value>) -> Result<(), String> {
     let stock = starter_library()?;
-    for item in library.iter_mut() {
-        let PresetItem::Folder(folder) = item else {
-            continue;
+    library.retain(|item| {
+        let Some(folder) = item.get("folder") else {
+            return true;
         };
         let Some(original) = stock.iter().find_map(|item| match item {
             PresetItem::Folder(original)
-                if original.id == folder.id && original.name == folder.name =>
+                if folder.get("id").and_then(|v| v.as_str()) == Some(original.id.as_str())
+                    && (folder.get("name").and_then(|v| v.as_str())
+                        == Some(original.name.as_str())
+                        || (original.name == "B&W"
+                            && folder.get("name").and_then(|v| v.as_str()) == Some("BandW"))) =>
             {
                 Some(original)
             }
             _ => None,
         }) else {
-            continue;
+            return true;
         };
-        folder.children.retain(|preset| {
-            if preset.favorite == Some(true) {
-                return true;
-            }
-            let Some(original) = original.children.iter().find(|p| p.id == preset.id) else {
-                return true;
-            };
-            // Toggling a favourite off can persist `false` rather than omit it.
-            let mut candidate = preset.clone();
-            candidate.favorite = original.favorite;
-            !matches!(
-                (serde_json::to_value(candidate), serde_json::to_value(original)),
-                (Ok(candidate), Ok(original)) if candidate == original
-            )
-        });
-    }
-    library.retain(|item| match item {
-        PresetItem::Folder(folder) if folder.children.is_empty() => !stock.iter().any(|item| {
-            matches!(item, PresetItem::Folder(original)
-                if original.id == folder.id && original.name == folder.name)
-        }),
-        _ => true,
+        let Some(children) = folder.get("children").and_then(|v| v.as_array()) else {
+            return true;
+        };
+        !children.iter().all(|preset| {
+            let id = preset.get("id").and_then(|v| v.as_str());
+            // All shipped stock seeders reserve these exact IDs. An unknown
+            // ID with a stock display name may be a user-created preset.
+            original.children.iter().any(|p| Some(p.id.as_str()) == id)
+        })
     });
     Ok(())
 }

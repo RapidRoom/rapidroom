@@ -7,7 +7,7 @@
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
   "upstream_issues": ["RapidRoom/rapidroom#241", "CyberTimon/RapidRAW#1902"],
-  "upstream_prs": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#2019"],
   "rendering_change": true,
   "notes": "AI mask bitmaps are filtered before minification and sampled bilinearly at transformed pixel centers. Rotation, flip, crop and coarse orientation retain correct pixel alignment; subjects reaching frame edges do not gain an extra fade. Stored bitmap data and model selection are unchanged."
 }

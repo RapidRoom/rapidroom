@@ -203,7 +203,9 @@ pub fn generate_tags_with_clip(
     let mask_val = Tensor::from_array(mask_layout.into_owned())?;
 
     let mut clip_session = clip_session_mutex.lock().unwrap();
-    let outputs = clip_session.run(ort::inputs![ids_val, image_val, mask_val])?;
+    let outputs = crate::ai_processing::gpu_inference(
+        clip_session.run(ort::inputs![ids_val, image_val, mask_val]),
+    )?;
 
     let logits_dyn = outputs[0].try_extract_array::<f32>()?.to_owned();
     let logits = logits_dyn.into_dimensionality::<ndarray::Dim<[usize; 2]>>()?;
@@ -259,6 +261,16 @@ fn limit_tags(
     final_tags
 }
 
+fn needs_ai_tags(path: &Path) -> bool {
+    let (_, sidecar_path) = parse_virtual_path(&path.to_string_lossy());
+    match crate::exif_processing::load_sidecar(&sidecar_path).tags {
+        None => true,
+        Some(tags) => !tags
+            .iter()
+            .any(|tag| !tag.starts_with(COLOR_TAG_PREFIX) && !tag.starts_with(USER_TAG_PREFIX)),
+    }
+}
+
 #[tauri::command]
 pub async fn start_background_indexing(
     folder_path: String,
@@ -269,6 +281,7 @@ pub async fn start_background_indexing(
     if let Some(handle) = state.indexing_task_handle.lock().unwrap().take() {
         println!("Cancelling previous indexing task.");
         handle.abort();
+        let _ = app_handle.emit("indexing-cancelled", ());
     }
 
     let settings = crate::load_settings(app_handle.clone())?;
@@ -291,23 +304,14 @@ pub async fn start_background_indexing(
     let app_handle_clone = app_handle.clone();
 
     let task: JoinHandle<()> = tokio::spawn(async move {
-        let _ = app_handle_clone.emit("indexing-started", ());
-        println!("Starting background indexing for: {}", folder_path);
-        println!(
-            "Using {} concurrent threads for AI tagging.",
-            max_concurrent_tasks
-        );
-
-        let state_clone = app_handle_clone.state::<AppState>();
-        let gpu_context =
-            crate::gpu_processing::get_or_init_gpu_context(&state_clone, &app_handle).ok();
-
         let image_paths: Vec<PathBuf> = match fs::read_dir(&folder_path) {
             Ok(entries) => entries
                 .filter_map(Result::ok)
                 .map(|entry| entry.path())
                 .filter(|path| {
-                    path.is_file() && is_supported_image_file(path.to_string_lossy().as_ref())
+                    path.is_file()
+                        && is_supported_image_file(path.to_string_lossy().as_ref())
+                        && needs_ai_tags(path)
                 })
                 .collect(),
             Err(e) => {
@@ -323,12 +327,33 @@ pub async fn start_background_indexing(
             }
         };
 
-        println!(
-            "Found {} images to process in {}",
-            image_paths.len(),
-            folder_path
-        );
         let total_images = image_paths.len();
+        if total_images == 0 {
+            *app_handle_clone
+                .state::<AppState>()
+                .indexing_task_handle
+                .lock()
+                .unwrap() = None;
+            return;
+        }
+
+        let _ = app_handle_clone.emit(
+            "indexing-started",
+            serde_json::json!({ "current": 0, "total": total_images }),
+        );
+        println!(
+            "Starting background indexing of {} images in: {}",
+            total_images, folder_path
+        );
+        println!(
+            "Using {} concurrent threads for AI tagging.",
+            max_concurrent_tasks
+        );
+
+        let state_clone = app_handle_clone.state::<AppState>();
+        let gpu_context =
+            crate::gpu_processing::get_or_init_gpu_context(&state_clone, &app_handle).ok();
+
         let processed_count = Arc::new(Mutex::new(0));
         let custom_ai_tags_shared = Arc::new(custom_ai_tags);
 
@@ -344,57 +369,46 @@ pub async fn start_background_indexing(
                     let path_str = path.to_string_lossy().to_string();
                     let (_, sidecar_path) = parse_virtual_path(&path_str);
 
-                    let metadata = crate::exif_processing::load_sidecar(&sidecar_path);
+                    match file_management::get_cached_or_generate_thumbnail_image(
+                        &path_str,
+                        &app_handle_inner,
+                        gpu_context_inner.as_ref(),
+                    ) {
+                        Ok(image) => {
+                            if let Ok(ai_tags) = generate_tags_with_clip(
+                                &image,
+                                &clip_models_inner.model,
+                                &clip_models_inner.tokenizer,
+                                (*tags_inner).clone(),
+                                ai_tag_count,
+                            ) {
+                                println!("Found AI tags for {}: {:?}", path_str, ai_tags);
 
-                    let should_generate_tags = match &metadata.tags {
-                        None => true,
-                        Some(tags) => !tags.iter().any(|tag| {
-                            !tag.starts_with(COLOR_TAG_PREFIX) && !tag.starts_with(USER_TAG_PREFIX)
-                        }),
-                    };
-
-                    if should_generate_tags {
-                        match file_management::get_cached_or_generate_thumbnail_image(
-                            &path_str,
-                            &app_handle_inner,
-                            gpu_context_inner.as_ref(),
-                        ) {
-                            Ok(image) => {
-                                if let Ok(ai_tags) = generate_tags_with_clip(
-                                    &image,
-                                    &clip_models_inner.model,
-                                    &clip_models_inner.tokenizer,
-                                    (*tags_inner).clone(),
-                                    ai_tag_count,
+                                if let Err(error) = crate::file_management::update_sidecar(
+                                    &sidecar_path,
+                                    |current| {
+                                        let mut tags: HashSet<String> = current
+                                            .tags
+                                            .clone()
+                                            .unwrap_or_default()
+                                            .into_iter()
+                                            .collect();
+                                        tags.extend(ai_tags.iter().cloned());
+                                        let mut final_tags: Vec<String> =
+                                            tags.into_iter().collect();
+                                        final_tags.sort_unstable();
+                                        current.tags = Some(final_tags);
+                                    },
                                 ) {
-                                    println!("Found AI tags for {}: {:?}", path_str, ai_tags);
-
-                                    if let Err(error) = crate::file_management::update_sidecar(
-                                        &sidecar_path,
-                                        |current| {
-                                            let mut tags: HashSet<String> = current
-                                                .tags
-                                                .clone()
-                                                .unwrap_or_default()
-                                                .into_iter()
-                                                .collect();
-                                            tags.extend(ai_tags.iter().cloned());
-                                            let mut final_tags: Vec<String> =
-                                                tags.into_iter().collect();
-                                            final_tags.sort_unstable();
-                                            current.tags = Some(final_tags);
-                                        },
-                                    ) {
-                                        log::error!("Failed to save generated tags: {error}");
-                                    }
+                                    log::error!("Failed to save generated tags: {error}");
                                 }
                             }
-                            Err(e) => {
-                                eprintln!(
-                                    "Could not get or generate image for tagging {}: {}",
-                                    path_str, e
-                                );
-                            }
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Could not get or generate image for tagging {}: {}",
+                                path_str, e
+                            );
                         }
                     }
 
@@ -503,18 +517,7 @@ pub fn remove_tag_for_paths(
 
 fn rrdata_source_path(rrdata: &Path) -> Option<PathBuf> {
     let name = rrdata.file_name()?.to_str()?;
-    let base = name.strip_suffix(".rrdata")?;
-
-    let source_filename = if base.len() >= 7 && base.as_bytes()[base.len() - 7] == b'.' {
-        let id = &base[base.len() - 6..];
-        if id.chars().all(|c| c.is_ascii_hexdigit()) {
-            &base[..base.len() - 7]
-        } else {
-            base
-        }
-    } else {
-        base
-    };
+    let (source_filename, _) = crate::file_management::parse_sidecar_name(name)?;
 
     Some(rrdata.with_file_name(source_filename))
 }
@@ -564,11 +567,12 @@ fn clear_tags_in_tree(
         if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("rrdata") {
             continue;
         }
-        let metadata_lock = crate::file_management::SIDECAR_METADATA_LOCK
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let Ok(guard) = crate::file_management::lock_sidecar(path) else {
+            continue;
+        };
         if let Ok(content) = fs::read_to_string(path)
-            && let Ok(mut metadata) = serde_json::from_str::<ImageMetadata>(&content)
+            && let Ok(mut document) = serde_json::from_str::<serde_json::Value>(&content)
+            && let Ok(mut metadata) = serde_json::from_value::<ImageMetadata>(document.clone())
             && let Some(tags) = &mut metadata.tags
         {
             let original_len = tags.len();
@@ -577,11 +581,12 @@ fn clear_tags_in_tree(
                 if tags.is_empty() {
                     metadata.tags = None;
                 }
-                if let Ok(json_string) = serde_json::to_string_pretty(&metadata)
-                    && crate::file_management::write_file_atomically(path, json_string).is_ok()
+                document["tags"] = serde_json::json!(metadata.tags);
+                if let Ok(bytes) = serde_json::to_vec_pretty(&document)
+                    && crate::file_management::write_file_atomically_unmerged(path, bytes).is_ok()
                 {
                     updated_count += 1;
-                    drop(metadata_lock);
+                    drop(guard);
                     if let Some(create_if_missing) = xmp_sync {
                         sync_xmp_for_rrdata(path, &metadata, create_if_missing);
                     }
@@ -603,6 +608,73 @@ mod card_mode_tests {
         crate::exif_processing::load_sidecar(sidecar)
             .tags
             .unwrap_or_default()
+    }
+
+    #[test]
+    fn tag_cleanup_and_user_edits_share_one_sidecar_transaction() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            mpsc,
+        };
+        use std::time::Duration;
+        let _mode = CardMode::off();
+        let f = folders();
+        let sidecar = f.library.join("IMG_0001.jpg.rrdata");
+        let mut original: serde_json::Value =
+            serde_json::from_slice(&fs::read(&sidecar).unwrap()).unwrap();
+        original["stack"] = serde_json::json!({"id":"burst", "position":0});
+        original["appliedPreset"] = serde_json::json!({"id":"preset"});
+        original["exportFraming"] = serde_json::json!({"version":1});
+        original["denoise"] = serde_json::json!({"version":1});
+        fs::write(&sidecar, serde_json::to_vec(&original).unwrap()).unwrap();
+        let root = path_str(&f.library);
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (allow_tx, allow_rx) = mpsc::channel();
+        let allow_rx = Mutex::new(allow_rx);
+        let cleaner = std::thread::spawn(move || {
+            let first = AtomicBool::new(true);
+            clear_tags_in_tree(&root, None, |tag| {
+                if first.swap(false, Ordering::SeqCst) {
+                    entered_tx.send(()).unwrap();
+                    allow_rx.lock().unwrap().recv().unwrap();
+                }
+                tag.starts_with(USER_TAG_PREFIX) || tag.starts_with(COLOR_TAG_PREFIX)
+            })
+            .unwrap()
+        });
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let target = sidecar.clone();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let writer = std::thread::spawn(move || {
+            ready_tx.send(()).unwrap();
+            file_management::update_sidecar(&target, |m| {
+                m.rating = 5;
+                m.adjustments = serde_json::json!({"exposure":1.25});
+                m.tags.get_or_insert_with(Vec::new).push("user:new".into());
+            })
+            .unwrap();
+            done_tx.send(()).unwrap();
+        });
+        ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let premature = done_rx.recv_timeout(Duration::from_millis(150));
+        allow_tx.send(()).unwrap();
+        assert_eq!(cleaner.join().unwrap(), 1);
+        writer.join().unwrap();
+        assert!(
+            premature.is_err(),
+            "rating writer entered during tag transaction"
+        );
+        let saved: serde_json::Value = serde_json::from_slice(&fs::read(sidecar).unwrap()).unwrap();
+        assert_eq!(saved["rating"], 5);
+        assert_eq!(saved["adjustments"]["exposure"], 1.25);
+        assert_eq!(
+            saved["tags"],
+            serde_json::json!(["user:keep", "color:red", "user:new"])
+        );
+        for key in file_management::SIDECAR_OWNED_FIELDS {
+            assert_eq!(saved[key], original[key]);
+        }
     }
 
     #[test]

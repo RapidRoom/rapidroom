@@ -7,7 +7,7 @@
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
   "upstream_issues": ["RapidRoom/rapidroom#254", "CyberTimon/RapidRAW#1153"],
-  "upstream_prs": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#2018"],
   "rendering_change": false,
   "notes": "GUI image launches resolve relative paths using the caller working directory, including when an existing instance receives a second launch. External-editor source and output paths use the same caller directory. Absolute paths and headless export/benchmark requests retain their meaning."
 }

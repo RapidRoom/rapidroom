@@ -6,7 +6,6 @@ import { FileInput, CheckCircle, XCircle, Loader, Ban, ChevronDown, ChevronRight
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import type { TFunction } from 'i18next';
 import debounce from 'lodash.debounce';
 import Switch from '../../ui/Switch';
 import Button from '../../ui/Button';
@@ -41,6 +40,9 @@ import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useUIStore } from '../../../store/useUIStore';
+import ImmichExportOptions, { useImmichExportAvailable, useImmichExportChoice } from '../../immich/ImmichExportOptions';
+import { prepareImmichExport } from '../../immich/immichApi';
+import { formatBytes } from '../../../utils/formatBytes';
 
 interface ExportPanelProps {
   exportState: ExportState;
@@ -213,21 +215,6 @@ function WatermarkPreview({
     </div>
   );
 }
-
-const formatBytes = (bytes: number, t: TFunction, decimals = 2) => {
-  if (!+bytes) return `0 ${t('export.bytes.bytes')}`;
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = [
-    t('export.bytes.bytes'),
-    t('export.bytes.kb'),
-    t('export.bytes.mb'),
-    t('export.bytes.gb'),
-    t('export.bytes.tb'),
-  ];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-};
 
 export default function ExportPanel({
   exportState,
@@ -492,6 +479,9 @@ export default function ExportPanel({
   const filenameInputRef = useRef<HTMLInputElement>(null);
   const osPlatform = useOsPlatform();
   const isAndroid = osPlatform === 'android';
+  const canExportToImmich = useImmichExportAvailable() && !isAndroid;
+  const destination = destinationType === 'immich' && !canExportToImmich ? 'customFolder' : destinationType;
+  const immichExport = useImmichExportChoice();
 
   const { status, progress, errorMessage } = exportState;
   const isExporting = [Status.Exporting, Status.Cancelling].includes(status);
@@ -645,7 +635,7 @@ export default function ExportPanel({
       keepMetadata,
       preserveTimestamps,
       preserveFolders,
-      destinationType: instagramRatio && !isAndroid ? 'customFolder' : destinationType,
+      destinationType: instagramRatio && !isAndroid ? 'customFolder' : destination,
       subfolder: instagramRatio && !isAndroid ? '' : subfolder,
       resize: enableResize ? { mode: resizeMode, value: resizeValue, dontEnlarge } : null,
       border: borderSettings,
@@ -752,15 +742,14 @@ export default function ExportPanel({
       instagram: instagramRatio ? { ratio: instagramRatio, framesByPath: instagramFrames } : null,
       filenameTemplate,
       overwriteExisting:
-        overwriteExisting &&
-        (!!instagramRatio || numImages > 1 || preserveFolders || destinationType === 'originalFolder'),
+        overwriteExisting && (!!instagramRatio || numImages > 1 || preserveFolders || destination === 'originalFolder'),
       jpegQuality,
       tiffBitDepth,
       dpi: supportsDpi ? dpi : undefined,
       keepMetadata,
       preserveTimestamps,
       preserveFolders,
-      destinationType: instagramRatio && !isAndroid ? 'customFolder' : destinationType,
+      destinationType: instagramRatio && !isAndroid ? 'customFolder' : destination,
       subfolder: instagramRatio && !isAndroid ? '' : subfolder,
       resize: enableResize ? { mode: resizeMode, value: resizeValue, dontEnlarge } : null,
       border: borderSettings,
@@ -788,8 +777,10 @@ export default function ExportPanel({
 
       let outputFolderOrFile = '';
       const isInstagramFolder = !!instagramRatio && !isAndroid;
-      const isOriginalFolder = !isInstagramFolder && destinationType === 'originalFolder';
-      const shouldChooseOutputFile = !isInstagramFolder && numImages === 1 && !preserveFolders && !isOriginalFolder;
+      const isOriginalFolder = !isInstagramFolder && destination === 'originalFolder';
+      const isImmich = !isInstagramFolder && destination === 'immich';
+      const shouldChooseOutputFile =
+        !isInstagramFolder && numImages === 1 && !preserveFolders && !isOriginalFolder && !isImmich;
 
       if (isInstagramFolder) {
         outputFolderOrFile = await invoke<string>('instagram_export_folder', {
@@ -797,6 +788,9 @@ export default function ExportPanel({
           create: true,
         });
         setInstagramFolder(outputFolderOrFile);
+      } else if (isImmich) {
+        exportSettings.preserveFolders = false;
+        outputFolderOrFile = await prepareImmichExport(immichExport.album, immichExport.withOriginal);
       } else if (isOriginalFolder) {
         outputFolderOrFile = 'originalFolderDummy';
       } else if (shouldChooseOutputFile) {
@@ -854,7 +848,7 @@ export default function ExportPanel({
         // path. Automatic names still use the explicit overwrite toggle.
         if (shouldChooseOutputFile && !isAndroid) exportSettings.overwriteExisting = true;
         if (!isAndroid) {
-          if (isOriginalFolder) {
+          if (isOriginalFolder || isImmich) {
             saveLastUsedPreset(lastExportPath || '');
           } else {
             const dir = shouldChooseOutputFile
@@ -867,7 +861,12 @@ export default function ExportPanel({
           }
         }
 
-        setExportState({ status: Status.Exporting, progress: { current: 0, total: numImages }, errorMessage: '' });
+        setExportState({
+          destination: isOriginalFolder || isImmich || isAndroid ? null : outputFolderOrFile,
+          errorMessage: '',
+          progress: { current: 0, total: numImages },
+          status: Status.Exporting,
+        });
         debouncedSave.flush();
         await waitForPendingEditorSaves();
         const latestEditor = useEditorStore.getState();
@@ -1061,14 +1060,17 @@ export default function ExportPanel({
                     options={[
                       { label: t('export.destination.customFolder'), value: 'customFolder' },
                       { label: t('export.destination.originalFolder'), value: 'originalFolder' },
+                      ...(canExportToImmich ? [{ label: t('immich.export.destination'), value: 'immich' }] : []),
                     ]}
-                    value={destinationType || 'customFolder'}
+                    value={destination || 'customFolder'}
                     onChange={(val) => setDestinationType(val as string)}
                     disabled={isExporting}
                     className="w-full"
                   />
 
-                  {destinationType === 'originalFolder' && (
+                  {destination === 'immich' && <ImmichExportOptions disabled={isExporting} />}
+
+                  {destination === 'originalFolder' && (
                     <div className="flex items-center gap-3 pl-2 border-l-2 border-surface">
                       <Text variant={TextVariants.label} className="whitespace-nowrap min-w-[70px]">
                         {t('export.destination.subfolder')}
@@ -1088,7 +1090,7 @@ export default function ExportPanel({
             )}
             <Section title={t('export.sections.fileNaming')}>
               {!isAndroid &&
-                (instagramRatio || numImages > 1 || preserveFolders || destinationType === 'originalFolder') && (
+                (instagramRatio || numImages > 1 || preserveFolders || destination === 'originalFolder') && (
                   <Switch
                     label={t('export.overwrite.label')}
                     checked={overwriteExisting}

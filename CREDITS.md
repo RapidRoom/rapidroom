@@ -13,6 +13,12 @@ The 2026-10-12 refresh retains baseline exposure and export metadata work by mar
 
 The 2026-10-15 daily refresh retains upstream contributions by Timon Käch, marclaliberte, cl1x, Max (waxm134) and Yojen in normal merge history. Per-tool visibility, capture-time timezone, auto-lens sidecar completion, headless exit codes, mask-drop insertion and layout-aware shortcuts are integrated while preserving RapidRoom additions. Conflict resolution and compatibility work is by yojen7 with Codex.
 
+The Original crop-ratio sentinel is adapted from [apweisskopf’s RapidRAW commit 2fb1ce0d](https://github.com/CyberTimon/RapidRAW/commit/2fb1ce0dccdba88de5923e41056928925615d3b4), with tooltip follow-up by CyberTimon. Yojen adapted it to RapidRoom’s Instagram crop, lens-aware reset and typed MCP paths.
+
+Auto straighten is adapted from marclaliberte’s [RapidRAW series ending at 3daf49e4](https://github.com/CyberTimon/RapidRAW/commit/3daf49e47f7c0c45645d6aa5de5c0d24509de342). The line detector and original regression tests are retained; Yojen adapted crop, async and batch handling to RapidRoom.
+
+Auto Straighten uses [lsdetect 0.3.0 by Patrick Zwerschke](https://github.com/p5k369/lsdetect), under its MIT option. Its [copyright and permission notice](src-tauri/resources/licenses/lsdetect-0.3.0-MIT.txt) ships with the app resources.
+
 Batch Auto Adjust completion is adapted from marclaliberte’s [RapidRAW commit 7fb5fadd](https://github.com/CyberTimon/RapidRAW/commit/7fb5fadd7cb0ad04393e7246548fcac71aa12d6a). Yojen adapted the wait to RapidRoom’s existing atomic sidecar, Card and XMP paths.
 
 Movable vignette and centré centres are adapted from [CyberTimon’s RapidRAW commit b39884b3](https://github.com/CyberTimon/RapidRAW/commit/b39884b38d8f148caef6fd0d52afd264951be329). Yojen adapted the overlay to RapidRoom’s mixer/WB tools, defaults, typed MCP and renderer layout.
@@ -164,7 +170,7 @@ These RapidRAW forks have work we'd like to harvest (with credit) or coordinate 
 
 Native Linux UI smoke harness: yojen7, with Codex. Its optional embedded driver is `tauri-plugin-wdio-webdriver` 1.4.0, © 2024 WebdriverIO Community, MIT, from [webdriverio/desktop-mobile](https://github.com/webdriverio/desktop-mobile). The published crate retains its MIT licence notice.
 
-The strict script CSP and disabled Cloud sign-in prerequisite for issue #119 were implemented by yojen7 with Codex, following the #125 design measurements and Josh’s approved option A. The browser measurement uses Playwright (Microsoft contributors, Apache-2.0); it is a test tool only.
+The strict script CSP and disabled Cloud sign-in prerequisite for issue #119 were implemented by yojen7 with Codex, following the #125 design measurements and the maintainer’s approved option A. The browser measurement uses Playwright (Microsoft contributors, Apache-2.0); it is a test tool only.
 
 Built-in terminal panel and PTY lifecycle: yojen7 with Codex, original work for RapidRoom. Optional `portable-pty` 0.9.0 (MIT, Copyright 2018 Wez Furlong); `@xterm/xterm` 6.0.0 (MIT, the xterm.js authors, SourceLair and Fabrice Bellard); `@xterm/addon-fit` 0.11.0 (MIT, Copyright 2019 the xterm.js authors). Complete notices are retained under `rapidroom/LICENSES/`. No fork code is used for this panel.
 Authenticated MCP endpoint and separate stdio client: original implementation by yojen7, with Codex. Design ideas from 1tuz (stdio adapter and hashed bearer verification, commit `65983e758c40829e0ad61a6664a783fac04d5790`), Irvingouj (optional command shape, commit `69a001d91548c30a1a78aab74c278b5159c4bfec`) and ssarangi (separate-binary pattern). No code was copied from those sources. The existing MCP SDK and original cgasgarth server authorship are retained. Constant-time hash comparison uses the existing `subtle` 2.6.1 crate (BSD-3-Clause).

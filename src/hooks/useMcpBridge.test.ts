@@ -286,7 +286,7 @@ describe('MCP editor bridge review', () => {
     expect(useEditorStore.getState().adjustments).toMatchObject({
       contrast: 0,
       crop: null,
-      aspectRatio: 1.5,
+      aspectRatio: 0,
       lensCorrectionMode: 'auto',
       cameraLensCorrectionVersion: 1,
     });
@@ -569,7 +569,10 @@ describe('protected editing workflow', () => {
       shadows: 0,
       clarity: 12,
     });
-    expect(useEditorStore.getState().historyDetails.at(-1)?.label).toBe('Style 2 removed: two');
+    expect(useEditorStore.getState().historyDetails.at(-1)).toMatchObject({
+      actor: 'assistant',
+      label: 'AI: Style 2 removed: two',
+    });
     const remaining = await stackCommand('list-applied-styles');
     expect(remaining).toMatchObject({
       response: {
@@ -689,7 +692,7 @@ describe('protected editing workflow', () => {
     ).toBe(false);
   });
 
-  it('assesses substantial edits read-only and opens a separate Reference View', async () => {
+  it('assesses substantial edits read-only and opens a Compare versions wipe', async () => {
     const draft = {
       ...INITIAL_ADJUSTMENTS,
       contrast: 12,
@@ -715,7 +718,7 @@ describe('protected editing workflow', () => {
       }),
     );
     expect(useEditorStore.getState().referenceView).toMatchObject({
-      mode: 'side-by-side',
+      mode: 'wipe',
       reference: { path: path + '?vc=base' },
     });
     expect(useEditorStore.getState().adjustments).toBe(before.adjustments);

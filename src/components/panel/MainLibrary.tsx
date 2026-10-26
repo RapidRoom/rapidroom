@@ -28,7 +28,6 @@ import {
   AppSettings,
   ImageFile,
   LibraryViewMode,
-  Progress,
   ThumbnailSize,
   ThumbnailAspectRatio,
   RawStatus,
@@ -41,12 +40,13 @@ import { ImportState, Status } from '../ui/ExportImportProperties';
 import Text from '../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
 import { useLibraryStore } from '../../store/useLibraryStore';
+import { Job, useProcessStore } from '../../store/useProcessStore';
 import { useUIStore } from '../../store/useUIStore';
 import SettingsPanel from './SettingsPanel';
 
 import LibraryGrid from './library/LibraryGrid';
 import EmptyFolderPhotos from '../ui/EmptyFolderPhotos';
-import { SearchInput, ViewOptionsDropdown } from './library/LibraryHeader';
+import { JobsMenu, SearchInput, ViewOptionsDropdown } from './library/LibraryHeader';
 import { RAPIDROOM_REPO_URL, RAPIDROOM_VERSION, UPSTREAM_REPO_URL } from '../../utils/rapidroom';
 import { isPathInCardRoot } from '../../utils/cardMode';
 import HiddenVideoNotice from '../ui/HiddenVideoNotice';
@@ -66,6 +66,7 @@ export interface ColumnWidths {
 interface MainLibraryProps {
   activePath: string | null;
   aiModelDownloadStatus: string | null;
+  aiTaggingJob: Job | null;
   appSettings: AppSettings | null;
   currentFolderPath: string | null;
   cardBrowseRoot: string | null;
@@ -74,15 +75,14 @@ interface MainLibraryProps {
   matchingPhotoCount?: number;
   imageRatings: Record<string, number>;
   importState: ImportState;
-  indexingProgress: Progress;
   isLoading: boolean;
-  isIndexing: boolean;
   isAndroid: boolean;
   isTreeLoading: boolean;
   libraryViewMode: LibraryViewMode;
   multiSelectedPaths: Array<string>;
   onClearSelection(): void;
   onContextMenu(event: any, path: string): void;
+  onNavigateToFolder(path: string): void;
   onContinueSession(): void;
   onEmptyAreaContextMenu(event: any): void;
   onGoHome(): void;
@@ -100,7 +100,6 @@ interface MainLibraryProps {
   setLibraryViewMode(mode: LibraryViewMode): void;
   theme: string;
   thumbnailAspectRatio: ThumbnailAspectRatio;
-  thumbnailProgress: Progress;
   thumbnailSize: ThumbnailSize;
   onNavigateToCommunity(): void;
 }
@@ -170,6 +169,16 @@ function DisplayModeSwitch({ displayMode, setDisplayMode, t }: DisplayModeSwitch
   );
 }
 
+function ThumbnailProgressCount() {
+  const current = useProcessStore((state) => state.thumbnailProgress?.current ?? 0);
+  const total = useProcessStore((state) => state.thumbnailProgress?.total ?? 0);
+  return (
+    <Text variant={TextVariants.small} color={TextColors.secondary} className="whitespace-nowrap">
+      ({current}/{total})
+    </Text>
+  );
+}
+
 export default function MainLibrary(props: MainLibraryProps) {
   const { t } = useTranslation();
   const isCardFolder = isPathInCardRoot(props.currentFolderPath, props.cardBrowseRoot);
@@ -180,6 +189,8 @@ export default function MainLibrary(props: MainLibraryProps) {
   const [isBusyDelayed, setIsBusyDelayed] = useState(false);
   const [isBusyLoaderMounted, setIsBusyLoaderMounted] = useState(false);
   const [isProgressHovered, setIsProgressHovered] = useState(false);
+  // Upstream's touch selection mode is Android-only; RapidRoom keeps its desktop header.
+  const selectionModeActive = false;
   const isSettingsOpen = useUIStore((state) => state.isSettingsOpen);
   const lightsOutMode = useUIStore((state) => state.lightsOutMode);
 
@@ -284,10 +295,13 @@ export default function MainLibrary(props: MainLibraryProps) {
     [t],
   );
 
-  const isBusy =
-    props.isLoading ||
-    ((props.thumbnailProgress?.total ?? 0) > 0 &&
-      (props.thumbnailProgress?.current ?? 0) < (props.thumbnailProgress?.total ?? 0));
+  const hasThumbnailWork = useProcessStore((state) => (state.thumbnailProgress?.total ?? 0) > 0);
+  const isGeneratingThumbnails = useProcessStore(
+    (state) =>
+      (state.thumbnailProgress?.total ?? 0) > 0 &&
+      (state.thumbnailProgress?.current ?? 0) < (state.thumbnailProgress?.total ?? 0),
+  );
+  const isBusy = props.isLoading || isGeneratingThumbnails;
 
   useEffect(() => {
     let timer: number | undefined;
@@ -605,7 +619,9 @@ export default function MainLibrary(props: MainLibraryProps) {
           {!props.isAndroid && (
             <div className="flex items-center gap-2">
               {props.currentFolderPath ? (
-                <Text className="truncate">{props.currentFolderPath}</Text>
+                <Text className="truncate" data-tooltip={props.currentFolderPath}>
+                  {props.currentFolderPath}
+                </Text>
               ) : (
                 <p className="text-sm invisible select-none pointer-events-none h-5 overflow-hidden"></p>
               )}
@@ -622,14 +638,12 @@ export default function MainLibrary(props: MainLibraryProps) {
                 {isBusyLoaderMounted && <Loader2 size={14} className="animate-spin text-text-secondary shrink-0" />}
                 <div
                   className={`flex items-center transition-all duration-300 ease-out overflow-hidden ${
-                    isProgressHovered && isBusyDelayed && (props.thumbnailProgress?.total ?? 0) > 0
+                    isProgressHovered && isBusyDelayed && hasThumbnailWork
                       ? 'max-w-xs opacity-100'
                       : 'max-w-0 opacity-0'
                   }`}
                 >
-                  <Text variant={TextVariants.small} color={TextColors.secondary} className="whitespace-nowrap">
-                    ({props.thumbnailProgress?.current ?? 0}/{props.thumbnailProgress?.total ?? 0})
-                  </Text>
+                  <ThumbnailProgressCount />
                 </div>
               </div>
             </div>
@@ -668,7 +682,7 @@ export default function MainLibrary(props: MainLibraryProps) {
           <DisplayModeSwitch displayMode={libraryDisplayMode} setDisplayMode={setLibraryDisplayMode} t={t} />
 
           <div className="flex items-center bg-surface p-1 rounded-lg gap-1 border border-border-color/20">
-            <SearchInput indexingProgress={props.indexingProgress} isIndexing={props.isIndexing} />
+            <SearchInput indexingProgress={props.aiTaggingJob?.progress} isIndexing={!!props.aiTaggingJob} />
             <ViewOptionsDropdown
               libraryViewMode={props.libraryViewMode}
               onSelectSize={props.onThumbnailSizeChange}
@@ -685,6 +699,7 @@ export default function MainLibrary(props: MainLibraryProps) {
               flagStatusOptions={translatedFlagStatusOptions}
               sortOptions={translatedSortOptions}
             />
+            <JobsMenu onNavigateToFolder={props.onNavigateToFolder} />
             {!props.isAndroid && !props.cardBrowseRoot && (
               <Button
                 className="h-12 w-12 bg-transparent text-text-primary shadow-none p-0 flex items-center justify-center"
@@ -721,19 +736,20 @@ export default function MainLibrary(props: MainLibraryProps) {
           <LibraryGrid
             {...props}
             libraryDisplayMode={libraryDisplayMode}
+            selectionModeActive={selectionModeActive}
             thumbnailSizeOptions={translatedThumbnailSizeOptions}
           />
         )
-      ) : props.isIndexing || props.aiModelDownloadStatus || props.importState.status === Status.Importing ? (
+      ) : props.aiTaggingJob || props.aiModelDownloadStatus || props.importState.status === Status.Importing ? (
         <div className="flex-1 flex flex-col items-center justify-center" onContextMenu={props.onEmptyAreaContextMenu}>
           <Loader2 className="h-12 w-12 text-secondary animate-spin mb-4" />
           <Text variant={TextVariants.heading} color={TextColors.secondary}>
             {props.aiModelDownloadStatus
               ? t('library.status.downloading', { status: props.aiModelDownloadStatus })
-              : props.isIndexing && props.indexingProgress.total > 0
+              : props.aiTaggingJob
                 ? t('library.status.indexing', {
-                    current: props.indexingProgress.current,
-                    total: props.indexingProgress.total,
+                    current: props.aiTaggingJob.progress.current,
+                    total: props.aiTaggingJob.progress.total,
                   })
                 : props.importState.status === Status.Importing &&
                     props.importState?.progress?.total &&

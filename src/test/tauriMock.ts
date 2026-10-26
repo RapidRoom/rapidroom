@@ -51,6 +51,12 @@ export function listenerCount(event?: string) {
   return total;
 }
 
+// Stand-in for the IPC Channel: tests can push messages with channel.onmessage(...).
+export class Channel<T = unknown> {
+  id = nextEventId++;
+  onmessage: (message: T) => void = () => {};
+}
+
 export function convertFileSrc(filePath: string, protocol = 'asset') {
   return `${protocol}://localhost/${encodeURIComponent(filePath)}`;
 }

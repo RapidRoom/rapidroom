@@ -1,0 +1,12 @@
+{
+  "id": "stack-followups",
+  "title": "Keep photo stacks safe across edits, copies and filmstrip navigation",
+  "category": "fix",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Serialize stack sidecar transactions with other metadata writes; copied photos start unstacked. Improve bracket covers, long-exposure grouping, RAW+JPEG pair handling and stack browsing performance."
+}

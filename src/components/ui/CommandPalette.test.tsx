@@ -267,7 +267,7 @@ describe('keyboard palette editing', () => {
     expect(execute).not.toHaveBeenCalled();
     expect(container.querySelector('[role=dialog]')).not.toBeNull();
     enabled = true;
-    type('auto');
+    type('auto adjustments');
     key('Enter');
     expect(execute).toHaveBeenCalledOnce();
     expect(container.querySelector('[role=dialog]')).toBeNull();
