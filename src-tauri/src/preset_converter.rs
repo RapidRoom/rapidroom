@@ -1,6 +1,5 @@
 use rawler::{decoders::RawDecodeParams, rawsource::RawSource};
 use regex::Regex;
-use regex::regex;
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 use std::fs;
@@ -8,6 +7,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::file_management::Preset;
+use crate::white_balance::{MIRED_PER_RELATIVE_UNIT, TINT_PER_RELATIVE_UNIT};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum XmpImageKind {
@@ -1059,7 +1059,7 @@ fn compose_luma_curve_with_looks(
 }
 
 pub fn convert_xmp_to_preset(xmp_content: &str) -> Result<Preset, String> {
-    convert_xmp_to_preset_with_crop(xmp_content, false, Some(5500.0), None, None)
+    convert_xmp_to_preset_with_crop(xmp_content, false, Some(5500.0), None, None, None, None)
 }
 
 #[cfg(test)]
@@ -1071,6 +1071,14 @@ pub fn convert_xmp_sidecar_to_preset_for_image(
     xmp_content: &str,
     image_path: &Path,
 ) -> Result<Preset, String> {
+    convert_xmp_sidecar_to_preset_for_image_with_mask_report(xmp_content, image_path)
+        .map(|(preset, _)| preset)
+}
+
+pub fn convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+    xmp_content: &str,
+    image_path: &Path,
+) -> Result<(Preset, crate::lightroom_masks::MaskImportSummary), String> {
     let extension = image_path
         .extension()
         .and_then(|extension| extension.to_str())
@@ -1097,13 +1105,17 @@ pub fn convert_xmp_sidecar_to_preset_for_image(
     let fallback_image_dimensions = geometry_needs_image_dimensions
         .then(|| probe_xmp_crop_image_dimensions(image_path))
         .flatten();
-    convert_xmp_to_preset_with_crop(
+    let mut summary = crate::lightroom_masks::MaskImportSummary::default();
+    let preset = convert_xmp_to_preset_with_crop(
         xmp_content,
         true,
         None,
         Some(image_kind),
         fallback_image_dimensions,
-    )
+        Some(image_path),
+        Some(&mut summary),
+    )?;
+    Ok((preset, summary))
 }
 
 #[cfg(test)]
@@ -1111,7 +1123,7 @@ fn convert_adobe_camera_raw_xmp_to_preset(
     xmp_content: &str,
     image_kind: XmpImageKind,
 ) -> Result<Preset, String> {
-    convert_xmp_to_preset_with_crop(xmp_content, true, None, Some(image_kind), None)
+    convert_xmp_to_preset_with_crop(xmp_content, true, None, Some(image_kind), None, None, None)
 }
 
 pub(crate) fn adobe_camera_raw_already_applied(xmp_content: &str) -> Result<bool, String> {
@@ -1125,14 +1137,38 @@ fn convert_xmp_sidecar_to_preset_with_as_shot_temperature(
     xmp_content: &str,
     as_shot_temperature: Option<f64>,
 ) -> Result<Preset, String> {
-    convert_xmp_to_preset_with_crop(xmp_content, true, as_shot_temperature, None, None)
+    convert_xmp_to_preset_with_crop(
+        xmp_content,
+        true,
+        as_shot_temperature,
+        None,
+        None,
+        None,
+        None,
+    )
 }
 
 /// Lightroom settings in a sidecar that the import could not carry over, as
 /// stable keys for the import report.
 pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) -> Vec<&'static str> {
-    let Ok(attrs) = parse_xmp_attributes(xmp_content) else {
+    let (_, summary) = crate::lightroom_masks::import_lightroom_masks(xmp_content, None, |_| {});
+    lightroom_settings_not_transferred_with_mask_summary(xmp_content, preset, &summary)
+}
+
+pub fn lightroom_settings_not_transferred_with_mask_summary(
+    xmp_content: &str,
+    preset: &Preset,
+    masks: &crate::lightroom_masks::MaskImportSummary,
+) -> Vec<&'static str> {
+    let Ok(properties) = crate::xmp::photo_properties(xmp_content, crate::xmp::CRS) else {
         return Vec::new();
+    };
+    let attrs = scalar_attributes(&properties);
+    let active_property = |key: &str| match properties.get(key) {
+        Some(crate::xmp::PhotoProperty::Scalar(value)) => !value.is_empty(),
+        Some(crate::xmp::PhotoProperty::List(items)) => !items.is_empty(),
+        Some(crate::xmp::PhotoProperty::Structured) => true,
+        None => false,
     };
     if preset.include_crop_transform == Some(true) && is_xmp_true(attrs.get("AlreadyApplied")) {
         return Vec::new();
@@ -1152,7 +1188,7 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
     // balance often can't be turned into RapidRAW's relative controls.
     let custom_white_balance = attrs
         .get("WhiteBalance")
-        .is_some_and(|value| !value.eq_ignore_ascii_case("As Shot"));
+        .is_some_and(|value| !value.is_empty() && !value.eq_ignore_ascii_case("As Shot"));
     if custom_white_balance
         && preset.adjustments.get("temperature").is_none()
         && preset.adjustments.get("tint").is_none()
@@ -1178,7 +1214,7 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
 
     // Only crs:MaskGroupBasedCorrections are imported; the older per-tool
     // lists are reported as they are.
-    let (_, masks) = crate::lightroom_masks::import_lightroom_masks(xmp_content, None, |_| {});
+
     let imported_masks = preset
         .adjustments
         .get("masks")
@@ -1186,21 +1222,32 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
         .map_or(0, Vec::len);
     if masks.skipped_unsupported > 0
         || imported_masks < masks.convertible
-        || regex!(
-            r"(?s)<crs:(?:PaintBasedCorrections|GradientBasedCorrections|CircularGradientBasedCorrections)>\s*<rdf:Seq>\s*<rdf:li"
-        )
-        .is_match(xmp_content)
+        || (active_property("MaskGroupBasedCorrections")
+            && imported_masks == 0
+            && masks.convertible == 0
+            && masks.skipped_ai == 0
+            && masks.skipped_unsupported == 0)
+        || [
+            "PaintBasedCorrections",
+            "GradientBasedCorrections",
+            "CircularGradientBasedCorrections",
+        ]
+        .iter()
+        .any(|key| active_property(key))
     {
         items.push("masks");
     }
     if masks.skipped_ai > 0 {
         items.push("aiMasks");
     }
+    if masks.with_brush_tables > 0 {
+        items.push("maskBrushTable");
+    }
     if masks.with_unmapped_adjustments > 0 && imported_masks > 0 {
         items.push("localAdjustments");
     }
 
-    if regex!(r"(?s)<crs:PointColors>\s*<rdf:Seq>\s*<rdf:li").is_match(xmp_content) {
+    if active_property("PointColors") {
         items.push("pointColor");
     }
 
@@ -1244,7 +1291,7 @@ fn scalar_attributes(
         .iter()
         .filter_map(|(key, value)| match value {
             crate::xmp::PhotoProperty::Scalar(value) => Some((key.clone(), value.clone())),
-            crate::xmp::PhotoProperty::List(_) => None,
+            crate::xmp::PhotoProperty::List(_) | crate::xmp::PhotoProperty::Structured => None,
         })
         .collect()
 }
@@ -1362,6 +1409,8 @@ fn convert_xmp_to_preset_with_crop(
     as_shot_temperature: Option<f64>,
     image_kind: Option<XmpImageKind>,
     fallback_image_dimensions: Option<(f64, f64)>,
+    image_path: Option<&Path>,
+    mask_report: Option<&mut crate::lightroom_masks::MaskImportSummary>,
 ) -> Result<Preset, String> {
     let properties =
         crate::xmp::photo_properties(xmp_content, crate::xmp::CRS).map_err(|e| e.to_string())?;
@@ -1436,22 +1485,19 @@ fn convert_xmp_to_preset_with_crop(
     if can_convert_white_balance
         && !white_balance_is_as_shot
         && let Some(adjusted_k) = get_attr_as_f64(&attrs, "Temperature")
-    {
-        const MAX_MIRED_SHIFT: f64 = 150.0;
-        if let Some(as_shot_k) = get_attr_as_f64(&attrs, "AsShotTemperature")
+        && let Some(as_shot_k) = get_attr_as_f64(&attrs, "AsShotTemperature")
             .or(as_shot_temperature)
             .filter(|temperature| *temperature > 0.0)
-            && adjusted_k > 0.0
-        {
-            let mired_adjusted = 1_000_000.0 / adjusted_k;
-            let mired_as_shot = 1_000_000.0 / as_shot_k;
-            let mired_delta = mired_adjusted - mired_as_shot;
-            let temp_value = (-mired_delta / MAX_MIRED_SHIFT) * 100.0;
-            adjustments.insert(
-                "temperature".to_string(),
-                json!(temp_value.clamp(-100.0, 100.0)),
-            );
-        }
+        && adjusted_k > 0.0
+    {
+        let mired_adjusted = 1_000_000.0 / adjusted_k;
+        let mired_as_shot = 1_000_000.0 / as_shot_k;
+        let mired_delta = mired_adjusted - mired_as_shot;
+        let temp_value = -mired_delta / MIRED_PER_RELATIVE_UNIT;
+        adjustments.insert(
+            "temperature".to_string(),
+            json!(temp_value.clamp(-100.0, 100.0)),
+        );
     }
 
     if can_convert_white_balance
@@ -1467,7 +1513,7 @@ fn convert_xmp_to_preset_with_crop(
             .map(|as_shot_tint| tint_val - as_shot_tint)
             .or((!include_crop_transform).then_some(tint_val));
         if let Some(tint_delta) = tint_delta {
-            let scaled_tint = (tint_delta / 150.0) * 100.0;
+            let scaled_tint = tint_delta / TINT_PER_RELATIVE_UNIT;
             adjustments.insert("tint".to_string(), json!(scaled_tint.clamp(-100.0, 100.0)));
         }
     }
@@ -1677,10 +1723,15 @@ fn convert_xmp_to_preset_with_crop(
                         .unwrap_or(0.0),
                 }
             });
-        let (masks, _) =
-            crate::lightroom_masks::import_lightroom_masks(xmp_content, frame.as_ref(), |mask| {
-                scale_lightroom_exposure(mask, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS)
-            });
+        let (masks, summary) = crate::lightroom_masks::import_lightroom_masks_for_image(
+            xmp_content,
+            frame.as_ref(),
+            image_path,
+            |mask| scale_lightroom_exposure(mask, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS),
+        );
+        if let Some(report) = mask_report {
+            *report = summary;
+        }
         if !masks.is_empty() {
             adjustments.insert("masks".to_string(), Value::Array(masks));
         }
@@ -1707,6 +1758,7 @@ fn preset_from_xmp_fields(
     Preset {
         id: Uuid::new_v4().to_string(),
         name: preset_name,
+        description: None,
         adjustments: Value::Object(adjustments),
         include_masks: Some(false),
         include_crop_transform: Some(include_crop_transform),
@@ -2854,6 +2906,8 @@ mod tests {
             None,
             Some(XmpImageKind::Raw),
             Some((6000.0, 4000.0)),
+            None,
+            None,
         )
         .unwrap();
 
@@ -3259,6 +3313,25 @@ mod tests {
     fn not_transferred(xmp: &str) -> Vec<&'static str> {
         let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
         lightroom_settings_not_transferred(xmp, &preset)
+    }
+
+    #[test]
+    fn broad_import_categories_respect_namespace_subject_and_blank_values() {
+        let xmp = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+            xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:crs="urn:foreign">
+          <r:Description r:about="photo" a:WhiteBalance=" ">
+            <crs:PointColors><r:Seq><r:li>foreign</r:li></r:Seq></crs:PointColors>
+            <a:Look><r:Description a:Amount="0"><a:PointColors><r:Seq><r:li>nested</r:li></r:Seq></a:PointColors>
+              <a:PaintBasedCorrections><r:Seq><r:li>nested</r:li></r:Seq></a:PaintBasedCorrections></r:Description></a:Look>
+          </r:Description><r:Description r:about="other"><a:PointColors><r:Seq><r:li>other</r:li></r:Seq></a:PointColors></r:Description>
+        </r:RDF>"#;
+        assert!(not_transferred(xmp).is_empty());
+        let aliased = r#"<root xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"
+          xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+          <a:PointColors><r:Seq><r:li>unsupported</r:li></r:Seq></a:PointColors>
+          <a:PaintBasedCorrections><r:Seq><r:li>unsupported</r:li></r:Seq></a:PaintBasedCorrections>
+        </root>"#;
+        assert_eq!(not_transferred(aliased), vec!["masks", "pointColor"]);
     }
 
     #[test]

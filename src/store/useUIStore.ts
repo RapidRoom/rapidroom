@@ -11,6 +11,9 @@ import {
   Invokes,
 } from '../components/ui/AppProperties';
 import { useEditorStore } from './useEditorStore';
+import { clampDockHeight, DEFAULT_DOCK_HEIGHT } from '../utils/dockHeight';
+
+const DOCK_LOAD_VIEWPORT = 1000;
 
 export type SwitcherPlacement = 'bottom' | 'right' | 'left' | 'top';
 export type LightsOutMode = 'off' | 'dim' | 'black';
@@ -73,11 +76,6 @@ interface DenoiseModalState {
   progressMessage: string | null;
   isRaw: boolean;
   jobId: number | null;
-}
-
-interface NegativeConversionModalState {
-  isOpen: boolean;
-  targetPaths: Array<string>;
 }
 
 interface CullingModalState {
@@ -172,7 +170,7 @@ export function reconcileWorkspace(
       bottom: 'top',
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
-    bottomDockHeight: 240,
+    bottomDockHeight: DEFAULT_DOCK_HEIGHT,
   };
 
   if (!savedWorkspace || !savedWorkspace.panelLayout) {
@@ -225,7 +223,7 @@ export function reconcileWorkspace(
 
   (['leftTop', 'leftBottom', 'rightTop', 'rightBottom', 'bottom'] as PanelRegion[]).forEach((region) => {
     const currentActive = savedWorkspace.activePanels?.[region];
-    if (region === 'bottom' && currentActive == null) {
+    if (region === 'bottom') {
       sanitizedActive.bottom = null;
     } else if (currentActive && sanitizedLayout[region].includes(currentActive)) {
       sanitizedActive[region] = currentActive;
@@ -246,9 +244,21 @@ export function reconcileWorkspace(
       ...(savedWorkspace.panelSwitcherPlacement || {}),
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
-    bottomDockHeight: Math.max(80, Math.min(800, savedWorkspace.bottomDockHeight || 240)),
+    // Clamp against a fixed reference viewport, not window.innerHeight, which can be unsettled at load; BottomDock applies the live bounds when it renders.
+    bottomDockHeight: clampDockHeight(
+      savedWorkspace.bottomDockHeight ?? DEFAULT_DOCK_HEIGHT,
+      DOCK_LOAD_VIEWPORT,
+      DOCK_LOAD_VIEWPORT,
+    ),
   };
 }
+
+export const isPanelVisible = (state: UIState, panel: Panel) =>
+  (Object.keys(state.activePanels) as PanelRegion[]).some(
+    (region) =>
+      state.activePanels[region] === panel &&
+      state.uiVisibility[region.startsWith('left') ? 'leftPanel' : 'rightPanel'],
+  );
 
 export interface UIState {
   activeView: string;
@@ -258,6 +268,7 @@ export interface UIState {
   isLayoutReady: boolean;
   uiVisibility: UiVisibility;
   isLibraryExportPanelVisible: boolean;
+  instagramExportRequest: number | null;
   isSettingsOpen: boolean;
   lightsOutMode: LightsOutMode;
 
@@ -265,6 +276,8 @@ export interface UIState {
   rightPanelWidth: number;
   bottomPanelHeight: number;
   bottomDockHeight: number;
+  bottomDockExpanded: boolean;
+  toggleDockHeight: () => void;
   terminalSupported: boolean;
   leftTopHeight: number;
   rightTopHeight: number;
@@ -308,7 +321,6 @@ export interface UIState {
   panoramaModalState: PanoramaModalState;
   focusStackModalState: FocusStackModalState;
   hdrModalState: HdrModalState;
-  negativeModalState: NegativeConversionModalState;
   denoiseModalState: DenoiseModalState;
   denoiseRun: number;
   openDenoiseModal: (paths: string[], isRaw: boolean) => void;
@@ -321,6 +333,8 @@ export interface UIState {
   setPanel: (panel: Panel | null) => void;
   customEscapeHandler: (() => void) | null;
   setCustomEscapeHandler: (handler: (() => void) | null) => void;
+  imageSelectHandler: ((path: string, openInEditor?: boolean) => void) | null;
+  setImageSelectHandler: (handler: ((path: string, openInEditor?: boolean) => void) | null) => void;
   searchFocusRequest: number;
   requestSearchFocus: () => void;
   cycleLightsOut: (direction?: 1 | -1) => void;
@@ -336,6 +350,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   isLayoutReady: false,
   uiVisibility: { filmstrip: true, leftPanel: true, rightPanel: true, quickFilter: false },
   isLibraryExportPanelVisible: false,
+  instagramExportRequest: null,
   isSettingsOpen: false,
   lightsOutMode: 'off',
 
@@ -343,6 +358,13 @@ export const useUIStore = create<UIState>((set, get) => ({
   rightPanelWidth: DEFAULT_PANEL_WIDTH,
   bottomPanelHeight: DEFAULT_BOTTOM_PANEL_HEIGHT,
   bottomDockHeight: 240,
+  bottomDockExpanded: false,
+  toggleDockHeight: () => {
+    const state = get();
+    const panel = state.activePanels.bottom ?? state.panelLayout.bottom[0];
+    if (!panel) return;
+    set({ bottomDockExpanded: !state.bottomDockExpanded, activePanels: { ...state.activePanels, bottom: panel } });
+  },
   terminalSupported: false,
   leftTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
   rightTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
@@ -424,7 +446,6 @@ export const useUIStore = create<UIState>((set, get) => ({
     progressMessage: '',
     stitchingSourcePaths: [],
   },
-  negativeModalState: { isOpen: false, targetPaths: [] },
   denoiseModalState: {
     isOpen: false,
     isProcessing: false,
@@ -616,6 +637,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     const defaultWorkspace = reconcileWorkspace(undefined, isTetheringSupported, get().terminalSupported);
     set({
       bottomDockHeight: defaultWorkspace.bottomDockHeight,
+      bottomDockExpanded: false,
       leftPanelWidth: defaultWorkspace.leftPanelWidth,
       rightPanelWidth: defaultWorkspace.rightPanelWidth,
       leftTopHeight: defaultWorkspace.leftTopHeight,
@@ -632,6 +654,8 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   customEscapeHandler: null,
   setCustomEscapeHandler: (handler) => set({ customEscapeHandler: handler }),
+  imageSelectHandler: null,
+  setImageSelectHandler: (handler) => set({ imageSelectHandler: handler }),
   searchFocusRequest: 0,
   requestSearchFocus: () => set((state) => ({ searchFocusRequest: state.searchFocusRequest + 1 })),
   cycleLightsOut: (direction = 1) =>

@@ -1,6 +1,6 @@
 # Editing workflow
 
-Connect, inspect, change, render, measure, compare, save, export. The user watches the editor the whole time, so work in steps they can follow.
+Connect, establish the destination and look, agree the crop, inspect, edit, compare and export. The user watches the editor the whole time, so work in steps they can follow.
 
 ## 1. Connect
 
@@ -10,19 +10,28 @@ Connect, inspect, change, render, measure, compare, save, export. The user watch
 
 ## 2. Inspect
 
-- `get_preview` at 1280 px to look; `get_histogram_data` for the tonal shape.
+- Ask for the destination (feed or story, print or screen) and intended look if they are missing. Use the answer to agree the framing before grading.
+- `get_preview` at about 800 px to look. Read a histogram or call `analyze` only when a tonal/clipping question needs numbers.
 - Read what's already there. A photo can arrive with an edit (the user's, a preset, a Lightroom import). Build on it unless the user asks for a fresh start; never reset without asking.
 - Write a two-line brief before changing anything: what the photo is about, what's in the way, and the direction (the user's words come first). See [direction.md](direction.md).
+
+## Protect existing work before proposing changes
+
+When the user asks for ideas or an alternative edit, call `assess_edits` with the current path/revision before the first mutation. If it recommends a virtual copy (masks, curves, grading or substantial settings), automatically call `create_virtual_copy`, tell the user you preserved their version, then open the **returned** copy path and read its current revision. Edit and export that copy. An untouched photo, or only crop plus a few Basic sliders, can be edited in place. The user's explicit instruction to edit the original takes precedence; don't silently reset it. If the installed build lacks assessment/copy tools, explain the missing protection and ask before overwriting existing work.
+
+For a requested Style/look, use `list_presets` and `apply_preset`, preferably by the returned stable ID. Inspect availability, masks and geometry first. Use the native Amount control and verify `get_editor_context.appliedPreset`. Don't manually translate a bundled XMP recipe or invent a missing preset. Compare before and after, preserve a suitable existing crop and adjust this image rather than apply one grade blindly to a series.
+
+To compare with the user's version, open the AI copy as active and use `open_reference_view` with the base as reference. The user sees the draggable Compare versions wipe; left/right arrows move its divider and A swaps sides. `render_compare` remains for the assistant's own inspection under the installed schema. “Keep both” stays available. Retain the original's `sourceEditRevision` when creating a copy. For “keep the AI version,” open the AI copy, refresh its revision, and call `adopt_virtual_copy` with that copy revision plus the original revision. This applies the AI recipe onto the original as one labelled undoable step, then requests GUI confirmation to delete only the AI copy. If the original changed meanwhile, inspect it and obtain the user's choice before supplying a newly reviewed revision; never silently override the conflict. For “keep mine,” open the AI copy, refresh its revision, request deletion of that copy only, and let the user confirm in the GUI. **Never delete the original RAW to finalize an alternative edit**: an original deletion also removes associated virtual copies. A pending confirmation is not a completed deletion.
 
 ## 3. Change, one decision at a time
 
 Typical order. Skip what the photo doesn't need.
 
-1. **Geometry**: level the horizon (`rotation`), straighten verticals (`transformVertical`, guided perspective), decide the crop. Crop early, because it changes what the rest of the edit is judged on.
+1. **Geometry**: level the horizon (`rotation`), straighten verticals (`transformVertical`, guided perspective), agree and apply the crop first, so every subsequent preview shows the final frame. Crop coordinates are original-image pixels; use `get_editor_context` dimensions and the documented geometry units, or let the user place the frame in the Crop panel.
 2. **White balance**: `temperature`, `tint`. For mood, not for a grey card.
-3. **Exposure and tone**: `exposure` first, then `highlights`, `shadows`, `whites`, `blacks`, then `contrast`. Curves after the sliders.
+3. **Exposure and tone**: `exposure` first, then `highlights`, `shadows`, `whites`, `blacks`, then `contrast`. Curves after the sliders. Before committing a heavy curve, inspect shadow and midtone detail in the subject (glass, liquid, leaves, fabric): a dramatic black point should not erase detail the user wanted to keep.
 4. **Colour**: `vibrance` before `saturation`; the colour mixer (`hsl`) to calm or deepen single colours; `colorGrading` for split tones.
-5. **Local adjustments**: masks for subject and surroundings, gradients for sky, radial burns for edges. See [adjustments.md](adjustments.md#masks) for what works over MCP today.
+5. **Local adjustments**: masks for subject and surroundings, gradients for sky, radial burns for edges. Use `upsert_mask` for one named mask id at a time, with the current revision, then preview it before adding the next. Use `remove_mask` for that id. Coordinates are original-image pixels before crop, not fractional preview positions. See [adjustments.md](adjustments.md#masks) for the container/components format and every unit; replacing the whole `masks` array would replace siblings.
 6. **Detail**: noise reduction before sharpening; `clarity`, `structure`, `dehaze` with care.
 7. **Effects**: vignette, grain, glow, a LUT. Last, and subtle unless the look calls for more.
 
@@ -32,26 +41,28 @@ Read `rapidroom://schema/adjustments` when the server offers it, and use only ke
 
 ## 4. Check after every step
 
-Render, measure, look, adjust. Don't stack five changes and hope.
+Render and look after each meaningful decision. Measure when it resolves a clipping or colour question; avoid an automatic `analyze` call for every slider move.
 
-- **Render**: `get_preview` of the result. For a choice between values, preview **proposed** edits by passing `adjustments` to `get_preview`; nothing is applied until you call `update_adjustments`.
-- **Measure** (below): clipping, and the colour of what should be neutral or skin.
+- **Render**: `get_preview` of the result at about 800 px. For a choice between values, preview **proposed** edits by passing `adjustments` to `get_preview`; nothing is applied until you call `update_adjustments`.
+- **Measure** (below) when needed: exact clipping, or the colour of a selected neutral patch.
 - **Look**: at full frame, and at a small size (about 256 px) to see what the eye lands on first.
 - **Adjust**: if the step overshot, take it back now, with a smaller value.
 
 ### Measure
 
-What you can measure today, until the measuring tools in #117 exist:
-
-- **Histogram shape** from `get_histogram_data`: 256 bins per channel (0 = black, 255 = white). The values are smoothed and normalized for display, so they show the shape, not pixel counts. A tall pile at bin 255 (or 0) in a channel means that channel is clipping. Don't quote percentages from it.
-- **The clipping overlay**: ask the user to switch on clipping display in the editor and tell you what turns red or blue. They see it live.
-- **Pixel numbers**, when you really need them (skin tone, a neutral grey, exact clipping): with the user's OK, `export_images` a small JPEG (`resize` long edge 1024) to a temporary folder outside their photo folders, and measure it with whatever image tools you have (for example Python with Pillow). Delete it afterwards. Say that it's an export of the current edit, not the raw data.
-- **Your eyes on a preview**: judgement comes on top of measurement, not instead of it.
+- `analyze` gives exact rendered sRGB clipping counts and percentages. Use it when highlight/shadow loss matters, and request `histogram: true` only if the actual bins are needed. This measures rendered pixels, not sensor RAW clipping.
+- `sample_region` measures a fractional patch; its optional neutral RGB gains are advisory and are not temperature/tint slider values. Use only a patch known to be neutral.
+- `get_histogram_data` shows smoothed, normalized tonal shape. Do not infer clipping percentages from it.
+- Check visually that intended shadow and midtone detail survives. Numbers do not choose the look.
 
 ## 5. Compare
 
 - Before/after: use `get_preview` with `side_by_side: true` for neutral original/current edit, or preview the starting adjustments you saved separately as a proposed edit. Use fractional `region` for a bounded detail crop. These reads do not apply edits.
-- Alternatives: preview two or three proposed edits, describe each by its idea ("warmer and darker", "clean and neutral"), and let the user choose. Apply only the chosen one. With virtual copies (#120) each alternative will be a real copy; until then, see [recipes.md](recipes.md#explore-looks).
+- Alternatives: one `render_compare` round per decision, usually two or three named temporary `changes` variants ("Warm", "Clean", "Muted") at about 800 px. This shows one labelled choice without applying it. Explain the difference, then apply only the chosen patch. Recompare if the user changes the brief or the result needs a correction, rather than repeating an accepted choice. Tools in older builds may require matching crop geometry; follow their input schema and errors.
+- At the end, make one small native `render_region` check for noise, sharpness and mask edges. Use its discovered coordinate schema: existing builds use native integer pixels; builds offering fractions/`regionUnits` also accept normalized selections. Native pixel coordinates are after rendered geometry, unlike original-image mask coordinates. Do not estimate them from an 800 px preview without mapping dimensions.
+- When the user is moving sliders too, use `history_list` actor and changed keys to see what they changed. Fetch the latest state when its revision or changed values are needed for a mutation; preserve their work and keep strict `expectedRevision` guards. Assistant changes keep their normal visible notifications.
+
+For a scored, strength-aware correction with hard round caps and nondecreasing-score retention, see [bounded render review](judge.md). This optional offline helper returns proposals only; render and inspect every candidate through the existing tools, and keep the normal user/revision guards.
 
 ## 6. Save
 

@@ -1,0 +1,13 @@
+{
+  "id": "upstream-pr-records",
+  "title": "Record the upstream PRs for seven changes already merged upstream",
+  "category": "ci",
+  "landed": "2026-10-26",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Only the upstream_prs field of seven existing records changes, so the changelog stops calling them not yet offered."
+}

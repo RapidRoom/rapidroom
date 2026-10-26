@@ -1,0 +1,14 @@
+{
+  "id": "sony-ms-crop",
+  "title": "Sony lossless M/S raws (A7C II, A7CR) and Canon mRAW/sRAW no longer get green borders",
+  "category": "fix",
+  "landed": "2026-10-02",
+  "authors": ["Kheil-Z"],
+  "source": "CyberTimon/RapidRAW-DngLab#7 (rebased onto 934af4b by yojen7)",
+  "commits": ["https://github.com/yojen7/RapidRAW-DngLab/commit/fe0839580ece6aab0884ebb7d806f34ff01fb52b"],
+  "upstream_issues": ["CyberTimon/RapidRAW#850"],
+  "upstream_prs": ["CyberTimon/RapidRAW-DngLab#7"],
+  "rendering_change": true,
+  "notes": "Only the affected files change: their crop is now correct.",
+  "highlight": "**Sony lossless M/S and Canon mRAW/sRAW raws open correctly**, without the green borders upstream still shows."
+}

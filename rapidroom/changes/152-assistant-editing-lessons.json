@@ -1,0 +1,13 @@
+{
+  "id": "assistant-editing-session-lessons",
+  "title": "Teach assistants to frame first and compare efficiently",
+  "category": "fix",
+  "landed": "2026-10-13",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original skill update with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#152"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "The editing skill establishes destination/look and crop first, uses compact named comparisons, protects shadow/midtone detail, follows concurrent GUI history and edits masks individually. Export recipes use supported context, original-folder subfolders and explicit width targets."
+}

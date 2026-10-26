@@ -2,24 +2,27 @@
 
 ## Export for Instagram
 
-Instagram shows photos at 1080 px wide. Pick the shape with the user:
+Agree the destination and output shape with the user before grading. These are useful export targets:
 
 | Shape            | Crop ratio (`aspectRatio`) | Export size | Notes                                     |
 | ---------------- | -------------------------- | ----------- | ----------------------------------------- |
 | Portrait 4:5     | 0.8                        | 1080 × 1350 | Takes the most room in the feed           |
+| Feed 3:4         | 0.75                       | 1080 × 1440 | When the user requests this feed shape    |
+| Story 9:16       | 0.5625                     | 1080 × 1920 | Full-height vertical story                |
 | Square 1:1       | 1                          | 1080 × 1080 |                                           |
 | Landscape 1.91:1 | 1.91                       | 1080 × 566  | Small in the feed; only for wide pictures |
 
-1. **Crop to the shape.** The crop is in full-resolution pixels, and the MCP tools don't report the full image size yet (`get_editor_context`, #115). So ask the user to choose the ratio in the Crop panel and place the frame, and suggest where ("keep the horizon in the lower third, the subject's gaze into the space on the right"). If the photo already has a crop with the right `aspectRatio`, keep it. Preview to check the composition at that shape.
-2. **Check at phone size**: `get_preview` with `maxDimension` 1350 (or smaller), and look at it small. Fine texture and thin lines get lost; a little more `clarity` or `sharpness` can help. Output sharpening for export is [coming](tools.md#coming) (#121).
+1. **Crop first.** Use `get_editor_context` for image dimensions and the documented original-pixel crop schema. Agree the frame before applying it through `update_adjustments` with the latest revision. The user can place the frame in the Crop panel if preferred. Keep an existing crop that already matches their request. Preview to check the actual framing and rendered aspect; export resizing does not create the crop.
+2. **Check at phone size**: `get_preview` with `maxDimension` about 800, and look at it small. Fine texture and thin lines get lost; a little more `clarity` or `sharpness` can help. Output sharpening for export is [coming](tools.md#coming) (#121).
 3. **Export** a JPEG into a separate folder, so the full-size edit stays untouched:
 
    ```json
    {
      "imagePaths": ["<the open image>"],
-     "outputDirectory": "<the user's choice, for example ~/Pictures/instagram>",
      "outputFormat": "jpg",
      "exportSettings": {
+       "destinationType": "originalFolder",
+       "subfolder": "instagram",
        "jpegQuality": 90,
        "resize": { "mode": "width", "value": 1080, "dontEnlarge": true },
        "keepMetadata": true,
@@ -28,6 +31,8 @@ Instagram shows photos at 1080 px wide. Pick the shape with the user:
      }
    }
    ```
+
+   Use `outputDirectory` with `destinationType: "customFolder"` when the user chooses another folder. A 3:4 crop resized to width 1080 yields 1080×1440; check the export result’s actual dimensions. `dontEnlarge` caps smaller sources at native size.
 
    `stripGps` keeps the location private while keeping camera and lens data. Ask before keeping GPS.
 
@@ -43,11 +48,11 @@ The user wants to see a few directions before choosing one: "show me three looks
 
 **Until then, with proposed edits**:
 
-1. Make the base edit first (geometry, white balance, exposure) and save its state from `get_active_image_state`.
-2. Pick two to four genuinely different directions that suit this photo, from [looks.md](looks.md) or the user's words. Different in key, colour or mood, not five shades of the same thing.
-3. For each, build the full adjustments (the base plus the look's changes) and render it with `get_preview`, passing `adjustments`. Nothing changes in the editor; the user keeps seeing the base.
-4. Show the previews with a one-line description each: "**Gold and black**: deep shadows, warm light on the face; the blue jacket is muted."
-5. When the user chooses, apply that one with `update_adjustments` and refine it together. If they want to see a look in the editor before deciding, apply it, and restore the base with `set_adjustments` if they don't keep it.
+1. Make the base edit first (geometry, white balance, exposure) and save its full state from `get_active_image_state(nonDefaultOnly: false)`.
+2. Pick two or three different directions that suit this photo, from [looks.md](looks.md) or the user's words. Different in key, colour or mood, not five shades of the same thing.
+3. Call `render_compare` once with named variants and temporary `changes` for those directions, at about 800 px. Keep a common approved crop if the current build requires matching geometry. Use separate proposed `get_preview` calls only if comparison is unavailable.
+4. Show the comparison with a one-line description each: "**Gold and black**: deep shadows, warm light on the face; the blue jacket is muted." Inspect shadow and midtone subject detail before accepting a strong curve.
+5. When the user chooses an identifier/label, apply that patch with `update_adjustments` and the latest `expectedRevision`, then refine it together. Finish with one small native noise/detail crop. Do not apply rejected variants merely to render them.
 6. If the user wants to keep more than one look, suggest they create virtual copies in the library by hand for now, then open each copy and apply its look.
 
 Learn from the choice: what they picked and what they said about the others is evidence for the next photo ([taste.md](taste.md)).

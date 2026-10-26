@@ -1,0 +1,1493 @@
+{
+  "application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+  "main_control": "f30d0e87cc8e2165c52582a9929a713ee07ac3d7",
+  "panels": {
+    "current-apple-iphone12pro-proraw.png": {
+      "sha256": "1c53d72976aca0fdcc66d7fa8439e10ee97c95671485cb8bd3071ba800af86b6",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "apple-iphone12pro-proraw.tiff",
+          "sha256": "a521fa260589295c19a8c3cd586888a5a93dac8f66acb42c4b1aa3ddc8f3c779"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "apple-iphone12pro-proraw.tiff",
+          "sha256": "a521fa260589295c19a8c3cd586888a5a93dac8f66acb42c4b1aa3ddc8f3c779"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "apple-iphone12pro-proraw.tiff",
+          "sha256": "e1462b8760793f6c5f52341bcfcbc129ab5ed20ffff42ec8492de1aee46b2ab0"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "apple-iphone12pro-proraw.tiff",
+          "sha256": "40a20cd250ce2bc93f82b313876c9f7957a91a57d0c5735fa03abe25238d0bd9"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "apple-iphone12pro-proraw.tiff",
+          "sha256": "2fed7ea76c62fe56bd8b5566b6e8018db5316f52e2922983f03cb1f4471a6c4a"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "apple-iphone12pro-proraw.tiff",
+          "sha256": "1ed5eb205aaeee4713058e75dfff7c98b4aa8678b573a3f3c99a76cf39a3b80b"
+        }
+      ]
+    },
+    "current-canon-r50-24mp-craw.png": {
+      "sha256": "a6ab43ced9345a27d4acc0132cb4eea86da55419cc83831a340a5781d880f9c7",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "canon-r50-24mp-craw.tiff",
+          "sha256": "eb27bb44eb34b29dd6f4412befa219eb068cbb799f73065e75e608ccbc6110c0"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "canon-r50-24mp-craw.tiff",
+          "sha256": "eb27bb44eb34b29dd6f4412befa219eb068cbb799f73065e75e608ccbc6110c0"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "canon-r50-24mp-craw.tiff",
+          "sha256": "d7334d5dbfe2a90ec489949fbdacc676429507c48f23903b95ba624da78d270c"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "canon-r50-24mp-craw.tiff",
+          "sha256": "f0ac4ce772b88922f0748598899c99b16b7ba4869fbb5393a500ca5e0ee0aeb3"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "canon-r50-24mp-craw.tiff",
+          "sha256": "64247862dd48e4768d602ba4c936f56a1430bc2a8ff90e0f04cf20681283ff30"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "canon-r50-24mp-craw.tiff",
+          "sha256": "b11cabbc7170a8fa9cf7acc02bafdf316054fa0928007c31021ff76b3f74693e"
+        }
+      ]
+    },
+    "current-canon-r6m2-24mp-raw.png": {
+      "sha256": "1ce8ed3593b5f5897ed4df9e16acec9af582ece924a333e59825af1280e485d7",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "canon-r6m2-24mp-raw.tiff",
+          "sha256": "a89c82e809529dd4ededb49d79d264d7fd6954ffc2fe16b9483790e0a9bd2d1e"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "canon-r6m2-24mp-raw.tiff",
+          "sha256": "9600232da3a38bdcf9911297567b13928d599b332754b3d23beef6a0052dc3fc"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "canon-r6m2-24mp-raw.tiff",
+          "sha256": "159e4f7c074b76234e165fc75b4d97917bc41406de608742c545ba887d37f832"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "canon-r6m2-24mp-raw.tiff",
+          "sha256": "5fbb5387b295572132b319323f25fa2f2ee28e17e325a094e69e75d9e186d43f"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "canon-r6m2-24mp-raw.tiff",
+          "sha256": "8b3782f977b9e292cd2330feaa2e2a61054fbe71aa259232785a15ab10ca1770"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "canon-r6m2-24mp-raw.tiff",
+          "sha256": "b350d974317df4042d7853b58cdafacc947a140b2537610e4b9a4b31378045de"
+        }
+      ]
+    },
+    "current-fuji-xh2-40mp-compressed.png": {
+      "sha256": "aca8deb085cb174fcfec6fedf0a09596058e0c71b13d8934b91830107b216a27",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "fuji-xh2-40mp-compressed.tiff",
+          "sha256": "e54b87a421121bbfcafc4e197cf141cf96201d8232c4bfd6729aebef7dc8e5c1"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "fuji-xh2-40mp-compressed.tiff",
+          "sha256": "e54b87a421121bbfcafc4e197cf141cf96201d8232c4bfd6729aebef7dc8e5c1"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "fuji-xh2-40mp-compressed.tiff",
+          "sha256": "3066a6719eb600f2da6dfc8a98bc8c6f529ac3c729a5f77eaa08ce7519a15d00"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "fuji-xh2-40mp-compressed.tiff",
+          "sha256": "45b0a17935c93d8f754a2d19a77cbf8fa43272ee801cca937ff7d0dcb98a7e6c"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "fuji-xh2-40mp-compressed.tiff",
+          "sha256": "df6e33754c02042f783843c08335d1045549b4423d1a5622a3c4b3786162a9ff"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "fuji-xh2-40mp-compressed.tiff",
+          "sha256": "e1a2ba26fe04d39f9664972b0f52c2c7446659be0e30bb40ce193d82ba78d501"
+        }
+      ]
+    },
+    "current-fuji-xt4-26mp-lossless.png": {
+      "sha256": "ab2fc4d3ab5f400108bc9a37bec33192ace1cf0f95290304836b72e2d61456ee",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "fuji-xt4-26mp-lossless.tiff",
+          "sha256": "5186971f758164a7a79d18cf01323bc08bef96e2592a1a4f4e7abf4467bc94c8"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "fuji-xt4-26mp-lossless.tiff",
+          "sha256": "5186971f758164a7a79d18cf01323bc08bef96e2592a1a4f4e7abf4467bc94c8"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "fuji-xt4-26mp-lossless.tiff",
+          "sha256": "571580dbd00afeddc5f536b4db5ae764f8124454714f62cfa38fa3e602537d9f"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "fuji-xt4-26mp-lossless.tiff",
+          "sha256": "3c9e0e7cf725affc574cf0f1f50eb7f42e7315ecf0e4f1ffd69a39cf84120602"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "fuji-xt4-26mp-lossless.tiff",
+          "sha256": "51b2918bbaefeedbc1030d3a92b93dae2cc0b7150d522dd5c5dcacfc85561a11"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "fuji-xt4-26mp-lossless.tiff",
+          "sha256": "5e3d89f891abd5ce83ba788c7aeddad3b81ed739e3c612a863784e291c8f3a18"
+        }
+      ]
+    },
+    "current-google-pixel7pro-dng.png": {
+      "sha256": "dfd5fb5357e835f7f0d813e4091023bbec90e61f8f85a7ee3c4bd1f53c738bd2",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "google-pixel7pro-dng.tiff",
+          "sha256": "72ccec79a7fed1012040bf9bb2da4ff32f77250e6db22fd36713a65ce048022e"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "google-pixel7pro-dng.tiff",
+          "sha256": "72ccec79a7fed1012040bf9bb2da4ff32f77250e6db22fd36713a65ce048022e"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "google-pixel7pro-dng.tiff",
+          "sha256": "ee4b62cbcca26a9920501f91a241b21f3ba2d2db1aea7bce7b66232280a7c1b3"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "google-pixel7pro-dng.tiff",
+          "sha256": "9ce18d390717e39cfdc53d8d55c75c5874c623fa25112707736dfa6923d65714"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "google-pixel7pro-dng.tiff",
+          "sha256": "0060a7231c678509b94e2a9fab867066308bbccb2600249328ddc71978242d2c"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "google-pixel7pro-dng.tiff",
+          "sha256": "2baa3a75ccc65b98d7bb8435230cb9b58f1028d40293e918c6e788712d7765b3"
+        }
+      ]
+    },
+    "current-nikon-zf-24mp-compressed.png": {
+      "sha256": "fe774ad915cb74eef26bd83dda1bcefdfa15727d1836cbd493ecb9c1df1425d8",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "nikon-zf-24mp-compressed.tiff",
+          "sha256": "81bf02b587a14ba41aca7145f9a939ed53c914d2e7518574b820417418f921ab"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "nikon-zf-24mp-compressed.tiff",
+          "sha256": "81bf02b587a14ba41aca7145f9a939ed53c914d2e7518574b820417418f921ab"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "nikon-zf-24mp-compressed.tiff",
+          "sha256": "d670854ebb7352ce7e641464f5f3d44242bf41f1f18e6b73eb958a6ca43d734b"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "nikon-zf-24mp-compressed.tiff",
+          "sha256": "2e3d17b11c061b47be6eaf5a4c38ec49c271f42eeba3a45b9a4d41bcac4c2a1a"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "nikon-zf-24mp-compressed.tiff",
+          "sha256": "c6d8815dfdcd91caf9cb2e7b6546786138d990f7867cd2a87ae012244cf2fb9c"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "nikon-zf-24mp-compressed.tiff",
+          "sha256": "ca6d07ba248036612967c73400ff0dff2b8bb186478ea83a8d3d4f863ddab1f2"
+        }
+      ]
+    },
+    "current-nikon-zfc-21mp-lossless.png": {
+      "sha256": "55cd9d129cae53257fed2817f30a8257efebb021328d77e2bea4fb494fdda184",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "nikon-zfc-21mp-lossless.tiff",
+          "sha256": "c31a22798ee71fde15b85687413984c86882d99d46b3d640c015f22c0ebd4eef"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "nikon-zfc-21mp-lossless.tiff",
+          "sha256": "c31a22798ee71fde15b85687413984c86882d99d46b3d640c015f22c0ebd4eef"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "nikon-zfc-21mp-lossless.tiff",
+          "sha256": "a771a46842a36eedd68e90eb637264966309723924e832e61c26dfc233e5e431"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "nikon-zfc-21mp-lossless.tiff",
+          "sha256": "ad340b9f12facce71222d17425003e3dc6e002d90921877ee8ded0f18c5e9ed6"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "nikon-zfc-21mp-lossless.tiff",
+          "sha256": "b6d8cda2e3b2505765aac99d20c8bae7cb8b15dd9fe4791b7522483df3d3626a"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "nikon-zfc-21mp-lossless.tiff",
+          "sha256": "f31a46b2f5492f293350c1e1402ca6d1de7444316e0200b362599316096b4d87"
+        }
+      ]
+    },
+    "current-om-om1-20mp.png": {
+      "sha256": "b110cd5b18814b6b2dc9cccf939642583bde75967c1f7ed20c9cdef93ec69021",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "om-om1-20mp.tiff",
+          "sha256": "9d6cf1c204b874a7d86877d35cc898f1ff8f01ca26db0837902f2f8a1764df20"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "om-om1-20mp.tiff",
+          "sha256": "9d6cf1c204b874a7d86877d35cc898f1ff8f01ca26db0837902f2f8a1764df20"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "om-om1-20mp.tiff",
+          "sha256": "cce62c7cfcce6655db52afea65f6759bcd08660a4e3efd0b1a1e4cc5586485b6"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "om-om1-20mp.tiff",
+          "sha256": "309cd736b2d7a58a26fc89c59329c08ebb171512a114e662b691cde4b5382553"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "om-om1-20mp.tiff",
+          "sha256": "fd8418da0980e313d54d15a3b4bf1872f9e4511ab7e0e7ef1984d4aa28ab6760"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "om-om1-20mp.tiff",
+          "sha256": "1775aced5483fd450d5824fb715bbaecc8c5b49670721e66183d92b9376981c0"
+        }
+      ]
+    },
+    "current-panasonic-s5m2-24mp.png": {
+      "sha256": "24ed963152f919c8a46e4d62d86e42f1aeaeec7cf92a7546a84f293f6e33835d",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "panasonic-s5m2-24mp.tiff",
+          "sha256": "7cf39df32932337fddc4a3d49b5729fe76f05e561f694c758c3119877f88b5c1"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "panasonic-s5m2-24mp.tiff",
+          "sha256": "7cf39df32932337fddc4a3d49b5729fe76f05e561f694c758c3119877f88b5c1"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "panasonic-s5m2-24mp.tiff",
+          "sha256": "12c9682d3c3c15a930fde85f757c9f2c2eb11bec22cbc8cc448fc6bffe939e54"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "panasonic-s5m2-24mp.tiff",
+          "sha256": "376bbedf33bdc6f4fca7ea14522320ce9776812fc2925ae81625812445f2e17e"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "panasonic-s5m2-24mp.tiff",
+          "sha256": "bccf699afba2e9171969bd67e407c1d2d0b5d8ac9dbd570c5dd79b43a34b0a96"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "panasonic-s5m2-24mp.tiff",
+          "sha256": "f7781dee7d59a8b81afd097f994ac41eb7ae35b02c25dd998c9384dea4f9b5c8"
+        }
+      ]
+    },
+    "current-ricoh-griiix-24mp-dng.png": {
+      "sha256": "3b8bbc36c2dbeb4d73b55e6f329dfc6a078a408f2c416be7900d95085090eea0",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "ricoh-griiix-24mp-dng.tiff",
+          "sha256": "019a7b360073ec700a10b8bcd32d38bcf9c6a14d174699dbfdd376887ddb4d1e"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "ricoh-griiix-24mp-dng.tiff",
+          "sha256": "019a7b360073ec700a10b8bcd32d38bcf9c6a14d174699dbfdd376887ddb4d1e"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "ricoh-griiix-24mp-dng.tiff",
+          "sha256": "31a8d649a6a85d769f68578bce4fa1b35eba5b4118ce9622609811c82e5e661d"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "ricoh-griiix-24mp-dng.tiff",
+          "sha256": "162a875e92f0662e45fbb4ca07206365a9f7f8a7062b5a2636207a126ee64f30"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "ricoh-griiix-24mp-dng.tiff",
+          "sha256": "f16e1b7ff304ffee7021291dd7d6b0d904002731888b3d8637a16959cb14f651"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "ricoh-griiix-24mp-dng.tiff",
+          "sha256": "176fe50a9ea8d48b6b4427eff26309a929a2787c74bd8bb99c659d7fb6313b90"
+        }
+      ]
+    },
+    "current-sony-a7c2-15mp-compressed.png": {
+      "sha256": "dffbe92f01cd2a51cb5d82ad574d0a3ddf01ea7879d37146bda73690322a3263",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "sony-a7c2-15mp-compressed.tiff",
+          "sha256": "c92134fd4dc199af7817a603dee1d8b6726ab52d2f2fa0125a996dc46c9772e9"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "sony-a7c2-15mp-compressed.tiff",
+          "sha256": "c92134fd4dc199af7817a603dee1d8b6726ab52d2f2fa0125a996dc46c9772e9"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "sony-a7c2-15mp-compressed.tiff",
+          "sha256": "0372fd83c2aa0fb22bacdfcc3b76cac4e9b09fd127b03237a0ce98925262bd4f"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "sony-a7c2-15mp-compressed.tiff",
+          "sha256": "c9074ef582120bb287062a6f9ac339b35d4bfc7f2d75439efda1100a9ee1a0ab"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "sony-a7c2-15mp-compressed.tiff",
+          "sha256": "146457fcefce446fb53a5e466c64aee742c2d1ca334e257e8132a6ce8583e15c"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "sony-a7c2-15mp-compressed.tiff",
+          "sha256": "44c47fa970bdf533135540a258dfa34cffdeacea42bf0b6c25371e4d46e07c05"
+        }
+      ]
+    },
+    "current-sony-a7c2-15mp-uncompressed.png": {
+      "sha256": "4b176cd43317112feefc889dd28504f1775eb2e20d75c2e8ac0faedee8484b07",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "sony-a7c2-15mp-uncompressed.tiff",
+          "sha256": "9d168fdda2c0c8bb3c32f09879880a0e58dd6d6b934590aa3ae95a09cdef13db"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "sony-a7c2-15mp-uncompressed.tiff",
+          "sha256": "9d168fdda2c0c8bb3c32f09879880a0e58dd6d6b934590aa3ae95a09cdef13db"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "sony-a7c2-15mp-uncompressed.tiff",
+          "sha256": "07d1c9611248dbf6d39a9148326f26161323d20fe3e63512186667e4b97352e4"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "sony-a7c2-15mp-uncompressed.tiff",
+          "sha256": "659d99de0b6a7712214db95d10b1f866b84987bfbedf6c3012ae0714898a0db9"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "sony-a7c2-15mp-uncompressed.tiff",
+          "sha256": "a41d9a07d55dc2e3777fb6cd3f83cf8f4adaa2386094cf062689cc8d26e2c11c"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "sony-a7c2-15mp-uncompressed.tiff",
+          "sha256": "ba0bf92fd96d6035905079e2e603869b684700ed9d9e80103210031510f331c4"
+        }
+      ]
+    },
+    "current-sony-a7c2-33mp-compressed.png": {
+      "sha256": "df793210a2e94584066b4e0f6b9197d3facb696699fab8f46e271c661ffbc19a",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "sony-a7c2-33mp-compressed.tiff",
+          "sha256": "6276d39abd37848678cfaa169cbc4b9672d6f5765330a0a9d4af147880af95cf"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "sony-a7c2-33mp-compressed.tiff",
+          "sha256": "6276d39abd37848678cfaa169cbc4b9672d6f5765330a0a9d4af147880af95cf"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "sony-a7c2-33mp-compressed.tiff",
+          "sha256": "18ae9abec9d8069eed5e4cf405ad7990d35601fce6a50ce4df6475128194bb5a"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "sony-a7c2-33mp-compressed.tiff",
+          "sha256": "0041c7cb9fe3b563f0435224f0592c8ad0f9fa0ab1c3ca545fc13bccd18bf72e"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "sony-a7c2-33mp-compressed.tiff",
+          "sha256": "22d15766f8ced003ce3e5cb984faa775a3f9b3e5498857ca05878642a0ee8871"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "sony-a7c2-33mp-compressed.tiff",
+          "sha256": "a3480acfc14845e36f3e420d9bb02e8c1107195a2c42a111468672dc23339746"
+        }
+      ]
+    },
+    "current-sony-a7c2-33mp-uncompressed.png": {
+      "sha256": "f331c9a2ce1ed79254ee87b0211f1fa127a6a098eb3b8d26578b1a33e30cd2f0",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "sony-a7c2-33mp-uncompressed.tiff",
+          "sha256": "1aa692daec631d312d14b85f904cc87656612e26821e0c115532515b52d6e0f6"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "sony-a7c2-33mp-uncompressed.tiff",
+          "sha256": "1aa692daec631d312d14b85f904cc87656612e26821e0c115532515b52d6e0f6"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "sony-a7c2-33mp-uncompressed.tiff",
+          "sha256": "cb0a76efd42163c8d2e895a6edb07e1f80d7db79750fe19b584fef14701d2201"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "sony-a7c2-33mp-uncompressed.tiff",
+          "sha256": "31cc3b01d6ee88e0660afdf13e8684af0e2d03f663fed0a46f0d35fb668b31bf"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "sony-a7c2-33mp-uncompressed.tiff",
+          "sha256": "60f0cc03dffa668fae78e48e79f75b6ef5c91570278f888817de4f3fcf68a06b"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "sony-a7c2-33mp-uncompressed.tiff",
+          "sha256": "213bd3f0103bfb914d1763f7cd17190d59b30449c6654bced58d0b3892e6bf60"
+        }
+      ]
+    },
+    "current-sony-a7c2-37mp-4x3.png": {
+      "sha256": "7e605583992b6a9eeaadcb5f9217f641ba04cfa783f1e6b60a1334b2aa53cdc3",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "sony-a7c2-37mp-4x3.tiff",
+          "sha256": "df05b0041385e27a616eced8dc310b863f6322bbdc556274c47a9c292e2d2f57"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "sony-a7c2-37mp-4x3.tiff",
+          "sha256": "df05b0041385e27a616eced8dc310b863f6322bbdc556274c47a9c292e2d2f57"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "sony-a7c2-37mp-4x3.tiff",
+          "sha256": "01036c1087837c88677d9658c7ada1ffce5e3895eeba73c424af145ebfd18512"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "sony-a7c2-37mp-4x3.tiff",
+          "sha256": "1bc1e9c3261d8c14720893886df1fe2b91e72951434cd09bf07af2d18a5daf47"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "sony-a7c2-37mp-4x3.tiff",
+          "sha256": "271a0a0558d2721b615c2f50aa0bb9cd49c98ac310e69a8f2745eecf18caa8e3"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "sony-a7c2-37mp-4x3.tiff",
+          "sha256": "493b5494c038b27a39b849f9fad27de59993cc4e375175eac743fe9f51e6ad5d"
+        }
+      ]
+    },
+    "current-sony-a7cr-18mp-lossless-s.png": {
+      "sha256": "93cc4ac96d06b9b4718416759880e05cd70db9001a943c4ce542b018d20a0e56",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "sony-a7cr-18mp-lossless-s.tiff",
+          "sha256": "dd97d12a59a899f529e8c47aba571adbbc3b6cd53ce8e356ae9828933a5bd40f"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "sony-a7cr-18mp-lossless-s.tiff",
+          "sha256": "dd97d12a59a899f529e8c47aba571adbbc3b6cd53ce8e356ae9828933a5bd40f"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "sony-a7cr-18mp-lossless-s.tiff",
+          "sha256": "c4c4965e7a5b2bf108645613e85953a6bf7ea6386ff8fd947c0a72d881b0add9"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "sony-a7cr-18mp-lossless-s.tiff",
+          "sha256": "b076fa682901e7810a11cf7595e87fea5501afae77e8eb76e5c63c612675bc70"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "sony-a7cr-18mp-lossless-s.tiff",
+          "sha256": "559bd8332716191d72581f445e79762f96added88156c08a664d0c4b3be80ca1"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "sony-a7cr-18mp-lossless-s.tiff",
+          "sha256": "af437058ed601f120d2dab1888fe314b6eb74727cf9a0bd9d43847a413757577"
+        }
+      ]
+    },
+    "current-sony-a7cr-26mp-uncompressed.png": {
+      "sha256": "d2648fc6fb099bd519b03e95d2fd7412c7d6691ad3b981458fea1568a3353a9b",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "sony-a7cr-26mp-uncompressed.tiff",
+          "sha256": "a2b093d6346561cc23ffc6b024fba0f6cf68dc5005fe820034186c3203497929"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "sony-a7cr-26mp-uncompressed.tiff",
+          "sha256": "a2b093d6346561cc23ffc6b024fba0f6cf68dc5005fe820034186c3203497929"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "sony-a7cr-26mp-uncompressed.tiff",
+          "sha256": "d4cb64524a2d037da1e9f4fd6681c1773eeae999dd33a10183ba8266a126d19b"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "sony-a7cr-26mp-uncompressed.tiff",
+          "sha256": "ed6e0f84235461fd6ee108d3b5aea758cc9783d8b458870ead416a2a19bdf212"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "sony-a7cr-26mp-uncompressed.tiff",
+          "sha256": "34123b8b9c033f3b4c404350c9b5ad4891e3187151f4010e1f3f71753ae7090c"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "sony-a7cr-26mp-uncompressed.tiff",
+          "sha256": "ce3927121332cec32dd712d21d287a5e2759f185857df993279543ac3940d9bc"
+        }
+      ]
+    },
+    "current-sony-a7cr-61mp-compressed.png": {
+      "sha256": "53213eee3291d39b8712ec67cd3b91e8d68f9335fd28c4266fca79ac446b37de",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "sony-a7cr-61mp-compressed.tiff",
+          "sha256": "7ee1b480a9fd457feac182054eba8dc895f12559e160b308eb5c09c46044410c"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "sony-a7cr-61mp-compressed.tiff",
+          "sha256": "7ee1b480a9fd457feac182054eba8dc895f12559e160b308eb5c09c46044410c"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "sony-a7cr-61mp-compressed.tiff",
+          "sha256": "fd7aa67f3877f698fc6ec1d0545b69d34c4ee448c6f2d5b5c793ddb3faafb4f1"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "sony-a7cr-61mp-compressed.tiff",
+          "sha256": "9d2353322d30a2e70f1620a223574403bdefe4629a18f71b1ad09fb6a30dbd9f"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "sony-a7cr-61mp-compressed.tiff",
+          "sha256": "30f43d97b056f5145129ec5d559df23ec2ceab9cd2bf071ac00f0ff79d4ae395"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "sony-a7cr-61mp-compressed.tiff",
+          "sha256": "0835496ef96245825ea69c985db4fc1a5db85939fad14e839ef45f67f6113b87"
+        }
+      ]
+    },
+    "current-sony-a7cr-65mp-lossless.png": {
+      "sha256": "a987aa95bcdf1ebf821d98ba853fbbd707f55b33e1cc23954f7d63e0599ad376",
+      "inputs": [
+        {
+          "label": "neutral | frozen int7",
+          "file": "sony-a7cr-65mp-lossless.tiff",
+          "sha256": "0dd7ed5f88f393776090b96f82f93bb0001159c07a8be2a6763050d350f8f919"
+        },
+        {
+          "label": "neutral | current dcff2861",
+          "file": "sony-a7cr-65mp-lossless.tiff",
+          "sha256": "0dd7ed5f88f393776090b96f82f93bb0001159c07a8be2a6763050d350f8f919"
+        },
+        {
+          "label": "busy-tone-color-detail | frozen int7",
+          "file": "sony-a7cr-65mp-lossless.tiff",
+          "sha256": "1199b7f236b5abda1959a57c39b41e791b3590dc4f4bc7b76de988fe3b3fe481"
+        },
+        {
+          "label": "busy-tone-color-detail | current dcff2861",
+          "file": "sony-a7cr-65mp-lossless.tiff",
+          "sha256": "747dccd1056e762bc6484d65172dc0ddf6e9b88fe79fa1e958991f0321e84e68"
+        },
+        {
+          "label": "busy-agx-lut-effects | frozen int7",
+          "file": "sony-a7cr-65mp-lossless.tiff",
+          "sha256": "2448c720c271989a57e1ddc3c6d86db84179d8d07325f1da0b3ca406697a3bd2"
+        },
+        {
+          "label": "busy-agx-lut-effects | current dcff2861",
+          "file": "sony-a7cr-65mp-lossless.tiff",
+          "sha256": "9aff54c2322fa735735f29f56e3e2896c012d99410b84d50ddd43ebc31852811"
+        }
+      ]
+    },
+    "sony-a7c2-33mp-uncompressed-as-shot-absolute.png": {
+      "sha256": "6dcfc705ca095ba9eff4d1047dc23fd5c72418869458d233b00e41347081433f",
+      "inputs": [
+        {
+          "label": "as-shot | previous fixed 6b3ac875",
+          "file": "sony-a7c2-33mp-uncompressed-as-shot-fixed.png",
+          "sha256": "7e2aac046cb96cf6ead98870862595c0f628c3e0394fba727a91acf865730979"
+        },
+        {
+          "label": "as-shot | current dcff2861",
+          "file": "sony-a7c2-33mp-uncompressed-as-shot.png",
+          "sha256": "7e2aac046cb96cf6ead98870862595c0f628c3e0394fba727a91acf865730979"
+        },
+        {
+          "label": "absolute-3200 | previous fixed 6b3ac875",
+          "file": "sony-a7c2-33mp-uncompressed-absolute-3200-fixed.png",
+          "sha256": "81205f06f5fda65e85f48dd505273f3c82a49fdb3e149bf07e5acfad6cefa58d"
+        },
+        {
+          "label": "absolute-3200 | current dcff2861",
+          "file": "sony-a7c2-33mp-uncompressed-absolute-3200.png",
+          "sha256": "81205f06f5fda65e85f48dd505273f3c82a49fdb3e149bf07e5acfad6cefa58d"
+        },
+        {
+          "label": "absolute-6504 | previous fixed 6b3ac875",
+          "file": "sony-a7c2-33mp-uncompressed-absolute-6504-fixed.png",
+          "sha256": "c7c9b85c8d22dad80ec59221ce86484f7a19c99082391daea3fa1936e2694ef1"
+        },
+        {
+          "label": "absolute-6504 | current dcff2861",
+          "file": "sony-a7c2-33mp-uncompressed-absolute-6504.png",
+          "sha256": "c7c9b85c8d22dad80ec59221ce86484f7a19c99082391daea3fa1936e2694ef1"
+        },
+        {
+          "label": "absolute-9000 | previous fixed 6b3ac875",
+          "file": "sony-a7c2-33mp-uncompressed-absolute-9000-fixed.png",
+          "sha256": "47903db716a6a9df281d8d27fdfa43a50106aad922a3a60134a53b8d324cad09"
+        },
+        {
+          "label": "absolute-9000 | current dcff2861",
+          "file": "sony-a7c2-33mp-uncompressed-absolute-9000.png",
+          "sha256": "47903db716a6a9df281d8d27fdfa43a50106aad922a3a60134a53b8d324cad09"
+        }
+      ]
+    },
+    "sony-a7c2-33mp-compressed-as-shot-absolute.png": {
+      "sha256": "d62537ec5f0b6203a4cb46693659bf166ee7e0536f8cf6ac9dcd9a3ad1dc1cc4",
+      "inputs": [
+        {
+          "label": "as-shot | previous fixed 6b3ac875",
+          "file": "sony-a7c2-33mp-compressed-as-shot-fixed.png",
+          "sha256": "44b79b17d2b1fbc650e6524873dfb44fcd3b5ae103092a6d70e3fd2cf0eac29b"
+        },
+        {
+          "label": "as-shot | current dcff2861",
+          "file": "sony-a7c2-33mp-compressed-as-shot.png",
+          "sha256": "44b79b17d2b1fbc650e6524873dfb44fcd3b5ae103092a6d70e3fd2cf0eac29b"
+        },
+        {
+          "label": "absolute-3200 | previous fixed 6b3ac875",
+          "file": "sony-a7c2-33mp-compressed-absolute-3200-fixed.png",
+          "sha256": "06ddc2886fd8cc05b1c8db22e9623a11dc780bb119032c08c1e032965ee71dbb"
+        },
+        {
+          "label": "absolute-3200 | current dcff2861",
+          "file": "sony-a7c2-33mp-compressed-absolute-3200.png",
+          "sha256": "06ddc2886fd8cc05b1c8db22e9623a11dc780bb119032c08c1e032965ee71dbb"
+        },
+        {
+          "label": "absolute-6504 | previous fixed 6b3ac875",
+          "file": "sony-a7c2-33mp-compressed-absolute-6504-fixed.png",
+          "sha256": "261f25ba051bf1b852c9075b90ace467bd05c0c3ca5710246bab8428b0d1e9a4"
+        },
+        {
+          "label": "absolute-6504 | current dcff2861",
+          "file": "sony-a7c2-33mp-compressed-absolute-6504.png",
+          "sha256": "261f25ba051bf1b852c9075b90ace467bd05c0c3ca5710246bab8428b0d1e9a4"
+        },
+        {
+          "label": "absolute-9000 | previous fixed 6b3ac875",
+          "file": "sony-a7c2-33mp-compressed-absolute-9000-fixed.png",
+          "sha256": "723f14777c2a46bb50980166125878ae93486d80c0678f202ccb511dac38a419"
+        },
+        {
+          "label": "absolute-9000 | current dcff2861",
+          "file": "sony-a7c2-33mp-compressed-absolute-9000.png",
+          "sha256": "723f14777c2a46bb50980166125878ae93486d80c0678f202ccb511dac38a419"
+        }
+      ]
+    },
+    "sony-a7cr-18mp-lossless-s-as-shot-absolute.png": {
+      "sha256": "01c54127b9fae809d1fa45411baf9776a2716fa846550f4bef5cb6f408223055",
+      "inputs": [
+        {
+          "label": "as-shot | previous fixed 6b3ac875",
+          "file": "sony-a7cr-18mp-lossless-s-as-shot-fixed.png",
+          "sha256": "0de936c49e61c45b005f75309cee25954217a6aaff4c876c57a1c8b47e1e74bb"
+        },
+        {
+          "label": "as-shot | current dcff2861",
+          "file": "sony-a7cr-18mp-lossless-s-as-shot.png",
+          "sha256": "0de936c49e61c45b005f75309cee25954217a6aaff4c876c57a1c8b47e1e74bb"
+        },
+        {
+          "label": "absolute-3200 | previous fixed 6b3ac875",
+          "file": "sony-a7cr-18mp-lossless-s-absolute-3200-fixed.png",
+          "sha256": "415a9e48ab6e9d70ccfaff62d40753599da2dfa958d06da7a700d8d9c17cfb86"
+        },
+        {
+          "label": "absolute-3200 | current dcff2861",
+          "file": "sony-a7cr-18mp-lossless-s-absolute-3200.png",
+          "sha256": "415a9e48ab6e9d70ccfaff62d40753599da2dfa958d06da7a700d8d9c17cfb86"
+        },
+        {
+          "label": "absolute-6504 | previous fixed 6b3ac875",
+          "file": "sony-a7cr-18mp-lossless-s-absolute-6504-fixed.png",
+          "sha256": "615fad68be68d96546ee039e7ae516be7bafec189023d86655b0c8078843486d"
+        },
+        {
+          "label": "absolute-6504 | current dcff2861",
+          "file": "sony-a7cr-18mp-lossless-s-absolute-6504.png",
+          "sha256": "615fad68be68d96546ee039e7ae516be7bafec189023d86655b0c8078843486d"
+        },
+        {
+          "label": "absolute-9000 | previous fixed 6b3ac875",
+          "file": "sony-a7cr-18mp-lossless-s-absolute-9000-fixed.png",
+          "sha256": "3195a34a51e7fd1b9a6a3fbb315393cbdff907828ffe4998c7bd14fd95c6bf5a"
+        },
+        {
+          "label": "absolute-9000 | current dcff2861",
+          "file": "sony-a7cr-18mp-lossless-s-absolute-9000.png",
+          "sha256": "3195a34a51e7fd1b9a6a3fbb315393cbdff907828ffe4998c7bd14fd95c6bf5a"
+        }
+      ]
+    },
+    "sony-a7rv-pixls-6231-as-shot-absolute.png": {
+      "sha256": "d72954d105bfb5cc8ead95718a33407a9a45d12ac142f2392a7786887c16643c",
+      "inputs": [
+        {
+          "label": "as-shot | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6231-as-shot-fixed.png",
+          "sha256": "e9a4114888e5759e4a05c985aa9f54294fa562c9702351b3b86c572fe3357c07"
+        },
+        {
+          "label": "as-shot | current dcff2861",
+          "file": "sony-a7rv-pixls-6231-as-shot.png",
+          "sha256": "e9a4114888e5759e4a05c985aa9f54294fa562c9702351b3b86c572fe3357c07"
+        },
+        {
+          "label": "absolute-3200 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6231-absolute-3200-fixed.png",
+          "sha256": "40eba9a622db05c240f7a7114146ad59854de6d54f72ce3d38c629e8b7dccdcb"
+        },
+        {
+          "label": "absolute-3200 | current dcff2861",
+          "file": "sony-a7rv-pixls-6231-absolute-3200.png",
+          "sha256": "40eba9a622db05c240f7a7114146ad59854de6d54f72ce3d38c629e8b7dccdcb"
+        },
+        {
+          "label": "absolute-6504 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6231-absolute-6504-fixed.png",
+          "sha256": "0d32bf6625719bfd44d85ec362dda91a1441a79696d7e54f5c5a193afa5748af"
+        },
+        {
+          "label": "absolute-6504 | current dcff2861",
+          "file": "sony-a7rv-pixls-6231-absolute-6504.png",
+          "sha256": "0d32bf6625719bfd44d85ec362dda91a1441a79696d7e54f5c5a193afa5748af"
+        },
+        {
+          "label": "absolute-9000 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6231-absolute-9000-fixed.png",
+          "sha256": "3104b623683eeb45d512dc8286752447db8440ec4927ae82c50b4cf2d4d292db"
+        },
+        {
+          "label": "absolute-9000 | current dcff2861",
+          "file": "sony-a7rv-pixls-6231-absolute-9000.png",
+          "sha256": "3104b623683eeb45d512dc8286752447db8440ec4927ae82c50b4cf2d4d292db"
+        }
+      ]
+    },
+    "sony-a7rv-pixls-6232-as-shot-absolute.png": {
+      "sha256": "aa68ece4eb57da20c78158e22f696bb0c18ac3003a26a84c2440c2ce3c41bc98",
+      "inputs": [
+        {
+          "label": "as-shot | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6232-as-shot-fixed.png",
+          "sha256": "6621c868630b4fabb70007d8d0904d74fe3a817bd4fe7e3cf1e338bab1ebe243"
+        },
+        {
+          "label": "as-shot | current dcff2861",
+          "file": "sony-a7rv-pixls-6232-as-shot.png",
+          "sha256": "6621c868630b4fabb70007d8d0904d74fe3a817bd4fe7e3cf1e338bab1ebe243"
+        },
+        {
+          "label": "absolute-3200 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6232-absolute-3200-fixed.png",
+          "sha256": "02f22199ea32be1c2ad5cc5bd57176b41c8bc14c680a0db5781620cecf0669a1"
+        },
+        {
+          "label": "absolute-3200 | current dcff2861",
+          "file": "sony-a7rv-pixls-6232-absolute-3200.png",
+          "sha256": "02f22199ea32be1c2ad5cc5bd57176b41c8bc14c680a0db5781620cecf0669a1"
+        },
+        {
+          "label": "absolute-6504 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6232-absolute-6504-fixed.png",
+          "sha256": "58cce2085f95af00d3f14821142228963a03fd06241cfaa46fec6652cd8685c3"
+        },
+        {
+          "label": "absolute-6504 | current dcff2861",
+          "file": "sony-a7rv-pixls-6232-absolute-6504.png",
+          "sha256": "58cce2085f95af00d3f14821142228963a03fd06241cfaa46fec6652cd8685c3"
+        },
+        {
+          "label": "absolute-9000 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6232-absolute-9000-fixed.png",
+          "sha256": "056dabd2e4e75fa751f27b1b4ace5af3527d56d6860ac11334e634128a70b07c"
+        },
+        {
+          "label": "absolute-9000 | current dcff2861",
+          "file": "sony-a7rv-pixls-6232-absolute-9000.png",
+          "sha256": "056dabd2e4e75fa751f27b1b4ace5af3527d56d6860ac11334e634128a70b07c"
+        }
+      ]
+    },
+    "sony-a7rv-pixls-6233-as-shot-absolute.png": {
+      "sha256": "d51a86a9d1a3ae6a9bfd12103f5e2f7e79493f06df2fc05e22c46d2169e4b310",
+      "inputs": [
+        {
+          "label": "as-shot | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6233-as-shot-fixed.png",
+          "sha256": "5fe26ad41209d4e0646ab2b0cbbb97e18de3ad6d2b46f0cc189fe296087650e8"
+        },
+        {
+          "label": "as-shot | current dcff2861",
+          "file": "sony-a7rv-pixls-6233-as-shot.png",
+          "sha256": "5fe26ad41209d4e0646ab2b0cbbb97e18de3ad6d2b46f0cc189fe296087650e8"
+        },
+        {
+          "label": "absolute-3200 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6233-absolute-3200-fixed.png",
+          "sha256": "08287428660ee6e659f9641c85e88b90375ce7d403c03115551981e5fb047360"
+        },
+        {
+          "label": "absolute-3200 | current dcff2861",
+          "file": "sony-a7rv-pixls-6233-absolute-3200.png",
+          "sha256": "08287428660ee6e659f9641c85e88b90375ce7d403c03115551981e5fb047360"
+        },
+        {
+          "label": "absolute-6504 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6233-absolute-6504-fixed.png",
+          "sha256": "dd2a078de4c584ccef8f5f3b70d5123acb99c4320971372bff93c127087426bc"
+        },
+        {
+          "label": "absolute-6504 | current dcff2861",
+          "file": "sony-a7rv-pixls-6233-absolute-6504.png",
+          "sha256": "dd2a078de4c584ccef8f5f3b70d5123acb99c4320971372bff93c127087426bc"
+        },
+        {
+          "label": "absolute-9000 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6233-absolute-9000-fixed.png",
+          "sha256": "7a311657a688f0fff4287a930d7ecd4b007a4c1e1cc3da1412613796cfc10941"
+        },
+        {
+          "label": "absolute-9000 | current dcff2861",
+          "file": "sony-a7rv-pixls-6233-absolute-9000.png",
+          "sha256": "7a311657a688f0fff4287a930d7ecd4b007a4c1e1cc3da1412613796cfc10941"
+        }
+      ]
+    },
+    "sony-a7rv-pixls-6233-busy-tone-color-detail.png": {
+      "sha256": "cc5920162aeb6e6a291fb119f851c7f5ff6c9f8d25f2d8ce2c8095f546f9cebb",
+      "inputs": [
+        {
+          "label": "Previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6233-busy-tone-color-detail-fixed.png",
+          "sha256": "3255254559c7d9b6289f358c3ceb7b0e74b56da706d62a254d23be70aa083650"
+        },
+        {
+          "label": "Current dcff2861",
+          "file": "sony-a7rv-pixls-6233-busy-tone-color-detail.png",
+          "sha256": "3255254559c7d9b6289f358c3ceb7b0e74b56da706d62a254d23be70aa083650"
+        }
+      ]
+    },
+    "sony-a7rv-pixls-6233-busy-agx-lut-effects.png": {
+      "sha256": "d273e1bc69d5b70a81d2dd86e181fd6db4c247287f505b65bcba1ad8e15091cb",
+      "inputs": [
+        {
+          "label": "Previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6233-busy-agx-lut-effects-fixed.png",
+          "sha256": "daa5fbb10e72009b1fc3610cd73a8e8732a7536399d9e86186aa371daf3afee6"
+        },
+        {
+          "label": "Current dcff2861",
+          "file": "sony-a7rv-pixls-6233-busy-agx-lut-effects.png",
+          "sha256": "daa5fbb10e72009b1fc3610cd73a8e8732a7536399d9e86186aa371daf3afee6"
+        }
+      ]
+    },
+    "sony-a7rv-pixls-6234-as-shot-absolute.png": {
+      "sha256": "366bb58a339740905e65168c0c6725f03d624cc4a1f2cc34cf71df7c4615d209",
+      "inputs": [
+        {
+          "label": "as-shot | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6234-as-shot-fixed.png",
+          "sha256": "f59044807694db1702d2a36fa5badee3a65827d3f408de75f68feceb7b63c075"
+        },
+        {
+          "label": "as-shot | current dcff2861",
+          "file": "sony-a7rv-pixls-6234-as-shot.png",
+          "sha256": "f59044807694db1702d2a36fa5badee3a65827d3f408de75f68feceb7b63c075"
+        },
+        {
+          "label": "absolute-3200 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6234-absolute-3200-fixed.png",
+          "sha256": "fa817269f3b46cab0acf98c513cd2001ecf615d40488c6b2038f885f9c1371e7"
+        },
+        {
+          "label": "absolute-3200 | current dcff2861",
+          "file": "sony-a7rv-pixls-6234-absolute-3200.png",
+          "sha256": "fa817269f3b46cab0acf98c513cd2001ecf615d40488c6b2038f885f9c1371e7"
+        },
+        {
+          "label": "absolute-6504 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6234-absolute-6504-fixed.png",
+          "sha256": "0b20575c4325349f1afcf55723cfecb564ff927a5640dfda770dab7fb8241045"
+        },
+        {
+          "label": "absolute-6504 | current dcff2861",
+          "file": "sony-a7rv-pixls-6234-absolute-6504.png",
+          "sha256": "0b20575c4325349f1afcf55723cfecb564ff927a5640dfda770dab7fb8241045"
+        },
+        {
+          "label": "absolute-9000 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6234-absolute-9000-fixed.png",
+          "sha256": "635e08fb73dde672c1a02b7e7148d5d3e170e06aeca74172fa6c1ae7e6dc1c8c"
+        },
+        {
+          "label": "absolute-9000 | current dcff2861",
+          "file": "sony-a7rv-pixls-6234-absolute-9000.png",
+          "sha256": "635e08fb73dde672c1a02b7e7148d5d3e170e06aeca74172fa6c1ae7e6dc1c8c"
+        }
+      ]
+    },
+    "sony-a7rv-pixls-6234-busy-tone-color-detail.png": {
+      "sha256": "637225c553abf324afef40182822cbfc24adaf2e6fc3b1b8ca7575ae86585ce5",
+      "inputs": [
+        {
+          "label": "Previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6234-busy-tone-color-detail-fixed.png",
+          "sha256": "ed0ee69bc89d279d24615f9961d972950c958fed3090172f6f79953fa7d5e8df"
+        },
+        {
+          "label": "Current dcff2861",
+          "file": "sony-a7rv-pixls-6234-busy-tone-color-detail.png",
+          "sha256": "ed0ee69bc89d279d24615f9961d972950c958fed3090172f6f79953fa7d5e8df"
+        }
+      ]
+    },
+    "sony-a7rv-pixls-6234-busy-agx-lut-effects.png": {
+      "sha256": "86186bd6a4e7f2c1c0541814837cff262e7ff60cd6f33fbac0fd5ee84cab6736",
+      "inputs": [
+        {
+          "label": "Previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6234-busy-agx-lut-effects-fixed.png",
+          "sha256": "b8dfa4850343f40f096b373aaf6ee53311241a626bfbffcfac4c3738f5b8f942"
+        },
+        {
+          "label": "Current dcff2861",
+          "file": "sony-a7rv-pixls-6234-busy-agx-lut-effects.png",
+          "sha256": "b8dfa4850343f40f096b373aaf6ee53311241a626bfbffcfac4c3738f5b8f942"
+        }
+      ]
+    },
+    "sony-a7rv-pixls-6235-as-shot-absolute.png": {
+      "sha256": "e3437ca36f0655d7d9ab08b17e3994fdf8d31438ad88e1f4ad83fc56a655ecf9",
+      "inputs": [
+        {
+          "label": "as-shot | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6235-as-shot-fixed.png",
+          "sha256": "8f08b8df3df18210c51c146aa7e50e30bb9bc2066fd3975af8b7a617d77bb062"
+        },
+        {
+          "label": "as-shot | current dcff2861",
+          "file": "sony-a7rv-pixls-6235-as-shot.png",
+          "sha256": "8f08b8df3df18210c51c146aa7e50e30bb9bc2066fd3975af8b7a617d77bb062"
+        },
+        {
+          "label": "absolute-3200 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6235-absolute-3200-fixed.png",
+          "sha256": "991cf6f397dcc68f0b50ed0ebfe354183c7cd8ffaeb78a17281a9a8541c6c8fc"
+        },
+        {
+          "label": "absolute-3200 | current dcff2861",
+          "file": "sony-a7rv-pixls-6235-absolute-3200.png",
+          "sha256": "991cf6f397dcc68f0b50ed0ebfe354183c7cd8ffaeb78a17281a9a8541c6c8fc"
+        },
+        {
+          "label": "absolute-6504 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6235-absolute-6504-fixed.png",
+          "sha256": "5fd7d5d9d56097c697208424a0ac5bdd776038e6ccc62a42217725f45509b7b0"
+        },
+        {
+          "label": "absolute-6504 | current dcff2861",
+          "file": "sony-a7rv-pixls-6235-absolute-6504.png",
+          "sha256": "5fd7d5d9d56097c697208424a0ac5bdd776038e6ccc62a42217725f45509b7b0"
+        },
+        {
+          "label": "absolute-9000 | previous fixed 6b3ac875",
+          "file": "sony-a7rv-pixls-6235-absolute-9000-fixed.png",
+          "sha256": "3ba5fb1ffb2c59ca3479e6061a9fa1359cee836f59435512843adbb15457c0cf"
+        },
+        {
+          "label": "absolute-9000 | current dcff2861",
+          "file": "sony-a7rv-pixls-6235-absolute-9000.png",
+          "sha256": "3ba5fb1ffb2c59ca3479e6061a9fa1359cee836f59435512843adbb15457c0cf"
+        }
+      ]
+    },
+    "baseline-canon-r6m2-24mp-raw.png": {
+      "sha256": "1866f736c3a76b36b2692bb5beeec5723398f1069d6e16e5137798d943802eeb",
+      "inputs": [
+        {
+          "label": "main | legacy/baseline1-highlights1",
+          "file": "canon-r6m2-24mp-raw-main-legacy-baseline1-highlights1.png",
+          "sha256": "478b8314c598d791d73c7e9f1a1c1f0ceb26abceaaf1cf5ad342097e995679af"
+        },
+        {
+          "label": "candidate | legacy/baseline1-highlights1",
+          "file": "canon-r6m2-24mp-raw-candidate-legacy-baseline1-highlights1.png",
+          "sha256": "478b8314c598d791d73c7e9f1a1c1f0ceb26abceaaf1cf5ad342097e995679af"
+        },
+        {
+          "label": "main | fresh/baseline0-highlights0",
+          "file": "canon-r6m2-24mp-raw-main-fresh-baseline0-highlights0.png",
+          "sha256": "478b8314c598d791d73c7e9f1a1c1f0ceb26abceaaf1cf5ad342097e995679af"
+        },
+        {
+          "label": "candidate | fresh/baseline0-highlights0",
+          "file": "canon-r6m2-24mp-raw-candidate-fresh-baseline0-highlights0.png",
+          "sha256": "478b8314c598d791d73c7e9f1a1c1f0ceb26abceaaf1cf5ad342097e995679af"
+        },
+        {
+          "label": "main | fresh/baseline0-highlights1",
+          "file": "canon-r6m2-24mp-raw-main-fresh-baseline0-highlights1.png",
+          "sha256": "478b8314c598d791d73c7e9f1a1c1f0ceb26abceaaf1cf5ad342097e995679af"
+        },
+        {
+          "label": "candidate | fresh/baseline0-highlights1",
+          "file": "canon-r6m2-24mp-raw-candidate-fresh-baseline0-highlights1.png",
+          "sha256": "5f6fcd69f19c6d3607e2acedd29e8648ee6e8fb8530a94d7e5dd418156c9816d"
+        },
+        {
+          "label": "main | fresh/baseline1-highlights0",
+          "file": "canon-r6m2-24mp-raw-main-fresh-baseline1-highlights0.png",
+          "sha256": "478b8314c598d791d73c7e9f1a1c1f0ceb26abceaaf1cf5ad342097e995679af"
+        },
+        {
+          "label": "candidate | fresh/baseline1-highlights0",
+          "file": "canon-r6m2-24mp-raw-candidate-fresh-baseline1-highlights0.png",
+          "sha256": "a48c2ee6fd7ec136cd239aa288d27bdc0953777f08047cf4bd02937e4dd499d7"
+        },
+        {
+          "label": "main | fresh/baseline1-highlights1",
+          "file": "canon-r6m2-24mp-raw-main-fresh-baseline1-highlights1.png",
+          "sha256": "478b8314c598d791d73c7e9f1a1c1f0ceb26abceaaf1cf5ad342097e995679af"
+        },
+        {
+          "label": "candidate | fresh/baseline1-highlights1",
+          "file": "canon-r6m2-24mp-raw-candidate-fresh-baseline1-highlights1.png",
+          "sha256": "c559833e354cc46744a17664bf5fccbc5ca1b104a75028cfb21ae4c72b4f30ca"
+        }
+      ]
+    },
+    "baseline-fuji-xh2-40mp-compressed.png": {
+      "sha256": "79ad8828ebd59d81cc13c72128e5fc14f74226ec487fbe1f345e5ce8126718dc",
+      "inputs": [
+        {
+          "label": "main | legacy/baseline1-highlights1",
+          "file": "fuji-xh2-40mp-compressed-main-legacy-baseline1-highlights1.png",
+          "sha256": "f54ea52e48673936c0c38220ddd91c4312a2840d69d8c2f4e7b1148a1f65328d"
+        },
+        {
+          "label": "candidate | legacy/baseline1-highlights1",
+          "file": "fuji-xh2-40mp-compressed-candidate-legacy-baseline1-highlights1.png",
+          "sha256": "f54ea52e48673936c0c38220ddd91c4312a2840d69d8c2f4e7b1148a1f65328d"
+        },
+        {
+          "label": "main | fresh/baseline0-highlights0",
+          "file": "fuji-xh2-40mp-compressed-main-fresh-baseline0-highlights0.png",
+          "sha256": "f54ea52e48673936c0c38220ddd91c4312a2840d69d8c2f4e7b1148a1f65328d"
+        },
+        {
+          "label": "candidate | fresh/baseline0-highlights0",
+          "file": "fuji-xh2-40mp-compressed-candidate-fresh-baseline0-highlights0.png",
+          "sha256": "f54ea52e48673936c0c38220ddd91c4312a2840d69d8c2f4e7b1148a1f65328d"
+        },
+        {
+          "label": "main | fresh/baseline0-highlights1",
+          "file": "fuji-xh2-40mp-compressed-main-fresh-baseline0-highlights1.png",
+          "sha256": "f54ea52e48673936c0c38220ddd91c4312a2840d69d8c2f4e7b1148a1f65328d"
+        },
+        {
+          "label": "candidate | fresh/baseline0-highlights1",
+          "file": "fuji-xh2-40mp-compressed-candidate-fresh-baseline0-highlights1.png",
+          "sha256": "f54ea52e48673936c0c38220ddd91c4312a2840d69d8c2f4e7b1148a1f65328d"
+        },
+        {
+          "label": "main | fresh/baseline1-highlights0",
+          "file": "fuji-xh2-40mp-compressed-main-fresh-baseline1-highlights0.png",
+          "sha256": "f54ea52e48673936c0c38220ddd91c4312a2840d69d8c2f4e7b1148a1f65328d"
+        },
+        {
+          "label": "candidate | fresh/baseline1-highlights0",
+          "file": "fuji-xh2-40mp-compressed-candidate-fresh-baseline1-highlights0.png",
+          "sha256": "04957c1436a7d8d75d8dbe234aef0690d26f3e7b238c8d7d921ed68d4c13d1a1"
+        },
+        {
+          "label": "main | fresh/baseline1-highlights1",
+          "file": "fuji-xh2-40mp-compressed-main-fresh-baseline1-highlights1.png",
+          "sha256": "f54ea52e48673936c0c38220ddd91c4312a2840d69d8c2f4e7b1148a1f65328d"
+        },
+        {
+          "label": "candidate | fresh/baseline1-highlights1",
+          "file": "fuji-xh2-40mp-compressed-candidate-fresh-baseline1-highlights1.png",
+          "sha256": "04957c1436a7d8d75d8dbe234aef0690d26f3e7b238c8d7d921ed68d4c13d1a1"
+        }
+      ]
+    },
+    "baseline-fuji-xt4-26mp-lossless.png": {
+      "sha256": "161b9aab20df809e33d761a7c15a4bc8ce3dd5b554c94132d9f483035429c742",
+      "inputs": [
+        {
+          "label": "main | legacy/baseline1-highlights1",
+          "file": "fuji-xt4-26mp-lossless-main-legacy-baseline1-highlights1.png",
+          "sha256": "a9e6b3e492351e6d6621daa6fd07ace4a5b48cb12aa0419f8fe93af068f163f5"
+        },
+        {
+          "label": "candidate | legacy/baseline1-highlights1",
+          "file": "fuji-xt4-26mp-lossless-candidate-legacy-baseline1-highlights1.png",
+          "sha256": "a9e6b3e492351e6d6621daa6fd07ace4a5b48cb12aa0419f8fe93af068f163f5"
+        },
+        {
+          "label": "main | fresh/baseline0-highlights0",
+          "file": "fuji-xt4-26mp-lossless-main-fresh-baseline0-highlights0.png",
+          "sha256": "a9e6b3e492351e6d6621daa6fd07ace4a5b48cb12aa0419f8fe93af068f163f5"
+        },
+        {
+          "label": "candidate | fresh/baseline0-highlights0",
+          "file": "fuji-xt4-26mp-lossless-candidate-fresh-baseline0-highlights0.png",
+          "sha256": "a9e6b3e492351e6d6621daa6fd07ace4a5b48cb12aa0419f8fe93af068f163f5"
+        },
+        {
+          "label": "main | fresh/baseline0-highlights1",
+          "file": "fuji-xt4-26mp-lossless-main-fresh-baseline0-highlights1.png",
+          "sha256": "a9e6b3e492351e6d6621daa6fd07ace4a5b48cb12aa0419f8fe93af068f163f5"
+        },
+        {
+          "label": "candidate | fresh/baseline0-highlights1",
+          "file": "fuji-xt4-26mp-lossless-candidate-fresh-baseline0-highlights1.png",
+          "sha256": "a9e6b3e492351e6d6621daa6fd07ace4a5b48cb12aa0419f8fe93af068f163f5"
+        },
+        {
+          "label": "main | fresh/baseline1-highlights0",
+          "file": "fuji-xt4-26mp-lossless-main-fresh-baseline1-highlights0.png",
+          "sha256": "a9e6b3e492351e6d6621daa6fd07ace4a5b48cb12aa0419f8fe93af068f163f5"
+        },
+        {
+          "label": "candidate | fresh/baseline1-highlights0",
+          "file": "fuji-xt4-26mp-lossless-candidate-fresh-baseline1-highlights0.png",
+          "sha256": "0da02e352960a49adda513fda14bca7a877abcdc2da181e82cf003a6ff4464cc"
+        },
+        {
+          "label": "main | fresh/baseline1-highlights1",
+          "file": "fuji-xt4-26mp-lossless-main-fresh-baseline1-highlights1.png",
+          "sha256": "a9e6b3e492351e6d6621daa6fd07ace4a5b48cb12aa0419f8fe93af068f163f5"
+        },
+        {
+          "label": "candidate | fresh/baseline1-highlights1",
+          "file": "fuji-xt4-26mp-lossless-candidate-fresh-baseline1-highlights1.png",
+          "sha256": "0da02e352960a49adda513fda14bca7a877abcdc2da181e82cf003a6ff4464cc"
+        }
+      ]
+    },
+    "baseline-nikon-zf-24mp-compressed.png": {
+      "sha256": "2d7b6673329b8fb3873786d2318b6ff8ffd0f087b6ec2aa0036ab22f01241523",
+      "inputs": [
+        {
+          "label": "main | legacy/baseline1-highlights1",
+          "file": "nikon-zf-24mp-compressed-main-legacy-baseline1-highlights1.png",
+          "sha256": "d64b9fea75a5b7de5e815c4aad4a2035d1cbc45eb25bd7a7263b75ec6194b5e9"
+        },
+        {
+          "label": "candidate | legacy/baseline1-highlights1",
+          "file": "nikon-zf-24mp-compressed-candidate-legacy-baseline1-highlights1.png",
+          "sha256": "d64b9fea75a5b7de5e815c4aad4a2035d1cbc45eb25bd7a7263b75ec6194b5e9"
+        },
+        {
+          "label": "main | fresh/baseline0-highlights0",
+          "file": "nikon-zf-24mp-compressed-main-fresh-baseline0-highlights0.png",
+          "sha256": "d64b9fea75a5b7de5e815c4aad4a2035d1cbc45eb25bd7a7263b75ec6194b5e9"
+        },
+        {
+          "label": "candidate | fresh/baseline0-highlights0",
+          "file": "nikon-zf-24mp-compressed-candidate-fresh-baseline0-highlights0.png",
+          "sha256": "d64b9fea75a5b7de5e815c4aad4a2035d1cbc45eb25bd7a7263b75ec6194b5e9"
+        },
+        {
+          "label": "main | fresh/baseline0-highlights1",
+          "file": "nikon-zf-24mp-compressed-main-fresh-baseline0-highlights1.png",
+          "sha256": "d64b9fea75a5b7de5e815c4aad4a2035d1cbc45eb25bd7a7263b75ec6194b5e9"
+        },
+        {
+          "label": "candidate | fresh/baseline0-highlights1",
+          "file": "nikon-zf-24mp-compressed-candidate-fresh-baseline0-highlights1.png",
+          "sha256": "d64b9fea75a5b7de5e815c4aad4a2035d1cbc45eb25bd7a7263b75ec6194b5e9"
+        },
+        {
+          "label": "main | fresh/baseline1-highlights0",
+          "file": "nikon-zf-24mp-compressed-main-fresh-baseline1-highlights0.png",
+          "sha256": "d64b9fea75a5b7de5e815c4aad4a2035d1cbc45eb25bd7a7263b75ec6194b5e9"
+        },
+        {
+          "label": "candidate | fresh/baseline1-highlights0",
+          "file": "nikon-zf-24mp-compressed-candidate-fresh-baseline1-highlights0.png",
+          "sha256": "a21a85783b463b1835220dce16e617f80e41ffad742e7267bb744b65cb36b0c4"
+        },
+        {
+          "label": "main | fresh/baseline1-highlights1",
+          "file": "nikon-zf-24mp-compressed-main-fresh-baseline1-highlights1.png",
+          "sha256": "d64b9fea75a5b7de5e815c4aad4a2035d1cbc45eb25bd7a7263b75ec6194b5e9"
+        },
+        {
+          "label": "candidate | fresh/baseline1-highlights1",
+          "file": "nikon-zf-24mp-compressed-candidate-fresh-baseline1-highlights1.png",
+          "sha256": "a21a85783b463b1835220dce16e617f80e41ffad742e7267bb744b65cb36b0c4"
+        }
+      ]
+    },
+    "baseline-nikon-zfc-21mp-lossless.png": {
+      "sha256": "60f9ab4a68c4d579177dc6c28ee936113f49b16510b47247753f50efc89f521b",
+      "inputs": [
+        {
+          "label": "main | legacy/baseline1-highlights1",
+          "file": "nikon-zfc-21mp-lossless-main-legacy-baseline1-highlights1.png",
+          "sha256": "5dc655893d456f60b0d9fe0b6eeae65157caf617330e11f794ca460cc90baace"
+        },
+        {
+          "label": "candidate | legacy/baseline1-highlights1",
+          "file": "nikon-zfc-21mp-lossless-candidate-legacy-baseline1-highlights1.png",
+          "sha256": "5dc655893d456f60b0d9fe0b6eeae65157caf617330e11f794ca460cc90baace"
+        },
+        {
+          "label": "main | fresh/baseline0-highlights0",
+          "file": "nikon-zfc-21mp-lossless-main-fresh-baseline0-highlights0.png",
+          "sha256": "5dc655893d456f60b0d9fe0b6eeae65157caf617330e11f794ca460cc90baace"
+        },
+        {
+          "label": "candidate | fresh/baseline0-highlights0",
+          "file": "nikon-zfc-21mp-lossless-candidate-fresh-baseline0-highlights0.png",
+          "sha256": "5dc655893d456f60b0d9fe0b6eeae65157caf617330e11f794ca460cc90baace"
+        },
+        {
+          "label": "main | fresh/baseline0-highlights1",
+          "file": "nikon-zfc-21mp-lossless-main-fresh-baseline0-highlights1.png",
+          "sha256": "5dc655893d456f60b0d9fe0b6eeae65157caf617330e11f794ca460cc90baace"
+        },
+        {
+          "label": "candidate | fresh/baseline0-highlights1",
+          "file": "nikon-zfc-21mp-lossless-candidate-fresh-baseline0-highlights1.png",
+          "sha256": "5dc655893d456f60b0d9fe0b6eeae65157caf617330e11f794ca460cc90baace"
+        },
+        {
+          "label": "main | fresh/baseline1-highlights0",
+          "file": "nikon-zfc-21mp-lossless-main-fresh-baseline1-highlights0.png",
+          "sha256": "5dc655893d456f60b0d9fe0b6eeae65157caf617330e11f794ca460cc90baace"
+        },
+        {
+          "label": "candidate | fresh/baseline1-highlights0",
+          "file": "nikon-zfc-21mp-lossless-candidate-fresh-baseline1-highlights0.png",
+          "sha256": "d36b56588f9f898acabbf8383b63e537fa0381284eb3201e2c19f097b47362e7"
+        },
+        {
+          "label": "main | fresh/baseline1-highlights1",
+          "file": "nikon-zfc-21mp-lossless-main-fresh-baseline1-highlights1.png",
+          "sha256": "5dc655893d456f60b0d9fe0b6eeae65157caf617330e11f794ca460cc90baace"
+        },
+        {
+          "label": "candidate | fresh/baseline1-highlights1",
+          "file": "nikon-zfc-21mp-lossless-candidate-fresh-baseline1-highlights1.png",
+          "sha256": "d36b56588f9f898acabbf8383b63e537fa0381284eb3201e2c19f097b47362e7"
+        }
+      ]
+    },
+    "native-fuji-xh2-40mp-compressed-100-percent.png": {
+      "sha256": "55e9f5c2b94a666895976f1f34d0db170f29f9730cc6683a59f8ce8bfe72d268",
+      "inputs": [
+        {
+          "label": "main | 100-percent",
+          "file": "main-fuji-xh2-40mp-compressed-100-percent-roi.png",
+          "sha256": "991a0492c2d3b0da885f6a6f6d250bb8435303cc834f39fd4a11fffa7724c10d"
+        },
+        {
+          "label": "candidate | 100-percent",
+          "file": "candidate-fuji-xh2-40mp-compressed-100-percent-roi.png",
+          "sha256": "986ae0b0e228a21a6f2ab8ed2850ddabac4b4239c742392ecc8ce78f1400d684"
+        }
+      ]
+    },
+    "native-fuji-xh2-40mp-compressed-reset.png": {
+      "sha256": "0dcc1cfbd1af83e81eb52e1642db66542432e015dc306a5ef324c15b7a03c7d2",
+      "inputs": [
+        {
+          "label": "main | reset",
+          "file": "main-fuji-xh2-40mp-compressed-reset-roi.png",
+          "sha256": "129aca77a6fd4512f28c7987b725bb21e157e19b51b7ef66567d96d0a8f57292"
+        },
+        {
+          "label": "candidate | reset",
+          "file": "candidate-fuji-xh2-40mp-compressed-reset-roi.png",
+          "sha256": "e16b2e0c276d1802c5e3f342ea396a8fee1b09ff734926e5b3eee586b0f32611"
+        }
+      ]
+    },
+    "native-fuji-xt4-26mp-lossless-100-percent.png": {
+      "sha256": "a6ee8f2ce7862a5e69e9061cbef30e58a17770eca83f7158ab158cd99dc64cd7",
+      "inputs": [
+        {
+          "label": "main | 100-percent",
+          "file": "main-fuji-xt4-26mp-lossless-100-percent-roi.png",
+          "sha256": "8b59945dcd5e33784b39968e51c7d525c93b73b059a73b20cd14f468a3ad91af"
+        },
+        {
+          "label": "candidate | 100-percent",
+          "file": "candidate-fuji-xt4-26mp-lossless-100-percent-roi.png",
+          "sha256": "f2646a09178aa97811669abac3e3f8291eb0951fbcd3ffb263ccdc1f3def7bb6"
+        }
+      ]
+    },
+    "native-fuji-xt4-26mp-lossless-reset.png": {
+      "sha256": "d38140167417611e08ffddcf715e687c2f2eb436e7e0e9e316c29675e5962787",
+      "inputs": [
+        {
+          "label": "main | reset",
+          "file": "main-fuji-xt4-26mp-lossless-reset-roi.png",
+          "sha256": "8b498101d59340b51b585038e474c6dcd510a63a4f8926413c8fcd060524c641"
+        },
+        {
+          "label": "candidate | reset",
+          "file": "candidate-fuji-xt4-26mp-lossless-reset-roi.png",
+          "sha256": "0f9fa51b1b98e0f912070a368e7703158605cb926f49f0d954958c1e08bc0737"
+        }
+      ]
+    },
+    "native-sony-a7c2-15mp-uncompressed-100-percent.png": {
+      "sha256": "c649f897af34ed07aff9fb717dcf749d3d3afd0bc7b2a17145af30c9d1708d21",
+      "inputs": [
+        {
+          "label": "main | 100-percent",
+          "file": "main-sony-a7c2-15mp-uncompressed-100-percent-roi.png",
+          "sha256": "e6fe5d4dc16c7dc91cc476adab88f772df54c4d1ca4da3184c8f01821077a149"
+        },
+        {
+          "label": "candidate | 100-percent",
+          "file": "candidate-sony-a7c2-15mp-uncompressed-100-percent-roi.png",
+          "sha256": "c4189fdc38df719f59eae10c0b482ee89c2043a048b38c031681c1ffcc7a2ef1"
+        }
+      ]
+    },
+    "native-sony-a7c2-15mp-uncompressed-reset.png": {
+      "sha256": "01800ac11b19b3ba2d962b24d02cf61ad7db8c3b6b4b98b229522eda536361d8",
+      "inputs": [
+        {
+          "label": "main | reset",
+          "file": "main-sony-a7c2-15mp-uncompressed-reset-roi.png",
+          "sha256": "e9324c2f617ce2cbe76bbf7cbdea5cec9f2c04fb436acf2dc02b2fd145e9edd0"
+        },
+        {
+          "label": "candidate | reset",
+          "file": "candidate-sony-a7c2-15mp-uncompressed-reset-roi.png",
+          "sha256": "2514521698f9c47afc0ac52a3523c48bd680d67d24aeb3d639eba0857a11e7d5"
+        }
+      ]
+    }
+  },
+  "inspection": "All43 panels inspected; panel-inspection.json records hashes/method/observations. maintainer visual approval pending.",
+  "reference_updated": false
+}
