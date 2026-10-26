@@ -2,7 +2,7 @@
   "id": "sigma-20-200-sony-profile",
   "title": "Add measured Sigma 20\u2013200 mm Sony E distortion and vignetting profile (TCA unsupported)",
   "category": "feature",
-  "landed": "2026-10-13",
+  "landed": "2026-10-26",
   "authors": ["mpasson", "yojen7"],
   "source": "mpasson/RapidRAW (calibration data CC-BY-SA 3.0); scoped RapidRoom adaptation with Codex",
   "commits": ["https://github.com/mpasson/RapidRAW/commit/e8811879180122e571ad229a59997aed648dca11"],

@@ -1,3 +1,4 @@
+import CaptureTime from '../../ui/CaptureTime';
 import { useState, useMemo, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Check, ChevronDown, ChevronRight, Plus, Star, Tag, X, User } from 'lucide-react';
@@ -249,7 +250,7 @@ export default function MetadataPanel() {
   const multiSelectedPaths = useLibraryStore((s) => s.multiSelectedPaths);
   const imageRatings = useLibraryStore((s) => s.imageRatings);
   const appSettings = useSettingsStore((s) => s.appSettings);
-  const thumbnails = useProcessStore((s) => s.thumbnails);
+  const liveThumbnailUrl = useProcessStore((s) => (selectedImage ? s.thumbnails[selectedImage.path] : undefined));
 
   const { handleRate, handleToggleFlag, handleSetColorLabel, handleTagsChanged, handleUpdateExif } =
     useLibraryActions();
@@ -260,7 +261,6 @@ export default function MetadataPanel() {
     if (!selectedImage) return EMPTY_TAGS;
     return state.imageList.find((img) => img.path === selectedImage.path)?.tags ?? EMPTY_TAGS;
   });
-  const liveThumbnailUrl = selectedImage ? thumbnails[selectedImage.path] : undefined;
 
   const targetPaths = multiSelectedPaths?.length > 0 ? multiSelectedPaths : selectedImage ? [selectedImage.path] : [];
   const getPathsToUpdate = () => {
@@ -457,9 +457,7 @@ export default function MetadataPanel() {
                         })
                       : t('editor.metadata.fileInfo.emptyDimensions')}
                   </Text>
-                  <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate drop-shadow-sm">
-                    {selectedImage.exif?.DateTimeOriginal || '-'}
-                  </Text>
+                  <CaptureTime path={selectedImage.path} exif={selectedImage.exif} editable />
                 </div>
               </div>
             </div>

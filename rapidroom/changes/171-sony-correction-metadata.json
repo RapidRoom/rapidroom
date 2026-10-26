@@ -1,0 +1,13 @@
+{
+  "id": "sony-correction-metadata",
+  "title": "Keep Sony ARW correction metadata without applying an unvalidated correction",
+  "category": "fix",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Automatic matching no longer substitutes the older FE 70-200mm f/4 G OSS for the optically different FE 70-200mm F4 Macro G OSS II. Sony ARW SubIFD correction tables are retained as validated metadata only; no undocumented camera correction is applied."
+}

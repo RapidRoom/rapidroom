@@ -1,0 +1,13 @@
+{
+  "id": "cube-lut-input-domain",
+  "title": "Honor .cube LUT input domain bounds",
+  "category": "fix",
+  "landed": "2026-10-13",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Validate DOMAIN_MIN/MAX headers and normalize input coordinates once at tetrahedral sampling for scene/display LUTs, previews and 8/16-bit export readback. Unit domains keep the existing lookup and intensity behavior; non-unit LUTs now use their authored input ranges."
+}

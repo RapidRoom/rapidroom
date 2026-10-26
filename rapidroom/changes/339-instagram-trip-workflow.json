@@ -1,0 +1,13 @@
+{
+  "id": "instagram-trip-workflow",
+  "title": "Export Instagram crops directly into a dated upload folder",
+  "category": "feature",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#339"],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Export for Instagram has a rebindable shortcut, starts at 3:4 when no prior choice exists, and includes a new 1080×565 landscape crop. Desktop exports go directly to a dated Pictures/Instagram folder or a separately remembered chosen folder, with an explicit Open folder action after successful completion. A composition guide and bounded batch frame strip help prepare crops without changing ordinary edits or Undo history. Frame creation and validation use the full finished render geometry, so thumbnail resolution cannot shift the exported crop or discard a saved batch outline. Existing explicit recipe choices and legacy padded recipes are retained. Matching current crops retain all finished pixels within the existing framing tolerance. Instagram opens without preview or size estimation requests; Adjust frame is explicit and preview loading does not block export."
+}

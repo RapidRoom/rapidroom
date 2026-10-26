@@ -207,6 +207,7 @@ export const useAppInitialization = ({
           setFilterCriteria((prev: FilterCriteria) => ({
             ...prev,
             ...filterCriteria,
+            ratingOperator: filterCriteria.ratingOperator ?? (filterCriteria.ratingExact ? 'eq' : 'gte'),
             rawStatus: filterCriteria.rawStatus || RawStatus.All,
             editedStatus: filterCriteria.editedStatus || EditedStatus.All,
             flagStatus: filterCriteria.flagStatus || FlagStatus.All,

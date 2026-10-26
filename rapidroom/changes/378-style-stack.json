@@ -1,0 +1,14 @@
+{
+  "id": "ordered-style-stack",
+  "title": "Stack up to three Styles with independent Amount and removal",
+  "category": "feature",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "highlight": "Combine up to three Styles in the pinned Applied folder, preserving manual edits as you adjust or remove them.",
+  "notes": "Each photo saves its ordered recipe snapshots and baseline. GUI and MCP share the same stack. Earlier hash-only applied markers remain visibly baked in; removing their marker preserves the existing edit. Existing saved adjustment recipes render unchanged."
+}

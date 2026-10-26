@@ -1,0 +1,13 @@
+{
+  "id": "atomic-export-output",
+  "title": "Publish exports atomically without replacing existing files by default",
+  "category": "fix",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Stage and sync encoded image, mask and LUT bytes beside their destination before atomic publication. Refuse concurrent destination creation unless overwrite was explicitly selected. Ordinary failures remove staging files; interruption cannot expose a truncated final export."
+}
