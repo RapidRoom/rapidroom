@@ -218,10 +218,6 @@ Tile placement, raised-cosine overlap and whole-image five-level B3-spline colou
 
 The field and RDF representation audit compares [LightCraft by storytold](https://github.com/storytold/lightcraft/tree/265248c86fa3267709aea45633d0d135331e180c) (MIT OR Apache-2.0; [MIT notice](rapidroom/LICENSES/lightcraft-MIT.txt)) and [Redlamp by pdcgomes](https://github.com/pdcgomes/redlamp/tree/a70c86dc01ab8ee5d831642520b76ed529f556c0) (MPL-2.0). Supplementary semantics were checked in MIT AutoShade and RAWmakase; exact versions and limitations are in the [audit](rapidroom/validation/crs-interop-20261012/README.md). The namespace-aware photo/curve/look reader extends RapidRoom's existing bounded XML parser; this is original work, with no copied MPL source, Adobe assets, SDK-derived tables or external presets.
 
-### Sigma 20–200 mm Sony E measured profile
-
-Distortion and vignetting data by [mpasson](https://github.com/mpasson/RapidRAW/commit/e8811879180122e571ad229a59997aed648dca11), measured/fitted from 207 Sony ILCE-7CM2 ARWs and distributed under [CC-BY-SA 3.0](rapidroom/LICENSES/sigma-20-200-CC-BY-SA-3.0.txt). RapidRoom's adaptation excludes unsupported polynomial TCA from the active database and labels that limit; the [unchanged licensed source](rapidroom/lens-profiles/sigma-20-200/source/local-sigma-20-200.README.md) is retained. Original native-wrapper/tests/database digests were not imported. Integration and synthetic verification use Codex; real-lens file validation remains pending.
-
 Polynomial Lensfun TCA correction and synthetic reference fixtures: original RapidRoom implementation by yojen7 with Codex. Mathematical model, normalization and interpolation conventions checked against Lensfun 0.3.4; independent coordinate measurements use its public C API. Lensfun implementation and native-wrapper code are not included. See `rapidroom/validation/lensfun-tca/README.md` for pinned sources and reproduction.
 
 The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/history preservation follow-up (#218) are original RapidRoom work by Yojen with Codex, informed by the licence-first CRS audit above. No reference implementation source is copied.
@@ -238,6 +234,10 @@ The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/hi
   [autoshade@cbca12b5](https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba)
   (MIT), adapted by Yojen with Codex/kano. The complete notice remains in
   `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.
+
+### Sigma 20–200 mm Sony E measured profile
+
+Distortion and vignetting data by [mpasson](https://github.com/mpasson/RapidRAW/commit/e8811879180122e571ad229a59997aed648dca11), measured/fitted from 207 Sony ILCE-7CM2 ARWs and distributed under [CC-BY-SA 3.0](rapidroom/LICENSES/sigma-20-200-CC-BY-SA-3.0.txt). RapidRoom's adaptation excludes unsupported polynomial TCA from the active database and labels that limit; the [unchanged licensed source](rapidroom/lens-profiles/sigma-20-200/source/local-sigma-20-200.README.md) is retained. Original native-wrapper/tests/database digests were not imported. Integration and synthetic verification use Codex; real-lens file validation remains pending.
 
 ## Public MCP reproduction package
 
