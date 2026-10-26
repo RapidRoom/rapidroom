@@ -1,0 +1,266 @@
+{
+  "contract": "Explicit own lensCorrectionMode replaces version only at Amount>=100; numeric interpolation unchanged; no marker preserves target; omit legacy version on already-legacy targets.",
+  "cases": [
+    {
+      "name": "legacy-to-legacy-amount-30",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20
+      },
+      "amount": 30,
+      "expected_version": null,
+      "expected_vignette_amount": 38.0
+    },
+    {
+      "name": "legacy-to-legacy-amount-60",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20
+      },
+      "amount": 60,
+      "expected_version": null,
+      "expected_vignette_amount": 56.0
+    },
+    {
+      "name": "legacy-to-legacy-amount-100",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20
+      },
+      "amount": 100,
+      "expected_version": null,
+      "expected_vignette_amount": 80.0
+    },
+    {
+      "name": "legacy-to-v1-amount-30",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20,
+        "cameraLensCorrectionVersion": 1
+      },
+      "amount": 30,
+      "expected_version": 1,
+      "expected_vignette_amount": 38.0
+    },
+    {
+      "name": "legacy-to-v1-amount-60",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20,
+        "cameraLensCorrectionVersion": 1
+      },
+      "amount": 60,
+      "expected_version": 1,
+      "expected_vignette_amount": 56.0
+    },
+    {
+      "name": "legacy-to-v1-amount-100",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20,
+        "cameraLensCorrectionVersion": 1
+      },
+      "amount": 100,
+      "expected_version": 0,
+      "expected_vignette_amount": 80.0
+    },
+    {
+      "name": "v1-to-legacy-amount-30",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80,
+        "cameraLensCorrectionVersion": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20
+      },
+      "amount": 30,
+      "expected_version": null,
+      "expected_vignette_amount": 38.0
+    },
+    {
+      "name": "v1-to-legacy-amount-60",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80,
+        "cameraLensCorrectionVersion": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20
+      },
+      "amount": 60,
+      "expected_version": null,
+      "expected_vignette_amount": 56.0
+    },
+    {
+      "name": "v1-to-legacy-amount-100",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80,
+        "cameraLensCorrectionVersion": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20
+      },
+      "amount": 100,
+      "expected_version": 1,
+      "expected_vignette_amount": 80.0
+    },
+    {
+      "name": "v1-to-v1-amount-30",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80,
+        "cameraLensCorrectionVersion": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20,
+        "cameraLensCorrectionVersion": 1
+      },
+      "amount": 30,
+      "expected_version": 1,
+      "expected_vignette_amount": 38.0
+    },
+    {
+      "name": "v1-to-v1-amount-60",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80,
+        "cameraLensCorrectionVersion": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20,
+        "cameraLensCorrectionVersion": 1
+      },
+      "amount": 60,
+      "expected_version": 1,
+      "expected_vignette_amount": 56.0
+    },
+    {
+      "name": "v1-to-v1-amount-100",
+      "source": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 80,
+        "cameraLensCorrectionVersion": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20,
+        "cameraLensCorrectionVersion": 1
+      },
+      "amount": 100,
+      "expected_version": 1,
+      "expected_vignette_amount": 80.0
+    },
+    {
+      "name": "tone-only-to-legacy-amount-30",
+      "source": {
+        "exposure": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20
+      },
+      "amount": 30,
+      "expected_version": null,
+      "expected_vignette_amount": 20
+    },
+    {
+      "name": "tone-only-to-legacy-amount-60",
+      "source": {
+        "exposure": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20
+      },
+      "amount": 60,
+      "expected_version": null,
+      "expected_vignette_amount": 20
+    },
+    {
+      "name": "tone-only-to-legacy-amount-100",
+      "source": {
+        "exposure": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20
+      },
+      "amount": 100,
+      "expected_version": null,
+      "expected_vignette_amount": 20
+    },
+    {
+      "name": "tone-only-to-v1-amount-30",
+      "source": {
+        "exposure": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20,
+        "cameraLensCorrectionVersion": 1
+      },
+      "amount": 30,
+      "expected_version": 1,
+      "expected_vignette_amount": 20
+    },
+    {
+      "name": "tone-only-to-v1-amount-60",
+      "source": {
+        "exposure": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20,
+        "cameraLensCorrectionVersion": 1
+      },
+      "amount": 60,
+      "expected_version": 1,
+      "expected_vignette_amount": 20
+    },
+    {
+      "name": "tone-only-to-v1-amount-100",
+      "source": {
+        "exposure": 1
+      },
+      "target": {
+        "lensCorrectionMode": "auto",
+        "lensVignetteAmount": 20,
+        "cameraLensCorrectionVersion": 1
+      },
+      "amount": 100,
+      "expected_version": 1,
+      "expected_vignette_amount": 20
+    }
+  ]
+}

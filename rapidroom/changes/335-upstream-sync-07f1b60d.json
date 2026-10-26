@@ -1,0 +1,38 @@
+{
+  "id": "upstream-sync-07f1b60d",
+  "title": "Sync upstream RapidRAW 07f1b60d: highlight reconstruction, non-destructive AI denoise and negatives, faster previews",
+  "category": "feature",
+  "landed": "2026-10-20",
+  "authors": [
+    "CyberTimon",
+    "lalibertemarc",
+    "apweisskopf",
+    "elhigu",
+    "owgreen-dev",
+    "waxm134",
+    "dan1el",
+    "prosthetiknow",
+    "yojen7"
+  ],
+  "source": "CyberTimon/RapidRAW main at 07f1b60da5dcf68525afd00c858fed31c641d4a9 (normal merge; RapidRoom conflict resolution with Claude)",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/07f1b60da5dcf68525afd00c858fed31c641d4a9"],
+  "upstream_issues": [],
+  "upstream_prs": [
+    "CyberTimon/RapidRAW#1790",
+    "CyberTimon/RapidRAW#1845",
+    "CyberTimon/RapidRAW#1910",
+    "CyberTimon/RapidRAW#1913",
+    "CyberTimon/RapidRAW#1914",
+    "CyberTimon/RapidRAW#1922",
+    "CyberTimon/RapidRAW#1939",
+    "CyberTimon/RapidRAW#1942",
+    "CyberTimon/RapidRAW#1943",
+    "CyberTimon/RapidRAW#1944",
+    "CyberTimon/RapidRAW#1948",
+    "CyberTimon/RapidRAW#1952",
+    "CyberTimon/RapidRAW#1965",
+    "CyberTimon/RapidRAW#1969"
+  ],
+  "rendering_change": true,
+  "notes": "Adopts upstream colour-preserving highlight reconstruction with clip-level detection for Bayer raws, the highlights-slider jump fix, shader feature gates and GPU/mask/LUT caches, non-destructive AI denoise and negative conversion, Auto Adjust strength levels without brightness changes, auto straighten, unlocked mapping on filesystems without flock, the WebKitGTK LUT swatch fix and a Lensfun update. Preserves RapidRoom sidecars (no default-sidecar deletion), atomic writes and card mode, the validated AI denoise tiling and colour restoration, the denoise queue, multi-exposure white balance before calibration, image-bound depth and normal maps, DPI export, stacks and the library header. Rendering changes are subject to full60 evidence and maintainer approval; no references are changed."
+}

@@ -1,0 +1,13 @@
+{
+  "id": "sidecar-parse-safety",
+  "title": "Never overwrite a sidecar the editor could not read",
+  "category": "fix",
+  "landed": "2026-10-21",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Sidecars without version or rating now load with those defaults instead of falling back to an empty recipe. A sidecar that still cannot be parsed (truncated, mistyped fields, not UTF-8) loads as defaults for display only: its bytes are remembered and every sidecar writer refuses to replace them, with a logged warning and a visible save error, until the file changes. Blank files remain ordinary defaults."
+}

@@ -1,6 +1,6 @@
 # A terminal in RapidRoom: design note
 
-Issue #119: a real shell inside RapidRoom, so you can run `claude` or `codex` beside the photo you are editing. The implemented panel follows Josh's decisions below. The original design measurements and alternatives remain as historical context.
+Issue #119: a real shell inside RapidRoom, so you can run `claude` or `codex` beside the photo you are editing. The implemented panel follows the maintainer's decisions below. The original design measurements and alternatives remain as historical context.
 
 The panel requires Cargo feature `terminal`. It uses the existing left/right layout and a resizable bottom dock; tabs and font/shell preferences persist, while shells and transcripts restart fresh. Start buttons run the ordinary installed clients. Choose built-in panel or my terminal in the launcher. **Open Terminal Here** remains available from the folder menu.
 
@@ -8,7 +8,7 @@ Official Linux packages include `terminal`, `mcp` and the `rapidroom-mcp-stdio` 
 
 ## Approved decisions (2026-10-04)
 
-Josh chose option **A**: the terminal belongs in the existing movable and resizable panel layout inside the main React webview. Clerk sign-in is disabled and scripts are local only. This replaces the earlier recommendation for a separate window. The private per-user endpoint discovery, shell-typed start buttons, persistent layout and tabs, and font and shell settings are required. Official release builds must enable the terminal.
+The maintainer chose option **A**: the terminal belongs in the existing movable and resizable panel layout inside the main React webview. Clerk sign-in is disabled and scripts are local only. This replaces the earlier recommendation for a separate window. The private per-user endpoint discovery, shell-typed start buttons, persistent layout and tabs, and font and shell settings are required. Official release builds must enable the terminal.
 
 Built-in and external terminals must use the same folder, environment, MCP tools and per-user endpoint discovery. A setting chooses where Start Claude/Codex opens. The external path must work without inherited environment variables. MCP/auth integration from #102/#116 is verified in the 15-step Linux native scenario: real Claude Code and Codex each edit from both launch paths, external mode keeps the panel closed, and app quit removes the owned PTY background process. A closed terminal tab does not restore a running process after restart; saved tabs reopen as fresh shells, with no saved transcript or automatic assistant command.
 
@@ -150,7 +150,7 @@ Where that webview lives:
 | B. Child webview in the main window | yes (we position it)    | own capability                       | needs Tauri's `unstable` feature (`Window::add_child`); we lay it out by hand and handle resize and focus |
 | C. Separate window                  | no (tiling WMs dock it) | own capability                       | stable Tauri; on Hyprland or Sway it tiles beside the editor by itself                                    |
 
-**Recommendation:** C behind the cargo feature first. It's the smallest step with real isolation, and it works on stable Tauri. B later, if a docked panel inside the window matters enough to take `unstable`. A only if Josh accepts that the terminal shares the UI's trust.
+**Recommendation:** C behind the cargo feature first. It's the smallest step with real isolation, and it works on stable Tauri. B later, if a docked panel inside the window matters enough to take `unstable`. A only if the maintainer accepts that the terminal shares the UI's trust.
 
 ## 5. Platforms and packaging
 
@@ -172,7 +172,7 @@ Where that webview lives:
    - the panel: tabs, **Start Claude Code** / **Start Codex**, **cd here**, fit on resize;
    - done when the default build is byte-for-byte unchanged, it works on Linux (Wayland and X11, .deb and AppImage), and a test shows the main webview can't call `pty_write`.
 
-## Decisions for Josh
+## Decisions for the maintainer
 
 1. **Cloud AI sign-in vs. a strict CSP:** (a) let Clerk break in RapidRoom (recommended for now; it's upstream's, off by default and looks unfinished), (b) allow Clerk's hosts, or (c) move sign-in to its own window.
 2. **Where the terminal lives:** A, B or C from §4 (recommended: C first).

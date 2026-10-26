@@ -1,0 +1,12 @@
+{
+  "id": "applied-preset-indicator",
+  "title": "Show the applied preset for each photo",
+  "category": "feature",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Mark the applied preset and its Amount in the preset browser and editor toolbar. Keep a small per-photo provenance record outside adjustments and history so the marker survives restart, disappears after edits, and returns when Undo restores matching settings. Fixes #304."
+}

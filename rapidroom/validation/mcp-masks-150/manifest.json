@@ -1,0 +1,15 @@
+{
+  "algorithm": "sha256",
+  "files": {
+    "fixture.json": "c1235cbf3e33870a065dc2667d84e66a3ea11854cec3b57f01bf1c8f99ce5208",
+    "full60.json": "b4bc2ae83512ee1e4280d3ffd4c7a5d98d451edeb88d9b65c4e3d3624c292c73",
+    "native.json": "e8fbb16399e2bcfc4bb6a4f9f77187efdf18b856c6989e2705296f53caf69351",
+    "first-mask.png": "a746dc916c059fa744f009b9a43fa3ca920e3edfd7a916be8176aa7aa42d6d55",
+    "two-masks.png": "8f0d4bc3b756f3c8315813fcbc232f13b2c8917fa236d7e8ff1c88f0163ff372",
+    "undo.png": "a746dc916c059fa744f009b9a43fa3ca920e3edfd7a916be8176aa7aa42d6d55",
+    "comparison.png": "86a83cb0e9aee2e89e699a5c8b7ff351ce30147ea0f51c3b1654903ca974f024",
+    "gates.json": "8f63567a8753e927af77db901a407eac87689ea5ac541923b0e9bdd614346a7a",
+    "inspection.json": "b862c7fde7b5e96977f6f18978f0dda4bbfe2535274a9feae1acc64e43ee5532",
+    "README.md": "77bc16ab76d0855f48d690b531196cc77f800a2ef702f15047f3636e694d87ef"
+  }
+}

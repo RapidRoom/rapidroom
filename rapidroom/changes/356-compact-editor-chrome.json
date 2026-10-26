@@ -1,0 +1,13 @@
+{
+  "id": "compact-editor-chrome",
+  "title": "Give photos more room with compact editor chrome",
+  "category": "feature",
+  "landed": "2026-10-17",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Reduce vertical padding in the editor toolbar, filmstrip, rating bar and dock header while preserving shooting information and usable controls."
+}

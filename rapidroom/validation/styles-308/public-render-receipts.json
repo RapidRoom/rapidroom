@@ -1,0 +1,615 @@
+{
+  "head": "fad5a6288d48aa513bec251924d0ad1f0a826041",
+  "engine_sha256": "7c984a62d64e3c04df10784d06ae7495954aed3635969dd07b8cf684df064fb9",
+  "rows": [
+    {
+      "id": "sony-a7cr-61mp-compressed",
+      "style": "neutral",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/7035/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20Compressed%20%283%3A2%29.ARW",
+      "exposure_correction": 0.65,
+      "source_sha256": "f5096e8fbccf0842c8a57763cabd2836608f019eb7fd54f7b22260c2f5bc4da5",
+      "source_unchanged": true,
+      "adjustments_sha256": "3dd702dae741aa1e8343596757e62732e5e9a975c87f4318e8ace9d0cbf56e74",
+      "image_sha256": "49922f82cdaec5fd200021beade8e740a30e28e4185b3e00976973cf20d64fa5",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [9504, 6336],
+      "native_sha256": "00d5e3a4586c77f8d859f83c214aa1c819f581906b73058cbd34ba28bb213019",
+      "crops": {
+        "center": {
+          "file": "sony-a7cr-61mp-compressed--neutral--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "9e81b012344e4e546e1013023b14324ff0f503043cbaf335b602e2c07491e22d"
+        },
+        "lower": {
+          "file": "sony-a7cr-61mp-compressed--neutral--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "ab60c70d071c60e470ee1a10ff34162ca2b168ccfbf27c5f7be8f1e24e0392de"
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-61mp-compressed",
+      "style": "teal-orange",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/7035/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20Compressed%20%283%3A2%29.ARW",
+      "exposure_correction": 0.65,
+      "source_sha256": "f5096e8fbccf0842c8a57763cabd2836608f019eb7fd54f7b22260c2f5bc4da5",
+      "source_unchanged": true,
+      "adjustments_sha256": "e3ca6ebd100863d6e4ef81e73bc99036f4a9fb2a45a30ebdbb90f8d56e9eb1b5",
+      "image_sha256": "8a7cc386a0c0f076ace433cd9d9ed1b1eb04438fa5e9a98c5a5372cd97d2b7cf",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [9504, 6336],
+      "native_sha256": "7219ece67c0b077bf013852009b5bbc9f549f3536e00026d33ab1a354b995681",
+      "crops": {
+        "center": {
+          "file": "sony-a7cr-61mp-compressed--teal-orange--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "aa00a02487993646e7516f131957845793849ce52f12e709facd57d1726b8847"
+        },
+        "lower": {
+          "file": "sony-a7cr-61mp-compressed--teal-orange--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "9747755e3cfef47d95bea7aa6787fcd1d79cf4f777fbef9763dd42d0ded0e8ac"
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-15mp-uncompressed",
+      "style": "neutral",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/6866/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW",
+      "exposure_correction": 0.55,
+      "source_sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+      "source_unchanged": true,
+      "adjustments_sha256": "38fed2ccf3f31f2c2de9127b6727513a387299573cf813e01d4cf13a5719255d",
+      "image_sha256": "e6f369b761501126cf7a7b73a02c57dc2a63ceb742b9da13502a348e97b7f1b5",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [4608, 3072],
+      "native_sha256": "e948e2934c2b7c7b3aaf485e8db735c4cb08ec2848f4361e0144a71aa9ae5efd",
+      "crops": {
+        "center": {
+          "file": "sony-a7c2-15mp-uncompressed--neutral--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "820778b3fc53c9c451ed706130e70629a1b1cd82e0e9438503d00058513ff329"
+        },
+        "lower": {
+          "file": "sony-a7c2-15mp-uncompressed--neutral--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "615d433c993381ce6315ef2a86d573296aa03e41808c11224a4ed7c9f8bda975"
+        }
+      }
+    },
+    {
+      "id": "sony-a7c2-15mp-uncompressed",
+      "style": "vivid-atlas",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/6866/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW",
+      "exposure_correction": 0.55,
+      "source_sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+      "source_unchanged": true,
+      "adjustments_sha256": "b2fe2c1392f0bef8a7d8e53ff28b145ff8871216e8f82ee6854de08d4da22c08",
+      "image_sha256": "19a224b1edfb70d46f75ab0135d97f776399122fcdaca851c639a2cdb9895a8a",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [4608, 3072],
+      "native_sha256": "7af9fc087704c9ef6d65f28fb102371706d84cc85c5cf23c3608df5431a5ad16",
+      "crops": {
+        "center": {
+          "file": "sony-a7c2-15mp-uncompressed--vivid-atlas--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "73cd84bd7c857a9bcb491fd3e41f237cd8faea29d4b66dec3e98b48722c75f63"
+        },
+        "lower": {
+          "file": "sony-a7c2-15mp-uncompressed--vivid-atlas--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "5e0f6eeeeebafdc079752749c21ad2a67e61a493cdc39d81b97dc1ce2444e197"
+        }
+      }
+    },
+    {
+      "id": "canon-r6m2-24mp-raw",
+      "style": "neutral",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/6402/nice/Canon%20-%20EOS%20R6%20Mark%20II%20-%203%3A2.cr3",
+      "exposure_correction": 0.55,
+      "source_sha256": "1a93f96556aabbc4a7260750ab0a191ec7926bb978fe8428bf3465121da730d6",
+      "source_unchanged": true,
+      "adjustments_sha256": "38fed2ccf3f31f2c2de9127b6727513a387299573cf813e01d4cf13a5719255d",
+      "image_sha256": "ccf1db1acef4979e5397352b4c1eb1dc0ea0990f5a7b7e365511c58712a8f554",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [6000, 4000],
+      "native_sha256": "ca341bd78ff8e6b3dfe88eaf91bf2fac6ccd1cdb5c7b04273cca91847359061c",
+      "crops": {
+        "center": {
+          "file": "canon-r6m2-24mp-raw--neutral--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "e913be9e7b9968594bc278e2121755163e6075f018266cd88c15611c0abb2970"
+        },
+        "lower": {
+          "file": "canon-r6m2-24mp-raw--neutral--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "ba447dc2ba6734ec5b5dccddc489a87cde7932601d96bf9be9a6bae061bc2dc2"
+        }
+      }
+    },
+    {
+      "id": "canon-r6m2-24mp-raw",
+      "style": "ivory-light",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/6402/nice/Canon%20-%20EOS%20R6%20Mark%20II%20-%203%3A2.cr3",
+      "exposure_correction": 0.55,
+      "source_sha256": "1a93f96556aabbc4a7260750ab0a191ec7926bb978fe8428bf3465121da730d6",
+      "source_unchanged": true,
+      "adjustments_sha256": "e5dc2425d2b028ef6cefe056df72928e85b81602166754ce2aedf191827c76ae",
+      "image_sha256": "fb796398fc4065bfb7688b9d1e62ee95deb3ff5d92c770bf39e5691cf786d70f",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [6000, 4000],
+      "native_sha256": "1b4e36adf2201ce90072dbf8447423ad215ab6bb843e10b3c5c5a548be8e0815",
+      "crops": {
+        "center": {
+          "file": "canon-r6m2-24mp-raw--ivory-light--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "46ba1d233ef2a1bfa48794f8fd040cd01a921a7adb3198bf32f5c71177fe46b7"
+        },
+        "lower": {
+          "file": "canon-r6m2-24mp-raw--ivory-light--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "a9d655c1bdc6d2f027cd430f5530223e847ee4dfe12ed55c4ed611e40448f41b"
+        }
+      }
+    },
+    {
+      "id": "apple-iphone12pro-proraw",
+      "style": "neutral",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/4264/nice/Apple%20-%20iPhone%2012%20Pro%20-%208bit%20%284%3A3%29.DNG",
+      "exposure_correction": 0.45,
+      "source_sha256": "e91e77a4533ed7cce551d83330676ea5c47dd5e55fb38adda7819366afdbdfc2",
+      "source_unchanged": true,
+      "adjustments_sha256": "bd1cffd075a9364ce8fc23a8a90f455c245f2442e599d73562d356d12c7a027c",
+      "image_sha256": "4ea7fe53d4656381550a0065fc9fdac1c627854a8d8c40ca5509d8a8d9f1dd24",
+      "image_dimensions": [2880, 3840],
+      "native_dimensions": [3024, 4032],
+      "native_sha256": "7a1268777ac9748bea808df18db648b0072a73bf5a3d538c0567abeeedaa2034",
+      "crops": {
+        "center": {
+          "file": "apple-iphone12pro-proraw--neutral--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "19fe1b2eea132d30d001511b6b314cf2121757cd113b1c1162c491c90cbd2ccf"
+        },
+        "lower": {
+          "file": "apple-iphone12pro-proraw--neutral--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "b9bb6ac9e9875a12e90b7338c8cf8c8ad8584e2de8069e8650d6cffdbcc679a9"
+        }
+      }
+    },
+    {
+      "id": "apple-iphone12pro-proraw",
+      "style": "aqua-vista",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/4264/nice/Apple%20-%20iPhone%2012%20Pro%20-%208bit%20%284%3A3%29.DNG",
+      "exposure_correction": 0.45,
+      "source_sha256": "e91e77a4533ed7cce551d83330676ea5c47dd5e55fb38adda7819366afdbdfc2",
+      "source_unchanged": true,
+      "adjustments_sha256": "9d456afb4c87f8e9d731ecbbcc304473962f7f21bd56ca064139c940745e878d",
+      "image_sha256": "4e02b921006325e95cf1d03ac5ee67c34b802b4b6999863b7f15931bd3a180c7",
+      "image_dimensions": [2880, 3840],
+      "native_dimensions": [3024, 4032],
+      "native_sha256": "6ef636420cf51a2aa8bd89e4291ee4ba01f75ba1a1649d12c113b63f9785d352",
+      "crops": {
+        "center": {
+          "file": "apple-iphone12pro-proraw--aqua-vista--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "1b3f67b2b306cbf17506abd2a80cd77f2975048f1e0728ece845a1951d051354"
+        },
+        "lower": {
+          "file": "apple-iphone12pro-proraw--aqua-vista--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "2be6c3ea30315171250a7b494f476c3b646aaed4c1a13595f36fbd0893af4ff1"
+        }
+      }
+    },
+    {
+      "id": "nikon-zfc-21mp-lossless",
+      "style": "neutral",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/4812/nice/Nikon%20-%20Z%20fc%20-%2014bit%2014bit%20compressed%20%28Lossless%29%20%283%3A2%29.nef",
+      "exposure_correction": 0.4,
+      "source_sha256": "4099ecc46ebaca26e2a66a96a8313fed5e8c707b3836ccf0e77a134844b041c1",
+      "source_unchanged": true,
+      "adjustments_sha256": "87f4219819cd7e7f237a5aebecccdb037e40d9835afb465e52ec972d9a57a648",
+      "image_sha256": "879ded4995b871812f4798fee16e58c780f3b3b7e2bdb6e22860f6d44b92c7b2",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [5568, 3712],
+      "native_sha256": "d3c7b0a8300aa0acf20947ba2fe3247eaa7c044070df0776ee16edb09a7f45f0",
+      "crops": {
+        "center": {
+          "file": "nikon-zfc-21mp-lossless--neutral--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "3bb9159e3431a0da81433442f91a8c275f3d8c8101e4099834b59f193884d3ee"
+        },
+        "lower": {
+          "file": "nikon-zfc-21mp-lossless--neutral--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "ceb058e873b17269d056be7be63b643d10a87cf5dae4b9437f3304755ecb801b"
+        }
+      }
+    },
+    {
+      "id": "nikon-zfc-21mp-lossless",
+      "style": "petal-leaf",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/4812/nice/Nikon%20-%20Z%20fc%20-%2014bit%2014bit%20compressed%20%28Lossless%29%20%283%3A2%29.nef",
+      "exposure_correction": 0.4,
+      "source_sha256": "4099ecc46ebaca26e2a66a96a8313fed5e8c707b3836ccf0e77a134844b041c1",
+      "source_unchanged": true,
+      "adjustments_sha256": "528ae27531c8a34bc632dc243628c64e911b785b6769a3692fd2a34cdfbf65b6",
+      "image_sha256": "cc1fec106245baae12351352f4192754c083580944131ff6f60e738dd152642a",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [5568, 3712],
+      "native_sha256": "6f870e48859fd30606180ed426251adf72c966c5d3dc62498b422f2f4a64fad3",
+      "crops": {
+        "center": {
+          "file": "nikon-zfc-21mp-lossless--petal-leaf--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "946181348b73f881b4599a1d95dcf65930f2c5833ccb0512894133128eb10bab"
+        },
+        "lower": {
+          "file": "nikon-zfc-21mp-lossless--petal-leaf--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "14830c25832c2ffc83ebcc3ca8435e6039879d36e7e3348673b3dad4b7242747"
+        }
+      }
+    },
+    {
+      "id": "cc0-shinjuku---shinjuku255",
+      "style": "neutral",
+      "kind": "jpeg",
+      "license": "CC0-1.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Shinjuku_-_Shinjuku255.jpg",
+      "exposure_correction": 0,
+      "source_sha256": "b9e7082861a78b42c7632965b52147dd66d0d96d73df96fde44aa688412951d7",
+      "source_unchanged": true,
+      "adjustments_sha256": "db0be9d21f2ed35d832cdffb4cc4be8e89c8b225cd266b124edbfa922d0a1367",
+      "image_sha256": "0c8f7d4e2a79dfdcbcf9e1c3d8f1f9b09eaca7e9348fbd911559325b492fdf66",
+      "image_dimensions": [3840, 2880],
+      "native_dimensions": [5184, 3888],
+      "native_sha256": "df6e72614bae7ba8ca295ffddb2bd2412c73aa888c01e9c56a3bef1e2c73fd34",
+      "crops": {
+        "center": {
+          "file": "cc0-shinjuku---shinjuku255--neutral--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "04aa22156f9123fcbdd97e3bb57a34d453d45c0aff896bd47eb959b57d2312b5"
+        },
+        "lower": {
+          "file": "cc0-shinjuku---shinjuku255--neutral--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "b9e7ab3859b1ff17bb43259f3035e833c9f6be2c854306fb944ae3ebb25798a2"
+        }
+      }
+    },
+    {
+      "id": "cc0-shinjuku---shinjuku255",
+      "style": "black-gold",
+      "kind": "jpeg",
+      "license": "CC0-1.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Shinjuku_-_Shinjuku255.jpg",
+      "exposure_correction": 0,
+      "source_sha256": "b9e7082861a78b42c7632965b52147dd66d0d96d73df96fde44aa688412951d7",
+      "source_unchanged": true,
+      "adjustments_sha256": "2aadd4422d6a7082d8f8045c51ac6c2f0a6f9bd8cee2b3e59b0eaa8b83d170e8",
+      "image_sha256": "480e2d5d2e70b01c0e02969be7943300d186c8347fcf421c8e28e5a64d5c2e56",
+      "image_dimensions": [3840, 2880],
+      "native_dimensions": [5184, 3888],
+      "native_sha256": "7e3c07f0e7ff92d3812293bcf19201e4d9a0e58a95a17ef1db3ab5166dc1e1a4",
+      "crops": {
+        "center": {
+          "file": "cc0-shinjuku---shinjuku255--black-gold--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "f268879e723a1cba65f48bd23bdff6a1e4596dfed3d76e6bfee0bd6163ae400b"
+        },
+        "lower": {
+          "file": "cc0-shinjuku---shinjuku255--black-gold--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "8365f86766fcdc40771d924c8343308ddcb19e34580dec2478784e4f3da24e5e"
+        }
+      }
+    },
+    {
+      "id": "cc0-shinjuku---shinjuku255",
+      "style": "neon-night",
+      "kind": "jpeg",
+      "license": "CC0-1.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Shinjuku_-_Shinjuku255.jpg",
+      "exposure_correction": 0,
+      "source_sha256": "b9e7082861a78b42c7632965b52147dd66d0d96d73df96fde44aa688412951d7",
+      "source_unchanged": true,
+      "adjustments_sha256": "e817b9120dc3f069b2ee46e95891600aadb329daa0309b80c098b686106fca98",
+      "image_sha256": "2c2ed966b65801b9c039c50a8ad6a1d383b8a05a558a57e7a3e31884d4af3b12",
+      "image_dimensions": [3840, 2880],
+      "native_dimensions": [5184, 3888],
+      "native_sha256": "eadb688831ba657ec927ff0454f433897976903e0d8dbf08bbd15782f243e456",
+      "crops": {
+        "center": {
+          "file": "cc0-shinjuku---shinjuku255--neon-night--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "59d667d35710ebb9d3babfd58c022e864b9ff7e9091b8b570e3d2ed17813c404"
+        },
+        "lower": {
+          "file": "cc0-shinjuku---shinjuku255--neon-night--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "beab9fcf39b19b9e0fc1e0f51ef2f73a86f7dc067b4562971c0c94070e2f508c"
+        }
+      }
+    },
+    {
+      "id": "cc0-shinjuku---shinjuku255",
+      "style": "night-city",
+      "kind": "jpeg",
+      "license": "CC0-1.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Shinjuku_-_Shinjuku255.jpg",
+      "exposure_correction": 0,
+      "source_sha256": "b9e7082861a78b42c7632965b52147dd66d0d96d73df96fde44aa688412951d7",
+      "source_unchanged": true,
+      "adjustments_sha256": "902765901ccd924475d61f17dfa96cd86221ed772caf2850cf9e64193fa1825d",
+      "image_sha256": "3a05fa94ee6cd612cfaffbfdeb64423b500ce4205e9533f579bd2deea5d6f6aa",
+      "image_dimensions": [3840, 2880],
+      "native_dimensions": [5184, 3888],
+      "native_sha256": "d3e82847e847437ba7f8880dd13905cef67184dc49bf52ad7d3d05999e18e768",
+      "crops": {
+        "center": {
+          "file": "cc0-shinjuku---shinjuku255--night-city--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "fbe9b78326b5b52637955277b98b34198f04d26bb69574976e55fcc91d1eb40e"
+        },
+        "lower": {
+          "file": "cc0-shinjuku---shinjuku255--night-city--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "e8902d18e36ab946a339b08b8711d894676077a35377188dda0e0183c8eea56e"
+        }
+      }
+    },
+    {
+      "id": "cc0-shinjuku---shinjuku255",
+      "style": "neon-outrun",
+      "kind": "jpeg",
+      "license": "CC0-1.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Shinjuku_-_Shinjuku255.jpg",
+      "exposure_correction": 0,
+      "source_sha256": "b9e7082861a78b42c7632965b52147dd66d0d96d73df96fde44aa688412951d7",
+      "source_unchanged": true,
+      "adjustments_sha256": "ed2d70a4f44eecc291359dead8d0912b009e3fee9c5cf5e1842603883b055106",
+      "image_sha256": "dcf956e051fb40df06a417fe9f365d28e813c3f0e0ce77f972328646323ca17c",
+      "image_dimensions": [3840, 2880],
+      "native_dimensions": [5184, 3888],
+      "native_sha256": "75223216ef83eebc251f63ea7647570251f82b2e30bed372923b7596f9779605",
+      "crops": {
+        "center": {
+          "file": "cc0-shinjuku---shinjuku255--neon-outrun--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "56780a635e9cd60e0356c81081f584a2bbc1aa158e7e125c1321bcd13ab4592b"
+        },
+        "lower": {
+          "file": "cc0-shinjuku---shinjuku255--neon-outrun--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "d143714972598b63b788937e7b8c4710b767bcce31ffd501577731b3c1f04e65"
+        }
+      }
+    },
+    {
+      "id": "cc0-woodland",
+      "style": "neutral",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://discuss.pixls.us/t/forest-with-cool-trees/60484",
+      "exposure_correction": 0.65,
+      "source_sha256": "fa1fbb11dcb73780fcf0ffdaf0d856cb1648b149a43a1ded7fca564ee0f27780",
+      "source_unchanged": true,
+      "adjustments_sha256": "3dd702dae741aa1e8343596757e62732e5e9a975c87f4318e8ace9d0cbf56e74",
+      "image_sha256": "63a8a366748474195ca4cff3231f6f0fdc5685663de65e0391b6cd6e4a01e6f8",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [6000, 4000],
+      "native_sha256": "c8f9d9776294475f93891aed290b8d1399c5177cdb00d296b9567513f57bc583",
+      "crops": {
+        "center": {
+          "file": "cc0-woodland--neutral--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "eb28e336b445dcb366621381c3558a118c7fa31fa4d2304534fc4cc083132e14"
+        },
+        "lower": {
+          "file": "cc0-woodland--neutral--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "260531771176fa26ef2437e6b1905f5d060fc3ccbf40e339de703c388f561a62"
+        }
+      }
+    },
+    {
+      "id": "cc0-woodland",
+      "style": "emerald-grove",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://discuss.pixls.us/t/forest-with-cool-trees/60484",
+      "exposure_correction": 0.65,
+      "source_sha256": "fa1fbb11dcb73780fcf0ffdaf0d856cb1648b149a43a1ded7fca564ee0f27780",
+      "source_unchanged": true,
+      "adjustments_sha256": "26559c5c641fe43cf89802dd416f701d4a9d002739205ed59f6abbb6b9fffa75",
+      "image_sha256": "cb1c614400955bb62dfa2c5e966c1126c1eaa768654090e23c5b85d88670d26c",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [6000, 4000],
+      "native_sha256": "82b46e08b7538ab2d562c18ed5b05e31b8d96af8555fc40314348d03e5a93d56",
+      "crops": {
+        "center": {
+          "file": "cc0-woodland--emerald-grove--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "d3dda644510d5cf89eda01710a0b0cacb568f9c4078bf396d94ff9fb0d447526"
+        },
+        "lower": {
+          "file": "cc0-woodland--emerald-grove--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "bb7ba9d9a045dc0e2d67967cea09c795f28153881aca23dc2316102473cf25e1"
+        }
+      }
+    },
+    {
+      "id": "cc0-woodland",
+      "style": "forest-gothic",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://discuss.pixls.us/t/forest-with-cool-trees/60484",
+      "exposure_correction": 0.65,
+      "source_sha256": "fa1fbb11dcb73780fcf0ffdaf0d856cb1648b149a43a1ded7fca564ee0f27780",
+      "source_unchanged": true,
+      "adjustments_sha256": "8184b54385a9d490022b5a5f938c82ba45aff5614b0c8ae23dd5cf5a9e3cd0d4",
+      "image_sha256": "abe400c38d64da1148f104dd34d17c15ed631f9afd6da00b7729ffff36c33d83",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [6000, 4000],
+      "native_sha256": "30dcb0d6a7bbfc9dbca9d880f6f86675dd68b0db1adea8c685c6dc7275f25ac0",
+      "crops": {
+        "center": {
+          "file": "cc0-woodland--forest-gothic--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "880e49a1f22e33214194830ec4c17fc74df250065e57fc42992b71a28efa8736"
+        },
+        "lower": {
+          "file": "cc0-woodland--forest-gothic--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "e97895f323881779d5903209801074efea12e68a3a90b9c068ea505827987908"
+        }
+      }
+    },
+    {
+      "id": "sony-a7cr-61mp-compressed",
+      "style": "my-look",
+      "kind": "raw",
+      "license": "CC0-1.0",
+      "source_page": "https://raw.pixls.us/getfile.php/7035/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20Compressed%20%283%3A2%29.ARW",
+      "exposure_correction": 0.65,
+      "source_sha256": "f5096e8fbccf0842c8a57763cabd2836608f019eb7fd54f7b22260c2f5bc4da5",
+      "source_unchanged": true,
+      "adjustments_sha256": "4047a444670eed369098fac7e694d1e49747be3e3f33b9b0e569e188158f5071",
+      "image_sha256": "46378dd91791e333eeb692b5b667c27dbe86ceab84b4908c29a91663adbf0df0",
+      "image_dimensions": [3840, 2560],
+      "native_dimensions": [9504, 6336],
+      "native_sha256": "a9636cc0e1e18fe0495f440c92abaf7d9835d66ba2cf123894ffa9cdf889171f",
+      "crops": {
+        "center": {
+          "file": "sony-a7cr-61mp-compressed--my-look--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "4659af60e20c02bacbe42ace3f4fbe2c9719ab7eee8644ec8e88f21cb110397a"
+        },
+        "lower": {
+          "file": "sony-a7cr-61mp-compressed--my-look--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "71bb0c6dad477e09b21f7d1df07f45e3a7ea789e3c0cef513b9d5d6394639b31"
+        }
+      }
+    },
+    {
+      "id": "cc0-shinjuku---shinjuku255",
+      "style": "cyberpunk-teal",
+      "kind": "jpeg",
+      "license": "CC0-1.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Shinjuku_-_Shinjuku255.jpg",
+      "exposure_correction": 0,
+      "source_sha256": "b9e7082861a78b42c7632965b52147dd66d0d96d73df96fde44aa688412951d7",
+      "source_unchanged": true,
+      "adjustments_sha256": "957be7264165bca7519da1731e34663ddece17091c9f1d3737ec3a29feda9e8d",
+      "image_sha256": "810f1a3156411458912fa126a600c7268fd05dc46768e261b7aac0652d2b8b6c",
+      "image_dimensions": [3840, 2880],
+      "native_dimensions": [5184, 3888],
+      "native_sha256": "4da9e3a6c4a3ebd805a9f935289cb336d06ceea191f9ffc37f18fb11d0da3574",
+      "crops": {
+        "center": {
+          "file": "cc0-shinjuku---shinjuku255--cyberpunk-teal--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "be7ab491f84b58570c44e52c6ad13d0c4b529ba60f745b66318a9f71636eedf8"
+        },
+        "lower": {
+          "file": "cc0-shinjuku---shinjuku255--cyberpunk-teal--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "5d9d11c3bcd94dbd389556691b5909d6839eb79d25531bdad3a5e0473fe0add3"
+        }
+      }
+    },
+    {
+      "id": "cc0-shinjuku---shinjuku255",
+      "style": "cyberpunk-indigo",
+      "kind": "jpeg",
+      "license": "CC0-1.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Shinjuku_-_Shinjuku255.jpg",
+      "exposure_correction": 0,
+      "source_sha256": "b9e7082861a78b42c7632965b52147dd66d0d96d73df96fde44aa688412951d7",
+      "source_unchanged": true,
+      "adjustments_sha256": "94dae2d33b82fb69fb3fb83a62b3842a9ab0459b904e74f5293bf99fd4b46845",
+      "image_sha256": "97eb6ab1a87507ccf95e3c2ce31b455eb288cccddb0fd58ea824b62273d2e011",
+      "image_dimensions": [3840, 2880],
+      "native_dimensions": [5184, 3888],
+      "native_sha256": "c2136c004294732784f3cfc6767f0455321efbae4c63fe49cebfc5ce34795d0e",
+      "crops": {
+        "center": {
+          "file": "cc0-shinjuku---shinjuku255--cyberpunk-indigo--center.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "44d31e69a64e9c49dc299dc7f812e779dcb0a13f74523a8255ea620186226f39"
+        },
+        "lower": {
+          "file": "cc0-shinjuku---shinjuku255--cyberpunk-indigo--lower.png",
+          "width": 1024,
+          "height": 1024,
+          "sha256": "5166173918fa0e5e00b33eedb5c2d2a6428bd316d8704e69540dd6b20259368f"
+        }
+      }
+    }
+  ]
+}

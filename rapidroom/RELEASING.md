@@ -11,16 +11,15 @@ RapidRoom has its own version, `MAJOR.MINOR.PATCH`, independent of upstream. It 
 | RapidRoom version                       | `RAPIDROOM_VERSION` in `src/utils/rapidroom.ts` **and** `version` in `src-tauri/tauri.conf.json` (a Vitest test keeps them equal) | `2.2.0`  |
 | Release tag                             | `v` + RapidRoom version                                                                                                           | `v2.2.0` |
 | Package version (.deb, AppImage, About) | the RapidRoom version                                                                                                             | `2.2.0`  |
-| RapidRAW base (upstream)                | `RAPIDRAW_BASE_VERSION` in `src/utils/rapidroom.ts`                                                                               | `1.6.4`  |
 
-- The start screen shows `RapidRoom 2.2.0 - community build of RapidRAW 1.6.4`.
+- The start screen shows `RapidRoom 2.2.0 - community build of RapidRAW`.
 - The update check strips the `v` from the latest release's tag and compares the numbers with `RAPIDROOM_VERSION`, so suffixes like `-rc.1` don't compare. The release workflow refuses a tag that isn't exactly `v<RAPIDROOM_VERSION>`, or a `tauri.conf.json` version that differs.
-- **Upstream syncs:** upstream bumps `version` in `tauri.conf.json` on its releases. Keep RapidRoom's value there, and set `RAPIDRAW_BASE_VERSION` to the upstream release the sync brings in.
+- **Upstream syncs:** upstream bumps `version` in `tauri.conf.json` on its releases. Keep RapidRoom's value there. The start screen names RapidRAW without an upstream version number, so syncs do not update a separate display constant.
 - The update check only sees published, non-prerelease releases (`/releases/latest`). Drafts are invisible to users.
 
 ### Which number to bump
 
-Look at the entries in `rapidroom/changes.json` (and merged PRs) since the last tag:
+Look at the records in `rapidroom/changes/` (and merged PRs) since the last tag:
 
 | Bump                      | When                                                                                                                                                                                                                             | Example                                                  |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
@@ -51,11 +50,12 @@ When in doubt between two, take the bigger one. Release notes list rendering cha
    - `RapidRoom_v2.2.0_amd64.deb`
    - `RapidRoom_v2.2.0_amd64.AppImage`
    - `SHA256SUMS`
+   - `LINUX-PACKAGE-VERIFICATION.json` (finished-archive runtime/alias/notices and MCP checks)
 
    It never publishes. If the draft already exists, it replaces the assets; if the release is already published, it fails and leaves it alone.
 
 4. Download both packages and test them on a machine that also has stock RapidRAW installed (see the checklist below).
-5. Edit the draft's notes (the new entries in `CHANGES.md` since the last release), then publish it. From then on the update check offers it.
+5. Edit the draft's notes using its generated `CHANGES.md` attachment (the new entries since the last release), then publish it. From then on the update check offers it.
 
 If the build fails, fix it on `main`, then move the tag (`git tag -f -a v2.2.0 …` and `git push -f origin v2.2.0`) or bump to the next version. Delete a broken draft by hand.
 
@@ -85,6 +85,12 @@ Tauri's resource directory on Linux is `<exe dir>/../lib/<productName>`, falling
 
 Both packages contain `usr/bin/rapidroom-mcp-stdio`. AI control is off by default, with no listener or endpoint file. Settings **Let AI assistants control RapidRoom** and the first assistant launch offer enable control; disabling stops it and removes the endpoint. Each enable/start uses a fresh private key. See [MCP.md](MCP.md) for per-launch registration and external-plugin setup. Keep the adapter with the app when making a user-local install.
 
+## Native OpenVINO payload in Linux releases
+
+The workflow stages the build-time-only, checksum-pinned source wheel with `rapidroom/fetch-openvino.py`. Only the eight native CPU libraries in the existing manifest are copied; Python code, GPU/NPU plugins and weights are excluded. No application download is added. To build offline, supply `--wheel /local/path/to/the-pinned.whl`; see [openvino/README.md](openvino/README.md) for local-source staging.
+
+The package helper requires the complete payload before compiling, restores its original ELF bytes and five relative aliases after bundling, and verifies both finished archives against the committed manifest and six notices. It updates Debian Installed-Size/md5sums and the unsigned AppImage's integration digest before recording final SHA-256 hashes. The workflow also fetches a checksum-pinned, build-only `appimagetool` 1.9.1; set `APPIMAGETOOL` to that file when building locally. It reuses the original AppImage runtime via `--runtime-file`, without fetching a replacement runtime. `dpkg-deb` is required for DEBs. Signed or update-indexed AppImages must be finalized before signing/index generation; the helper refuses to invalidate either. Package verification remains mandatory even when a direct Tauri build succeeds. Inspect `LINUX-PACKAGE-VERIFICATION.json` and test actual provider selection/inference before publishing.
+
 ## Test checklist (before publishing)
 
 With stock RapidRAW installed:
@@ -94,7 +100,14 @@ With stock RapidRAW installed:
 - [ ] Both apps can run at the same time; starting one doesn't just focus the other.
 - [ ] The taskbar/dock shows the RapidRoom icon for RapidRoom's window, on X11 and on Wayland (`xprop WM_CLASS` shows `"RapidRoom", "RapidRoom"`).
 - [ ] AI masks work (ONNX Runtime loads from `/usr/lib/RapidRoom/resources`), film LUTs list, and lens correction finds lenses.
+- [ ] Both packages contain the verified OpenVINO CPU runtime, six notices and five relative symlinks; real Fast denoise selects the bundled ORT/OpenVINO CPU provider and completes without initialization fallback.
 - [ ] Both packages contain an executable stdio adapter; AI control initially has no endpoint/listener, and enable/cancel/disable work. Start Claude/Codex uses the installed adapter and a real client edit reaches the slider and preview.
 - [ ] The AppImage runs on its own (`chmod +x`, run it) with the same checks.
-- [ ] The start screen shows `RapidRoom 2.2.0` and `RapidRAW 1.6.4`.
+- [ ] The start screen shows `RapidRoom 2.2.0` and `community build of RapidRAW by Timon Käch`, without an upstream version number.
 - [ ] Upgrading from the previous RapidRoom `.deb` replaces it in place.
+
+## Changelog snapshots
+
+Feature PRs add independent JSON records and never regenerate the shared changelog or README status block. The Linux release workflow validates the records, refreshes upstream status, and attaches `CHANGES.md` and `RAPIDROOM-STATUS.md` to the draft release alongside the packages. It does not push generated files to main. Main pushes and the weekly status workflow also publish a 30-day preview artifact. The committed documents are a historical snapshot; records and generated artifacts contain newer changes.
+
+Release generation is simpler than post-merge bot commits: it needs no bypass token, causes no additional main commits, and keeps the snapshot tied to the tagged code. For a local preview, run `node rapidroom/status.mjs` and `node rapidroom/status.mjs --check-generated`; discard those generated-file edits before submitting a feature PR.

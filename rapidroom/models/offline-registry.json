@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "source_commit": "0444404fd0565134d2fd8f2254b36964a9ecaefd",
+  "scope": "Current local model cache identities; no bundled weights or download support. The tokenizer is a verified compatible snapshot, not an application-enforced pin.",
+  "assets": [
+    {
+      "feature": "SAM encoder",
+      "file": "sam_vit_b_01ec64_encoder.onnx",
+      "bytes": 100293382,
+      "sha256": "16ab73d9c824886f0de2938c19df22fb9ec3deebfd0de58e65177e479213d7d1",
+      "application_pin": true
+    },
+    {
+      "feature": "SAM decoder",
+      "file": "sam_vit_b_01ec64_decoder.onnx",
+      "bytes": 8751331,
+      "sha256": "85d0d672cf5b7fe763edcde429e5533e62f674af4b15c7d688b7673b0ef00bf7",
+      "application_pin": true
+    },
+    {
+      "feature": "Subject mask",
+      "file": "u2net.onnx",
+      "bytes": 175997641,
+      "sha256": "8d10d2f3bb75ae3b6d527c77944fc5e7dcd94b29809d47a739a7a728a912b491",
+      "application_pin": true
+    },
+    {
+      "feature": "Sky mask",
+      "file": "skyseg_u2net.onnx",
+      "bytes": 175997079,
+      "sha256": "ab9c34c64c3d821220a2886a4a06da4642ffa14d5b30e8d5339056a089aa1d39",
+      "application_pin": true
+    },
+    {
+      "feature": "Keywords",
+      "file": "clip_model.onnx",
+      "bytes": 605804513,
+      "sha256": "57879bb1c23cdeb350d23569dd251ed4b740a96d747c529e94a2bb8040ac5d00",
+      "application_pin": true
+    },
+    {
+      "feature": "Keywords tokenizer",
+      "file": "clip_tokenizer.json",
+      "bytes": 2224041,
+      "sha256": "b556ac8c99757ffb677208af34bc8c6721572114111a6e0aaf5fa69ff0b8d842",
+      "application_pin": false
+    },
+    {
+      "feature": "NIND denoise",
+      "file": "nind_denoise_utnet_684.onnx",
+      "bytes": 124202581,
+      "sha256": "ee3586279d514df557ff3f7dec6df37fafc51ba5d3a3435b2cc9ac2d9017e7fe",
+      "application_pin": true
+    },
+    {
+      "feature": "Remove",
+      "file": "lama_fp16.onnx",
+      "bytes": 111545583,
+      "sha256": "2d6be6277c400d6f1b91819737f7c3da935e5c63d1b521d393be1196a2bfa82c",
+      "application_pin": true
+    },
+    {
+      "feature": "Depth mask",
+      "file": "depth_anything_v2_vits.onnx",
+      "bytes": 99373606,
+      "sha256": "d2b11a11c1d4a12b47608fa65a17ee9a4c605b55ee1730c8e3b526304f2562be",
+      "application_pin": true
+    },
+    {
+      "feature": "Normal mask",
+      "file": "moge-2-vits-normal-onnx.onnx",
+      "bytes": 140852051,
+      "sha256": "24eacb5dc7a2c54c7bc98f7de085ffbed79ad006ea5b664c2c2cdc02ff3a52f0",
+      "application_pin": true
+    },
+    {
+      "feature": "FAST",
+      "file": "ShadowWeightedL1_super_light.onnx",
+      "bytes": 835451,
+      "sha256": "1684f549fec52812ffacc3020bfd61c5fde610e77460fcc03b2a7003f61e60dd",
+      "application_pin": true
+    },
+    {
+      "feature": "BEST",
+      "file": "ShadowWeightedL1.onnx",
+      "bytes": 10073980,
+      "sha256": "76a07047a33dba3fa27330cec483b43bb57ecb1c1f10db8d979355ce110e34c9",
+      "application_pin": true
+    },
+    {
+      "feature": "SHARPEN",
+      "file": "Deblur_deep_24.onnx",
+      "bytes": 9961220,
+      "sha256": "4b714af59026352990f5cc1b84af5dc01cf4a66abd0b5f8d845b0c43d99511a7",
+      "application_pin": true
+    }
+  ],
+  "provenance": {
+    "application_pins": ["src-tauri/src/ai_processing.rs", "src-tauri/src/tree_denoise.rs"],
+    "tokenizer": "Observed SHA-256 of the compatible CLIP tokenizer used in the 2026-10-16 installed-app offline keyword rehearsal. The application currently checks only its existence."
+  }
+}

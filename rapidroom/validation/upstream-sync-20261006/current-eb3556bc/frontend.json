@@ -1,0 +1,30 @@
+{
+  "source": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+  "measured_source": "d970a21d979cfe18ce0eec5b37a0efa420af2062",
+  "reuse_provenance": "frontend-audit-reuse.json",
+  "diagnostic_method": "Exact relative path/code or rule/message/source-line/multiplicity comparison under reconciled dependencies; max parent count, not summed. Parent main99934b66 and current upstream eb3556bc.",
+  "lint_scope": "src, matching both parent source archives; unchanged whole-tree harness warning separately recorded",
+  "type_counts": {
+    "main": 47,
+    "upstream": 70,
+    "candidate": 46
+  },
+  "lint_counts": {
+    "main": 929,
+    "upstream": 961,
+    "candidate": 943
+  },
+  "new_types": 0,
+  "new_lint": 0,
+  "vitest": {
+    "passed": 197,
+    "failed": 0
+  },
+  "i18n_runtime": {
+    "passes": false,
+    "candidate_issues": 212,
+    "upstream_issues": 212,
+    "exactly_matches_upstream": true
+  },
+  "scoped_prettier": "Changed conflict files were formatted; unrelated inherited formatting failures remain."
+}

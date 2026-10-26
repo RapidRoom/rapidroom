@@ -19,7 +19,21 @@ const source = ts.createSourceFile(
 );
 const constants = new Map();
 const enums = new Map();
+// Default imports of local JSON data, such as defaultAdjustments.json, are read as data.
+const jsonImports = new Map();
+const jsonImportFiles = [];
 for (const statement of source.statements) {
+  if (
+    ts.isImportDeclaration(statement) &&
+    statement.importClause?.name &&
+    ts.isStringLiteral(statement.moduleSpecifier) &&
+    statement.moduleSpecifier.text.startsWith('.') &&
+    statement.moduleSpecifier.text.endsWith('.json')
+  ) {
+    const file = path.join(root, path.dirname(sourceName), statement.moduleSpecifier.text);
+    jsonImports.set(statement.importClause.name.text, JSON.parse(fs.readFileSync(file, 'utf8')));
+    jsonImportFiles.push(path.relative(root, file));
+  }
   if (ts.isVariableStatement(statement)) {
     for (const declaration of statement.declarationList.declarations) {
       if (ts.isIdentifier(declaration.name)) constants.set(declaration.name.text, declaration.initializer);
@@ -31,6 +45,20 @@ for (const statement of source.statements) {
       Object.fromEntries(statement.members.map((member) => [member.name.getText(source), member.initializer?.text])),
     );
   }
+}
+
+const whiteBalanceSourceName = 'src/utils/whiteBalance.ts';
+const whiteBalanceSource = ts.createSourceFile(
+  whiteBalanceSourceName,
+  fs.readFileSync(path.join(root, whiteBalanceSourceName), 'utf8'),
+  ts.ScriptTarget.Latest,
+  true,
+);
+for (const statement of whiteBalanceSource.statements) {
+  if (ts.isVariableStatement(statement))
+    for (const declaration of statement.declarationList.declarations) {
+      if (ts.isIdentifier(declaration.name)) constants.set(declaration.name.text, declaration.initializer);
+    }
 }
 
 // Evaluate only literal source data, never import the app or execute its code.
@@ -45,6 +73,7 @@ function literal(node, depth = 0) {
   if (node.kind === ts.SyntaxKind.NullKeyword) return null;
   if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.MinusToken)
     return -literal(node.operand, depth + 1);
+  if (ts.isIdentifier(node) && jsonImports.has(node.text)) return structuredClone(jsonImports.get(node.text));
   if (ts.isIdentifier(node) && constants.has(node.text)) return literal(constants.get(node.text), depth + 1);
   if (ts.isObjectLiteralExpression(node)) {
     const value = {};
@@ -90,11 +119,31 @@ const sourceFiles = files(path.join(root, 'src/components/adjustments'))
   .concat([
     path.join(root, 'src/components/panel/right/CropPanel.tsx'),
     path.join(root, 'src/components/ui/ColorWheel.tsx'),
+    path.join(root, 'src/components/ui/LUTControl.tsx'),
   ])
   .sort();
 for (const file of sourceFiles) {
   const text = fs.readFileSync(file, 'utf8');
   const tree = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const localConstants = new Map();
+  const collect = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name))
+      localConstants.set(node.name.text, node.initializer);
+    ts.forEachChild(node, collect);
+  };
+  collect(tree);
+  const modeNumber = (node, mode, depth = 0) => {
+    if (!node || depth > 8) throw new Error('Unknown slider bound');
+    if (ts.isConditionalExpression(node) && node.condition.getText(tree) === 'kelvinAsShot')
+      return modeNumber(mode === 'kelvin' ? node.whenTrue : node.whenFalse, mode, depth + 1);
+    if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.MinusToken)
+      return -modeNumber(node.operand, mode, depth + 1);
+    if (ts.isIdentifier(node) && localConstants.has(node.text))
+      return modeNumber(localConstants.get(node.text), mode, depth + 1);
+    const value = literal(node);
+    if (typeof value !== 'number') throw new Error('Nonnumeric slider bound');
+    return value;
+  };
   const visit = (node) => {
     if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && node.tagName.getText(tree) === 'Slider') {
       const attributes = Object.fromEntries(
@@ -107,10 +156,10 @@ for (const file of sourceFiles) {
               : attribute.initializer,
           ]),
       );
-      const number = (name) => {
+      const number = (name, mode = 'relative') => {
         const value = attributes[name];
         try {
-          return typeof literal(value) === 'number' ? literal(value) : null;
+          return modeNumber(value, mode);
         } catch {
           return null;
         }
@@ -140,6 +189,13 @@ for (const file of sourceFiles) {
         for (const key of Object.keys(parameters)) if (expression.test(key)) referenced.add(key);
         if (!referenced.size) throw new Error('Schema binding matched no key: ' + pattern);
       }
+      const whiteBalance = /^displayedWhiteBalance\.(temperature|tint)$/.exec(expression);
+      if (whiteBalance) {
+        referenced.add(whiteBalance[1]);
+        referenced.add('whiteBalance');
+      }
+      const lightProperty = /^activeLight\.(\w+)$/.exec(expression)?.[1];
+      if (lightProperty) referenced.add('relightLights');
       const direct = /adjustments\.([A-Za-z][A-Za-z0-9]*)/.exec(expression);
       if (direct && direct[1] in defaults) referenced.add(direct[1]);
       if (/^hsl\[/.test(expression))
@@ -155,6 +211,27 @@ for (const file of sourceFiles) {
         step: number('step'),
         adjustmentKeys: [...referenced].sort(),
       };
+      if (lightProperty) {
+        control.arrayItemProperty = lightProperty;
+        (parameters.relightLights.itemUiRanges ??= {})[lightProperty] = {
+          minimum: control.minimum,
+          maximum: control.maximum,
+          step: control.step,
+          source: control.source,
+        };
+      }
+      if (whiteBalance)
+        control.modeBindings = Object.fromEntries(
+          ['relative', 'kelvin'].map((mode) => [
+            mode,
+            {
+              adjustmentKey: mode === 'kelvin' ? 'whiteBalance.' + whiteBalance[1] : whiteBalance[1],
+              minimum: number('min', mode),
+              maximum: number('max', mode),
+              step: number('step', mode),
+            },
+          ]),
+        );
       controls.push(control);
       for (const key of referenced) {
         const parameter = parameters[key];
@@ -180,7 +257,12 @@ for (const file of sourceFiles) {
 
 const schema = {
   version: 1,
-  generatedFrom: [sourceName, ...sourceFiles.map((file) => path.relative(root, file))],
+  generatedFrom: [
+    sourceName,
+    ...jsonImportFiles,
+    whiteBalanceSourceName,
+    ...sourceFiles.map((file) => path.relative(root, file)),
+  ],
   conventions: {
     values:
       'Native RapidRoom adjustment values, identical to the editor controls. Ranges below are UI limits; MCP validation may accept other finite values.',

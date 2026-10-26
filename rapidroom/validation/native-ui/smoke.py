@@ -2,6 +2,7 @@
 """Exercise the real Linux release on a private Weston compositor (issue #134)."""
 
 import argparse
+import base64
 import fcntl
 import hashlib
 import json
@@ -137,7 +138,7 @@ class Smoke:
           .find(e=>e.parentElement.parentElement.textContent.trim().startsWith(arguments[0]));
           const r=e.getBoundingClientRect(),x=r.left+(arguments[1]-Number(e.min)) /
             (Number(e.max)-Number(e.min))*r.width;
-          e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0,buttons:1,
+        e.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,button:0,buttons:1,
             clientX:x,clientY:r.top+r.height/2}));return true;""", [label, value])
         time.sleep(0.3)  # React installs the document drag listeners after mousedown.
         self.execute("""document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0}));return true;""")
@@ -150,6 +151,9 @@ class Smoke:
         return {"label": label, "requested": value, "before": before, "after": after}
 
     def crop(self, path):
+        native=path.with_suffix('.preview.png')
+        if native.exists():
+            with Image.open(native) as image:return image.convert('RGB')
         with Image.open(path) as image:
             return image.convert("RGB").crop(self.roi)
 
@@ -158,6 +162,13 @@ class Smoke:
         for attempt in range(12):
             time.sleep(0.5)
             path = self.capture(name + "-" + str(attempt))
+            if (self.case / "presets-test.json").exists() or (self.case / "style-stack-test.json").exists():
+                frame=request(self.url+'/execute/async',{'script':"""const done=arguments[arguments.length-1];
+                  const images=[...document.querySelectorAll('svg image')].filter(e=>{const r=e.getBoundingClientRect();return r.width>500&&r.height>300&&Number(getComputedStyle(e).opacity)>.99});
+                  const image=images.at(-1);if(!image){done({error:'Native preview missing'});return;}
+                  const decoded=new Image();decoded.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=decoded.naturalWidth;canvas.height=decoded.naturalHeight;canvas.getContext('2d').drawImage(decoded,0,0);done({png:canvas.toDataURL('image/png').split(',')[1]})}catch(e){done({error:String(e)})}};decoded.onerror=()=>done({error:'Preview decode failed'});decoded.src=image.getAttribute('href');""",'args':[]})['value']
+                if 'error' in frame:raise RuntimeError(frame)
+                path.with_suffix('.preview.png').write_bytes(base64.b64decode(frame['png']))
             image = self.crop(path)
             if previous is not None and ImageChops.difference(previous, image).getbbox() is None:
                 stats = ImageStat.Stat(image)
@@ -316,6 +327,9 @@ class Smoke:
             port = sock.getsockname()[1]
         env = os.environ.copy()
         env["RAPIDROOM_NATIVE_UI_TEST_PORT"] = str(port)
+        if (self.case / "native-wheel.so").exists():
+            env["LD_PRELOAD"] = str(self.case / "native-wheel.so")
+            env["RAPIDROOM_TEST_NATIVE_WHEEL_FILE"] = str(self.case / "native-wheel.command")
         app = self.start([str(self.case / "engine/rapidroom")], "app", env)
         base = f"http://127.0.0.1:{port}"
 
@@ -349,6 +363,9 @@ class Smoke:
                 return False
 
         wait_for(frontend_ready, "real frontend", 90)
+        wait_for(lambda: self.execute("return [...document.querySelectorAll('button')].some("
+                                      "e=>e.innerText.trim()==='Continue Session' && !e.disabled);"),
+                 "Continue Session control", 90)
         startup["phase"] = "frontend ready before Continue Session"
         save(self.case / "driver-startup.json", startup)
         self.execute("""const e=[...document.querySelectorAll('button')]
@@ -358,12 +375,26 @@ class Smoke:
                                       "e.complete && e.naturalWidth>100);"), "real library thumbnail")
         self.capture("library")
         self.step("library thumbnail", self.snapshot("library")["images"])
+        if (self.case / "compare-read-only-test.json").exists():
+            from compare_read_only import run_compare_read_only
+            run_compare_read_only(self.case, self, wait_for)
+        if (self.case / "stacks-test.json").exists():
+            from stacks import run_stack_checks
+            run_stack_checks(self, wait_for)
+        if (self.case / "file-transfers-test.json").exists():
+            from file_transfers import run_transfer_checks
+            run_transfer_checks(self, wait_for)
+        if (self.case / "filter-chips-test.json").exists():
+            from filter_chips import run_filter_chip_checks
+            run_filter_chip_checks(self, wait_for)
         if (self.case / "dock-layout-test.json").exists():
             from dock_layout import run_layout_checks
             run_layout_checks(self.case, self)
-        self.execute("""const e=[...document.images].find(e=>e.src.startsWith('asset:'));
+        self.execute("""const e=[...document.images].find(e=>e.src.startsWith('asset:') && e.alt==='smoke.ARW');
+          if(!e)throw Error('Smoke thumbnail missing');
           e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;""")
-        wait_for(lambda: self.execute("return document.body.innerText.includes('4608 × 3072') && "
+        wait_for(lambda: self.execute("return [...document.querySelectorAll('[data-editor-info-line] [title]')]"
+                                      ".some(e=>e.title==='smoke.ARW - 4608 × 3072') && "
                                       "document.body.innerText.includes('Exposure');"), "editor opens")
         rect = self.execute("""const e=[...document.querySelectorAll('svg')]
           .filter(e=>e.getBoundingClientRect().width>500 && e.getBoundingClientRect().height>300)[0];
@@ -376,6 +407,40 @@ class Smoke:
                  "GPU-processed editor preview")
         baseline = self.stable_preview("preview")
         self.step("native preview", {"roi": self.roi, "capture": str(baseline.relative_to(self.case))})
+        if (self.case / "zoom-test.json").exists():
+            from zoom import run_zoom_checks
+            run_zoom_checks(self, wait_for)
+            # HiFi zoom keeps the full-resolution preview on zoom-out. The
+            # next adjustment renders at fit resolution, so normalize through
+            # an ordinary public Exposure edit/reset before the Undo comparison.
+            self.drag("Exposure", 0.5)
+            self.execute("""const e=[...document.querySelectorAll('input[type=range]')]
+              .find(e=>e.parentElement.parentElement.textContent.trim().startsWith('Exposure'));
+              e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true}));return true;""")
+            wait_for(lambda: self.slider("Exposure")["value"] == 0, "neutral fit-resolution preview")
+            baseline = self.stable_preview("post-zoom-fit")
+            self.step("post-zoom fit preview", {"capture": str(baseline.relative_to(self.case))})
+        if (self.case / "style-stack-test.json").exists():
+            from style_stack import run_style_stack_checks
+            run_style_stack_checks(self, wait_for, baseline)
+        if (self.case / "presets-test.json").exists():
+            from presets import run_preset_checks
+            run_preset_checks(self, wait_for, baseline)
+        if (self.case / "lightroom-ai-masks-test.json").exists():
+            from lightroom_ai_masks import run_ai_mask_checks
+            run_ai_mask_checks(self, wait_for)
+        if (self.case / "crs-interop-test.json").exists():
+            from crs_interop import run_crs_checks
+            run_crs_checks(self, wait_for)
+        if (self.case / "xmp-photo-policy-test.json").exists():
+            from xmp_photo_policy import run_photo_policy_checks
+            run_photo_policy_checks(self, wait_for)
+        if (self.case / "untrusted-text-test.json").exists():
+            from untrusted_text import run_untrusted_checks
+            run_untrusted_checks(self.case, self, wait_for, baseline)
+        if (self.case / "palette-test.json").exists():
+            from palette import run_palette_checks
+            run_palette_checks(self, wait_for, baseline)
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
         edited = self.stable_preview("edited")
         difference = ImageStat.Stat(ImageChops.difference(self.crop(baseline), self.crop(edited)))
@@ -414,6 +479,9 @@ class Smoke:
         wait_for(lambda: json.loads(settings.read_text()).get("adjustmentDensity") == "compact", "Compact persisted")
         self.stable_preview("compact")
         self.step("Compact enabled and persisted", self.slider("Exposure"))
+        if (self.case / "atomic-exports-test.json").exists():
+            from atomic_exports import observe_atomic_exports
+            observe_atomic_exports(self)
         self.key("KeyE", "e")
         wait_for(lambda: self.execute("return [...document.querySelectorAll('button[aria-haspopup=listbox]')]"
                                       ".some(e=>e.innerText.trim()==='Custom folder');"), "Export panel")
@@ -424,9 +492,10 @@ class Smoke:
           .find(e=>e.innerText.trim()==='Original image folder');
           if(!e)throw Error('Original folder choice missing');e.click();return true;""")
         self.capture("export-ready")
+        existing_jpegs = set((self.case / "input").rglob("*.jpg"))
         self.execute("""const e=[...document.querySelectorAll('button')].find(e=>e.innerText.trim()==='Export Image');
           if(!e||e.disabled)throw Error('Export Image unavailable');e.click();return true;""")
-        files = wait_for(lambda: list((self.case / "input").rglob("*.jpg")), "JPEG export", 90)
+        files = wait_for(lambda: list(set((self.case / "input").rglob("*.jpg")) - existing_jpegs), "JPEG export", 90)
         wait_for(lambda: self.execute("return document.body.innerText.includes('Export successful!');"),
                  "native export completion")
         if len(files) != 1:
@@ -437,12 +506,18 @@ class Smoke:
                 raise RuntimeError("Incorrect JPEG format or dimensions")
         self.capture("export-done")
         self.step("GUI JPEG export", {"file": str(files[0].relative_to(self.case)), "sha256": sha(files[0])})
+        if (self.case / "atomic-exports-test.json").exists():
+            from atomic_exports import run_atomic_export_checks
+            run_atomic_export_checks(self, wait_for, files[0])
         if (self.case / "mcp-packaging-test.json").exists():
             from mcp_packaging import run_packaging_checks
             run_packaging_checks(self.case, self)
         elif (self.case / "terminal-test.json").exists():
             self.terminal_flow()
-        if (self.case / "mcp-compact-test.json").exists():
+        if (self.case / "mcp-masks-test.json").exists():
+            from mcp_masks import run_mask_checks
+            run_mask_checks(self.case, self)
+        elif (self.case / "mcp-compact-test.json").exists():
             from mcp_compact import run_compact_checks
             run_compact_checks(self.case, self)
         elif (self.case / "mcp-revisions-test.json").exists():
@@ -451,12 +526,18 @@ class Smoke:
         elif (self.case / "mcp-measure-test.json").exists():
             from mcp_measure import run_measure_checks
             run_measure_checks(self.case, self)
+        elif (self.case / "mcp-skill-test.json").exists():
+            from mcp_skill import run_skill_checks
+            run_skill_checks(self.case, self)
         elif (self.case / "mcp-history-test.json").exists():
             from mcp_history import run_history_checks
             run_history_checks(self.case, self)
         elif (self.case / "mcp-clients-test.json").exists() and not (self.case / "terminal-test.json").exists():
             from mcp_clients import run_client_checks
             self.step("real Claude Code and Codex edit the open photo", run_client_checks(self.case, self))
+        if (self.case / "mask-drop-test.json").exists():
+            from mask_drop import run_mask_drop_checks
+            run_mask_drop_checks(self, wait_for)
         final = self.snapshot("final")
         if final["errors"]:
             raise RuntimeError("Frontend errors: " + str(final["errors"]))
@@ -476,6 +557,13 @@ class Smoke:
             self.step("PTY background process removed on app quit", {"pid": self.background_pid})
         native_errors = [line for line in (self.case / "app.log").read_text().splitlines()
                          if re.search(r"\[ERROR\]|CRITICAL|panicked at|Segmentation fault", line)]
+        if hasattr(self, "expected_crs_refusal_error"):
+            pattern = r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \[ERROR\] \[frontend\] " + re.escape(self.expected_crs_refusal_error)
+            expected = [line for line in native_errors if re.fullmatch(pattern, line)]
+            if len(expected) != 1:
+                raise RuntimeError("Expected exactly one native log entry for the verified CRS refusal")
+            native_errors.remove(expected[0])
+            self.step("verified CRS refusal logged exactly once", {"entry": expected[0]})
         if native_errors:
             raise RuntimeError("Native errors: " + str(native_errors))
         self.step("clean exit and no frontend/native errors", {"exit_code": app.returncode})
@@ -531,24 +619,89 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.compare_read_only:
+        for name in ("compare-uncached.ARW", "compare-legacy.ARW", "compare-auto.ARW", "compare-healing.ARW"):
+            shutil.copy2(raw, case / "input" / name)
+        save(case / "input/compare-legacy.ARW.rrdata", {"adjustments": {"exposure": 0},
+             "unknown": {"mustStay": True}})
+        save(case / "input/compare-legacy.ARW.rrexif", {"Make": "SONY", "Model": "ILCE-7CM2"})
+        save(case / "input/compare-auto.ARW.rrdata", {"adjustments": {"lensCorrectionMode": "auto",
+             "cameraLensCorrectionVersion": 1}, "exif": {"Make": "SONY", "Model": "ILCE-7CM2"},
+             "unknown": {"mustStay": True}})
+        save(case / "input/compare-healing.ARW.rrdata", {"adjustments": {"lensCorrectionMode": "auto",
+             "cameraLensCorrectionVersion": 1}, "unknown": {"healingControl": True}})
+        save(case / "compare-read-only-test.json", {"issue": 358, "real_native_render": True,
+              "invariants": ["bytes", "mtime", "unknown_fields", "legacy_rrexif"]})
+    if args.atomic_exports:
+        save(case / "atomic-exports-test.json", {"issue": 326, "io_mocked": False})
+    if args.file_transfers:
+        from file_transfers import prepare_transfers
+        prepare_transfers(case)
+    if args.filter_chips:
+        from filter_chips import prepare_filter_chips
+        prepare_filter_chips(case)
+        save(case / "filter-chips-test.json", {"issue": 312, "owned_synthetic_jpegs": 3})
+    if args.zoom:
+        zoom_raw = args.raw_dir.resolve() / "sony-a7c2-33mp-compressed.ARW"
+        zoom_expected = next(f["sha256"] for f in corpus["files"] if f["file"] == zoom_raw.name)
+        if sha(zoom_raw) != zoom_expected:
+            raise RuntimeError("Mixed-resolution zoom fixture differs from CC0 corpus")
+        shutil.copy2(zoom_raw, case / "input/zoom-33mp.ARW")
+        save(case / "zoom-fixture.json", {"file": zoom_raw.name, "sha256": zoom_expected})
+        save(case / "zoom-test.json", {"issue": 142, "viewport": [WIDTH, HEIGHT]})
+        wheel_source = ROOT / "rapidroom/validation/native-ui/native_wheel.c"
+        flags = shlex.split(subprocess.check_output(
+            ["pkg-config", "--cflags", "--libs", "gtk+-3.0", "webkit2gtk-4.1"], text=True))
+        subprocess.run(["cc", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror",
+                        str(wheel_source), "-o", str(case / "native-wheel.so"), *flags], check=True)
+        save(case / "native-wheel-injector.json", {"source_sha256": sha(wheel_source),
+             "library_sha256": sha(case / "native-wheel.so"), "method": "GTK GDK_SCROLL_UP/DOWN through gtk_widget_event(WebView)"})
+    if args.stacks:
+        from stacks import prepare_stacks
+        prepare_stacks(case)
+        save(case / "stacks-test.json", {"issue": 86, "owned_synthetic_jpegs": 3})
+    if args.palette:
+        save(case / "palette-test.json", {"issue": 162, "real_model_requests": False})
+    if args.mask_drop:
+        save(case / "mask-drop-test.json", {"issue": 204, "event": "synthetic DndContext onDragEnd"})
     if args.dock_layout:
         save(case / "dock-layout-test.json", {"issues": [145, 146], "viewport": [WIDTH, HEIGHT]})
         for index in range(1, 24):
             shutil.copy2(raw, case / f"input/smoke-{index:02d}.ARW")
+    if args.mcp_skill:
+        save(case / "mcp-skill-test.json", {"issue": 118, "real_model_requests": True, "source_checkout": str(args.skill_source.resolve())})
     if args.mcp_measure:
         save(case / "mcp-measure-test.json", {"issue": 117, "real_model_requests": True})
     if args.mcp_revisions:
         save(case / "mcp-revisions-test.json", {"issue": 148, "real_model_requests": True})
     if args.mcp_compact or args.mcp_compact_baseline:
         save(case / "mcp-compact-test.json", {"issue": 147, "baseline": args.mcp_compact_baseline, "real_model_requests": not args.mcp_compact_baseline})
+    if args.mcp_masks:
+        save(case / "mcp-masks-test.json", {"issue": 150, "real_model_requests": True})
     if args.mcp_history:
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_packaging:
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
+    if args.style_stack:
+        save(case / "style-stack-test.json", {"issue": 378, "io_mocked": False})
+    if args.presets:
+        save(case / "presets-test.json", {"issue": 169})
+    if args.lightroom_ai_masks:
+        fixture=args.lightroom_ai_masks.resolve()
+        data=fixture.read_bytes()
+        if data[:4]!=b"ACR\0" or len(data)>16*1024*1024: raise RuntimeError("Expected a bounded synthetic ACR fixture")
+        shutil.copy2(fixture,case / "input/smoke.acr")
+        save(case / "lightroom-ai-masks-test.json", {"digest":data[20:36].hex().upper(),"real_model_requests":False})
+    if args.xmp_photo_policy:
+        save(case / "xmp-photo-policy-test.json", {"issue": 218, "real_model_requests": False})
+    if args.crs_interop:
+        save(case / "crs-interop-test.json", {"issue": 161, "real_model_requests": False})
+    if args.untrusted_text:
+        save(case / "untrusted-text-test.json", {"issue": 165, "real_model_requests": False})
     if args.crop_noop:
         save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
-        if not args.crop_noop and not args.mcp_compact_baseline:
+        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop and not args.lightroom_ai_masks and not args.xmp_photo_policy:
             save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
@@ -558,7 +711,7 @@ def launch(args):
     save(settings / "settings.json", {"rootFolders": [str(case / "input")],
          "lastRootPath": str(case / "input"), "language": "en", "useWgpuRenderer": False,
          "editorPreviewResolution": 1280, "decorations": False,
-         "mcpEnabled": args.mcp_clients and not args.mcp_packaging})
+         "mcpEnabled": args.style_stack or (args.mcp_clients and not args.mcp_packaging)})
     if args.mcp_packaging:
         initial = json.loads((settings / "settings.json").read_text())
         initial.pop("mcpEnabled")
@@ -595,10 +748,27 @@ def launch(args):
         with args.lock.open("a") as lock:
             print("Waiting for native UI lock", flush=True)
             fcntl.flock(lock, fcntl.LOCK_EX)
+            subprocess.run(["df", "-h", "/home"], check=True)
+            if shutil.disk_usage(case).free < 25 * 1024**3:
+                raise RuntimeError("Native sample stopped: less than 25 GiB free")
             (case / "engine").mkdir()
             engine = args.engine.resolve()
             source_hash = sha(engine)
             shutil.copy2(engine, case / "engine/rapidroom")
+            # Accept the native build.py layout (lib next to the engine) or the
+            # FHS-style pin (bin/rapidroom with ../lib/RapidRoom); copy it once.
+            runtime_payload = next((candidate for candidate in (engine.parent / "lib" / "RapidRoom",
+                                                                 engine.parent.parent / "lib" / "RapidRoom")
+                                    if candidate.is_dir()), None)
+            if runtime_payload is None:
+                raise RuntimeError("Pinned engine is missing lib/RapidRoom runtime payload")
+            shutil.copytree(runtime_payload, case / "lib" / "RapidRoom", symlinks=True)
+            runtime_manifest = {str(path.relative_to(runtime_payload)): sha(path)
+                                for path in sorted(runtime_payload.rglob("*")) if path.is_file()}
+            copied_payload = case / "lib" / "RapidRoom"
+            if runtime_manifest != {str(path.relative_to(copied_payload)): sha(path)
+                                   for path in sorted(copied_payload.rglob("*")) if path.is_file()}:
+                raise RuntimeError("Copied lib/RapidRoom runtime payload differs from pinned engine")
             if args.mcp_clients:
                 adapter = engine.parent / "rapidroom-mcp-stdio"
                 if not adapter.is_file():
@@ -609,15 +779,11 @@ def launch(args):
                     raise RuntimeError("Pinned stdio adapter copy differs")
             if sha(case / "engine/rapidroom") != source_hash:
                 raise RuntimeError("Engine changed while pinning")
-            for name in ("resources", "lensfun_db"):
-                source = engine.parent / name
-                if source.is_dir():
-                    (case / "engine" / name).symlink_to(source)
             save(case / "environment.json", {"engine_source": str(engine), "engine_sha256": source_hash,
                  "fixture": FIXTURE, "fixture_guard": guard, "compositor": "Weston headless GL",
                  "weston_version": subprocess.check_output(["weston", "--version"], text=True).strip(),
                  "driver": "tauri-plugin-wdio-webdriver 1.4.0", "viewport": [WIDTH, HEIGHT],
-                 "harness_sha256": sha(Path(__file__).resolve())})
+                 "harness_sha256": sha(Path(__file__).resolve()), "runtime_payload": runtime_manifest})
             with (case / "session-bus.log").open("w") as log:
                 result = subprocess.run(["nice", "-n", "10", "dbus-run-session", "--", sys.executable,
                                          str(Path(__file__).resolve()), "--inside", str(case)],
@@ -643,25 +809,49 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--atomic-exports", action="store_true", help="Check real default/overwrite exports and complete final JPEG visibility")
+    parser.add_argument("--file-transfers", action="store_true", help="Check native collision-safe copies/imports, paired sidecars and visible summaries")
+    parser.add_argument("--filter-chips", action="store_true", help="Native numeric/text chip editing, Escape, Backspace, arrows and independent x-delete")
     parser.add_argument("--dock-layout", action="store_true", help="Check stepped dock resize overlap and compact terminal controls (implies --terminal)")
     parser.add_argument("--terminal", action="store_true", help="Exercise terminal docking/PTY and owned CLI/terminal stubs")
     parser.add_argument("--mcp-clients", action="store_true", help="Run installed real Claude Code and Codex clients")
     parser.add_argument("--terminal-clients", action="store_true", help="Use real clients from both terminal launch paths (implies --terminal --mcp-clients)")
+    parser.add_argument("--mcp-masks", action="store_true", help="Actual-client single-mask add, sibling preservation, nested defaults, history and sidecars")
     parser.add_argument("--mcp-history", action="store_true", help="Run actual-client labelled history/schema/preview scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-packaging", action="store_true", help="Verify default-off, launch consent, runtime toggle and real registered clients")
+    parser.add_argument("--mcp-skill", action="store_true", help="Fresh Claude session with only the plugin/MCP: grade, compare, export and explain source")
+    parser.add_argument("--skill-source", type=Path, help="Clean checkout matching the pinned app sourceCommit for the skill source explanation")
     parser.add_argument("--mcp-measure", action="store_true", help="Run read-only measurement/comparison scenario (implies --mcp-clients)")
     parser.add_argument("--mcp-revisions", action="store_true", help="Real clients read latest state across a GUI edit and receive strict stale-write details")
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
     parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
+    parser.add_argument("--compare-read-only", action="store_true", help="Check real Original/pinned comparison rendering never writes sidecars or legacy EXIF")
+    parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
+    parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
+    parser.add_argument("--style-stack", action="store_true", help="Check ordered Style stack, manual edits, shared MCP, Undo and reload")
+    parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
+    parser.add_argument("--lightroom-ai-masks", type=Path, help="Import an authored synthetic ACR fixture and verify named refusals without model requests")
+    parser.add_argument("--xmp-photo-policy", action="store_true", help="Synthetic photo AlreadyApplied, pending draft/history and reusable preset checks")
+    parser.add_argument("--crs-interop", action="store_true", help="Check public CRS import and XML safety without model requests")
+    parser.add_argument("--mask-drop", action="store_true", help="Check mask creation drop insertion on a sub-mask row")
+    parser.add_argument("--untrusted-text", action="store_true", help="Check hostile descriptive text against real authenticated MCP without model requests")
+    parser.add_argument("--stacks", action="store_true", help="Manual and capture-time stacks, sidecars, cover and native grid/filmstrip")
+    parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     global WIDTH, HEIGHT
+    if args.viewport:
+        if not args.zoom or min(args.viewport) < 700:
+            parser.error("--viewport requires --zoom and dimensions >= 700")
+        WIDTH, HEIGHT = args.viewport
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop:
+    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop or args.lightroom_ai_masks or args.xmp_photo_policy:
         args.mcp_clients = True
+    if args.mcp_skill and (not args.skill_source or not args.skill_source.is_dir()):
+        parser.error("--mcp-skill requires --skill-source matching the pinned app commit")
     if args.mcp_packaging:
         args.terminal_clients = True
     if args.terminal_clients:
@@ -670,6 +860,8 @@ def main():
         case = args.inside.resolve()
         if (case / "dock-layout-test.json").exists():
             WIDTH, HEIGHT = json.loads((case / "dock-layout-test.json").read_text())["viewport"]
+        if (case / "zoom-test.json").exists():
+            WIDTH, HEIGHT = json.loads((case / "zoom-test.json").read_text())["viewport"]
         runtime = Path((case / "runtime-path.txt").read_text().strip())
         if runtime.parent != Path("/run/user") / str(os.getuid()) or not runtime.name.startswith("rr-smoke-"):
             raise RuntimeError("Unexpected private runtime path")

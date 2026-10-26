@@ -1,6 +1,6 @@
 use ab_glyph::{Font, FontRef};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use image::{DynamicImage, GenericImageView, Rgb, RgbImage, imageops};
+use image::{DynamicImage, Rgb, RgbImage, imageops};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tauri::AppHandle;
@@ -146,7 +146,7 @@ fn png(image: &DynamicImage) -> Result<Vec<u8>, String> {
     Ok(bytes.into_inner())
 }
 
-fn content(images: &[DynamicImage]) -> Result<Value, String> {
+pub(super) fn content(images: &[DynamicImage]) -> Result<Value, String> {
     let mut total = 0_usize;
     let mut result = Vec::with_capacity(images.len());
     for image in images {
@@ -169,16 +169,21 @@ fn contact_sheet(
     labels: &[String],
     bound: u32,
 ) -> Result<DynamicImage, String> {
-    let first = images.first().ok_or("Contact sheet needs images")?;
+    if images.is_empty() {
+        return Err("Contact sheet needs images".into());
+    }
     let font = FontRef::try_from_slice(FONT).map_err(|e| e.to_string())?;
     let columns = if matches!(images.len(), 2 | 4) { 2 } else { 3 };
     let rows = (images.len() as u32).div_ceil(columns);
     let max_width = bound / columns;
     let max_height = bound / rows;
     let label_height = (max_width / 5).clamp(16, 24).min(max_height / 2);
-    let thumbnail = first.thumbnail(max_width, max_height - label_height);
-    let cell_width = thumbnail.width();
-    let image_height = thumbnail.height();
+    let thumbnails = images
+        .iter()
+        .map(|image| image.thumbnail(max_width, max_height - label_height))
+        .collect::<Vec<_>>();
+    let cell_width = thumbnails.iter().map(DynamicImage::width).max().unwrap();
+    let image_height = thumbnails.iter().map(DynamicImage::height).max().unwrap();
     let cell_height = image_height + label_height;
     let mut sheet =
         RgbImage::from_pixel(columns * cell_width, rows * cell_height, Rgb([24, 24, 24]));
@@ -211,7 +216,12 @@ fn contact_sheet(
             &font,
             &title,
         );
-        let thumb = image.thumbnail(cell_width, image_height).to_rgb8();
+        let thumb = image
+            .thumbnail(
+                cell_width.min(image.width()),
+                image_height.min(image.height()),
+            )
+            .to_rgb8();
         imageops::overlay(
             &mut sheet,
             &thumb,
@@ -244,28 +254,62 @@ fn geometry(value: &Value) -> Value {
         "lensTcaAmount",
         "lensTcaEnabled",
     ];
-    Value::Object(
-        fields
-            .into_iter()
-            .map(|key| (key.to_string(), value[key].clone()))
-            .collect(),
-    )
+    let mut geometry: serde_json::Map<String, Value> = fields
+        .into_iter()
+        .map(|key| (key.to_string(), value[key].clone()))
+        .collect();
+    let mode = value["lensCorrectionMode"].as_str().unwrap_or("manual");
+    geometry.insert("lensCorrectionMode".into(), json!(mode));
+    geometry.insert(
+        "cameraLensCorrectionVersion".into(),
+        json!(
+            if mode == "auto" && value["cameraLensCorrectionVersion"].as_u64() == Some(1) {
+                1
+            } else {
+                0
+            }
+        ),
+    );
+    Value::Object(geometry)
 }
 
-fn same_geometry_value(left: &Value, right: &Value) -> bool {
-    match (left, right) {
-        (Value::Number(a), Value::Number(b)) => a.as_f64() == b.as_f64(),
-        (Value::Array(a), Value::Array(b)) => {
-            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| same_geometry_value(a, b))
+fn native_region(
+    arguments: &Value,
+) -> Result<(Option<PixelRegion>, Option<preview::Region>), String> {
+    let value = arguments.get("region").ok_or("region is required")?;
+    let units = match arguments.get("regionUnits") {
+        None => {
+            if ["x", "y", "width", "height"].iter().any(|key| {
+                value[key]
+                    .as_f64()
+                    .is_some_and(|number| number.fract() != 0.0)
+            }) {
+                "fraction"
+            } else {
+                "pixels"
+            }
         }
-        (Value::Object(a), Value::Object(b)) => {
-            a.len() == b.len()
-                && a.iter().all(|(key, value)| {
-                    b.get(key)
-                        .is_some_and(|other| same_geometry_value(value, other))
-                })
-        }
-        _ => left == right,
+        Some(value) => value
+            .as_str()
+            .ok_or("regionUnits must be pixels or fraction")?,
+    };
+    match units {
+        "pixels" => Ok((Some(pixel_region(value)?), None)),
+        "fraction" => Ok((None, preview::region(arguments)?)),
+        _ => Err("regionUnits must be pixels or fraction".into()),
+    }
+}
+
+fn bounded_region(
+    image: DynamicImage,
+    fraction: Option<preview::Region>,
+    bound: u32,
+) -> DynamicImage {
+    let image = preview::crop(image, fraction);
+    if image.width() > bound || image.height() > bound {
+        image.resize(bound, bound, imageops::FilterType::Lanczos3)
+    } else {
+        image
     }
 }
 
@@ -286,11 +330,11 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         ),
         (
             "render_region",
-            "Return a native 1:1 rendered pixel crop after edit geometry, at most 2048 pixels per edge, without upsampling or changing edits/history/revision.",
+            "Return a native 1:1 crop after edit geometry. region accepts pixels or fractions; regionUnits disambiguates integer fractions (default: pixels for all-integer rectangles), at most 2048 pixels per edge, without upsampling or changing edits/history/revision.",
         ),
         (
             "render_compare",
-            "Render 2–6 temporary patches or existing virtual copies of the active photo at the same geometry and size. Return a labelled contact sheet or separate images. Never applies edits.",
+            "Render 2–6 temporary patches or existing virtual copies of the active photo, each with its own crop/orientation/lens geometry and aspect ratio. Fractional regions are cropped at native resolution before sizing to maxDimension (never upsampled). Return a labelled contact sheet or separate images. Never applies edits.",
         ),
     ] {
         let mut properties = json!({"imagePath":{"type":"string"},"expectedRevision":{"type":"string","description":"Advisory; renders the latest edit and returns its editRevision even when this revision is stale."},
@@ -301,7 +345,10 @@ pub(super) fn tool_definitions() -> Vec<Value> {
             properties["histogram"] = json!({"type":"boolean","default":false,"description":"Include four unsmoothed 256-bin pixel-count histograms."});
         }
         if name == "sample_region" {
-            required.push("region");
+            properties["regions"] = json!({"type":"array","minItems":1,"maxItems":16,"description":"Batch of labelled fractional rectangles, measured from ONE shared render. Use region OR regions.","items":{"type":"object","additionalProperties":false,"properties":{
+                "label":{"type":"string","minLength":1,"maxLength":80},
+                "x":{"type":"number","minimum":0,"maximum":1},"y":{"type":"number","minimum":0,"maximum":1},
+                "width":{"type":"number","exclusiveMinimum":0,"maximum":1},"height":{"type":"number","exclusiveMinimum":0,"maximum":1}},"required":["label","x","y","width","height"]}});
             properties["suggestWhiteBalance"] = json!({"type":"boolean","default":false});
         }
         if name == "render_region" {
@@ -310,14 +357,19 @@ pub(super) fn tool_definitions() -> Vec<Value> {
                 "x":{"type":"integer","minimum":0},"y":{"type":"integer","minimum":0},
                 "width":{"type":"integer","minimum":1,"maximum":2048},"height":{"type":"integer","minimum":1,"maximum":2048}},
                 "required":["x","y","width","height"]});
+            let pixels = properties["region"].clone();
+            properties["region"] = json!({"anyOf":[pixels, fractions]});
+            properties["regionUnits"] = json!({"type":"string","enum":["pixels","fraction"],"description":"If omitted, rectangles containing non-integer values use fractions; all-integer rectangles use pixels. Fractions map floor(start) and ceil(end) in the native rendered image; resolved edges must be at most 2048 pixels."});
             required.push("region");
         }
         if name == "render_compare" {
             properties.as_object_mut().unwrap().remove("stage");
             properties["separateImages"] = json!({"type":"boolean","default":false});
+            properties["historyIndex"] = json!({"type":"integer","minimum":0,"description":"Use this active editor history snapshot as the base for variants; no undo or sidecar writes."});
             properties["variants"] = json!({"type":"array","minItems":2,"maxItems":6,"items":{
                 "type":"object","additionalProperties":false,"properties":{
                     "name":{"type":"string","minLength":1,"maxLength":80},"imagePath":{"type":"string"},
+                    "historyIndex":{"type":"integer","minimum":0,"description":"Read an active image history snapshot for this variant; cannot combine with imagePath."},
                     "changes":{"type":"object"}}}});
             required.push("variants");
         }
@@ -339,7 +391,7 @@ fn stage_adjustments(arguments: &Value, current: &Value) -> Result<Value, String
     match stage {
         "edited" => Ok(current.clone()),
         "original" => {
-            let mut neutral = tools::original_adjustments()?;
+            let mut neutral = tools::original_adjustments_for(current)?;
             for (key, value) in geometry(current).as_object().unwrap() {
                 neutral[key] = value.clone();
             }
@@ -360,33 +412,51 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
     let suggest = name == "sample_region" && preview::option(arguments, "suggestWhiteBalance")?;
     let histogram =
         matches!(name, "analyze" | "sample_region") && preview::option(arguments, "histogram")?;
-    let (target, native) = if name == "render_region" {
-        let region = pixel_region(arguments.get("region").ok_or("region is required")?)?;
-        (0, Some((region.x, region.y, region.width, region.height)))
+    let (native, native_fraction) = if name == "render_region" {
+        native_region(arguments)?
     } else {
-        (dimension(arguments)?, None)
+        (None, None)
     };
-    let fraction = if native.is_none() {
-        preview::region(arguments)?
+    let regions = if name == "sample_region" {
+        sample_regions(arguments)?
     } else {
         None
     };
-    if name == "sample_region" && fraction.is_none() {
+    let target = if name == "render_region" {
+        0
+    } else {
+        dimension(arguments)?
+    };
+    let fraction = if name == "render_region" {
+        native_fraction
+    } else {
+        preview::region(arguments)?
+    };
+    if name == "sample_region" && fraction.is_none() && regions.is_none() {
         return Err("region is required".into());
     }
     let image = crate::generate_measurement_pixels_for_path(
         path.clone(),
         parameters,
         target,
-        native,
+        native.map(|r| (r.x, r.y, r.width, r.height)),
         app.clone(),
     )
     .await?;
-    let image = preview::crop(image, fraction);
-    let mut value = if name == "render_region" {
+    let mut value = if let Some(regions) = regions {
+        sample_batch(&image, regions, histogram, suggest)?
+    } else if name == "render_region" {
+        let image = preview::crop(image, fraction);
+        if image.width() > 2048 || image.height() > 2048 {
+            return Err(
+                "Native region is limited to 2048 pixels per edge; request a smaller fraction"
+                    .into(),
+            );
+        }
         json!({"width":image.width(),"height":image.height(),"nativePixels":true,
             "coordinates":"pixels of the full rendered image after edit geometry/crop","content":content(&[image])?})
     } else {
+        let image = preview::crop(image, fraction);
         let mut value = statistics(&image, histogram)?;
         if suggest {
             value["whiteBalanceSuggestion"] = white_balance(&value);
@@ -408,11 +478,94 @@ pub(super) async fn call(app: &AppHandle, name: &str, arguments: &Value) -> Resu
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct SampleRegion {
+    label: String,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+fn sample_regions(arguments: &Value) -> Result<Option<Vec<SampleRegion>>, String> {
+    let Some(regions) = arguments.get("regions") else {
+        return Ok(None);
+    };
+    if arguments.get("region").is_some() {
+        return Err("Use region or regions, not both".into());
+    }
+    let regions: Vec<SampleRegion> =
+        serde_json::from_value(regions.clone()).map_err(|e| e.to_string())?;
+    if regions.is_empty() || regions.len() > 16 {
+        return Err("regions must contain 1–16 rectangles".into());
+    }
+    for r in &regions {
+        if r.label.trim().is_empty()
+            || r.label.chars().count() > 80
+            || r.label.chars().any(char::is_control)
+        {
+            return Err("Region labels must be 1–80 printable characters".into());
+        }
+        preview::region(&json!({"region":{"x":r.x,"y":r.y,"width":r.width,"height":r.height}}))?;
+    }
+    Ok(Some(regions))
+}
+fn sample_batch(
+    image: &DynamicImage,
+    regions: Vec<SampleRegion>,
+    histogram: bool,
+    suggest: bool,
+) -> Result<Value, String> {
+    let mut total = 0u64;
+    let mut samples = Vec::with_capacity(regions.len());
+    let mut shared = json!({});
+    for r in regions {
+        let region = json!({"x":r.x,"y":r.y,"width":r.width,"height":r.height});
+        let crop = preview::crop(image.clone(), preview::region(&json!({"region":region}))?);
+        total += u64::from(crop.width()) * u64::from(crop.height());
+        if total > 32_000_000 {
+            return Err(
+                "Combined samples exceed 32 million pixels; reduce maxDimension or regions".into(),
+            );
+        }
+        let mut value = statistics(&crop, histogram)?;
+        for key in [
+            "rgbUnits",
+            "luminanceUnits",
+            "clippingDefinition",
+            "percentileMethod",
+        ] {
+            if let Some(field) = value.as_object_mut().unwrap().remove(key) {
+                shared[key] = field;
+            }
+        }
+        if suggest {
+            let mut suggestion = white_balance(&value);
+            for key in ["assumption", "warning"] {
+                if let Some(field) = suggestion.as_object_mut().unwrap().remove(key) {
+                    shared["whiteBalanceAdvice"][key] = field;
+                }
+            }
+            value["whiteBalanceSuggestion"] = suggestion;
+        }
+        value["label"] = json!(r.label);
+        value["region"] = region;
+        samples.push(value);
+    }
+    shared["samples"] = json!(samples);
+    shared["sharedRender"] = json!(true);
+    shared["renderWidth"] = json!(image.width());
+    shared["renderHeight"] = json!(image.height());
+    Ok(shared)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Variant {
     name: Option<String>,
     #[serde(rename = "imagePath")]
     path: Option<String>,
     changes: Option<Value>,
+    #[serde(rename = "historyIndex")]
+    history_index: Option<u64>,
 }
 
 fn copy_parameters(
@@ -457,7 +610,7 @@ fn copy_parameters(
             return Err("Virtual copy has no adjustment snapshot".into());
         }
         adjustments::merge_adjustments(
-            tools::original_adjustments()?,
+            tools::original_adjustments_for(&metadata["adjustments"])?,
             metadata["adjustments"].clone(),
         )?
     };
@@ -484,22 +637,53 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
     let bound = dimension(arguments)?;
     let fraction = preview::region(arguments)?;
     let separate = preview::option(arguments, "separateImages")?;
+    let base_history = if let Some(index) = tools::history_index(arguments)? {
+        Some(tools::history_snapshot(app, &path, index).await?)
+    } else {
+        None
+    };
+    let base = base_history
+        .as_ref()
+        .map_or(&state["adjustments"], |snapshot| &snapshot["adjustments"]);
     let mut prepared = Vec::new();
+    let mut receipts = Vec::new();
     for (index, variant) in variants.into_iter().enumerate() {
+        if variant.path.is_some() && variant.history_index.is_some() {
+            return Err("A comparison variant cannot combine imagePath with historyIndex".into());
+        }
+        let history_index = variant.history_index.or_else(|| {
+            base_history
+                .as_ref()
+                .and_then(|snapshot| snapshot["historyIndex"].as_u64())
+        });
+        let historical = variant.path.is_none() && history_index.is_some();
+        let mut history_revision = base_history
+            .as_ref()
+            .map(|snapshot| snapshot["historyRevision"].clone());
         let (mut parameters, label) = if let Some(copy) = variant.path {
             let (parameters, label) = copy_parameters(&path, &copy, &state["adjustments"])?;
             if variant.name.as_ref().is_some_and(|name| name != &label) {
                 return Err("Virtual-copy name must match its GUI label".into());
             }
             (parameters, label)
+        } else if let Some(history_index) = variant.history_index {
+            let history = tools::history_snapshot(app, &path, history_index).await?;
+            history_revision = Some(history["historyRevision"].clone());
+            (
+                history["adjustments"].clone(),
+                variant
+                    .name
+                    .unwrap_or_else(|| format!("History {history_index}")),
+            )
         } else {
             (
-                state["adjustments"].clone(),
+                base.clone(),
                 variant
                     .name
                     .unwrap_or_else(|| format!("Variant {}", (b'A' + index as u8) as char)),
             )
         };
+        let label = crate::assistant_text::display(&label);
         if label.trim().is_empty()
             || label.chars().count() > 80
             || label.chars().any(char::is_control)
@@ -510,29 +694,27 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
             parameters = adjustments::merge_adjustments(parameters, changes)?;
         }
         adjustments::validate_adjustments(&parameters)?;
-        if !same_geometry_value(&geometry(&parameters), &geometry(&state["adjustments"])) {
-            return Err("Variants must keep the active crop/orientation/lens geometry; color and tone patches are allowed".into());
-        }
+        receipts.push(
+            json!({"renderRevision":adjustments::revision_for(&path, &parameters),
+            "historyIndex":if historical {history_index} else {None},
+            "historyRevision":if historical {history_revision} else {None}}),
+        );
         prepared.push((parameters, label));
     }
     let mut images = Vec::new();
     let mut labels = Vec::new();
+    let mut geometries = Vec::new();
     for (parameters, label) in prepared {
+        geometries.push(geometry(&parameters));
         let image = crate::generate_measurement_pixels_for_path(
             path.clone(),
             parameters,
-            bound,
+            if fraction.is_some() { 0 } else { bound },
             None,
             app.clone(),
         )
         .await?;
-        let image = preview::crop(image, fraction);
-        if images
-            .first()
-            .is_some_and(|first: &DynamicImage| first.dimensions() != image.dimensions())
-        {
-            return Err("Comparison render dimensions differ".into());
-        }
+        let image = bounded_region(image, fraction, bound);
         images.push(image);
         labels.push(label);
     }
@@ -560,16 +742,34 @@ async fn compare(app: &AppHandle, arguments: &Value, state: &Value) -> Result<Va
     }
     tools::ensure_read_state(app, arguments, state).await?;
     Ok(
-        json!({"imagePath":path,"editRevision":state["editRevision"],"labels":labels,"variantDimensions":dimensions,
+        json!({"imagePath":path,"editRevision":state["editRevision"],"labels":labels,"variantDimensions":dimensions,"variants":receipts,
         "identifiers":(0..labels.len()).map(|i|((b'A'+i as u8) as char).to_string()).collect::<Vec<_>>(),
         "separateImages":separate,"width":output[0].width(),"height":output[0].height(),"content":encoded,
-        "readOnly":true,"geometry":"active rendered crop/orientation/lens geometry","mimeType":"image/png"}),
+        "readOnly":true,"geometry":"each variant rendered with its own crop/orientation/lens geometry","variantGeometry":geometries,"mimeType":"image/png"}),
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::GenericImageView;
+
+    fn same_geometry_value(left: &Value, right: &Value) -> bool {
+        match (left, right) {
+            (Value::Number(a), Value::Number(b)) => a.as_f64() == b.as_f64(),
+            (Value::Array(a), Value::Array(b)) => {
+                a.len() == b.len() && a.iter().zip(b).all(|(a, b)| same_geometry_value(a, b))
+            }
+            (Value::Object(a), Value::Object(b)) => {
+                a.len() == b.len()
+                    && a.iter().all(|(key, value)| {
+                        b.get(key)
+                            .is_some_and(|other| same_geometry_value(value, other))
+                    })
+            }
+            _ => left == right,
+        }
+    }
 
     #[test]
     fn summary_keeps_exact_statistics_and_percentiles_without_histogram_echoes() {
@@ -609,6 +809,160 @@ mod tests {
     }
 
     #[test]
+    fn mixed_crop_aspects_are_letterboxed_without_losing_any_image() {
+        let images = vec![
+            DynamicImage::ImageRgb8(RgbImage::from_pixel(300, 400, Rgb([255, 0, 0]))),
+            DynamicImage::ImageRgb8(RgbImage::from_pixel(225, 400, Rgb([0, 0, 255]))),
+            DynamicImage::ImageRgb8(RgbImage::from_pixel(400, 225, Rgb([0, 255, 0]))),
+        ];
+        let sheet = contact_sheet(
+            &images,
+            &["Feed".into(), "Story".into(), "Wide".into()],
+            900,
+        )
+        .unwrap()
+        .to_rgb8();
+        assert!(sheet.width() <= 900 && sheet.height() <= 900);
+        for color in [Rgb([255, 0, 0]), Rgb([0, 0, 255]), Rgb([0, 255, 0])] {
+            assert!(sheet.pixels().any(|pixel| *pixel == color));
+        }
+    }
+
+    #[test]
+    fn contact_sheet_keeps_small_native_tiles_at_one_to_one() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(16, 12, Rgb([90, 30, 40])));
+        let sheet = contact_sheet(&[image.clone(), image], &["A".into(), "B".into()], 512)
+            .unwrap()
+            .to_rgb8();
+        assert_eq!(
+            sheet
+                .pixels()
+                .filter(|pixel| **pixel == Rgb([90, 30, 40]))
+                .count(),
+            2 * 16 * 12
+        );
+    }
+
+    #[test]
+    fn region_comparison_sizes_the_native_crop_and_never_upsamples() {
+        let fraction =
+            preview::region(&json!({"region":{"x":0.55,"y":0.5,"width":0.45,"height":0.5}}))
+                .unwrap();
+        let image = DynamicImage::ImageRgb8(RgbImage::new(4000, 3000));
+        let region = bounded_region(image, fraction, 900);
+        assert_eq!(region.dimensions(), (900, 750));
+        let tiny = DynamicImage::ImageRgb8(RgbImage::from_pixel(20, 10, Rgb([128, 0, 0])));
+        assert_eq!(bounded_region(tiny, None, 900).dimensions(), (20, 10));
+    }
+
+    #[test]
+    fn fractional_native_region_round_trips_to_the_same_integer_pixels() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_fn(100, 80, |x, y| {
+            Rgb([x as u8, y as u8, 0])
+        }));
+        let (_, fraction) =
+            native_region(&json!({"region":{"x":0.25,"y":0.25,"width":0.5,"height":0.5}})).unwrap();
+        let selected = preview::crop(image.clone(), fraction);
+        assert_eq!(selected.dimensions(), (50, 40));
+        assert_eq!(selected.to_rgb8(), image.crop_imm(25, 20, 50, 40).to_rgb8());
+        let (pixels, fraction) =
+            native_region(&json!({"region":{"x":0,"y":0,"width":1,"height":1}})).unwrap();
+        assert_eq!(pixels.unwrap().width, 1);
+        assert!(fraction.is_none());
+        let (_, fraction) = native_region(
+            &json!({"regionUnits":"fraction","region":{"x":0,"y":0,"width":1,"height":1}}),
+        )
+        .unwrap();
+        assert_eq!(
+            preview::crop(image.clone(), fraction).to_rgb8(),
+            image.to_rgb8()
+        );
+        for invalid in [
+            json!({"regionUnits":"fraction","region":{"x":0.9,"y":0,"width":0.2,"height":0.5}}),
+            json!({"regionUnits":"pixels","region":{"x":0.5,"y":0,"width":1,"height":1}}),
+            json!({"regionUnits":"unknown","region":{"x":0,"y":0,"width":1,"height":1}}),
+            json!({"region":{"x":0,"y":0,"width":0,"height":0.5}}),
+        ] {
+            assert!(native_region(&invalid).is_err());
+        }
+    }
+
+    #[test]
+    fn batched_samples_match_independent_regions_of_one_render() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_fn(20, 10, |x, _| {
+            if x < 10 {
+                Rgb([30, 60, 90])
+            } else {
+                Rgb([150, 180, 210])
+            }
+        }));
+        let args = json!({"regions":[{"label":"left","x":0,"y":0,"width":0.5,"height":1},{"label":"right","x":0.5,"y":0,"width":0.5,"height":1}]});
+        let samples =
+            sample_batch(&image, sample_regions(&args).unwrap().unwrap(), true, true).unwrap();
+        for (i, region) in args["regions"].as_array().unwrap().iter().enumerate() {
+            let mut rect = region.clone();
+            rect.as_object_mut().unwrap().remove("label");
+            let crop = preview::crop(
+                image.clone(),
+                preview::region(&json!({"region":rect})).unwrap(),
+            );
+            let single = statistics(&crop, true).unwrap();
+            assert_eq!(samples["samples"][i]["meanRGB"], single["meanRGB"]);
+            assert_eq!(samples["samples"][i]["histogram"], single["histogram"]);
+            assert_eq!(
+                samples["samples"][i]["whiteBalanceSuggestion"]["neutralRGBGainSuggestion"],
+                white_balance(&single)["neutralRGBGainSuggestion"]
+            );
+        }
+        assert_ne!(
+            samples["samples"][0]["meanRGB"],
+            samples["samples"][1]["meanRGB"]
+        );
+        assert!(sample_regions(&json!({"region":{},"regions":[]})).is_err());
+        assert!(
+            sample_regions(
+                &json!({"regions":[{"label":"outside","x":0.9,"y":0,"width":0.2,"height":1}]})
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn all_sixteen_batch_labels_and_protocol_fields_survive_projection() {
+        let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(2, 2, Rgb([30, 60, 90])));
+        let regions = (0..16)
+            .map(|i| SampleRegion {
+                label: format!("Patch{i} {}", "z".repeat(65)),
+                x: 0.,
+                y: 0.,
+                width: 1.,
+                height: 1.,
+            })
+            .collect();
+        let raw = sample_batch(&image, regions, true, true).unwrap();
+        let projected = crate::assistant_text::project(&raw);
+        assert_eq!(projected["sharedRender"], true);
+        assert_eq!(projected["samples"].as_array().unwrap().len(), 16);
+        for (a, b) in raw["samples"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(projected["samples"].as_array().unwrap())
+        {
+            assert_eq!(a["label"], b["label"]);
+            assert_eq!(a["meanRGB"], b["meanRGB"]);
+            assert_eq!(a["whiteBalanceSuggestion"], b["whiteBalanceSuggestion"]);
+        }
+        let id = "a".repeat(64);
+        let projected = crate::assistant_text::project(
+            &json!({"caption":"x".repeat(9000),"maskId":id,"subMaskId":id,"coordinateSpace":"view","kind":"subject"}),
+        );
+        assert_eq!(projected["maskId"], id);
+        assert_eq!(projected["subMaskId"], id);
+        assert_eq!(projected["coordinateSpace"], "view");
+    }
+
+    #[test]
     fn red_pixels_keep_channel_identity_and_rec709_luminance() {
         let image = DynamicImage::ImageRgb8(RgbImage::from_pixel(1, 1, Rgb([255, 0, 0])));
         let value = statistics(&image, true).unwrap();
@@ -633,6 +987,19 @@ mod tests {
             &geometry(&current),
             &geometry(&alternative)
         ));
+        let mut camera = current.clone();
+        camera["lensCorrectionMode"] = json!("auto");
+        camera["cameraLensCorrectionVersion"] = json!(1);
+        let original = stage_adjustments(&json!({"stage":"original"}), &camera).unwrap();
+        assert!(same_geometry_value(
+            &geometry(&camera),
+            &geometry(&original)
+        ));
+        camera["cameraLensCorrectionVersion"] = json!(0);
+        assert!(!same_geometry_value(
+            &geometry(&camera),
+            &geometry(&original)
+        ));
         for path in [
             "/not-a-photo?vc=../../secret",
             "/not-a-photo?vc=",
@@ -640,6 +1007,68 @@ mod tests {
         ] {
             assert!(copy_parameters("/not-a-photo", path, &current).is_err());
         }
+    }
+
+    #[test]
+    fn saved_virtual_copy_and_original_preserve_legacy_or_explicit_exposure_policy() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("photo.png");
+        RgbImage::from_pixel(2, 1, Rgb([90, 30, 40]))
+            .save(&source)
+            .unwrap();
+        let active = source.to_str().unwrap();
+        let copy = format!("{active}?vc=saved");
+        let (_, sidecar) = crate::file_management::parse_virtual_path(&copy);
+        let source_bytes = std::fs::read(&source).unwrap();
+        let source_modified = source.metadata().unwrap().modified().unwrap();
+        for (saved_policy, baseline, camera) in [
+            (json!({}), false, false),
+            (json!({"baselineExposure":true}), true, false),
+            (
+                json!({"baselineExposure":false,"cameraExposureCompensation":true}),
+                false,
+                true,
+            ),
+            (
+                json!({"baselineExposure":true,"cameraExposureCompensation":false}),
+                true,
+                false,
+            ),
+            (
+                json!({"baselineExposure":true,"cameraExposureCompensation":true}),
+                true,
+                true,
+            ),
+        ] {
+            let mut saved = json!({"exposure":1.25,"rotation":90,"toneMapper":"linear"});
+            saved
+                .as_object_mut()
+                .unwrap()
+                .extend(saved_policy.as_object().unwrap().clone());
+            let bytes = serde_json::to_vec(&json!({"version":1,"adjustments":saved})).unwrap();
+            std::fs::write(&sidecar, &bytes).unwrap();
+            let modified = sidecar.metadata().unwrap().modified().unwrap();
+            let fresh_active = tools::original_adjustments().unwrap();
+            let (parameters, _) = copy_parameters(active, &copy, &fresh_active).unwrap();
+            assert_eq!(parameters["exposure"], json!(1.25));
+            assert_eq!(parameters["baselineExposure"], json!(baseline));
+            assert_eq!(parameters["cameraExposureCompensation"], json!(camera));
+            for selected in [&saved, &parameters] {
+                let original = stage_adjustments(&json!({"stage":"original"}), selected).unwrap();
+                assert_eq!(original["exposure"], json!(0));
+                assert_eq!(original["baselineExposure"], json!(baseline));
+                assert_eq!(original["cameraExposureCompensation"], json!(camera));
+                assert_eq!(geometry(&original), geometry(selected));
+                assert_eq!(original["toneMapper"], selected["toneMapper"]);
+            }
+            assert_eq!(std::fs::read(&sidecar).unwrap(), bytes);
+            assert_eq!(sidecar.metadata().unwrap().modified().unwrap(), modified);
+        }
+        assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+        assert_eq!(
+            source.metadata().unwrap().modified().unwrap(),
+            source_modified
+        );
     }
 
     #[test]

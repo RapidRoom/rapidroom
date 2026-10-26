@@ -8,7 +8,7 @@ import math
 
 from PIL import Image
 
-from mcp_clients import client_command, execute_client, image_state, objects, rpc, run_client_checks
+from mcp_clients import tool_data, client_command, execute_client, image_state, objects, rpc, run_client_checks
 from mcp_history import read_tool
 
 
@@ -117,16 +117,46 @@ def run_measure_checks(case, smoke):
         "small_dimensions":[128,96],"large_dimensions":[256,192],"nested_pixels_identical":True,
         "png_sha256":hashlib.sha256(small_bytes[0]).hexdigest()})
 
+    # Known native dimensions of the CC0 Sony NEX-6 fixture after the EXIF crop.
+    fraction_region = {"x": 0.25, "y": 0.25, "width": 0.0625, "height": 0.0625}
+    _, fractional_bytes, fractional = images(url, token, "render_region", {**common, "region": fraction_region})
+    _, integer_bytes, integer = images(url, token, "render_region", {**common, "region": {"x": 1152, "y": 768, "width": 288, "height": 192}})
+    if fractional[0].size != (288, 192) or fractional_bytes != integer_bytes:
+        raise RuntimeError("Fractional and integer native region pixels differ")
+    region_compare = {**common, "maxDimension": 900, "separateImages": True,
+                      "region": {"x": 0.55, "y": 0.5, "width": 0.45, "height": 0.5},
+                      "variants": [{"name": "Current"}, {"name": "Twin"}]}
+    _, _, detail = images(url, token, "render_compare", region_compare)
+    if len(detail) != 2 or any(max(frame.size) != 900 for frame in detail) or detail[0].tobytes() != detail[1].tobytes():
+        raise RuntimeError("Region compare did not size the native region to 900 pixels")
+    crops = {**common, "maxDimension": 900, "separateImages": True,
+             "variants": [{"name": "Feed", "changes": {"crop": {"x": 500, "y": 100, "width": 1800, "height": 2400}}},
+                          {"name": "Story", "changes": {"crop": {"x": 500, "y": 100, "width": 1350, "height": 2400}}}]}
+    crop_response, crop_payloads, crop_frames = images(url, token, "render_compare", crops)
+    if [frame.size for frame in crop_frames] != [(675, 900), (506, 900)]:
+        raise RuntimeError("Independent feed/story crop aspects were lost: " + str([frame.size for frame in crop_frames]))
+    crops["separateImages"] = False
+    _, sheet_bytes, crop_sheet = images(url, token, "render_compare", crops)
+    if max(crop_sheet[0].size) > 900:
+        raise RuntimeError("Mixed-aspect contact sheet exceeds its bound")
+    (case / "captures/mcp-crop-variants.png").write_bytes(sheet_bytes[0])
+    unchanged()
+    smoke.step("fractional native regions, full-detail compares and independent feed/story crops", {
+        "fractional_integer_png_identical": True, "native_dimensions": list(fractional[0].size),
+        "region_compare_dimensions": [list(frame.size) for frame in detail],
+        "crop_dimensions": [list(frame.size) for frame in crop_frames],
+        "contact_sheet_dimensions": list(crop_sheet[0].size),
+        "state_revision_history_and_sidecars_unchanged": True})
+
     comparison = {**common,"maxDimension":512,"variants":[{"name":"Current"},{"imagePath":copy}]}
     response, payloads, sheets = images(url, token, "render_compare", comparison)
-    label = response["structuredContent"]["labels"]
+    label = tool_data(response)["labels"]
     if label != ["Current","smoke.ARW (VC)"] or max(sheets[0].size)>512:
         raise RuntimeError("Contact-sheet labels do not match the real virtual copy")
     (case / "captures/mcp-labelled-comparison.png").write_bytes(payloads[0])
     for tool, invalid in [
         ("render_compare", {**common,"variants":[{"name":"Only one"}]}),
         ("render_compare", {**common,"variants":[{"name":"A"}]*7}),
-        ("render_compare", {**common,"variants":[{"name":"A"},{"name":"Rotated","changes":{"rotation":90}}]}),
         ("render_region", {**common,"region":{"x":0,"y":0,"width":2049,"height":1}}),
         ("render_region", {**common,"region":{"x":100000,"y":0,"width":1,"height":1}}),
         ("analyze", {**common,"maxDimension":4097}),
@@ -137,15 +167,15 @@ def run_measure_checks(case, smoke):
         unchanged()
     smoke.step("real virtual-copy labels, bounded contact sheet and invalid limits refused", {
         "labels":label,"dimensions":list(sheets[0].size),"png_sha256":hashlib.sha256(payloads[0]).hexdigest(),
-        "invalid_variant_geometry_size_requests_refused":6,"sidecar_bytes_mtime_unchanged":True})
+        "invalid_variant_size_requests_refused":5,"sidecar_bytes_mtime_unchanged":True})
 
     folder = case / "measure-client-tests"
     folder.mkdir(mode=0o700)
     prompt = (f"Run a read-only rapidroom MCP regression on imagePath {json.dumps(path)} using only these tools. "
         "First get_image_state. Then analyze maxDimension 256. Then sample_region maxDimension 256 with "
         "region {x:0.25,y:0.25,width:0.5,height:0.5} and suggestWhiteBalance true. Then render_region with "
-        "native pixel region {x:100,y:100,width:128,height:96}. Then render_compare maxDimension 512 with "
-        "variants [{name:'Current'}, {name:'Brighter',changes:{exposure:0.2}}]. Await each result; "
+        "fractional region {x:0.25,y:0.25,width:0.0625,height:0.0625}. Then render_compare maxDimension 512 with "
+        "variants [{name:'Feed',changes:{crop:{x:500,y:100,width:1800,height:2400}}}, {name:'Story',changes:{crop:{x:500,y:100,width:1350,height:2400}}}]. Await each result; "
         "do not edit, use a shell or call unrelated tools. Finish with a short confirmation.")
     tools = ["get_image_state","analyze","sample_region","render_region","render_compare"]
     command, version = client_command(case,folder,"claude",0,prompt_override=prompt,tools=tools)

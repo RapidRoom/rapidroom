@@ -1,0 +1,351 @@
+// @vitest-environment jsdom
+import React, { act } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { beforeEach } from 'vitest';
+import { hashPresetAdjustments, rememberAppliedPreset, useAppliedPresetStore } from '../../../utils/appliedPreset';
+import AppliedPresetBadge from '../../ui/AppliedPresetBadge';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, it, expect, vi } from 'vitest';
+import type { Preset } from '../../ui/AppProperties';
+import { INITIAL_ADJUSTMENTS } from '../../../utils/adjustments';
+import { useEditorStore } from '../../../store/useEditorStore';
+import { useUIStore } from '../../../store/useUIStore';
+import { clearPresetHoverPreview } from '../../../utils/presetHoverPreview';
+import { debouncedSetHistory } from '../../../hooks/useEditorActions';
+import PresetsPanel from './PresetsPanel';
+const { webcrypto } = await vi.importActual<{ webcrypto: Crypto }>('node:crypto');
+const { TextEncoder } = await vi.importActual<{ TextEncoder: typeof globalThis.TextEncoder }>('node:util');
+const fixtures = vi.hoisted(() => ({
+  presets: [{ preset: { id: 'warm', name: 'Warm', adjustments: { exposure: 2 } } as Preset }],
+  isLoading: false,
+}));
+vi.mock('../../../hooks/usePresets', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../hooks/usePresets')>()),
+  usePresets: () => fixtures,
+}));
+vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
+vi.mock('../../../context/ContextMenuContext', () => ({ useContextMenu: () => ({ showContextMenu: vi.fn() }) }));
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (k: string) => (k === 'editor.presets.bakedIn' ? 'baked in' : k) }),
+}));
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+let root: Root | undefined;
+let container: HTMLDivElement | undefined;
+afterEach(async () => {
+  await act(async () => root?.unmount());
+  root = undefined;
+  container?.remove();
+  fixtures.presets[0].preset.cameraModelRestriction = undefined;
+  fixtures.presets.splice(1);
+  clearPresetHoverPreview();
+  debouncedSetHistory.cancel();
+});
+
+const persisted = new Map<string, unknown>();
+let photoNumber = 0;
+beforeEach(() => {
+  Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
+  Object.defineProperty(globalThis, 'TextEncoder', { value: TextEncoder, configurable: true });
+  persisted.clear();
+  useAppliedPresetStore.setState({ records: {} });
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    const { path, record } = args as { path: string; record: unknown };
+    if (command === 'save_applied_preset') {
+      persisted.set(path, JSON.parse(JSON.stringify(record)));
+      return undefined as never;
+    }
+    if (command === 'load_applied_preset') return (persisted.get(path) ?? null) as never;
+    return undefined as never;
+  });
+});
+async function mount() {
+  container ??= document.createElement('div');
+  if (!container.parentNode) document.body.append(container);
+  root ??= createRoot(container);
+  await act(async () =>
+    root!.render(
+      <>
+        <PresetsPanel onNavigateToCommunity={() => {}} />
+        <AppliedPresetBadge />
+      </>,
+    ),
+  );
+}
+function row() {
+  return [...container!.querySelectorAll('[role=button]')].find((e) => e.textContent?.startsWith('Warm'))!;
+}
+async function until(check: () => boolean) {
+  for (let i = 0; i < 100 && !check(); i++)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+  expect(check()).toBe(true);
+}
+function photo(path: string, exposure = 0) {
+  useEditorStore.getState().resetHistory({ ...INITIAL_ADJUSTMENTS, exposure });
+  useEditorStore.setState({
+    selectedImage: { path, isReady: true, exif: {} } as NonNullable<
+      ReturnType<typeof useEditorStore.getState>['selectedImage']
+    >,
+    previewOverride: null,
+    isSliderDragging: false,
+    showOriginal: false,
+  });
+  useUIStore.setState({ activeView: 'editor', presetCreationRequested: false });
+}
+async function apply() {
+  await act(async () => row().dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await until(() => !!container!.querySelector('[data-applied-preset="warm"]'));
+}
+it('keeps the applied Style through manual edits and restores its metadata via Undo/Redo', async () => {
+  photo('/applied-' + ++photoNumber + '.raw');
+  await mount();
+  await apply();
+  expect(useEditorStore.getState().adjustments.exposure).toBe(2);
+  expect(row().querySelector('[aria-label="Applied Style 1"]')).not.toBeNull();
+  const applied = useEditorStore.getState().adjustments;
+  await act(async () => {
+    const next = { ...applied, exposure: 3 };
+    useEditorStore.getState().pushHistory(next);
+    useEditorStore.setState({ adjustments: next });
+  });
+  expect(container!.querySelector('[data-applied-preset="warm"]')).not.toBeNull();
+  await act(async () => useEditorStore.getState().undo());
+  await until(() => !!container!.querySelector('[data-applied-preset="warm"]'));
+  await act(async () => useEditorStore.getState().redo());
+  expect(useEditorStore.getState().adjustments.exposure).toBe(3);
+  expect(container!.querySelector('[data-applied-preset="warm"]')).not.toBeNull();
+});
+it('reloads the baseline and recipe snapshots after a fresh UI store and panel mount', async () => {
+  const path = '/restart-' + ++photoNumber + '.raw';
+  photo(path);
+  await mount();
+  await apply();
+  await until(() => persisted.has(path));
+  const loaded = JSON.parse(JSON.stringify(useEditorStore.getState().adjustments));
+  await act(async () => root!.unmount());
+  root = undefined;
+  useAppliedPresetStore.setState({ records: {} });
+  photo(path);
+  useEditorStore.setState({ adjustments: loaded });
+  await mount();
+  await until(() => !!container!.querySelector('[data-applied-preset="warm"]'));
+  expect(Object.keys(persisted.get(path) as object).sort()).toEqual([
+    'adjustmentsHash',
+    'amount',
+    'id',
+    'name',
+    'stack',
+  ]);
+  expect(persisted.get(path)).toMatchObject({
+    stack: {
+      version: 1,
+      base: { exposure: 0 },
+      entries: [{ presetId: 'warm', amount: 100, adjustments: { exposure: 2 } }],
+      result: { exposure: 2 },
+    },
+  });
+  expect(useEditorStore.getState().adjustments).not.toHaveProperty('appliedPreset');
+});
+it('switches two photos without leaking the previous photo marker or hover state', async () => {
+  const a = '/photo-a-' + ++photoNumber + '.raw';
+  const b = '/photo-b-' + photoNumber + '.raw';
+  photo(a);
+  await mount();
+  await apply();
+  await until(() => persisted.has(a));
+  const adjustmentsA = useEditorStore.getState().adjustments;
+  const adjustmentsB = { ...INITIAL_ADJUSTMENTS, exposure: -1 };
+  persisted.set(b, {
+    id: 'cool',
+    name: 'Cool',
+    amount: 50,
+    adjustmentsHash: await hashPresetAdjustments(adjustmentsB),
+  });
+  await act(async () => {
+    photo(b);
+    useEditorStore.setState({ adjustments: adjustmentsB });
+  });
+  expect(container!.querySelector('[data-applied-preset="warm"]')).toBeNull();
+  await until(() => !!container!.querySelector('[data-applied-preset="cool"]'));
+  expect(container!.querySelector('[data-applied-preset="cool"]')!.textContent).toContain('baked in');
+  await act(async () => {
+    photo(a);
+    useEditorStore.setState({ adjustments: adjustmentsA });
+  });
+  await until(() => !!container!.querySelector('[data-applied-preset="warm"]'));
+  await act(async () => useEditorStore.setState({ previewOverride: { ...adjustmentsA, exposure: 99 } }));
+  expect(container!.querySelector('[data-applied-preset="warm"]')).not.toBeNull();
+});
+it('does not mark a hover-only preset preview', async () => {
+  const path = '/hover-' + ++photoNumber + '.raw';
+  photo(path);
+  await mount();
+  await act(async () => row().dispatchEvent(new MouseEvent('mouseover', { bubbles: true })));
+  expect(useEditorStore.getState().previewOverride?.exposure).toBe(2);
+  expect(container!.querySelector('[data-applied-preset]')).toBeNull();
+  expect(persisted.has(path)).toBe(false);
+});
+
+it('records Amount from the real slider without compounding and restores its saved amount', async () => {
+  const path = '/amount-' + ++photoNumber + '.raw';
+  photo(path);
+  await mount();
+  await apply();
+  const slider = container!.querySelector('input[type="range"]') as HTMLInputElement;
+  expect(slider).toBeTruthy();
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(slider, '50');
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await until(() => useAppliedPresetStore.getState().records[path]?.amount === 50);
+  expect(useEditorStore.getState().adjustments.exposure).toBe(1);
+  await until(() => (persisted.get(path) as { amount: number })?.amount === 50);
+  expect(row().textContent).toContain('50%');
+});
+it('serializes an old in-flight save ahead of a newer preset and keeps the latest record', async () => {
+  const path = '/ordered-' + ++photoNumber + '.raw';
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let oldStarted = false;
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    const { path: photoPath, record } = args as { path: string; record: { name: string } };
+    if (command === 'save_applied_preset') {
+      if (record.name === 'First') {
+        oldStarted = true;
+        await blocked;
+      }
+      persisted.set(photoPath, record);
+    }
+    return undefined as never;
+  });
+  const first = rememberAppliedPreset(path, { id: 'first', name: 'First' }, 100, {
+    ...INITIAL_ADJUSTMENTS,
+    exposure: 1,
+  });
+  await until(() => oldStarted);
+  const second = rememberAppliedPreset(path, { id: 'second', name: 'Second' }, 50, {
+    ...INITIAL_ADJUSTMENTS,
+    exposure: 2,
+  });
+  release();
+  await Promise.all([first, second]);
+  expect((persisted.get(path) as { name: string }).name).toBe('Second');
+  expect(useAppliedPresetStore.getState().records[path]?.amount).toBe(50);
+});
+it('hashes normalized values independently of key order and detects a real edit', async () => {
+  const a = { ...INITIAL_ADJUSTMENTS, exposure: 2 };
+  const b = Object.fromEntries(Object.entries(a).reverse()) as typeof a;
+  expect(await hashPresetAdjustments(a)).toBe(await hashPresetAdjustments(b));
+  expect(await hashPresetAdjustments(a)).not.toBe(await hashPresetAdjustments({ ...b, exposure: 3 }));
+});
+
+it('retains a marker across automatic lens resolution while detecting actual lens controls and inline edits', async () => {
+  const coefficients = {
+    k1: 0.01,
+    k2: -0.02,
+    k3: 0.03,
+    model: 1,
+    radius_scale: 1,
+    tca_vr: 1.0001,
+    tca_vb: 0.9999,
+    vig_k1: -0.1,
+    vig_k2: 0,
+    vig_k3: 0,
+  };
+  const auto = {
+    ...INITIAL_ADJUSTMENTS,
+    exposure: 2,
+    lensCorrectionMode: 'auto' as const,
+    lensMaker: null,
+    lensModel: null,
+    lensDistortionParams: null,
+  };
+  const savedAuto = {
+    ...auto,
+    lensMaker: 'Fixture maker',
+    lensModel: 'Detected profile',
+    lensDistortionParams: coefficients,
+  };
+  expect(await hashPresetAdjustments(auto)).toBe(await hashPresetAdjustments(savedAuto));
+  const manual = {
+    ...auto,
+    lensCorrectionMode: 'manual' as const,
+    lensMaker: 'Fixture maker',
+    lensModel: 'Selected profile',
+  };
+  const savedManual = { ...manual, lensDistortionParams: coefficients };
+  expect(await hashPresetAdjustments(manual)).toBe(await hashPresetAdjustments(savedManual));
+  for (const change of [
+    { lensModel: 'Another profile' },
+    { lensMaker: 'Another maker' },
+    { lensCorrectionMode: 'auto' },
+    { lensDistortionAmount: 50 },
+    { lensTcaEnabled: false },
+    { lensVignetteAmount: 0 },
+    { exposure: 3 },
+  ]) {
+    expect(await hashPresetAdjustments(savedManual)).not.toBe(
+      await hashPresetAdjustments({ ...savedManual, ...change } as typeof savedManual),
+    );
+  }
+  const inline = { ...INITIAL_ADJUSTMENTS, lensDistortionParams: coefficients };
+  expect(await hashPresetAdjustments(inline)).not.toBe(
+    await hashPresetAdjustments({ ...inline, lensDistortionParams: { ...coefficients, k1: 0.5 } }),
+  );
+});
+
+it('keeps three ordered entries independently editable, blocks a fourth, and preserves manual edits through removal and Undo', async () => {
+  for (const [id, adjustments] of Object.entries({
+    cool: { contrast: 40 },
+    grain: { shadows: 30 },
+    fourth: { clarity: 20 },
+  }))
+    fixtures.presets.push({ preset: { id, name: id, presetType: 'style', adjustments } });
+  const path = '/stack-' + ++photoNumber + '.raw';
+  photo(path);
+  await mount();
+  await apply();
+  const click = async (name: string) => {
+    const target = [...container!.querySelectorAll('[role=button]')].find((e) => e.textContent?.startsWith(name))!;
+    await act(async () => target.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  };
+  await click('cool');
+  await click('grain');
+  expect(
+    [...container!.querySelectorAll('[data-applied-style]')].map((e) => e.getAttribute('data-applied-style')),
+  ).toEqual(['warm', 'cool', 'grain']);
+  const before = useEditorStore.getState();
+  await click('fourth');
+  expect(useEditorStore.getState().adjustments).toBe(before.adjustments);
+  expect(useEditorStore.getState().history).toBe(before.history);
+  const warmSlider = container!.querySelector('[data-applied-style="warm"] input[type="range"]') as HTMLInputElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(warmSlider, '50');
+    warmSlider.dispatchEvent(new Event('input', { bubbles: true }));
+    debouncedSetHistory.flush();
+  });
+  expect(useEditorStore.getState().adjustments).toMatchObject({ exposure: 1, contrast: 40, shadows: 30 });
+  expect(useEditorStore.getState().historyDetails.at(-1)?.label).toBe('Style: Warm 50');
+  await act(async () => {
+    const manual = { ...useEditorStore.getState().adjustments, exposure: 1.25, contrast: 7 };
+    useEditorStore.setState({ adjustments: manual });
+    useEditorStore.getState().pushHistory(manual);
+  });
+  const count = useEditorStore.getState().history.length;
+  // The original catalog row removes an applied Style as well as its explicit X.
+  await click('cool');
+  expect(useEditorStore.getState().adjustments).toMatchObject({ exposure: 1.25, contrast: 7, shadows: 30 });
+  expect(useEditorStore.getState().history).toHaveLength(count + 1);
+  expect(useEditorStore.getState().historyDetails.at(-1)?.label).toBe('Style 2 removed: cool');
+  expect(
+    [...container!.querySelectorAll('[data-applied-style]')].map((e) => e.getAttribute('data-applied-style')),
+  ).toEqual(['warm', 'grain']);
+  await act(async () => useEditorStore.getState().undo());
+  expect(container!.querySelectorAll('[data-applied-style]')).toHaveLength(3);
+  await act(async () => useEditorStore.getState().redo());
+  expect(container!.querySelectorAll('[data-applied-style]')).toHaveLength(2);
+  await until(() => (persisted.get(path) as { stack?: { entries: unknown[] } })?.stack?.entries.length === 2);
+});
