@@ -109,6 +109,8 @@ pub struct ImageMetadata {
     pub tags: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exif: Option<std::collections::HashMap<String, String>>,
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, Value>,
 }
 
 impl Default for ImageMetadata {
@@ -125,6 +127,7 @@ impl Default for ImageMetadata {
             adjustments: Value::Null,
             tags: None,
             exif: None,
+            extra: serde_json::Map::new(),
         }
     }
 }

@@ -10099,6 +10099,26 @@ mod unreadable_sidecar_tests {
         assert_eq!(saved["exif"]["Make"], "SONY");
         assert_eq!(saved["version"], 1);
         assert_eq!(saved["rating"], 0);
+        assert_eq!(saved["unknown"], serde_json::json!({"keep":true}));
+    }
+
+    #[test]
+    fn write_before_first_read_preserves_unreadable_sidecars() {
+        let dir = tempfile::tempdir().unwrap();
+        for (index, bytes) in [
+            br#"{"adjustments":{"exposure":1},"exif":{"Make":5}}"#.as_slice(),
+            br#"{"adjustments": {"exposure": 1}, "#.as_slice(),
+            b"[1,2,3]".as_slice(),
+            &[0xff, 0xfe, 0x7b],
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let sidecar = dir.path().join(format!("unopened-{index}.jpg.rrdata"));
+            fs::write(&sidecar, bytes).unwrap();
+            assert!(set_sidecar_flag_for_test(&sidecar).is_err());
+            assert_eq!(fs::read(&sidecar).unwrap(), bytes);
+        }
     }
 
     #[test]
