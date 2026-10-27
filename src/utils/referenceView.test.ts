@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getWipeLabels,
   DEFAULT_REFERENCE_VIEW_STATE,
   getReferenceLabel,
   isReferenceCandidate,
@@ -58,5 +59,35 @@ describe('reference view state', () => {
     expect(getReferenceLabel('/photos/IMG_0001.CR3')).toBe('IMG_0001.CR3');
     expect(getReferenceLabel('C:\\photos\\IMG_0001.CR3')).toBe('IMG_0001.CR3');
     expect(getReferenceLabel('/photos/IMG_0001.CR3?vc=a1b2')).toBe('IMG_0001.CR3 (VC)');
+  });
+
+  it('opens a current-versus-original wipe and clamps its keyboard position', () => {
+    const wipe = reduceReferenceView(DEFAULT_REFERENCE_VIEW_STATE, { type: 'toggle-original-wipe' });
+    expect(wipe).toMatchObject({ mode: 'wipe', isChooserOpen: false, wipePosition: 50 });
+    expect(reduceReferenceView(wipe, { type: 'set-wipe-position', position: 145 }).wipePosition).toBe(100);
+    expect(reduceReferenceView(wipe, { type: 'set-wipe-position', position: -4 }).wipePosition).toBe(0);
+    expect(reduceReferenceView(wipe, { type: 'swap-wipe-sides' }).wipeSwapped).toBe(true);
+  });
+
+  it('keeps a pinned reference for MCP/reference comparison while C-style original comparison ignores it', () => {
+    const pinned = reduceReferenceView(DEFAULT_REFERENCE_VIEW_STATE, { image: reference, type: 'set-reference' });
+    expect(reduceReferenceView(pinned, { type: 'toggle-wipe' }).wipeReference).toBe(true);
+    expect(reduceReferenceView(pinned, { type: 'toggle-original-wipe' })).toMatchObject({
+      mode: 'wipe',
+      reference,
+      wipeReference: false,
+    });
+  });
+});
+
+describe('wipe labels', () => {
+  it('name the Original on the left and follow the images when swapped', () => {
+    expect(getWipeLabels(false)).toEqual({ left: 'Original', right: 'Your edit' });
+    expect(getWipeLabels(true)).toEqual({ left: 'Your edit', right: 'Original' });
+  });
+
+  it('uses the pinned version name instead of Original', () => {
+    expect(getWipeLabels(false, 'IMG_0001.ARW (VC)')).toEqual({ left: 'IMG_0001.ARW (VC)', right: 'Your edit' });
+    expect(getWipeLabels(true, 'IMG_0001.ARW (VC)')).toEqual({ left: 'Your edit', right: 'IMG_0001.ARW (VC)' });
   });
 });

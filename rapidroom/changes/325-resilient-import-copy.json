@@ -1,0 +1,13 @@
+{
+  "id": "resilient-import-copy",
+  "title": "Continue imports and copies through filename collisions",
+  "category": "fix",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Skip byte-identical photo bundles; give different photos and their sidecars a unique suffix without replacing destination files. Continue after per-photo failures and report copied/imported, renamed, skipped and failed counts."
+}

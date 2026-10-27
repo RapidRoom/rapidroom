@@ -1,0 +1,13 @@
+{
+  "id": "mcp-session-efficiency",
+  "title": "Compact MCP history and sparse active edits with read-only history previews and exports",
+  "category": "performance",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex; existing MCP authorship retained)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Undo/redo default to compact revision/history receipts with full-state opt-in. Active edit reads default to sparse non-default values. Mask schemas share local definitions and remove_mask drops irrelevant definitions. Legacy unused GUI mask placeholders are cleaned on load. Proposed previews explicitly patch or replace, and history snapshots can be previewed, compared or exported without moving editor history. Broader mask generation/view-space/visualization workflows remain separate."
+}

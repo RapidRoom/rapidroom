@@ -1,0 +1,13 @@
+{
+  "id": "offline-model-preparation",
+  "title": "Check and prepare local AI model caches before offline travel",
+  "category": "feature",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Standalone Linux helper checks the portable 13-asset registry and explicitly copies verified missing local files without overwriting. Includes preparation and fresh offline launch instructions; no downloads or application Offline mode."
+}

@@ -16,6 +16,8 @@ export interface DevelopPhoto {
   existingEdits: boolean;
   rating: number | null;
   adjustments: Record<string, unknown>;
+  sources: Record<string, string>;
+  matchingXmpSidecar: boolean;
   unsupported: string[];
   error: string | null;
 }
@@ -144,6 +146,7 @@ export default function LightroomDevelopImport({
   return (
     <section className="space-y-3" aria-label={t('modals.lightroomDevelop.title')}>
       <Text>{t('modals.lightroomDevelop.hint')}</Text>
+      <Text color="secondary">{t('contextMenus.xmpImportReport.calibrationWarning')}</Text>
       <Text color="secondary">{t('modals.lightroomDevelop.preserved')}</Text>
       {isCardMode && <Text color="error">{t('modals.lightroomDevelop.cardMode')}</Text>}
       {error && <Text color="error">{error}</Text>}
@@ -246,6 +249,9 @@ export default function LightroomDevelopImport({
                     ? t('modals.lightroomDevelop.noRating')
                     : t('modals.lightroomDevelop.rating', { rating: photo.rating })}
                 </Text>
+                {photo.matchingXmpSidecar && (
+                  <Text color="secondary">{t('modals.lightroomDevelop.catalogPreferred')}</Text>
+                )}
                 {(!photo.found || photo.error) && (
                   <Text color="error">{photo.error ?? t('modals.lightroomDevelop.missing')}</Text>
                 )}
@@ -258,7 +264,19 @@ export default function LightroomDevelopImport({
                       {Object.entries(photo.adjustments).map(([key, value]) => (
                         <div key={key} className="flex flex-wrap gap-2">
                           <dt className="capitalize font-medium">{readable(key)}</dt>
-                          <dd>{adjustmentDescription(value)}</dd>
+                          <dd>
+                            {key === 'masks' && Array.isArray(value)
+                              ? t('modals.lightroomDevelop.maskSummary', {
+                                  total: value.length,
+                                  names: value.map((mask) => mask.name).join(', '),
+                                })
+                              : adjustmentDescription(value)}
+                          </dd>
+                          {photo.sources[key] && (
+                            <dd className="text-text-secondary">
+                              {t(`modals.lightroomDevelop.sources.${photo.sources[key]}`)}
+                            </dd>
+                          )}
                         </div>
                       ))}
                     </dl>

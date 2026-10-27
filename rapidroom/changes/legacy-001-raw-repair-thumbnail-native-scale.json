@@ -7,7 +7,7 @@
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
   "upstream_issues": ["RapidRoom/rapidroom#240", "CyberTimon/RapidRAW#1903"],
-  "upstream_prs": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#2020"],
   "rendering_change": true,
   "notes": "RAW thumbnails with saved repair patches composite on a native-resolution base before resizing, preventing shifted, enlarged or missing repairs after copying settings. Photos without repair patches retain their fast decode path. Main-image processing and exports are unchanged."
 }

@@ -1,0 +1,16 @@
+{
+  "head": "2ca480d548213ea8271152cf5b3a87480603308f",
+  "binary_sha256": "198520b4601f04aa680259f11cc6d2d41f8b299f26ee3d73f826003555d54501",
+  "production_sampler": true,
+  "passed": true,
+  "cases": [
+    "midpoint [0,2]",
+    "asymmetric negative/non-unit ranges",
+    "out-of-range clipping",
+    "intensity 50",
+    "intensity 0",
+    "unit-domain identity"
+  ],
+  "adapter": "Intel Graphics (LNL), Mesa 26.2.2, Vulkan",
+  "tests_passed": 1
+}
