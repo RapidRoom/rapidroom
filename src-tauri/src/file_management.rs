@@ -3436,7 +3436,7 @@ fn save_metadata_and_update_thumbnail_blocking(
         crate::ai_jobs::resolve(&app_handle, std::slice::from_ref(&path));
     }
 
-    queue_import_thumbnail_refresh(path, app_handle, &state);
+    queue_import_thumbnail_refresh(path, app_handle.clone(), &state);
     Ok(())
 }
 
@@ -3805,7 +3805,7 @@ pub fn import_xmp_adjustments_for_image(
 
     let draft_preserved = imported.draft_preserved;
     if adjustments_applied || imported.metadata_applied || draft_preserved {
-        queue_import_thumbnail_refresh(path, app_handle, &state);
+        queue_import_thumbnail_refresh(path, app_handle.clone(), &state);
     }
 
     log::info!(
