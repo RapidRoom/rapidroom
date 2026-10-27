@@ -1911,7 +1911,10 @@ mod tests {
 
     #[test]
     fn sigma_profile_matches_sony_exif_and_reports_tca_not_included() {
-        let db = load_bundled_db();
+        let db = LensDatabase {
+            cameras: load_bundled_db().cameras,
+            lenses: vec![sigma_profile()],
+        };
         let matched = find_best_lens_match(
             &db,
             "SONY",
