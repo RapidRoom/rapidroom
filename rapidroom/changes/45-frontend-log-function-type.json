@@ -2,7 +2,7 @@
   "id": "frontend-log-function-name-narrowing",
   "title": "Use function narrowing for frontend log names",
   "category": "ci",
-  "landed": "2026-10-14",
+  "landed": "2026-10-26",
   "authors": ["yojen7"],
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
