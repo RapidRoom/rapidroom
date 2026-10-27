@@ -24,6 +24,7 @@ pub(super) const LOCAL_ADJUSTMENTS: &[&str] = &[
     "lumaNoiseReduction",
     "saturation",
     "sectionVisibility",
+    "activeTools",
     "shadows",
     "sharpness",
     "sharpnessThreshold",
@@ -163,7 +164,7 @@ fn parameters_schema(kind: &str) -> Value {
                 number(
                     0.0,
                     1e9,
-                    "Transition width in original-image pixels; default 50.",
+                    "Feather half-width on each side of the line, in original pixels; default 50. At the line: 50%. Left-to-right affects above; top-to-bottom affects right. Reverse endpoints to swap sides.",
                 ),
             );
         }
@@ -235,7 +236,62 @@ fn parameters_schema(kind: &str) -> Value {
     }
     // The GUI retains this flag while drawing an unfinished local mask.
     p.insert("isInitialDraw".into(), json!({"type":"boolean"}));
-    object(Value::Object(p), &required)
+    let mut schema = object(Value::Object(p), &required);
+    if kind == "linear" {
+        schema["description"] = json!(
+            "Directed boundary through start→end, not a ramp between endpoints. Signed perpendicular distance d gives clamp(0.5 - d/(2*max(range,0.01)),0,1); zero-length line is empty."
+        );
+    }
+    schema
+}
+
+// Tool schemas are independent JSON Schema documents. Share repeated component
+// fields within each document; external refs cannot be assumed to resolve in a client.
+pub(super) fn compact_components(full: &Value, definitions: &mut Value) -> Value {
+    let variants = full["oneOf"].as_array().expect("static sub-mask variants");
+    let mut common = variants[0].clone();
+    common["properties"]["type"] = json!({"type":"string"});
+    common["properties"]["parameters"] = json!({"type":"object"});
+    definitions["subMaskCommon"] = common;
+    let mut shared: std::collections::BTreeMap<String, (String, Value, usize)> =
+        std::collections::BTreeMap::new();
+    for variant in variants {
+        for value in variant["properties"]["parameters"]["properties"]
+            .as_object()
+            .expect("static parameters")
+            .values()
+        {
+            let key = value.to_string();
+            if key.len() >= 80 {
+                let n = shared.len();
+                shared
+                    .entry(key)
+                    .or_insert_with(|| (format!("maskParameter{n}"), value.clone(), 0))
+                    .2 += 1;
+            }
+        }
+    }
+    let compact = variants
+        .iter()
+        .map(|variant| {
+            let mut parameters = variant["properties"]["parameters"].clone();
+            for value in parameters["properties"]
+                .as_object_mut()
+                .expect("static parameters")
+                .values_mut()
+            {
+                if let Some((name, schema, _)) = shared
+                    .get(&value.to_string())
+                    .filter(|(_, _, count)| *count > 1)
+                {
+                    definitions[name.as_str()] = schema.clone();
+                    *value = json!({"$ref":format!("#/$defs/{name}")});
+                }
+            }
+            json!({"properties":{"type":variant["properties"]["type"],"parameters":parameters}})
+        })
+        .collect::<Vec<_>>();
+    json!({"allOf":[{"$ref":"#/$defs/subMaskCommon"},{"oneOf":compact}]})
 }
 
 fn sub_mask_schema(kind: &str) -> Value {

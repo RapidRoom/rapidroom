@@ -1,19 +1,19 @@
-import { useRef, useState } from 'react';
+import { MouseEvent, ReactNode, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import Text from './Text';
-import VisibilityToggle from './VisibilityToggle';
+import VisibilityToggle, { HIDDEN_CONTENT_CLASS } from './VisibilityToggle';
 import { TextVariants, TextWeights } from '../../types/typography';
 import { useCollapsibleHeight } from '../../hooks/useCollapsibleHeight';
 
 interface CollapsibleSectionProps {
   canToggleVisibility?: boolean;
-  children: any;
+  children: ReactNode;
   isContentVisible: boolean;
   isOpen: boolean;
-  onContextMenu?: any;
-  onToggle: any;
-  onToggleVisibility?: any;
+  onContextMenu?(event: MouseEvent): void;
+  onToggle(): void;
+  onToggleVisibility?(): void;
   title: string;
 }
 
@@ -29,7 +29,7 @@ export default function CollapsibleSection({
 }: CollapsibleSectionProps) {
   const { contentRef, wrapperRef } = useCollapsibleHeight(isOpen);
   const [isHovering, setIsHovering] = useState(false);
-  const hoverTimeoutRef = useRef<any>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
     if (!canToggleVisibility) {
@@ -82,10 +82,7 @@ export default function CollapsibleSection({
       </div>
       <div ref={wrapperRef} className="overflow-hidden transition-all duration-300 ease-in-out">
         <div
-          className={clsx(
-            'px-4 pb-4 transition-opacity duration-300',
-            !isContentVisible && 'opacity-30 pointer-events-none',
-          )}
+          className={clsx('px-4 pb-4 transition-opacity duration-300', !isContentVisible && HIDDEN_CONTENT_CLASS)}
           ref={contentRef}
         >
           {children}

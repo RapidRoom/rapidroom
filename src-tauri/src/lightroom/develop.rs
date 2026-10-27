@@ -15,7 +15,9 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::catalog::{Catalog, text};
-use crate::file_management::{is_card_read_only_path, parse_virtual_path, write_file_atomically};
+use crate::file_management::{
+    is_card_read_only_path, parse_virtual_path, write_file_atomically_unmerged,
+};
 use crate::image_processing::ImageMetadata;
 use crate::lrtemplate::{catalog_as_shot_white_balance, catalog_develop_to_xmp};
 use crate::preset_converter::{
@@ -26,6 +28,21 @@ use crate::preset_converter::{
 const MAX_TEXT_BYTES: usize = 4 * 1024 * 1024;
 const MAX_ROWS: usize = 50_000;
 static IMPORT_LOCK: Mutex<()> = Mutex::new(());
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum DevelopValueSource {
+    #[serde(rename = "catalogDevelopSettings")]
+    DevelopSettings,
+    #[serde(rename = "catalogDevelopSettingsAndAsShotHistory")]
+    DevelopSettingsAndAsShotHistory,
+    #[serde(rename = "catalogOrientationAndPhotoExif")]
+    OrientationAndPhotoExif,
+    #[serde(rename = "catalogOrientationAndCatalogMetadata")]
+    OrientationAndCatalogMetadata,
+    #[serde(rename = "catalogRating")]
+    Rating,
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,6 +56,8 @@ pub struct DevelopPhotoPreview {
     pub existing_edits: bool,
     pub rating: Option<u8>,
     pub adjustments: Value,
+    pub sources: BTreeMap<String, DevelopValueSource>,
+    pub matching_xmp_sidecar: bool,
     pub unsupported: Vec<String>,
     pub error: Option<String>,
 }
@@ -58,6 +77,22 @@ pub struct DevelopImportResult {
     pub preserved: usize,
     pub virtual_copies: usize,
     pub errors: Vec<String>,
+}
+
+struct MappedDevelop {
+    adjustments: Value,
+    unsupported: Vec<String>,
+    sources: BTreeMap<String, DevelopValueSource>,
+}
+
+impl MappedDevelop {
+    fn empty() -> Self {
+        Self {
+            adjustments: json!({}),
+            unsupported: Vec::new(),
+            sources: BTreeMap::new(),
+        }
+    }
 }
 
 struct DevelopRow {
@@ -266,11 +301,58 @@ fn source_orientation(row: &DevelopRow, path: &Path) -> Option<u16> {
     (1..=8).contains(&value).then_some(value as u16)
 }
 
+/// Repeated previews and the import validation pass must hash identical
+/// adjustments. The shared XMP converter generates fresh mask UUIDs; catalog
+/// masks instead use their catalog/photo identity and structural position.
+fn stable_catalog_mask_ids(adjustments: &mut Value, catalog: &Catalog, id: i64) {
+    fn assign(value: &mut Value, seed: &[u8], position: &str) {
+        match value {
+            Value::Object(object) => {
+                if object.contains_key("id") {
+                    let mut hash = blake3::Hasher::new();
+                    hash.update(seed);
+                    hash.update(position.as_bytes());
+                    let digest = hash.finalize();
+                    object.insert(
+                        "id".into(),
+                        json!(
+                            Uuid::from_bytes(
+                                digest.as_bytes()[..16]
+                                    .try_into()
+                                    .expect("hash is 32 bytes")
+                            )
+                            .to_string()
+                        ),
+                    );
+                }
+                for (key, child) in object.iter_mut() {
+                    assign(child, seed, &format!("{position}/{key}"));
+                }
+            }
+            Value::Array(items) => {
+                for (index, child) in items.iter_mut().enumerate() {
+                    assign(child, seed, &format!("{position}/{index}"));
+                }
+            }
+            _ => {}
+        }
+    }
+    let identity = catalog
+        .path()
+        .canonicalize()
+        .unwrap_or_else(|_| catalog.path().to_path_buf());
+    let seed =
+        blake3::hash(format!("lightroom-masks:{}:{id}", identity.to_string_lossy()).as_bytes());
+    if let Some(masks) = adjustments.get_mut("masks") {
+        assign(masks, seed.as_bytes(), "masks");
+    }
+}
+
 fn map_adjustments(
     catalog: &Catalog,
     row: &DevelopRow,
     path: &Path,
-) -> Result<(Value, Vec<String>), String> {
+) -> Result<MappedDevelop, String> {
     let settings = row.settings.as_ref().map_err(Clone::clone)?;
     let as_shot = history_white_balance(catalog, row.id)
         .or_else(|| row.master.and_then(|id| history_white_balance(catalog, id)));
@@ -313,7 +395,16 @@ fn map_adjustments(
     }
     if !geometry_supported {
         if let Some(map) = adjustments.as_object_mut() {
-            for key in ["crop", "rotation", "aspectRatio", "orientationSteps"] {
+            for key in [
+                "crop",
+                "rotation",
+                "aspectRatio",
+                "orientationSteps",
+                "masks",
+            ] {
+                if key == "masks" && map.contains_key(key) {
+                    unsupported.push("orientationAndMasks".into());
+                }
                 map.remove(key);
             }
         }
@@ -324,7 +415,34 @@ fn map_adjustments(
     }
     unsupported.sort();
     unsupported.dedup();
-    Ok((adjustments, unsupported))
+    stable_catalog_mask_ids(&mut adjustments, catalog, row.id);
+    let mut sources = BTreeMap::new();
+    for key in adjustments
+        .as_object()
+        .into_iter()
+        .flat_map(|map| map.keys())
+    {
+        let source = if matches!(key.as_str(), "temperature" | "tint") && as_shot.is_some() {
+            DevelopValueSource::DevelopSettingsAndAsShotHistory
+        } else if key == "orientationSteps" {
+            if extract_namespaced_scalar(&row.xmp, "tiff", "Orientation")
+                .and_then(|v| v.parse::<u16>().ok())
+                .is_some_and(|v| (1..=8).contains(&v))
+            {
+                DevelopValueSource::OrientationAndCatalogMetadata
+            } else {
+                DevelopValueSource::OrientationAndPhotoExif
+            }
+        } else {
+            DevelopValueSource::DevelopSettings
+        };
+        sources.insert(key.clone(), source);
+    }
+    Ok(MappedDevelop {
+        adjustments,
+        unsupported,
+        sources,
+    })
 }
 
 fn virtual_path(catalog: &Catalog, row: &DevelopRow, path: &Path) -> String {
@@ -468,17 +586,24 @@ fn prepare(path: &Path, mappings: &HashMap<String, String>) -> Result<PreparedIm
                 }
             }
         }
-        let (adjustments, unsupported) = if found {
+        let MappedDevelop {
+            adjustments,
+            unsupported,
+            mut sources,
+        } = if found {
             match map_adjustments(&catalog, &row, path) {
                 Ok(mapped) => mapped,
                 Err(message) => {
                     error = Some(message);
-                    (json!({}), Vec::new())
+                    MappedDevelop::empty()
                 }
             }
         } else {
-            (json!({}), Vec::new())
+            MappedDevelop::empty()
         };
+        if row.rating.is_some() {
+            sources.insert("rating".into(), DevelopValueSource::Rating);
+        }
         hash_field(&mut hash, &row.id.to_le_bytes());
         hash_field(&mut hash, virtual_path.as_bytes());
         hash_field(
@@ -509,6 +634,11 @@ fn prepare(path: &Path, mappings: &HashMap<String, String>) -> Result<PreparedIm
                         .is_some_and(|map| !map.is_empty()),
                 rating: row.rating,
                 adjustments,
+                sources,
+                matching_xmp_sidecar: ["xmp", "XMP"].iter().any(|extension| {
+                    path.with_extension(extension).is_file()
+                        || PathBuf::from(format!("{}.{}", path.display(), extension)).is_file()
+                }),
                 unsupported,
                 error,
             },
@@ -561,6 +691,29 @@ fn apply_import(
     import_ratings: bool,
     replace_ratings: bool,
 ) -> Result<DevelopImportResult, String> {
+    apply_import_with(
+        path,
+        mappings,
+        fingerprint,
+        selections,
+        replace_edits,
+        import_ratings,
+        replace_ratings,
+        |path, bytes| write_file_atomically_unmerged(path, bytes),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_import_with(
+    path: &Path,
+    mappings: &HashMap<String, String>,
+    fingerprint: &str,
+    selections: &[i64],
+    replace_edits: bool,
+    import_ratings: bool,
+    replace_ratings: bool,
+    write: impl Fn(&Path, &[u8]) -> std::io::Result<()>,
+) -> Result<DevelopImportResult, String> {
     let _guard = IMPORT_LOCK
         .lock()
         .map_err(|_| "Catalog import lock failed.".to_string())?;
@@ -595,6 +748,19 @@ fn apply_import(
     }
     let mut result = DevelopImportResult::default();
     for mut photo in photos {
+        let mut targets = vec![photo.sidecar.clone()];
+        if let Some((path, _)) = &photo.inherit_from {
+            targets.push(path.clone());
+        }
+        let _guard = match crate::file_management::lock_sidecars(&targets) {
+            Ok(guard) => guard,
+            Err(error) => {
+                result
+                    .errors
+                    .push(format!("{}: {error}", photo.preview.path));
+                continue;
+            }
+        };
         let (source, _) = parse_virtual_path(&photo.preview.path);
         let unchanged = sidecar_bytes(&photo.sidecar)
             .is_ok_and(|bytes| bytes == photo.sidecar_bytes)
@@ -627,8 +793,13 @@ fn apply_import(
             result.preserved += 1;
             continue;
         }
+        if photo.preview.virtual_copy
+            && let Some(document) = photo.document.as_object_mut()
+        {
+            document.remove("stack");
+        }
         let bytes = serde_json::to_vec_pretty(&photo.document).map_err(|e| e.to_string())?;
-        match write_file_atomically(&photo.sidecar, bytes) {
+        match write(&photo.sidecar, &bytes) {
             Ok(()) => {
                 result.imported += 1;
                 if photo.preview.virtual_copy && !photo.preview.existing_sidecar {
@@ -784,6 +955,75 @@ mod tests {
 
     const SETTINGS: &[u8] = b"s = { Exposure2012 = 0.5, FutureScalar = 7 }";
 
+    const MASK_SETTINGS: &[u8] = br#"s = { Exposure2012 = 0.5,
+      MaskGroupBasedCorrections = {
+        { CorrectionName = 'Catalog sky', LocalExposure2012 = -0.125,
+          CorrectionMasks = {
+            { What = 'Mask/Gradient', MaskName = 'Sky',
+              ZeroX = 0.5, ZeroY = 0.6, FullX = 0.5, FullY = 0.2 }
+          }
+        }
+      } }"#;
+
+    #[test]
+    fn catalog_develop_and_masks_take_precedence_over_a_matching_xmp() {
+        let _mode = CardMode::off();
+        let library = Library::new();
+        let raw = library.photo(1, "masked", MASK_SETTINGS);
+        fs::write(
+            raw.with_extension("xmp"),
+            "<rdf:Description crs:Exposure2012='9'/>",
+        )
+        .unwrap();
+        let before = folder_state(library.dir.path());
+        let preview = library.prepare();
+        let photo = &preview.photos[0].preview;
+        let repeated = library.prepare();
+        assert_eq!(repeated.fingerprint, preview.fingerprint);
+        assert_eq!(repeated.photos[0].preview.adjustments, photo.adjustments);
+        assert_eq!(photo.adjustments["exposure"], 0.5);
+        assert_eq!(photo.adjustments["masks"][0]["name"], "Catalog sky");
+        assert_eq!(
+            photo.adjustments["masks"][0]["subMasks"][0]["type"],
+            "linear"
+        );
+        assert_eq!(
+            photo.sources["exposure"],
+            DevelopValueSource::DevelopSettings
+        );
+        assert_eq!(photo.sources["masks"], DevelopValueSource::DevelopSettings);
+        assert_eq!(photo.sources["rating"], DevelopValueSource::Rating);
+        assert!(photo.matching_xmp_sidecar);
+        assert_eq!(folder_state(library.dir.path()), before);
+        library
+            .apply(&preview.fingerprint, &[1], false, true, false)
+            .unwrap();
+        let (_, sidecar) = parse_virtual_path(&raw.to_string_lossy());
+        let metadata: ImageMetadata = serde_json::from_slice(&fs::read(sidecar).unwrap()).unwrap();
+        assert_eq!(metadata.adjustments, photo.adjustments);
+        for path in [raw.clone(), raw.with_extension("xmp"), library.path.clone()] {
+            assert_eq!(fs::read(&path).unwrap(), before[&path].0);
+        }
+    }
+
+    #[test]
+    fn catalog_masks_are_reported_when_photo_orientation_is_unknown() {
+        let _mode = CardMode::off();
+        let library = Library::new();
+        library.photo(1, "masked", MASK_SETTINGS);
+        library
+            .catalog
+            .connection
+            .execute("DELETE FROM Adobe_AdditionalMetadata", [])
+            .unwrap();
+        let preview = library.prepare();
+        let photo = &preview.photos[0].preview;
+        assert_eq!(photo.adjustments["exposure"], 0.5);
+        assert!(photo.adjustments.get("masks").is_none());
+        assert!(!photo.sources.contains_key("masks"));
+        assert!(photo.unsupported.contains(&"orientationAndMasks".into()));
+    }
+
     #[test]
     fn preview_is_read_only_and_apply_requires_selected_photos() {
         let _mode = CardMode::off();
@@ -856,6 +1096,72 @@ mod tests {
         let saved: Value = serde_json::from_slice(&fs::read(&sidecar).unwrap()).unwrap();
         assert_eq!(saved["rating"], json!(3));
         assert_eq!(saved["adjustments"]["exposure"], json!(0.5));
+    }
+
+    #[test]
+    fn develop_publication_and_user_edits_share_one_sidecar_transaction() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+        let _mode = CardMode::off();
+        let library = Library::new();
+        let raw = library.photo(1, "concurrent", SETTINGS);
+        let (_, sidecar) = parse_virtual_path(&raw.to_string_lossy());
+        let original = json!({"version":1,"rating":0,"adjustments":{},"tags":["user:keep"],
+            "stack":{"id":"burst","position":0},"appliedPreset":{"id":"preset"},
+            "exportFraming":{"version":1},"denoise":{"version":1},"future":{"keep":true}});
+        fs::write(&sidecar, serde_json::to_vec(&original).unwrap()).unwrap();
+        let preview = library.prepare();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (allow_tx, allow_rx) = mpsc::channel();
+        let allow_rx = Mutex::new(allow_rx);
+        let (path, mappings) = (library.path.clone(), library.mappings.clone());
+        let importer = std::thread::spawn(move || {
+            apply_import_with(
+                &path,
+                &mappings,
+                &preview.fingerprint,
+                &[1],
+                true,
+                true,
+                true,
+                |path, bytes| {
+                    entered_tx.send(()).unwrap();
+                    allow_rx.lock().unwrap().recv().unwrap();
+                    write_file_atomically_unmerged(path, bytes)
+                },
+            )
+            .unwrap()
+        });
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let target = sidecar.clone();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        let writer = std::thread::spawn(move || {
+            ready_tx.send(()).unwrap();
+            crate::file_management::update_sidecar(&target, |m| {
+                m.rating = 5;
+                m.adjustments = json!({"exposure":1.25});
+                m.tags.get_or_insert_with(Vec::new).push("user:new".into());
+            })
+            .unwrap();
+            done_tx.send(()).unwrap();
+        });
+        ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let premature = done_rx.recv_timeout(Duration::from_millis(150));
+        allow_tx.send(()).unwrap();
+        assert_eq!(importer.join().unwrap().imported, 1);
+        writer.join().unwrap();
+        assert!(
+            premature.is_err(),
+            "rating writer entered between preview validation and publication"
+        );
+        let saved: Value = serde_json::from_slice(&fs::read(sidecar).unwrap()).unwrap();
+        assert_eq!(saved["rating"], 5);
+        assert_eq!(saved["adjustments"]["exposure"], 1.25);
+        assert_eq!(saved["tags"], json!(["user:keep", "user:new"]));
+        for key in crate::file_management::SIDECAR_OWNED_FIELDS {
+            assert_eq!(saved[key], original[key]);
+        }
     }
 
     #[test]

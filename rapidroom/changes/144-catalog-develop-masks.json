@@ -1,0 +1,13 @@
+{
+  "id": "catalog-develop-masks",
+  "title": "Import catalog mask resources and show each adjustment’s source",
+  "category": "feature",
+  "landed": "2026-10-26",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original bounded mask encoding; existing catalog importer attribution retained)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Catalog develop rows preserve ordered mask resources and every inline brush position through the existing image-aware XMP converter. Supported gradients, radial masks and brush strokes import from the catalog even when an XMP sidecar differs. The preview identifies catalog, history and orientation sources per value; existing RapidRoom edits still require explicit replacement. AI masks without recoverable pixels, unsupported resources and radius/flow changes within brush strokes are reported. Lightroom imports remain uncalibrated until full import calibration is complete."
+}

@@ -1,0 +1,42 @@
+{
+  "base_application_head": "4bea590bbd66b074877cad96626b427783c6d9a0",
+  "method": "Sequential cached application of published cumulative patches in a disposable index; every reconstructed src-tauri tree equals its compiled control tree. Application worktree/index unchanged.",
+  "passed": true,
+  "controls": [
+    {
+      "label": "no-whites",
+      "reconstructed_src_tauri_tree": "861588e537d139e6df7aff8ed7f22e765d2b6c53",
+      "matches_compiled_control": true
+    },
+    {
+      "label": "no-detail",
+      "reconstructed_src_tauri_tree": "dd556b059d36261f3488efd22ae9ca824feae0cb",
+      "matches_compiled_control": true
+    },
+    {
+      "label": "no-guided",
+      "reconstructed_src_tauri_tree": "f9be92050ee54dde3501891b10119f76ffb29ccf",
+      "matches_compiled_control": true
+    },
+    {
+      "label": "no-wb-clamp",
+      "reconstructed_src_tauri_tree": "3b59d8215798b22ecce7a4d0fe3ee0a6c45f9401",
+      "matches_compiled_control": true
+    },
+    {
+      "label": "no-wb-refactor",
+      "reconstructed_src_tauri_tree": "52e359f75c8f2486cd2ac95de2aa018411cb4ab6",
+      "matches_compiled_control": true
+    },
+    {
+      "label": "no-wb-interpolation",
+      "reconstructed_src_tauri_tree": "ad28b0a7e3098c0fb03c0da32a6890ef28ba2358",
+      "matches_compiled_control": true
+    },
+    {
+      "label": "old-relative-wb",
+      "reconstructed_src_tauri_tree": "3e6921d8eb586a6996654058c8111ab64e2284f0",
+      "matches_compiled_control": true
+    }
+  ]
+}

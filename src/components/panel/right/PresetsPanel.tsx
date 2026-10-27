@@ -42,6 +42,8 @@ import {
   Wrench,
   Star,
   Settings2,
+  Check,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfigurePresetModal from '../../modals/ConfigurePresetModal';
@@ -51,12 +53,19 @@ import Button from '../../ui/Button';
 import Text from '../../ui/Text';
 import Slider from '../../ui/Slider';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
-import { Adjustments, ADJUSTMENT_GROUPS } from '../../../utils/adjustments';
+import { ADJUSTMENT_GROUPS } from '../../../utils/adjustments';
 import { OPTION_SEPARATOR, Preset, type Folder } from '../../ui/AppProperties';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useUIStore } from '../../../store/useUIStore';
 import { debouncedSetHistory, useEditorActions } from '../../../hooks/useEditorActions';
-import { mixAdjustments } from '../../../utils/presetAmount';
+import { mixPresetAdjustments } from '../../../utils/presetAmount';
+import {
+  usePresetApplication,
+  preparePresetApplication,
+  commitPresetApplication,
+  prepareStyleRemoval,
+} from '../../../utils/presetApplication';
+import { useAppliedPreset } from '../../../hooks/useAppliedPreset';
 import { presetUnavailableReason, filterPresetLibrary } from '../../../utils/presetBrowser';
 import { clearPresetHoverPreview, showPresetHoverPreview } from '../../../utils/presetHoverPreview';
 
@@ -77,6 +86,8 @@ interface DraggablePresetItemProps {
   dndId?: string;
   disabled?: boolean;
   isActive?: boolean;
+  isApplied?: boolean;
+  appliedPosition?: number;
   intensity?: number;
   onIntensityChange?: (val: number) => void;
   onDragStateChange?: (isDragging: boolean) => void;
@@ -112,6 +123,8 @@ interface PresetItemDisplayProps {
   preset: Preset;
   onToggleFavorite?: () => void;
   isActive?: boolean;
+  isApplied?: boolean;
+  appliedPosition?: number;
   intensity?: number;
   onIntensityChange?: (val: number) => void;
   onDragStateChange?: (isDragging: boolean) => void;
@@ -148,6 +161,8 @@ function PresetItemDisplay({
   preset,
   onToggleFavorite,
   isActive,
+  isApplied,
+  appliedPosition,
   intensity,
   onIntensityChange,
   onDragStateChange,
@@ -169,11 +184,31 @@ function PresetItemDisplay({
   }, [supportsMasks, supportsGeometry, t]);
 
   return (
-    <div className="group flex flex-col px-2.5 py-1.5 rounded-md bg-surface hover:bg-surface-hover transition-colors cursor-grabbing">
+    <div
+      className={`group flex flex-col px-2.5 py-1.5 rounded-md hover:bg-surface-hover transition-colors cursor-grabbing ${isApplied ? 'bg-primary/10 ring-1 ring-inset ring-primary/50' : 'bg-surface'}`}
+    >
       <div className="flex items-center gap-2">
-        <Text color={TextColors.primary} className="grow min-w-0 truncate">
-          {preset.name}
-        </Text>
+        <div className="grow min-w-0" data-tooltip={preset.description}>
+          <Text color={TextColors.primary} className="truncate">
+            {preset.name}
+          </Text>
+          {preset.description && <p className="text-xs text-text-secondary truncate">{preset.description}</p>}
+        </div>
+        {isApplied && (
+          <span className="flex items-center gap-1 shrink-0 text-primary text-xs">
+            {appliedPosition ? (
+              <span
+                aria-label={`Applied Style ${appliedPosition}`}
+                className="rounded-full bg-primary/20 min-w-5 h-5 text-center leading-5"
+              >
+                {appliedPosition}
+              </span>
+            ) : (
+              <Check size={14} aria-label={t('editor.presets.applied')} />
+            )}
+            {intensity !== undefined && intensity !== 100 && <span>{intensity}%</span>}
+          </span>
+        )}
         {(isTool || supportsMasks || supportsGeometry) && (
           <div className="flex items-center gap-1.5 shrink-0 text-text-secondary" data-tooltip={tooltipContent}>
             {isTool && <Wrench size={12} aria-label={t('editor.presets.types.tool')} />}
@@ -255,6 +290,8 @@ function DraggablePresetItem({
   dndId,
   disabled,
   isActive,
+  isApplied,
+  appliedPosition,
   intensity,
   onIntensityChange,
   onDragStateChange,
@@ -318,6 +355,8 @@ function DraggablePresetItem({
           preset={preset}
           onToggleFavorite={onToggleFavorite}
           isActive={isActive}
+          isApplied={isApplied}
+          appliedPosition={appliedPosition}
           intensity={intensity}
           onIntensityChange={onIntensityChange}
           onDragStateChange={onDragStateChange}
@@ -422,6 +461,13 @@ function RootDroppableArea({
 export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProps) {
   const { t } = useTranslation();
   const selectedImage = useEditorStore((s) => s.selectedImage);
+  const appliedPreset = useAppliedPreset();
+  const appliedStyles = appliedPreset?.stack?.entries ?? [];
+  const appliedPosition = (id: string) => {
+    const index = appliedStyles.findIndex((entry) => entry.presetId === id);
+    return index < 0 ? undefined : index + 1;
+  };
+  const [appliedExpanded, setAppliedExpanded] = useState(true);
   const adjustments = useEditorStore((s) => s.adjustments);
   const setEditor = useEditorStore((s) => s.setEditor);
   const { setAdjustments } = useEditorActions();
@@ -454,11 +500,10 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
   const [query, setQuery] = useState('');
   const [compatibleOnly, setCompatibleOnly] = useState(false);
   const exportNewXmp = useRef(false);
-  const presetBase = useRef<Adjustments | null>(null);
-  const lastPresetEdit = useRef<Adjustments | null>(null);
+  const application = usePresetApplication((state) => state.application);
 
-  const [activePresetId, setActivePresetId] = useState<string | null>(null);
-  const [presetIntensity, setPresetIntensity] = useState<number>(100);
+  const activePresetId = application?.stack ? null : (application?.preset.id ?? null);
+  const presetIntensity = application?.amount ?? 100;
   const [isActivePresetExpanded, setIsActivePresetExpanded] = useState(true);
 
   const activeView = useUIStore((s) => s.activeView);
@@ -469,16 +514,17 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
       if (
         preset &&
         !presetUnavailableReason(preset, selectedImage?.exif?.Model) &&
+        !appliedPosition(preset.id) &&
         preset.id !== activePresetId &&
         activeView === 'editor' &&
         selectedImage?.isReady
       ) {
-        showPresetHoverPreview(mixAdjustments(preset.adjustments, 100, useEditorStore.getState().adjustments));
+        showPresetHoverPreview(mixPresetAdjustments(preset, 100, useEditorStore.getState().adjustments, selectedImage));
       } else {
         clearPresetHoverPreview();
       }
     },
-    [activePresetId, activeView, selectedImage?.isReady, selectedImage?.exif?.Model],
+    [activePresetId, activeView, selectedImage, appliedPreset],
   );
 
   useEffect(() => clearPresetHoverPreview, []);
@@ -562,48 +608,49 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
     });
   };
 
-  useEffect(() => {
-    setActivePresetId(null);
-    presetBase.current = null;
-    lastPresetEdit.current = null;
-  }, [selectedImage?.path, selectedImage?.isReady]);
-
-  useEffect(() => {
-    if (activePresetId && lastPresetEdit.current !== adjustments) {
-      setActivePresetId(null);
-      presetBase.current = null;
+  const handleRemoveStyle = (id: string) => {
+    clearPresetHoverPreview();
+    debouncedSetHistory.flush();
+    try {
+      const plan = prepareStyleRemoval(id);
+      commitPresetApplication(plan, (next) => setAdjustments(() => next, plan.application.label));
+      debouncedSetHistory.flush();
+    } catch (error) {
+      toast.info(String(error instanceof Error ? error.message : error));
     }
-  }, [adjustments, activePresetId]);
+  };
 
   const handleApplyPreset = (preset: Preset) => {
     if (!selectedImage?.isReady || presetUnavailableReason(preset, selectedImage.exif?.Model)) return;
     setHoverPreview(null);
-    if (activePresetId === preset.id) {
+    if (appliedPosition(preset.id)) {
+      handleRemoveStyle(preset.id);
+      return;
+    }
+    if (preset.presetType === 'tool' && activePresetId === preset.id) {
       setIsActivePresetExpanded((expanded) => !expanded);
       return;
     }
-
-    setActivePresetId(preset.id);
-    setIsActivePresetExpanded(true);
-    setPresetIntensity(100);
-
     debouncedSetHistory.flush();
-    presetBase.current = useEditorStore.getState().adjustments;
-    const next = { ...presetBase.current, ...mixAdjustments(preset.adjustments, 100, presetBase.current) };
-    lastPresetEdit.current = next;
-    setAdjustments(() => next);
-    debouncedSetHistory.flush();
+    try {
+      const plan = preparePresetApplication(preset, 100);
+      commitPresetApplication(plan, (next) => setAdjustments(() => next, plan.application.label));
+      setAppliedExpanded(true);
+      setIsActivePresetExpanded(true);
+      debouncedSetHistory.flush();
+    } catch (error) {
+      toast.info(String(error instanceof Error ? error.message : error));
+    }
   };
 
   const handleIntensityChange = useCallback(
     (preset: Preset, intensity: number) => {
-      setPresetIntensity(intensity);
-      const base = presetBase.current;
-      if (!base || useEditorStore.getState().adjustments !== lastPresetEdit.current) return;
-      const mixed = mixAdjustments(preset.adjustments, intensity, base);
-      const next = { ...base, ...mixed };
-      lastPresetEdit.current = next;
-      setAdjustments(() => next);
+      try {
+        const plan = preparePresetApplication(preset, intensity);
+        commitPresetApplication(plan, (next) => setAdjustments(() => next, plan.application.label));
+      } catch (error) {
+        toast.info(String(error instanceof Error ? error.message : error));
+      }
     },
     [setAdjustments],
   );
@@ -617,7 +664,8 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
     if (configureModalState.preset) {
       configurePreset(configureModalState.preset.id, name, includeMasks, includeCropTransform, presetType);
     } else {
-      const preset = addPreset(name, null, includeMasks, includeCropTransform, presetType);
+      const preset = await addPreset(name, null, includeMasks, includeCropTransform, presetType);
+      if (!preset) return;
       if (exportNewXmp.current) {
         exportNewXmp.current = false;
         await handleExportXmp(preset);
@@ -987,6 +1035,76 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
             {t('editor.presets.compatibleOnly')}
           </label>
         </div>
+        {appliedStyles.length > 0 && (
+          <section
+            aria-label="Applied Styles"
+            className="mx-3 mb-2 rounded-lg border border-border-color bg-surface shrink-0 max-h-[45%] overflow-y-auto"
+          >
+            <button
+              type="button"
+              className="flex items-center gap-2 w-full p-2 text-left"
+              aria-expanded={appliedExpanded}
+              onClick={() => setAppliedExpanded((expanded) => !expanded)}
+            >
+              {appliedExpanded ? <FolderOpen size={18} /> : <FolderIcon size={18} />}
+              <span className="grow font-medium">{t('editor.presets.appliedFolder')}</span>
+              <span>{appliedStyles.length}/3</span>
+            </button>
+            {appliedExpanded && (
+              <div className="pl-3 pr-2 pb-2 space-y-2">
+                {appliedStyles.map((entry, index) => (
+                  <div key={entry.presetId} data-applied-style={entry.presetId} className="rounded-md bg-card p-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 grow min-w-0 text-left"
+                        aria-label={`Remove Style ${index + 1}: ${entry.name}`}
+                        onClick={() => handleRemoveStyle(entry.presetId)}
+                      >
+                        <span className="shrink-0 rounded-full bg-primary/20 min-w-5 h-5 text-center leading-5 text-primary">
+                          {index + 1}
+                        </span>
+                        <span className="truncate">{entry.name}</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${entry.name}`}
+                        className="shrink-0 p-1"
+                        onClick={() => handleRemoveStyle(entry.presetId)}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                    {entry.bakedIn ? (
+                      <p className="text-xs text-text-secondary mt-1">{t('editor.presets.bakedInNotice')}</p>
+                    ) : (
+                      <Slider
+                        min={0}
+                        max={200}
+                        step={1}
+                        defaultValue={100}
+                        value={entry.amount}
+                        label={t('editor.presets.amount')}
+                        onChange={(event) =>
+                          handleIntensityChange(
+                            {
+                              id: entry.presetId,
+                              name: entry.name,
+                              adjustments: entry.adjustments,
+                              presetType: 'style',
+                            },
+                            Number(event.target.value),
+                          )
+                        }
+                        onDragStateChange={handleDragStateChange}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
         <RootDroppableArea onContextMenu={handleBackgroundContextMenu}>
           {isLoading && presets.length === 0 ? (
             <Text
@@ -1026,7 +1144,16 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
                       onToggleFavorite={() => toggleFavorite(preset.id)}
                       preset={preset}
                       isActive={preset.id === activePresetId && isActivePresetExpanded}
-                      intensity={preset.id === activePresetId ? presetIntensity : 100}
+                      isApplied={!!appliedPosition(preset.id) || preset.id === appliedPreset?.id}
+                      appliedPosition={appliedPosition(preset.id)}
+                      intensity={
+                        appliedStyles.find((entry) => entry.presetId === preset.id)?.amount ??
+                        (preset.id === activePresetId
+                          ? presetIntensity
+                          : preset.id === appliedPreset?.id
+                            ? appliedPreset.amount
+                            : 100)
+                      }
                       onIntensityChange={(val) => handleIntensityChange(preset, val)}
                       onDragStateChange={handleDragStateChange}
                       onHoverChange={setHoverPreview}
@@ -1068,7 +1195,16 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
                                   onToggleFavorite={() => toggleFavorite(preset.id)}
                                   preset={preset}
                                   isActive={preset.id === activePresetId && isActivePresetExpanded}
-                                  intensity={preset.id === activePresetId ? presetIntensity : 100}
+                                  isApplied={!!appliedPosition(preset.id) || preset.id === appliedPreset?.id}
+                                  appliedPosition={appliedPosition(preset.id)}
+                                  intensity={
+                                    appliedStyles.find((entry) => entry.presetId === preset.id)?.amount ??
+                                    (preset.id === activePresetId
+                                      ? presetIntensity
+                                      : preset.id === appliedPreset?.id
+                                        ? appliedPreset.amount
+                                        : 100)
+                                  }
                                   onIntensityChange={(val) => handleIntensityChange(preset, val)}
                                   onDragStateChange={handleDragStateChange}
                                   onHoverChange={setHoverPreview}
@@ -1099,7 +1235,16 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
                         onToggleFavorite={() => item.preset && toggleFavorite(item.preset.id)}
                         preset={item.preset}
                         isActive={item.preset?.id === activePresetId && isActivePresetExpanded}
-                        intensity={item.preset?.id === activePresetId ? presetIntensity : 100}
+                        isApplied={!!appliedPosition(item.preset.id) || item.preset?.id === appliedPreset?.id}
+                        appliedPosition={appliedPosition(item.preset.id)}
+                        intensity={
+                          appliedStyles.find((entry) => entry.presetId === item.preset.id)?.amount ??
+                          (item.preset.id === activePresetId
+                            ? presetIntensity
+                            : item.preset.id === appliedPreset?.id
+                              ? appliedPreset.amount
+                              : 100)
+                        }
                         onIntensityChange={(val) => handleIntensityChange(item.preset as Preset, val)}
                         onHoverChange={setHoverPreview}
                       />

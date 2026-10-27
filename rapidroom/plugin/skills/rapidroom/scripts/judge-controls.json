@@ -1,0 +1,22 @@
+{
+  "exposure": {
+    "minimum": -5,
+    "maximum": 5
+  },
+  "highlights": {
+    "minimum": -100,
+    "maximum": 100
+  },
+  "shadows": {
+    "minimum": -100,
+    "maximum": 100
+  },
+  "temperature": {
+    "minimum": -100,
+    "maximum": 100
+  },
+  "vibrance": {
+    "minimum": -100,
+    "maximum": 100
+  }
+}

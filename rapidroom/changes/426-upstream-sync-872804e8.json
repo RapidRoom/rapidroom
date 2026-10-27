@@ -1,0 +1,20 @@
+{
+  "id": "upstream-sync-872804e8",
+  "title": "Sync upstream RapidRAW 872804e8: DNG-style camera colour, gamut compression, dehaze rewrite, demosaic false-colour fix, and file-operation safety fixes",
+  "category": "fix",
+  "landed": "2026-10-25",
+  "authors": ["CyberTimon", "lalibertemarc", "yojen7"],
+  "source": "CyberTimon/RapidRAW main at 872804e8a21d4dff707f31fc9dcf5d3128ca663b (normal merge; RapidRoom conflict resolution with Claude)",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/872804e8a21d4dff707f31fc9dcf5d3128ca663b"],
+  "upstream_issues": [],
+  "upstream_prs": [
+    "CyberTimon/RapidRAW#1999",
+    "CyberTimon/RapidRAW#2000",
+    "CyberTimon/RapidRAW#2001",
+    "CyberTimon/RapidRAW#2003",
+    "CyberTimon/RapidRAW#2004",
+    "CyberTimon/RapidRAW#2005"
+  ],
+  "rendering_change": true,
+  "notes": "Rendering changes come from upstream (camera colour from dual-illuminant matrices, out-of-gamut compression, demosaic false-colour removal, dehaze rewrite, AI mask edges, fast inpainting); RapidRoom keeps its multi-exposure white balance ordering and the Sony lossless M/S as-shot white balance guard on top of the new colour pipeline. The rawler pin moves to yojen7/RapidRAW-DngLab 1354ed2f, which adds upstream's Olympus E-M1X CFA fix. Upstream's file-safety fixes are ported into RapidRoom's own planners: deleting from several folders matches stems per folder; copy, move and batch rename treat only exact six-hex virtual copy ids as edits of an image, so `IMG.CR2.jpg.rrdata` stays with IMG.CR2.jpg; renaming from the library no longer opens the editor; folder renames update nested pinned folders and roots. Thumbnails are regenerated when render settings change. XMP tags are decoded once (RapidRoom's XML reader already unescapes). Also removes a duplicate Auto straighten entry from the editor menu. Upstream's filter-exit undo toast is not ported yet: RapidRoom's metadata write queue needs its own version."
+}

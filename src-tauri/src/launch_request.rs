@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI32, Ordering};
 use tauri::Emitter;
 
@@ -37,6 +37,8 @@ pub enum LaunchRequest {
     EditSession(ExternalEditSession),
     HeadlessExport(HeadlessExportSession),
     HeadlessBench(crate::bench::BenchSession),
+    HeadlessDenoise(crate::denoising::queue::Cli),
+    InvalidDenoise(String),
     InvalidHeadless(String),
     InvalidBench(String),
 }
@@ -95,6 +97,12 @@ fn parse_sharpen_arg(value: &str) -> Result<Option<OutputSharpening>, String> {
 }
 
 pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
+    if args.first().map(String::as_str) == Some("denoise") {
+        return match crate::denoising::queue::parse_args(&args[1..]) {
+            Ok(session) => LaunchRequest::HeadlessDenoise(session),
+            Err(error) => LaunchRequest::InvalidDenoise(error),
+        };
+    }
     if args.first().map(|s| s.as_str()) == Some("bench") {
         return match crate::bench::parse_bench_args(&args[1..]) {
             Ok(session) => LaunchRequest::HeadlessBench(session),
@@ -248,6 +256,28 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
     }
 }
 
+pub fn resolve_gui_launch_paths(request: LaunchRequest, cwd: &Path) -> LaunchRequest {
+    let resolve = |path: String| {
+        if path.is_empty() || Path::new(&path).is_absolute() || !cwd.is_absolute() {
+            return path;
+        }
+        let joined = cwd.join(&path);
+        std::path::absolute(&joined)
+            .unwrap_or(joined)
+            .to_string_lossy()
+            .into_owned()
+    };
+    match request {
+        LaunchRequest::OpenFile(path) => LaunchRequest::OpenFile(resolve(path)),
+        LaunchRequest::EditSession(mut session) => {
+            session.source = resolve(session.source);
+            session.output = resolve(session.output);
+            LaunchRequest::EditSession(session)
+        }
+        other => other,
+    }
+}
+
 fn handle_file_open(app_handle: &tauri::AppHandle, path: PathBuf) {
     if let Some(path_str) = path.to_str()
         && let Err(e) = app_handle.emit("open-with-file", path_str)
@@ -280,6 +310,10 @@ pub fn emit_launch_request(app_handle: &tauri::AppHandle, request: LaunchRequest
         LaunchRequest::InvalidBench(error) => {
             log::error!("Invalid bench request: {}", error);
         }
+        LaunchRequest::HeadlessDenoise(_) => {
+            cli_eprintln!("Denoise requires its own headless instance.")
+        }
+        LaunchRequest::InvalidDenoise(error) => log::error!("Invalid denoise request: {}", error),
         LaunchRequest::None => {}
     }
 }
@@ -386,5 +420,74 @@ mod tests {
     fn success_and_window_close_exit_zero() {
         assert_eq!(resolve_exit_code(Some(0), 0), 0);
         assert_eq!(resolve_exit_code(None, 0), 0);
+    }
+
+    #[test]
+    fn gui_file_paths_use_the_launching_directory() {
+        let cwd = std::env::temp_dir().join("rapidroom launch directory");
+        for path in ["photo.jpg", "./photo.jpg", "nested/photo.jpg"] {
+            let LaunchRequest::OpenFile(resolved) = resolve_gui_launch_paths(parse(&[path]), &cwd)
+            else {
+                panic!("expected a file launch");
+            };
+            assert_eq!(
+                Path::new(&resolved),
+                std::path::absolute(cwd.join(path)).unwrap()
+            );
+            assert!(Path::new(&resolved).is_absolute());
+        }
+    }
+
+    #[test]
+    fn forwarded_launch_uses_caller_cwd_and_preserves_absolute_paths() {
+        let caller = std::env::temp_dir().join("second caller");
+        let absolute = std::env::temp_dir().join("absolute photo.jpg");
+        for (input, expected) in [
+            ("photo.jpg".to_string(), caller.join("photo.jpg")),
+            (absolute.to_string_lossy().into_owned(), absolute),
+        ] {
+            let LaunchRequest::OpenFile(resolved) =
+                resolve_gui_launch_paths(parse(&[&input]), &caller)
+            else {
+                panic!("expected a file launch");
+            };
+            assert_eq!(Path::new(&resolved), expected);
+        }
+    }
+
+    #[test]
+    fn gui_edit_session_resolves_source_and_uncreated_output() {
+        let cwd = std::env::temp_dir().join("external editor caller");
+        let LaunchRequest::EditSession(session) = resolve_gui_launch_paths(
+            parse(&["--edit", "photo.jpg", "--output", "new-output/result.jpg"]),
+            &cwd,
+        ) else {
+            panic!("expected an edit session");
+        };
+        assert_eq!(Path::new(&session.source), cwd.join("photo.jpg"));
+        assert_eq!(
+            Path::new(&session.output),
+            cwd.join("new-output/result.jpg")
+        );
+        assert_eq!(session.format, "jpg");
+        assert_eq!(session.jpeg_quality, 90);
+    }
+
+    #[test]
+    fn headless_paths_and_unknown_caller_cwd_are_not_reinterpreted() {
+        let cwd = std::env::temp_dir().join("caller");
+        let LaunchRequest::HeadlessExport(session) =
+            resolve_gui_launch_paths(parse(&["export", "photo.dng", "--output", "out"]), &cwd)
+        else {
+            panic!("expected headless export");
+        };
+        assert_eq!(session.source, "photo.dng");
+        assert_eq!(session.output, "out");
+        let LaunchRequest::OpenFile(path) =
+            resolve_gui_launch_paths(parse(&["photo.jpg"]), Path::new(""))
+        else {
+            panic!("expected a file launch");
+        };
+        assert_eq!(path, "photo.jpg");
     }
 }

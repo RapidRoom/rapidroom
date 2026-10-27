@@ -1,0 +1,32 @@
+{
+  "source": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+  "harness_sha256": "80d6e1a6e2ff92f2d64d3bf79712616cc7b40772e9c743893073e0f8b93a9655",
+  "browser": "Local Chromium",
+  "default": {
+    "policy": "configured",
+    "csp": "default-src 'self'; script-src 'self' https://clerk.getrapidraw.com; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost blob: data:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://api.github.com https://raw.githubusercontent.com https://clerk.getrapidraw.com; frame-src https://www.openstreetmap.org; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+    "cloud": false,
+    "rendered": true,
+    "pageErrors": [],
+    "violations": [],
+    "clerkRequests": [],
+    "authBridgeCalls": [],
+    "authBackendStubbed": true,
+    "remoteScriptBlocked": true
+  },
+  "persisted_cloud_unavailable_backend": {
+    "policy": "configured",
+    "csp": "default-src 'self'; script-src 'self' https://clerk.getrapidraw.com; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost blob: data:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://api.github.com https://raw.githubusercontent.com https://clerk.getrapidraw.com; frame-src https://www.openstreetmap.org; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+    "cloud": true,
+    "rendered": true,
+    "pageErrors": [],
+    "violations": [],
+    "clerkRequests": [],
+    "authBridgeCalls": [
+      "plugin:clerk|initialize"
+    ],
+    "authBackendStubbed": true,
+    "remoteScriptBlocked": true
+  },
+  "live_cloud_sign_in_tested": false
+}
