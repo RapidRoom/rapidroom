@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import type { ParseKeys } from 'i18next';
 import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
@@ -32,7 +33,7 @@ export const PANEL_ICONS: Record<Panel, LucideIcon> = {
   [Panel.Terminal]: TerminalIcon,
 };
 
-const PANEL_TITLES: Record<Panel, string> = {
+const PANEL_TITLES: Record<Panel, ParseKeys> = {
   [Panel.Metadata]: 'editor.switcher.tooltips.info',
   [Panel.Adjustments]: 'editor.switcher.tooltips.adjust',
   [Panel.Crop]: 'editor.switcher.tooltips.crop',
