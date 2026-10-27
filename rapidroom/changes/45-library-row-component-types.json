@@ -2,7 +2,7 @@
   "id": "library-row-component-return-types",
   "title": "Narrow virtualized library row component return types",
   "category": "ci",
-  "landed": "2026-10-14",
+  "landed": "2026-10-26",
   "authors": ["yojen7"],
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
