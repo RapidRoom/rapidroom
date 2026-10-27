@@ -1,0 +1,115 @@
+"""Private-native proof that comparison rendering never mutates metadata."""
+import hashlib
+import json
+
+
+def _write(path, value):
+    path.write_text(json.dumps(value, sort_keys=True) + "\n")
+    json.loads(path.read_text())
+
+
+def _paths(photo):
+    return [photo.with_name(photo.name + suffix) for suffix in (".rrdata", ".rrexif")]
+
+
+def _snapshot(paths):
+    result = {}
+    for path in paths:
+        result[path.name] = None if not path.exists() else {
+            "sha256": hashlib.file_digest(path.open("rb"), "sha256").hexdigest(),
+            "mtime_ns": path.stat().st_mtime_ns, "bytes": path.read_text()}
+    return result
+
+
+def _seed(photo, kind):
+    sidecar, legacy = _paths(photo)
+    sidecar.unlink(missing_ok=True)
+    legacy.unlink(missing_ok=True)
+    if kind == "uncached":
+        return
+    metadata = {"adjustments": {"exposure": 0}, "unknown": {"mustStay": True}}
+    if kind != "legacy":
+        metadata["exif"] = {"Make": "SONY", "Model": "ILCE-7CM2"}
+    if kind == "auto":
+        metadata["exif"]["SyntheticLongExif"] = "X" * 700
+    if kind == "auto":
+        metadata["adjustments"] = {"lensCorrectionMode": "auto", "cameraLensCorrectionVersion": 1}
+    _write(sidecar, metadata)
+    if kind == "legacy":
+        _write(legacy, {"Make": "SONY", "Model": "ILCE-7CM2"})
+
+
+def _click(smoke, name, event):
+    smoke.execute("""const image=[...document.images].find(e=>e.alt===arguments[0]);
+      if(!image)throw Error('Missing image '+arguments[0]);
+      image.dispatchEvent(new MouseEvent(arguments[1],{bubbles:true,button:0}));return true;""", [name, event])
+
+
+def _press_c(smoke):
+    # A real key press targets an element; Editor reads event.target.matches(...).
+    smoke.execute("""document.activeElement?.blur();
+      for (const type of ['keydown','keyup']) document.body.dispatchEvent(new KeyboardEvent(type,
+        {bubbles:true,code:'KeyC',key:'c'}));return true;""")
+
+
+def _ready(smoke, wait_for, name):
+    wait_for(lambda: smoke.execute("""const editor=document.querySelector('[data-testid=editor-current-photo]');
+      return !!document.querySelector('[data-testid=editor-compare-wipe-toggle]') &&
+        editor?.dataset.currentPath.endsWith('/'+arguments[0]) && editor.dataset.fullRenderComplete==='true';""", [name]), "decoded editor " + name, 90)
+
+
+def _original(smoke, wait_for, photo, kind):
+    _click(smoke, photo.name, "click")  # the editor filmstrip navigates on a single click
+    _ready(smoke, wait_for, photo.name)
+    _seed(photo, kind)  # discard ordinary-open side effects before the guard
+    before = _snapshot(_paths(photo))
+    _press_c(smoke)
+    wait_for(lambda: smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]');
+      if(!pane)return false;const images=[...pane.querySelectorAll('img')];return pane.dataset.referenceMode==='wipe' && images.length>=2 && images.every(e=>e.complete&&e.naturalWidth>100);"""), "Original comparison " + photo.name, 90)
+    _press_c(smoke)
+    after = _snapshot(_paths(photo))
+    if after != before: raise RuntimeError("Original comparison changed " + photo.name)
+    return {"before": before, "after": after}
+
+
+def _pinned(smoke, wait_for, photo, kind):
+    _seed(photo, kind)  # anchor is already open; establish preconditions immediately before compare
+    before = _snapshot(_paths(photo))
+    smoke.execute("document.querySelector('[data-testid=editor-reference-view-toggle]').click();return true;")
+    wait_for(lambda: smoke.execute("return !!document.querySelector('[data-testid=editor-reference-pane]');"), "reference chooser")
+    smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]');
+      pane.querySelector('button[aria-label=\"Clear reference\"]')?.click();return true;""")
+    wait_for(lambda: smoke.execute("return document.querySelector('[data-testid=editor-reference-pane]')?.dataset.referenceState==='choose-reference';"), "explicit reference chooser")
+    _click(smoke, photo.name, "click")
+    wait_for(lambda: smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]'),image=pane?.querySelector('img');
+      const anchor=document.querySelector('[data-testid=editor-current-photo]');
+      return pane?.dataset.referenceState==='ready'&&pane.textContent.includes(arguments[0])&&image?.complete&&image.naturalWidth>100&&anchor?.dataset.currentPath.endsWith('/smoke.ARW')&&anchor.dataset.fullRenderComplete==='true';""", [photo.name]), "pinned comparison " + photo.name, 90)
+    smoke.execute("document.querySelector('[data-testid=editor-reference-pane] button[aria-label=\"Close reference view\"]').click();return true;")
+    after = _snapshot(_paths(photo))
+    if after != before: raise RuntimeError("Pinned comparison changed " + photo.name)
+    return {"before": before, "after": after}
+
+
+def run_compare_read_only(case, smoke, wait_for):
+    folder = case / "input"
+    cases = [(folder / "compare-uncached.ARW", "uncached"), (folder / "compare-legacy.ARW", "legacy"), (folder / "compare-auto.ARW", "auto")]
+    _click(smoke, "smoke.ARW", "dblclick")
+    _ready(smoke, wait_for, "smoke.ARW")
+    pinned = {photo.name: _pinned(smoke, wait_for, photo, kind) for photo, kind in cases}
+    originals = {photo.name: _original(smoke, wait_for, photo, kind) for photo, kind in cases}
+    smoke.step("comparison render preserves sidecars and legacy EXIF", {"pinned": pinned, "originals": originals})
+    healing = folder / "compare-healing.ARW"
+    _seed(healing, "auto")
+    sidecar, _ = _paths(healing)
+    data = json.loads(sidecar.read_text()); data.pop("exif", None); _write(sidecar, data)
+    _click(smoke, healing.name, "click")
+    wait_for(lambda: (json.loads(sidecar.read_text()).get("exif") or {}).get("Make") == "SONY", "ordinary editor EXIF healing", 45)
+    after = json.loads(sidecar.read_text())
+    recipe = after.get("adjustments") or {}
+    # The seed has no version/rating; opening it must not replace the saved recipe.
+    if recipe.get("lensCorrectionMode") != "auto" or recipe.get("cameraLensCorrectionVersion") != 1:
+        raise RuntimeError("Opening a legacy sidecar lost its saved recipe: " + json.dumps(after)[:300])
+    smoke.step("ordinary editor still heals saved Auto recipe and keeps it", {"after": after})
+    # Hand the generic smoke flow back the library it starts from.
+    smoke.execute("const e=[...document.querySelectorAll('button')].find(e=>/back to library/i.test(e.getAttribute('data-tooltip')||''));if(!e)throw Error('Back to Library missing');e.click();return true;")
+    wait_for(lambda: smoke.execute("return [...document.images].some(e=>e.alt==='smoke.ARW' && e.src.startsWith('asset:') && e.complete && e.naturalWidth>100);"), "library after comparison checks", 45)

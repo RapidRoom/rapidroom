@@ -7,7 +7,7 @@
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
   "upstream_issues": [],
-  "upstream_prs": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#1922"],
   "rendering_change": false,
   "notes": "Arrow-key navigation in Recursive library view stays within the selected image's parent folder and preserves that folder's sort order. Other view modes retain their existing global navigation order."
 }

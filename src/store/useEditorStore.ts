@@ -1,4 +1,4 @@
-import type { HistoryDetails } from '../utils/editHistory';
+import { describeHistoryChange, type HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import { Adjustments, INITIAL_ADJUSTMENTS, MaskContainer, AiPatch } from '../utils/adjustments';
 import { SelectedImage, WaveformData, BrushSettings, HistogramData } from '../components/ui/AppProperties';
@@ -12,6 +12,8 @@ import {
   ReferenceViewState,
   reduceReferenceView,
 } from '../utils/referenceView';
+
+export type CenterMarker = 'vignette' | 'centre';
 
 interface InteractivePatch {
   url: string;
@@ -60,6 +62,7 @@ interface EditorState {
   // Interaction State
   isSliderDragging: boolean;
   zoom: number;
+  zoomRequest: { imagePath: string; percent: number | null; resetPosition?: boolean } | null;
   displaySize: ImageDimensions;
   previewSize: ImageDimensions;
   baseRenderSize: BaseRenderSize;
@@ -70,8 +73,12 @@ interface EditorState {
   overlayMode: OverlayMode;
   overlayRotation: number;
   isStraightenActive: boolean;
+  isAutoStraightening: boolean;
   isWbPickerActive: boolean;
   mixerPickerProperty: HslMixerProperty | null;
+  isRelightPickerActive: boolean;
+  activeRelightLightId: string | null;
+  activeCenterMarker: CenterMarker | null;
   isGuidedPerspectiveActive: boolean;
   liveRotation: number | null;
   brushSettings: BrushSettings | null;
@@ -84,6 +91,7 @@ interface EditorState {
   isMaskControlHovered: boolean;
   isGeneratingAiMask: boolean;
   isGeneratingAi: boolean;
+  aiDenoiseProgress: Record<string, number>;
   isAIConnectorConnected: boolean;
   hasRenderedFirstFrame: boolean;
   patchesSentToBackend: Set<string>;
@@ -92,10 +100,11 @@ interface EditorState {
   copiedSectionAdjustments: any | null;
   copiedMask: MaskContainer | null;
   copiedAdjustments: Partial<Adjustments> | null;
+  copiedAdjustmentDefaults: { adjustments: Partial<Adjustments>; defaults: Adjustments } | null;
 
   // Actions
   setEditor: (updater: Partial<EditorState> | ((state: EditorState) => Partial<EditorState>)) => void;
-  pushHistory: (newAdjustments: Adjustments, details?: HistoryDetails) => void;
+  pushHistory: (newAdjustments: Adjustments, details?: HistoryDetails | string) => void;
   undo: () => void;
   redo: () => void;
   resetHistory: (initialState: Adjustments) => void;
@@ -131,6 +140,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   activeAiSubMaskId: null,
 
   zoom: 1,
+  zoomRequest: null,
   displaySize: { width: 0, height: 0 },
   previewSize: { width: 0, height: 0 },
   baseRenderSize: {
@@ -148,8 +158,12 @@ export const useEditorStore = create<EditorState>((set) => ({
   overlayMode: 'thirds',
   overlayRotation: 0,
   isStraightenActive: false,
+  isAutoStraightening: false,
   isWbPickerActive: false,
   mixerPickerProperty: null,
+  isRelightPickerActive: false,
+  activeRelightLightId: null,
+  activeCenterMarker: null,
   isGuidedPerspectiveActive: false,
   liveRotation: null,
 
@@ -157,10 +171,12 @@ export const useEditorStore = create<EditorState>((set) => ({
   copiedMask: null,
   brushSettings: { size: 50, feather: 50, tool: ToolType.Brush },
   copiedAdjustments: null,
+  copiedAdjustmentDefaults: null,
 
   isGeneratingAiMask: false,
   isAIConnectorConnected: false,
   isGeneratingAi: false,
+  aiDenoiseProgress: {},
   isMaskControlHovered: false,
   hasRenderedFirstFrame: false,
   patchesSentToBackend: new Set<string>(),
@@ -174,7 +190,18 @@ export const useEditorStore = create<EditorState>((set) => ({
         .slice(0, state.historyIndex + 1)
         .map((_, index) => state.historyDetails[index] ?? null);
       newHistory.push(newAdj);
-      historyDetails.push(details ?? null);
+      const recorded =
+        details && typeof details === 'object'
+          ? details
+          : {
+              ...describeHistoryChange(
+                state.history[state.historyIndex] ?? INITIAL_ADJUSTMENTS,
+                newAdj,
+                typeof details === 'string' && details.startsWith('AI:') ? 'assistant' : 'user',
+              ),
+              ...(typeof details === 'string' && details.trim() ? { label: details } : {}),
+            };
+      historyDetails.push(recorded);
       if (newHistory.length > 50) {
         newHistory.shift();
         historyDetails.shift();
