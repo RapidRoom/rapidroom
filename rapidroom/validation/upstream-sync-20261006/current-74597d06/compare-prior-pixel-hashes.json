@@ -1,0 +1,14 @@
+{
+  "prior_application": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+  "candidate": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+  "n_compared": 60,
+  "n_identical": 59,
+  "changed": [
+    {
+      "set": "neutral",
+      "id": "canon-r6m2-24mp-raw",
+      "prior_pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+      "candidate_pixel_sha256": "74bcfdfd838a7c0156b07188513d92f4e14c4ed89155908882cc45769550750f"
+    }
+  ]
+}

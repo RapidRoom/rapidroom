@@ -1,3 +1,4 @@
+import DenoiseQueue from './components/panel/DenoiseQueue';
 import { createLightsOutFullscreenController } from './utils/lightsOutFullscreen';
 import {
   type PointerEvent as ReactPointerEvent,
@@ -12,7 +13,7 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ToastContainer, toast, Slide } from 'react-toastify';
+import { toast } from 'react-toastify';
 import {
   DndContext,
   DragOverlay,
@@ -32,6 +33,7 @@ import SettingsPanel from './components/panel/SettingsPanel';
 import ExportPanel from './components/panel/right/ExportPanel';
 import GlobalTooltip from './components/ui/GlobalTooltip';
 import AppModals from './components/modals/AppModals';
+import AppNotifications from './components/ui/AppNotifications';
 import CommandPalette from './components/ui/CommandPalette';
 
 import SidePanelArea from './components/panel/SidePanelArea';
@@ -54,15 +56,16 @@ import { useSettingsStore } from './store/useSettingsStore';
 import { DEFAULT_BOTTOM_PANEL_HEIGHT, DEFAULT_PANEL_WIDTH, useUIStore } from './store/useUIStore';
 import { useLibraryStore } from './store/useLibraryStore';
 import { useEditorStore } from './store/useEditorStore';
-import { useProcessStore } from './store/useProcessStore';
+import { JobKind, useProcessStore } from './store/useProcessStore';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useThumbnails } from './hooks/useThumbnails';
 import { ImageDimensions } from './hooks/useImageRenderSize';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useTauriListeners } from './hooks/useTauriListeners';
-import { useFileOperations } from './hooks/useFileOperations';
+import { transferFiles, useFileOperations } from './hooks/useFileOperations';
 import { useAppContextMenus } from './hooks/useAppContextMenus';
+import AutoStackModal from './components/modals/AutoStackModal';
 import { useSortedLibrary } from './hooks/useSortedLibrary';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { useExternalEditSession } from './hooks/useExternalEditSession';
@@ -91,6 +94,8 @@ import {
 
 import ImageProcessingManager from './components/managers/ImageProcessingManager';
 import ImageLoaderManager from './components/managers/ImageLoaderManager';
+import { isImmichAlbumId } from './components/immich/immichApi';
+import { useImmichEvents } from './components/immich/useImmichEvents';
 
 const TerminalPanel = lazy(() => import('./components/panel/TerminalPanel'));
 
@@ -102,6 +107,7 @@ function TerminalLoading() {
     </div>
   );
 }
+const DND_MEASURING = { droppable: { strategy: MeasuringStrategy.Always } };
 
 const insertChildrenIntoTree = (node: any, targetPath: string, newChildren: any[]): any => {
   if (!node) return null;
@@ -353,22 +359,26 @@ function App() {
   const { handleCopyAdjustments, handlePasteAdjustments, handleResetAdjustments, handleZoomChange } =
     useEditorActions();
 
-  const navigationRefs = {
-    transformWrapperRef,
-    preloadedDataRef,
-    cachedEditStateRef,
-    selectedImagePathRef,
-    isBackendReadyRef,
-    latestRenderedJobIdRef,
-    previewJobIdRef,
-    currentResRef,
-    prevAdjustmentsRef,
-  };
+  const navigationRefs = useMemo(
+    () => ({
+      transformWrapperRef,
+      preloadedDataRef,
+      cachedEditStateRef,
+      selectedImagePathRef,
+      isBackendReadyRef,
+      latestRenderedJobIdRef,
+      previewJobIdRef,
+      currentResRef,
+      prevAdjustmentsRef,
+    }),
+    [],
+  );
 
   const {
     handleGoHome,
     handleBackToLibrary,
     handleImageSelect,
+    handleOpenImage,
     handleSelectSubfolder,
     handleSelectAlbum,
     handleOpenFolder,
@@ -385,7 +395,7 @@ function App() {
     externalEditSession,
     isFinishing: isExternalEditFinishing,
     finishExternalEdit,
-  } = useExternalEditSession(handleImageSelect);
+  } = useExternalEditSession(handleImageSelect, handleOpenImage);
 
   const {
     handleRate,
@@ -399,7 +409,13 @@ function App() {
     handleRenameAlbumItem,
   } = useLibraryActions(handleImageSelect);
 
-  const { displayList: sortedImageList, badges: groupBadgeInfo } = useSortedLibrary();
+  useEffect(() => {
+    const { setImageSelectHandler } = useUIStore.getState();
+    setImageSelectHandler(handleImageSelect);
+    return () => setImageSelectHandler(null);
+  }, [handleImageSelect]);
+
+  const { displayList: sortedImageList, badges: groupBadgeInfo, matchingPhotoCount } = useSortedLibrary();
 
   const handleLibraryRefresh = useCallback(async () => {
     if (currentFolderPath) {
@@ -418,6 +434,8 @@ function App() {
           };
           const album = findObj(albumTree);
           if (album) await handleSelectAlbum(album.id, album.name, album.images, true);
+          else if (isImmichAlbumId(activeAlbumId))
+            await handleSelectAlbum(activeAlbumId, currentFolderPath.slice('Album: '.length), [], true);
         }
       } else {
         await handleSelectSubfolder(currentFolderPath, false, undefined, false, true);
@@ -425,7 +443,18 @@ function App() {
     }
   }, [currentFolderPath, handleSelectSubfolder, handleSelectAlbum]);
 
+  const savedLibraryViewMode = appSettings ? (appSettings.libraryViewMode ?? defaultLibraryViewMode) : null;
+  const previousLibraryViewMode = useRef(savedLibraryViewMode);
+  useEffect(() => {
+    const previous = previousLibraryViewMode.current;
+    previousLibraryViewMode.current = savedLibraryViewMode;
+    if (previous !== null && savedLibraryViewMode !== null && previous !== savedLibraryViewMode) {
+      void handleLibraryRefresh().catch((error) => console.error('Failed to reload library display mode:', error));
+    }
+  }, [savedLibraryViewMode, handleLibraryRefresh]);
+
   const {
+    requestDeletePaths,
     executeDelete,
     handleDeleteSelected,
     handleDeleteRejected,
@@ -477,6 +506,8 @@ function App() {
     handleTogglePinFolder,
   });
 
+  useImmichEvents(handleLibraryRefresh);
+
   useTauriListeners({
     refreshAllFolderTrees,
     handleSelectSubfolder,
@@ -485,7 +516,7 @@ function App() {
   });
 
   useAndroidBackHandler();
-  useMcpBridge(handleImageSelect);
+  useMcpBridge(handleOpenImage, { requestDeletePaths, refreshImageList: handleLibraryRefresh });
 
   useKeyboardShortcuts({
     sortedImageList,
@@ -548,6 +579,8 @@ function App() {
     setEditor({
       isWbPickerActive: false,
       mixerPickerProperty: null,
+      isRelightPickerActive: false,
+      activeCenterMarker: null,
       isStraightenActive: false,
       isGuidedPerspectiveActive: false,
       activeMaskId: null,
@@ -856,7 +889,7 @@ function App() {
       const targetFolder = over.data.current.path;
       const sourcePaths = activeImageDragItem?.paths || [active.data.current.path];
 
-      invoke(Invokes.MoveFiles, { sourcePaths, destinationFolder: targetFolder })
+      transferFiles(JobKind.Move, sourcePaths, targetFolder)
         .then(() => {
           refreshAllFolderTrees();
           handleLibraryRefresh();
@@ -889,6 +922,8 @@ function App() {
 
   return (
     <CloudAuthProvider>
+      <AutoStackModal />
+      <DenoiseQueue />
       <ImageProcessingManager
         transformWrapperRef={transformWrapperRef}
         prevAdjustmentsRef={prevAdjustmentsRef}
@@ -928,11 +963,7 @@ function App() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             collisionDetection={pointerWithin}
-            measuring={{
-              droppable: {
-                strategy: MeasuringStrategy.Always,
-              },
-            }}
+            measuring={DND_MEASURING}
           >
             <div className="flex flex-row flex-1 min-h-0">
               {!shouldHideFolderTree && hasMainContent && (
@@ -999,6 +1030,7 @@ function App() {
                   )}
                 >
                   <LibraryView
+                    matchingPhotoCount={matchingPhotoCount}
                     sortedImageList={sortedImageList}
                     groupBadgeInfo={groupBadgeInfo}
                     thumbnailSize={thumbnailSize}
@@ -1019,6 +1051,7 @@ function App() {
                     handleGoHome={handleGoHome}
                     handleOpenFolder={handleOpenFolder}
                     handleBrowseCard={handleBrowseCard}
+                    handleNavigateToFolder={(path) => handleSelectSubfolder(path, false, undefined, true)}
                     handleImportClick={handleImportClick}
                     handleLibraryRefresh={handleLibraryRefresh}
                     handleCopyAdjustments={handleCopyAdjustments}
@@ -1055,7 +1088,7 @@ function App() {
                 />
               )}
             </div>
-            <TerminalDock renderPanel={renderAppPanel} />
+            <TerminalDock renderPanel={renderAppPanel} hasMainContent={hasMainContent} />
             <DragOverlay modifiers={activeImageDragItem ? [imageDragModifier] : undefined} dropAnimation={null}>
               {activeLayoutDragItem && ActiveOverlayIcon ? (
                 <div className="w-10 h-10 bg-surface shadow-2xl rounded-md flex items-center justify-center text-text-primary ring-1 ring-border-color">
@@ -1092,25 +1125,7 @@ function App() {
           handleRenameAlbumItem={handleRenameAlbumItem}
           refreshAllFolderTrees={refreshAllFolderTrees}
         />
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable={false}
-          pauseOnHover
-          theme={isLightTheme ? 'light' : 'dark'}
-          transition={Slide}
-          toastClassName={() =>
-            clsx(
-              'relative flex min-h-16 p-4 rounded-lg justify-between overflow-hidden cursor-pointer mb-4',
-              'bg-surface! text-text-primary! border! border-border-color! shadow-2xl! max-w-[420px]!',
-            )
-          }
-        />
+        <AppNotifications isLightTheme={isLightTheme} />
       </div>
     </CloudAuthProvider>
   );
@@ -1123,10 +1138,21 @@ const AppWrapper = () => (
   </ContextMenuProvider>
 );
 
-function TerminalDock({ renderPanel }: { renderPanel: (panel: Panel) => React.ReactNode }) {
+function TerminalDock({
+  renderPanel,
+  hasMainContent,
+}: {
+  renderPanel: (panel: Panel) => React.ReactNode;
+  hasMainContent: boolean;
+}) {
   const supported = useUIStore((state) => state.terminalSupported);
   const fullscreen = useUIStore((state) => state.isFullScreen);
-  return supported && !fullscreen ? <BottomDock renderPanel={renderPanel} /> : null;
+  useEffect(() => {
+    if (!hasMainContent) {
+      useUIStore.getState().setUI((state) => ({ activePanels: { ...state.activePanels, bottom: null } }));
+    }
+  }, [hasMainContent]);
+  return supported && hasMainContent && !fullscreen ? <BottomDock renderPanel={renderPanel} /> : null;
 }
 
 export default AppWrapper;

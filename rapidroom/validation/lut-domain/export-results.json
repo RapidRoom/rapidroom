@@ -1,0 +1,34 @@
+{
+  "head": "2ca480d548213ea8271152cf5b3a87480603308f",
+  "source": "Synthetic RGB gradient and identity LUT; no photo content",
+  "results": [
+    {
+      "scene_referred": false,
+      "bits": 8,
+      "before_ignoring_domain_matches_new_unit_control": true,
+      "wide_domain_changes_output": true,
+      "mean_abs_code_delta": 15034.033340454102
+    },
+    {
+      "scene_referred": false,
+      "bits": 16,
+      "before_ignoring_domain_matches_new_unit_control": true,
+      "wide_domain_changes_output": true,
+      "mean_abs_code_delta": 15032.2265625
+    },
+    {
+      "scene_referred": true,
+      "bits": 8,
+      "before_ignoring_domain_matches_new_unit_control": true,
+      "wide_domain_changes_output": true,
+      "mean_abs_code_delta": 13105.696751912436
+    },
+    {
+      "scene_referred": true,
+      "bits": 16,
+      "before_ignoring_domain_matches_new_unit_control": true,
+      "wide_domain_changes_output": true,
+      "mean_abs_code_delta": 13101.372395833334
+    }
+  ]
+}

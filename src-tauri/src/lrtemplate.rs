@@ -556,6 +556,19 @@ fn settings_to_xmp(
                             }
                         }
                     }
+                } else if key == "MaskGroupBasedCorrections" && report_scalars {
+                    // Catalog rows contain the same resources as XMP, including
+                    // ordered paint dabs. Keep the shared mask mapper responsible
+                    // for geometry and whole-correction refusal (including AI).
+                    match mask_table_to_xmp(key, table) {
+                        Some(xml) => {
+                            curves.push_str(&xml);
+                            if has_varying_dab_parameters(table) {
+                                report("brushDabParameters");
+                            }
+                        }
+                        None => report("masks"),
+                    }
                 } else if MASK_KEYS.contains(&key.as_str()) {
                     report("masks");
                 } else if key == "PointColors" {
@@ -591,11 +604,317 @@ fn settings_to_xmp(
     Ok(LrtemplateXmp { xmp, unsupported })
 }
 
+/// A bounded encoder for catalog mask resources. Lua is never evaluated, and
+/// malformed resources are refused as a whole without losing global settings.
+fn mask_table_to_xmp(key: &str, table: &LuaTable) -> Option<String> {
+    struct Xml(String);
+    impl Xml {
+        fn push(&mut self, text: &str) -> Option<()> {
+            if self.0.len().checked_add(text.len())? > MAX_INPUT_BYTES {
+                return None;
+            }
+            self.0.push_str(text);
+            Some(())
+        }
+
+        fn scalar(&mut self, value: &LuaValue) -> Option<()> {
+            match value {
+                LuaValue::Bool(value) => self.push(if *value { "True" } else { "False" }),
+                LuaValue::Num(value) => self.push(&format_number(*value)),
+                LuaValue::Str(value) => {
+                    for character in value.chars() {
+                        match character {
+                            '&' => self.push("&amp;")?,
+                            '<' => self.push("&lt;")?,
+                            '>' => self.push("&gt;")?,
+                            '"' => self.push("&quot;")?,
+                            '\'' => self.push("&apos;")?,
+                            '\t' | '\n' | '\r' => {
+                                // Attribute whitespace must survive XML normalisation.
+                                self.push(&format!("&#{};", character as u32))?;
+                            }
+                            c if matches!(c as u32, 0x20..=0xd7ff | 0xe000..=0xfffd | 0x10000..=0x10ffff) =>
+                            {
+                                self.push(c.encode_utf8(&mut [0; 4]))?;
+                            }
+                            _ => return None,
+                        }
+                    }
+                    Some(())
+                }
+                LuaValue::Nil | LuaValue::Table(_) => None,
+            }
+        }
+
+        fn table(&mut self, table: &LuaTable, depth: usize) -> Option<()> {
+            if depth > MAX_DEPTH || (!table.items.is_empty() && !table.fields.is_empty()) {
+                return None;
+            }
+            if table.fields.is_empty() {
+                self.push("<rdf:Seq>")?;
+                for item in &table.items {
+                    if let LuaValue::Table(table) = item {
+                        self.push("<rdf:li>")?;
+                        self.resource(table, depth + 1)?;
+                        self.push("</rdf:li>")?;
+                    } else {
+                        self.push("<rdf:li>")?;
+                        self.scalar(item)?;
+                        self.push("</rdf:li>")?;
+                    }
+                }
+                self.push("</rdf:Seq>")
+            } else {
+                self.push("<rdf:Description")?;
+                self.resource_body(table, depth)?;
+                self.push("</rdf:Description>")
+            }
+        }
+
+        fn resource(&mut self, table: &LuaTable, depth: usize) -> Option<()> {
+            // Use a Description wrapper so scalar fields remain attributes.
+            self.push("<rdf:Description")?;
+            self.resource_body(table, depth)?;
+            self.push("</rdf:Description>")
+        }
+
+        fn resource_body(&mut self, table: &LuaTable, depth: usize) -> Option<()> {
+            if depth > MAX_DEPTH || !table.items.is_empty() {
+                return None;
+            }
+            let mut seen = std::collections::HashSet::new();
+            // Lua's last assignment wins; duplicate XML attributes are invalid.
+            let fields: Vec<_> = table
+                .fields
+                .iter()
+                .rev()
+                .filter(|(key, _)| seen.insert(key))
+                .collect();
+            for (key, value) in fields.iter().rev().copied() {
+                let mut bytes = key.bytes();
+                if !bytes
+                    .next()
+                    .is_some_and(|b| b.is_ascii_alphabetic() || b == b'_')
+                    || !bytes.all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                {
+                    return None;
+                }
+                if !matches!(value, LuaValue::Nil | LuaValue::Table(_)) {
+                    self.push(" crs:")?;
+                    self.push(key)?;
+                    self.push("=\"")?;
+                    self.scalar(value)?;
+                    self.push("\"")?;
+                }
+            }
+            self.push(">")?;
+            for (key, value) in fields.iter().rev().copied() {
+                if let LuaValue::Table(table) = value {
+                    self.push("<crs:")?;
+                    self.push(key)?;
+                    self.push(">")?;
+                    self.table(table, depth + 1)?;
+                    self.push("</crs:")?;
+                    self.push(key)?;
+                    self.push(">")?;
+                }
+            }
+            Some(())
+        }
+    }
+    if !table.fields.is_empty() {
+        return None;
+    }
+    let mut xml = Xml(String::new());
+    xml.push(&format!("<crs:{key}>"))?;
+    xml.table(table, 0)?;
+    xml.push(&format!("</crs:{key}>"))?;
+    Some(xml.0)
+}
+
+/// The shared brush mapper imports every `d` position, using one radius and
+/// flow per stroke. Catalogs can also change those values *within* a stroke;
+/// preserve the commands in XML and report their current rendering limitation.
+fn has_varying_dab_parameters(table: &LuaTable) -> bool {
+    if matches!(table.get("What"), Some(LuaValue::Str(what)) if what == "Mask/Paint")
+        && let Some(LuaValue::Table(dabs)) = table.get("Dabs")
+    {
+        for dab in &dabs.items {
+            let LuaValue::Str(dab) = dab else { continue };
+            let mut parts = dab.split_whitespace();
+            let nominal = match parts.next() {
+                Some("r") => table.get("Radius"),
+                Some("f") => table.get("Flow"),
+                Some("d") => {
+                    if parts.count() != 2 {
+                        return true;
+                    }
+                    continue;
+                }
+                _ => return true,
+            };
+            match (nominal, parts.next().and_then(|v| v.parse::<f64>().ok())) {
+                (Some(LuaValue::Num(nominal)), Some(value))
+                    if value.is_finite()
+                        && (value - nominal).abs() <= 1e-9
+                        && parts.next().is_none() => {}
+                _ => return true,
+            }
+        }
+    }
+    table
+        .fields
+        .iter()
+        .map(|(_, value)| value)
+        .chain(&table.items)
+        .any(|value| matches!(value, LuaValue::Table(child) if has_varying_dab_parameters(child)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::preset_converter::convert_xmp_to_preset;
     use serde_json::json;
+
+    fn without_ids(mut value: serde_json::Value) -> serde_json::Value {
+        match &mut value {
+            serde_json::Value::Object(object) => {
+                object.remove("id");
+                for child in object.values_mut() {
+                    *child = without_ids(child.take());
+                }
+            }
+            serde_json::Value::Array(items) => {
+                for item in items {
+                    *item = without_ids(item.take());
+                }
+            }
+            _ => {}
+        }
+        value
+    }
+
+    #[test]
+    fn catalog_masks_keep_every_ordered_dab_and_use_the_shared_mapper() {
+        let source = r#"s = { Exposure2012 = 0.5, MaskGroupBasedCorrections = {
+          { CorrectionName = 'Face & sky', LocalExposure2012 = 0.0625,
+            CorrectionMasks = {
+              { What = 'Mask/Gradient', MaskName = 'Gradient', ZeroX = 0.5, ZeroY = 0.6,
+                FullX = 0.5, FullY = 0.2 },
+              { What = 'Mask/CircularGradient', MaskName = 'Radial', Top = 0.25, Left = 0.25,
+                Bottom = 0.75, Right = 0.75, Feather = 50, Flipped = true, Version = 2 },
+              { What = 'Mask/Paint', MaskName = 'Brush', Radius = 0.01, MaskValue = 1,
+                Dabs = { 'd 0.1 0.2', 'd 0.3 0.4', 'd 0.5 0.6' } },
+              { What = 'Mask/Paint', MaskName = 'Brush', Radius = 0.005, MaskValue = 0,
+                Dabs = { 'd 0.2 0.3', 'd 0.4 0.5' } }
+            }
+          }
+        } }"#;
+        let converted = catalog_develop_to_xmp(source, None).unwrap();
+        assert!(converted.unsupported.is_empty());
+        let xmp = converted.xmp.replacen(
+            "<rdf:Description ",
+            "<rdf:Description xmlns:tiff=\"http://ns.adobe.com/tiff/1.0/\" tiff:ImageWidth=\"6000\" tiff:ImageLength=\"4000\" tiff:Orientation=\"1\" ", 1,
+        );
+        let expected = crate::lightroom_masks::tests::sidecar_with_corrections(
+            "",
+            r#"<rdf:li rdf:parseType="Resource" crs:CorrectionName="Face &amp; sky" crs:LocalExposure2012="0.0625">
+              <crs:CorrectionMasks><rdf:Seq>
+                <rdf:li crs:What="Mask/Gradient" crs:MaskName="Gradient" crs:ZeroX="0.5" crs:ZeroY="0.6" crs:FullX="0.5" crs:FullY="0.2"/>
+                <rdf:li crs:What="Mask/CircularGradient" crs:MaskName="Radial" crs:Top="0.25" crs:Left="0.25" crs:Bottom="0.75" crs:Right="0.75" crs:Feather="50" crs:Flipped="true" crs:Version="2"/>
+                <rdf:li crs:What="Mask/Paint" crs:MaskName="Brush" crs:Radius="0.01" crs:MaskValue="1"><crs:Dabs><rdf:Seq><rdf:li>d 0.1 0.2</rdf:li><rdf:li>d 0.3 0.4</rdf:li><rdf:li>d 0.5 0.6</rdf:li></rdf:Seq></crs:Dabs></rdf:li>
+                <rdf:li crs:What="Mask/Paint" crs:MaskName="Brush" crs:Radius="0.005" crs:MaskValue="0"><crs:Dabs><rdf:Seq><rdf:li>d 0.2 0.3</rdf:li><rdf:li>d 0.4 0.5</rdf:li></rdf:Seq></crs:Dabs></rdf:li>
+              </rdf:Seq></crs:CorrectionMasks>
+            </rdf:li>"#,
+        );
+        let preset = crate::preset_converter::convert_xmp_sidecar_to_preset(&xmp).unwrap();
+        let expected = crate::preset_converter::convert_xmp_sidecar_to_preset(&expected).unwrap();
+        assert_eq!(
+            without_ids(preset.adjustments["masks"].clone()),
+            without_ids(expected.adjustments["masks"].clone())
+        );
+        let submasks = preset.adjustments["masks"][0]["subMasks"]
+            .as_array()
+            .unwrap();
+        let brush = submasks
+            .iter()
+            .find(|mask| mask["type"] == "brush")
+            .unwrap();
+        let lines = brush["parameters"]["lines"].as_array().unwrap();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0]["points"].as_array().unwrap().len(), 3);
+        assert_eq!(lines[1]["points"].as_array().unwrap().len(), 2);
+        assert_eq!(lines[1]["tool"], "eraser");
+        assert_eq!(
+            crate::mask_generation::parse_mask_definitions(&preset.adjustments).len(),
+            1
+        );
+    }
+
+    #[test]
+    fn catalog_ai_resources_refuse_the_whole_mixed_group() {
+        let converted = catalog_develop_to_xmp(
+            r#"s = { Exposure2012 = 0.5,
+          MaskGroupBasedCorrections = {
+            { CorrectionName = 'Subject', CorrectionMasks = {
+              { What = 'Mask/Image', MaskName = 'Subject', MaskType = 'Subject' },
+              { What = 'Mask/Gradient', ZeroX = 0.5, ZeroY = 0.6, FullX = 0.5, FullY = 0.2 }
+            } }
+          } }"#,
+            None,
+        )
+        .unwrap();
+        let preset =
+            crate::preset_converter::convert_xmp_sidecar_to_preset(&converted.xmp).unwrap();
+        assert_eq!(preset.adjustments["exposure"], 0.5);
+        assert!(preset.adjustments.get("masks").is_none());
+        assert!(
+            crate::preset_converter::lightroom_settings_not_transferred(&converted.xmp, &preset)
+                .contains(&"aiMasks")
+        );
+    }
+
+    #[test]
+    fn catalog_per_dab_radius_changes_are_retained_and_reported() {
+        let source = "s = { MaskGroupBasedCorrections = { { CorrectionMasks = { { What='Mask/Paint', Radius=0.01, Flow=0.8, Dabs={'f 0.8', 'd 0.1 0.2', 'r 0.02', 'd 0.3 0.4'} } } } } }";
+        let converted = catalog_develop_to_xmp(source, None).unwrap();
+        assert_eq!(converted.unsupported, ["brushDabParameters"]);
+        assert!(converted.xmp.contains("<rdf:li>r 0.02</rdf:li>"));
+        assert_eq!(converted.xmp.matches("<rdf:li>d ").count(), 2);
+        let fixed = catalog_develop_to_xmp(&source.replace("'r 0.02',", ""), None).unwrap();
+        assert!(fixed.unsupported.is_empty());
+    }
+
+    #[test]
+    fn catalog_resource_encoding_refuses_invalid_xml_and_preserves_globals() {
+        for bad in [
+            "['bad:key'] = 1",
+            "MaskName = 'bad\\000name'",
+            "What = 'Mask/Paint', 1",
+        ] {
+            let source = format!(
+                "s = {{ Exposure2012 = 0.5, MaskGroupBasedCorrections = {{ {{ {bad} }} }} }}"
+            );
+            let converted = catalog_develop_to_xmp(&source, None).unwrap();
+            assert_eq!(converted.unsupported, ["masks"]);
+            assert!(!converted.xmp.contains("MaskGroupBasedCorrections"));
+            assert_eq!(
+                convert_xmp_to_preset(&converted.xmp).unwrap().adjustments["exposure"],
+                0.5
+            );
+        }
+        let expanded = LuaTable {
+            items: vec![LuaValue::Str("&".repeat(MAX_INPUT_BYTES / 5 + 1))],
+            ..Default::default()
+        };
+        assert!(mask_table_to_xmp("MaskGroupBasedCorrections", &expanded).is_none());
+        let duplicated = Parser::new("s = { { MaskName = 'old', MaskName = 'new' } }")
+            .parse_chunk()
+            .unwrap();
+        let xml = mask_table_to_xmp("MaskGroupBasedCorrections", &duplicated).unwrap();
+        assert_eq!(xml.matches("crs:MaskName=").count(), 1);
+        assert!(xml.contains("crs:MaskName=\"new\""));
+    }
 
     #[test]
     fn catalog_rows_use_the_shared_mapper_and_report_nested_settings() {

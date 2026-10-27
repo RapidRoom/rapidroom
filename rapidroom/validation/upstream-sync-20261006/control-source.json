@@ -1,0 +1,62 @@
+{
+  "method": "Cumulative reverse production-path controls. Every control includes the final strict-Clippy precondition fold. UI/read-only metadata APIs remain current; old-relative-wb ignores the added as-shot parser argument and does not implement new Kelvin recipes. Guide controls retain RapidRoom per-image scheduling with the actual prior Gaussian consumer graph. Final-code tests run only on the final branch; controls are release-compiled and exported. Each control also contains the same final queued-metadata fix and retained denoise tests; renderer tree is identical to its earlier113 control.",
+  "merged_source": "4bea590bbd66b074877cad96626b427783c6d9a0",
+  "cumulative_reverse_patches": [
+    {
+      "label": "no-whites",
+      "from": "4bea590bbd66b074877cad96626b427783c6d9a0",
+      "to": "9a609b9e9f981d7900d186724d68d3dbd80c6009",
+      "src_tauri_tree": "861588e537d139e6df7aff8ed7f22e765d2b6c53",
+      "additionally_reversed_upstream": "c91e0bf7ed328fb1d6af0c805409304ea0ae58dc",
+      "patch_sha256": "27229f8d9acf594062196642c8801cce42a172aa7084d3129b4a5a371f1d7c03"
+    },
+    {
+      "label": "no-detail",
+      "from": "9a609b9e9f981d7900d186724d68d3dbd80c6009",
+      "to": "0215cc4d72240a97322203b35efab03017ce9503",
+      "src_tauri_tree": "dd556b059d36261f3488efd22ae9ca824feae0cb",
+      "additionally_reversed_upstream": "1cc99d56c0ff39a2f85d6bb8fb5721bbff1975cd",
+      "patch_sha256": "5857b512db314901bc91cc7efff65d070147a52fcc1203bc5591c1c1df6b4831"
+    },
+    {
+      "label": "no-guided",
+      "from": "0215cc4d72240a97322203b35efab03017ce9503",
+      "to": "8a548dd991cb1fdcb3d8071d826a72617aa9cec7",
+      "src_tauri_tree": "f9be92050ee54dde3501891b10119f76ffb29ccf",
+      "additionally_reversed_upstream": "66fa1600b0513aeb6a7f007b88b6de3a6a12869c",
+      "patch_sha256": "375948c0c03b5951e9933444d3a337403f32eb9789169704b34e0408b3899b0f"
+    },
+    {
+      "label": "no-wb-clamp",
+      "from": "8a548dd991cb1fdcb3d8071d826a72617aa9cec7",
+      "to": "f33c7ae78e4578debdee9591af10b09d5a5dc8d4",
+      "src_tauri_tree": "3b59d8215798b22ecce7a4d0fe3ee0a6c45f9401",
+      "additionally_reversed_upstream": "73bc73f41044c7d5ad4b669621620423e96572fd",
+      "patch_sha256": "36de1de9f33f19f58159159d2a514068b27e9309e1412b20e761c6d046f635a5"
+    },
+    {
+      "label": "no-wb-refactor",
+      "from": "f33c7ae78e4578debdee9591af10b09d5a5dc8d4",
+      "to": "c0ce5603ab65ebd2a62389692716069d6d6cd67a",
+      "src_tauri_tree": "52e359f75c8f2486cd2ac95de2aa018411cb4ab6",
+      "additionally_reversed_upstream": "28fa51207de79867fb21d829262b7dfc125d70d9",
+      "patch_sha256": "a0a59773859080034b97c1737ad1c41471d124e931d9e65e4e0a81c19c25ca6f"
+    },
+    {
+      "label": "no-wb-interpolation",
+      "from": "c0ce5603ab65ebd2a62389692716069d6d6cd67a",
+      "to": "d60ebc7257a21fb7563c53b2c63f2e0e39e7380b",
+      "src_tauri_tree": "ad28b0a7e3098c0fb03c0da32a6890ef28ba2358",
+      "additionally_reversed_upstream": "11e20e77a846e3e81c8befd431762c2d41cec4b0",
+      "patch_sha256": "9e575d828f04a78a01a3b9e3b16cfeafca4680a27633a43b877e3ab63a024df6"
+    },
+    {
+      "label": "old-relative-wb",
+      "from": "d60ebc7257a21fb7563c53b2c63f2e0e39e7380b",
+      "to": "0f5685b1161f8335b227bae775d5da41ed0f5480",
+      "src_tauri_tree": "3e6921d8eb586a6996654058c8111ab64e2284f0",
+      "additionally_reversed_upstream": "9ba20c02cde632da11b86dfab55b938ab57d43b6",
+      "patch_sha256": "014a95b7e9da203509731efbdbbed70cb9f7cd11ea2e225d3a37d6033c8a6fc5"
+    }
+  ]
+}

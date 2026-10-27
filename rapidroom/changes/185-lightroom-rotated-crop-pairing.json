@@ -1,0 +1,13 @@
+{
+  "id": "lightroom-rotated-crop-pairing",
+  "title": "Preserve Lightroom crop corner pairing through EXIF orientation",
+  "category": "fix",
+  "landed": "2026-10-26",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex; renewed integration of PR187)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#185"],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Preserve the original opposing corners through EXIF orientation before fine rotation. New/re-imported rotated or reflected Lightroom crops intentionally receive corrected bounds. Zero-angle rounding, the image rotation sign and existing stored edits are unchanged. Geometry bounds and Lightroom dimension agreement do not establish pixel registration or colour parity."
+}

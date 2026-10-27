@@ -42,6 +42,10 @@ pub struct Tca {
     pub vr: Option<f32>,
     #[serde(rename = "@vb")]
     pub vb: Option<f32>,
+    #[serde(rename = "@kr")]
+    pub kr: Option<f32>,
+    #[serde(rename = "@kb")]
+    pub kb: Option<f32>,
     #[serde(rename = "@cr")]
     pub cr: Option<f32>,
     #[serde(rename = "@cb")]
@@ -148,8 +152,21 @@ pub struct MultiName {
     value: String,
 }
 
+/// Explicit marker for calibrated polynomial TCA. Its absence keeps saved
+/// constant-scale edits on the legacy sampling path.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct TcaPolynomial {
+    pub cr: f64,
+    pub cb: f64,
+    pub br: f64,
+    pub bb: f64,
+    pub radius_scale: f64,
+}
+
 #[derive(Serialize, Clone)]
 pub struct LensDistortionParams {
+    #[serde(skip)]
+    pub components: [bool; 3],
     k1: f64,
     k2: f64,
     k3: f64,
@@ -161,9 +178,31 @@ pub struct LensDistortionParams {
     radius_scale: Option<f64>,
     tca_vr: f64,
     tca_vb: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tca_poly3: Option<TcaPolynomial>,
     vig_k1: f64,
     vig_k2: f64,
     vig_k3: f64,
+}
+
+impl LensDistortionParams {
+    pub fn preserve_saved_tca(&mut self, saved: &serde_json::Value) {
+        if saved.is_object()
+            && saved
+                .get("tca_poly3")
+                .is_none_or(serde_json::Value::is_null)
+        {
+            self.tca_poly3 = None;
+            self.tca_vr = saved
+                .get("tca_vr")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(self.tca_vr);
+            self.tca_vb = saved
+                .get("tca_vb")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(self.tca_vb);
+        }
+    }
 }
 
 fn strip_maker_prefix(name: &str, maker: &str) -> String {
@@ -302,6 +341,17 @@ impl Lens {
         (params.k1, params.k2, params.k3, params.model) =
             rescale_dist_params(params.k1, params.k2, params.k3, params.model);
         params.radius_scale = Some(distortion_radius_scale(self, camera_crop));
+        if let Some(values) = interpolate_polynomial_tca(self, focal_length) {
+            params.tca_vr = values[0];
+            params.tca_vb = values[1];
+            params.tca_poly3 = Some(TcaPolynomial {
+                cr: values[2],
+                cb: values[3],
+                br: values[4],
+                bb: values[5],
+                radius_scale: distortion_radius_scale(self, camera_crop),
+            });
+        }
 
         // The vignetting model "pa" has r = 1 at the corner of the sensor the
         // calibration was made on. See `rescale_polynomial_coefficients` in
@@ -323,6 +373,10 @@ impl Lens {
         distance: Option<f32>,
     ) -> Option<LensDistortionParams> {
         self.calibration_values(focal_length, aperture, distance, extract_legacy_dist_params)
+            .map(|mut params| {
+                params.tca_poly3 = None;
+                params
+            })
     }
 
     fn calibration_values(
@@ -332,6 +386,9 @@ impl Lens {
         distance: Option<f32>,
         extract_dist_params: fn(&Distortion) -> (f64, f64, f64, u32),
     ) -> Option<LensDistortionParams> {
+        if !focal_length.is_finite() {
+            return None;
+        }
         let cal = self.calibration.as_ref()?;
 
         let mut distortions: Vec<&Distortion> = cal
@@ -412,8 +469,8 @@ impl Lens {
             }
         };
 
-        let (tca_vr, tca_vb) = if tcas.is_empty() {
-            (1.0, 1.0)
+        let [tca_vr, tca_vb, tca_cr, tca_cb, tca_br, tca_bb] = if tcas.is_empty() {
+            [1.0, 1.0, 0.0, 0.0, 0.0, 0.0]
         } else {
             tcas.sort_by(|a, b| a.focal.partial_cmp(&b.focal).unwrap_or(Ordering::Equal));
 
@@ -424,7 +481,7 @@ impl Lens {
             } else if focal_length > tcas.last().unwrap().focal {
                 extract_tca_params(tcas.last().unwrap())
             } else {
-                let mut res = (1.0, 1.0);
+                let mut res = [1.0, 1.0, 0.0, 0.0, 0.0, 0.0];
                 for pair in tcas.windows(2) {
                     let (d1, d2) = (&pair[0], &pair[1]);
                     if focal_length >= d1.focal && focal_length <= d2.focal {
@@ -436,10 +493,7 @@ impl Lens {
                             res = p1;
                         } else {
                             let t = (focal_length - d1.focal) / range;
-                            res = (
-                                p1.0 + t as f64 * (p2.0 - p1.0),
-                                p1.1 + t as f64 * (p2.1 - p1.1),
-                            );
+                            res = std::array::from_fn(|i| p1[i] + t as f64 * (p2[i] - p1[i]));
                         }
                         break;
                     }
@@ -541,6 +595,11 @@ impl Lens {
         };
 
         Some(LensDistortionParams {
+            components: [
+                !distortions.is_empty(),
+                !tcas.is_empty(),
+                !vignettings.is_empty(),
+            ],
             k1,
             k2,
             k3,
@@ -548,6 +607,16 @@ impl Lens {
             radius_scale: None,
             tca_vr,
             tca_vb,
+            tca_poly3: tcas
+                .iter()
+                .any(|t| t.model == "poly3")
+                .then_some(TcaPolynomial {
+                    cr: tca_cr,
+                    cb: tca_cb,
+                    br: tca_br,
+                    bb: tca_bb,
+                    radius_scale: 0.0,
+                }),
             vig_k1,
             vig_k2,
             vig_k3,
@@ -700,8 +769,95 @@ fn vignetting_radius_scale(lens: &Lens, camera_crop: Option<f32>) -> f64 {
     }
 }
 
-fn extract_tca_params(tca: &Tca) -> (f64, f64) {
-    (tca.vr.unwrap_or(1.0) as f64, tca.vb.unwrap_or(1.0) as f64)
+// Cubic Hermite interpolation in the Lensfun TCA parameter domains: v is
+// unscaled; c and b are interpolated after multiplication by focal length.
+fn interpolate_polynomial_tca(lens: &Lens, focal: f32) -> Option<[f64; 6]> {
+    if !focal.is_finite() {
+        return None;
+    }
+    let mut anchors: Vec<_> = lens
+        .calibration
+        .as_ref()?
+        .elements
+        .iter()
+        .filter_map(|e| match e {
+            CalibrationElement::Tca(t) if t.model == "poly3" && t.focal.is_finite() => Some(t),
+            _ => None,
+        })
+        .collect();
+    anchors.sort_by(|a, b| a.focal.total_cmp(&b.focal));
+    // Lensfun replaces a calibration when the same focal length is added
+    // again. The bundled Sony 24-70 GM II contains repeated endpoint anchors.
+    anchors.dedup_by(|later, earlier| {
+        if later.focal == earlier.focal {
+            *earlier = *later;
+            true
+        } else {
+            false
+        }
+    });
+    let first = *anchors.first()?;
+    if focal <= first.focal {
+        return Some(extract_tca_params(first));
+    }
+    let right = anchors.partition_point(|t| t.focal < focal);
+    if right == anchors.len() {
+        return Some(extract_tca_params(anchors[right - 1]));
+    }
+    if anchors[right].focal == focal {
+        return Some(extract_tca_params(anchors[right]));
+    }
+    let left = right - 1;
+    let t =
+        (focal - anchors[left].focal) as f64 / (anchors[right].focal - anchors[left].focal) as f64;
+    Some(std::array::from_fn(|i| {
+        let value = |index: usize| {
+            extract_tca_params(anchors[index])[i]
+                * if i < 2 {
+                    1.0
+                } else {
+                    anchors[index].focal as f64
+                }
+        };
+        let a = value(left);
+        let b = value(right);
+        let slope_a = if left == 0 {
+            b - a
+        } else {
+            (b - value(left - 1)) / 2.0
+        };
+        let slope_b = if right + 1 == anchors.len() {
+            b - a
+        } else {
+            (value(right + 1) - a) / 2.0
+        };
+        let interpolated = a + t
+            * (slope_a
+                + t * (3.0 * (b - a) - 2.0 * slope_a - slope_b
+                    + t * (2.0 * (a - b) + slope_a + slope_b)));
+        interpolated / if i < 2 { 1.0 } else { focal as f64 }
+    }))
+}
+
+fn extract_tca_params(tca: &Tca) -> [f64; 6] {
+    if tca.model == "linear" {
+        return [
+            tca.kr.unwrap_or(1.0) as f64,
+            tca.kb.unwrap_or(1.0) as f64,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        ];
+    }
+    [
+        tca.vr.unwrap_or(1.0) as f64,
+        tca.vb.unwrap_or(1.0) as f64,
+        tca.cr.unwrap_or(0.0) as f64,
+        tca.cb.unwrap_or(0.0) as f64,
+        tca.br.unwrap_or(0.0) as f64,
+        tca.bb.unwrap_or(0.0) as f64,
+    ]
 }
 
 fn extract_vig_params(vig: &Vignetting) -> (f64, f64, f64) {
@@ -896,6 +1052,63 @@ fn lens_result(db: &LensDatabase, lens: &Lens) -> (String, String) {
     (lens_maker, lens.get_display_name(&maker_lenses))
 }
 
+const SONY_A058_EXIF_ALIAS: &str = "E 35-150mm F2.0-F2.8 A058";
+const A058_CANONICAL_MODEL: &str = "Tamron E 35-150mm f/2-2.8 2.0-2.8 Di III VXD A058Z";
+
+pub(crate) fn is_sony_a058_alias(model: &str) -> bool {
+    model
+        .trim()
+        .trim_matches('"')
+        .trim()
+        .eq_ignore_ascii_case(SONY_A058_EXIF_ALIAS)
+}
+
+fn find_sony_a058_alias(
+    db: &LensDatabase,
+    camera_maker: &str,
+    camera_model: &str,
+) -> Option<(String, String)> {
+    let camera = find_camera(db, camera_maker, camera_model)?;
+    if !any_name_matches(&camera.maker, "Sony")
+        || !camera.mount.trim().eq_ignore_ascii_case("Sony E")
+    {
+        return None;
+    }
+    let mut candidates = db.lenses.iter().filter(|lens| {
+        lens.get_maker().eq_ignore_ascii_case("Tamron")
+            && lens.get_canonical_model_name() == A058_CANONICAL_MODEL
+            && lens
+                .mount
+                .iter()
+                .any(|mount| mount.trim().eq_ignore_ascii_case("Sony E"))
+    });
+    let candidate = candidates.next()?;
+    // Refuse ambiguity rather than falling through to an arbitrary fuzzy hit.
+    if candidates.next().is_some() {
+        return None;
+    }
+    Some(lens_result(db, candidate))
+}
+
+/// Identity is not calibration eligibility: the bundled A058 coefficients
+/// were measured on a Nikon Z8. Sony Auto can still use its physical ARW
+/// distortion table, without newly applying Nikon-derived shading or geometry.
+pub(crate) fn automatic_calibration_eligible(
+    db: &LensDatabase,
+    maker: &str,
+    model: &str,
+    camera_maker: &str,
+) -> bool {
+    !camera_maker
+        .trim()
+        .trim_matches('"')
+        .eq_ignore_ascii_case("Sony")
+        || find_lens(db, maker, model).is_none_or(|lens| {
+            !lens.get_maker().eq_ignore_ascii_case("Tamron")
+                || lens.get_canonical_model_name() != A058_CANONICAL_MODEL
+        })
+}
+
 pub fn find_best_lens_match(
     db: &LensDatabase,
     maker: &str,
@@ -904,6 +1117,10 @@ pub fn find_best_lens_match(
 ) -> Option<(String, String)> {
     let clean_model = model.trim().trim_matches('"');
 
+    if is_sony_a058_alias(clean_model) {
+        return find_sony_a058_alias(db, maker, camera_model);
+    }
+
     if !clean_model.is_empty()
         && let Some(hit) = find_lens_by_fuzzy_model(db, maker, clean_model)
     {
@@ -911,6 +1128,18 @@ pub fn find_best_lens_match(
     }
 
     find_lens_by_camera_mount(db, maker, camera_model).map(|lens| lens_result(db, lens))
+}
+
+/// Model words that identify a distinct optical design rather than a spelling
+/// variation. These must survive an automatic fuzzy match.
+fn model_qualifiers(model: &str) -> Vec<String> {
+    model
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter_map(|word| {
+            let word = word.to_ascii_lowercase();
+            matches!(word.as_str(), "macro" | "ii" | "iii" | "iv").then_some(word)
+        })
+        .collect()
 }
 
 fn find_lens_by_fuzzy_model(
@@ -922,6 +1151,20 @@ fn find_lens_by_fuzzy_model(
     let clean_model = model.trim().trim_matches('"').to_string();
     let matcher = fuzzy_matcher::skim::SkimMatcherV2::default().ignore_case();
 
+    // Fuzzy matching is useful for the punctuation and maker-prefix variants
+    // cameras write, but it must not turn a newer optical design into the
+    // older Lensfun profile. In particular, Sony's FE 70-200mm F4 Macro G OSS
+    // II is not the FE 70-200mm f/4 G OSS. Keep explicit generation and
+    // optical-design qualifiers as hard requirements.
+    let required_qualifiers = model_qualifiers(&clean_model);
+    let is_compatible = |lens: &Lens| {
+        let names = [lens.get_full_model_name(), lens.get_canonical_model_name()];
+        names.iter().any(|name| {
+            let qualifiers = model_qualifiers(name);
+            required_qualifiers.iter().all(|q| qualifiers.contains(q))
+        })
+    };
+
     let lenses_from_maker: Vec<&Lens> = db
         .lenses
         .iter()
@@ -931,6 +1174,7 @@ fn find_lens_by_fuzzy_model(
     if !lenses_from_maker.is_empty() {
         let best_match = lenses_from_maker
             .iter()
+            .filter(|lens| is_compatible(lens))
             .filter_map(|lens| {
                 let english_name = lens.get_full_model_name();
                 let canonical_name = lens.get_canonical_model_name();
@@ -970,6 +1214,7 @@ fn find_lens_by_fuzzy_model(
     let best_match_fallback = db
         .lenses
         .iter()
+        .filter(|lens| is_compatible(lens))
         .filter_map(|lens| {
             let english_name = lens.get_full_model_name();
             let canonical_name = lens.get_canonical_model_name();
@@ -1166,6 +1411,7 @@ pub fn resolve_lens_params(
         merged.k3 = p.k3;
         merged.model = p.model;
         merged.radius_scale = p.radius_scale;
+        merged.components[0] = p.components[0];
     }
 
     if let Some(source) = group.iter().find(|l| l.has_tca_data())
@@ -1173,6 +1419,8 @@ pub fn resolve_lens_params(
     {
         merged.tca_vr = p.tca_vr;
         merged.tca_vb = p.tca_vb;
+        merged.tca_poly3 = p.tca_poly3;
+        merged.components[1] = p.components[1];
     }
 
     if let Some(source) = group.iter().find(|l| l.has_vignetting_data())
@@ -1181,6 +1429,7 @@ pub fn resolve_lens_params(
         merged.vig_k1 = p.vig_k1;
         merged.vig_k2 = p.vig_k2;
         merged.vig_k3 = p.vig_k3;
+        merged.components[2] = p.components[2];
     }
 
     Some(merged)
@@ -1223,6 +1472,74 @@ pub fn load_bundled_db() -> LensDatabase {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bundled_a058_alias_requires_sony_e_and_a_unique_identity_without_calibration_approval() {
+        let db = load_bundled_db();
+        let expected = find_sony_a058_alias(&db, "SONY", "ILCE-7RM5").unwrap();
+        assert_eq!(expected.0, "Tamron");
+        for alias in [SONY_A058_EXIF_ALIAS, "  \"e 35-150mm f2.0-f2.8 a058\"  "] {
+            assert_eq!(
+                find_best_lens_match(&db, "SONY", alias, "ILCE-7RM5"),
+                Some(expected.clone())
+            );
+        }
+        assert!(!automatic_calibration_eligible(
+            &db,
+            &expected.0,
+            &expected.1,
+            "SONY"
+        ));
+        assert!(automatic_calibration_eligible(
+            &db,
+            &expected.0,
+            &expected.1,
+            "NIKON CORPORATION"
+        ));
+        assert!(find_best_lens_match(&db, "SONY", SONY_A058_EXIF_ALIAS, "unknown").is_none());
+        assert!(
+            find_best_lens_match(&db, "NIKON CORPORATION", SONY_A058_EXIF_ALIAS, "NIKON Z 8")
+                .is_none()
+        );
+        assert_eq!(
+            find_best_lens_match(&db, "Tamron", A058_CANONICAL_MODEL, ""),
+            Some(expected)
+        );
+        for unrelated in [
+            "A058",
+            "E 35-150mm F2.8-F4 A043",
+            "E 35-150mm F2.0-F2.8 A058-unknown",
+        ] {
+            assert!(!is_sony_a058_alias(unrelated));
+        }
+        let target = db
+            .lenses
+            .iter()
+            .find(|lens| lens.get_canonical_model_name() == A058_CANONICAL_MODEL)
+            .unwrap()
+            .clone();
+        let mut ambiguous = db.clone();
+        ambiguous.lenses.push(target);
+        assert!(
+            find_best_lens_match(&ambiguous, "SONY", SONY_A058_EXIF_ALIAS, "ILCE-7RM5").is_none()
+        );
+        let mut absent = db.clone();
+        absent
+            .lenses
+            .retain(|lens| lens.get_canonical_model_name() != A058_CANONICAL_MODEL);
+        assert!(find_best_lens_match(&absent, "SONY", SONY_A058_EXIF_ALIAS, "ILCE-7RM5").is_none());
+        let mut incompatible = db.clone();
+        for lens in &mut incompatible.lenses {
+            if lens.get_canonical_model_name() == A058_CANONICAL_MODEL {
+                lens.mount = vec!["Nikon Z".into()];
+            }
+        }
+        assert!(
+            find_best_lens_match(&incompatible, "SONY", SONY_A058_EXIF_ALIAS, "ILCE-7RM5")
+                .is_none()
+        );
+        assert!(find_best_lens_match(&db, "SONY", "FE 35mm F1.4 GM", "ILCE-7CM2").is_some());
+    }
 
     fn distortion(model: &str, focal: f32) -> Distortion {
         Distortion {
@@ -1471,6 +1788,19 @@ mod tests {
         assert!((crop.vig_k3 - same.vig_k3 * s.powi(6)).abs() < 1e-12);
     }
 
+    #[test]
+    fn auto_does_not_substitute_the_old_sony_70_200_for_macro_ii() {
+        let db = load_bundled_db();
+
+        // The bundled database has the older FE 70-200mm f/4 G OSS, but not
+        // the optically different Macro G OSS II. Auto must leave this lens
+        // unresolved instead of silently applying the old profile.
+        assert!(
+            find_best_lens_match(&db, "SONY", "FE 70-200mm F4 Macro G OSS II", "ILCE-7CM2",)
+                .is_none()
+        );
+    }
+
     /// A full frame lens on a crop body, mounted through an adapter.
     ///
     /// A Canon EF 50mm f/1.8 STM on a Canon EOS M6 Mark II sits on the
@@ -1570,5 +1900,267 @@ mod tests {
         // The TCA comes from the full frame entry as well.
         assert!((params.tca_vr - 1.0000409).abs() < 1e-6);
         assert!((params.tca_vb - 0.9999893).abs() < 1e-6);
+    }
+
+    fn sigma_profile() -> Lens {
+        let xml = include_str!("../lensfun_db/local-sigma-20-200.xml");
+        let db: LensDatabase = quick_xml::de::from_str(xml).expect("Sigma profile parses");
+        assert_eq!(db.lenses.len(), 1);
+        db.lenses[0].clone()
+    }
+
+    #[test]
+    fn sigma_profile_matches_sony_exif_and_reports_unsupported_tca() {
+        let db = load_bundled_db();
+        let matched = find_best_lens_match(
+            &db,
+            "SONY",
+            "20-200mm F3.5-6.3 DG | Contemporary 025",
+            "ILCE-7CM2",
+        )
+        .expect("exact Sony lens name is supported");
+        assert_eq!(matched.0, "Sigma");
+        assert!(matched.1.contains("TCA unsupported"));
+        let lens = find_lens(&db, &matched.0, &matched.1).unwrap();
+        assert!(lens.mount.iter().any(|m| m == "Sony E"));
+        assert!(!lens.has_tca_data());
+        assert_eq!(camera_crop_factor(&db, "SONY", "ILCE-7CM2"), Some(1.0));
+        let p = resolve_lens_params(
+            &db,
+            &matched.0,
+            &matched.1,
+            20.0,
+            Some(3.5),
+            Some(10.0),
+            Some(1.0),
+        )
+        .unwrap();
+        assert_eq!((p.tca_vr, p.tca_vb), (1.0, 1.0));
+    }
+
+    #[test]
+    fn sigma_distortion_anchors_and_interpolation_use_lensfun_radius_once() {
+        let lens = sigma_profile();
+        let distortions: Vec<_> = lens
+            .calibration
+            .as_ref()
+            .unwrap()
+            .elements
+            .iter()
+            .filter_map(|e| {
+                if let CalibrationElement::Distortion(d) = e {
+                    Some(d)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(distortions.len(), 51);
+        for d in &distortions {
+            let p = lens
+                .get_distortion_params(d.focal, None, None, Some(1.0))
+                .unwrap();
+            assert_eq!(p.model, 0);
+            assert_eq!(p.k1, d.k1.unwrap() as f64);
+            assert_eq!(p.k2, d.k2.unwrap() as f64);
+            assert!((p.radius_scale.unwrap().powi(2) - 3.25).abs() < 1e-12);
+            for step in 0..=100 {
+                let r = step as f64 / 100.0;
+                let t = r * p.radius_scale.unwrap();
+                let derivative = 1.0 + 3.0 * p.k1 * t * t + 5.0 * p.k2 * t.powi(4);
+                assert!(
+                    derivative > 0.0,
+                    "monotonic warp at {}mm radius {}",
+                    d.focal,
+                    r
+                );
+            }
+        }
+        for pair in distortions.windows(2) {
+            let p = lens
+                .get_distortion_params((pair[0].focal + pair[1].focal) / 2.0, None, None, Some(1.0))
+                .unwrap();
+            let k1 = (pair[0].k1.unwrap() as f64 + pair[1].k1.unwrap() as f64) / 2.0;
+            let k2 = (pair[0].k2.unwrap() as f64 + pair[1].k2.unwrap() as f64) / 2.0;
+            assert!((p.k1 - k1).abs() < 1e-10 && (p.k2 - k2).abs() < 1e-10);
+        }
+        let p = lens
+            .get_distortion_params(20.0, None, None, Some(1.0))
+            .unwrap();
+        let corner_scale = 1.0 + p.k1 * 3.25 + p.k2 * 3.25_f64.powi(2);
+        assert!((corner_scale - 0.91426735625).abs() < 1e-7);
+        assert!(corner_scale > 0.0 && corner_scale < 1.0);
+    }
+
+    #[test]
+    fn sigma_vignetting_covers_all_measured_focal_aperture_anchors() {
+        let lens = sigma_profile();
+        let vignettings: Vec<_> = lens
+            .calibration
+            .as_ref()
+            .unwrap()
+            .elements
+            .iter()
+            .filter_map(|e| {
+                if let CalibrationElement::Vignetting(v) = e {
+                    Some(v)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(vignettings.len(), 99);
+        for v in vignettings {
+            let p = lens
+                .get_distortion_params(v.focal, Some(v.aperture), v.distance, Some(1.0))
+                .unwrap();
+            assert!((p.vig_k1 - v.k1.unwrap() as f64).abs() < 1e-6);
+            assert!((p.vig_k2 - v.k2.unwrap() as f64).abs() < 1e-6);
+            assert!((p.vig_k3 - v.k3.unwrap() as f64).abs() < 1e-6);
+            for step in 0..=100 {
+                let r = step as f64 / 100.0;
+                let illumination =
+                    1.0 + p.vig_k1 * r.powi(2) + p.vig_k2 * r.powi(4) + p.vig_k3 * r.powi(6);
+                assert!(illumination.is_finite() && illumination > 0.0);
+            }
+        }
+    }
+
+    #[test]
+    fn sigma_source_retains_all_original_tca_terms_and_provenance() {
+        let original = include_str!(
+            "../../rapidroom/lens-profiles/sigma-20-200/source/local-sigma-20-200.xml"
+        );
+        let db: LensDatabase = quick_xml::de::from_str(original).unwrap();
+        let tcas: Vec<_> = db.lenses[0]
+            .calibration
+            .as_ref()
+            .unwrap()
+            .elements
+            .iter()
+            .filter_map(|e| {
+                if let CalibrationElement::Tca(t) = e {
+                    Some(t)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(tcas.len(), 51);
+        assert!(tcas.iter().all(|t| t.model == "poly3"));
+        assert!(
+            tcas.iter()
+                .any(|t| t.br.unwrap_or(0.0) != 0.0 && t.bb.unwrap_or(0.0) != 0.0)
+        );
+        let provenance = include_str!(
+            "../../rapidroom/lens-profiles/sigma-20-200/source/local-sigma-20-200.README.md"
+        );
+        assert!(provenance.contains("CC-BY-SA") && provenance.contains("207"));
+    }
+
+    #[test]
+    #[ignore = "writes labelled synthetic geometry diagnostics only when explicitly requested"]
+    fn sigma_write_synthetic_geometry_diagnostics() {
+        use image::{DynamicImage, Rgb, Rgb32FImage};
+        let out = std::path::PathBuf::from(
+            std::env::var("RAPIDROOM_SIGMA_SYNTHETIC_OUT").expect("explicit output directory"),
+        );
+        std::fs::create_dir_all(&out).unwrap();
+        let ideal_source = DynamicImage::ImageRgb32F(Rgb32FImage::from_fn(1200, 800, |x, y| {
+            let grid = x % 60 < 2 || y % 60 < 2;
+            let v = if grid { 0.20 } else { 0.04 };
+            Rgb([v, v, v])
+        }));
+        ideal_source
+            .to_rgb8()
+            .save(out.join("synthetic-ideal-grid-input.png"))
+            .unwrap();
+        let lens = sigma_profile();
+        let mut reports = Vec::new();
+        for (focal, aperture) in [(20.0, 3.5), (50.0, 5.0), (200.0, 6.3)] {
+            let source = if let Ok(folder) = std::env::var("RAPIDROOM_SIGMA_SIMULATION_DIR") {
+                let path = std::path::Path::new(&folder)
+                    .join(format!("{}mm-linear-simulation.png", focal as u32));
+                DynamicImage::ImageRgb32F(
+                    image::open(path)
+                        .expect("independent linear Lensfun simulation")
+                        .to_rgb32f(),
+                )
+            } else {
+                ideal_source.clone()
+            };
+            source
+                .to_rgb8()
+                .save(out.join(format!("synthetic-{}mm-before.png", focal as u32)))
+                .unwrap();
+            let p = lens
+                .get_distortion_params(focal, Some(aperture), Some(10.0), Some(1.0))
+                .unwrap();
+            let off = serde_json::json!({"lensDistortionParams": p, "lensDistortionEnabled": false, "lensVignetteEnabled": false});
+            let unchanged =
+                crate::image_processing::apply_geometry_warp(&source, &off).into_owned();
+            assert_eq!(unchanged.to_rgb32f().as_raw(), source.to_rgb32f().as_raw());
+            for (name, vignette) in [("distortion-only", false), ("distortion-vignetting", true)] {
+                let adjustments = serde_json::json!({"lensDistortionParams": p, "lensDistortionEnabled": true,
+                    "lensVignetteEnabled": vignette, "lensDistortionAmount": 100, "lensVignetteAmount": 100});
+                let image = crate::image_processing::apply_geometry_warp(&source, &adjustments)
+                    .into_owned();
+                let rgb = image.to_rgb32f();
+                assert_eq!(rgb.dimensions(), (1200, 800));
+                assert!(rgb.as_raw().iter().all(|v| v.is_finite() && *v >= 0.0));
+                assert_ne!(rgb.as_raw(), source.to_rgb32f().as_raw());
+                let file = format!("synthetic-{}mm-{}.png", focal as u32, name);
+                image.to_rgb8().save(out.join(&file)).unwrap();
+                reports.push(serde_json::json!({"file":file,"focal":focal,"aperture":aperture,
+                    "synthetic":true,"purpose":"existing geometry renderer on explicit synthetic input; not real-lens correction acceptance",
+                    "adjustments":adjustments,"tca":"unsupported; neutral channel scales"}));
+            }
+        }
+        std::fs::write(
+            out.join("diagnostics.json"),
+            serde_json::to_string_pretty(&reports).unwrap(),
+        )
+        .unwrap();
+    }
+}
+
+#[cfg(test)]
+mod polynomial_tca_compatibility_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn polynomial_tca_marker_is_absent_from_legacy_resolution_and_saved_values() {
+        let db: LensDatabase = quick_xml::de::from_str(include_str!(
+            "../../rapidroom/validation/lensfun-tca/fixture.xml"
+        ))
+        .unwrap();
+        let lens = &db.lenses[0];
+        let old = lens.get_legacy_distortion_params(27.5, None, None).unwrap();
+        assert!(
+            serde_json::to_value(old)
+                .unwrap()
+                .get("tca_poly3")
+                .is_none()
+        );
+        for saved in [
+            json!({"tca_vr":1.0012,"tca_vb":0.9991}),
+            json!({"tca_vr":1.0012,"tca_vb":0.9991,"radius_scale":1.8}),
+        ] {
+            let mut current = lens
+                .get_distortion_params(27.5, None, None, Some(1.0))
+                .unwrap();
+            current.preserve_saved_tca(&saved);
+            let encoded = serde_json::to_value(current).unwrap();
+            assert!(encoded.get("tca_poly3").is_none());
+            assert_eq!(encoded["tca_vr"], saved["tca_vr"]);
+            assert_eq!(encoded["tca_vb"], saved["tca_vb"]);
+        }
+        let mut fresh = lens
+            .get_distortion_params(27.5, None, None, Some(1.0))
+            .unwrap();
+        let saved = serde_json::to_value(&fresh).unwrap();
+        fresh.preserve_saved_tca(&saved);
+        assert_eq!(serde_json::to_value(fresh).unwrap(), saved);
     }
 }

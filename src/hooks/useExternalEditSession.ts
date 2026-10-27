@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { exit } from '@tauri-apps/plugin-process';
+import { toast } from 'react-toastify';
 
 import { useProcessStore } from '../store/useProcessStore';
 import { useEditorStore } from '../store/useEditorStore';
@@ -14,21 +15,29 @@ import { debouncedSave } from './useEditorActions';
  * Opens the requested image in the editor and, for edit sessions, exports
  * the result to the caller-provided output path and exits the app.
  */
-export function useExternalEditSession(handleImageSelect: (path: string) => void) {
+export function useExternalEditSession(
+  handleImageSelect: (path: string) => void,
+  handleOpenImage: (path: string) => void | Promise<void> = handleImageSelect,
+) {
   const initialFileToOpen = useProcessStore((state) => state.initialFileToOpen);
   const externalEditSession = useProcessStore((state) => state.externalEditSession);
   const exportStatus = useProcessStore((state) => state.exportState.status);
   const [isFinishing, setIsFinishing] = useState(false);
 
   const handleImageSelectRef = useRef(handleImageSelect);
+  const handleOpenImageRef = useRef(handleOpenImage);
   useEffect(() => {
     handleImageSelectRef.current = handleImageSelect;
+    handleOpenImageRef.current = handleOpenImage;
   });
 
   useEffect(() => {
     if (!initialFileToOpen) return;
     useProcessStore.getState().setProcess({ initialFileToOpen: null });
-    handleImageSelectRef.current(initialFileToOpen);
+    void Promise.resolve(handleOpenImageRef.current(initialFileToOpen)).catch((error) => {
+      console.error('Failed to open external photo:', error);
+      toast.error('Could not load the opened photo folder.');
+    });
   }, [initialFileToOpen]);
 
   useEffect(() => {
@@ -72,6 +81,7 @@ export function useExternalEditSession(handleImageSelect: (path: string) => void
 
     setIsFinishing(true);
     useProcessStore.getState().setExportState({
+      destination: session.output,
       status: Status.Exporting,
       progress: { current: 0, total: 1 },
       errorMessage: '',

@@ -7,7 +7,7 @@
   "original_adapter_sha256": "76fb15995823ba1a7ad2b1c6bd09b86ca676c7dc501c73ef6875f6dc13d795ab",
   "artifacts": {
     "deb": {
-      "path": "/home/josh/code/rapidraw-project/samples/mcp-packaging-135/packages/RapidRoom_2.2.0_amd64.deb",
+      "path": "~/code/rapidraw-project/samples/mcp-packaging-135/packages/RapidRoom_2.2.0_amd64.deb",
       "sha256": "a367ce3faff8b36d9241c1956bae7e44f20689f5ac9d8ff639ab337b37be9406",
       "binary_sha256": "0d62e08dab0a2baa5b1945024271e7feac09a6a1ff693c9fae26da3dae7a4abf",
       "bundle_type": "DEB",
@@ -21,7 +21,7 @@
       "no_rapidraw_install_paths": true
     },
     "appimage": {
-      "path": "/home/josh/code/rapidraw-project/samples/mcp-packaging-135/packages/RapidRoom_2.2.0_amd64.AppImage",
+      "path": "~/code/rapidraw-project/samples/mcp-packaging-135/packages/RapidRoom_2.2.0_amd64.AppImage",
       "sha256": "f0fca6ae468a405ced3c2e04c2a77505808a18b5656d739268e6b2544d094d5e",
       "binary_sha256": "512530910b7535f3aa525f5aceabe0c4ed7b2ca242094225fc62927683468501",
       "bundle_type": "APP",
@@ -76,7 +76,7 @@
       "fixture_unchanged": true,
       "engine_unchanged": true
     },
-    "case": "/home/josh/code/rapidraw-project/samples/mcp-packaging-135/native-appimage-adapter"
+    "case": "~/code/rapidraw-project/samples/mcp-packaging-135/native-appimage-adapter"
   },
   "inspection_tool": "dpkg-deb isolated from a verified local sync-database archive; no system-wide install",
   "unverified": [
