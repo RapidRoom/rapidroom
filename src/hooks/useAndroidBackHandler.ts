@@ -79,10 +79,6 @@ export function useAndroidBackHandler() {
         });
         return;
       }
-      if (ui.negativeModalState.isOpen) {
-        ui.setUI((state) => ({ negativeModalState: { ...state.negativeModalState, isOpen: false } }));
-        return;
-      }
       if (ui.denoiseModalState.isOpen) {
         if (ui.denoiseModalState.isProcessing) return;
         ui.setUI((state) => ({ denoiseModalState: { ...state.denoiseModalState, isOpen: false } }));

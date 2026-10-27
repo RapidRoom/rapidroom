@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { ImageFlag } from './AppProperties';
-import { FLAG_ICONS } from '../../utils/imageFlags';
+import { FLAG_FILL_CLASSES, FLAG_ICONS } from '../../utils/imageFlags';
 
 interface FlagBadgesProps {
   flag: ImageFlag | null;
@@ -17,12 +17,14 @@ export default function FlagBadges({ flag, hasPrecedingBadge }: FlagBadgesProps)
           <div
             key={option}
             className={clsx(
-              'text-white flex items-center shrink-0 transition-all duration-200 ease-out overflow-hidden',
-              isActive ? 'max-w-3 opacity-100 scale-100' : 'max-w-0 opacity-0 scale-75 pointer-events-none',
+              'text-white flex items-center shrink-0 transition-all duration-200 ease-out overflow-hidden rounded-sm',
+              isActive
+                ? clsx('max-w-4 p-0.5 opacity-100 scale-100', FLAG_FILL_CLASSES[option])
+                : 'max-w-0 p-0 opacity-0 scale-75 pointer-events-none',
               isActive && hasPrecedingBadge ? 'ml-1.5' : 'ml-0',
             )}
           >
-            <Icon size={12} className={clsx(option === ImageFlag.Pick && 'fill-white')} />
+            <Icon size={10} className={clsx(option === ImageFlag.Pick && 'fill-white')} />
           </div>
         );
       })}

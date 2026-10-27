@@ -1,0 +1,13 @@
+{
+  "id": "capture-time-zones",
+  "title": "Show recorded camera time zones and shift a folder's displayed capture time",
+  "category": "feature",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#327"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Capture-time sorting and auto-stack honor recorded EXIF offsets. The metadata panel can add or subtract hours from displayed capture times for photos directly in one source folder, including virtual copies. The camera's recorded zone remains visible. The shift is saved in app preferences and does not change original files, sidecars, sorting or auto-stack; zero resets it. Photos without valid offsets retain camera-clock ordering. Other locales initially use English for the new controls."
+}

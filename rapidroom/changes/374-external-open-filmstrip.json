@@ -1,0 +1,13 @@
+{
+  "id": "external-open-filmstrip",
+  "title": "Load the surrounding filmstrip when opening a photo from outside the library",
+  "category": "fix",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "CLI, Open With and MCP opens initialize the photo folder before selecting the photo. Existing album/recursive context is retained when the photo is already listed; temporary roots are not saved as permanent folders. The external editor export protocol and read-only card protections are preserved."
+}

@@ -7,7 +7,7 @@
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
   "upstream_issues": [],
-  "upstream_prs": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#1922"],
   "rendering_change": false,
   "notes": "Recursive-view Shift-click selection follows the visible folder-grouped order and skips collapsed folders. Flat view retains its existing global sort order."
 }

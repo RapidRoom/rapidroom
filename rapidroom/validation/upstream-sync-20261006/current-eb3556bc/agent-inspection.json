@@ -1,0 +1,141 @@
+{
+  "application": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+  "agent": "Codex Sora",
+  "inspected_utc": "2026-10-10T20:04:42.232956+00:00",
+  "method": "Each of all26 individual PNG comparison panels opened via view_image and visually inspected, including every as-shot/absolute-WB row. Metrics are separate full-resolution16-bit measurements.",
+  "panels": {
+    "current-busy-agx-lut-effects-apple-iphone12pro-proraw.png": {
+      "sha256": "baa38bf560757f2fcddb717dd0fd1f1e837803635bb37053f652b0f712f49f55",
+      "inspected": true,
+      "observation": "Portrait lake/sky composition retained; subtle tonal/color differences. AGX rotation/vignette unchanged in character; no blank output or new border."
+    },
+    "current-busy-agx-lut-effects-om-om1-20mp.png": {
+      "sha256": "828339f64e09c77e2a85bd2d085f2a6447c6278440c2c2cc97dfd35ae99a05bd",
+      "inspected": true,
+      "observation": "Forest/snow composition retained; current tone/color is slightly warmer/brighter in foliage and tree highlights. AGX recipe retains intentional effects; no new border or obvious cast."
+    },
+    "current-busy-agx-lut-effects-sony-a7c2-15mp-uncompressed.png": {
+      "sha256": "9d8ffcf679deb67454cef0e0f72e7fde4f51a2e7d183ae79ec22ec7ff77afb17",
+      "inspected": true,
+      "observation": "Railway/field/sky composition retained; small warm/cool and vegetation tonal differences. AGX rotation/vignette retained; no conspicuous magenta cast."
+    },
+    "current-busy-agx-lut-effects-sony-a7cr-18mp-lossless-s.png": {
+      "sha256": "572b4d089e782fce7a604ef24e7d6ea02f6312a86b9cf7f56928820451d8ab58",
+      "inspected": true,
+      "observation": "Reference/current both lack magenta cast; current has small cloud/tone/detail differences. No green crop padding in either RapidRoom view."
+    },
+    "current-busy-tone-color-detail-apple-iphone12pro-proraw.png": {
+      "sha256": "67250624c5e02559eaecc37255c1e2c11ae7bf6dd5d3866343ec7c4f67f94390",
+      "inspected": true,
+      "observation": "Portrait lake/sky composition retained; subtle tonal/color differences. AGX rotation/vignette unchanged in character; no blank output or new border."
+    },
+    "current-busy-tone-color-detail-canon-r50-24mp-craw.png": {
+      "sha256": "b5a89cc281480bf71de72f19a637a4aaaed78b308eaee13c8b3174469f39cfe3",
+      "inspected": true,
+      "observation": "Garden/sky composition retained; small grass/foliage tonal changes. Strong recipe grain appears in both views; no new stripe or blank region."
+    },
+    "current-busy-tone-color-detail-fuji-xt4-26mp-lossless.png": {
+      "sha256": "c122022b895dc6e1a091de3b95060d0c3fa18b7474def48e7a2aa02592b96a52",
+      "inspected": true,
+      "observation": "Color chart/leaves composition retained; small chart/foliage tone/color differences. No conspicuous new cast or geometry defect."
+    },
+    "current-busy-tone-color-detail-om-om1-20mp.png": {
+      "sha256": "a24c69296eed1ec2be939a4e3940752f343e72c9f43023c9b63ec6fa0f141526",
+      "inspected": true,
+      "observation": "Forest/snow composition retained; current tone/color is slightly warmer/brighter in foliage and tree highlights. AGX recipe retains intentional effects; no new border or obvious cast."
+    },
+    "current-busy-tone-color-detail-sony-a7c2-15mp-uncompressed.png": {
+      "sha256": "aa2cda4b6dc4c9585b7be55aa9f94e5d5186da853e0abf2125c63ffc278dd917",
+      "inspected": true,
+      "observation": "Railway/field/sky composition retained; small warm/cool and vegetation tonal differences. AGX rotation/vignette retained; no conspicuous magenta cast."
+    },
+    "current-busy-tone-color-detail-sony-a7cr-18mp-lossless-s.png": {
+      "sha256": "552bd012eba81b3537046171692f8b9b9ff1e8ee13db0a048549c1563d35a62c",
+      "inspected": true,
+      "observation": "Reference/current both lack magenta cast; current has small cloud/tone/detail differences. No green crop padding in either RapidRoom view."
+    },
+    "sony-a7c2-33mp-compressed-as-shot-absolute.png": {
+      "sha256": "03d44d570967e0cab0dcf9c6e096e7f0694d9376ddce6e8283283161ab8ae917",
+      "inspected": true,
+      "observation": "All four before/after rows match visually: as-shot,3200 cool,6504 neutral and9000 warm. Original full-resolution hashes confirm pixel identity."
+    },
+    "sony-a7c2-33mp-uncompressed-as-shot-absolute.png": {
+      "sha256": "1cc503a7f887ea8b5402f718255eabdaa2e238124a674b47aae13f1a8ac0c4ed",
+      "inspected": true,
+      "observation": "All four before/after rows match visually: as-shot,3200 cool,6504 neutral and9000 warm. Original full-resolution hashes confirm pixel identity."
+    },
+    "sony-a7cr-18mp-lossless-s-as-shot-absolute.png": {
+      "sha256": "4a7cea9a8a19c37fb5272257a2dec7e09b24b6209cf74caafc0c0bc2a05e9855",
+      "inspected": true,
+      "observation": "As-shot views match visually. Pre-fix absolute Kelvin develops severe purple/pink/red cast; current3200 is cool cyan/blue,6504 neutral and9000 warmer. Subject geometry preserved."
+    },
+    "sony-a7cr-s-busy-agx-lut-effects-int7-fix.png": {
+      "sha256": "400fba775d4cef4778661bde213a6795e5ee920cf98850e29c695e09484fd213",
+      "inspected": true,
+      "observation": "Pre-fix magenta cast is absent in current; frozen int7/current both have subdued neutral cloud/building colors. Current tone/detail differences remain visible; no exact-match claim."
+    },
+    "sony-a7cr-s-busy-agx-lut-effects-upstream-fix.png": {
+      "sha256": "499d278d8a1dbdc345e35fa580714cb099dbe8dad340337e48edbd296f470184",
+      "inspected": true,
+      "observation": "Plain upstream and pre-fix RapidRoom both show magenta sky/buildings; corrected current view removes the shared cast. Green upstream crop padding is visible and explicitly separate from color proof."
+    },
+    "sony-a7cr-s-busy-tone-color-detail-int7-fix.png": {
+      "sha256": "0646f4d18524375b7d2bc25cd3dfc178e9d6812feb61fb9619a4757a5c8960d6",
+      "inspected": true,
+      "observation": "Pre-fix magenta cast is absent in current; frozen int7/current both have subdued neutral cloud/building colors. Current tone/detail differences remain visible; no exact-match claim."
+    },
+    "sony-a7cr-s-busy-tone-color-detail-upstream-fix.png": {
+      "sha256": "4cea17f8a2262ef4346d178ea4a2a84c3cb9777b3ce15859080b15d8ea234042",
+      "inspected": true,
+      "observation": "Plain upstream and pre-fix RapidRoom both show magenta sky/buildings; corrected current view removes the shared cast. Green upstream crop padding is visible and explicitly separate from color proof."
+    },
+    "sony-a7rv-pixls-6231-as-shot-absolute.png": {
+      "sha256": "383b7501e46f77ea73fbb1f211d6e980312a9d2c4bb8675b226089b6f7462144",
+      "inspected": true,
+      "observation": "All four before/after rows match visually: as-shot,3200 cool,6504 neutral and9000 warm. Original full-resolution hashes confirm pixel identity."
+    },
+    "sony-a7rv-pixls-6232-as-shot-absolute.png": {
+      "sha256": "a11c4ce36c4517a1dcb17e0114621ac53c6177234d7d141fcc76b4f6f4f1cfec",
+      "inspected": true,
+      "observation": "All four before/after rows match visually: as-shot,3200 cool,6504 neutral and9000 warm. Original full-resolution hashes confirm pixel identity."
+    },
+    "sony-a7rv-pixls-6233-as-shot-absolute.png": {
+      "sha256": "24a6058ad3691351d1feceb0fb8729f5dbae6841356a87f345a913e44e3bfa8e",
+      "inspected": true,
+      "observation": "As-shot views match visually. Pre-fix absolute Kelvin develops severe purple/pink/red cast; current3200 is cool cyan/blue,6504 neutral and9000 warmer. Subject geometry preserved."
+    },
+    "sony-a7rv-pixls-6233-busy-agx-lut-effects.png": {
+      "sha256": "3914b7829fa08d122ee3cfad5d5cf439089d23ac4fee41d07b616542cbb8fcc3",
+      "inspected": true,
+      "observation": "Current relative recipe removes purple cast from greenhouse/trees; greens are stronger and greenhouse roof neutral. AGX recipe keeps its intentional grain, vignette and rotation."
+    },
+    "sony-a7rv-pixls-6233-busy-tone-color-detail.png": {
+      "sha256": "8948c99a18f6ff45b664f52570ae26773d7f992429643c9feb33adf29f667db0",
+      "inspected": true,
+      "observation": "Current relative recipe removes purple cast from greenhouse/trees; greens are stronger and greenhouse roof neutral. AGX recipe keeps its intentional grain, vignette and rotation."
+    },
+    "sony-a7rv-pixls-6234-as-shot-absolute.png": {
+      "sha256": "69e00fb1f27925332612cb0407ceb23d17cf4cc79e0e634945392084cd0a114a",
+      "inspected": true,
+      "observation": "As-shot views match visually. Pre-fix absolute Kelvin develops severe purple/pink/red cast; current3200 is cool cyan/blue,6504 neutral and9000 warmer. Subject geometry preserved."
+    },
+    "sony-a7rv-pixls-6234-busy-agx-lut-effects.png": {
+      "sha256": "9a36f7262a951b4e720d48320d08193b6475c6b508d03e3e6cf749722c3d9875",
+      "inspected": true,
+      "observation": "Current relative recipe removes purple cast from greenhouse/trees; greens are stronger and greenhouse roof neutral. AGX recipe keeps its intentional grain, vignette and rotation."
+    },
+    "sony-a7rv-pixls-6234-busy-tone-color-detail.png": {
+      "sha256": "055b1a9fd8d3f5dd7acc5123bf5cadc8fc0b8fb4ed00c64618bfa655ed46c313",
+      "inspected": true,
+      "observation": "Current relative recipe removes purple cast from greenhouse/trees; greens are stronger and greenhouse roof neutral. AGX recipe keeps its intentional grain, vignette and rotation."
+    },
+    "sony-a7rv-pixls-6235-as-shot-absolute.png": {
+      "sha256": "fe25ea4a27b63cb5942a612aca4c1df505bbfbc480dc4464cf70e7cf2ff6e6df",
+      "inspected": true,
+      "observation": "All four before/after rows match visually: as-shot,3200 cool,6504 neutral and9000 warm. Original full-resolution hashes confirm pixel identity."
+    }
+  },
+  "human_approval": false,
+  "references_updated": false,
+  "scope": "Downsampled CC0 panels only; no claim of Lightroom accuracy, physical pointer testing, non-Linux coverage or enabled downloaded fog/relight models."
+}
