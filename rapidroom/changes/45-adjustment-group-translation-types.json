@@ -2,7 +2,7 @@
   "id": "adjustment-group-translation-types",
   "title": "Type copy and paste adjustment group labels as translation keys",
   "category": "ci",
-  "landed": "2026-10-14",
+  "landed": "2026-10-26",
   "authors": ["yojen7"],
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
