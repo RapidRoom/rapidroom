@@ -925,7 +925,7 @@ const Row = React.memo(
     onImageClick,
     queueThumbnailRequest,
     hoveredCullingPath,
-  }: any) => {
+  }: any): React.ReactElement | null => {
     const image: ImageFile = imageList[index];
     const isSelected = multiSelectedPaths.includes(image.path);
     const imagePath = image?.path;
@@ -969,6 +969,7 @@ const Row = React.memo(
     );
   },
 );
+const ListRow = (props: React.ComponentProps<typeof Row>): React.ReactElement => <Row {...props} />;
 
 export default function CullingView(props: any) {
   const { t } = useTranslation();
@@ -1248,7 +1249,7 @@ export default function CullingView(props: any) {
             listRef={setListHandle}
             rowCount={imageList.length}
             rowHeight={sidebarWidth - 16}
-            rowComponent={Row}
+            rowComponent={ListRow}
             rowProps={rowProps}
             className="custom-scrollbar"
           />
