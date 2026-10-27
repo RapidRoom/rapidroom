@@ -13,6 +13,18 @@ The policy decided on 2026-10-13 is **“Ask me first” for any rendering chang
 
 Other failures leave the PR open labelled `agent:codex`, with the checked head/base and reason. The gate polls at five-minute intervals and has a five-hour total deadline, including base refreshes. This conditional daily-sync merge is the only automated exception in AGENTS.md; rendering changes still require explicit human approval through the normal review/reference process.
 
+## Sync agent (2026-10-25)
+
+The workflow merges only clean syncs whose renders are unchanged. Everything else goes to the sync agent, a Claude Code cloud routine that runs every four hours and acts as a maintainer account. Each run takes the next step for any open sync work and stops; the state lives in the PRs, issues, labels and comments.
+
+- **Conflicts:** it resolves them on `sync/upstream-<date>`, keeping both behaviours as in the rules above, and opens a PR that closes the conflict issue.
+- **Review:** a fresh subagent that has not seen the resolution reviews the merge against both parents. Merging needs a `Sync review: FINAL ACCEPT at <sha>` comment at the head, or at an earlier head followed only by reference or change-record commits.
+- **Upstream render changes:** under the maintainer's standing approval (2026-10-23), it records a new `ci-reference.json` with `regression.yml` (`record=true`) and commits it. This applies only when upstream commits in the sync change rendering code, the resolution keeps upstream's render logic as is, and the diffs match that change. Any other render change, or any doubt, keeps the PR held: `needs-human` + `rendering-change` plus a `Sync agent: holding for the maintainer` comment that mentions the maintainer.
+- **Merge:** only when every required hosted check passed at the exact head, the review accepted it, the PR is not held, and `main` has not moved since the checks ran. It merges with the expected head sha, then verifies the merge commit's first parent, as the workflow does.
+- **Never:** it never pushes to `main`, re-blesses a RapidRoom-caused render change, or merges with a check missing.
+
+The routine's prompt is kept with the maintainer's project notes. Pause it at claude.ai/code/routines.
+
 ## Remaining base race
 
 Main deliberately keeps the [non-strict status policy](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) to avoid forcing all parallel PRs to refresh and repeat long CI after every merge. GitHub binds the merge to the expected head, while our last base read and the merge are separate requests. A seconds-wide base race remains; the post-merge first-parent check detects it and escalates to human review plus full hosted checks on main. The workflow does not silently claim that combination was verified, roll it back, or re-bless a reference.

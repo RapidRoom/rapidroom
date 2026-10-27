@@ -1,0 +1,14 @@
+{
+  "id": "side-panel-placement-eslint-cleanup",
+  "title": "Remove redundant side panel placement initializers",
+  "category": "ci",
+  "landed": "2026-10-26",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Drag placement handlers assign the value in both side branches, so redundant bottom initializers were removed without changing placement behavior."
+}

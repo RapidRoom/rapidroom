@@ -1,0 +1,164 @@
+{
+  "schema": 1,
+  "platform": "linux-x86_64",
+  "ort": "1.24.1",
+  "openvino": "2025.4.1",
+  "source_distribution": "onnxruntime-openvino==1.24.1",
+  "files": [
+    {
+      "file": "libonnxruntime.so.1.24.1",
+      "bytes": 31260360,
+      "sha256": "a88c790b82c5bdfd4740ebe3018e52009851097f97fbd9e5e3fd3249fcdb9ed7",
+      "needed": [
+        "libdl.so.2",
+        "librt.so.1",
+        "libz.so.1",
+        "libpthread.so.0",
+        "libstdc++.so.6",
+        "libm.so.6",
+        "libgcc_s.so.1",
+        "libc.so.6",
+        "ld-linux-x86-64.so.2"
+      ],
+      "rpath": ["$ORIGIN"]
+    },
+    {
+      "file": "libonnxruntime_providers_shared.so",
+      "bytes": 15776,
+      "sha256": "5e02c1ff90e7d71365264dbb6767c00f04a8b57a96cddbc0085c61fa1393250d",
+      "needed": ["libstdc++.so.6", "libm.so.6", "libgcc_s.so.1", "libc.so.6"],
+      "rpath": []
+    },
+    {
+      "file": "libonnxruntime_providers_openvino.so",
+      "bytes": 2000856,
+      "sha256": "288a362f90a6daced2c9c017d1419d80d2505751d4349f6499652f7e4d5ce53f",
+      "needed": [
+        "libopenvino_onnx_frontend.so.2541",
+        "libopenvino.so.2541",
+        "librt.so.1",
+        "libpthread.so.0",
+        "libz.so.1",
+        "libstdc++.so.6",
+        "libm.so.6",
+        "libgcc_s.so.1",
+        "libc.so.6",
+        "ld-linux-x86-64.so.2"
+      ],
+      "rpath": ["$ORIGIN"]
+    },
+    {
+      "file": "libopenvino.so.2541",
+      "bytes": 25284089,
+      "sha256": "ac9634b715a242a61644c77bc38f17508fe73f517e418027e2410f4bee004943",
+      "needed": [
+        "libdl.so.2",
+        "libtbb.so.12",
+        "libstdc++.so.6",
+        "libm.so.6",
+        "libgcc_s.so.1",
+        "libpthread.so.0",
+        "libc.so.6",
+        "ld-linux-x86-64.so.2"
+      ],
+      "rpath": ["$ORIGIN"]
+    },
+    {
+      "file": "libopenvino_intel_cpu_plugin.so",
+      "bytes": 67008289,
+      "sha256": "034df890550ae9199fe5f8608c0df8fd0fe355f303bad56bea10bae14c14c3cb",
+      "needed": [
+        "libdl.so.2",
+        "libopenvino.so.2541",
+        "libtbb.so.12",
+        "libstdc++.so.6",
+        "libm.so.6",
+        "libgcc_s.so.1",
+        "libpthread.so.0",
+        "libc.so.6",
+        "ld-linux-x86-64.so.2"
+      ],
+      "rpath": ["$ORIGIN"]
+    },
+    {
+      "file": "libopenvino_onnx_frontend.so.2541",
+      "bytes": 7006249,
+      "sha256": "f426710881d8c1a01d5ed6d7eaa076d923b19983d3ab3a18bb19d25dba7d8923",
+      "needed": [
+        "libopenvino.so.2541",
+        "libdl.so.2",
+        "libstdc++.so.6",
+        "libm.so.6",
+        "libgcc_s.so.1",
+        "libpthread.so.0",
+        "libc.so.6",
+        "ld-linux-x86-64.so.2"
+      ],
+      "rpath": ["$ORIGIN"]
+    },
+    {
+      "file": "libtbb.so.12",
+      "bytes": 367649,
+      "sha256": "6781dc6aa8b2ca237d0164258e70266a44667756c02a9a039782ec1d1a67b653",
+      "needed": [
+        "libdl.so.2",
+        "libstdc++.so.6",
+        "libm.so.6",
+        "libgcc_s.so.1",
+        "libpthread.so.0",
+        "libc.so.6",
+        "ld-linux-x86-64.so.2"
+      ],
+      "rpath": ["$ORIGIN"]
+    },
+    {
+      "file": "libtbbmalloc.so",
+      "bytes": 158129,
+      "sha256": "d7166b1e54c17d8f25be63e22fc2366bbe7b1b8cc3a7ea629dea59caeba9c020",
+      "needed": ["libdl.so.2", "libpthread.so.0", "libc.so.6"],
+      "rpath": ["$ORIGIN"]
+    }
+  ],
+  "aliases": {
+    "libonnxruntime.so.1": "libonnxruntime.so.1.24.1",
+    "libopenvino.so": "libopenvino.so.2541",
+    "libopenvino_onnx_frontend.so": "libopenvino_onnx_frontend.so.2541",
+    "libtbb.so": "libtbb.so.12",
+    "libtbbmalloc.so.2": "libtbbmalloc.so"
+  },
+  "bytes_unique": 133101397,
+  "openvino_source_commit": "82bbf0292c5bd490bc25a383e63d6461d3ee05c5",
+  "notices": [
+    {
+      "file": "ONNXRuntime-MIT.txt",
+      "bytes": 1073,
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+    },
+    {
+      "file": "ONNXRuntime-ThirdPartyNotices.txt",
+      "bytes": 325054,
+      "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2"
+    },
+    {
+      "file": "OpenVINO-Apache-2.0.txt",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "file": "OpenVINO-onednn-third-party-programs.txt",
+      "bytes": 28475,
+      "sha256": "f1b16991dfe8488f3f5f07cccba575c31c91175a9f2c8d9e1569665f86e0b2f6"
+    },
+    {
+      "file": "OpenVINO-onetbb-third-party-programs.txt",
+      "bytes": 46980,
+      "sha256": "c775ef5f682d9eb1abba56c3ea58b521e4b0ad2dc435e79d3f4fac49c65f3b4a"
+    },
+    {
+      "file": "OpenVINO-runtime-third-party-programs.txt",
+      "bytes": 98131,
+      "sha256": "7a8dce1367db91f163881aac0476e6e565dd47a22601ce58f4dc883c78cdb8e5"
+    }
+  ],
+  "binary_fingerprint": "3ea821b062a81e9731b760190fdb1542be8ae668cb9771a01089c6b553f35507"
+}

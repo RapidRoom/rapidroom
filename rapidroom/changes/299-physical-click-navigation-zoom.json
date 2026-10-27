@@ -1,0 +1,12 @@
+{
+  "id": "physical-click-navigation-zoom",
+  "title": "Use physical zoom for photo clicks and navigation",
+  "category": "fix",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Click from Fit to200% physical, or100% with pixel-click enabled, then return to Fit. Carry the physical percentage across photo orientations/resolutions with a consistent centred view. Ignore stale cached-selection completions and cancel previous-photo zoom work during fast navigation. Fixes #299 and #311."
+}

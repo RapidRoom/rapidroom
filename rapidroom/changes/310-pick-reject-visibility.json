@@ -1,0 +1,13 @@
+{
+  "id": "310-pick-reject-visibility",
+  "title": "Show pick and reject flags clearly in culling",
+  "category": "feature",
+  "landed": "2026-10-17",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Picked photos get a white flag on a green button and badge, rejected photos a white reject symbol on red, in the editor, library, filmstrip and Culling. Active flag and rating filters in the bottom bar are filled so it is obvious when one is on. Flag values, filtering and shortcuts are unchanged."
+}

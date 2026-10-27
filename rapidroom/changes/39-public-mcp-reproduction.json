@@ -1,0 +1,13 @@
+{
+  "id": "public-mcp-gap-reproduction",
+  "title": "Provide a public, checksummed MCP reproduction subset",
+  "category": "ci",
+  "landed": "2026-10-14",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original reproduction package with Codex); external AGPL helpers from sheldonxxxx/RapidRAW@4494beb9",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#39"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "A pinned external fork checkout replays one CC0 capture and one separately labelled procedural fixture: global/local edits, protected pixels, Undo/Redo, restart persistence and PNG export. Public summaries exclude operational paths, raw metadata and credentials. This is execution evidence, not photographic-quality or full-assessment coverage."
+}

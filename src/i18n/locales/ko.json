@@ -65,7 +65,8 @@
       "vibrance": "생동감",
       "wbPickerTooltip": "화이트 밸런스 피커",
       "wbPickerWgpuDisabled": "WB 피커: 설정에서 WGPU를 비활성화하세요.",
-      "whiteBalance": "화이트 밸런스"
+      "whiteBalance": "화이트 밸런스",
+      "kelvinModeTooltip": "색온도를 켈빈으로 표시"
     },
     "curves": {
       "channelTitle": "{{channel}} 채널",
@@ -97,14 +98,24 @@
       "resetPoint": "{{channel}} 포인트 커브 초기화"
     },
     "details": {
+      "aiDenoise": "AI 노이즈 제거",
+      "classicDenoise": "클래식 노이즈 제거",
+      "aiDenoiseDetail": "디테일",
       "aiDenoiseHint": "For high-ISO RAW photos, use AI Denoise from the photo menu. These sliders are for light touch-ups.",
       "blueYellow": "파랑/노랑",
       "centre": "중앙",
       "chromaticAberration": "색수차",
       "clarity": "명료도",
       "color": "색상",
+      "convertNegative": "네거티브 반전",
       "dehaze": "디헤이즈",
       "luminance": "휘도",
+      "negativeBlue": "파랑",
+      "negativeContrast": "인화지 호수",
+      "negativeConversion": "네거티브 변환",
+      "negativeExposure": "인화 노출",
+      "negativeGreen": "초록",
+      "negativeRed": "빨강",
       "noiseReduction": "노이즈 감소",
       "presence": "외관",
       "quickNoiseReduction": "Quick noise reduction (basic)",
@@ -123,6 +134,11 @@
       "bokehShape": "보케 모양",
       "creative": "크리에이티브",
       "feather": "페더",
+      "fog": "안개",
+      "fogDensity": "밀도",
+      "fogHeight": "지면 안개",
+      "fogStart": "시작 거리",
+      "fogVariation": "변화",
       "glow": "글로우",
       "grain": "그레인",
       "halation": "헐레이션",
@@ -131,9 +147,34 @@
       "lightFlares": "빛 번짐",
       "lut": "LUT",
       "midpoint": "중간점",
+      "relight": "리라이팅",
+      "relightAddLight": "조명 추가",
+      "relightAmbient": "주변광",
+      "relightAngle": "각도",
+      "relightColor": "조명 색상",
+      "relightCone": "원뿔",
+      "relightDepth": "깊이",
+      "relightDuplicateLight": "조명 복제",
+      "relightElevation": "고도",
+      "relightFalloff": "감쇠",
+      "relightHint": "조명을 추가하거나 선택한 다음 이미지를 클릭하거나 드래그하여 위치를 지정하세요.",
+      "relightIntensity": "강도",
+      "relightLight": "조명 {{index}}",
+      "relightRemoveLight": "조명 제거",
+      "relightShadows": "그림자",
+      "relightShadowSoftness": "그림자 부드러움",
+      "relightShine": "광택",
+      "relightSoftness": "부드러움",
+      "relightType": "조명 유형",
+      "relightTypes": {
+        "directional": "방향광",
+        "point": "점광원",
+        "spot": "스포트라이트"
+      },
       "roughness": "거칠기",
       "roundness": "둥글기",
       "size": "크기",
+      "spatial": "공간",
       "vignette": "비네트"
     }
   },
@@ -175,6 +216,11 @@
       "rootDir": "루트 디렉터리",
       "selectLightroomCatalog": "Select Lightroom Catalog"
     },
+    "autoAdjustModes": {
+      "normal": "보통",
+      "strong": "강하게",
+      "subtle": "약하게"
+    },
     "colors": {
       "blue": "파랑",
       "green": "초록",
@@ -189,21 +235,22 @@
       "xmpSidecar": "XMP Sidecar"
     },
     "editor": {
-      "autoAdjust": "이미지 자동 조정",
+      "autoAdjust": "자동 조정",
       "autoLensCorrection": "자동 렌즈 교정",
+      "autoStraighten": "자동 수평 맞추기",
       "cancel": "취소",
       "colorLabel": "색상 레이블",
       "confirmReset": "초기화 확인",
       "convertNegative": "네거티브 변환",
       "copyAdjustments": "조정값 복사",
-      "cullImage": "이미지 선별",
-      "denoise": "이미지 노이즈 제거",
+      "cullImage": "자동 선별",
+      "denoise": "노이즈 제거",
       "editImage": "이미지 편집",
       "exportImage": "이미지 내보내기",
       "flag": "플래그",
       "flagPick": "선택됨",
       "flagReject": "거부됨",
-      "frameImage": "이미지 프레임",
+      "frameImage": "프레임 편집기",
       "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "HDR로 병합",
       "noLabel": "레이블 없음",
@@ -214,6 +261,8 @@
       "ratingLabel_one": "{{count}}점",
       "ratingLabel_other": "{{count}}점",
       "redo": "다시 실행",
+      "removeDenoise": "노이즈 제거 해제",
+      "removeNegativeConversion": "네거티브 변환 해제",
       "resetAdjustments": "조정값 초기화",
       "stitchPanorama": "파노라마 스티칭",
       "tagging": "태그 지정",
@@ -258,27 +307,28 @@
     },
     "thumbnail": {
       "addToAlbum": "앨범에 추가",
-      "autoAdjust_one": "이미지 자동 조정",
-      "autoAdjust_other": "이미지 자동 조정",
+      "autoAdjust_one": "자동 조정",
+      "autoAdjust_other": "자동 조정",
       "autoLensCorrection_one": "자동 렌즈 교정",
       "autoLensCorrection_other": "자동 렌즈 교정",
-      "collage_one": "이미지 프레임",
+      "autoStraighten_one": "자동 수평 맞추기",
+      "autoStraighten_other": "자동 수평 맞추기",
+      "collage_one": "프레임 편집기",
       "collage_other": "콜라주 만들기",
       "confirmDelete": "삭제 확인",
       "confirmDeleteVc": "삭제 + 가상 복사본 확인",
-      "convertNegative_one": "네거티브 변환",
-      "convertNegative_other": "네거티브 변환",
       "copyImage_one": "이미지 복사",
       "copyImage_other": "이미지 {{count}}개 복사",
-      "cullImage_one": "이미지 선별",
-      "cullImage_other": "이미지 선별",
+      "cullImage_one": "자동 선별",
+      "cullImage_other": "자동 선별",
       "deleteAssociated": "삭제 + 연결된 항목",
       "deleteImage_one": "이미지 삭제",
       "deleteImage_other": "이미지 {{count}}개 삭제",
       "deleteSelected": "선택 항목만 삭제",
-      "denoise_one": "이미지 노이즈 제거",
-      "denoise_other": "이미지 노이즈 제거",
+      "denoise_one": "노이즈 제거",
+      "denoise_other": "노이즈 제거",
       "duplicateImage": "이미지 복제",
+      "enable": "사용",
       "exportImage_one": "이미지 내보내기",
       "exportImage_other": "이미지 {{count}}개 내보내기",
       "importXmpAdjustments": "Import XMP Adjustments",
@@ -286,6 +336,7 @@
       "pasteAdjustments_one": "조정값 붙여넣기",
       "pasteAdjustments_other": "이미지 {{count}}개에 조정값 붙여넣기",
       "physicalCopy": "물리적 복사본",
+      "remove": "제거",
       "removeFromAlbum_one": "앨범에서 제거",
       "removeFromAlbum_other": "앨범에서 이미지 {{count}}개 제거",
       "renameImage_one": "이미지 이름 변경",
@@ -306,12 +357,15 @@
       "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
       "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
       "notTransferredItems": {
+        "maskBrushTable": "가져오지 못한 브러시 테이블",
         "aiDenoise": "AI Denoise",
         "aiMasks": "AI masks (subject, sky, people, objects)",
         "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
         "masks": "masks of a kind RapidRAW can't import",
         "pointColor": "Point Color",
         "profileLook": "profile look (colour table)",
+        "unsupportedDevelopSettings": "RapidRoom에서 제어할 수 없는 Lightroom 현상 설정",
+        "unsupportedProcessVersion": "알 수 없는 Lightroom 프로세스 버전(기본값을 추정하지 않음)",
         "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
       },
       "title": "XMP Import Report",
@@ -355,9 +409,15 @@
           "cropGeometry": "Converted to native crop geometry",
           "unsupported": "No supported mapping for this CRS setting",
           "superseded": "The newer process-version setting takes precedence",
-          "inactive": "This setting is inactive in the source conversion mode"
+          "inactive": "This setting is inactive in the source conversion mode",
+          "alreadyApplied": "The photo marks development settings AlreadyApplied; existing native edits are preserved"
         }
-      }
+      },
+      "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
+      "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved.",
+      "brushTableGroup": "브러시 그룹 \"{{name}}\": {{reason}}",
+      "unchangedForImage": "기존 편집을 유지했습니다. 지원되는 조정은 가져오지 않았습니다."
     },
     "toasts": {
       "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
@@ -446,7 +506,7 @@
       "comingSoon": "출시 예정",
       "connection": {
         "backendLabel": "AI 백엔드:",
-        "builtinDesc": "기본 로컬 CPU를 사용 중입니다. 생성형 교체를 사용하려면 설정에서 클라우드 또는 AI 커넥터를 선택하세요.",
+        "builtinDesc": "기본 내장 AI를 사용 중입니다. 생성형 교체를 사용하려면 설정에서 클라우드 또는 AI 커넥터를 선택하세요.",
         "builtinLabel": "내장 AI:",
         "cloudLabel": "클라우드 AI:",
         "connectorConnectedDesc": "로컬 생성형 백엔드에 연결되었습니다.",
@@ -462,10 +522,12 @@
       },
       "createNewTitle": "새 생성형 편집 만들기",
       "createNewTooltip": "새 {{name}} 편집 만들기",
+      "denoising": "AI 노이즈 제거 실행 중...",
       "dropzoneText": "여기에 놓아 새 편집을 만드세요",
       "editSettingsTitle": "편집 설정",
       "editsTitle": "편집",
       "generatingDepthMap": "AI 심도 맵 계산 중...",
+      "generatingNormalMap": "AI 노멀 맵 계산 중...",
       "generativeEditTitle": "생성형 편집",
       "inpaintingTitle": "인페인팅",
       "liquify": {
@@ -525,8 +587,17 @@
       },
       "touchUpTitle": "터치업"
     },
+    "compare": {
+      "horizontal": "상하 분할",
+      "sideBySide": "나란히 보기",
+      "title": "전 / 후",
+      "toggle": "전체 원본",
+      "vertical": "좌우 분할"
+    },
     "crop": {
       "aspectRatioHeading": "종횡비",
+      "autoStraightenFailed": "자동 수평 맞추기 실패: {{error}}",
+      "autoStraightenNoLines": "수평을 맞출 직선을 찾을 수 없습니다",
       "custom": {
         "hPlaceholder": "높이",
         "hTooltip": "높이",
@@ -626,6 +697,7 @@
       "rotationHeading": "회전",
       "title": "자르기 및 변형",
       "tooltips": {
+        "autoStraighten": "자동 수평 맞추기 (Shift+S)",
         "compositionOverlay": "구도 오버레이",
         "flipHoriz": "이미지를 좌우로 반전",
         "flipVert": "이미지를 상하로 반전",
@@ -729,6 +801,18 @@
         "applyPreset": "프리셋 적용",
         "componentPropertiesTitle": "{{name}} 속성",
         "copySectionSettings": "{{section}} 설정 복사",
+        "faceParts": {
+          "bodySkin": "몸 피부",
+          "eyeWhites": "흰자위",
+          "eyebrows": "눈썹",
+          "faceSkin": "얼굴 피부",
+          "hair": "머리카락",
+          "iris": "홍채 및 동공",
+          "lips": "입술",
+          "nose": "코",
+          "teeth": "치아"
+        },
+        "generateTextMask": "마스크 생성",
         "invertComponent": "구성 요소 반전",
         "invertMask": "마스크 반전",
         "maskPropertiesTitle": "마스크 속성",
@@ -738,7 +822,8 @@
         "pasteSettings": "설정 붙여넣기",
         "resetSectionSettings": "{{section}} 설정 초기화",
         "select": "선택",
-        "selectPresetTooltip": "적용할 프리셋 선택"
+        "selectPresetTooltip": "적용할 프리셋 선택",
+        "textPromptPlaceholder": "예: 사람, 자동차, 물"
       },
       "toggleAnalyticsInAdjustments": "조정 패널에서 분석 토글",
       "toggleAnalyticsTooltip": "분석 표시 전환",
@@ -849,7 +934,10 @@
         "preset": "프리셋",
         "style": "스타일",
         "tool": "도구"
-      }
+      },
+      "appliedFolder": "적용됨",
+      "bakedIn": "편집에 반영됨",
+      "bakedInNotice": "이전에 적용되어 편집에 반영되었습니다. 제거해도 편집 결과는 유지됩니다."
     },
     "referenceView": {
       "active": "편집 중",
@@ -875,10 +963,12 @@
       }
     },
     "toolbar": {
+      "history": "기록",
       "switchToVariant": "Switch to {{label}}",
       "tooltips": {
         "aperture": "조리개",
         "backToLibrary": "라이브러리로 돌아가기",
+        "compare": "전 / 후 (B) 또는 모드 (우클릭)",
         "focalLength": "초점 거리",
         "fullscreen": "전체 화면 전환 (F)",
         "iso": "ISO",
@@ -934,8 +1024,10 @@
       "selectFolderTitle_other": "이미지 {{count}}개를 내보낼 폴더 선택"
     },
     "file": {
+      "dpi": "DPI",
       "quality": "품질",
       "qualityLossless": "품질 (무손실)",
+      "resolution": "해상도",
       "tiffBitDepth": "TIFF 비트 심도",
       "tiffBitDepth16": "16비트",
       "tiffBitDepth8": "8비트"
@@ -1024,7 +1116,90 @@
       "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
+  "immich": {
+    "close": {
+      "cancel": "취소",
+      "closeAnyway": "그래도 닫기",
+      "message": "Immich 전송 대기 중인 편집: {{number}}. 편집 내용은 이 컴퓨터에 남아 있으며, 다음에 RapidRAW를 실행하고 Immich에 연결되면 전송됩니다.",
+      "title": "아직 Immich에 없는 편집"
+    },
+    "export": {
+      "album": "앨범",
+      "destination": "Immich",
+      "noAlbum": "앨범 없음",
+      "sourceAlbum": "이미지를 연 앨범",
+      "withOriginal": "원본도 업로드",
+      "withOriginalDesc": "로컬 폴더의 이미지: 원본이 편집 내용과 함께 업로드되고 내보낸 파일이 그 위에 스택됩니다. Immich의 이미지는 항상 원본 위에 스택됩니다."
+    },
+    "section": {
+      "empty": "서버에 앨범이 없습니다.",
+      "error": "Immich에 연결할 수 없습니다.",
+      "loading": "앨범 불러오는 중…",
+      "refresh": "앨범 새로고침",
+      "timeline": "타임라인",
+      "title": "Immich"
+    },
+    "settings": {
+      "apiKey": "API 키",
+      "apiKeyDesc": "Immich의 계정 설정 → API 키에서 다음 권한으로 만드세요: album.read, albumAsset.create, albumAsset.delete, asset.read, asset.view, asset.download, asset.upload, asset.update, asset.delete, stack.read, stack.create, user.read",
+      "connected": "{{user}}(으)로 연결됨 (Immich {{version}})",
+      "description": "Immich 서버의 사진을 라이브러리에서 둘러보고 바로 편집하세요. 원본은 열 때 다운로드되며, 편집 내용은 Immich에 저장되어 모든 컴퓨터에서 똑같이 보입니다.",
+      "keyInFile": "본인만 읽을 수 있는 파일에 저장됨: 사용 가능한 자격 증명 저장소가 없습니다. KDE에서는 KDE 지갑 설정에서 Secret Service 인터페이스를 켠 뒤 다시 저장하세요.",
+      "keyInStore": "시스템 자격 증명 저장소에 저장됨.",
+      "save": "저장",
+      "saved": "저장됨.",
+      "serverUrl": "서버 주소",
+      "serverUrlDesc": "브라우저에서 Immich를 여는 주소입니다.",
+      "test": "연결 테스트",
+      "title": "Immich",
+      "working": "처리 중…"
+    },
+    "sync": {
+      "offline": "오프라인",
+      "pending": "Immich 전송 대기 중인 편집: {{number}}"
+    },
+    "toasts": {
+      "backOnline": "Immich에 다시 연결되었으며 모든 편집 내용이 저장되었습니다.",
+      "downloadFailed": "Immich에서 다운로드하지 못했습니다: {{error}}",
+      "editsConflict": "{{fileName}}이(가) 다른 컴퓨터에서도 편집되었습니다. 내 편집 내용은 유지되고, 다른 버전은 가상 사본으로 보관됩니다.",
+      "offline": "Immich에 연결할 수 없습니다. 편집 내용은 여기에 보관되며 다시 연결되면 전송됩니다.",
+      "trashFailed": "Immich 휴지통으로 이동하지 못했습니다: {{error}}",
+      "uploaded": "Immich에 업로드됨: {{number}}"
+    }
+  },
   "library": {
+    "aiJobs": {
+      "discard": "남은 AI 처리 취소",
+      "failed": "실패 ({{failedCount}})",
+      "kinds": {
+        "denoise": "AI 노이즈 제거 중",
+        "depthMap": "깊이 분석 중",
+        "depthMask": "깊이 마스크 생성 중",
+        "faceMask": "얼굴 마스크 생성 중",
+        "foregroundMask": "전경 마스크 생성 중",
+        "normalMap": "표면 분석 중",
+        "skyMask": "하늘 마스크 생성 중",
+        "subjectMask": "피사체 마스크 생성 중",
+        "textMask": "텍스트 마스크 생성 중"
+      },
+      "more": "+{{moreCount}}개 더",
+      "pause": "AI 처리 일시 중지",
+      "paused": "일시 중지됨 · {{remaining}}개 남음",
+      "pausedItem": "일시 중지",
+      "pausing": "현재 단계 후 일시 중지합니다…",
+      "process": "이미지 처리",
+      "progress": "{{current}}/{{total}}",
+      "queue": "대기열",
+      "queuedItem": "대기 중",
+      "resume": "AI 처리 재개",
+      "retry": "다시 시도",
+      "taskWithMask": "{{task}} “{{mask}}”",
+      "thumbnailPaused": "AI 처리 일시 중지됨",
+      "thumbnailPending": "AI 처리 대기 중",
+      "title": "AI 처리",
+      "unprocessed_other": "이미지 {{count}}개에 AI 처리가 필요합니다",
+      "waiting": "AI 처리 준비 중…"
+    },
     "community": {
       "actionSave": "저장",
       "actionSaved": "저장됨",
@@ -1066,6 +1241,11 @@
       "toggleFit": "1:1 / 맞춤 전환",
       "vc": "VC"
     },
+    "filterExit": {
+      "hiddenSingle": "{{name}}이(가) 더 이상 필터와 일치하지 않습니다",
+      "hiddenMultiple_other": "이미지 {{count}}개가 더 이상 필터와 일치하지 않습니다",
+      "undo": "실행 취소"
+    },
     "filters": {
       "edited": {
         "all": "모든 이미지",
@@ -1095,7 +1275,8 @@
         "threeOnly": "3점만",
         "twoAndUp": "2점 이상",
         "twoOnly": "2점만",
-        "unrated": "미평가 항목만"
+        "unrated": "미평가 항목만",
+        "andDownSuffix": "이하"
       },
       "raw": {
         "all": "모든 유형",
@@ -1147,6 +1328,8 @@
       }
     },
     "header": {
+      "cancel": "취소",
+      "deselectAll": "모두 선택 해제",
       "search": {
         "addFilterOrSearch": "필터 추가 또는 검색...",
         "indexingImages": "이미지 색인 중...",
@@ -1158,6 +1341,8 @@
         "tooltipClearSearch": "검색 지우기",
         "tooltipSearchFilter": "검색 또는 필터"
       },
+      "selectAll": "모두 선택",
+      "selectItems": "항목 선택",
       "title": "라이브러리",
       "viewOptions": {
         "currentFolder": "현재 폴더",
@@ -1185,7 +1370,12 @@
         "sortDescending": "내림차순 정렬",
         "thumbnailFit": "썸네일 맞춤",
         "thumbnailSize": "썸네일 크기",
-        "title": "보기 옵션"
+        "title": "보기 옵션",
+        "ratingOperator": {
+          "eq": "정확히 이 평점",
+          "gte": "이 평점 이상",
+          "lte": "이 평점 이하"
+        }
       }
     },
     "import": {
@@ -1195,6 +1385,7 @@
     },
     "items": {
       "cloudPlaceholder": "iCloud에 저장됨 — 다운로드되지 않음",
+      "immichPlaceholder": "Immich에 저장됨 — 다운로드되지 않음",
       "collapseFolder": "폴더 접기",
       "currentFolder": "현재 폴더",
       "expandFolder": "폴더 펼치기",
@@ -1206,6 +1397,28 @@
       "tooltipIso": "ISO",
       "tooltipShutterSpeed": "셔터 속도",
       "tooltipVirtualCopy": "가상 복사본"
+    },
+    "jobs": {
+      "active": "진행 중",
+      "cancel": "내보내기 취소",
+      "cancelling": "취소 중…",
+      "clear": "지우기",
+      "copyError": "클릭하여 복사",
+      "empty": "진행 중인 작업 없음",
+      "emptyHint": "내보내기, 가져오기, 파일 전송 및 AI 작업이 여기에 표시됩니다.",
+      "errorCopied": "오류를 클립보드에 복사했습니다",
+      "images_other": "이미지 {{count}}개",
+      "kinds": {
+        "aiTagging": "AI 태그 지정",
+        "copy": "파일 복사",
+        "export": "내보내기",
+        "import": "가져오기",
+        "modelDownload": "AI 모델 다운로드",
+        "move": "파일 이동"
+      },
+      "openInLibrary": "라이브러리에서 열기",
+      "recent": "최근",
+      "title": "작업"
     },
     "reject": {
       "deleteConfirm": "거부된 항목 삭제",
@@ -1273,7 +1486,27 @@
     "tooltips": {
       "communityPresets": "커뮤니티 프리셋",
       "goHome": "홈으로 이동",
-      "importImages": "이미지 가져오기"
+      "importImages": "이미지 가져오기",
+      "select": "선택"
+    },
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again."
     }
   },
   "masks": {
@@ -1283,6 +1516,7 @@
       "clone": "복제",
       "color": "색상",
       "depth": "심도",
+      "face": "얼굴",
       "flow": "플로우",
       "foreground": "전경",
       "heal": "복구",
@@ -1295,7 +1529,8 @@
       "radial": "원형",
       "retouch": "리터칭",
       "sky": "하늘",
-      "subject": "피사체"
+      "subject": "피사체",
+      "text": "텍스트"
     }
   },
   "menus": {
@@ -1351,6 +1586,7 @@
       "descMerge": "복사한 변경 사항을 추가하며 다른 설정은 그대로 둡니다.",
       "descReplace": "선택한 모든 설정을 덮어쓰고 나머지는 기본값으로 초기화합니다.",
       "groups": {
+        "aiDenoise": "AI 노이즈 제거",
         "chromaticAberration": "색수차",
         "clarityDehaze": "명료도 및 디헤이즈",
         "colorCalibration": "색상 보정",
@@ -1358,16 +1594,20 @@
         "colorMixer": "컬러 믹서",
         "cropAspectRatio": "자르기 및 종횡비",
         "curves": "커브",
+        "fog": "안개",
         "exposureToneMapper": "노출 및 톤 매퍼",
         "grain": "그레인",
         "guidedPerspective": "유도된 원근 보정",
         "halationGlow": "헐레이션 및 글로우",
         "hueShift": "글로벌 색조 시프트",
+        "lensBlur": "렌즈 블러",
         "lensCorrection": "렌즈 보정",
         "lut": "LUT",
         "masks": "마스크",
+        "negativeConversion": "네거티브 변환",
         "noiseReduction": "노이즈 감소",
         "presence": "외관",
+        "relight": "리라이트",
         "sharpness": "선명도",
         "tone": "톤",
         "transformRotation": "변형 및 회전",
@@ -1508,12 +1748,20 @@
       "deleteWarning": "파일이 시스템 휴지통으로 이동됩니다.",
       "fileNaming": "파일 이름 지정",
       "folderOrganization": "폴더 정리",
+      "notUniqueWarning": "{original_filename}, {original_filename_number}, {sequence} 중 하나도 없으면 파일 이름이 중복될 수 있습니다. 중복된 파일은 가져오지 않습니다.",
       "organizeByDate": "날짜별 하위 폴더로 정리",
       "sourceFiles": "원본 파일",
       "startImport": "가져오기 시작",
       "title": "가져오기 설정"
     },
     "lensCorrection": {
+      "sourceApplied": "적용됨: {{source}}",
+      "sourceAvailable": "사용 가능: {{source}}",
+      "sourceCameraData": "카메라 데이터",
+      "sourceExistingRecipe": "저장된 편집 설정",
+      "sourceNoData": "보정 데이터 없음",
+      "sourceUnavailable": "보정 소스를 가져올 수 없음",
+      "sourceChecking": "보정 소스 확인 중…",
       "amount": "양",
       "apply": "적용",
       "autoDetectLens": "렌즈 자동 감지",
@@ -1576,30 +1824,6 @@
       "smartCollections": "Smart collections, not imported: {{total}}",
       "title": "Import Lightroom Collections"
     },
-    "negativeConversion": {
-      "blueWeight": "파랑 (노랑)",
-      "cancel": "취소",
-      "colorTiming": "컬러 타이밍",
-      "compareTooltip": "길게 눌러 원본 보기",
-      "contrast": "대비 (그레이드)",
-      "convertAndSave": "변환 및 저장",
-      "convertAndSaveAll": "모두 변환 및 저장 ({{count}})",
-      "convertAndSaveAll_one": "모두 변환 및 저장 ({{count}})",
-      "convertAndSaveAll_other": "모두 변환 및 저장 ({{count}})",
-      "converting": "변환 중",
-      "convertingProgress": "변환 중 {{current}}/{{total}}",
-      "exposure": "노출",
-      "greenWeight": "초록 (마젠타)",
-      "noticeText": "반전 로직은 marcinz606이 제작한 <0>NegPy</0>(<1>GPL-3.0</1>)에서 영감을 받았습니다.",
-      "originalLabel": "원본 네거티브",
-      "printGrade": "프린트 그레이드",
-      "redWeight": "빨강 (시안)",
-      "resetTooltip": "초기화",
-      "resetViewTooltip": "보기 초기화",
-      "title": "네거티브 변환",
-      "zoomInTooltip": "확대",
-      "zoomOutTooltip": "축소"
-    },
     "panorama": {
       "cancel": "취소",
       "close": "닫기",
@@ -1633,6 +1857,7 @@
       "groupSelection": "전체 선택을 한 그룹으로",
       "groups": "{group} 및 {member} 그룹",
       "newName": "새 이름",
+      "notUniqueWarning": "{original_filename}, {original_filename_number}, {sequence} 중 하나도 없으면 파일 이름이 중복될 수 있습니다. 이 경우 아무 파일도 이름이 변경되지 않습니다.",
       "preview": "미리 보기",
       "renamed_one": "파일 {{count}}개의 이름을 바꿨습니다",
       "renamed_other": "파일 {{count}}개의 이름을 바꿨습니다",
@@ -1713,17 +1938,34 @@
       "zoomDesc": "스크롤 휠이나 핀치 제스처를 사용할 때 캔버스가 확대/축소되는 속도를 조정합니다."
     },
     "data": {
+      "aiTags": "AI 태그 지우기",
+      "aiTagsDesc": "루트 폴더의 모든 이미지에서 AI가 생성한 태그를 제거합니다. 직접 추가한 태그는 유지됩니다.",
+      "allTags": "모든 태그 지우기",
+      "allTagsDesc": "루트 폴더의 모든 이미지에서 AI 생성 태그와 사용자 추가 태그를 제거합니다. 색상 라벨은 유지됩니다.",
+      "clear": "지우기",
+      "delete": "삭제",
+      "deleteEdits": "모든 편집 삭제",
+      "deleteEditsDesc": "모든 루트 폴더의 .rrdata 사이드카 파일(편집 내용)을 모두 삭제합니다. 이 작업은 되돌릴 수 없습니다.",
+      "libraryAndWorkspace": "라이브러리 및 작업 공간",
+      "limit": "한도",
+      "clearAiDenoise": "AI 노이즈 제거 캐시 지우기",
+      "clearAiDenoiseButton": "지우기",
+      "clearAiDenoiseDesc": "캐시된 AI 노이즈 제거 결과({{size}})를 삭제합니다. AI 노이즈 제거가 켜진 이미지는 다음에 열 때 다시 계산됩니다.",
       "clearSidecars": "모든 사이드카 파일 지우기",
       "clearSidecarsButton": "지우기",
       "clearSidecarsDesc": "루트 폴더 내의 모든 .rrdata 파일(편집 내용 포함)이 삭제됩니다:",
       "clearThumbnail": "썸네일 캐시 지우기",
       "clearThumbnailButton": "지우기",
       "clearThumbnailDesc": "캐시된 모든 썸네일 이미지가 삭제됩니다. 라이브러리를 탐색할 때 자동으로 다시 생성됩니다.",
+      "cacheUsage": "썸네일 및 미리 보기: {{size}} · 파일 수: {{files}}",
+      "cacheUsageError": "캐시 사용량을 읽을 수 없습니다.",
       "loading": "로딩 중...",
       "logs": "애플리케이션 로그 보기",
       "logsButton": "열기",
       "logsDesc": "문제 해결을 위해 애플리케이션 로그 파일을 봅니다. 로그 위치:",
       "modals": {
+        "aiDenoiseMessage": "AI 노이즈 제거 캐시를 지우시겠습니까?\n\nAI 노이즈 제거가 켜진 이미지는 다시 처리해야 하며, 이미지당 몇 분이 걸릴 수 있습니다.",
+        "aiMapsMessage": "깊이 및 노멀 맵을 지우시겠습니까?\n\n렌즈 블러, 안개 또는 리라이트를 사용하는 이미지는 다음에 열 때 맵을 다시 생성합니다.",
         "aiMessage": "모든 활성 루트 폴더의 모든 이미지에서 AI가 생성한 태그를 모두 제거하시겠습니까?\n\n사용자가 추가한 태그에는 영향을 주지 않습니다. 이 작업은 취소할 수 없습니다.",
         "allMessage": "모든 활성 루트 폴더의 모든 이미지에서 AI가 생성한 태그와 사용자가 추가한 태그를 모두 제거하시겠습니까?\n\n이 작업은 취소할 수 없습니다.",
         "cacheMessage": "썸네일 캐시를 지우시겠습니까?\n\n모든 썸네일을 다시 생성해야 하며, 대용량 폴더의 경우 느릴 수 있습니다.",
@@ -1738,14 +1980,21 @@
         "confirmResetLayout": "레이아웃 초기화",
         "confirmResetLayoutTitle": "작업 공간 레이아웃 초기화",
         "confirmTitle": "삭제 확인",
+        "immichMessage": "다운로드된 Immich 원본을 지우시겠습니까?\n\n편집 내용은 유지됩니다. 원본은 열 때 다시 다운로드됩니다.",
+        "metadataMessage": "메타데이터 캐시를 지우시겠습니까?\n\n탐색하는 동안 파일에서 메타데이터를 다시 읽어옵니다.",
+        "modelsMessage": "다운로드된 AI 모델을 삭제하시겠습니까?\n\n다음에 AI 기능을 사용할 때 다시 다운로드됩니다.",
         "resetLayoutMessage": "작업 공간 레이아웃을 초기화하시겠습니까? 도킹된 모든 패널, 너비 및 전환기 위치가 기본값으로 복원됩니다.",
         "sidecarMessage": "모든 사이드카 파일을 삭제하시겠습니까?\n\n모든 활성 루트 폴더 및 하위 폴더 내의 모든 이미지에 대한 편집 내용이 영구적으로 제거됩니다."
       },
       "noFolders": "선택된 폴더 없음",
+      "refresh": "새로고침",
+      "reset": "초기화",
       "resetLayoutButton": "레이아웃 초기화",
       "resetLayoutDesc": "패널 도크, 측면 분할기, 높이 및 패널 전환기를 기본 레이아웃으로 복원합니다.",
       "resetLayoutTitle": "작업 공간 레이아웃 초기화",
+      "show": "보기",
       "statuses": {
+        "aiDenoiseSuccess": "AI 노이즈 제거 캐시를 지웠습니다.",
         "aiSuccess": "{{count}}개 파일이 업데이트되었습니다. AI 태그가 제거되었습니다.",
         "aiSuccess_one": "{{count}}개 파일이 업데이트되었습니다. AI 태그가 제거되었습니다.",
         "aiSuccess_other": "{{count}}개 파일이 업데이트되었습니다. AI 태그가 제거되었습니다.",
@@ -1753,7 +2002,9 @@
         "allSuccess_one": "{{count}}개 파일이 업데이트되었습니다. 색상을 제외한 모든 태그가 제거되었습니다.",
         "allSuccess_other": "{{count}}개 파일이 업데이트되었습니다. 색상을 제외한 모든 태그가 제거되었습니다.",
         "cacheSuccess": "썸네일 캐시가 성공적으로 지워졌습니다.",
+        "cleared": "성공적으로 지웠습니다.",
         "clearingAi": "모든 사이드카 파일에서 AI 태그를 지우는 중...",
+        "clearingAiDenoise": "AI 노이즈 제거 캐시를 지우는 중...",
         "clearingAll": "사이드카 파일에서 모든 태그를 지우는 중...",
         "clearingCache": "썸네일 캐시를 지우는 중...",
         "deleting": "사이드카 파일을 삭제하는 중입니다. 잠시 기다려 주세요...",
@@ -1765,7 +2016,25 @@
         "sidecarSuccess_one": "사이드카 파일 {{count}}개가 성공적으로 삭제되었습니다.",
         "sidecarSuccess_other": "사이드카 파일 {{count}}개가 성공적으로 삭제되었습니다."
       },
-      "title": "데이터 관리"
+      "storage": {
+        "aiDenoise": "AI 노이즈 제거",
+        "aiDenoiseDesc": "캐시된 노이즈 제거 결과입니다.",
+        "aiMaps": "깊이 및 노멀 맵",
+        "aiMapsDesc": "렌즈 블러, 안개, 리라이트에 사용됩니다.",
+        "immich": "Immich",
+        "immichDesc": "다운로드된 원본입니다. 한도에 도달하면 가장 오래 사용하지 않은 항목부터 삭제되며, 편집 내용은 유지됩니다.",
+        "logs": "로그",
+        "logsDesc": "문제 해결용 앱 로그 파일입니다. 시작할 때마다 지워집니다.",
+        "metadata": "메타데이터",
+        "metadataDesc": "폴더를 더 빠르게 불러오기 위해 캐시된 EXIF 데이터입니다.",
+        "models": "AI 모델",
+        "modelsDesc": "AI 기능을 처음 사용할 때 필요에 따라 다운로드됩니다.",
+        "thumbnails": "썸네일",
+        "thumbnailsDesc": "탐색하는 동안 자동으로 다시 생성됩니다."
+      },
+      "storageTitle": "저장 공간",
+      "title": "데이터 관리",
+      "totalUsed": "RapidRAW가 이 기기에서 {{size}}를 사용하고 있습니다."
     },
     "general": {
       "autoAdvance": "평가 후 자동으로 다음",
@@ -1807,6 +2076,7 @@
     },
     "keybinds": {
       "actions": {
+        "auto_straighten": "자동 수평 맞추기",
         "brush_size_down": "브러시 크기 줄이기",
         "brush_size_up": "브러시 크기 늘리기",
         "color_label_blue": "색상 레이블: 파랑",
@@ -1866,7 +2136,10 @@
         "zoom_in": "확대",
         "zoom_in_step": "확대 (단계별)",
         "zoom_out": "축소",
-        "zoom_out_step": "축소 (단계별)"
+        "zoom_out_step": "축소 (단계별)",
+        "toggle_pick": "선택 플래그 전환",
+        "toggle_reject": "거부 플래그 전환",
+        "toggle_denoise_mark": "Toggle denoise mark"
       },
       "sections": {
         "editing": "편집",
@@ -1890,6 +2163,16 @@
       "title": "내 렌즈"
     },
     "processing": {
+      "advanced": {
+        "heading": "고급",
+        "headingDesc": "썸네일, 캐시, 내보내기 성능을 조정합니다. 대부분의 사용자는 기본값으로 충분합니다.",
+        "title": "고급 설정",
+        "auto": "자동",
+        "exportThreads": "병렬 내보내기",
+        "exportThreadsDesc": "동시에 내보내는 이미지 수입니다. 자동은 CPU에 맞는 값을 선택합니다. 큰 내보내기가 실패하거나 GPU 메모리가 적다면 낮추세요.",
+        "exportMemoryLimit": "내보내기 메모리 한도",
+        "exportMemoryLimitDesc": "일괄 내보내기가 사용할 수 있는 여유 RAM의 비율입니다. 큰 내보내기 중에도 다른 앱이 원활하게 동작하도록 하려면 낮추세요."
+      },
       "ai": {
         "cloud": {
           "description": "더 간단한 솔루션을 원하는 사용자를 위해, 선택적 구독은 번거로움 없이 셀프 호스팅과 동일한 고품질 결과를 제공합니다. 가장 편리한 옵션이며 프로젝트를 지원하는 가장 좋은 방법입니다.",
@@ -1910,6 +2193,11 @@
             "upgradeBtn": "웹사이트에서 업그레이드",
             "upgradeDesc": "클라우드 AI 기능을 사용하려면 클라우드 구독이 필요합니다."
           },
+          "statuses": {
+            "connecting": "연결 중…",
+            "retry": "연결 재시도",
+            "unsupported": "클라우드 로그인은 현재 데스크톱에서만 사용할 수 있습니다."
+          },
           "title": "클라우드 서비스"
         },
         "connector": {
@@ -1929,14 +2217,25 @@
           "description": "RapidRAW에 직접 통합된 이 기능들은 컴퓨터에서 전적으로 실행됩니다. 빠르고 무료이며 설정이 필요 없어 일상적인 워크플로 가속에 이상적입니다.",
           "feature1": "AI 마스킹 (피사체, 하늘, 전경)",
           "feature2": "자동 이미지 태그 지정",
-          "feature3": "간단한 CPU 기반 생성형 교체",
-          "title": "내장 AI (CPU)"
+          "feature3": "간단한 기기 내 생성형 교체",
+          "gpuAcceleration": "GPU 가속",
+          "gpuAccelerationDesc": "노이즈 제거, 마스크, 깊이 및 노멀 맵, 태그 지정 등 내장 AI 기능을 그래픽 카드에서 실행하여 훨씬 빠르게 처리합니다. 충돌이 발생하거나 AI 결과가 올바르지 않으면 비활성화하세요.",
+          "gpuAccelerationLabel": "AI 모델에 GPU 사용",
+          "title": "내장 AI"
+        },
+        "aiFree": {
+          "description": "모든 AI 기능을 끕니다. AI 관련 컨트롤이 모두 인터페이스에서 숨겨져 RapidRAW가 순수한 기존 방식의 RAW 편집기로 작동합니다.",
+          "feature1": "UI에 AI 마스크, 렌즈 블러, 생성형 편집이 표시되지 않음",
+          "feature2": "기존 AI 편집은 계속 정상적으로 적용됨",
+          "feature3": "더 깔끔하고 집중하기 좋은 인터페이스",
+          "title": "AI 없음"
         },
         "description": "RapidRAW의 AI는 유연성을 위해 설계되었습니다. 빠른 로컬 도구부터 강력한 셀프 호스팅까지, 이상적인 워크플로를 선택하세요.",
         "providers": {
           "aiConnector": "AI 커넥터",
+          "aiFree": "AI 없음",
           "cloud": "클라우드",
-          "cpu": "CPU"
+          "cpu": "내장"
         },
         "title": "생성형 AI"
       },
@@ -1975,10 +2274,17 @@
       },
       "nativeDpi": "네이티브 DPI로 렌더링",
       "preprocessing": {
+        "autoLensCorrection": "새 RAW 자동 렌즈 보정",
+        "autoLensCorrectionDesc": "RAW 사진을 처음 열거나 초기화할 때 사용 가능한 렌즈 보정을 적용합니다. 저장된 편집 설정은 유지됩니다.",
+        "enableAutoLensCorrection": "자동 렌즈 보정을 기본으로 사용",
         "appleRaw9": "Apple RAW 9 엔진",
         "appleRaw9Desc": "Apple의 Core Image RAW 9 디코더로 RAW 파일을 현상합니다. Neural Engine에서 디모자이크와 노이즈 제거를 한 번에 처리합니다. macOS 27 이상 및 지원되는 카메라가 필요하며, 지원되지 않는 파일은 내장 디코더를 자동으로 사용합니다. 기본 디코더보다 느립니다. 썸네일에는 영향을 주지 않습니다.",
         "applyPreprocessing": "RAW가 아닌 이미지에 전처리 적용",
         "applyPreprocessingDesc": "활성화하면 위의 기본 색상 노이즈 감소와 사전 선명도 향상이 표준 포맷에도 적용됩니다.",
+        "baselineExposure": "기본 노출",
+        "baselineExposureAmount": "기본량",
+        "baselineExposureAmountDesc": "RAW 파일에 더하는 노출입니다. darktable은 +0.7 EV를 사용합니다.",
+        "baselineExposureDesc": "기본 노출을 사용하는 기존 편집에 고정된 노출 증가량을 적용합니다. 새 RAW 편집이나 초기화한 RAW 편집은 이 고정 증가량 대신 카메라 또는 DNG 노출 보정을 사용합니다.",
         "colorNr": "기본 색상 노이즈 감소",
         "colorNrDesc": "파이프라인 초기에 교차 양방향 필터를 적용하여 색차 노이즈를 제거합니다. 값이 높을수록 노이즈 감소가 강해집니다.",
         "defaultNonRawTonemapper": "기본 비RAW 톤매퍼",
@@ -1986,8 +2292,12 @@
         "defaultRawTonemapper": "기본 RAW 톤매퍼",
         "defaultRawTonemapperDesc": "RAW 이미지에 적용할 톤매퍼입니다.",
         "enableAppleRaw9": "RAW 파일에 Apple RAW 9 사용",
+        "enableBaselineExposure": "RAW 파일에 기본 노출 적용",
+        "enableHighlightPreservation": "카메라의 하이라이트 보호 모드 보정",
         "enablePreprocessingNonRaws": "RAW가 아닌 이미지에 활성화",
         "enableTonemapperOverride": "톤매퍼 재정의 활성화",
+        "highlightPreservation": "하이라이트 보호 보정",
+        "highlightPreservationDesc": "하이라이트 보호 모드에서 카메라가 낮춘 노출을 RAW 파일에서 읽어 되돌립니다(후지필름 DR200/DR400, 캐논 하이라이트 톤 우선 및 자동 밝기 최적화, 니콘 액티브 D-라이팅, 올림푸스 계조, 펜탁스 DR 확장). 이 옵션이 생기기 전에 편집한 이미지는 영향을 받지 않습니다.",
         "highlightRecovery": "RAW 하이라이트 복구",
         "highlightRecoveryDesc": "RAW 파일에서 클리핑된 하이라이트로부터 얼마나 많은 디테일을 복구할지 제어합니다. 값이 높을수록 더 많은 디테일을 복구하지만 보라색 아티팩트가 생길 수 있습니다.",
         "linearOptions": {
@@ -2012,7 +2322,6 @@
       "previewResDesc": "미리보기의 최대 해상도를 결정합니다. 값이 낮을수록 성능이 크게 향상됩니다.",
       "previewStrategy": "미리보기 렌더링 전략",
       "qualities": {
-        "full": "전체 해상도",
         "high": "고품질",
         "performance": "성능"
       },
@@ -2068,11 +2377,14 @@
     "thanks": {
       "description": "RapidRAW 개발에 매우 중요한 역할을 한 다음 프로젝트들에 깊은 감사를 드립니다:",
       "list": {
+        "birefnet": "AI 전경 감지 기능을 구동하는 고해상도 분할 모델을 제공해 주었습니다.",
         "darktable": "이 작업의 일부에 길잡이가 되어 준 참조 구현을 제공해 주었습니다.",
         "depth": "AI 심도 마스킹 기능을 가능하게 하는 강력한 단안 심도 추정 모델을 제공해 주었습니다.",
+        "efficientsam3": "AI 하늘 및 텍스트 마스크를 구동하는, SAM 3에서 증류된 효율적인 프롬프트 기반 분할 모델을 제공해 주었습니다.",
         "lama": "콘텐츠 인식 채우기와 객체 제거를 가능하게 하는 강력하고 간단한 이미지 인페인팅 모델을 제공해 주었습니다.",
         "lensfun": "자동 렌즈 보정을 위한 귀중한 오픈소스 라이브러리와 방대한 데이터베이스를 제공해 주었습니다.",
         "libgphoto2": "RapidRAW의 테더링 및 원격 촬영 시스템을 구동하는 포괄적인 카메라 통신 라이브러리를 제공해 주셔서.",
+        "mediapipe": "AI 얼굴 마스크를 구동하는 빠른 얼굴 랜드마크 및 분할 모델에 감사드립니다.",
         "negpy": "네거티브 변환 로직에 영감을 주었습니다.",
         "nind": "RapidRAW의 AI 노이즈 감소 기능을 구동하는 AI 모델을 제공해 주었습니다.",
         "rawler": "이 프로젝트의 RAW 파일 처리 기반이 되는 훌륭한 Rust 크레이트를 제공해 주었습니다.",
@@ -2239,5 +2551,44 @@
         "vectorscope": "벡터스코프"
       }
     }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
+  },
+  "captureTime": {
+    "folderShift": "Folder display time shift…",
+    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
+    "hours": "Hours to add",
+    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
+    "cameraZone": "Camera zone: {{zone}}",
+    "shifted": "{{shift}} display shift",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

@@ -1,3 +1,6 @@
+import CaptureTime from '../../ui/CaptureTime';
+import { formatFocalLength, formatShutterSpeed } from '../../../utils/shootingInfo';
+import { DenoiseBadge } from '../DenoiseQueue';
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
@@ -22,9 +25,13 @@ import clsx from 'clsx';
 import { Invokes, ImageFile, ImageFlag, ThumbnailAspectRatio } from '../../ui/AppProperties';
 import FlagToggles from '../../ui/FlagToggles';
 import FlagBadges from '../../ui/FlagBadges';
+import ShootingInfo from '../../ui/ShootingInfo';
 import { Thumbnail } from './LibraryItems';
 import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
+import { useCullingPreviewPrefetch } from '../../../hooks/useCullingPreviewPrefetch';
+import { cullingPreviewKey } from '../../../utils/cullingPreviewQueue';
+import { useImageRenderSize } from '../../../hooks/useImageRenderSize';
 import { useProcessStore } from '../../../store/useProcessStore';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
@@ -33,6 +40,8 @@ import { COLOR_LABELS, Color } from '../../../utils/adjustments';
 import { expandGroupedPaths } from '../../../utils/imageGrouping';
 import { IconAperture, IconFocalLength, IconIso, IconShutter } from '../editor/ExifIcons';
 
+const NOOP = () => {};
+
 interface SyncViewport {
   isActive: boolean;
   zoom: number;
@@ -40,12 +49,11 @@ interface SyncViewport {
   isDragging: boolean;
 }
 
-function CullingPreview({
+export function CullingPreview({
   image,
   rating,
   isActive,
   isSelected,
-  isFullWidth,
   syncViewport,
   setSyncViewport,
   onContextMenu,
@@ -56,12 +64,12 @@ function CullingPreview({
   setShowRateBar,
   showInfoBar,
   setShowInfoBar,
+  failedPreviewKey,
 }: {
   image: ImageFile;
   rating: number;
   isActive: boolean;
   isSelected: boolean;
-  isFullWidth?: boolean;
   syncViewport: SyncViewport;
   setSyncViewport: React.Dispatch<React.SetStateAction<SyncViewport>>;
   onContextMenu: (e: React.MouseEvent, path: string, forceSingleSelection?: boolean) => void;
@@ -72,16 +80,18 @@ function CullingPreview({
   setShowRateBar: React.Dispatch<React.SetStateAction<boolean>>;
   showInfoBar: boolean;
   setShowInfoBar: React.Dispatch<React.SetStateAction<boolean>>;
+  failedPreviewKey?: string;
 }) {
   const { t } = useTranslation();
-  const thumbUrl = useProcessStore((s) => s.thumbnails[image.path]);
+  const thumbUrl = useProcessStore((s) => s.mediumThumbnails[image.path] || s.thumbnails[image.path]);
   const initialPreview = useProcessStore((s) => s.previews[image.path]);
-  const setPreview = useProcessStore((s) => s.setPreview);
-  const safeThumbKey = thumbUrl || '';
+  const safeThumbKey = cullingPreviewKey(thumbUrl || '');
   const [highResSrc, setHighResSrc] = useState<string | null>(
     initialPreview?.thumbKey === safeThumbKey ? initialPreview.url : null,
   );
   const [isLoading, setIsLoading] = useState(!highResSrc);
+  const wasCached = useRef(Boolean(highResSrc));
+  const [rawPainted, setRawPainted] = useState(Boolean(highResSrc));
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -126,8 +136,9 @@ function CullingPreview({
       .sort((a, b) => a.tag.localeCompare(b.tag));
   }, [image.tags]);
 
+  const imageExif = useLibraryStore((s) => s.exifByPath[image.path]);
   const { exifData, hasExif } = useMemo(() => {
-    const exif = image.exif || {};
+    const exif = imageExif || {};
 
     let fNum = exif.FNumber;
     if (fNum) {
@@ -150,8 +161,8 @@ function CullingPreview({
     const data = {
       iso: exif.PhotographicSensitivity || exif.ISO,
       fNumber: fNum,
-      shutter: exif.ExposureTime,
-      focal: exif.FocalLengthIn35mmFilm,
+      shutter: formatShutterSpeed(exif.ExposureTime),
+      focal: formatFocalLength(exif.FocalLengthIn35mmFilm || exif.FocalLength),
       captureDate: captureDate,
       captureTime: captureTime,
     };
@@ -162,10 +173,10 @@ function CullingPreview({
       exifData: data,
       hasExif: hasData,
     };
-  }, [image.exif]);
+  }, [imageExif]);
 
-  const imageWidth = (image as any).width || image.exif?.ExifImageWidth || image.exif?.PixelXDimension;
-  const imageHeight = (image as any).height || image.exif?.ExifImageHeight || image.exif?.PixelYDimension;
+  const imageWidth = (image as any).width || imageExif?.ExifImageWidth || imageExif?.PixelXDimension;
+  const imageHeight = (image as any).height || imageExif?.ExifImageHeight || imageExif?.PixelYDimension;
 
   const handleAddTag = async (tagToAdd: string) => {
     const newTagValue = tagToAdd.trim().toLowerCase();
@@ -240,73 +251,14 @@ function CullingPreview({
   }, [updateFitScale]);
 
   useEffect(() => {
-    const currentPreview = useProcessStore.getState().previews[image.path];
-    if (currentPreview && currentPreview.thumbKey === safeThumbKey) {
-      setHighResSrc(currentPreview.url);
-      setIsLoading(false);
-      setPreview(image.path, currentPreview.url, safeThumbKey);
-      return;
+    const currentPreview = initialPreview?.thumbKey === safeThumbKey ? initialPreview : null;
+    setHighResSrc(currentPreview?.url ?? null);
+    setIsLoading(!currentPreview && failedPreviewKey !== safeThumbKey);
+    if (!currentPreview) {
+      setRawPainted(false);
+      wasCached.current = false;
     }
-
-    let active = true;
-    setIsLoading(true);
-    setHighResSrc(null);
-
-    const fetchPreviewWithAdjustments = async () => {
-      try {
-        const metadata: any = await invoke(Invokes.LoadMetadata, { path: image.path });
-        if (!active) return;
-
-        const adjustments =
-          metadata && metadata.adjustments && !metadata.adjustments.is_null ? metadata.adjustments : {};
-
-        const bytes = await invoke<Uint8Array>(Invokes.GeneratePreviewForPath, {
-          path: image.path,
-          jsAdjustments: adjustments,
-        });
-        if (!active) return;
-
-        const blob = new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' });
-        const localBlobUrl = URL.createObjectURL(blob);
-
-        setPreview(image.path, localBlobUrl, safeThumbKey);
-
-        if (active) {
-          setHighResSrc(localBlobUrl);
-          setIsLoading(false);
-        }
-      } catch (err) {
-        console.error('Error loading culling preview with adjustments:', err);
-
-        if (active) {
-          try {
-            const fallbackBytes = await invoke<Uint8Array>(Invokes.GeneratePreviewForPath, {
-              path: image.path,
-              jsAdjustments: {},
-            });
-            if (!active) return;
-            const blob = new Blob([new Uint8Array(fallbackBytes)], { type: 'image/jpeg' });
-            const localBlobUrl = URL.createObjectURL(blob);
-
-            setPreview(image.path, localBlobUrl, safeThumbKey);
-            setHighResSrc(localBlobUrl);
-          } catch (fallbackErr) {
-            console.error('Fallback preview generation also failed:', fallbackErr);
-          }
-          setIsLoading(false);
-        }
-      }
-    };
-
-    const delayTimeout = setTimeout(() => {
-      fetchPreviewWithAdjustments();
-    }, 200);
-
-    return () => {
-      active = false;
-      clearTimeout(delayTimeout);
-    };
-  }, [image.path, safeThumbKey, setPreview]);
+  }, [initialPreview, safeThumbKey, failedPreviewKey]);
 
   useEffect(() => {
     if (syncViewport.isActive) {
@@ -459,16 +411,26 @@ function CullingPreview({
       ? 'ring-2 ring-inset ring-gray-400'
       : 'group-hover:ring-2 group-hover:ring-inset group-hover:ring-hover-color';
 
-  const effectiveDragging = isDragging || (syncViewport.isActive && syncViewport.isDragging);
+  const knownDimensions = initialPreview?.thumbKey === safeThumbKey ? (initialPreview.dimensions ?? null) : null;
+  const previewFrame = useImageRenderSize(containerRef, knownDimensions);
+  const thumbnailFrameStyle: React.CSSProperties | undefined =
+    previewFrame.containerWidth > 0 && previewFrame.containerHeight > 0 && knownDimensions
+      ? {
+          left: `${(previewFrame.offsetX / previewFrame.containerWidth) * 100}%`,
+          top: `${(previewFrame.offsetY / previewFrame.containerHeight) * 100}%`,
+          width: `${(previewFrame.width / previewFrame.containerWidth) * 100}%`,
+          height: `${(previewFrame.height / previewFrame.containerHeight) * 100}%`,
+          objectFit: 'cover',
+        }
+      : undefined;
 
-  const SCALE_FACTOR = 4;
   const imageTransformStyle: React.CSSProperties = {
     position: 'relative',
-    width: `${SCALE_FACTOR * 100}%`,
-    height: `${SCALE_FACTOR * 100}%`,
+    // Lay out at the displayed size so WebKit preserves source detail at 100%.
+    width: `${zoom * 100}%`,
+    height: `${zoom * 100}%`,
     flexShrink: 0,
-    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / SCALE_FACTOR})`,
-    transition: effectiveDragging ? 'none' : 'transform 0.1s ease-out',
+    transform: `translate(${pan.x}px, ${pan.y}px)`,
     transformOrigin: 'center center',
     willChange: 'transform',
   };
@@ -494,8 +456,7 @@ function CullingPreview({
       onMouseEnter={() => setHoveredCullingPath(image.path)}
       onMouseLeave={() => setHoveredCullingPath(null)}
       className={clsx(
-        'relative flex items-center justify-center w-full h-full overflow-hidden group bg-bg-primary rounded-lg shadow-sm border border-border-color/10 cursor-grab active:cursor-grabbing select-none',
-        isFullWidth && 'col-span-2',
+        'relative flex flex-1 min-h-0 items-center justify-center w-full overflow-hidden group bg-bg-primary rounded-lg shadow-sm border border-border-color/10 cursor-grab active:cursor-grabbing select-none',
       )}
     >
       <div
@@ -511,9 +472,10 @@ function CullingPreview({
         style={{ isolation: 'isolate' }}
       >
         <div style={imageTransformStyle}>
-          {thumbUrl && (
+          {thumbUrl && !rawPainted && (
             <img
               src={thumbUrl}
+              style={thumbnailFrameStyle}
               className="absolute inset-0 w-full h-full object-contain"
               alt={t('library.culling.altThumbnailLoading')}
               draggable={false}
@@ -524,9 +486,10 @@ function CullingPreview({
             <motion.img
               ref={imageRef}
               onLoad={updateFitScale}
-              initial={{ opacity: 0 }}
+              initial={wasCached.current ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.15 }}
+              onAnimationComplete={() => setRawPainted(true)}
               src={highResSrc}
               className="absolute inset-0 w-full h-full object-contain"
               alt={t('library.culling.altCullingPreviewHighRes')}
@@ -561,6 +524,7 @@ function CullingPreview({
             </div>
 
             <div className="flex flex-col gap-4">
+              <CaptureTime path={image.path} exif={image.exif} />
               {imageWidth && imageHeight && (
                 <div>
                   <Text
@@ -823,6 +787,7 @@ function CullingPreview({
           </div>
         )}
 
+        <DenoiseBadge path={image.path} inline />
         {hasAnyOverlay && (
           <div className="rounded-full h-5 px-1.5 flex items-center justify-center gap-0 shadow-md bg-surface/30 pointer-events-auto shrink-0 ml-1">
             {showEditIcon && (
@@ -960,21 +925,24 @@ const Row = React.memo(
     onImageClick,
     queueThumbnailRequest,
     hoveredCullingPath,
-  }: any) => {
+  }: any): React.ReactElement | null => {
     const image: ImageFile = imageList[index];
     const isSelected = multiSelectedPaths.includes(image.path);
+    const imagePath = image?.path;
+    const isCloudPlaceholder = !!image?.is_cloud_placeholder;
 
     useEffect(() => {
       if (!image || !queueThumbnailRequest) return;
       queueThumbnailRequest(image.path);
-
-      if (image.is_cloud_placeholder) {
-        const interval = setInterval(() => {
-          queueThumbnailRequest(image.path);
-        }, 5000);
-        return () => clearInterval(interval);
-      }
     }, [image, queueThumbnailRequest]);
+
+    useEffect(() => {
+      if (!imagePath || !isCloudPlaceholder || !queueThumbnailRequest) return;
+      const interval = setInterval(() => {
+        queueThumbnailRequest(imagePath);
+      }, 5000);
+      return () => clearInterval(interval);
+    }, [imagePath, isCloudPlaceholder, queueThumbnailRequest]);
 
     return (
       <div style={style} className="p-2 box-border">
@@ -984,14 +952,14 @@ const Row = React.memo(
             isSelected={isSelected}
             isActive={activePath === image.path}
             isForcedHover={hoveredCullingPath === image.path}
-            onImageClick={(path: string, e: any) => onImageClick(path, e)}
+            onImageClick={onImageClick}
             onContextMenu={onContextMenu}
             onImageDoubleClick={onImageDoubleClick}
-            onLoad={() => {}}
+            onLoad={NOOP}
             rating={imageRatings?.[image.path] || 0}
             flag={image.flag}
+            stack={image.stack}
             tags={image.tags}
-            exif={image.exif}
             isEdited={image.is_edited}
             aspectRatio={thumbnailAspectRatio}
             isCloudPlaceholder={image.is_cloud_placeholder}
@@ -1001,6 +969,7 @@ const Row = React.memo(
     );
   },
 );
+const ListRow = (props: React.ComponentProps<typeof Row>): React.ReactElement => <Row {...props} />;
 
 export default function CullingView(props: any) {
   const { t } = useTranslation();
@@ -1102,6 +1071,15 @@ export default function CullingView(props: any) {
     [onRequestThumbnails],
   );
 
+  useEffect(
+    () => () => {
+      if (requestTimeoutRef.current) clearTimeout(requestTimeoutRef.current);
+      requestTimeoutRef.current = null;
+      requestQueueRef.current.clear();
+    },
+    [],
+  );
+
   useEffect(() => {
     const updateHeight = () => {
       if (containerRef.current) {
@@ -1181,6 +1159,11 @@ export default function CullingView(props: any) {
     .map((p: string) => imageList.find((img: ImageFile) => img.path === p))
     .filter(Boolean);
   const displayCount = displayImages.length;
+  const previewFailures = useCullingPreviewPrefetch(
+    imageList.map((image: ImageFile) => image.path),
+    displayPaths,
+    activePath,
+  );
 
   const handleSidebarEmptyClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -1219,24 +1202,32 @@ export default function CullingView(props: any) {
             )}
           >
             {displayImages.map((img: ImageFile, index: number) => (
-              <CullingPreview
+              <div
                 key={img.path}
-                image={img}
-                rating={imageRatings?.[img.path] || 0}
-                onContextMenu={onContextMenu}
-                onImageDoubleClick={onImageDoubleClick}
-                isActive={activePath === img.path}
-                isSelected={true}
-                isFullWidth={(displayCount === 3 && index === 2) || (displayCount === 5 && index === 4)}
-                syncViewport={syncViewport}
-                setSyncViewport={setSyncViewport}
-                hoveredPath={hoveredCullingPath}
-                setHoveredCullingPath={setHoveredCullingPath}
-                showRateBar={showRateBar}
-                setShowRateBar={setShowRateBar}
-                showInfoBar={showInfoBar}
-                setShowInfoBar={setShowInfoBar}
-              />
+                className={clsx(
+                  'group/shooting-info flex flex-col min-w-0 min-h-0',
+                  ((displayCount === 3 && index === 2) || (displayCount === 5 && index === 4)) && 'col-span-2',
+                )}
+              >
+                <ShootingInfo exif={img.exif} className="px-3 py-1 text-center" />
+                <CullingPreview
+                  image={img}
+                  failedPreviewKey={previewFailures[img.path]}
+                  rating={imageRatings?.[img.path] || 0}
+                  onContextMenu={onContextMenu}
+                  onImageDoubleClick={onImageDoubleClick}
+                  isActive={activePath === img.path}
+                  isSelected={true}
+                  syncViewport={syncViewport}
+                  setSyncViewport={setSyncViewport}
+                  hoveredPath={hoveredCullingPath}
+                  setHoveredCullingPath={setHoveredCullingPath}
+                  showRateBar={showRateBar}
+                  setShowRateBar={setShowRateBar}
+                  showInfoBar={showInfoBar}
+                  setShowInfoBar={setShowInfoBar}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -1258,7 +1249,7 @@ export default function CullingView(props: any) {
             listRef={setListHandle}
             rowCount={imageList.length}
             rowHeight={sidebarWidth - 16}
-            rowComponent={Row}
+            rowComponent={ListRow}
             rowProps={rowProps}
             className="custom-scrollbar"
           />
