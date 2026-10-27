@@ -2,7 +2,7 @@
   "id": "side-panel-placement-eslint-cleanup",
   "title": "Remove redundant side panel placement initializers",
   "category": "ci",
-  "landed": "2026-10-14",
+  "landed": "2026-10-26",
   "authors": ["yojen7"],
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
