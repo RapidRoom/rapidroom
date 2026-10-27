@@ -7,7 +7,7 @@
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
   "upstream_issues": ["RapidRoom/rapidroom#204"],
-  "upstream_prs": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#1929"],
   "rendering_change": false,
   "notes": "Creating a mask by dropping it on an existing sub-mask inserts it before that row and uses Additive mode."
 }

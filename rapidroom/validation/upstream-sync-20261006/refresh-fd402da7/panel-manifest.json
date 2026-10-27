@@ -1,0 +1,90 @@
+{
+  "application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "panels": {
+    "native-fuji-xh2-40mp-compressed-100-percent.png": {
+      "sha256": "06df9eb9e38155ecff3768631786dfabfc31b917b3d7a59ae6f16fb17ad2e66b",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "eb0304e93499f5f7f849553a0a68bb9e737f17e80916e2a561a58f568992b992",
+        "eb0304e93499f5f7f849553a0a68bb9e737f17e80916e2a561a58f568992b992"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "fuji-xh2-40mp-compressed",
+      "right_capture_step": "settled 100 percent native preview capture"
+    },
+    "native-fuji-xh2-40mp-compressed-reset.png": {
+      "sha256": "5a9b69159739824e440c07bf40e6df56d1d8a5562b67e35d175c421e7e7ae992",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "93c706d6578c40e187df147da0d4a3563ab56ff344a349db3a424345e653a044",
+        "5fefdde87bcd986bc0b3df99d10e0b5e57cac205f731c4c3ee8f3e6a0aa71b4f"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "native-preview-fuji-xh2-40mp-compressed",
+      "right_capture_step": "repeated reset restores full preview exactly"
+    },
+    "native-fuji-xt4-26mp-lossless-100-percent.png": {
+      "sha256": "78f292f79e35b4e7df86eab1ab50e12de8e341dd0eb4994641bafe34f2beb901",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "6a5f0c2baa348582260b904d1dcda0f6e266d9823afff5d4d53c4602e898d895",
+        "6a5f0c2baa348582260b904d1dcda0f6e266d9823afff5d4d53c4602e898d895"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "fuji-xt4-26mp-lossless",
+      "right_capture_step": "settled 100 percent native preview capture"
+    },
+    "native-fuji-xt4-26mp-lossless-reset.png": {
+      "sha256": "372da369c8d6b02fb7fd863053c7470224200611e1a9fc9a123340f29cdc1675",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "823af15bf236a1e6db45efe38fe3fc53847854ac87f987bbb71a88f11b638b78",
+        "79248c3628b8bbf580e61077c07dfbeb126ebd21b729b4872842fe213b222244"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "native-preview-fuji-xt4-26mp-lossless",
+      "right_capture_step": "repeated reset restores full preview exactly"
+    },
+    "native-sony-a7c2-15mp-uncompressed-100-percent.png": {
+      "sha256": "619d481b422f3cfc5de72823ef4ce41433ac88a2a86b106c9625582cdb7f6680",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "46317fe6d354579b878144dd5911fae9d39216453e22919e3ce1653fcb3ef303",
+        "46317fe6d354579b878144dd5911fae9d39216453e22919e3ce1653fcb3ef303"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "sony-a7c2-15mp-uncompressed",
+      "right_capture_step": "settled 100 percent native preview capture"
+    },
+    "native-sony-a7c2-15mp-uncompressed-reset.png": {
+      "sha256": "eb774c8f25449069be91444b8af052c04ded3796207ba1747661b384e683f1a7",
+      "kind": "CC0 photo ROI only",
+      "capture_sha256": [
+        "c2cf0f4947292e8e2f9a3c3fefdff687a4a15ae38995cacf0964de278a971a2d",
+        "c2cf0f4947292e8e2f9a3c3fefdff687a4a15ae38995cacf0964de278a971a2d"
+      ],
+      "left_application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+      "right_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+      "right_capture_case": "native-preview-sony-a7c2-15mp-uncompressed",
+      "right_capture_step": "repeated reset restores full preview exactly"
+    },
+    "native-mcp-masks-and-undo.png": {
+      "sha256": "fe07999600ad4713e89a3af084a6e1cfaa39b29efb2a3a6c4ec0802ce8a85435",
+      "kind": "Actual native CC0 photo ROI only",
+      "capture_sha256": [
+        "f5589932d5d499bbd406efd67a2023e72204c48cf29a429c913a75b90cf11939",
+        "11867402fbc534a565b224fda4071847d00fdd7e7eb904bed6856f360e1be85a",
+        "633ec7e81db51239e88a0b0172e294dd184902225ffb92acf815b94a110d09f8"
+      ],
+      "application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b"
+    }
+  },
+  "count": 7,
+  "inspection": "All seven final panels individually viewed; CC0 photoROI only, no private UI/path/welcome splash.",
+  "reference_updated": false
+}

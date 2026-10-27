@@ -1,0 +1,13 @@
+{
+  "id": "compare-versions-wipe",
+  "title": "Compare edited, original and virtual-copy versions with a draggable wipe",
+  "category": "feature",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original editor and MCP comparison workflow)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#358"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Editor Compare versions overlays the current edit with its original or a pinned virtual-copy/reference preview in one shared pan/zoom surface. Drag the divider, use left/right arrows to move it, and A to swap sides. C toggles current/original comparison. The MCP reference workflow opens the same wipe and remains read-only; no recipe, sidecar, history, export or delete operation is performed."
+}

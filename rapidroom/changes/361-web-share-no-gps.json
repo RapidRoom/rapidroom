@@ -1,0 +1,13 @@
+{
+  "id": "web-share-no-gps",
+  "title": "Share photos with camera information and no GPS",
+  "category": "feature",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#361"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "The built-in Web / Share recipe exports JPEG quality 90 at up to 2048 pixels on the long edge, retaining camera, lens and capture date while removing GPS. It is available in the export panel, batch export and preset-based CLI exports. MCP already uses the same keep-metadata/strip-GPS policy. Existing saved presets and Instagram recipes keep their behavior."
+}
