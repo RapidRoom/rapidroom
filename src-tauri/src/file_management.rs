@@ -6895,15 +6895,15 @@ mod atomic_write_tests {
     fn assert_injected_failure_preserves_existing_file(failure: InjectedFailure) -> io::Error {
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("photo.cr3.rrdata");
-        fs::write(&target, "original").unwrap();
+        fs::write(&target, br#"{"rating":1}"#).unwrap();
         let error = write_file_atomically_with_backend(
             &target,
-            b"replacement contents",
+            br#"{"rating":2,"adjustments":{"exposure":1}}"#,
             &mut InjectedBackend { failure },
         )
         .unwrap_err();
 
-        assert_eq!(fs::read(&target).unwrap(), b"original");
+        assert_eq!(fs::read(&target).unwrap(), br#"{"rating":1}"#);
         assert_eq!(leftover_temp_files(dir.path()), 0);
         error
     }
@@ -6943,17 +6943,17 @@ mod atomic_write_tests {
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("shared.rrdata");
         let link = dir.path().join("photo.cr3.rrdata");
-        fs::write(&target, "old").unwrap();
+        fs::write(&target, r#"{"rating":1}"#).unwrap();
         std::os::unix::fs::symlink(&target, &link).unwrap();
 
-        write_file_atomically(&link, "new").unwrap();
+        write_file_atomically(&link, r#"{"rating":2}"#).unwrap();
         assert!(
             fs::symlink_metadata(&link)
                 .unwrap()
                 .file_type()
                 .is_symlink()
         );
-        assert_eq!(fs::read_to_string(&target).unwrap(), "new");
+        assert_eq!(fs::read_to_string(&target).unwrap(), r#"{"rating":2}"#);
     }
 
     #[test]
