@@ -15,6 +15,7 @@ use crate::tagging::COLOR_TAG_PREFIX;
 
 pub const TOKENS: &[&str] = &[
     "original_filename",
+    "original_filename_number",
     "sequence",
     "YYYY",
     "MM",
@@ -75,6 +76,10 @@ impl PhotoFacts {
                 &self.source_path,
             ))
         })
+    }
+
+    pub(crate) fn stack(&self) -> Option<&crate::photo_stacks::StackMember> {
+        self.sidecar().stack.as_ref()
     }
 
     pub fn exif(&self) -> &HashMap<String, String> {
@@ -236,6 +241,15 @@ fn token_value(name: &str, ctx: &NamingContext) -> Result<String, TemplateError>
             .and_then(|s| s.to_str())
             .unwrap_or("image")
             .to_string(),
+        "original_filename_number" => {
+            let stem = ctx
+                .source_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("image");
+            let prefix = stem.trim_end_matches(|c: char| c.is_ascii_digit());
+            stem[prefix.len()..].to_string()
+        }
         "sequence" => pad(ctx.sequence, ctx.total.to_string().len()),
         "YYYY" => local_date.format("%Y").to_string(),
         "MM" => local_date.format("%m").to_string(),
@@ -424,6 +438,7 @@ mod tests {
         let f = sample();
         let cases = [
             ("{original_filename}", "IMG_0042"),
+            ("{original_filename_number}", "0042"),
             ("{sequence}", "007"),
             ("{YYYY}{MM}{DD}-{hh}{mm}", "20251009-1405"),
             ("{title}", "Glacier lagoon ice"),

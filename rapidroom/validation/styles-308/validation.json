@@ -1,0 +1,232 @@
+{
+  "issue": 308,
+  "compiled_head": "fad5a6288d48aa513bec251924d0ad1f0a826041",
+  "candidate_head": "88171ee5bf5f4f19a5b2690ce94549c8a74b7d09",
+  "base": "25c842e2de25ac2210def0f3b4399c7bea05aa46",
+  "production_equivalence": {
+    "changed_paths": ["rapidroom/validation/native-ui/presets.py"],
+    "production_objects_identical": true
+  },
+  "frontend": {
+    "executed_head": "c4773a4ee220fc869574366a91a64d1303df71da",
+    "tests_passed": 451,
+    "files": 57,
+    "build_exit": 0,
+    "format_exit": 0,
+    "lint_baseline_count": 19,
+    "lint_head_count": 19,
+    "lint_added": [],
+    "typecheck_exit": 2,
+    "typecheck_exact_baseline": true
+  },
+  "rust": {
+    "executed_head": "fad5a6288d48aa513bec251924d0ad1f0a826041",
+    "exits": {
+      "fmt": 0,
+      "clippy": 0,
+      "lib-test": 0
+    },
+    "lib_tests_passed": 507,
+    "ignored": 18
+  },
+  "artifacts": {
+    "default": {
+      "sha256": "7c984a62d64e3c04df10784d06ae7495954aed3635969dd07b8cf684df064fb9",
+      "features": ["default", "native-openvino"],
+      "release": true,
+      "successful_cargo_event": true,
+      "same_build_lock_publication": true
+    },
+    "native": {
+      "sha256": "da9cc3f582a136470dd85bf88f1782ce039d6f865628ed85bdd6d879bf33b7dd",
+      "features": ["default", "mcp", "native-openvino", "native-ui-test", "terminal"],
+      "release": true,
+      "successful_cargo_event": true,
+      "same_build_lock_publication": true
+    }
+  },
+  "packaged_resource_hashes_verified": 105,
+  "native": {
+    "passed": true,
+    "checks": [
+      "library thumbnail",
+      "native preview",
+      "global preset creation cancels in Develop without changing pixels",
+      "flat Style name/description search and owned hover preview cancel exactly",
+      "preset click creates one Undo step restoring exact pixels",
+      "preset Amount0 restores before-preset pixels",
+      "built-in Styles descriptions searchable in native browser",
+      "native save/load retains unique Styles, favorite and description",
+      "native Styles apply/Amount60/30 changes preview; Amount0 restores exact original pixels",
+      "real native preset export preserves original description and recipe",
+      "native pointer drag moves Dark Forest beam without resizing",
+      "Dark Forest beam is editable through ordinary native mask controls",
+      "native Gothic beam uses pixel geometry, fades at60/30/0, preserves existing mask and exports reusable template",
+      "native shared Undo restores pre-style pixels after beam and Amount edits",
+      "public UI deletes a flat Style; saved deletion survives three real native reloads",
+      "native marker-only flat seeding preserves user folders, moved/favourite/imported presets and order; empty/missing saved library does not resurrect Styles",
+      "native stock replacement preserves favourites, edits, names, moved/imported presets, order and prior Styles deletion",
+      "native first upgrade replaces untouched stock with Styles exactly once; deleting all presets persists",
+      "edits change preview",
+      "Undo restores preview exactly",
+      "Compact enabled and persisted",
+      "GUI JPEG export",
+      "clean exit and no frontend/native errors"
+    ],
+    "fixture_unchanged": true,
+    "engine_unchanged": true,
+    "native_exit": 0,
+    "viewport": [1680, 1050],
+    "earlier_failures_retained": ["retired stock search fixture", "shared active style fixture sequencing"]
+  },
+  "full60": {
+    "passed": true,
+    "identical": 60,
+    "reference_manifest_sha256": "3eaf26cff661fbd0b592821ca0fac22ff36d3c6a186c5a9d195fc6eb1c07dbcc",
+    "rows": [
+      {
+        "id": "sony-a7c2-33mp-uncompressed",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "sony-a7c2-15mp-uncompressed",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "sony-a7c2-37mp-4x3",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "sony-a7c2-33mp-compressed",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "sony-a7c2-15mp-compressed",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "sony-a7cr-61mp-compressed",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "sony-a7cr-65mp-lossless",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "sony-a7cr-26mp-uncompressed",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "sony-a7cr-18mp-lossless-s",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "canon-r6m2-24mp-raw",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "canon-r50-24mp-craw",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "nikon-zf-24mp-compressed",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "nikon-zfc-21mp-lossless",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "fuji-xh2-40mp-compressed",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "fuji-xt4-26mp-lossless",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "ricoh-griiix-24mp-dng",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "google-pixel7pro-dng",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "apple-iphone12pro-proraw",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "om-om1-20mp",
+        "identical": 3,
+        "source_unchanged": true
+      },
+      {
+        "id": "panasonic-s5m2-24mp",
+        "identical": 3,
+        "source_unchanged": true
+      }
+    ]
+  },
+  "applied_style_evidence": {
+    "public_styles": 14,
+    "owner_approved_styles": 20,
+    "approved_recipe_payloads_match": true,
+    "approved_private_image_parity": 20,
+    "public_only": true
+  },
+  "gallery_qa": {
+    "passed": true,
+    "desktop_viewport": [2560, 1440],
+    "full_long_edge": 3840,
+    "native_crops": [1024, 1024],
+    "checks": 84,
+    "phone_before_after_captures": 28,
+    "high_dpi_native_scale": true,
+    "keyboard": true
+  },
+  "visual_review": {
+    "passed": true,
+    "phone_and_native_crops_personally_viewed": true,
+    "styles": [
+      "teal-orange",
+      "vivid-atlas",
+      "ivory-light",
+      "aqua-vista",
+      "petal-leaf",
+      "black-gold",
+      "neon-night",
+      "night-city",
+      "neon-outrun",
+      "emerald-grove",
+      "forest-gothic",
+      "my-look",
+      "cyberpunk-teal",
+      "cyberpunk-indigo"
+    ]
+  },
+  "limits": [
+    "Native interactions automated in isolated Linux/Weston; captures personally inspected",
+    "No Windows/macOS native testing",
+    "TypeScript and scoped lint retain exact checked-base diagnostics",
+    "Night CC0 source is a previously edited JPEG; RAW night taste checks remain private"
+  ]
+}

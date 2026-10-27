@@ -204,7 +204,7 @@ def run_jpeg_checks(smoke, wait_for):
     toggle(False)
     smoke.execute("const e=[...document.images].find(e=>e.alt==='smoke.ARW');"
                   "e.dispatchEvent(new MouseEvent('dblclick',{bubbles:true,button:0}));return true;")
-    wait_for(lambda: smoke.execute("return document.body.innerText.includes('4608 × 3072') && document.body.innerText.includes('Exposure');"),
+    wait_for(lambda: smoke.execute("return [...document.querySelectorAll('[data-editor-info-line] [title]')].some(e=>e.title==='smoke.ARW - 4608 × 3072') && document.body.innerText.includes('Exposure');"),
              'return to RAW editor')
     (case / 'jpeg-metadata-result.json').write_text(json.dumps({'pass': True,
         'default_off_bytes_identical': True, 'automatic_native_rating_and_reject': True,

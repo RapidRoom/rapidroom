@@ -6,6 +6,12 @@ export const FLAG_ICONS = {
   [ImageFlag.Reject]: Ban,
 };
 
+// Solid fills for a flag that is set: green for Pick, red for Reject, always with a white icon.
+export const FLAG_FILL_CLASSES = {
+  [ImageFlag.Pick]: 'bg-green-700',
+  [ImageFlag.Reject]: 'bg-red-600',
+};
+
 export const getImageFlag = (imageList: ImageFile[], path?: string | null): ImageFlag | null =>
   imageList.find((image) => image.path === path)?.flag ?? null;
 

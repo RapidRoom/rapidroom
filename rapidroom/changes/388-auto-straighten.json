@@ -1,0 +1,16 @@
+{
+  "id": "auto-straighten",
+  "title": "Straighten horizons and verticals from the crop tool or selected photos",
+  "category": "feature",
+  "landed": "2026-10-19",
+  "authors": ["marclaliberte", "yojen7"],
+  "source": "Adapted from the RapidRAW auto-straighten series through 3daf49e4",
+  "commits": [
+    "https://github.com/CyberTimon/RapidRAW/commit/30c86ccb1da786d4b8381d5d020978fdc65a0b60",
+    "https://github.com/CyberTimon/RapidRAW/commit/3daf49e47f7c0c45645d6aa5de5c0d24509de342"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Adds the crop action, Shift+S and selected-photo productivity action. Uses existing lens geometry and preserves Card/atomic/XMP paths, native repair thumbnails and crop identity. Analysis waits for loaded dimensions, drops stale photo/edit results, and keeps the open editor photo out of the batch. Existing rendered edits are unchanged."
+}

@@ -2,7 +2,6 @@
   "id": "jpeg-culling-metadata",
   "title": "Write ratings, labels and reject flags into original JPEG metadata",
   "category": "feature",
-  "landed": "2026-10-14",
   "authors": ["yojen7"],
   "source": "rapidroom (original JPEG metadata writer and native validation)",
   "commits": [],
@@ -10,5 +9,6 @@
   "upstream_prs": [],
   "rendering_change": false,
   "highlight": "Optionally save culling decisions inside JPEGs without re-encoding pixels, with batch reports and Undo.",
-  "notes": "Off by default. Writes XMP rating/label and updates existing EXIF rating fields using atomic metadata-only replacement; preserves scans, foreign metadata and file properties. Library manual write works independently of automatic embedding. Extended XMP and unsafe auxiliary-image offset changes are refused by name. Other formats retain existing sidecar behavior."
+  "notes": "Off by default. Writes XMP rating/label and updates existing EXIF rating fields using atomic metadata-only replacement; preserves scans, foreign metadata and file properties. Library manual write works independently of automatic embedding. Extended XMP and unsafe auxiliary-image offset changes are refused by name. Other formats retain existing sidecar behavior.",
+  "landed": "2026-10-14"
 }

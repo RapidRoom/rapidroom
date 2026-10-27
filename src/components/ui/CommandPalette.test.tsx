@@ -6,6 +6,7 @@ import '../../i18n';
 import { mockCommand } from '../../test/tauriMock';
 import { Invokes } from './AppProperties';
 import CommandPalette from './CommandPalette';
+import { usePresetCatalog } from '../../store/usePresetCatalog';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
 import { INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
@@ -21,6 +22,7 @@ let root: Root;
 let container: HTMLDivElement;
 
 beforeEach(() => {
+  usePresetCatalog.setState({ presets: [], loaded: false, isLoading: true });
   vi.useFakeTimers();
   mockCommand(Invokes.LoadPresets, () => []);
   const adjustments = structuredClone(INITIAL_ADJUSTMENTS);
@@ -265,7 +267,7 @@ describe('keyboard palette editing', () => {
     expect(execute).not.toHaveBeenCalled();
     expect(container.querySelector('[role=dialog]')).not.toBeNull();
     enabled = true;
-    type('auto');
+    type('auto adjustments');
     key('Enter');
     expect(execute).toHaveBeenCalledOnce();
     expect(container.querySelector('[role=dialog]')).toBeNull();

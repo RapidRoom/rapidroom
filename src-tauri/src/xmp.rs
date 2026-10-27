@@ -551,19 +551,83 @@ pub(crate) fn update(
     label: Option<&str>,
     tags: &[String],
 ) -> Result<String, Error> {
-    update_fields(content, Some(rating), label, Some(tags))
+    update_values(content, Some(rating), label, Some(tags))
 }
 
-/// JPEG culling metadata must leave keywords and every unrelated field intact.
+/// Merge rendered-image metadata by namespace, retaining unspecified source
+/// ratings/labels while removing edits and dimensions that describe the source.
+pub(crate) fn update_export(
+    content: &str,
+    rating: Option<i16>,
+    label: Option<&str>,
+    tags: &[String],
+) -> Result<String, Error> {
+    let doc = Document::parse(content)?;
+    let subjects: Vec<_> = doc.image_descriptions().collect();
+    let mut edits: Vec<Range<usize>> = Vec::new();
+    let mut removed = vec![false; doc.nodes.len()];
+    let replaced = |index: usize, name: &str| {
+        let (prefix, local) = name.split_once(':').unwrap_or(("", name));
+        let uri = doc.namespace(index, prefix);
+        uri == Some("http://ns.adobe.com/camera-raw-settings/1.0/")
+            || (uri.is_none() && prefix == "crs")
+            || [
+                ("http://ns.adobe.com/tiff/1.0/", "tiff", "Orientation"),
+                ("http://ns.adobe.com/tiff/1.0/", "tiff", "ImageWidth"),
+                ("http://ns.adobe.com/tiff/1.0/", "tiff", "ImageLength"),
+                ("http://ns.adobe.com/exif/1.0/", "exif", "PixelXDimension"),
+                ("http://ns.adobe.com/exif/1.0/", "exif", "PixelYDimension"),
+                ("http://ns.adobe.com/xmp/note/", "xmpNote", "HasExtendedXMP"),
+            ]
+            .iter()
+            .any(|(expected, canonical, field)| {
+                local == *field && uri.map_or(prefix == *canonical, |uri| uri == *expected)
+            })
+    };
+    for (index, node) in doc.nodes.iter().enumerate() {
+        if node.parent.is_some_and(|parent| removed[parent]) {
+            removed[index] = true;
+        } else if node.parent.is_some_and(|parent| subjects.contains(&parent))
+            && replaced(index, &node.name)
+        {
+            removed[index] = true;
+            edits.push(node.start.start..node.end.end);
+        } else if subjects.contains(&index) {
+            for attribute in &node.attributes {
+                // Unprefixed attributes have no XML namespace, including on
+                // elements with a default namespace. Keep declarations too.
+                if attribute.name.contains(':')
+                    && !attribute.name.starts_with("xmlns:")
+                    && replaced(index, &attribute.name)
+                {
+                    edits.push(attribute.range.clone());
+                }
+            }
+        }
+    }
+    edits.sort_by_key(|range| std::cmp::Reverse(range.start));
+    let mut clean = content.to_string();
+    for range in edits {
+        clean.replace_range(range, "");
+    }
+    let old = metadata(&clean);
+    update_values(
+        &clean,
+        rating.or(old.rating.map(i16::from)),
+        label.or(old.label.as_deref()),
+        Some(tags),
+    )
+}
+
 pub(crate) fn update_rating_label(
     content: &str,
     rating: Option<i16>,
     label: Option<&str>,
 ) -> Result<String, Error> {
-    update_fields(content, rating, label, None)
+    update_values(content, rating, label, None)
 }
 
-fn update_fields(
+fn update_values(
     content: &str,
     rating: Option<i16>,
     label: Option<&str>,
