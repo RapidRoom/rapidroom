@@ -2,7 +2,7 @@
   "id": "denoise-modal-stale-eslint-directive",
   "title": "Remove a stale denoise hook lint directive",
   "category": "ci",
-  "landed": "2026-10-14",
+  "landed": "2026-10-26",
   "authors": ["yojen7"],
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
