@@ -1,0 +1,13 @@
+{
+  "id": "upstream-sync-07361a0a",
+  "title": "Sync upstream RapidRAW 07361a0a: Immich copy-to-folder; Immich edit sync no longer overwrites a concurrent local edit",
+  "category": "fix",
+  "landed": "2026-10-23",
+  "authors": ["CyberTimon", "cl1x", "yojen7"],
+  "source": "CyberTimon/RapidRAW main at 07361a0aed11154459931020a083109f768ae5ff (normal merge; RapidRoom conflict resolution with Claude)",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/07361a0aed11154459931020a083109f768ae5ff"],
+  "upstream_issues": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#1994"],
+  "rendering_change": false,
+  "notes": "Immich images are downloaded and then copied, not moved, into local folders; RapidRoom keeps its per-file transfer summary and card guard for copies. Also an Immich placeholder tooltip and upstream's red mask overlay fix. Fixes RapidRoom #422: the Immich edit sync now checks for local changes and writes the remote edit under one sidecar lock, so a local save made in between is kept and the remote edit becomes a conflict copy."
+}

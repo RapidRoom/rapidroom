@@ -1,0 +1,27 @@
+{
+  "id": "upstream-refresh-20261012",
+  "title": "Refresh upstream export metadata, filename-number tokens and optional RAW exposure compensation",
+  "category": "feature",
+  "landed": "2026-10-12",
+  "authors": ["lalibertemarc", "f-loren", "apweisskopf", "yojen7"],
+  "source": "CyberTimon/RapidRAW through 74597d06 (normal merge; RapidRoom integration with Codex)",
+  "commits": [
+    "https://github.com/CyberTimon/RapidRAW/commit/bc7791a41ddf403af89a0a8c5d7795878e1c4d6e",
+    "https://github.com/CyberTimon/RapidRAW/commit/69311df9ed129a2a0053e9d9616c9c079ae44a1a",
+    "https://github.com/CyberTimon/RapidRAW/commit/58146486aa6c4b04908a8032664761b306ec678c",
+    "https://github.com/CyberTimon/RapidRAW/commit/f090c3f95e8d6a29bfdaa5995d2a55d5736fa8e8",
+    "https://github.com/CyberTimon/RapidRAW/commit/ee236f9fafda23c9e5ab51b52a7da4233e44c0a3",
+    "https://github.com/CyberTimon/RapidRAW/commit/44f77264bdcbe6929e7d300ebb9ae00be8984151",
+    "https://github.com/CyberTimon/RapidRAW/commit/c513bdb4bde935a00442d03eeb77bbfc3ae71c25"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": [
+    "CyberTimon/RapidRAW#1908",
+    "CyberTimon/RapidRAW#1906",
+    "CyberTimon/RapidRAW#1897",
+    "CyberTimon/RapidRAW#1896",
+    "CyberTimon/RapidRAW#1892"
+  ],
+  "rendering_change": true,
+  "notes": "Twelve additional commits after eb3556bc. Baseline exposure is off by default; highlight-preservation compensation is on for new/reset images carrying baselineExposure, while legacy sidecars without that marker keep their exposure. Retains the Sony cpp3 unity-WB reference fallback, borrowed RAW buffers, camera crop defaults, source-safe writes, virtual-copy reject isolation, rename collision planning and undo. Export metadata uses the upstream ExportXmp writer with retained JPEG segment ordering and valid extended WebP handling. New behavior remains subject to refreshed evidence and maintainer approval; no references are changed."
+}

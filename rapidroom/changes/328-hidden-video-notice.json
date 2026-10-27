@@ -1,0 +1,13 @@
+{
+  "id": "hidden-video-notice",
+  "title": "Show when a photo folder or card contains hidden videos",
+  "category": "fix",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#328"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Show a small count of videos excluded from the photo library, including Sony MP4/XAVC containers. Card browsing counts videos across the card, and import settings explicitly say that videos are not copied or removed. Video support and photo import behavior remain unchanged."
+}

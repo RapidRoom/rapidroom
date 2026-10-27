@@ -1,0 +1,13 @@
+{
+  "id": "mcp-generated-masks-and-batches",
+  "title": "Local AI masks and read-only mask previews for assistants",
+  "category": "feature",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "AI-assisted implementation: generate subject, foreground and sky sub-masks using the app's existing local models, optionally guide subject selection with a point or box, inspect a grayscale matte without changing history, convert cropped-view fractions to mask pixels, upsert multiple masks in one undo step and measure labelled regions from one shared render. Existing GUI model downloads and local inference are reused; no new service. Generation preserves siblings and refuses to commit if the source edit changes. Detailed GUI history labels are tracked separately in #377."
+}

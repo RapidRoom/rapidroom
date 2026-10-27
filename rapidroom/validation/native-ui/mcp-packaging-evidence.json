@@ -56,7 +56,7 @@
     "fixture_unchanged": true,
     "engine_unchanged": true
   },
-  "case": "/home/josh/code/rapidraw-project/samples/mcp-packaging-135/native-stage3",
+  "case": "~/code/rapidraw-project/samples/mcp-packaging-135/native-stage3",
   "fixture_sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
   "unverified": [
     "physical external terminal focus (owned terminal stub runs real clients)",

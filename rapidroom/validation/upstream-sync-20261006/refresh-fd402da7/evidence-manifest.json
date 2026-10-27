@@ -1,0 +1,29 @@
+{
+  "tested_application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "files": {
+    "README.md": "bae1c0d1b60b68ec7a14a9a8c29dd84d7ed57d6b7be7a1bdfdbee77338bdaed7",
+    "compare-configs.json": "17eaafc14abc4b5c7816767480e0c9a451592e2008f0f939694e24899bd2788b",
+    "compare-reviewed-candidate.json": "b85718c4524bb7f9ba938c5f1b3d7223e221e67a6f600dd41f2e46fa91609903",
+    "csp-browser.json": "423a4689cb3751fbabff43d5eb150f97d24ee488a343e46bd0d9032ae63ea702",
+    "focused-test-binding.json": "59a021779dbdda4a20f1383b2cebbb385a62e86610970db00b77458bf1b3419d",
+    "frozen-reference-status.json": "2a71fcbccc0fc1aa888a5ed51a6603345fb2fa1e5cf31c168af0e112d90e4bc4",
+    "hosted-checks.json": "a020bdc9ca8cea4b273d79443ed86ee30bf9bd3090b4d95cd10a2a62caeaabb2",
+    "inspection.json": "ba8fb93d67bd5f5fea1ee3322f05af2667b2d953a53da826a376e454f4d21c06",
+    "native-controls.json": "ed0629c70bef6a705db9c1aa13ba97c2dde735b6fa289bc22b53c1b05c52bf18",
+    "native-fuji-xh2-40mp-compressed-100-percent.png": "06df9eb9e38155ecff3768631786dfabfc31b917b3d7a59ae6f16fb17ad2e66b",
+    "native-fuji-xh2-40mp-compressed-reset.png": "5a9b69159739824e440c07bf40e6df56d1d8a5562b67e35d175c421e7e7ae992",
+    "native-fuji-xt4-26mp-lossless-100-percent.png": "78f292f79e35b4e7df86eab1ab50e12de8e341dd0eb4994641bafe34f2beb901",
+    "native-fuji-xt4-26mp-lossless-reset.png": "372da369c8d6b02fb7fd863053c7470224200611e1a9fc9a123340f29cdc1675",
+    "native-harness-provenance.json": "828fa90743cf68fb3b3dcc3a6d6ddb7b42fbf3d7bcbbf3331b94779e980ecca3",
+    "native-mcp-masks-and-undo.png": "fe07999600ad4713e89a3af084a6e1cfaa39b29efb2a3a6c4ec0802ce8a85435",
+    "native-sony-a7c2-15mp-uncompressed-100-percent.png": "619d481b422f3cfc5de72823ef4ce41433ac88a2a86b106c9625582cdb7f6680",
+    "native-sony-a7c2-15mp-uncompressed-reset.png": "eb774c8f25449069be91444b8af052c04ded3796207ba1747661b384e683f1a7",
+    "panel-manifest.json": "9637efc3b3978f1b63da5d32a669eebdc77b20cd73988f8cc3ea65bc75c2cde1",
+    "render-combined.json": "1d8d45466d35dfe0de7cd674d504be5a6c151369ff8837a06802c4427efdd7af",
+    "render-default.json": "2fd1c570c8cc8ae1cf58ca4fff36938d008b9a30b3b07db4980496e14958a91b",
+    "settled100.json": "3ca1ce79d3d759c0ee41b54988937ebdf46adfeed2824b8ce5b4659765e4d6d1",
+    "source-and-checks.json": "fdb7ef44590e9f6edc1c97566d2e2380c71bcbc1549cd73cc9dd50111a8376a3"
+  },
+  "maintainer_approval": false,
+  "reference_updated": false
+}

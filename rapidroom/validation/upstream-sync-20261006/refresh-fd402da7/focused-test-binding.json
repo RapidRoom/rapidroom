@@ -1,0 +1,13 @@
+{
+  "committed_source": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "tested_worktree_base": "808c9fdaf774c424bdc94b8f3d6dc56e70d32f87",
+  "tested_worktree_files": {
+    "src/components/adjustments/Curves.tsx": "8a7e6ad494ca7e43c00b738b0230e84864cf34ec9151ff83276abb937adef3bd",
+    "src/components/adjustments/Curves.test.tsx": "eb83e156f2fcefa1da819cfe8ba5045441a72ec1481727c4d0e5633ac1b0b2ee",
+    "rapidroom/adjustment-schema.json": "c0cd1fa4cdb933659c5091e202daac07ee9782f4d02e6b05ebb20117b07c2207"
+  },
+  "committed_blobs_match_tested_inputs": true,
+  "tests_passed": 29,
+  "files_passed": 3,
+  "log_sha256": "96209d22d665c80bb2a9c9b436c120de0044bb64692bb51490e3f9aab4a9823e"
+}
