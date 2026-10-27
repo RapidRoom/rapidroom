@@ -1910,7 +1910,7 @@ mod tests {
     }
 
     #[test]
-    fn sigma_profile_matches_sony_exif_and_reports_unsupported_tca() {
+    fn sigma_profile_matches_sony_exif_and_reports_tca_not_included() {
         let db = load_bundled_db();
         let matched = find_best_lens_match(
             &db,
@@ -1920,7 +1920,7 @@ mod tests {
         )
         .expect("exact Sony lens name is supported");
         assert_eq!(matched.0, "Sigma");
-        assert!(matched.1.contains("TCA unsupported"));
+        assert!(matched.1.contains("TCA not included"));
         let lens = find_lens(&db, &matched.0, &matched.1).unwrap();
         assert!(lens.mount.iter().any(|m| m == "Sony E"));
         assert!(!lens.has_tca_data());
@@ -2113,7 +2113,7 @@ mod tests {
                 image.to_rgb8().save(out.join(&file)).unwrap();
                 reports.push(serde_json::json!({"file":file,"focal":focal,"aperture":aperture,
                     "synthetic":true,"purpose":"existing geometry renderer on explicit synthetic input; not real-lens correction acceptance",
-                    "adjustments":adjustments,"tca":"unsupported; neutral channel scales"}));
+                    "adjustments":adjustments,"tca":"not included; neutral channel scales"}));
             }
         }
         std::fs::write(
