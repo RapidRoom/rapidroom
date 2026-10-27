@@ -2,7 +2,7 @@
   "application": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
   "inspector": "Yojen / Codex visual agent",
   "inspected_at": "2026-10-15T03:29:52.258742+00:00",
-  "josh_approval": false,
+  "maintainer_approval": false,
   "public_panels": {
     "native-fuji-xh2-40mp-compressed-100-percent.png": {
       "sha256": "06df9eb9e38155ecff3768631786dfabfc31b917b3d7a59ae6f16fb17ad2e66b",
@@ -229,5 +229,5 @@
     "Masks render visibly, second mask changes preview, GUIUndo restores first-mask image",
     "Reset panels match visible scene framing/brightness/colour; no additional rendering change found in refreshed60 hashes"
   ],
-  "scope": "Agent inspection is not Josh approval, Lightroom calibration, platform parity, or fresh Sony36/settings80/maincontrol evidence."
+  "scope": "Agent inspection is not maintainer approval, Lightroom calibration, platform parity, or fresh Sony36/settings80/maincontrol evidence."
 }

@@ -2,7 +2,7 @@ use crate::Cursor;
 use crate::app_settings::{AppSettings, load_settings};
 use crate::app_state::{AppState, LoadedImage};
 use crate::baseline_exposure::BaselineOptions;
-use crate::cache_utils::DecodedImageCache;
+use crate::cache_utils::{DecodeFingerprint, FlightRole};
 use crate::exif_processing;
 use crate::file_management::{parse_virtual_path, read_file_mapped};
 use crate::formats::{has_non_raw_image_signature, is_raw_file};
@@ -21,15 +21,16 @@ use rawler::Orientation;
 use rayon::prelude::*;
 use serde::Deserialize;
 use serde_json::Value;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
 use std::panic;
 use std::path::Path;
+use std::sync::OnceLock;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
-use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 use tauri::Manager;
 
@@ -85,9 +86,77 @@ pub fn load_and_composite(
     settings: &AppSettings,
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
 ) -> Result<DynamicImage> {
-    let base_image =
-        load_base_image_from_bytes(base_image, path, use_fast_raw_dev, settings, cancel_token)?;
-    composite_patches_on_image(&base_image, adjustments)
+    load_and_composite_with_exif_persistence(
+        base_image,
+        path,
+        adjustments,
+        use_fast_raw_dev,
+        settings,
+        cancel_token,
+        true,
+    )
+}
+
+/// Decode a render source without persisting EXIF or migrating any legacy cache.
+/// Comparison rendering calls this so merely looking at a photo cannot edit it.
+pub fn load_and_composite_read_only(
+    base_image: &[u8],
+    path: &str,
+    adjustments: &Value,
+    use_fast_raw_dev: bool,
+    settings: &AppSettings,
+    cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+) -> Result<DynamicImage> {
+    load_and_composite_with_exif_persistence(
+        base_image,
+        path,
+        adjustments,
+        use_fast_raw_dev,
+        settings,
+        cancel_token,
+        false,
+    )
+}
+
+fn load_and_composite_with_exif_persistence(
+    base_image: &[u8],
+    path: &str,
+    adjustments: &Value,
+    use_fast_raw_dev: bool,
+    settings: &AppSettings,
+    cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+    persist_exif: bool,
+) -> Result<DynamicImage> {
+    let base_image = load_base_image_from_bytes_with_exif_persistence(
+        base_image,
+        path,
+        use_fast_raw_dev,
+        settings,
+        cancel_token,
+        persist_exif,
+    )?;
+    let prepared = match prepare_base_image_cow(&base_image, path, adjustments)? {
+        Cow::Owned(img) => Some(img),
+        Cow::Borrowed(_) => None,
+    };
+    Ok(prepared.unwrap_or(base_image))
+}
+
+pub fn prepare_base_image_cow<'a>(
+    base_image: &'a DynamicImage,
+    path: &str,
+    adjustments: &Value,
+) -> Result<Cow<'a, DynamicImage>> {
+    let has_patches = adjustments
+        .get("aiPatches")
+        .and_then(|v| v.as_array())
+        .is_some_and(|a| !a.is_empty());
+
+    let denoised = crate::ai_denoise::apply_ai_denoise(base_image, path, adjustments);
+    match crate::negative_conversion::apply_negative_conversion(denoised, adjustments) {
+        Cow::Owned(prepared) if !has_patches => Ok(Cow::Owned(prepared)),
+        prepared => composite_patches_cow(prepared, adjustments),
+    }
 }
 
 pub fn load_base_image_from_bytes(
@@ -97,14 +166,34 @@ pub fn load_base_image_from_bytes(
     settings: &AppSettings,
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
 ) -> Result<DynamicImage> {
-    load_base_image_with_proxy(
+    load_base_image_from_bytes_with_exif_persistence(
+        bytes,
+        path_for_ext_check,
+        use_fast_raw_dev,
+        settings,
+        cancel_token,
+        true,
+    )
+}
+
+fn load_base_image_from_bytes_with_exif_persistence(
+    bytes: &[u8],
+    path_for_ext_check: &str,
+    use_fast_raw_dev: bool,
+    settings: &AppSettings,
+    cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+    persist_exif: bool,
+) -> Result<DynamicImage> {
+    load_base_image_with_proxy_outcome(
         bytes,
         path_for_ext_check,
         use_fast_raw_dev,
         settings,
         cancel_token,
         None,
+        persist_exif,
     )
+    .map(|loaded| loaded.image)
 }
 
 pub fn load_base_image_with_proxy(
@@ -122,6 +211,7 @@ pub fn load_base_image_with_proxy(
         settings,
         cancel_token,
         proxy_min_dim,
+        true,
     )
     .map(|loaded| loaded.image)
 }
@@ -133,24 +223,24 @@ fn load_base_image_with_proxy_outcome(
     settings: &AppSettings,
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
     proxy_min_dim: Option<usize>,
+    persist_exif: bool,
 ) -> Result<BaseImageLoad> {
     let highlight_compression = settings.raw_highlight_compression.unwrap_or(2.5);
     let linear_mode = settings.linear_raw_mode.clone();
-    let color_nr_setting = settings.raw_preprocessing_color_nr.unwrap_or(0.5);
-    let color_nr_amount = if color_nr_setting <= 0.0 {
-        0.0
-    } else {
-        let x = color_nr_setting.clamp(0.01, 1.0);
-        (12.0 / x - 10.0).max(0.1)
-    };
+    let color_nr_amount = settings
+        .raw_preprocessing_color_nr
+        .unwrap_or(0.5)
+        .clamp(0.0, 1.0);
     let sharpening_amount = settings.raw_preprocessing_sharpening.unwrap_or(0.35);
     let apply_to_non_raws = settings.apply_preprocessing_to_non_raws.unwrap_or(false);
 
-    crate::exif_processing::persist_exif_if_missing(
-        Path::new(path_for_ext_check),
-        path_for_ext_check,
-        bytes,
-    );
+    if persist_exif {
+        crate::exif_processing::persist_exif_if_missing(
+            Path::new(path_for_ext_check),
+            path_for_ext_check,
+            bytes,
+        );
+    }
 
     let mut decode_as_raw = is_raw_file(path_for_ext_check);
     if decode_as_raw && has_non_raw_image_signature(bytes) {
@@ -542,18 +632,26 @@ pub fn load_image_with_orientation(
     Ok(DynamicImage::ImageRgb32F(oriented_image.to_rgb32f()))
 }
 
+/// Composites only the saved AI patches, without upstream's AI denoise or negative conversion.
 pub fn composite_patches_on_image(
     base_image: &DynamicImage,
     current_adjustments: &Value,
 ) -> Result<DynamicImage> {
+    composite_patches_cow(Cow::Borrowed(base_image), current_adjustments).map(Cow::into_owned)
+}
+
+fn composite_patches_cow<'a>(
+    base_image: Cow<'a, DynamicImage>,
+    current_adjustments: &Value,
+) -> Result<Cow<'a, DynamicImage>> {
     let patches_val = match current_adjustments.get("aiPatches") {
         Some(val) => val,
-        None => return Ok(base_image.clone()),
+        None => return Ok(base_image),
     };
 
     let patches_arr = match patches_val.as_array() {
         Some(arr) if !arr.is_empty() => arr,
-        _ => return Ok(base_image.clone()),
+        _ => return Ok(base_image),
     };
 
     let visible_patches: Vec<&Value> = patches_arr
@@ -575,7 +673,7 @@ pub fn composite_patches_on_image(
         .collect();
 
     if visible_patches.is_empty() {
-        return Ok(base_image.clone());
+        return Ok(base_image);
     }
 
     let (base_w, base_h) = base_image.dimensions();
@@ -613,14 +711,14 @@ pub fn composite_patches_on_image(
                 .filter(|s| !s.is_empty())
             {
                 let mask_bytes = general_purpose::STANDARD.decode(mask_b64)?;
-                let mask_img = image::load_from_memory(&mask_bytes)?.to_luma8();
+                let mask_img = image::load_from_memory(&mask_bytes)?.into_luma8();
                 if !is_cropped && (mask_img.width() != base_w || mask_img.height() != base_h) {
                     imageops::resize(&mask_img, base_w, base_h, imageops::FilterType::Lanczos3)
                 } else {
                     mask_img
                 }
             } else {
-                let patch_info: PatchMaskInfo = serde_json::from_value((*patch_obj).clone())
+                let patch_info = PatchMaskInfo::deserialize(*patch_obj)
                     .context("Failed to deserialize patch info for mask generation")?;
 
                 let mask_def = MaskDefinition {
@@ -673,7 +771,7 @@ pub fn composite_patches_on_image(
                 .and_then(|v| v.as_str())
                 .context("Missing color data")?;
             let color_bytes = general_purpose::STANDARD.decode(color_b64)?;
-            let color_image_u8 = image::load_from_memory(&color_bytes)?.to_rgb8();
+            let color_image_u8 = image::load_from_memory(&color_bytes)?.into_rgb8();
 
             let (patch_w, patch_h) = color_image_u8.dimensions();
             let final_color = if !is_cropped && (base_w != patch_w || base_h != patch_h) {
@@ -699,7 +797,7 @@ pub fn composite_patches_on_image(
 
     let decoded_patches = decoded_patches?;
 
-    let mut composited_image = base_image.clone();
+    let mut composited_image = base_image.into_owned();
     let lut = srgb_to_linear_lut();
 
     let get_color = |patch: &DecodedPatch, r: u8, g: u8, b: u8| -> (f32, f32, f32) {
@@ -964,117 +1062,94 @@ pub fn composite_patches_on_image(
         }
     }
 
-    Ok(composited_image)
+    Ok(Cow::Owned(composited_image))
 }
 
-type CachedBaseImage = (Arc<DynamicImage>, HashMap<String, String>, bool);
-
-fn decoded_cache_key(path: &str, settings: &AppSettings) -> Option<String> {
-    let metadata = fs::metadata(path).ok()?;
-    let modified = metadata
-        .modified()
-        .ok()?
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()?;
-    #[cfg(unix)]
-    let identity = {
-        use std::os::unix::fs::MetadataExt;
-        (
-            metadata.dev(),
-            metadata.ino(),
-            metadata.ctime(),
-            metadata.ctime_nsec(),
-        )
-    };
-    #[cfg(not(unix))]
-    let identity = ();
-    Some(
-        serde_json::json!([
-            path,
-            metadata.len(),
-            modified.as_nanos().to_string(),
-            identity,
-            settings.raw_highlight_compression,
-            settings.linear_raw_mode,
-            settings.raw_preprocessing_color_nr,
-            settings.raw_preprocessing_sharpening,
-            settings.apply_preprocessing_to_non_raws,
-            settings.use_apple_raw9,
-        ])
-        .to_string(),
-    )
+fn is_cancelled(cancel_token: &Option<(Arc<AtomicUsize>, usize)>) -> bool {
+    cancel_token
+        .as_ref()
+        .is_some_and(|(tracker, generation)| tracker.load(Ordering::SeqCst) != *generation)
 }
 
-fn cached_base_image(
-    cache: &Mutex<DecodedImageCache>,
-    path: &str,
-    settings: &AppSettings,
-) -> Option<CachedBaseImage> {
-    let key = decoded_cache_key(path, settings)?;
-    cache.lock().unwrap().get(&key)
-}
-
-// Call with the shared decode permit held; recheck after waiting so Editor and
-// Culling adopt each other's pristine full-resolution decode, never its edits.
-pub(crate) fn load_cached_base_image(
-    cache: &Mutex<DecodedImageCache>,
-    path: &str,
+pub fn get_or_decode_pristine(
+    state: &AppState,
+    source_path: &Path,
     settings: &AppSettings,
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
-) -> Result<CachedBaseImage, String> {
-    let check_current = || {
-        if cancel_token
-            .as_ref()
-            .is_some_and(|(counter, generation)| counter.load(Ordering::SeqCst) != *generation)
+) -> Result<crate::cache_utils::DecodedImageCacheHit, String> {
+    let path_str = source_path.to_string_lossy().to_string();
+    let fingerprint = DecodeFingerprint::for_file(source_path, settings);
+    loop {
+        if let Some(fp) = &fingerprint
+            && let Some(hit) = state.decoded_image_cache.lock().unwrap().get(&path_str, fp)
         {
-            Err("Load cancelled".to_string())
-        } else {
-            Ok(())
+            return Ok(hit);
         }
-    };
-    check_current()?;
-    let key = decoded_cache_key(path, settings);
-    if let Some(key) = &key
-        && let Some(cached) = cache.lock().unwrap().get(key)
-    {
-        check_current()?;
-        return Ok(cached);
-    }
-    let decode = |bytes: &[u8]| -> Result<CachedBaseImage, String> {
-        check_current()?;
-        let loaded = load_base_image_with_proxy_outcome(
-            bytes,
-            path,
-            false,
-            settings,
-            cancel_token.clone(),
-            None,
-        )
-        .map_err(|e| e.to_string())?;
-        let exif = exif_processing::read_exif_data(path, bytes);
-        Ok((Arc::new(loaded.image), exif, loaded.used_embedded_preview))
-    };
-    let result = match read_file_mapped(Path::new(path)) {
-        Ok(bytes) => decode(&bytes)?,
-        Err(error) => {
-            log::warn!(
-                "Failed to memory-map file '{}': {}. Falling back to standard read.",
-                path,
-                error
+        if is_cancelled(&cancel_token) {
+            return Err("Load cancelled".to_string());
+        }
+        let _flight = match state.decode_flights.begin(&path_str) {
+            FlightRole::Follower(flight) => {
+                flight.wait();
+                continue;
+            }
+            FlightRole::Leader(guard) => guard,
+        };
+
+        if crate::file_management::is_cloud_placeholder(source_path) {
+            return Err(format!(
+                "'{}' is stored in iCloud and hasn't been downloaded yet. Download it in Finder, then try again.",
+                path_str
+            ));
+        }
+        let decode =
+            |bytes: &[u8]| -> Result<(DynamicImage, HashMap<String, String>, bool), String> {
+                if is_cancelled(&cancel_token) {
+                    return Err("Load cancelled".to_string());
+                }
+                let loaded = load_base_image_with_proxy_outcome(
+                    bytes,
+                    &path_str,
+                    false,
+                    settings,
+                    cancel_token.clone(),
+                    None,
+                    true,
+                )
+                .map_err(|e| e.to_string())?;
+                Ok((
+                    loaded.image,
+                    exif_processing::read_exif_data(&path_str, bytes),
+                    loaded.used_embedded_preview,
+                ))
+            };
+        let (image, exif, used_embedded_preview) = match read_file_mapped(source_path) {
+            Ok(mmap) => decode(&mmap)?,
+            Err(e) => {
+                log::warn!(
+                    "Failed to memory-map file '{}': {}. Falling back to standard read.",
+                    path_str,
+                    e
+                );
+                let bytes = fs::read(source_path).map_err(|io_err| {
+                    format!("Fallback read failed for {}: {}", path_str, io_err)
+                })?;
+                decode(&bytes)?
+            }
+        };
+
+        let image = Arc::new(image);
+        if let Some(fp) = fingerprint {
+            state.decoded_image_cache.lock().unwrap().insert(
+                path_str,
+                fp,
+                Arc::clone(&image),
+                exif.clone(),
+                used_embedded_preview,
             );
-            decode(&fs::read(path).map_err(|e| e.to_string())?)?
         }
-    };
-    check_current()?;
-    if let Some(key) = key
-        && decoded_cache_key(path, settings).as_ref() == Some(&key)
-    {
-        cache
-            .lock()
-            .unwrap()
-            .insert(key, result.0.clone(), result.1.clone(), result.2);
+        return Ok((image, exif, used_embedded_preview));
     }
-    Ok(result)
 }
 
 #[tauri::command]
@@ -1085,12 +1160,14 @@ pub fn is_image_cached(
 ) -> bool {
     let (source_path, _) = parse_virtual_path(&path);
     let settings = load_settings(app_handle).unwrap_or_default();
-    cached_base_image(
-        &state.decoded_image_cache,
-        &source_path.to_string_lossy(),
-        &settings,
-    )
-    .is_some()
+    let Some(fingerprint) = DecodeFingerprint::for_file(&source_path, &settings) else {
+        return false;
+    };
+    state
+        .decoded_image_cache
+        .lock()
+        .unwrap()
+        .contains(&source_path.to_string_lossy(), &fingerprint)
 }
 
 #[tauri::command]
@@ -1108,8 +1185,7 @@ pub async fn load_image(
         *image = None;
         generation
     };
-    let generation_tracker = state.load_image_generation.clone();
-    let cancel_token = Some((generation_tracker.clone(), my_generation));
+    let cancel_token = Some((state.load_image_generation.clone(), my_generation));
 
     {
         *state
@@ -1142,10 +1218,6 @@ pub async fn load_image(
             .unwrap_or_else(|e| e.into_inner())
             .clear();
 
-        *state
-            .denoise_result
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = None;
         *state.hdr_result.lock().unwrap_or_else(|e| e.into_inner()) = None;
         *state
             .panorama_result
@@ -1156,22 +1228,32 @@ pub async fn load_image(
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     let source_path_str = source_path.to_string_lossy().to_string();
 
+    crate::immich::ensure_local(&app_handle, &source_path).await?;
+
     let metadata: ImageMetadata =
         crate::exif_processing::load_sidecar_with_camera_crop(&sidecar_path, &source_path);
 
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
     let baseline_options = BaselineOptions::from_settings(&settings);
 
-    let cached_data = cached_base_image(&state.decoded_image_cache, &source_path_str, &settings);
-    let (pristine_arc, exif_data, used_embedded_preview) = if let Some(cached) = cached_data {
-        cached
+    state
+        .decoded_image_cache
+        .lock()
+        .unwrap()
+        .compact_except(&source_path_str);
+
+    let cached = DecodeFingerprint::for_file(&source_path, &settings).and_then(|fingerprint| {
+        state
+            .decoded_image_cache
+            .lock()
+            .unwrap()
+            .get(&source_path_str, &fingerprint)
+    });
+
+    let (pristine_arc, exif_data, used_embedded_preview) = if let Some(hit) = cached {
+        hit
     } else {
-        if crate::file_management::is_cloud_placeholder(&source_path) {
-            return Err(format!(
-                "'{}' is stored in iCloud and hasn't been downloaded yet. Download it in Finder, then try again.",
-                source_path_str
-            ));
-        }
+        // Serialise full-resolution decodes and skip superseded waiters.
         let decode_permit = state
             .decode_permit
             .clone()
@@ -1181,16 +1263,14 @@ pub async fn load_image(
         if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
             return Err("Load cancelled".to_string());
         }
-        let path = source_path_str.clone();
-        let handle = app_handle.clone();
+
+        let app_handle = app_handle.clone();
+        let source_path = source_path.clone();
+        let settings = settings.clone();
         tokio::task::spawn_blocking(move || {
-            let _permit = decode_permit;
-            load_cached_base_image(
-                &handle.state::<AppState>().decoded_image_cache,
-                &path,
-                &settings,
-                cancel_token,
-            )
+            let _decode_permit = decode_permit;
+            let state = app_handle.state::<AppState>();
+            get_or_decode_pristine(&state, &source_path, &settings, cancel_token)
         })
         .await
         .map_err(|e| e.to_string())??
@@ -1227,11 +1307,14 @@ pub async fn load_image(
     }
     *image = Some(LoadedImage {
         generation: my_generation,
-        path,
+        path: path.clone(),
         image: pristine_arc,
         is_raw,
         as_shot,
     });
+
+    drop(image);
+    crate::ai_jobs::prioritize(&app_handle, &path);
 
     Ok(LoadImageResult {
         load_generation: my_generation,
@@ -1243,51 +1326,6 @@ pub async fn load_image(
         as_shot_white_balance: as_shot.white_balance,
         used_embedded_preview,
     })
-}
-
-#[cfg(test)]
-mod decoded_preview_cache_tests {
-    use super::*;
-
-    #[test]
-    fn shared_decode_preserves_pixels_and_invalidates_replaced_source_and_settings() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("photo.png");
-        let path_str = path.to_str().unwrap();
-        let write =
-            |color: [u8; 3], seconds| {
-                image::RgbImage::from_pixel(12, 8, image::Rgb(color))
-                    .save(&path)
-                    .unwrap();
-                fs::File::options()
-                    .write(true)
-                    .open(&path)
-                    .unwrap()
-                    .set_times(fs::FileTimes::new().set_modified(
-                        std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds),
-                    ))
-                    .unwrap();
-            };
-        let cache = Mutex::new(DecodedImageCache::new(2));
-        let mut settings = AppSettings::default();
-        write([255, 0, 0], 1000);
-        let first = load_cached_base_image(&cache, path_str, &settings, None).unwrap();
-        let adopted = load_cached_base_image(&cache, path_str, &settings, None).unwrap();
-        assert!(Arc::ptr_eq(&first.0, &adopted.0));
-        assert_eq!(first.0.to_rgb8().get_pixel(5, 4).0, [255, 0, 0]);
-
-        write([0, 0, 255], 1001);
-        let replaced = load_cached_base_image(&cache, path_str, &settings, None).unwrap();
-        assert!(!Arc::ptr_eq(&first.0, &replaced.0));
-        assert_eq!(replaced.0.to_rgb8().get_pixel(5, 4).0, [0, 0, 255]);
-
-        settings.raw_preprocessing_sharpening = Some(0.0);
-        let changed = load_cached_base_image(&cache, path_str, &settings, None).unwrap();
-        assert!(!Arc::ptr_eq(&replaced.0, &changed.0));
-        assert_eq!(replaced.0.to_rgb32f(), changed.0.to_rgb32f());
-        let cancelled = Some((Arc::new(AtomicUsize::new(2)), 1));
-        assert!(load_cached_base_image(&cache, path_str, &settings, cancelled).is_err());
-    }
 }
 
 #[cfg(test)]
@@ -1326,12 +1364,60 @@ mod embedded_preview_tests {
     }
 
     #[test]
+    fn read_only_decode_does_not_heal_an_auto_recipe_or_migrate_legacy_exif() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("compare.NEF");
+        let sidecar = dir.path().join("compare.NEF.rrdata");
+        let legacy = dir.path().join("compare.NEF.rrexif");
+        let bytes = jpeg(80, 48);
+        let recipe = r#"{ "adjustments": { "lensCorrectionMode": "auto", "cameraLensCorrectionVersion": 1 }, "unknown": { "mustStay": true } }"#;
+        let legacy_exif = r#"{ "Make": "Example Camera" }"#;
+        std::fs::write(&source, &bytes).unwrap();
+        std::fs::write(&sidecar, recipe).unwrap();
+        std::fs::write(&legacy, legacy_exif).unwrap();
+        let sidecar_mtime = std::fs::metadata(&sidecar).unwrap().modified().unwrap();
+        let legacy_mtime = std::fs::metadata(&legacy).unwrap().modified().unwrap();
+
+        let decoded = load_and_composite_read_only(
+            &bytes,
+            source.to_str().unwrap(),
+            &serde_json::json!({
+                "lensCorrectionMode": "auto",
+                "cameraLensCorrectionVersion": 1
+            }),
+            false,
+            &crate::app_settings::AppSettings::default(),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(decoded.dimensions(), (80, 48));
+        assert_eq!(std::fs::read_to_string(&sidecar).unwrap(), recipe);
+        assert_eq!(
+            std::fs::metadata(&sidecar).unwrap().modified().unwrap(),
+            sidecar_mtime
+        );
+        assert_eq!(std::fs::read_to_string(&legacy).unwrap(), legacy_exif);
+        assert_eq!(
+            std::fs::metadata(&legacy).unwrap().modified().unwrap(),
+            legacy_mtime
+        );
+    }
+
+    #[test]
     fn reports_when_raw_decode_uses_embedded_preview() {
         let settings = crate::app_settings::AppSettings::default();
         let image = jpeg(64, 32);
-        let regular =
-            load_base_image_with_proxy_outcome(&image, "photo.NEF", false, &settings, None, None)
-                .unwrap();
+        let regular = load_base_image_with_proxy_outcome(
+            &image,
+            "photo.NEF",
+            false,
+            &settings,
+            None,
+            None,
+            true,
+        )
+        .unwrap();
         assert!(!regular.used_embedded_preview);
 
         let fallback_fixture = tiff(true, 1, &jpeg(64, 32), &jpeg(320, 160));
@@ -1342,6 +1428,7 @@ mod embedded_preview_tests {
             &settings,
             None,
             None,
+            true,
         )
         .expect("failed RAW decode should use the embedded preview");
         assert!(fallback.used_embedded_preview);

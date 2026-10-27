@@ -47,14 +47,14 @@
     "native-sony-a7c2-15mp-uncompressed-100-percent.png": "c649f897af34ed07aff9fb717dcf749d3d3afd0bc7b2a17145af30c9d1708d21",
     "native-sony-a7c2-15mp-uncompressed-reset.png": "01800ac11b19b3ba2d962b24d02cf61ad7db8c3b6b4b98b229522eda536361d8"
   },
-  "josh_approval": false,
+  "maintainer_approval": false,
   "method": "All37 renderer/Sony/exposure panels inspected via corpus/probe contact sheets; CanonR6II and A7CR-S also inspected full-size. All6 native comparison panels inspected full-size. All160 successful native screenshots inspected in12 private contact sheets; the earlier19 native-mask captures were inspected separately. Numeric reset/Undo and decoded-surface checks supplement visual inspection.",
   "observations": [
     "Native candidate/main pairs preserve framing and color in the FujiXH2 portrait garden, FujiXT4 color chart and Sony landscape; no blank or corrupt settled preview visible. 100% panels are actual screenshot photo ROIs, downsampled equally for comparison.",
     "Repeated Exposure captures visibly alternate brightness with corresponding histogram movement; reset/Undo returns to the baseline and exports show successful completion.",
     "XH2 out-of-focus areas remain naturally soft on both sides; chart texture and Sony poles remain consistent. Main/candidate controls use different UI versions, with settled photo ROIs compared.",
     "Canon neutral brightness change is explained by measured default +0.5EV highlight compensation. Sony previous-fixed/current panels retain stable colors across as-shot and absolute Kelvin.",
-    "No claim of Josh approval, physical pointing-device testing, Windows AMD or Zorin Flatpak reproduction."
+    "No claim of maintainer approval, physical pointing-device testing, Windows AMD or Zorin Flatpak reproduction."
   ],
   "native_capture_counts": {
     "candidate-preview-fuji-xh2-40mp-compressed": 27,

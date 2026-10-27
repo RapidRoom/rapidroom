@@ -99,6 +99,15 @@ pub struct DenoiseJob {
 }
 
 impl DenoiseJob {
+    /// A job with no events and no cancellation, for callers outside the denoise queue.
+    pub fn detached() -> Self {
+        Self {
+            id: 0,
+            token: Arc::default(),
+            sink: None,
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn testing() -> Self {
         Self {
@@ -504,7 +513,7 @@ fn run_batch(
 }
 
 fn copy_denoised_sidecar(source: &Path, destination: &Path) -> std::io::Result<()> {
-    let bytes = fs::read(source)?;
+    let bytes = crate::file_management::copied_sidecar_without_stack(source)?;
     let contents = match serde_json::from_slice::<serde_json::Value>(&bytes) {
         Ok(serde_json::Value::Object(mut metadata)) if metadata.contains_key("denoise") => {
             metadata.remove("denoise");
@@ -748,6 +757,7 @@ fn nind_raw_view(
         RenderRequest {
             adjustments,
             mask_bitmaps: &[],
+            mask_cache_key: None,
             lut: None,
             roi: None,
         },

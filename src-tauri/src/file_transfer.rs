@@ -167,11 +167,11 @@ fn members(source: &Path) -> Result<Vec<Member>, String> {
         }
         let filename = entry.file_name();
         let filename = filename.to_string_lossy();
+        // Exact virtual copy ids only: `IMG.CR2.jpg.rrdata` belongs to IMG.CR2.jpg.
         if let Some(id) = filename
             .strip_prefix(&prefix)
             .and_then(|s| s.strip_suffix(".rrdata"))
-            && !id.is_empty()
-            && id.is_ascii()
+            && crate::file_management::is_virtual_copy_id(id)
         {
             result.push(Member {
                 source: path,
@@ -366,6 +366,32 @@ pub fn transfer_bytes(bytes: &[u8], destination: &Path) -> Result<TransferOutcom
 mod tests {
     use super::*;
 
+    #[test]
+    fn another_images_sidecar_is_not_a_virtual_copy() {
+        let root = tempfile::tempdir().unwrap();
+        let (src, dest) = (root.path().join("src"), root.path().join("dest"));
+        fs::create_dir(&src).unwrap();
+        fs::create_dir(&dest).unwrap();
+        // RapidRoom and Lightroom-import virtual copies travel; IMG.CR2.jpg's edits don't.
+        let lightroom = "IMG.CR2.0f8fad5b-d9cb-469f-a165-70867728950e.rrdata";
+        for name in [
+            "IMG.CR2",
+            "IMG.CR2.a1b2c3.rrdata",
+            lightroom,
+            "IMG.CR2.jpg",
+            "IMG.CR2.jpg.rrdata",
+        ] {
+            fs::write(src.join(name), name).unwrap();
+        }
+        transfer(&src.join("IMG.CR2"), &dest.join("IMG.CR2"), false).unwrap();
+        let mut copied: Vec<_> = fs::read_dir(&dest)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .collect();
+        copied.sort();
+        assert_eq!(copied, ["IMG.CR2", lightroom, "IMG.CR2.a1b2c3.rrdata"]);
+    }
+
     // Two cards with recycled image numbers, edits and Lightroom sidecars. This
     // exercises disk contents, not an implementation-shaped mock of decisions.
     #[test]
@@ -382,7 +408,7 @@ mod tests {
         for (dir, bytes) in [(&a, b"first"), (&b, b"other")] {
             fs::write(dir.join("A7C01234.ARW"), bytes).unwrap();
             fs::write(dir.join("A7C01234.ARW.rrdata"), bytes).unwrap();
-            fs::write(dir.join("A7C01234.ARW.vc1.rrdata"), bytes).unwrap();
+            fs::write(dir.join("A7C01234.ARW.a1b2c3.rrdata"), bytes).unwrap();
             fs::write(dir.join("A7C01234.xmp"), bytes).unwrap();
         }
         let mut summary = TransferSummary::default();
@@ -403,7 +429,7 @@ mod tests {
             (2, 1, 2, 0)
         );
         for (stem, expected) in [("A7C01234", b"first"), ("A7C01234-2", b"other")] {
-            for suffix in [".ARW", ".ARW.rrdata", ".ARW.vc1.rrdata", ".xmp"] {
+            for suffix in [".ARW", ".ARW.rrdata", ".ARW.a1b2c3.rrdata", ".xmp"] {
                 assert_eq!(
                     fs::read(dest.join(format!("{stem}{suffix}"))).unwrap(),
                     expected

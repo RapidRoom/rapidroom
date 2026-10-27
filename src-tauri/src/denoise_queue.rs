@@ -279,6 +279,7 @@ fn hash_value(value: &Value) -> String {
 }
 fn edits(mut metadata: Value) -> Value {
     metadata.as_object_mut().unwrap().remove("denoise");
+    metadata.as_object_mut().unwrap().remove("stack");
     metadata
 }
 fn edit_hash(metadata: &Value) -> String {
@@ -1476,6 +1477,35 @@ mod tests {
     }
 
     #[test]
+    fn queued_and_legacy_outputs_do_not_inherit_source_stack_membership() {
+        let (_dir, path) = fixture();
+        let (_, sidecar) = parse_virtual_path(&path);
+        mutate(&sidecar, |v| {
+            v["stack"] = json!({"id":"source-burst","position":0});
+            Ok(())
+        })
+        .unwrap();
+        let before = fs::read(&sidecar).unwrap();
+        run_item(&path, &ident(), &DenoiseJob::testing(), output).unwrap();
+        let receipt = queue(&strict_json(&sidecar).unwrap()).unwrap()["completed"][0].clone();
+        let dest = safe_output(&sidecar, receipt["output"].as_str().unwrap()).unwrap();
+        let (_, dest_sidecar) = parse_virtual_path(&dest.to_string_lossy());
+        assert!(strict_json(&dest_sidecar).unwrap().get("stack").is_none());
+        let legacy = sidecar.with_file_name("legacy.tiff.rrdata");
+        copy_denoised_sidecar(&sidecar, &legacy).unwrap();
+        assert!(strict_json(&legacy).unwrap().get("stack").is_none());
+        let source: Value = serde_json::from_slice(&before).unwrap();
+        assert_eq!(strict_json(&sidecar).unwrap()["stack"], source["stack"]);
+        mutate(&legacy, |v| {
+            v["stack"] = json!({"id":"output-stack","position":2});
+            Ok(())
+        })
+        .unwrap();
+        copy_denoised_sidecar(&sidecar, &legacy).unwrap();
+        assert_eq!(strict_json(&legacy).unwrap()["stack"]["id"], "output-stack");
+    }
+
+    #[test]
     fn legacy_save_and_batch_do_not_inherit_the_source_queue_ownership() {
         let (_dir, path) = fixture();
         let identity = ident();
@@ -2007,10 +2037,64 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn resolved_recipe_publication_does_not_take_metadata_lock_under_destination_write() {
-        use std::os::unix::fs::MetadataExt;
+    fn resolved_recipe_publication_completes_after_destination_lock_release() {
         let dir = tempfile::tempdir().unwrap();
-        let raw = dir.path().join("context.ARW");
+        let log_path = dir.path().join("child.log");
+        let log = fs::File::create(&log_path).unwrap();
+        // A regressed WRITE reentry must never keep the suite's own global
+        // mutex locked. Only this owned child contains the actual lock probe.
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "denoising::queue::tests::resolved_recipe_publication_child",
+                "--ignored",
+                "--nocapture",
+            ])
+            .env("RAPIDROOM_RECIPE_LOCK_TEST_DIR", dir.path())
+            .stdin(std::process::Stdio::null())
+            .stdout(log.try_clone().unwrap())
+            .stderr(log)
+            .spawn()
+            .unwrap();
+        let child_pid = child.id();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                assert!(
+                    status.success(),
+                    "child {child_pid}: {}",
+                    fs::read_to_string(&log_path).unwrap()
+                );
+                assert!(
+                    dir.path().join("recipe-assertions-complete").is_file(),
+                    "child did not execute the recipe assertions"
+                );
+                break;
+            }
+            if std::time::Instant::now() >= deadline {
+                // The handle and PID were captured at spawn; never select a
+                // process by name or search, and reap it before fixture cleanup.
+                let _ = child.kill();
+                child.wait().unwrap();
+                panic!(
+                    "recipe lock child {child_pid} exceeded 15 seconds: {}",
+                    fs::read_to_string(&log_path).unwrap()
+                );
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "Subprocess-only recipe lock probe, run by the bounded parent test"]
+    fn resolved_recipe_publication_child() {
+        use std::os::unix::fs::MetadataExt;
+        let dir = PathBuf::from(
+            std::env::var_os("RAPIDROOM_RECIPE_LOCK_TEST_DIR")
+                .expect("owned subprocess fixture directory"),
+        );
+        let raw = dir.join("context.ARW");
         // Real sidecar/lock/publication protocol; camera bytes are synthetic here.
         fs::write(&raw, b"context protocol RAW").unwrap();
         let path = raw.to_string_lossy().into_owned();
@@ -2046,11 +2130,8 @@ mod tests {
         .unwrap();
         let source_hash = context.source_hash.clone();
         drop(context);
-        // Acquire METADATA before spawning to avoid another parallel test
-        // becoming the inverse-order writer while this test owns the file lock.
-        let metadata_guard = crate::file_management::SIDECAR_METADATA_LOCK
-            .lock()
-            .unwrap();
+        // Hold a separate-process file lock so the worker must enter the
+        // shared destination transaction before publishing the resolved recipe.
         let external = crate::file_management::lock_sidecar_as_external_writer(&dest).unwrap();
         let inode = external.metadata().unwrap().ino();
         let worker_sidecar = sidecar.clone();
@@ -2087,27 +2168,29 @@ mod tests {
             }
             std::thread::yield_now();
         }
-        // The worker now holds WRITE and waits for the destination file lock,
-        // while this thread retains METADATA like a concurrent rating writer.
+        // The old separate metadata mutex no longer exists. Completion after
+        // releasing the external lock still detects reentry into WRITE.
         drop(external);
-        let completed_without_metadata = receive.recv_timeout(std::time::Duration::from_secs(2));
-        // Release before joining even on failure, so the old reverse-order path
-        // produces a bounded regression failure rather than hanging the suite.
-        drop(metadata_guard);
+        let completed = receive
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("context recheck reentered the sidecar transaction");
         worker.join().unwrap();
         assert!(
             waiting_for_destination,
             "publication never reached the destination transaction"
         );
-        completed_without_metadata
-            .expect("context recheck tried to acquire METADATA under WRITE")
-            .unwrap();
+        completed.unwrap();
         crate::file_management::update_sidecar(&sidecar, |metadata| metadata.rating = 5).unwrap();
         assert_eq!(strict_json(&sidecar).unwrap()["rating"], 5);
         assert_eq!(
             strict_json(&dest).unwrap()["adjustments"],
             json!({"toneMapper":"basic","baselineExposure":false})
         );
+        fs::write(
+            dir.join("recipe-assertions-complete"),
+            b"real recipe, external lock, rating and neutral output assertions passed",
+        )
+        .unwrap();
     }
 
     #[test]

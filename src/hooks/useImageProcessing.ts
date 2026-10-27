@@ -10,7 +10,6 @@ import { Adjustments, COPYABLE_ADJUSTMENT_KEYS } from '../utils/adjustments';
 import { Invokes, Panel } from '../components/ui/AppProperties';
 import { debouncedSave } from './useEditorActions';
 import { globalImageCache } from '../utils/ImageLRUCache';
-import type { SubMask } from '../components/panel/right/Masks';
 import { copyLensPolicyVersion } from '../utils/lensPolicyVersion';
 
 interface TransformWrapper {
@@ -18,6 +17,19 @@ interface TransformWrapper {
     transformState: { positionX: number; positionY: number; scale: number } | null;
   };
 }
+import { prepareAdjustmentsPayload } from '../utils/backendPayload';
+
+const isWgpuRender = (buffer: ArrayBuffer) => new TextDecoder().decode(buffer.slice(0, 11)) === 'WGPU_RENDER';
+
+const releasePreviewUrl = (url: string | null | undefined) => {
+  if (url && url.startsWith('blob:') && !globalImageCache.isProtected(url)) {
+    setTimeout(() => {
+      if (!globalImageCache.isProtected(url)) {
+        URL.revokeObjectURL(url);
+      }
+    }, 250);
+  }
+};
 
 export function useImageProcessing(
   transformWrapperRef: React.RefObject<TransformWrapper | null>,
@@ -50,7 +62,6 @@ export function useImageProcessing(
   const latestUncroppedJobIdRef = useRef(0);
 
   const inFlightCountRef = useRef(0);
-  const lastAnalyticsTimeRef = useRef<number>(0);
   const pendingApplyRef = useRef<{ adjustments: Adjustments; targetRes?: number } | null>(null);
   const dragIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeWaveformChannelRef = useRef(activeWaveformChannel);
@@ -122,91 +133,32 @@ export function useImageProcessing(
         return selected?.path === currentPath && selected.loadGeneration === loadGeneration;
       };
 
-      let shouldRequestAnalytics = false;
-      if (dragging) {
-        const now = performance.now();
-        if (now - lastAnalyticsTimeRef.current > 33.33) {
-          shouldRequestAnalytics = true;
-          lastAnalyticsTimeRef.current = now;
-        }
-      } else {
-        shouldRequestAnalytics = true;
-        lastAnalyticsTimeRef.current = 0;
-      }
-
-      const payload = structuredClone(currentAdjustments);
-      const { patchesSentToBackend } = useEditorStore.getState();
-      const newlySentPatches = new Set<string>();
-
-      const processSubMasks = (subMasks: SubMask[]) => {
-        if (!Array.isArray(subMasks)) return;
-        subMasks.forEach((sm) => {
-          if (sm.id && sm.parameters) {
-            const keys = ['mask_data_base64', 'maskDataBase64'] as const;
-            let foundMaskData = false;
-
-            for (const key of keys) {
-              if (sm.parameters[key] !== undefined && sm.parameters[key] !== null) {
-                foundMaskData = true;
-                if (patchesSentToBackend.has(sm.id)) {
-                  sm.parameters[key] = null;
-                }
-              }
-            }
-            if (foundMaskData && !patchesSentToBackend.has(sm.id)) {
-              newlySentPatches.add(sm.id);
-            }
-          }
-        });
-      };
-
-      if (payload.aiPatches && Array.isArray(payload.aiPatches)) {
-        payload.aiPatches.forEach((p) => {
-          if (p.id && p.patchData && !p.isLoading) {
-            if (patchesSentToBackend.has(p.id)) {
-              p.patchData = null;
-            } else {
-              newlySentPatches.add(p.id);
-            }
-          }
-          if (p.subMasks) processSubMasks(p.subMasks);
-        });
-      }
-
-      if (payload.masks && Array.isArray(payload.masks)) {
-        payload.masks.forEach((container) => {
-          if (container.subMasks) processSubMasks(container.subMasks);
-        });
-      }
+      const { payload, markSent } = prepareAdjustmentsPayload(currentAdjustments);
 
       const jobId = ++previewJobIdRef.current;
       const roi = calculateROI();
 
       try {
-        const buffer: ArrayBuffer = await invoke(Invokes.ApplyAdjustments, {
+        const buffer = await invoke<ArrayBuffer>(Invokes.ApplyAdjustments, {
           imagePath: currentPath,
           loadGeneration,
           jsAdjustments: payload,
+          original: false,
           isInteractive: dragging,
           targetResolution: targetRes || null,
           roi: roi || null,
-          requestAnalytics: shouldRequestAnalytics,
+          requestAnalytics: true,
           computeWaveform: !!isWaveformVisible,
           activeWaveformChannel: activeWaveformChannelRef.current || null,
         });
 
         if (!isCurrentSource() || !buffer?.byteLength) return;
-
-        if (newlySentPatches.size > 0) {
-          newlySentPatches.forEach((id) => patchesSentToBackend.add(id));
-        }
+        markSent();
 
         if (buffer && buffer.byteLength > 0 && jobId >= latestRenderedJobIdRef.current) {
           latestRenderedJobIdRef.current = jobId;
 
-          const textDecoder = new TextDecoder();
-          const prefix = textDecoder.decode(buffer.slice(0, 11));
-          if (prefix === 'WGPU_RENDER') {
+          if (isWgpuRender(buffer)) {
             setEditor((state) => {
               if (state.interactivePatch && state.interactivePatch.url) URL.revokeObjectURL(state.interactivePatch.url);
               return {
@@ -254,14 +206,7 @@ export function useImageProcessing(
             }
 
             setEditor((state) => {
-              const prevUrl = state.finalPreviewUrl;
-              if (prevUrl && prevUrl.startsWith('blob:') && !globalImageCache.isProtected(prevUrl)) {
-                setTimeout(() => {
-                  if (!globalImageCache.isProtected(prevUrl)) {
-                    URL.revokeObjectURL(prevUrl);
-                  }
-                }, 250);
-              }
+              releasePreviewUrl(state.finalPreviewUrl);
               return {
                 finalPreviewUrl: url,
                 previewRenderVersion: state.previewRenderVersion + 1,
@@ -338,14 +283,27 @@ export function useImageProcessing(
     () =>
       throttle(
         (adj: Adjustments) => {
-          if (!useEditorStore.getState().selectedImage?.isReady) return;
+          const requestedImage = useEditorStore.getState().selectedImage;
+          if (!requestedImage?.isReady) return;
           const jobId = ++uncroppedJobIdRef.current;
-          invoke<string>(Invokes.GenerateUncroppedPreview, { jsAdjustments: adj })
-            .then((dataUrl) => {
-              if (jobId >= latestUncroppedJobIdRef.current) {
-                latestUncroppedJobIdRef.current = jobId;
-                useEditorStore.getState().setEditor({ uncroppedAdjustedPreviewUrl: dataUrl });
+          const { payload, markSent } = prepareAdjustmentsPayload(adj);
+          invoke<ArrayBuffer>(Invokes.GenerateUncroppedPreview, { jsAdjustments: payload })
+            .then((buffer) => {
+              markSent();
+              if (
+                jobId < latestUncroppedJobIdRef.current ||
+                !buffer ||
+                buffer.byteLength === 0 ||
+                useEditorStore.getState().selectedImage?.path !== requestedImage.path
+              ) {
+                return;
               }
+              latestUncroppedJobIdRef.current = jobId;
+              const url = URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }));
+              useEditorStore.getState().setEditor((state) => {
+                releasePreviewUrl(state.uncroppedAdjustedPreviewUrl);
+                return { uncroppedAdjustedPreviewUrl: url };
+              });
             })
             .catch(console.error);
         },

@@ -1,0 +1,14 @@
+{
+  "id": "context-menu-safe-path-eslint-cleanup",
+  "title": "Remove the unused context menu path initializer",
+  "category": "ci",
+  "landed": "2026-10-26",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "The context menu safe-area path is assigned in both branches before use, so its unused empty-string initializer was removed."
+}

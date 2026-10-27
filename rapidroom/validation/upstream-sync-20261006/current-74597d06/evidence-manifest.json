@@ -1,7 +1,7 @@
 {
   "application": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
   "files": {
-    "source-and-checks.json": "4f6bc97b497e2ddf9db1e1b0fed4e7e037504d2a54524d96189c68fb4f7ca35e",
+    "source-and-checks.json": "014689a21bdf6f3adf21f3351d40996fb95aaac61e93d27423540c3663d37ce2",
     "full60-int7.json": "648c10d7dd1e21d6281f05db9b14db3d492d1e102453b80f9ca35ff36f054ced",
     "compare-configs.json": "baf8e890b92949d073e256387b5837564c308ce3b707696cca57e48b17f08023",
     "compare-prior-pixel-hashes.json": "bafdb0309a1224c79cda6b5dab8c4296d3fd5d0b7e414daf9f764d03d2919d6a",
@@ -12,8 +12,8 @@
     "csp-browser.json": "edb9bbf6a40b26ff7b8b159a836d54785247e724a16591a23090016eb94ff4ff",
     "native-masks.json": "8875a3cbac74e2dfc4750cbd99978506ce913a16fa329a78b0c5ef5b2acf9110",
     "native-preview.json": "b7c48d83a6d61cdf000642142cf2e8602bb072df5521eabc83ea833c263f3d8a",
-    "panel-manifest.json": "d21e85e4678ec0d645578293f24a127d4a3bf5268f1ee13e9ac31b0befb0fca2",
-    "inspection.json": "bbfcecb7627959b70b7d43570fb9f5274ca3dbf780485db21dc4aa5e6bfee799",
+    "panel-manifest.json": "9d4b0363379fcd134e75393587861d8eb568bdce0c82fed2819d2aa2a1c3a6b0",
+    "inspection.json": "af10addd152ef29c27ef1b35a26ef47b321e022b6f8218620b10dbc4e1611b94",
     "native-harness-provenance.json": "57628d178d46200e6437def49607e3b711eee88e15d6d64a184862bc5ec5a1c7",
     "current-apple-iphone12pro-proraw.png": "1c53d72976aca0fdcc66d7fa8439e10ee97c95671485cb8bd3071ba800af86b6",
     "current-canon-r50-24mp-craw.png": "a6ab43ced9345a27d4acc0132cb4eea86da55419cc83831a340a5781d880f9c7",
@@ -58,9 +58,9 @@
     "native-fuji-xt4-26mp-lossless-reset.png": "d38140167417611e08ffddcf715e687c2f2eb436e7e0e9e316c29675e5962787",
     "native-sony-a7c2-15mp-uncompressed-100-percent.png": "c649f897af34ed07aff9fb717dcf749d3d3afd0bc7b2a17145af30c9d1708d21",
     "native-sony-a7c2-15mp-uncompressed-reset.png": "01800ac11b19b3ba2d962b24d02cf61ad7db8c3b6b4b98b229522eda536361d8",
-    "README.md": "17dd09ddd4735aaa9acd3023952766914a271cf2192455baafa3b37a39a99758",
+    "README.md": "93846bf390c2b36b389b76bbf024379528e0507f926ca4dcce5ca43e7b57103b",
     "hosted-checks.json": "20e613b49e76f4d3e23493cf2727a0c8d68f2308d956b3a845ccc8572cb4af22"
   },
   "reference_updated": false,
-  "josh_approval": false
+  "maintainer_approval": false
 }

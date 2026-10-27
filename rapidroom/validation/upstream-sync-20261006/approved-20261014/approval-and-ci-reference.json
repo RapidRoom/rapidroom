@@ -1,7 +1,7 @@
 {
   "approval": {
     "words": "Approve 179",
-    "approver": "Josh",
+    "approver": "maintainer (yojen7)",
     "approval_date": "2026-10-14",
     "relayed_by": "vase",
     "pr_comment": "https://github.com/RapidRoom/rapidroom/pull/179#issuecomment-6188586179",
@@ -135,5 +135,5 @@
   "dimensions_corpus_recipes_lut_vulkan_packages_unchanged": true,
   "local_reference_updated": false,
   "local_reference_remaining": "Fresh integration60 must match approved523 manifest before local bless; only41 approved local differences may change.",
-  "josh_approval": true
+  "maintainer_approval": true
 }

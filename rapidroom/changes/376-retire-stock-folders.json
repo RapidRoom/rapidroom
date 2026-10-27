@@ -1,0 +1,13 @@
+{
+  "id": "retire-stock-folders",
+  "title": "Remove legacy stock preset folders after a safe library backup",
+  "category": "fix",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "A second one-time migration removes wholly stock preset folders even when an older converter produced different adjustment values. It first saves the exact original presets.json bytes to a dated backup without overwriting earlier backups. Mixed folders, user-created folders, renamed folders, presets moved to another group, and prior deletions of Styles are preserved. Fresh libraries still start with twenty flat colour Styles."
+}
