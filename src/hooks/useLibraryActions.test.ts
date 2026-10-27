@@ -1,5 +1,9 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, type ReactElement } from 'react';
+import { toast } from 'react-toastify';
+vi.mock('react-toastify', () => ({
+  toast: Object.assign(vi.fn(), { isActive: vi.fn(() => false), update: vi.fn(), dismiss: vi.fn(), error: vi.fn() }),
+}));
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { invoke, mockCommand } from '../test/tauriMock';
@@ -162,8 +166,67 @@ describe('filtered selection after atomic metadata writes', () => {
     expect(useUIStore.getState().imageSelectHandler).toHaveBeenCalledWith('/b.raw', false);
     await unmount();
   });
+  it('offers Undo only after a saved filter exit and restores through the queue', async () => {
+    filteredSelection();
+    vi.mocked(toast).mockClear();
+    let finish!: () => void;
+    let call = 0;
+    mockCommand(Invokes.SetFlagForPaths, () =>
+      ++call === 1
+        ? new Promise<void>((resolve) => {
+            finish = resolve;
+          })
+        : undefined,
+    );
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+    actions.handleSetFlag(ImageFlag.Reject);
+    expect(toast).not.toHaveBeenCalled();
+    await act(async () => finish());
+    const notice = vi.mocked(toast).mock.calls.at(-1)![0] as ReactElement<{ onUndo(): void }>;
+    expect(notice).toBeTruthy();
+    await act(async () => notice.props.onUndo());
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SetFlagForPaths, { paths: ['/a.raw'], flag: null });
+    expect(useLibraryStore.getState().libraryActivePath).toBe('/a.raw');
+    expect(useLibraryStore.getState().imageList[0].flag).toBeNull();
+    await unmount();
+  });
+
+  it('restores a rated reject on disk after undoing a rating filter exit', async () => {
+    filteredSelection();
+    vi.mocked(toast).mockClear();
+    useLibraryStore.setState((state) => ({
+      imageRatings: { '/a.raw': 3 },
+      imageList: state.imageList.map((image) =>
+        image.path === '/a.raw' ? { ...image, flag: ImageFlag.Reject } : image,
+      ),
+      filterCriteria: { colors: [], rating: 3, ratingOperator: 'eq', rawStatus: RawStatus.All },
+    }));
+    let rating = 3;
+    let flag: ImageFlag | null = ImageFlag.Reject;
+    mockCommand(Invokes.SetRatingForPaths, (args) => {
+      rating = args!.rating as number;
+      if (rating > 0) flag = null;
+    });
+    mockCommand(Invokes.SetFlagForPaths, (args) => {
+      flag = args!.flag as ImageFlag | null;
+    });
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+    await act(async () => actions.handleRate(4));
+    const notice = vi.mocked(toast).mock.calls.at(-1)![0] as ReactElement<{ onUndo(): void }>;
+    await act(async () => notice.props.onUndo());
+    expect(rating).toBe(3);
+    expect(flag).toBe(ImageFlag.Reject);
+    expect(useLibraryStore.getState().imageList[0].flag).toBe(ImageFlag.Reject);
+    expect(invoke.mock.calls.slice(-2)).toEqual([
+      [Invokes.SetRatingForPaths, { paths: ['/a.raw'], rating: 3 }],
+      [Invokes.SetFlagForPaths, { paths: ['/a.raw'], flag: ImageFlag.Reject }],
+    ]);
+    await unmount();
+  });
+
   it('restores a refused flag without advancing away from the photo', async () => {
     filteredSelection();
+    vi.mocked(toast).mockClear();
     vi.spyOn(console, 'error').mockImplementation(() => {});
     let fail!: (error: Error) => void;
     mockCommand(
@@ -178,9 +241,26 @@ describe('filtered selection after atomic metadata writes', () => {
     await act(async () => fail(new Error('write refused')));
     expect(useLibraryStore.getState().imageList[0].flag).toBeNull();
     expect(useLibraryStore.getState().libraryActivePath).toBe('/a.raw');
+    expect(toast).not.toHaveBeenCalled();
     expect(useUIStore.getState().imageSelectHandler).not.toHaveBeenCalled();
     await unmount();
   });
+  it('rolls back a refused Undo without selecting a still-hidden photo', async () => {
+    filteredSelection();
+    vi.mocked(toast).mockClear();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockCommand(Invokes.SetFlagForPaths, (args) =>
+      args?.flag === ImageFlag.Reject ? undefined : Promise.reject(new Error('undo refused')),
+    );
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+    await act(async () => actions.handleSetFlag(ImageFlag.Reject));
+    const notice = vi.mocked(toast).mock.calls.at(-1)![0] as ReactElement<{ onUndo(): void }>;
+    await act(async () => notice.props.onUndo());
+    expect(useLibraryStore.getState().imageList[0].flag).toBe(ImageFlag.Reject);
+    expect(useLibraryStore.getState().libraryActivePath).toBe('/b.raw');
+    await unmount();
+  });
+
   it('does not override navigation made while a write is pending', async () => {
     filteredSelection();
     let finish!: () => void;

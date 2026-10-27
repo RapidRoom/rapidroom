@@ -1,0 +1,16 @@
+{
+  "id": "queued-filter-exit-undo",
+  "title": "Undo saved ratings, flags and colours that remove a photo from the active filter",
+  "category": "feature",
+  "landed": "2026-10-27",
+  "authors": ["CyberTimon", "yojen7"],
+  "source": "CyberTimon/RapidRAW; adapted to RapidRoom's metadata write queue",
+  "commits": [
+    "https://github.com/CyberTimon/RapidRAW/commit/4eb6b2da6a4d43ec2d137dda1977e6708a060336",
+    "https://github.com/CyberTimon/RapidRAW/commit/18ebf0307336e955991a6af3356f7f8ce1f4a21b"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Offer Undo only after successful metadata saves. Restore through the same queue, including rated/rejected flags after ratings, and reselect only a photo visible after the saved restoration. Colour labels now share queue ordering and rollback."
+}

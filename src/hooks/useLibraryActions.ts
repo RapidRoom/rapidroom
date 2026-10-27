@@ -1,3 +1,4 @@
+import { snapshotLibraryMetadata, showFilterExitUndo } from '../utils/filterExitUndo';
 import { useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'react-toastify';
@@ -79,10 +80,12 @@ export const clearLibrarySelection = () => {
 
 export const advanceWhenSaved = (
   changedPaths: string[],
+  undoSnapshot?: () => ReturnType<typeof snapshotLibraryMetadata>,
 ): { visibleOrder: readonly ImageFile[]; onSaved?: () => void } => {
   const before =
     getPendingLibraryVisibleOrder() ?? computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState());
   const { activeView, cullingModalState } = useUIStore.getState();
+  const selection = [...useLibraryStore.getState().multiSelectedPaths];
   const activePath =
     activeView === 'editor'
       ? (useEditorStore.getState().selectedImage?.path ?? null)
@@ -106,6 +109,11 @@ export const advanceWhenSaved = (
       const visible = new Set(after.map((img) => img.path));
       const activeIndex = before.findIndex((img) => img.path === activePath);
       if (activeIndex === -1 || visible.has(activePath)) return;
+      if (undoSnapshot) {
+        const changed = new Set(changedPaths);
+        const hiddenCount = before.filter((image) => changed.has(image.path) && !visible.has(image.path)).length;
+        showFilterExitUndo(activePath, hiddenCount, undoSnapshot(), selection);
+      }
 
       const next =
         before.slice(activeIndex + 1).find((img) => visible.has(img.path)) ??
@@ -145,8 +153,10 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     const currentRating = imageRatings[selectedPaths[0]] || 0;
     const finalRating = newRating === currentRating && !isRejected ? 0 : newRating;
 
+    let snapshot = snapshotLibraryMetadata(pathsToRate);
     enqueueLibraryMetadataWrite({
       apply: () => {
+        snapshot = snapshotLibraryMetadata(pathsToRate);
         const previous = useLibraryStore.getState();
         setLibrary((state) => {
           const newRatings = { ...state.imageRatings };
@@ -181,7 +191,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
           rating: finalRating,
           ...(applyToStack ? { applyToStack: true } : {}),
         }),
-      ...advanceWhenSaved(pathsToRate),
+      ...advanceWhenSaved(pathsToRate, () => snapshot),
       onError: (err) => {
         console.error(err);
         toast.error(`Failed to apply rating: ${err}`);
@@ -194,8 +204,10 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     if (expandedPaths.length === 0) return;
 
     const { setLibrary } = useLibraryStore.getState();
+    let snapshot = snapshotLibraryMetadata(expandedPaths);
     enqueueLibraryMetadataWrite({
       apply: () => {
+        snapshot = snapshotLibraryMetadata(expandedPaths);
         const { imageList: previous } = useLibraryStore.getState();
         setLibrary((state) => ({
           imageList: withFlag(state.imageList, expandedPaths, flag),
@@ -211,7 +223,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
           flag,
           ...(applyToStack ? { applyToStack: true } : {}),
         }),
-      ...advanceWhenSaved(expandedPaths),
+      ...advanceWhenSaved(expandedPaths, () => snapshot),
       onError: (err) => {
         console.error(err);
         toast.error(`Failed to update flag: ${err}`);
@@ -230,7 +242,7 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     [handleSetFlag],
   );
 
-  const handleSetColorLabel = useCallback(async (color: string | null, paths?: string[]) => {
+  const handleSetColorLabel = useCallback((color: string | null, paths?: string[]) => {
     const { libraryActivePath, imageList, setLibrary } = useLibraryStore.getState();
     const { selectedImage } = useEditorStore.getState();
 
@@ -246,27 +258,33 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     }
     const finalColor = color !== null && color === currentColor ? null : color;
 
-    try {
-      await invoke(Invokes.SetColorLabelForPaths, {
-        paths: pathsToUpdate,
-        color: finalColor,
-      });
-      const pathSet = new Set(pathsToUpdate);
-      applyWithAutoAdvance(pathsToUpdate, () =>
+    let snapshot = snapshotLibraryMetadata(pathsToUpdate);
+    enqueueLibraryMetadataWrite({
+      apply: () => {
+        snapshot = snapshotLibraryMetadata(pathsToUpdate);
+        const pathSet = new Set(pathsToUpdate);
+        const previous = new Map(useLibraryStore.getState().imageList.map((image) => [image.path, image.tags]));
         setLibrary((state) => ({
-          imageList: state.imageList.map((image: ImageFile) => {
-            if (pathSet.has(image.path)) {
-              const otherTags = (image.tags || []).filter((tag: string) => !tag.startsWith('color:'));
-              const newTags = finalColor ? [...otherTags, `color:${finalColor}`] : otherTags;
-              return { ...image, tags: newTags };
-            }
-            return image;
+          imageList: state.imageList.map((image) => {
+            if (!pathSet.has(image.path)) return image;
+            const tags = (image.tags ?? []).filter((tag) => !tag.startsWith('color:'));
+            if (finalColor) tags.push(`color:${finalColor}`);
+            return { ...image, tags };
           }),
-        })),
-      );
-    } catch (err) {
-      toast.error(`Failed to set color label: ${err}`);
-    }
+        }));
+        return () =>
+          setLibrary((state) => ({
+            imageList: state.imageList.map((image) =>
+              pathSet.has(image.path) ? { ...image, tags: previous.get(image.path) ?? null } : image,
+            ),
+          }));
+      },
+      save: () => invoke(Invokes.SetColorLabelForPaths, { paths: pathsToUpdate, color: finalColor }),
+      ...advanceWhenSaved(pathsToUpdate, () => snapshot),
+      onError: (error) => {
+        toast.error(`Failed to set color label: ${error}`);
+      },
+    });
   }, []);
 
   const handleTagsChanged = useCallback((changedPaths: string[], newTags: { tag: string; isUser: boolean }[]) => {

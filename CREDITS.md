@@ -2,6 +2,8 @@
 
 RapidRoom is built on other people's work. This file lists where every non-upstream change came from. Upstream's own thanks are in the [RapidRAW README](README.md#special-thanks).
 
+Filter-exit Undo is adapted from [CyberTimon’s RapidRAW commit 4eb6b2da](https://github.com/CyberTimon/RapidRAW/commit/4eb6b2da6a4d43ec2d137dda1977e6708a060336) and [the rated/rejected restoration fix 18ebf030](https://github.com/CyberTimon/RapidRAW/commit/18ebf0307336e955991a6af3356f7f8ce1f4a21b). yojen7 with Codex adapted snapshots, colour labels and Undo to RapidRoom’s ordered metadata writer and failure rollback.
+
 ## Upstream
 
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.
