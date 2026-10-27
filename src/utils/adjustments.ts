@@ -1,5 +1,6 @@
 import { Crop } from 'react-image-crop';
 import { v4 as uuidv4 } from 'uuid';
+import type { ParseKeys } from 'i18next';
 import { SubMask, SubMaskMode } from '../components/panel/right/Masks';
 import type { AdjustmentLayout, AppSettings } from '../components/ui/AppProperties';
 import type { WhiteBalance } from './whiteBalance';
@@ -913,7 +914,7 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
 };
 
 export interface AdjustmentGroup {
-  label: string;
+  label: ParseKeys;
   keys: string[];
 }
 
