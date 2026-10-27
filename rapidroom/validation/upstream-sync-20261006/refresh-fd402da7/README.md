@@ -74,6 +74,6 @@ regression fails solely against the frozen reference, with **18/18** repeatabili
 this is a failing reference gate. All reference files/policy/tolerances remain frozen.
 Evidence-only head checks are separate and must not inherit 523 CI identity.
 
-Josh must visually approve before reference recording/re-bless (using his words),
+The maintainer must visually approve before reference recording/re-bless (using his words),
 current-main integration/affected gates, independent review and fresh exact-head
 hosted checks before merge. This report is agent evidence, **not human approval**.

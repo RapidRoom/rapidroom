@@ -7,7 +7,7 @@
   "source": "rapidroom (original implementation with Codex)",
   "commits": [],
   "upstream_issues": [],
-  "upstream_prs": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#1939"],
   "rendering_change": false,
   "notes": "A full-frame crop matching the oriented image is treated as the existing crop. The crop overlay stays local; unchanged adjustment callbacks do not queue history or switch Original off. Real crops, aspect-ratio changes and straightening remain edits. All 159 frontend tests pass, including ten new normalization/action checks. The 12-step Linux native run verifies open/close and unchanged completion preserve state/revision/history/sidecar bytes and mtime; one real crop creates one user entry and Undo restores exact preview pixels, followed by Compact, JPEG export and clean exit. Three captures inspected. Physical input and other platforms are untested."
 }

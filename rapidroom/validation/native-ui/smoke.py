@@ -375,6 +375,9 @@ class Smoke:
                                       "e.complete && e.naturalWidth>100);"), "real library thumbnail")
         self.capture("library")
         self.step("library thumbnail", self.snapshot("library")["images"])
+        if (self.case / "compare-read-only-test.json").exists():
+            from compare_read_only import run_compare_read_only
+            run_compare_read_only(self.case, self, wait_for)
         if (self.case / "stacks-test.json").exists():
             from stacks import run_stack_checks
             run_stack_checks(self, wait_for)
@@ -616,6 +619,19 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.compare_read_only:
+        for name in ("compare-uncached.ARW", "compare-legacy.ARW", "compare-auto.ARW", "compare-healing.ARW"):
+            shutil.copy2(raw, case / "input" / name)
+        save(case / "input/compare-legacy.ARW.rrdata", {"adjustments": {"exposure": 0},
+             "unknown": {"mustStay": True}})
+        save(case / "input/compare-legacy.ARW.rrexif", {"Make": "SONY", "Model": "ILCE-7CM2"})
+        save(case / "input/compare-auto.ARW.rrdata", {"adjustments": {"lensCorrectionMode": "auto",
+             "cameraLensCorrectionVersion": 1}, "exif": {"Make": "SONY", "Model": "ILCE-7CM2"},
+             "unknown": {"mustStay": True}})
+        save(case / "input/compare-healing.ARW.rrdata", {"adjustments": {"lensCorrectionMode": "auto",
+             "cameraLensCorrectionVersion": 1}, "unknown": {"healingControl": True}})
+        save(case / "compare-read-only-test.json", {"issue": 358, "real_native_render": True,
+              "invariants": ["bytes", "mtime", "unknown_fields", "legacy_rrexif"]})
     if args.atomic_exports:
         save(case / "atomic-exports-test.json", {"issue": 326, "io_mocked": False})
     if args.file_transfers:
@@ -739,6 +755,20 @@ def launch(args):
             engine = args.engine.resolve()
             source_hash = sha(engine)
             shutil.copy2(engine, case / "engine/rapidroom")
+            # Accept the native build.py layout (lib next to the engine) or the
+            # FHS-style pin (bin/rapidroom with ../lib/RapidRoom); copy it once.
+            runtime_payload = next((candidate for candidate in (engine.parent / "lib" / "RapidRoom",
+                                                                 engine.parent.parent / "lib" / "RapidRoom")
+                                    if candidate.is_dir()), None)
+            if runtime_payload is None:
+                raise RuntimeError("Pinned engine is missing lib/RapidRoom runtime payload")
+            shutil.copytree(runtime_payload, case / "lib" / "RapidRoom", symlinks=True)
+            runtime_manifest = {str(path.relative_to(runtime_payload)): sha(path)
+                                for path in sorted(runtime_payload.rglob("*")) if path.is_file()}
+            copied_payload = case / "lib" / "RapidRoom"
+            if runtime_manifest != {str(path.relative_to(copied_payload)): sha(path)
+                                   for path in sorted(copied_payload.rglob("*")) if path.is_file()}:
+                raise RuntimeError("Copied lib/RapidRoom runtime payload differs from pinned engine")
             if args.mcp_clients:
                 adapter = engine.parent / "rapidroom-mcp-stdio"
                 if not adapter.is_file():
@@ -749,20 +779,11 @@ def launch(args):
                     raise RuntimeError("Pinned stdio adapter copy differs")
             if sha(case / "engine/rapidroom") != source_hash:
                 raise RuntimeError("Engine changed while pinning")
-            # Preserve the pinned release resource layout after copying the
-            # executable. Otherwise Tauri may resolve the installed app's lib.
-            pinned_lib = engine.parent.parent / "lib/RapidRoom"
-            if pinned_lib.is_dir():
-                shutil.copytree(pinned_lib, case / "lib/RapidRoom", symlinks=True)
-            for name in ("resources", "lensfun_db"):
-                source = engine.parent / name
-                if source.is_dir():
-                    (case / "engine" / name).symlink_to(source)
             save(case / "environment.json", {"engine_source": str(engine), "engine_sha256": source_hash,
                  "fixture": FIXTURE, "fixture_guard": guard, "compositor": "Weston headless GL",
                  "weston_version": subprocess.check_output(["weston", "--version"], text=True).strip(),
                  "driver": "tauri-plugin-wdio-webdriver 1.4.0", "viewport": [WIDTH, HEIGHT],
-                 "harness_sha256": sha(Path(__file__).resolve())})
+                 "harness_sha256": sha(Path(__file__).resolve()), "runtime_payload": runtime_manifest})
             with (case / "session-bus.log").open("w") as log:
                 result = subprocess.run(["nice", "-n", "10", "dbus-run-session", "--", sys.executable,
                                          str(Path(__file__).resolve()), "--inside", str(case)],
@@ -805,6 +826,7 @@ def main():
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
     parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
+    parser.add_argument("--compare-read-only", action="store_true", help="Check real Original/pinned comparison rendering never writes sidecars or legacy EXIF")
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
     parser.add_argument("--style-stack", action="store_true", help="Check ordered Style stack, manual edits, shared MCP, Undo and reload")

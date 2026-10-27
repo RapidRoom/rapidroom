@@ -78,10 +78,10 @@ or sampled direct TCP bypass. Browser CSP default and saved-Cloud cases pass wit
 unavailable-auth backend stubs, independently of native network observations.
 
 Hosted exact dcff source checks pass except the frozen-reference regression:
-**18/18 repeatability, 6 neutral exact/12 edited mismatches**. [Hosted receipt](hosted-checks.json) and the [regression job](https://github.com/RapidRoom/rapidroom/actions/runs/38355977210/job/115158847622) record the human/reference hold. After Josh approves the visual
+**18/18 repeatability, 6 neutral exact/12 edited mismatches**. [Hosted receipt](hosted-checks.json) and the [regression job](https://github.com/RapidRoom/rapidroom/actions/runs/38355977210/job/115158847622) record the human/reference hold. After the maintainer approves the visual
 changes, reference reconciliation and fresh exact-head hosted checks are required.
 
-All 43 current panels were inspected by the agent. This does not claim Josh's approval.
+All 43 current panels were inspected by the agent. This does not claim the maintainer's approval.
 Numeric comparisons use original full-resolution 16-bit exports. Panel conversion
 and downsampling are identical on each side. Public native images are photo ROI
 crops only. Full UI/captures, operational paths, credentials and personal photos
