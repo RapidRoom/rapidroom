@@ -86,7 +86,7 @@ function SubMenu({ cancelCloseSubmenu, closeSubmenu, hideContextMenu, options, p
       setStyle({ top: `${top}px`, left: `${left}px`, opacity: 1 });
 
       const isRightSide = left >= parentRect.right - 10;
-      let path = '';
+      let path: string;
 
       if (isRightSide) {
         path = `
