@@ -1,0 +1,13 @@
+{
+  "id": "353-culling-native-pixels",
+  "title": "Preserve source detail in Culling's 100% focus view",
+  "category": "fix",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Size the preview directly at the selected zoom instead of scaling an oversized composited container, preserving zoom and pan geometry. Native validation also pins the executable reported by the build's own Cargo compiler artifact. RAW processing and exported pixels are unchanged."
+}

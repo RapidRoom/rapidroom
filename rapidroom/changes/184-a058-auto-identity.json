@@ -1,0 +1,13 @@
+{
+  "id": "a058-auto-identity-calibration-guard",
+  "title": "Recognize the Tamron A058 on Sony without enabling unvalidated Lensfun calibration",
+  "category": "fix",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Partial issue 184: matches the exact Sony E EXIF spelling only for a known Sony E camera and one compatible Tamron A058 profile. Sony Auto keeps physical ARW camera distortion; Nikon Z8 Lensfun coefficients remain ineligible for new Sony Auto recipes. Legacy Auto behavior and explicitly selected manual corrections are preserved. Sony vignetting/CA validation remains separate."
+}

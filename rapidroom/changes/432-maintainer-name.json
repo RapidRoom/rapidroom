@@ -1,0 +1,16 @@
+{
+  "id": "maintainer-name",
+  "title": "Refer to maintainers by role, not personal name, in tracked files",
+  "category": "privacy",
+  "landed": "2026-10-25",
+  "authors": [
+    "yojen7"
+  ],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Docs, change records and validation evidence now say \"the maintainer\" or use a GitHub login, and evidence paths use ~/ instead of a home directory. Evidence manifest hashes were updated to match."
+}

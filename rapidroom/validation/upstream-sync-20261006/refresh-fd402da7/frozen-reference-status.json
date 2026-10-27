@@ -1,0 +1,8 @@
+{
+  "source": "52366ea01153efac49ffcf0abef673e6ee4d4f6b",
+  "current_exact_previous": 60,
+  "previous_int7_exact": 19,
+  "reference_gate_pass": false,
+  "reference_updated": false,
+  "basis": "Current60 exactlymatch prior measured60 hashes/dimensions; retained int7 diagnostic remains19/60, not a pass."
+}
