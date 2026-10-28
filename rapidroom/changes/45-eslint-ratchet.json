@@ -2,7 +2,7 @@
   "id": "eslint-error-ratchet",
   "title": "Enforce no new ESLint errors against each pull request base",
   "category": "ci",
-  "landed": "2026-10-27",
+  "landed": "2026-10-28",
   "authors": ["yojen7"],
   "source": "rapidroom (original CI ratchet)",
   "upstream_issues": [],
