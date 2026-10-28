@@ -1,0 +1,12 @@
+{
+  "id": "denoise-source-claim-release",
+  "title": "Release denoise source claims before a retry",
+  "category": "fix",
+  "landed": "2026-10-27",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Explicitly unlock completed source claims so a duplicated or briefly inherited file description cannot keep a finished queue item busy. Preserves exclusion while the job is active and releases on success, error or panic."
+}

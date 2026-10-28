@@ -1,0 +1,12 @@
+{
+  "id": "sigma-tca-not-included-wording",
+  "title": "Clarify that Sigma 20–200 mm TCA calibration is not included",
+  "category": "fix",
+  "landed": "2026-10-27",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original wording correction)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "The evaluator supports polynomial TCA, but this lens's TCA entries remain excluded pending separate validation. Corrects the selector label, documentation, historical change description and regression name without changing calibration coefficients."
+}
