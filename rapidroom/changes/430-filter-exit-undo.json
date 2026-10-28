@@ -12,5 +12,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": false,
-  "notes": "Offer Undo only after successful metadata saves. Restore through the same queue, including rated/rejected flags after ratings, and reselect only a photo visible after the saved restoration. Colour labels now share queue ordering and rollback."
+  "notes": "Offer Undo only after successful metadata saves. Restore through the same queue, including rated/rejected flags after ratings, and reselect only a photo visible after the saved restoration. Colour labels now share queue ordering and rollback. Toasts belong to the write that caused the filter exit, and are invalidated on folder, album or view changes."
 }

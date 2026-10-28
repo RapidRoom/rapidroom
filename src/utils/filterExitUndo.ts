@@ -18,6 +18,12 @@ interface MetadataSnapshot {
 type Snapshot = Map<string, MetadataSnapshot>;
 type Field = keyof MetadataSnapshot;
 const TOAST_ID = 'filter-exit';
+let releasePreviousToast: (() => void) | undefined;
+
+export function filterExitScope() {
+  const { currentFolderPath, activeAlbumId } = useLibraryStore.getState();
+  return JSON.stringify([currentFolderPath, activeAlbumId, useUIStore.getState().activeView]);
+}
 
 export function snapshotLibraryMetadata(paths: string[]): Snapshot {
   const { imageRatings, imageList } = useLibraryStore.getState();
@@ -40,10 +46,12 @@ export function snapshotLibraryMetadata(paths: string[]): Snapshot {
 function restoreFields(snapshot: Snapshot, fields: Field[], ratingWrite = false) {
   useLibraryStore.getState().setLibrary((state) => {
     const imageRatings = { ...state.imageRatings };
-    if (fields.includes('rating'))
+    if (fields.includes('rating')) {
+      const loaded = new Set(state.imageList.map((image) => image.path));
       snapshot.forEach((value, path) => {
-        imageRatings[path] = value.rating;
+        if (loaded.has(path)) imageRatings[path] = value.rating;
       });
+    }
     return {
       imageRatings,
       imageList: state.imageList.map((image) => {
@@ -103,10 +111,29 @@ function restoreMetadata(snapshot: Snapshot) {
 }
 
 export function showFilterExitUndo(activePath: string, count: number, snapshot: Snapshot, selection: string[]) {
+  releasePreviousToast?.();
+  const scope = filterExitScope();
+  let valid = true;
+  const release = () => {
+    valid = false;
+    unsubscribeLibrary();
+    unsubscribeUI();
+    if (releasePreviousToast === release) releasePreviousToast = undefined;
+  };
+  const dismissOnScopeChange = () => {
+    if (filterExitScope() === scope) return;
+    release();
+    toast.dismiss(TOAST_ID);
+  };
+  const unsubscribeLibrary = useLibraryStore.subscribe(dismissOnScopeChange);
+  const unsubscribeUI = useUIStore.subscribe(dismissOnScopeChange);
+  releasePreviousToast = release;
   const content = createElement(FilterExitToast, {
     fileName: activePath.split('?vc=')[0].split(/[\\/]/).pop() ?? '',
     count,
     onUndo: () => {
+      if (!valid) return;
+      release();
       toast.dismiss(TOAST_ID);
       const view = useUIStore.getState().activeView;
       const active =
@@ -114,6 +141,9 @@ export function showFilterExitUndo(activePath: string, count: number, snapshot: 
           ? useEditorStore.getState().selectedImage?.path
           : useLibraryStore.getState().libraryActivePath;
       afterPendingLibraryMetadataWrites(() => {
+        if (filterExitScope() !== scope) return;
+        const loaded = new Set(useLibraryStore.getState().imageList.map((image) => image.path));
+        if ([...snapshot.keys()].some((path) => !loaded.has(path))) return;
         restoreMetadata(snapshot);
         afterPendingLibraryMetadataWrites(() => {
           const current =
@@ -141,6 +171,6 @@ export function showFilterExitUndo(activePath: string, count: number, snapshot: 
       });
     },
   });
-  if (toast.isActive(TOAST_ID)) toast.update(TOAST_ID, { render: content, autoClose: 5000 });
-  else toast(content, { toastId: TOAST_ID });
+  if (toast.isActive(TOAST_ID)) toast.update(TOAST_ID, { render: content, autoClose: 5000, onClose: release });
+  else toast(content, { toastId: TOAST_ID, onClose: release });
 }

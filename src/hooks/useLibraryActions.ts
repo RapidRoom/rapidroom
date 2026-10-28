@@ -1,4 +1,4 @@
-import { snapshotLibraryMetadata, showFilterExitUndo } from '../utils/filterExitUndo';
+import { snapshotLibraryMetadata, showFilterExitUndo, filterExitScope } from '../utils/filterExitUndo';
 import { useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'react-toastify';
@@ -78,14 +78,33 @@ export const clearLibrarySelection = () => {
   });
 };
 
+function trackMetadataExit(paths: string[]) {
+  let metadata = snapshotLibraryMetadata(paths);
+  let hiddenPaths: string[] = [];
+  const visiblePaths = () =>
+    new Set(computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState()).map((image) => image.path));
+  return {
+    capture: (apply: () => () => void) => {
+      metadata = snapshotLibraryMetadata(paths);
+      const before = visiblePaths();
+      const undo = apply();
+      const after = visiblePaths();
+      hiddenPaths = paths.filter((path) => before.has(path) && !after.has(path));
+      return undo;
+    },
+    snapshot: () => ({ metadata, hiddenPaths }),
+  };
+}
+
 export const advanceWhenSaved = (
   changedPaths: string[],
-  undoSnapshot?: () => ReturnType<typeof snapshotLibraryMetadata>,
+  undoSnapshot?: ReturnType<typeof trackMetadataExit>['snapshot'],
 ): { visibleOrder: readonly ImageFile[]; onSaved?: () => void } => {
   const before =
     getPendingLibraryVisibleOrder() ?? computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState());
   const { activeView, cullingModalState } = useUIStore.getState();
   const selection = [...useLibraryStore.getState().multiSelectedPaths];
+  const scope = filterExitScope();
   const activePath =
     activeView === 'editor'
       ? (useEditorStore.getState().selectedImage?.path ?? null)
@@ -103,16 +122,23 @@ export const advanceWhenSaved = (
         activeView === 'editor'
           ? useEditorStore.getState().selectedImage?.path
           : useLibraryStore.getState().libraryActivePath;
-      if (ui.activeView !== activeView || ui.cullingModalState.isOpen || currentPath !== activePath) return;
+      if (
+        filterExitScope() !== scope ||
+        ui.activeView !== activeView ||
+        ui.cullingModalState.isOpen ||
+        currentPath !== activePath
+      )
+        return;
+      const undo = undoSnapshot?.();
+      if (undo && !undo.hiddenPaths.includes(activePath)) return;
       const after = computeSortedLibrary(useLibraryStore.getState(), useSettingsStore.getState());
 
       const visible = new Set(after.map((img) => img.path));
       const activeIndex = before.findIndex((img) => img.path === activePath);
       if (activeIndex === -1 || visible.has(activePath)) return;
-      if (undoSnapshot) {
-        const changed = new Set(changedPaths);
-        const hiddenCount = before.filter((image) => changed.has(image.path) && !visible.has(image.path)).length;
-        showFilterExitUndo(activePath, hiddenCount, undoSnapshot(), selection);
+      if (undo) {
+        const hiddenCount = undo.hiddenPaths.filter((path) => !visible.has(path)).length;
+        showFilterExitUndo(activePath, hiddenCount, undo.metadata, selection);
       }
 
       const next =
@@ -153,45 +179,45 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     const currentRating = imageRatings[selectedPaths[0]] || 0;
     const finalRating = newRating === currentRating && !isRejected ? 0 : newRating;
 
-    let snapshot = snapshotLibraryMetadata(pathsToRate);
+    const exit = trackMetadataExit(pathsToRate);
     enqueueLibraryMetadataWrite({
-      apply: () => {
-        snapshot = snapshotLibraryMetadata(pathsToRate);
-        const previous = useLibraryStore.getState();
-        setLibrary((state) => {
-          const newRatings = { ...state.imageRatings };
-          pathsToRate.forEach((p) => {
-            newRatings[p] = finalRating;
-          });
-          if (finalRating > 0) {
-            return {
-              imageRatings: newRatings,
-              imageList: withFlag(state.imageList, pathsToRate, null, ImageFlag.Reject),
-            };
-          }
-          return { imageRatings: newRatings };
-        });
-        return () => {
+      apply: () =>
+        exit.capture(() => {
+          const previous = useLibraryStore.getState();
           setLibrary((state) => {
-            const ratings = { ...state.imageRatings };
-            for (const path of pathsToRate) {
-              if (Object.hasOwn(previous.imageRatings, path)) ratings[path] = previous.imageRatings[path];
-              else delete ratings[path];
+            const newRatings = { ...state.imageRatings };
+            pathsToRate.forEach((p) => {
+              newRatings[p] = finalRating;
+            });
+            if (finalRating > 0) {
+              return {
+                imageRatings: newRatings,
+                imageList: withFlag(state.imageList, pathsToRate, null, ImageFlag.Reject),
+              };
             }
-            return {
-              imageRatings: ratings,
-              imageList: restoreFlags(state.imageList, previous.imageList, pathsToRate),
-            };
+            return { imageRatings: newRatings };
           });
-        };
-      },
+          return () => {
+            setLibrary((state) => {
+              const ratings = { ...state.imageRatings };
+              for (const path of pathsToRate) {
+                if (Object.hasOwn(previous.imageRatings, path)) ratings[path] = previous.imageRatings[path];
+                else delete ratings[path];
+              }
+              return {
+                imageRatings: ratings,
+                imageList: restoreFlags(state.imageList, previous.imageList, pathsToRate),
+              };
+            });
+          };
+        }),
       save: () =>
         invoke(Invokes.SetRatingForPaths, {
           paths: pathsToRate,
           rating: finalRating,
           ...(applyToStack ? { applyToStack: true } : {}),
         }),
-      ...advanceWhenSaved(pathsToRate, () => snapshot),
+      ...advanceWhenSaved(pathsToRate, exit.snapshot),
       onError: (err) => {
         console.error(err);
         toast.error(`Failed to apply rating: ${err}`);
@@ -204,26 +230,26 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     if (expandedPaths.length === 0) return;
 
     const { setLibrary } = useLibraryStore.getState();
-    let snapshot = snapshotLibraryMetadata(expandedPaths);
+    const exit = trackMetadataExit(expandedPaths);
     enqueueLibraryMetadataWrite({
-      apply: () => {
-        snapshot = snapshotLibraryMetadata(expandedPaths);
-        const { imageList: previous } = useLibraryStore.getState();
-        setLibrary((state) => ({
-          imageList: withFlag(state.imageList, expandedPaths, flag),
-        }));
-        return () =>
+      apply: () =>
+        exit.capture(() => {
+          const { imageList: previous } = useLibraryStore.getState();
           setLibrary((state) => ({
-            imageList: restoreFlags(state.imageList, previous, expandedPaths),
+            imageList: withFlag(state.imageList, expandedPaths, flag),
           }));
-      },
+          return () =>
+            setLibrary((state) => ({
+              imageList: restoreFlags(state.imageList, previous, expandedPaths),
+            }));
+        }),
       save: () =>
         invoke(Invokes.SetFlagForPaths, {
           paths: expandedPaths,
           flag,
           ...(applyToStack ? { applyToStack: true } : {}),
         }),
-      ...advanceWhenSaved(expandedPaths, () => snapshot),
+      ...advanceWhenSaved(expandedPaths, exit.snapshot),
       onError: (err) => {
         console.error(err);
         toast.error(`Failed to update flag: ${err}`);
@@ -258,29 +284,29 @@ export function useLibraryActions(handleImageSelect?: (path: string, openInEdito
     }
     const finalColor = color !== null && color === currentColor ? null : color;
 
-    let snapshot = snapshotLibraryMetadata(pathsToUpdate);
+    const exit = trackMetadataExit(pathsToUpdate);
     enqueueLibraryMetadataWrite({
-      apply: () => {
-        snapshot = snapshotLibraryMetadata(pathsToUpdate);
-        const pathSet = new Set(pathsToUpdate);
-        const previous = new Map(useLibraryStore.getState().imageList.map((image) => [image.path, image.tags]));
-        setLibrary((state) => ({
-          imageList: state.imageList.map((image) => {
-            if (!pathSet.has(image.path)) return image;
-            const tags = (image.tags ?? []).filter((tag) => !tag.startsWith('color:'));
-            if (finalColor) tags.push(`color:${finalColor}`);
-            return { ...image, tags };
-          }),
-        }));
-        return () =>
+      apply: () =>
+        exit.capture(() => {
+          const pathSet = new Set(pathsToUpdate);
+          const previous = new Map(useLibraryStore.getState().imageList.map((image) => [image.path, image.tags]));
           setLibrary((state) => ({
-            imageList: state.imageList.map((image) =>
-              pathSet.has(image.path) ? { ...image, tags: previous.get(image.path) ?? null } : image,
-            ),
+            imageList: state.imageList.map((image) => {
+              if (!pathSet.has(image.path)) return image;
+              const tags = (image.tags ?? []).filter((tag) => !tag.startsWith('color:'));
+              if (finalColor) tags.push(`color:${finalColor}`);
+              return { ...image, tags };
+            }),
           }));
-      },
+          return () =>
+            setLibrary((state) => ({
+              imageList: state.imageList.map((image) =>
+                pathSet.has(image.path) ? { ...image, tags: previous.get(image.path) ?? null } : image,
+              ),
+            }));
+        }),
       save: () => invoke(Invokes.SetColorLabelForPaths, { paths: pathsToUpdate, color: finalColor }),
-      ...advanceWhenSaved(pathsToUpdate, () => snapshot),
+      ...advanceWhenSaved(pathsToUpdate, exit.snapshot),
       onError: (error) => {
         toast.error(`Failed to set color label: ${error}`);
       },

@@ -191,6 +191,109 @@ describe('filtered selection after atomic metadata writes', () => {
     await unmount();
   });
 
+  it('waits for a genuinely pending write before applying Undo', async () => {
+    filteredSelection();
+    vi.mocked(toast).mockClear();
+    let finishPick!: () => void;
+    mockCommand(Invokes.SetFlagForPaths, (args) =>
+      args?.flag === ImageFlag.Pick
+        ? new Promise<void>((resolve) => {
+            finishPick = resolve;
+          })
+        : undefined,
+    );
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+    await act(async () => actions.handleSetFlag(ImageFlag.Reject));
+    const notice = vi.mocked(toast).mock.calls.at(-1)![0] as ReactElement<{ onUndo(): void }>;
+    actions.handleSetFlag(ImageFlag.Pick, ['/b.raw']);
+    const writes = invoke.mock.calls.length;
+    await act(async () => notice.props.onUndo());
+    expect(invoke.mock.calls).toHaveLength(writes);
+    expect(useLibraryStore.getState().imageList[0].flag).toBe(ImageFlag.Reject);
+    await act(async () => finishPick());
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SetFlagForPaths, { paths: ['/a.raw'], flag: null });
+    expect(useLibraryStore.getState().imageList[1].flag).toBe(ImageFlag.Pick);
+    expect(useLibraryStore.getState().libraryActivePath).toBe('/a.raw');
+    await unmount();
+  });
+
+  it('undoes a colour label without removing user tags', async () => {
+    filteredSelection();
+    vi.mocked(toast).mockClear();
+    useLibraryStore.setState((state) => ({
+      imageList: state.imageList.map((image) =>
+        image.path === '/a.raw' ? { ...image, tags: ['user:x', 'color:blue'] } : image,
+      ),
+      filterCriteria: { colors: ['blue'], rating: 0, rawStatus: RawStatus.All },
+    }));
+    mockCommand(Invokes.SetColorLabelForPaths, () => undefined);
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+    await act(async () => actions.handleSetColorLabel('red'));
+    const notice = vi.mocked(toast).mock.calls.at(-1)![0] as ReactElement<{ onUndo(): void }>;
+    await act(async () => notice.props.onUndo());
+    expect(invoke).toHaveBeenLastCalledWith(Invokes.SetColorLabelForPaths, { paths: ['/a.raw'], color: 'blue' });
+    expect(useLibraryStore.getState().imageList[0].tags).toEqual(['user:x', 'color:blue']);
+    expect(useLibraryStore.getState().libraryActivePath).toBe('/a.raw');
+    await unmount();
+  });
+
+  it.each(['folder', 'view'] as const)('dismisses and invalidates Undo after a %s switch', async (navigation) => {
+    filteredSelection();
+    vi.mocked(toast).mockClear();
+    vi.mocked(toast.dismiss).mockClear();
+    mockCommand(Invokes.SetFlagForPaths, () => undefined);
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+    await act(async () => actions.handleSetFlag(ImageFlag.Reject));
+    const notice = vi.mocked(toast).mock.calls.at(-1)![0] as ReactElement<{ onUndo(): void }>;
+    const writes = invoke.mock.calls.length;
+    await act(async () => {
+      if (navigation === 'view') useUIStore.setState({ activeView: 'editor' });
+      else
+        useLibraryStore.setState((state) => ({
+          currentFolderPath: '/other',
+          imageList: [{ ...state.imageList[0], path: '/other/photo.raw', flag: null }],
+          imageRatings: { '/other/photo.raw': 2 },
+          libraryActivePath: '/other/photo.raw',
+        }));
+    });
+    expect(toast.dismiss).toHaveBeenCalledWith('filter-exit');
+    const state = useLibraryStore.getState();
+    await act(async () => notice.props.onUndo());
+    expect(invoke.mock.calls).toHaveLength(writes);
+    expect(useLibraryStore.getState()).toBe(state);
+    await unmount();
+  });
+
+  it('attributes a filter-exit toast to the hiding write, preserving an earlier colour change', async () => {
+    filteredSelection();
+    vi.mocked(toast).mockClear();
+    useLibraryStore.setState({
+      imageRatings: { '/a.raw': 3, '/b.raw': 3 },
+      filterCriteria: { colors: [], rating: 3, ratingOperator: 'eq', rawStatus: RawStatus.All },
+    });
+    let finishColour!: () => void;
+    let colours = 0;
+    mockCommand(Invokes.SetColorLabelForPaths, () =>
+      ++colours === 1
+        ? new Promise<void>((resolve) => {
+            finishColour = resolve;
+          })
+        : undefined,
+    );
+    mockCommand(Invokes.SetRatingForPaths, () => undefined);
+    const { actions, unmount } = await mountLibraryActions(vi.fn());
+    actions.handleSetColorLabel('red');
+    actions.handleRate(4, ['/a.raw']);
+    await act(async () => finishColour());
+    expect(toast).toHaveBeenCalledTimes(1);
+    const notice = vi.mocked(toast).mock.calls[0][0] as ReactElement<{ onUndo(): void }>;
+    await act(async () => notice.props.onUndo());
+    expect(colours).toBe(1);
+    expect(useLibraryStore.getState().imageList[0].tags).toEqual(['color:red']);
+    expect(useLibraryStore.getState().imageRatings['/a.raw']).toBe(3);
+    await unmount();
+  });
+
   it('restores a rated reject on disk after undoing a rating filter exit', async () => {
     filteredSelection();
     vi.mocked(toast).mockClear();
