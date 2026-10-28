@@ -714,7 +714,10 @@ export default function SettingsPanel({
     invoke<string[]>('get_lensfun_makers').then(setLensMakers).catch(console.error);
   }, []);
 
-  const handleProcessingSettingChange = async (key: string, value: any) => {
+  const handleProcessingSettingChange = async <K extends ProcessingSettingKey>(
+    key: K,
+    value: SettingsPanelAppSettings[K],
+  ) => {
     setProcessingSettings((prev) => ({ ...prev, [key]: value }));
 
     if (
