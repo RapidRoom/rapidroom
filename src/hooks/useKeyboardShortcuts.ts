@@ -60,6 +60,7 @@ export const useKeyboardShortcuts = ({
     handleAutoAdjustments,
     setAdjustments,
     handleCropOrientationToggle,
+    handleEnableAdjustments,
   } = useEditorActions();
   const { handleRate, handleSetFlag, handleToggleFlag, handleSetColorLabel } = useLibraryActions();
 
@@ -593,6 +594,15 @@ export const useKeyboardShortcuts = ({
           handleAutoStraighten();
         },
       },
+      toggle_black_white: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          handleEnableAdjustments([s.editor.selectedImage!.path], {
+            monochromeEnabled: !s.editor.adjustments.monochromeEnabled,
+          });
+        },
+      },
       rate_0: {
         shouldFire: () => true,
         execute: (e: KeyboardEvent) => {
@@ -968,6 +978,7 @@ export const useKeyboardShortcuts = ({
     handleCopyAdjustments,
     handleCopyImagePaths,
     handlePasteAdjustments,
+    handleEnableAdjustments,
     handleRate,
     handleSetFlag,
     handleToggleFlag,
