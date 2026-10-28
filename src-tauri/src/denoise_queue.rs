@@ -938,6 +938,15 @@ pub async fn run(
     }
 }
 
+struct SourceClaim(File);
+
+impl Drop for SourceClaim {
+    fn drop(&mut self) {
+        // A concurrent fork can briefly inherit the description even with CLOEXEC.
+        let _ = self.0.unlock();
+    }
+}
+
 #[cfg(test)]
 fn run_item(
     path: &str,
@@ -976,6 +985,7 @@ fn run_item_with_context(
     claim
         .try_lock()
         .map_err(|_| "Source is already being denoised by another queue".to_string())?;
+    let _claim = SourceClaim(claim);
     let metadata = strict_json(&sidecar)?;
     let mut item_identity = ident.clone();
     if is_raw_file(&source) && ident["method"] == "nind" {
@@ -1287,6 +1297,27 @@ mod tests {
                 .contains("independent edits")
         );
         assert_eq!(strict_json(&dest).unwrap()["adjustments"]["exposure"], 3);
+    }
+
+    #[test]
+    fn completed_source_claim_releases_an_inherited_file_description() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("claim");
+        let file = File::create_new(&path).unwrap();
+        file.lock().unwrap();
+        let inherited = file.try_clone().unwrap();
+        let claim = SourceClaim(file);
+        drop(claim);
+        let contender = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
+        contender
+            .try_lock()
+            .expect("completed claim must not survive in an inherited description");
+        contender.unlock().unwrap();
+        drop(inherited);
     }
 
     #[test]
