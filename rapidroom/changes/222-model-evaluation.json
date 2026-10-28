@@ -1,0 +1,13 @@
+{
+  "id": "optional-mask-model-evaluation",
+  "title": "Document optional mask-model licences, costs and evaluation gates",
+  "category": "feature",
+  "landed": "2026-10-27",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original evaluation document and local existing-model CPU measurement)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Evaluation only: SAM 2.1 Tiny, BiRefNet tiers and DA3 Mono Large provenance, exact declared artifact sizes and hashes, existing DA2 Small CPU timing and a staged quality/runtime plan. No candidate weights downloaded, backends integrated, defaults changed or stored bitmap masks migrated; parent issue #222 remains open."
+}
