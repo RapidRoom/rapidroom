@@ -424,11 +424,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     if (!selectedImage?.width || !selectedImage?.height) {
       return null;
     }
-    return zoomReferenceSize(
-      { width: selectedImage.width, height: selectedImage.height },
-      adjustments.orientationSteps || 0,
-      adjustments.crop,
-    );
+    const orientationSteps = adjustments.orientationSteps || 0;
+    const oriented = getOrientedDimensions(selectedImage.width, selectedImage.height, orientationSteps);
+    const pixelCrop = adjustments.crop ? toPixelCrop(adjustments.crop, oriented.width, oriented.height) : null;
+    return zoomReferenceSize({ width: selectedImage.width, height: selectedImage.height }, orientationSteps, pixelCrop);
   }, [selectedImage, adjustments.crop, adjustments.orientationSteps]);
 
   const imageRenderSize = useImageRenderSize(imageContainerRef, croppedDimensions);

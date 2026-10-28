@@ -1,0 +1,12 @@
+{
+  "id": "percent-crop-zoom-label",
+  "title": "Resolve percentage crops before calculating editor zoom",
+  "category": "fix",
+  "landed": "2026-10-27",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Use oriented pixel dimensions for the zoom reference of saved percentage crops, so Fit and Crop view do not report inflated zoom percentages."
+}
