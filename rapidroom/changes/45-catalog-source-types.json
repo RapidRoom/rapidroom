@@ -2,7 +2,7 @@
   "id": "catalog-source-enum-types",
   "title": "Clear the last TypeScript diagnostic and enforce type checking in CI",
   "category": "ci",
-  "landed": "2026-10-27",
+  "landed": "2026-10-28",
   "authors": ["yojen7"],
   "source": "rapidroom (original type correction)",
   "upstream_issues": [],
