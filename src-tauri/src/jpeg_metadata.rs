@@ -402,7 +402,7 @@ fn replace(bytes: &[u8], jpeg: &Jpeg, desired: &Snapshot) -> Result<Vec<u8>> {
     if let Some(old) = old_exif
         && targets(&after, &out, b"Exif\0\0")?.is_none_or(|new| new.range.start != old.range.start)
     {
-        return Err("Insufficient XMP padding: resizing would move the EXIF block".into());
+        return Err("Insufficient XMP padding: resizing would move the EXIF block. Original left unchanged; use sidecar metadata.".into());
     }
     if protected_bytes(bytes, jpeg) != protected_bytes(&out, &after) {
         return Err("Refused rewrite outside JPEG APP1 metadata".into());
