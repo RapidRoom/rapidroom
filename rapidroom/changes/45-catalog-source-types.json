@@ -1,0 +1,12 @@
+{
+  "id": "catalog-source-enum-types",
+  "title": "Clear the last TypeScript diagnostic and enforce type checking in CI",
+  "category": "ci",
+  "landed": "2026-10-27",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original type correction)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Model DevelopValueSource's five serialized Rust variants in the frontend instead of arbitrary strings, removing the last current TypeScript diagnostic without casts or runtime behavior changes. CI now requires npm run typecheck to pass."
+}
