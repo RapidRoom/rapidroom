@@ -6,6 +6,13 @@ import { Invokes } from '../ui/AppProperties';
 import Switch from '../ui/Switch';
 import Text from '../ui/Text';
 
+export type DevelopValueSource =
+  | 'catalogDevelopSettings'
+  | 'catalogDevelopSettingsAndAsShotHistory'
+  | 'catalogOrientationAndPhotoExif'
+  | 'catalogOrientationAndCatalogMetadata'
+  | 'catalogRating';
+
 export interface DevelopPhoto {
   id: number;
   path: string;
@@ -16,7 +23,7 @@ export interface DevelopPhoto {
   existingEdits: boolean;
   rating: number | null;
   adjustments: Record<string, unknown>;
-  sources: Record<string, string>;
+  sources: Record<string, DevelopValueSource>;
   matchingXmpSidecar: boolean;
   unsupported: string[];
   error: string | null;
