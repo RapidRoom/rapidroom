@@ -470,7 +470,7 @@
           "sharpnessScale": "Amount is scaled from 0-150 to 0-100; the sharpening operator differs",
           "sharpenMasking": "Masking is approximated by the native sharpening threshold",
           "hueScale": "Hue is scaled by 0.75; engine colour response differs",
-          "monochrome": "Monochrome is approximated with desaturation and HSL luminance",
+          "monochrome": "Transferred to the native Black & White mode; the film response differs from Lightroom",
           "curveInterpolation": "Curve points are transferred; engine interpolation differs",
           "lensfun": "Lensfun substitutes for the Adobe lens profile when a matching lens is available",
           "nativeResponse": "Transferred to native controls; Lightroom rendering and units may differ",
