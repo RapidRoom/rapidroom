@@ -1,3 +1,4 @@
+import { useJpegMetadataReports } from './useJpegMetadataReports';
 import { rememberAppliedStyleStack } from '../utils/appliedPreset';
 import { editStack, isStackedPhoto, stackKey, toggleStack } from '../utils/photoStacks';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
@@ -43,6 +44,7 @@ import {
   Layers,
   Grip,
   Film,
+  Contrast,
   Home,
   Plane,
   Mountain,
@@ -211,6 +213,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
     }),
     [],
   );
+  const { writeMetadata, undoMetadata, undoToken } = useJpegMetadataReports(props.refreshImageList);
   const { t } = useTranslation();
   const { showContextMenu } = useContextMenu();
 
@@ -778,6 +781,17 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
               },
             },
             {
+              label: adjustments.monochromeEnabled
+                ? t('contextMenus.editor.removeBlackWhite')
+                : t('contextMenus.editor.convertBlackWhite'),
+              icon: Contrast,
+              onClick: () =>
+                handleEnableAdjustments([selectedImage.path], {
+                  monochromeEnabled: !adjustments.monochromeEnabled,
+                }),
+              disabled: !selectedImage?.isReady,
+            },
+            {
               label: adjustments.negativeConversionEnabled
                 ? t('contextMenus.editor.removeNegativeConversion')
                 : t('contextMenus.editor.convertNegative'),
@@ -1187,6 +1201,17 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
           onClick: () => importXmpAdjustmentsForImage(finalSelection[0]),
         },
         {
+          icon: FileUp,
+          label: t('jpegMetadata.write'),
+          onClick: () => void writeMetadata(finalSelection),
+        },
+        {
+          icon: Undo,
+          label: t('jpegMetadata.undo'),
+          disabled: !undoToken.current,
+          onClick: () => void undoMetadata(),
+        },
+        {
           label: t('contextMenus.editor.productivity'),
           icon: Gauge,
           submenu: [
@@ -1222,6 +1247,23 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
                   label: t('contextMenus.thumbnail.remove'),
                   icon: X,
                   onClick: () => handleEnableAdjustments(finalSelection, { aiDenoiseEnabled: false }),
+                },
+              ],
+            },
+            {
+              label: t('contextMenus.editor.convertBlackWhite'),
+              icon: Contrast,
+              disabled: selectionCount === 0,
+              submenu: [
+                {
+                  label: t('contextMenus.thumbnail.enable'),
+                  icon: Check,
+                  onClick: () => handleEnableAdjustments(finalSelection, { monochromeEnabled: true }),
+                },
+                {
+                  label: t('contextMenus.thumbnail.remove'),
+                  icon: X,
+                  onClick: () => handleEnableAdjustments(finalSelection, { monochromeEnabled: false }),
                 },
               ],
             },
@@ -1470,6 +1512,9 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
       handleCopyAdjustments,
       handlePasteAdjustments,
       importXmpAdjustmentsForImage,
+      writeMetadata,
+      undoMetadata,
+      undoToken,
       handleAutoAdjustments,
       handleRate,
       buildFlagMenu,
