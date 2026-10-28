@@ -1551,7 +1551,7 @@ fn convert_xmp_to_preset_with_crop(
 
     let grayscale = attrs
         .get("ConvertToGrayscale")
-        .map(|v| v.eq_ignore_ascii_case("true"));
+        .map(|v| is_xmp_true(Some(v)));
     if let Some(is_monochrome) = grayscale {
         adjustments.insert("monochromeEnabled".to_string(), json!(is_monochrome));
     }
@@ -2638,6 +2638,17 @@ mod tests {
             assert_eq!(preset.adjustments["monochromeMix"][color], json!(luminance));
         }
         assert_eq!(preset.adjustments["hsl"]["reds"]["hue"], json!(30.0));
+    }
+
+    #[test]
+    fn numeric_true_grayscale_flag_enables_monochrome() {
+        let preset = convert_adobe_camera_raw_xmp_to_preset(
+            r#"<rdf:Description crs:ConvertToGrayscale="1" crs:GrayMixerRed="-10" />"#,
+            XmpImageKind::RenderedJpeg,
+        )
+        .unwrap();
+        assert_eq!(preset.adjustments["monochromeEnabled"], json!(true));
+        assert_eq!(preset.adjustments["monochromeMix"]["reds"], json!(-10.0));
     }
 
     #[test]
