@@ -715,6 +715,7 @@ pub struct AppSettings {
     pub enable_tool_focus_mode: Option<bool>,
     #[serde(default)]
     pub auto_advance_on_rate: Option<bool>,
+    pub hide_collapsed_panels: Option<bool>,
     #[serde(default)]
     pub folder_icons: Option<HashMap<String, String>>,
     #[serde(default)]
@@ -769,6 +770,13 @@ pub struct AppSettings {
     pub mcp_enabled: bool,
     #[serde(default)]
     pub immich: crate::immich::ImmichSettings,
+}
+
+impl AppSettings {
+    pub fn wgpu_renderer_enabled(&self) -> bool {
+        cfg!(not(any(target_os = "linux", target_os = "android")))
+            && self.use_wgpu_renderer.unwrap_or(true)
+    }
 }
 
 impl Default for AppSettings {
@@ -866,6 +874,7 @@ impl Default for AppSettings {
             enable_focus_mode: Some(false),
             enable_tool_focus_mode: Some(false),
             auto_advance_on_rate: Some(false),
+            hide_collapsed_panels: Some(false),
             folder_icons: Some(HashMap::new()),
             folder_capture_time_shift_minutes: Some(HashMap::new()),
             raw_preprocessing_color_nr: Some(0.5),

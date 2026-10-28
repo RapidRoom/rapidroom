@@ -193,11 +193,19 @@ fn keep_as_virtual_copy(
     source: &Path,
     value: &Value,
 ) -> Result<(), String> {
+    write_virtual_copy(source, value)?;
+    emit_conflict(app_handle, source);
+    Ok(())
+}
+
+fn write_virtual_copy(source: &Path, value: &Value) -> Result<String, String> {
     let copy = conflict_copy_path(source)?;
     let json = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
     crate::file_management::write_file_atomic(&copy, json.as_bytes()).map_err(|e| e.to_string())?;
-    emit_conflict(app_handle, source);
-    Ok(())
+    Ok(source
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default())
 }
 
 pub async fn pull(
@@ -281,6 +289,40 @@ fn apply_remote_locked(source: &Path, remote: &MetadataEntry) -> Result<RemoteOu
             );
             Ok(RemoteOutcome::Applied)
         }
+    }
+}
+
+pub async fn adopt_upload(
+    app_handle: &AppHandle,
+    client: &ImmichClient,
+    asset_id: &str,
+    target: &Path,
+    local_sidecar: &Path,
+    duplicate: bool,
+) -> Result<(), String> {
+    let local = fs::read_to_string(local_sidecar)
+        .ok()
+        .and_then(|content| serde_json::from_str::<Value>(&content).ok())
+        .map(shared);
+    let remote = if duplicate {
+        client.metadata(asset_id, EDITS_KEY).await?
+    } else {
+        None
+    };
+    match (local, remote) {
+        (Some(local), Some(remote)) if !is_blank(&remote.value) && remote.value != local => {
+            let file_name = write_virtual_copy(target, &local)?;
+            let _ = app_handle.emit(
+                "immich-upload-kept-copy",
+                json!({ "path": target, "fileName": file_name }),
+            );
+            pull(app_handle, client, asset_id, target).await
+        }
+        (Some(_), _) => {
+            fs::copy(local_sidecar, sidecar_of(target)).map_err(|e| e.to_string())?;
+            push(app_handle, client, asset_id, target).await.map(|_| ())
+        }
+        (None, _) => pull(app_handle, client, asset_id, target).await,
     }
 }
 

@@ -160,6 +160,11 @@ export enum Invokes {
   UndoLastRename = 'undo_last_rename',
   UpdateWgpuTransform = 'update_wgpu_transform',
   ReleaseOriginalPreview = 'release_original_preview',
+  OpenViewerWindow = 'open_viewer_window',
+  CloseViewerWindow = 'close_viewer_window',
+  SetViewerView = 'set_viewer_view',
+  GetViewerInfo = 'get_viewer_info',
+  GetViewerFrame = 'get_viewer_frame',
   UpdateExifFields = 'update_exif_fields',
   FetchCommunityPresets = 'fetch_community_presets',
   GenerateAllCommunityPreviews = 'generate_all_community_previews',
@@ -343,6 +348,7 @@ export interface AppSettings {
   enableFocusMode?: boolean;
   enableToolFocusMode?: boolean;
   autoAdvanceOnRate?: boolean;
+  hideCollapsedPanels?: boolean;
   openTreeSections?: string[];
   folderIcons?: Record<string, string>;
   folderCaptureTimeShiftMinutes?: Record<string, number>;
