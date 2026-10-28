@@ -43,6 +43,7 @@
         "shadows": "Schaduwen"
       },
       "hue": "Kleurtoon",
+      "kelvinModeTooltip": "Temperatuur in kelvin weergeven",
       "localHue": "Lokale kleurtoon",
       "luminance": "Luminantie",
       "mixerColors": {
@@ -54,6 +55,55 @@
         "purples": "Paars",
         "reds": "Rood",
         "yellows": "Geel"
+      },
+      "monochrome": {
+        "badge": "Z/W",
+        "balance": "Balans",
+        "blackWhite": "Zwart-wit",
+        "film": "Film",
+        "filmDescriptions": {
+          "balanced": "Gelijkmatige gevoeligheid voor alle kleuren, met lichter rood en een lichtere huid",
+          "extendedRed": "Roodgevoelige film met een stralende huid en donkerdere luchten",
+          "infrared": "Stralend gebladerte en bijna zwarte luchten",
+          "neutral": "Komt overeen met de waargenomen helderheid van elke kleur",
+          "orthoPanchromatic": "Iets donkerder rood met heldere groentinten",
+          "orthochromatic": "Blind voor rood, met donker rood en lichte luchten",
+          "panchromatic": "Klassieke filmrespons met lichtere blauwe luchten"
+        },
+        "films": {
+          "balanced": "Gebalanceerd",
+          "extendedRed": "Uitgebreid rood",
+          "infrared": "Infrarood",
+          "neutral": "Neutraal",
+          "orthoPanchromatic": "Ortho-pan",
+          "orthochromatic": "Orthochromatisch",
+          "panchromatic": "Panchromatisch"
+        },
+        "filter": "Filter",
+        "filters": {
+          "blue": "Blauw",
+          "green": "Groen",
+          "none": "Geen",
+          "orange": "Oranje",
+          "red": "Rood",
+          "yellow": "Geel"
+        },
+        "highlights": "Hooglichten",
+        "hue": "Kleurtoon",
+        "mix": "Z/W-mix",
+        "saturation": "Verzadiging",
+        "shadows": "Schaduwen",
+        "strength": "Sterkte",
+        "toning": "Tonen",
+        "tonings": {
+          "cyanotype": "Cyanotypie",
+          "gold": "Goud",
+          "none": "Geen",
+          "platinum": "Platina",
+          "selenium": "Selenium",
+          "sepia": "Sepia",
+          "split": "Split-toning"
+        }
       },
       "presence": "Presentie",
       "saturation": "Verzadiging",
@@ -230,12 +280,16 @@
       "cancel": "Annuleren",
       "colorLabel": "Kleurlabel",
       "confirmReset": "Herstellen bevestigen",
+      "convertBlackWhite": "Omzetten naar zwart-wit",
       "convertNegative": "Negatief omzetten",
       "copyAdjustments": "Aanpassingen kopiëren",
       "cullImage": "Autom. selecteren",
       "denoise": "Ruis verwijderen",
       "editImage": "Afbeelding bewerken",
       "exportImage": "Afbeelding exporteren",
+      "flag": "Markering",
+      "flagPick": "Gekozen",
+      "flagReject": "Afgewezen",
       "frameImage": "Kadereditor",
       "mergeHdr": "Samenvoegen naar HDR",
       "noLabel": "Geen label",
@@ -246,12 +300,14 @@
       "ratingLabel_one": "{{count}} ster",
       "ratingLabel_other": "{{count}} sterren",
       "redo": "Opnieuw",
+      "removeBlackWhite": "Zwart-wit verwijderen",
       "removeDenoise": "Ruisonderdrukking verwijderen",
       "removeNegativeConversion": "Negatiefconversie verwijderen",
       "resetAdjustments": "Aanpassingen herstellen",
       "stitchPanorama": "Panorama samenvoegen",
       "tagging": "Tags toevoegen",
-      "undo": "Ongedaan maken"
+      "undo": "Ongedaan maken",
+      "unflagged": "Niet gemarkeerd"
     },
     "folders": {
       "changeIcon": "Pictogram wijzigen",
@@ -274,6 +330,7 @@
     "library": {
       "addCopiedToAlbum_one": "Gekopieerde afbeelding aan album toevoegen",
       "addCopiedToAlbum_other": "{{count}} gekopieerde afbeeldingen aan album toevoegen",
+      "deleteRejected": "Afgewezen afbeeldingen verwijderen",
       "refreshView": "Weergave vernieuwen"
     },
     "merge": {
@@ -511,7 +568,9 @@
         "quickErase": "Snel verwijderen {{count}}",
         "quickErase_one": "Snel verwijderen {{count}}",
         "quickErase_other": "Snel verwijderen {{count}}",
-        "retouch": "Retouche {{count}}"
+        "retouch": "Retouche {{count}}",
+        "retouch_one": "Retouche {{count}}",
+        "retouch_other": "Retouche {{count}}"
       },
       "resetInpaintingTooltip": "Inpainting herstellen",
       "settings": {
@@ -1203,6 +1262,12 @@
         "editedOnly": "Alleen bewerkte",
         "uneditedOnly": "Alleen onbewerkte"
       },
+      "flag": {
+        "all": "Alle afbeeldingen",
+        "excludeRejected": "Afgewezen verbergen",
+        "picked": "Gekozen",
+        "rejected": "Afgewezen"
+      },
       "noMatch": "Geen afbeeldingen gevonden die overeenkomen met uw filter.",
       "rating": {
         "all": "Alles weergeven",
@@ -1289,6 +1354,7 @@
         "filterByColorLabel": "Filteren op kleurlabel",
         "filterByEdited": "Filteren op bewerkingsstatus",
         "filterByFileType": "Filteren op bestandstype",
+        "filterByFlag": "Filteren op markering",
         "filterByRating": "Filteren op beoordeling",
         "ratingOperator": {
           "eq": "Precies deze beoordeling",
@@ -1328,6 +1394,7 @@
       "expandFolder": "Map uitklappen",
       "imagesCount_one": "1 afbeelding",
       "imagesCount_other": "{{count}} afbeeldingen",
+      "rejected": "Afgewezen",
       "tooltipAperture": "Diafragma",
       "tooltipFocalLength": "Brandpuntsafstand",
       "tooltipIso": "ISO",
@@ -1356,6 +1423,15 @@
       "openInLibrary": "Openen in bibliotheek",
       "recent": "Recent",
       "title": "Taken"
+    },
+    "reject": {
+      "deleteConfirm": "Afgewezen verwijderen",
+      "deleteMessage_one": "Weet je zeker dat je {{count}} afgewezen afbeelding wilt verwijderen? Deze wordt naar de prullenbak verplaatst.",
+      "deleteMessage_other": "Weet je zeker dat je {{count}} afgewezen afbeeldingen wilt verwijderen? Ze worden naar de prullenbak verplaatst.",
+      "deleteTitle": "Afgewezen afbeeldingen verwijderen",
+      "noneToDelete": "Er zijn geen afgewezen afbeeldingen om te verwijderen.",
+      "virtualCopiesWarning_one": "{{count}} virtuele kopie die niet is afgewezen, wordt ook verwijderd omdat het origineel is afgewezen.",
+      "virtualCopiesWarning_other": "{{count}} virtuele kopieën die niet zijn afgewezen, worden ook verwijderd omdat hun originelen zijn afgewezen."
     },
     "search": {
       "noResults": "Geen resultaten gevonden",
@@ -1416,6 +1492,11 @@
       "goHome": "Naar startpagina",
       "importImages": "Afbeeldingen importeren",
       "select": "Selecteren"
+    },
+    "viewMode": {
+      "culling": "Selectieweergave",
+      "grid": "Rasterweergave",
+      "list": "Lijstweergave"
     },
     "photoCounts": {
       "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
@@ -1515,6 +1596,7 @@
       "descReplace": "Overschrijft alle geselecteerde instellingen en herstelt de overige naar standaardwaarden.",
       "groups": {
         "aiDenoise": "AI-ruisonderdrukking",
+        "blackWhite": "Zwart-wit",
         "chromaticAberration": "Chromatische aberratie",
         "clarityDehaze": "Contrast en nevelreductie",
         "colorCalibration": "Kleurkalibratie",
@@ -1990,6 +2072,7 @@
         "toggle_adjustments": "Aanpassingspaneel aan/uit",
         "toggle_ai": "AI-paneel aan/uit",
         "toggle_analytics": "Analyseweergave aan/uit",
+        "toggle_black_white": "Zwart-wit aan/uit",
         "toggle_bottom_panel": "Filmstrip aan/uit",
         "toggle_crop": "Bijsnijden / rechtzetten aan/uit",
         "toggle_crop_panel": "Bijsnijdpaneel aan/uit",

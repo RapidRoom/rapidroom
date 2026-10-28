@@ -1866,7 +1866,7 @@ impl AtomicWriteTemp for tempfile::NamedTempFile {
     }
 
     fn sync_all(&mut self) -> std::io::Result<()> {
-        self.as_file_mut().sync_all()
+        sync_file(self.as_file())
     }
 
     fn persist(self, target: &Path) -> std::io::Result<()> {
@@ -1976,6 +1976,31 @@ fn can_use_embedded_preview(
 /// Upstream's atomic writer name; RapidRoom's write_file_atomically does the work.
 pub fn write_file_atomic(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     write_file_atomically(path, contents)
+}
+
+fn sync_file(file: &fs::File) -> std::io::Result<()> {
+    match file.sync_all() {
+        #[cfg(unix)]
+        Err(e) if is_sync_unsupported(&e) => {
+            #[cfg(target_vendor = "apple")]
+            {
+                use std::os::fd::AsRawFd;
+                if unsafe { libc::fsync(file.as_raw_fd()) } != 0 {
+                    let e = std::io::Error::last_os_error();
+                    if !is_sync_unsupported(&e) {
+                        return Err(e);
+                    }
+                }
+            }
+            Ok(())
+        }
+        result => result,
+    }
+}
+
+#[cfg(unix)]
+fn is_sync_unsupported(e: &std::io::Error) -> bool {
+    matches!(e.raw_os_error(), Some(code) if code == libc::ENOTSUP || code == libc::EOPNOTSUPP)
 }
 
 fn thumbnail_embedded_preview(

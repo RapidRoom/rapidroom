@@ -59,6 +59,55 @@
         "reds": "Reds",
         "yellows": "Yellows"
       },
+      "monochrome": {
+        "badge": "B&W",
+        "balance": "Balance",
+        "blackWhite": "Black & White",
+        "film": "Film",
+        "filmDescriptions": {
+          "balanced": "Even sensitivity across colors, with lighter reds and skin",
+          "extendedRed": "Red-sensitive film with luminous skin and darker skies",
+          "infrared": "Glowing foliage and near-black skies",
+          "neutral": "Matches the perceived brightness of each color",
+          "orthoPanchromatic": "Slightly darker reds with crisp greens",
+          "orthochromatic": "Blind to red, with dark reds and bright skies",
+          "panchromatic": "Classic film response with lighter blue skies"
+        },
+        "films": {
+          "balanced": "Balanced",
+          "extendedRed": "Extended Red",
+          "infrared": "Infrared",
+          "neutral": "Neutral",
+          "orthoPanchromatic": "Ortho-Pan",
+          "orthochromatic": "Orthochromatic",
+          "panchromatic": "Panchromatic"
+        },
+        "filter": "Filter",
+        "filters": {
+          "blue": "Blue",
+          "green": "Green",
+          "none": "None",
+          "orange": "Orange",
+          "red": "Red",
+          "yellow": "Yellow"
+        },
+        "highlights": "Highlights",
+        "hue": "Hue",
+        "mix": "B&W Mix",
+        "saturation": "Saturation",
+        "shadows": "Shadows",
+        "strength": "Strength",
+        "toning": "Toning",
+        "tonings": {
+          "cyanotype": "Cyanotype",
+          "gold": "Gold",
+          "none": "None",
+          "platinum": "Platinum",
+          "selenium": "Selenium",
+          "sepia": "Sepia",
+          "split": "Split Tone"
+        }
+      },
       "mixerPickerTooltip": "Color Mixer Picker: click and drag up or down on the photo",
       "presence": "Presence",
       "saturation": "Saturation",
@@ -258,6 +307,7 @@
       "cancel": "Cancel",
       "colorLabel": "Color Label",
       "confirmReset": "Confirm Reset",
+      "convertBlackWhite": "Convert to Black & White",
       "convertNegative": "Convert Negative",
       "copyAdjustments": "Copy Adjustments",
       "cullImage": "Auto Cull",
@@ -278,6 +328,7 @@
       "ratingLabel_one": "{{count}} Star",
       "ratingLabel_other": "{{count}} Stars",
       "redo": "Redo",
+      "removeBlackWhite": "Remove Black & White",
       "removeDenoise": "Remove Denoise",
       "removeNegativeConversion": "Remove Negative Conversion",
       "resetAdjustments": "Reset Adjustments",
@@ -419,7 +470,7 @@
           "sharpnessScale": "Amount is scaled from 0-150 to 0-100; the sharpening operator differs",
           "sharpenMasking": "Masking is approximated by the native sharpening threshold",
           "hueScale": "Hue is scaled by 0.75; engine colour response differs",
-          "monochrome": "Monochrome is approximated with desaturation and HSL luminance",
+          "monochrome": "Transferred to the native Black & White mode; the film response differs from Lightroom",
           "curveInterpolation": "Curve points are transferred; engine interpolation differs",
           "lensfun": "Lensfun substitutes for the Adobe lens profile when a matching lens is available",
           "nativeResponse": "Transferred to native controls; Lightroom rendering and units may differ",
@@ -586,7 +637,9 @@
         "quickErase": "Quick Erase {{count}}",
         "quickErase_one": "Quick Erase {{count}}",
         "quickErase_other": "Quick Erase {{count}}",
-        "retouch": "Retouch {{count}}"
+        "retouch": "Retouch {{count}}",
+        "retouch_one": "Retouch {{count}}",
+        "retouch_other": "Retouch {{count}}"
       },
       "resetInpaintingTooltip": "Reset Inpainting",
       "settings": {
@@ -1587,6 +1640,11 @@
       "importImages": "Import Images",
       "select": "Select"
     },
+    "viewMode": {
+      "culling": "Culling View",
+      "grid": "Grid View",
+      "list": "List View"
+    },
     "videosNotShown_one": "{{count}} video not shown",
     "videosNotShown_other": "{{count}} videos not shown",
     "photoCounts": {
@@ -1687,6 +1745,7 @@
       "descReplace": "Overwrites all selected settings, resetting the rest to their defaults.",
       "groups": {
         "aiDenoise": "AI Denoise",
+        "blackWhite": "Black & White",
         "chromaticAberration": "Chromatic Aberration",
         "clarityDehaze": "Clarity & Dehaze",
         "colorCalibration": "Color Calibration",
@@ -2277,6 +2336,7 @@
         "toggle_adjustments": "Toggle Adjustments panel",
         "toggle_ai": "Toggle AI panel",
         "toggle_analytics": "Toggle Analytics display",
+        "toggle_black_white": "Toggle Black & White",
         "toggle_bottom_panel": "Toggle Filmstrip",
         "toggle_crop": "Toggle Crop / Straighten",
         "toggle_crop_panel": "Toggle Crop panel",

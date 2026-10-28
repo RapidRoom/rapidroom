@@ -129,7 +129,6 @@ fn target(field: &str) -> Option<String> {
         ("HueAdjustment", "hue"),
         ("SaturationAdjustment", "saturation"),
         ("LuminanceAdjustment", "luminance"),
-        ("GrayMixer", "luminance"),
     ] {
         if let Some(color) = field.strip_prefix(prefix) {
             let color = match color {
@@ -146,6 +145,20 @@ fn target(field: &str) -> Option<String> {
             return Some(format!("/hsl/{color}/{member}"));
         }
     }
+    if let Some(color) = field.strip_prefix("GrayMixer") {
+        let color = match color {
+            "Red" => "reds",
+            "Orange" => "oranges",
+            "Yellow" => "yellows",
+            "Green" => "greens",
+            "Aqua" => "aquas",
+            "Blue" => "blues",
+            "Purple" => "purples",
+            "Magenta" => "magentas",
+            _ => return None,
+        };
+        return Some(format!("/monochromeMix/{color}"));
+    }
     Some(
         match field {
             "Sharpness" => "/sharpness",
@@ -160,7 +173,7 @@ fn target(field: &str) -> Option<String> {
             "FillLight" => "/shadows",
             "Shadows" => "/blacks",
             "Clarity" => "/clarity",
-            "ConvertToGrayscale" => "/saturation",
+            "ConvertToGrayscale" => "/monochromeEnabled",
             "HasCrop" | "CropLeft" | "CropRight" | "CropTop" | "CropBottom" | "CropAngle" => {
                 "/crop"
             }
@@ -391,7 +404,9 @@ pub fn reason_text(reason: &str) -> &'static str {
         "sharpnessScale" => "Amount is scaled from 0-150 to 0-100; the sharpening operator differs",
         "sharpenMasking" => "Masking is approximated by the native sharpening threshold",
         "hueScale" => "Hue is scaled by 0.75; engine colour response differs",
-        "monochrome" => "Monochrome is approximated with desaturation and HSL luminance",
+        "monochrome" => {
+            "Transferred to the native Black & White mode; the film response differs from Lightroom"
+        }
         "curveInterpolation" => "Curve points are transferred; engine interpolation differs",
         "lensfun" => {
             "Lensfun substitutes for the Adobe lens profile when a matching lens is available"
@@ -507,6 +522,16 @@ mod tests {
         assert!(r.settings.iter().any(|s| s.field == "GrayMixerRed"
             && s.reason == "inactive"
             && s.outcome == Outcome::Ignored));
+        let bw_native = report(r#"crs:ConvertToGrayscale="True" crs:GrayMixerRed="-10""#);
+        for field in ["ConvertToGrayscale", "GrayMixerRed"] {
+            assert!(
+                bw_native
+                    .settings
+                    .iter()
+                    .any(|s| s.field == field && s.outcome != Outcome::Ignored),
+                "{field} should be imported into the native B&W mode"
+            );
+        }
         let bw = report(
             r#"crs:ConvertToGrayscale="True" crs:GrayMixerRed="0" crs:LuminanceAdjustmentRed="10""#,
         );
