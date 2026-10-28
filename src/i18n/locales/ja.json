@@ -55,6 +55,55 @@
         "reds": "レッド",
         "yellows": "イエロー"
       },
+      "monochrome": {
+        "badge": "白黒",
+        "balance": "バランス",
+        "blackWhite": "白黒",
+        "film": "フィルム",
+        "filmDescriptions": {
+          "balanced": "すべての色に均等な感度で、赤や肌が明るくなります",
+          "extendedRed": "赤に強い感度を持つフィルム。肌が明るく、空が暗くなります",
+          "infrared": "輝く草木とほぼ黒い空",
+          "neutral": "各色の知覚的な明るさに合わせます",
+          "orthoPanchromatic": "赤がやや暗く、緑がくっきりします",
+          "orthochromatic": "赤に感光しないため、赤は暗く、空は明るくなります",
+          "panchromatic": "青空が明るめになるクラシックなフィルム特性"
+        },
+        "films": {
+          "balanced": "バランス",
+          "extendedRed": "拡張赤感",
+          "infrared": "赤外線",
+          "neutral": "ニュートラル",
+          "orthoPanchromatic": "オルソパン",
+          "orthochromatic": "オルソクロマチック",
+          "panchromatic": "パンクロマチック"
+        },
+        "filter": "フィルター",
+        "filters": {
+          "blue": "ブルー",
+          "green": "グリーン",
+          "none": "なし",
+          "orange": "オレンジ",
+          "red": "レッド",
+          "yellow": "イエロー"
+        },
+        "highlights": "ハイライト",
+        "hue": "色相",
+        "mix": "白黒ミックス",
+        "saturation": "彩度",
+        "shadows": "シャドウ",
+        "strength": "強度",
+        "toning": "調色",
+        "tonings": {
+          "cyanotype": "サイアノタイプ",
+          "gold": "ゴールド",
+          "none": "なし",
+          "platinum": "プラチナ",
+          "selenium": "セレン",
+          "sepia": "セピア",
+          "split": "スプリットトーン"
+        }
+      },
       "mixerPickerTooltip": "カラーミキサーのスポイト：写真をクリックして上下にドラッグ",
       "presence": "外観",
       "saturation": "彩度",
@@ -241,6 +290,7 @@
       "cancel": "キャンセル",
       "colorLabel": "カラーラベル",
       "confirmReset": "リセットを確認",
+      "convertBlackWhite": "白黒に変換",
       "convertNegative": "ネガ反転",
       "copyAdjustments": "補正設定をコピー",
       "cullImage": "自動選別",
@@ -261,6 +311,7 @@
       "ratingLabel_one": "{{count}} つ星",
       "ratingLabel_other": "{{count}} つ星",
       "redo": "やり直し",
+      "removeBlackWhite": "白黒を解除",
       "removeDenoise": "ノイズ低減を解除",
       "removeNegativeConversion": "ネガ反転を解除",
       "resetAdjustments": "補正設定をリセット",
@@ -562,7 +613,8 @@
         "quickErase": "クイック消去 {{count}}",
         "quickErase_one": "クイック消去 {{count}}",
         "quickErase_other": "クイック消去 {{count}}",
-        "retouch": "レタッチ {{count}}"
+        "retouch": "レタッチ {{count}}",
+        "retouch_other": "レタッチ {{count}}"
       },
       "resetInpaintingTooltip": "インペインティングをリセット",
       "settings": {
@@ -1489,6 +1541,11 @@
       "importImages": "画像をインポート",
       "select": "選択"
     },
+    "viewMode": {
+      "culling": "選別表示",
+      "grid": "グリッド表示",
+      "list": "リスト表示"
+    },
     "photoCounts": {
       "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
       "emptyFolder": "No photos directly in this folder.",
@@ -1587,6 +1644,7 @@
       "descReplace": "選択したすべての設定を上書きし、残りの設定をデフォルトにリセットします。",
       "groups": {
         "aiDenoise": "AIノイズ除去",
+        "blackWhite": "白黒",
         "chromaticAberration": "色収差",
         "clarityDehaze": "明瞭度とかすみの除去",
         "colorCalibration": "カラーキャリブレーション",
@@ -2072,7 +2130,9 @@
       "toolFocusMode": "ツールフォーカスモード",
       "toolFocusModeDesc": "ツールを展開すると、同じパネル内の他のツールを自動的に折りたたみます。",
       "xmpSync": "XMPメタデータ同期",
-      "xmpSyncDesc": "他の写真編集ソフトとの互換性のために、評価、カラーラベル、タグを標準のXMPサイドカーファイルと同期します。"
+      "xmpSyncDesc": "他の写真編集ソフトとの互換性のために、評価、カラーラベル、タグを標準のXMPサイドカーファイルと同期します。",
+      "writeJpegMetadata": "Write ratings and labels into JPEG files",
+      "writeJpegMetadataDesc": "Embed ratings, color labels and reject flags in original JPEGs without re-encoding pixels. Off by default; other formats keep using sidecars."
     },
     "keybinds": {
       "actions": {
@@ -2114,6 +2174,7 @@
         "toggle_adjustments": "補正設定パネルの表示/非表示",
         "toggle_ai": "AIパネルの表示/非表示",
         "toggle_analytics": "アナリティクス表示の表示/非表示",
+        "toggle_black_white": "白黒の切り替え",
         "toggle_bottom_panel": "フィルムストリップの表示/非表示",
         "toggle_crop": "切り抜き/角度補正の切り替え",
         "toggle_crop_panel": "切り抜きパネルの表示/非表示",
@@ -2590,5 +2651,14 @@
     "shifted": "{{shift}} display shift",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "jpegMetadata": {
+    "write": "Write metadata to files",
+    "undo": "Undo last metadata write",
+    "written_one": "Wrote JPEG metadata to {{count}} file.",
+    "written_other": "Wrote JPEG metadata to {{count}} files.",
+    "restored_one": "Restored metadata for {{count}} file.",
+    "restored_other": "Restored metadata for {{count}} files.",
+    "failed": "Metadata write failed: {{error}}"
   }
 }

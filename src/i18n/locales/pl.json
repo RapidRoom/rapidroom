@@ -55,6 +55,55 @@
         "reds": "Czerwone",
         "yellows": "Żółte"
       },
+      "monochrome": {
+        "badge": "Cz-b",
+        "balance": "Balans",
+        "blackWhite": "Czarno-białe",
+        "film": "Film",
+        "filmDescriptions": {
+          "balanced": "Równa czułość na wszystkie kolory, z jaśniejszymi czerwieniami i skórą",
+          "extendedRed": "Film czuły na czerwień: świetlista skóra i ciemniejsze niebo",
+          "infrared": "Świecące liście i niemal czarne niebo",
+          "neutral": "Odpowiada postrzeganej jasności każdego koloru",
+          "orthoPanchromatic": "Nieco ciemniejsze czerwienie i wyraziste zielenie",
+          "orthochromatic": "Ślepy na czerwień: ciemne czerwienie i jasne niebo",
+          "panchromatic": "Klasyczna charakterystyka filmu z jaśniejszym niebieskim niebem"
+        },
+        "films": {
+          "balanced": "Zrównoważony",
+          "extendedRed": "Rozszerzona czerwień",
+          "infrared": "Podczerwień",
+          "neutral": "Neutralny",
+          "orthoPanchromatic": "Orto-pan",
+          "orthochromatic": "Ortochromatyczny",
+          "panchromatic": "Panchromatyczny"
+        },
+        "filter": "Filtr",
+        "filters": {
+          "blue": "Niebieski",
+          "green": "Zielony",
+          "none": "Brak",
+          "orange": "Pomarańczowy",
+          "red": "Czerwony",
+          "yellow": "Żółty"
+        },
+        "highlights": "Światła",
+        "hue": "Odcień",
+        "mix": "Mikser cz-b",
+        "saturation": "Nasycenie",
+        "shadows": "Cienie",
+        "strength": "Siła",
+        "toning": "Tonowanie",
+        "tonings": {
+          "cyanotype": "Cyjanotypia",
+          "gold": "Złoto",
+          "none": "Brak",
+          "platinum": "Platyna",
+          "selenium": "Selen",
+          "sepia": "Sepia",
+          "split": "Tonowanie dzielone"
+        }
+      },
       "mixerPickerTooltip": "Pipeta miksera kolorów: kliknij i przeciągnij w górę lub w dół na zdjęciu",
       "presence": "Prezencja",
       "saturation": "Nasycenie",
@@ -241,6 +290,7 @@
       "cancel": "Anuluj",
       "colorLabel": "Etykieta koloru",
       "confirmReset": "Potwierdź reset",
+      "convertBlackWhite": "Konwertuj na czarno-białe",
       "convertNegative": "Konwertuj negatyw",
       "copyAdjustments": "Kopiuj ustawienia",
       "cullImage": "Automatyczna selekcja",
@@ -263,6 +313,7 @@
       "ratingLabel_one": "{{count}} Gwiazdka",
       "ratingLabel_other": "{{count}} Gwiazdek",
       "redo": "Ponów",
+      "removeBlackWhite": "Usuń konwersję czarno-białą",
       "removeDenoise": "Usuń odszumianie",
       "removeNegativeConversion": "Usuń konwersję negatywu",
       "resetAdjustments": "Resetuj ustawienia",
@@ -319,6 +370,8 @@
       "autoAdjust_many": "Auto-korekta",
       "autoAdjust_one": "Auto-korekta",
       "autoAdjust_other": "Auto-korekta",
+      "autoLensCorrection_few": "Automatyczna korekcja obiektywu",
+      "autoLensCorrection_many": "Automatyczna korekcja obiektywu",
       "autoLensCorrection_one": "Automatyczna korekcja obiektywu",
       "autoLensCorrection_other": "Automatyczna korekcja obiektywu",
       "autoStraighten_few": "Automatyczne prostowanie",
@@ -603,6 +656,8 @@
         "heal_other": "Naprawianie {{count}}",
         "invertedName": "{{name}} odwrócone",
         "liquify": "Skraplanie {{count}}",
+        "liquify_few": "Skraplanie {{count}}",
+        "liquify_many": "Skraplanie {{count}}",
         "liquify_one": "Skraplanie {{count}}",
         "liquify_other": "Skraplanie {{count}}",
         "quickErase": "Szybkie wymazanie {{count}}",
@@ -610,7 +665,11 @@
         "quickErase_many": "Szybkich wymazań {{count}}",
         "quickErase_one": "Szybkie wymazanie {{count}}",
         "quickErase_other": "Szybkie wymazanie {{count}}",
-        "retouch": "Retusz {{count}}"
+        "retouch": "Retusz {{count}}",
+        "retouch_few": "Retusz {{count}}",
+        "retouch_many": "Retusz {{count}}",
+        "retouch_one": "Retusz {{count}}",
+        "retouch_other": "Retusz {{count}}"
       },
       "resetInpaintingTooltip": "Resetuj Inpainting",
       "settings": {
@@ -1558,6 +1617,11 @@
       "importImages": "Importuj obrazy",
       "select": "Zaznacz"
     },
+    "viewMode": {
+      "culling": "Widok selekcji",
+      "grid": "Widok siatki",
+      "list": "Widok listy"
+    },
     "photoCounts": {
       "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
       "emptyFolder": "No photos directly in this folder.",
@@ -1664,6 +1728,7 @@
       "descReplace": "Nadpisuje wszystkie wybrane ustawienia, przywracając resztę do wartości domyślnych.",
       "groups": {
         "aiDenoise": "Odszumianie AI",
+        "blackWhite": "Czarno-białe",
         "chromaticAberration": "Aberracja chromatyczna",
         "clarityDehaze": "Przejrzystość i Usuwanie mgły",
         "colorCalibration": "Kalibracja kolorów",
@@ -2173,7 +2238,9 @@
       "toolFocusMode": "Tryb skupienia na narzędziach",
       "toolFocusModeDesc": "Automatycznie zwija inne narzędzia w panelu, gdy rozwijasz jedno z nich.",
       "xmpSync": "Synchronizacja metadanych XMP",
-      "xmpSyncDesc": "Synchronizuj oceny, etykiety kolorów i tagi do standardowych plików XMP w celu zachowania kompatybilności z innymi edytorami zdjęć."
+      "xmpSyncDesc": "Synchronizuj oceny, etykiety kolorów i tagi do standardowych plików XMP w celu zachowania kompatybilności z innymi edytorami zdjęć.",
+      "writeJpegMetadata": "Write ratings and labels into JPEG files",
+      "writeJpegMetadataDesc": "Embed ratings, color labels and reject flags in original JPEGs without re-encoding pixels. Off by default; other formats keep using sidecars."
     },
     "keybinds": {
       "actions": {
@@ -2215,6 +2282,7 @@
         "toggle_adjustments": "Przełącz panel Ustawienia",
         "toggle_ai": "Przełącz panel AI",
         "toggle_analytics": "Przełącz wyświetlanie analityki",
+        "toggle_black_white": "Przełącz czarno-białe",
         "toggle_bottom_panel": "Przełącz pasek z klatkami",
         "toggle_crop": "Przełącz Kadrowanie / Prostowanie",
         "toggle_crop_panel": "Przełącz panel Kadrowanie",
@@ -2693,5 +2761,18 @@
     "shifted": "{{shift}} display shift",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "jpegMetadata": {
+    "write": "Write metadata to files",
+    "undo": "Undo last metadata write",
+    "written_one": "Wrote JPEG metadata to {{count}} file.",
+    "written_other": "Wrote JPEG metadata to {{count}} files.",
+    "restored_one": "Restored metadata for {{count}} file.",
+    "restored_other": "Restored metadata for {{count}} files.",
+    "failed": "Metadata write failed: {{error}}",
+    "written_few": "Wrote JPEG metadata to {{count}} files.",
+    "written_many": "Wrote JPEG metadata to {{count}} files.",
+    "restored_few": "Restored metadata for {{count}} files.",
+    "restored_many": "Restored metadata for {{count}} files."
   }
 }

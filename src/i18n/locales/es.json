@@ -55,6 +55,55 @@
         "reds": "Rojos",
         "yellows": "Amarillos"
       },
+      "monochrome": {
+        "badge": "B/N",
+        "balance": "Equilibrio",
+        "blackWhite": "Blanco y negro",
+        "film": "Película",
+        "filmDescriptions": {
+          "balanced": "Sensibilidad uniforme en todos los colores, con rojos y piel más claros",
+          "extendedRed": "Película sensible al rojo con piel luminosa y cielos más oscuros",
+          "infrared": "Follaje brillante y cielos casi negros",
+          "neutral": "Coincide con el brillo percibido de cada color",
+          "orthoPanchromatic": "Rojos ligeramente más oscuros con verdes nítidos",
+          "orthochromatic": "Ciega al rojo, con rojos oscuros y cielos claros",
+          "panchromatic": "Respuesta clásica de película con cielos azules más claros"
+        },
+        "films": {
+          "balanced": "Equilibrada",
+          "extendedRed": "Rojo extendido",
+          "infrared": "Infrarroja",
+          "neutral": "Neutral",
+          "orthoPanchromatic": "Orto-pan",
+          "orthochromatic": "Ortocromática",
+          "panchromatic": "Pancromática"
+        },
+        "filter": "Filtro",
+        "filters": {
+          "blue": "Azul",
+          "green": "Verde",
+          "none": "Ninguno",
+          "orange": "Naranja",
+          "red": "Rojo",
+          "yellow": "Amarillo"
+        },
+        "highlights": "Iluminaciones",
+        "hue": "Tono",
+        "mix": "Mezcla B/N",
+        "saturation": "Saturación",
+        "shadows": "Sombras",
+        "strength": "Intensidad",
+        "toning": "Virado",
+        "tonings": {
+          "cyanotype": "Cianotipia",
+          "gold": "Oro",
+          "none": "Ninguno",
+          "platinum": "Platino",
+          "selenium": "Selenio",
+          "sepia": "Sepia",
+          "split": "Virado dividido"
+        }
+      },
       "mixerPickerTooltip": "Selector del mezclador de colores: haz clic y arrastra hacia arriba o abajo en la foto",
       "presence": "Presencia",
       "saturation": "Saturación",
@@ -241,6 +290,7 @@
       "cancel": "Cancelar",
       "colorLabel": "Etiqueta de color",
       "confirmReset": "Confirmar restablecimiento",
+      "convertBlackWhite": "Convertir a blanco y negro",
       "convertNegative": "Convertir negativo",
       "copyAdjustments": "Copiar ajustes",
       "cullImage": "Cribado automático",
@@ -262,6 +312,7 @@
       "ratingLabel_one": "{{count}} Estrella",
       "ratingLabel_other": "{{count}} Estrellas",
       "redo": "Rehacer",
+      "removeBlackWhite": "Quitar blanco y negro",
       "removeDenoise": "Quitar reducción de ruido",
       "removeNegativeConversion": "Quitar conversión de negativo",
       "resetAdjustments": "Restablecer ajustes",
@@ -314,6 +365,7 @@
       "autoAdjust_many": "Ajuste automático",
       "autoAdjust_one": "Ajuste automático",
       "autoAdjust_other": "Ajuste automático",
+      "autoLensCorrection_many": "Corrección de lente automática",
       "autoLensCorrection_one": "Corrección de lente automática",
       "autoLensCorrection_other": "Corrección de lente automática",
       "autoStraighten_many": "Enderezar automáticamente",
@@ -582,13 +634,17 @@
         "heal_other": "Curar {{count}}",
         "invertedName": "{{name}} Invertida",
         "liquify": "Licuar {{count}}",
+        "liquify_many": "Licuar {{count}}",
         "liquify_one": "Licuar {{count}}",
         "liquify_other": "Licuar {{count}}",
         "quickErase": "Borrado rápido {{count}}",
         "quickErase_many": "Borrado rápido {{count}}",
         "quickErase_one": "Borrado rápido {{count}}",
         "quickErase_other": "Borrado rápido {{count}}",
-        "retouch": "Retoque {{count}}"
+        "retouch": "Retoque {{count}}",
+        "retouch_many": "Retoque {{count}}",
+        "retouch_one": "Retoque {{count}}",
+        "retouch_other": "Retoque {{count}}"
       },
       "resetInpaintingTooltip": "Restablecer Inpainting",
       "settings": {
@@ -1527,6 +1583,11 @@
       "importImages": "Importar imágenes",
       "select": "Seleccionar"
     },
+    "viewMode": {
+      "culling": "Vista de cribado",
+      "grid": "Vista de cuadrícula",
+      "list": "Vista de lista"
+    },
     "photoCounts": {
       "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
       "emptyFolder": "No photos directly in this folder.",
@@ -1629,6 +1690,7 @@
       "descReplace": "Sobrescribe todos los ajustes seleccionados, restableciendo el resto a sus valores predeterminados.",
       "groups": {
         "aiDenoise": "Reducción de ruido con IA",
+        "blackWhite": "Blanco y negro",
         "chromaticAberration": "Aberración cromática",
         "clarityDehaze": "Claridad y Borrar neblina",
         "colorCalibration": "Calibración de color",
@@ -1754,6 +1816,7 @@
       "close": "Cerrar",
       "depthMap": "Mapa de profundidad",
       "description": "Combina varias imágenes con diferentes distancias de enfoque en una sola imagen perfectamente nítida.",
+      "descriptionWithCount_many": "Combina {{count}} imágenes con diferentes distancias de enfoque en una sola imagen perfectamente nítida.",
       "descriptionWithCount_one": "Combina {{count}} imagen con diferentes distancias de enfoque en una sola imagen perfectamente nítida.",
       "descriptionWithCount_other": "Combina {{count}} imágenes con diferentes distancias de enfoque en una sola imagen perfectamente nítida.",
       "failed": "Error en el apilamiento de enfoque",
@@ -2125,7 +2188,9 @@
       "toolFocusMode": "Modo de enfoque de herramientas",
       "toolFocusModeDesc": "Contrae automáticamente las demás herramientas de un panel cuando expandes una.",
       "xmpSync": "Sincronización de metadatos XMP",
-      "xmpSyncDesc": "Sincroniza puntuaciones, etiquetas de color y etiquetas a archivos sidecar XMP estándar para compatibilidad con otros editores de fotos."
+      "xmpSyncDesc": "Sincroniza puntuaciones, etiquetas de color y etiquetas a archivos sidecar XMP estándar para compatibilidad con otros editores de fotos.",
+      "writeJpegMetadata": "Write ratings and labels into JPEG files",
+      "writeJpegMetadataDesc": "Embed ratings, color labels and reject flags in original JPEGs without re-encoding pixels. Off by default; other formats keep using sidecars."
     },
     "keybinds": {
       "actions": {
@@ -2167,6 +2232,7 @@
         "toggle_adjustments": "Alternar panel de Ajustes",
         "toggle_ai": "Alternar panel de IA",
         "toggle_analytics": "Alternar vista de análisis",
+        "toggle_black_white": "Alternar blanco y negro",
         "toggle_bottom_panel": "Alternar tira de imágenes",
         "toggle_crop": "Alternar Recortar / Enderezar",
         "toggle_crop_panel": "Alternar panel de Recorte",
@@ -2644,5 +2710,16 @@
     "shifted": "{{shift}} display shift",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "jpegMetadata": {
+    "write": "Write metadata to files",
+    "undo": "Undo last metadata write",
+    "written_one": "Wrote JPEG metadata to {{count}} file.",
+    "written_other": "Wrote JPEG metadata to {{count}} files.",
+    "restored_one": "Restored metadata for {{count}} file.",
+    "restored_other": "Restored metadata for {{count}} files.",
+    "failed": "Metadata write failed: {{error}}",
+    "written_many": "Wrote JPEG metadata to {{count}} files.",
+    "restored_many": "Restored metadata for {{count}} files."
   }
 }

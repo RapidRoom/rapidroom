@@ -732,10 +732,12 @@ fn mask_table_to_xmp(key: &str, table: &LuaTable) -> Option<String> {
     Some(xml.0)
 }
 
-/// The shared brush mapper imports every `d` position, using one radius and
-/// flow per stroke. Catalogs can also change those values *within* a stroke;
-/// preserve the commands in XML and report their current rendering limitation.
+/// Grouped strokes preserve per-dab radius, flow and hardness. Stand-alone
+/// strokes still use one radius and flow, so report only their varying dabs.
 fn has_varying_dab_parameters(table: &LuaTable) -> bool {
+    if matches!(table.get("What"), Some(LuaValue::Str(what)) if what == "Mask/Aggregate") {
+        return false;
+    }
     if matches!(table.get("What"), Some(LuaValue::Str(what)) if what == "Mask/Paint")
         && let Some(LuaValue::Table(dabs)) = table.get("Dabs")
     {
@@ -883,6 +885,15 @@ mod tests {
         assert_eq!(converted.xmp.matches("<rdf:li>d ").count(), 2);
         let fixed = catalog_develop_to_xmp(&source.replace("'r 0.02',", ""), None).unwrap();
         assert!(fixed.unsupported.is_empty());
+
+        let grouped = catalog_develop_to_xmp(
+            "s = { MaskGroupBasedCorrections = { { CorrectionMasks = { { What='Mask/Aggregate', Masks={ { What='Mask/Paint', Radius=0.01, Flow=0.8, Dabs={'f 0.8', 'd 0.1 0.2', 'r 0.02', 'h 0.5', 'f 0.4', 'd 0.3 0.4'} } } } } } } }",
+            None,
+        ).unwrap();
+        assert!(grouped.unsupported.is_empty());
+        assert!(grouped.xmp.contains("<rdf:li>r 0.02</rdf:li>"));
+        assert!(grouped.xmp.contains("<rdf:li>h 0.5</rdf:li>"));
+        assert!(grouped.xmp.contains("<rdf:li>f 0.4</rdf:li>"));
     }
 
     #[test]

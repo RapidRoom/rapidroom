@@ -1,0 +1,14 @@
+{
+  "id": "upstream-sync-bd509d62",
+  "title": "Sync upstream main: Black & White mode, Ukrainian translation and tolerant sidecar flush",
+  "category": "feature",
+  "landed": "2026-10-28",
+  "authors": ["CyberTimon", "yojen7"],
+  "source": "CyberTimon/RapidRAW",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/c7b8283bce5c9bcfa038f7d4c7f5e3e336021c45","https://github.com/CyberTimon/RapidRAW/commit/526d0f38d5fb8cae9efddf085851976f90139d88","https://github.com/CyberTimon/RapidRAW/commit/34ea2ef648dad63ff539ca54559f354eb1b3d384","https://github.com/CyberTimon/RapidRAW/commit/0a2edce97c0d38d834de6b4cec78897309eefc0c","https://github.com/CyberTimon/RapidRAW/commit/e6289a0c1e35356406a0e67c2d61c0744e0ae5ba"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "highlight": "Black & White mode with film responses, colour filters, a B&W mixer and toning (toggle in the Color panel).",
+  "notes": "Adds the upstream B&W mode, the Ukrainian locale and plural forms, and sidecar saves that no longer fail when the filesystem cannot flush. RapidRoom's Lightroom grayscale import now uses the native B&W mode (monochromeEnabled, monochromeMix, monochromeToning) instead of the earlier saturation and HSL approximation. The sync-flush fix is applied to RapidRoom's shared atomic writer. The relative launch-path fix landed in both trees; RapidRoom's version, which also resolves the edit-session output path, is kept. The B&W mode is off by default, so existing edits should render unchanged."
+}

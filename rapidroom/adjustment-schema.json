@@ -1867,6 +1867,235 @@
     "lutSize": { "defaultType": "number", "default": 0 },
     "lutIsSceneReferred": { "defaultType": "boolean", "default": false },
     "masks": { "defaultType": "array", "default": [] },
+    "monochromeEnabled": { "defaultType": "boolean", "default": false },
+    "monochromeFilm": { "defaultType": "string", "default": "neutral" },
+    "monochromeFilterHue": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 360,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "filterHue"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "monochromeFilterStrength": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "filterStrength"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "monochromeMix": {
+      "defaultType": "object",
+      "default": {
+        "aquas": 0,
+        "blues": 0,
+        "greens": 0,
+        "magentas": 0,
+        "oranges": 0,
+        "purples": 0,
+        "reds": 0,
+        "yellows": 0
+      }
+    },
+    "monochromeMix.aquas": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "values[name] ?? 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "monochromeMix.blues": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "values[name] ?? 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "monochromeMix.greens": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "values[name] ?? 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "monochromeMix.magentas": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "values[name] ?? 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "monochromeMix.oranges": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "values[name] ?? 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "monochromeMix.purples": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "values[name] ?? 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "monochromeMix.reds": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "values[name] ?? 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "monochromeMix.yellows": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "values[name] ?? 0"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "monochromeToning": {
+      "defaultType": "object",
+      "default": { "balance": 0, "highlightHue": 40, "highlightSaturation": 0, "shadowHue": 220, "shadowSaturation": 0 }
+    },
+    "monochromeToning.balance": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": -100,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "toning.balance"
+        }
+      ],
+      "signConvention": "Zero is the neutral control value; positive values increase this UI control, negative values decrease it."
+    },
+    "monochromeToning.highlightHue": {
+      "defaultType": "number",
+      "default": 40,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 360,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "toning[hueKey]"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "monochromeToning.highlightSaturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "toning[saturationKey]"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "monochromeToning.shadowHue": {
+      "defaultType": "number",
+      "default": 220,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 360,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "toning[hueKey]"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
+    "monochromeToning.shadowSaturation": {
+      "defaultType": "number",
+      "default": 0,
+      "uiRanges": [
+        {
+          "minimum": 0,
+          "maximum": 100,
+          "step": 1,
+          "source": "src/components/adjustments/Color.tsx",
+          "valueExpression": "toning[saturationKey]"
+        }
+      ],
+      "signConvention": "Use the UI control value directly, within its listed range; do not normalize it to 0–1."
+    },
     "negativeBlueWeight": {
       "defaultType": "number",
       "default": 1,
@@ -2351,7 +2580,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 318,
+      "line": 327,
       "valueExpression": "colorGrading.blending",
       "changeExpression": "(e) => handleColorGradingSliderChange(ColorGrading.Blending, e.target.value)",
       "labelExpression": "t('adjustments.color.grading.blending')",
@@ -2362,7 +2591,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 328,
+      "line": 337,
       "valueExpression": "colorGrading.balance",
       "changeExpression": "(e) => handleColorGradingSliderChange(ColorGrading.Balance, e.target.value)",
       "labelExpression": "t('adjustments.color.grading.balance')",
@@ -2373,7 +2602,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 391,
+      "line": 400,
       "valueExpression": "colorCalibration.shadowsTint",
       "changeExpression": "(e) => handleShadowsChange(e.target.value)",
       "labelExpression": "t('adjustments.color.calibration.tint')",
@@ -2384,7 +2613,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 420,
+      "line": 429,
       "valueExpression": "currentValues.hue",
       "changeExpression": "(e) => handlePrimaryChange('Hue', e.target.value)",
       "labelExpression": "t('adjustments.color.calibration.hue')",
@@ -2395,7 +2624,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 432,
+      "line": 441,
       "valueExpression": "currentValues.saturation",
       "changeExpression": "(e) => handlePrimaryChange('Saturation', e.target.value)",
       "labelExpression": "t('adjustments.color.calibration.saturation')",
@@ -2410,7 +2639,82 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 575,
+      "line": 565,
+      "valueExpression": "filterHue",
+      "changeExpression": "(e: SliderChangeEvent) => handleChange('monochromeFilterHue', Number(e.target.value))",
+      "labelExpression": "t('adjustments.color.monochrome.hue')",
+      "minimum": 0,
+      "maximum": 360,
+      "step": 1,
+      "adjustmentKeys": ["monochromeFilterHue"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 577,
+      "valueExpression": "filterStrength",
+      "changeExpression": "(e: SliderChangeEvent) => handleChange('monochromeFilterStrength', Number(e.target.value))",
+      "labelExpression": "t('adjustments.color.monochrome.strength')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["monochromeFilterStrength"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 607,
+      "valueExpression": "values[name] ?? 0",
+      "changeExpression": "(e: SliderChangeEvent) => onChange(name, e.target.value)",
+      "labelExpression": "label",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": [
+        "monochromeMix.aquas",
+        "monochromeMix.blues",
+        "monochromeMix.greens",
+        "monochromeMix.magentas",
+        "monochromeMix.oranges",
+        "monochromeMix.purples",
+        "monochromeMix.reds",
+        "monochromeMix.yellows"
+      ]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 664,
+      "valueExpression": "toning[hueKey]",
+      "changeExpression": "(e: SliderChangeEvent) => handleToningChange(hueKey, e.target.value)",
+      "labelExpression": "t('adjustments.color.monochrome.hue')",
+      "minimum": 0,
+      "maximum": 360,
+      "step": 1,
+      "adjustmentKeys": ["monochromeToning.highlightHue", "monochromeToning.shadowHue"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 676,
+      "valueExpression": "toning[saturationKey]",
+      "changeExpression": "(e: SliderChangeEvent) => handleToningChange(saturationKey, e.target.value)",
+      "labelExpression": "t('adjustments.color.monochrome.saturation')",
+      "minimum": 0,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["monochromeToning.highlightSaturation", "monochromeToning.shadowSaturation"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 709,
+      "valueExpression": "toning.balance",
+      "changeExpression": "(e: SliderChangeEvent) => handleToningChange('balance', e.target.value)",
+      "labelExpression": "t('adjustments.color.monochrome.balance')",
+      "minimum": -100,
+      "maximum": 100,
+      "step": 1,
+      "adjustmentKeys": ["monochromeToning.balance"]
+    },
+    {
+      "source": "src/components/adjustments/Color.tsx",
+      "line": 880,
       "valueExpression": "hsl[color][property]",
       "changeExpression": "(e) => handleHslChange(color, property, e.target.value)",
       "labelExpression": "label",
@@ -2446,7 +2750,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 623,
+      "line": 928,
       "valueExpression": "displayedWhiteBalance.temperature",
       "changeExpression": "(e: SliderChangeEvent) => handleWhiteBalanceChange('temperature', e.target.value)",
       "labelExpression": "t('adjustments.color.temperature')",
@@ -2461,7 +2765,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 637,
+      "line": 942,
       "valueExpression": "displayedWhiteBalance.tint",
       "changeExpression": "(e: SliderChangeEvent) => handleWhiteBalanceChange('tint', e.target.value)",
       "labelExpression": "t('adjustments.color.tint')",
@@ -2476,7 +2780,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 658,
+      "line": 985,
       "valueExpression": "adjustments.vibrance || 0",
       "changeExpression": "(e) => handleAdjustmentChange(ColorAdjustment.Vibrance, e.target.value)",
       "labelExpression": "t('adjustments.color.vibrance')",
@@ -2487,7 +2791,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 667,
+      "line": 994,
       "valueExpression": "adjustments.saturation || 0",
       "changeExpression": "(e) => handleAdjustmentChange(ColorAdjustment.Saturation, e.target.value)",
       "labelExpression": "t('adjustments.color.saturation')",
@@ -2498,7 +2802,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 685,
+      "line": 1014,
       "valueExpression": "adjustments.hue || 0",
       "changeExpression": "(e) => handleAdjustmentChange(ColorAdjustment.Hue, e.target.value)",
       "labelExpression": "t('adjustments.color.hue')",
